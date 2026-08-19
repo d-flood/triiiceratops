@@ -3170,7 +3170,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             onDetach: (fn) => {
                 (detachWaiters ??= []).push(fn);
                 return () => {
-                    detachWaiters = detachWaiters?.filter((f) => f !== fn) ?? null;
+                    detachWaiters =
+                        detachWaiters?.filter((f) => f !== fn) ?? null;
                 };
             },
             setByteBudget: (bytes) => {

@@ -11,35 +11,39 @@
  */
 
 import { readBehaviors } from './behaviors';
+import { PLUGIN_META } from './identity';
 import type { AvCanvasScan } from './sources';
 
 /**
- * What each canvas has already been warned about, so a re-scan (a manifest
- * reload, a sequence change) does not repeat itself. Keyed by the canvas JSON
- * object, as core's own once-per-canvas warning is: the entry goes when the
- * manifest does, so this cannot grow without bound.
- *
- * Keyed by REASON as well as canvas, so that a canvas degraded two ways is
- * announced twice rather than once.
+ * Where every line below sends the curator. One pointer for the whole contract,
+ * so the prose here can stay a single cause line.
  */
-const warned = new WeakMap<object, Set<string>>();
+const SEE_DOCS = `. See ${PLUGIN_META.docs}`;
 
-function warnOnce(canvas: unknown, reason: string, message: string): void {
+/**
+ * The canvases already announced, one set per reason, so a canvas degraded two
+ * ways is announced twice rather than once.
+ *
+ * Keyed by the canvas JSON object, as core's own once-per-canvas warning is: the
+ * entry goes when the manifest does, so these cannot grow without bound.
+ */
+const warnedSpatial = new WeakSet<object>();
+const warnedCanvasRepeat = new WeakSet<object>();
+
+function warnOnce(
+    seen: WeakSet<object>,
+    canvas: unknown,
+    message: string,
+): void {
     if (!canvas || typeof canvas !== 'object') return;
-
-    let reasons = warned.get(canvas);
-    if (!reasons) {
-        reasons = new Set<string>();
-        warned.set(canvas, reasons);
-    }
-    if (reasons.has(reason)) return;
-    reasons.add(reason);
+    if (seen.has(canvas)) return;
+    seen.add(canvas);
 
     // triiiceratops-console-allow: the curator-facing degradation warning of
     // user story 45. There is no structured channel for it — it is not a viewer
     // error, and a `pluginerror` would make an honest degraded render look like
     // a failure. Recorded in lint-allowlist.md.
-    console.warn(`[triiiceratops] ${message}`);
+    console.warn(`[triiiceratops] ${message}${SEE_DOCS}`);
 }
 
 /**
@@ -55,12 +59,10 @@ export function warnAboutDegradation(
 ): void {
     if (scan.spatiallyTargeted) {
         warnOnce(
+            warnedSpatial,
             canvas,
-            'spatial',
-            `Canvas ${scan.canvasId} places time-based media into part of its rect ` +
-                `(an \`xywh=\` target). Spatial placement of audiovisual content is not ` +
-                `supported: the placement is ignored, and where this viewer plays the ` +
-                `media it fills the whole canvas rect.`,
+            `Canvas ${scan.canvasId} targets time-based media at \`xywh=\`; ` +
+                `spatial placement is unsupported, so the media fills the whole rect`,
         );
     }
 }
@@ -74,13 +76,12 @@ export function warnAboutCanvasRepeat(canvas: unknown): void {
     if (!readBehaviors(canvas).includes('repeat')) return;
 
     warnOnce(
+        warnedCanvasRepeat,
         canvas,
-        'canvas-repeat',
-        `Canvas ${(canvas as { id?: string }).id} carries the \`repeat\` behavior, ` +
-            `which IIIF Presentation 3 defines on Collections and Manifests only. ` +
-            `It is ignored here. \`repeat\` is not a per-canvas loop: on a Manifest, ` +
-            `and only alongside \`auto-advance\`, it returns to the first canvas ` +
-            `after the last one ends.`,
+        `Canvas ${(canvas as { id?: string }).id} carries \`repeat\`, which IIIF ` +
+            `Presentation 3 defines on Collections and Manifests only and not as a ` +
+            `per-canvas loop; it is ignored. On a Manifest, \`repeat\` with ` +
+            `\`auto-advance\` returns to the first canvas after the last`,
     );
 }
 
@@ -102,9 +103,9 @@ export function warnAboutUnreadableWaveform(url: string): void {
     // triiiceratops-console-allow: the same curator-facing degradation channel
     // as the warnings above. Recorded in lint-allowlist.md.
     console.warn(
-        `[triiiceratops] Waveform data at ${url} could not be read as ` +
-            `audiowaveform binary (.dat) or JSON, so no waveform is drawn. The ` +
-            `timeline still seeks.`,
+        `[triiiceratops] Waveform data at ${url} is neither audiowaveform ` +
+            `binary (.dat) nor JSON; no waveform is drawn, and the timeline ` +
+            `still seeks${SEE_DOCS}`,
     );
 }
 
@@ -127,10 +128,10 @@ export function warnAboutUnloadableCaptionTrack(url: string): void {
     // triiiceratops-console-allow: the same curator-facing degradation channel
     // as the warnings above. Recorded in lint-allowlist.md.
     console.warn(
-        `[triiiceratops] The caption track at ${url} could not be loaded, so it ` +
-            `is not offered. Text tracks are always fetched with CORS: serve the ` +
-            `VTT with an \`Access-Control-Allow-Origin\` header, or from the ` +
-            `viewer's own origin.`,
+        `[triiiceratops] The caption track at ${url} would not load, so it is ` +
+            `not offered; text tracks are always fetched with CORS, so serve the ` +
+            `VTT with \`Access-Control-Allow-Origin\` or from the viewer's own ` +
+            `origin${SEE_DOCS}`,
     );
 }
 
@@ -151,9 +152,9 @@ export function warnAboutUnloadableHlsChunk(cause: unknown): void {
     // triiiceratops-console-allow: the same curator-facing degradation channel
     // as the warnings above. Recorded in lint-allowlist.md.
     console.warn(
-        `[triiiceratops] The hls.js chunk could not be loaded, so HLS canvases ` +
-            `cannot play. Serve dist/iife.js from its own directory, beside the ` +
-            `chunks it fetches.`,
+        `[triiiceratops] The hls.js chunk would not load, so HLS canvases ` +
+            `cannot play; serve dist/iife.js beside the chunks it fetches` +
+            SEE_DOCS,
         cause,
     );
 }

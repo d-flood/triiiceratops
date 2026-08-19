@@ -31,9 +31,11 @@ export function getCanvasId(canvas: any): string {
     return getResourceId(canvas) || '';
 }
 
-export function getAnnotationId(annotation: any): string {
-    return annotation?.id || annotation?.['@id'] || '';
-}
+/**
+ * {@link getCanvasId} under the name its annotation callers read it by: the
+ * `id`/`@id` read is the same one, and `''` means "no id" for both.
+ */
+export const getAnnotationId = getCanvasId;
 
 export function findCanvasIndexById(
     canvases: any[],

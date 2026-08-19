@@ -23,12 +23,14 @@ const VIDEO: AvSource = {
     url: 'https://example.org/clip.mp4',
     kind: 'video',
     format: 'video/mp4',
+    paintsPicture: true,
 };
 
 const AUDIO: AvSource = {
     url: 'https://example.org/tone.mp3',
     kind: 'audio',
     format: 'audio/mpeg',
+    paintsPicture: false,
 };
 
 /** Every `place` needs the visible box the waveform surface clips against. */
@@ -63,6 +65,16 @@ function visualLaneOf(stage: { root: HTMLElement }): HTMLElement {
     return stage.root.querySelector<HTMLElement>(
         '[data-testid="av-visual-lane"]',
     )!;
+}
+
+/**
+ * Whether this stage is showing the "can't play" treatment — read off the notice
+ * the reader sees, which is the only place the stage publishes the answer.
+ */
+function showsCannotPlay(stage: { root: HTMLElement }): boolean {
+    return !stage.root.querySelector<HTMLElement>(
+        '[data-testid="av-cannot-play"]',
+    )!.hidden;
 }
 
 /**
@@ -156,6 +168,7 @@ describe('an HLS source', () => {
         url: 'https://example.org/stream.m3u8',
         kind: 'video',
         format: 'application/vnd.apple.mpegurl',
+        paintsPicture: true,
     };
 
     // The loader is a module-level mock, so its call record outlives a test.
@@ -207,7 +220,7 @@ describe('an HLS source', () => {
         expect(stage.media.hasAttribute('src')).toBe(false);
         expect(attachHlsStream.mock.calls[0][0]).toBe(stage.media);
         expect(attachHlsStream.mock.calls[0][1]).toBe(HLS.url);
-        expect(stage.unplayable).toBe(false);
+        expect(showsCannotPlay(stage)).toBe(false);
     });
 
     it('leaves a progressive source alone', async () => {
@@ -224,7 +237,7 @@ describe('an HLS source', () => {
         vi.mocked(loadHls).mockResolvedValue(null);
 
         const stage = stageFor(HLS);
-        await vi.waitFor(() => expect(stage.unplayable).toBe(true));
+        await vi.waitFor(() => expect(showsCannotPlay(stage)).toBe(true));
 
         expect(
             stage.root.querySelector<HTMLElement>(
@@ -241,7 +254,7 @@ describe('an HLS source', () => {
         } as unknown as Awaited<ReturnType<typeof loadHls>>);
 
         const stage = stageFor(HLS);
-        await vi.waitFor(() => expect(stage.unplayable).toBe(true));
+        await vi.waitFor(() => expect(showsCannotPlay(stage)).toBe(true));
     });
 
     it('shows the same treatment when attaching the player throws', async () => {
@@ -253,7 +266,7 @@ describe('an HLS source', () => {
         } as unknown as Awaited<ReturnType<typeof loadHls>>);
 
         const stage = stageFor(HLS);
-        await vi.waitFor(() => expect(stage.unplayable).toBe(true));
+        await vi.waitFor(() => expect(showsCannotPlay(stage)).toBe(true));
 
         expect(
             stage.root.querySelector<HTMLElement>(
@@ -284,6 +297,7 @@ describe('an HLS source', () => {
             url: 'https://example.org/clip.mp4',
             kind: 'video',
             format: 'video/mp4',
+            paintsPicture: true,
         });
         await vi.waitFor(() => expect(loadHls).toHaveBeenCalled());
         await Promise.resolve();
@@ -304,12 +318,13 @@ describe('an HLS source', () => {
             url: 'https://example.org/clip.mp4',
             kind: 'video',
             format: 'video/mp4',
+            paintsPicture: true,
         });
         await vi.waitFor(() => expect(loadHls).toHaveBeenCalled());
         await Promise.resolve();
 
         // The abandoned stream's failure is not the MP4's.
-        expect(stage.unplayable).toBe(false);
+        expect(showsCannotPlay(stage)).toBe(false);
     });
 
     it('attaches nothing to a stage torn down while the chunk was in flight', async () => {
@@ -334,13 +349,13 @@ describe('a failed stream', () => {
         );
 
         expect(notice?.hidden).toBe(true);
-        expect(stage.unplayable).toBe(false);
+        expect(showsCannotPlay(stage)).toBe(false);
 
         stage.media.dispatchEvent(new Event('error'));
 
         expect(notice?.hidden).toBe(false);
         expect(notice?.textContent).toBe('This media cannot be played here.');
-        expect(stage.unplayable).toBe(true);
+        expect(showsCannotPlay(stage)).toBe(true);
     });
 
     it('takes the picture away, so the notice is not read beside a black box', () => {
@@ -391,6 +406,7 @@ describe('a source swap between choice renditions', () => {
         url: 'https://example.org/clip-low.mp4',
         kind: 'video',
         format: 'video/mp4',
+        paintsPicture: true,
     };
 
     /** jsdom's `paused` is a getter, so playing is staged rather than done. */
@@ -446,12 +462,12 @@ describe('a source swap between choice renditions', () => {
     it('clears the treatment the old rendition earned', () => {
         const stage = stageFor(VIDEO);
         stage.media.dispatchEvent(new Event('error'));
-        expect(stage.unplayable).toBe(true);
+        expect(showsCannotPlay(stage)).toBe(true);
 
         stage.setSource(MP4_LOW);
 
         // A rendition the browser refused says nothing about the next one.
-        expect(stage.unplayable).toBe(false);
+        expect(showsCannotPlay(stage)).toBe(false);
         expect(
             stage.root.querySelector<HTMLElement>(
                 '[data-testid="av-cannot-play"]',
@@ -464,6 +480,7 @@ describe('a source swap between choice renditions', () => {
             url: 'https://example.org/clip-high.mp4',
             kind: 'video',
             format: 'video/mp4',
+            paintsPicture: true,
         };
         const stage = stageFor(VIDEO);
         const play = vi.spyOn(stage.media, 'play').mockResolvedValue(undefined);
@@ -489,6 +506,7 @@ describe('a source swap between choice renditions', () => {
             url: 'https://example.org/clip-high.mp4',
             kind: 'video',
             format: 'video/mp4',
+            paintsPicture: true,
         };
         const stage = stageFor(VIDEO);
         const play = vi.spyOn(stage.media, 'play').mockResolvedValue(undefined);
@@ -779,6 +797,7 @@ describe('a canvas whose placeholder core paints', () => {
             url: 'https://example.org/stream.m3u8',
             kind: 'video',
             format: 'application/vnd.apple.mpegurl',
+            paintsPicture: true,
         });
         await vi.waitFor(() => expect(attachHlsStream).toHaveBeenCalled());
         withReadyState(stage.media, 0);
@@ -974,7 +993,7 @@ describe('destroy', () => {
         tap(visualLaneOf(stage));
 
         expect(changes).toEqual([]);
-        expect(stage.unplayable).toBe(false);
+        expect(showsCannotPlay(stage)).toBe(false);
         expect(play).not.toHaveBeenCalled();
     });
 });

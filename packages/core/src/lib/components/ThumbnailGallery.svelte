@@ -5,11 +5,7 @@
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages, language } from '../state/i18n.svelte';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
-    import {
-        getPaintingAnnotations,
-        getPaintingBody,
-        isChoiceBody,
-    } from '../utils/iiifParsing';
+    import { getCanvasChoices } from '../utils/iiifParsing';
     import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
     import { getCanvasLabel } from '../utils/canvasLabels';
     import { getCanvasId, getPagedCanvasGroups } from './viewerControls';
@@ -37,21 +33,12 @@
         (viewerState.config as { locale?: string }).locale || language.current,
     );
 
-    let { canvases } = $props<{ canvases?: ManifestCanvas[] }>();
-
     let galleryElement: HTMLElement | null = $state(null);
 
-    let thumbnails = $derived.by(() => {
-        if (!canvases || !Array.isArray(canvases))
-            return [] as Array<{
-                id: string;
-                label: string;
-                src: string;
-                index: number;
-                hasChoice: boolean;
-                unsupported: boolean;
-            }>;
-        return canvases.map((canvas: ManifestCanvas, index: number) => {
+    let canvases = $derived(viewerState.canvases as ManifestCanvas[]);
+
+    let thumbnails = $derived.by(() =>
+        canvases.map((canvas: ManifestCanvas, index: number) => {
             const canvasId = getCanvasId(canvas) || `canvas-${index}`;
             // Resolved over the reader's selected alternative, the same body
             // `unsupported` below is decided on.
@@ -60,26 +47,6 @@
                 200,
                 viewerState.getSelectedChoice(canvasId),
             );
-            let hasChoice = false;
-
-            try {
-                const images = getPaintingAnnotations(canvas);
-                if (images && images.length > 0) {
-                    const anno = images[0];
-
-                    // The painting body is `body` in v3 and `resource` in v2,
-                    // and the Choice inside it is `Choice` in v3 and
-                    // `oa:Choice` in v2. Only the v3 half was recognized, so a
-                    // v2 Choice canvas never showed the badge.
-                    const body = getPaintingBody(anno);
-
-                    if (isChoiceBody(body)) {
-                        hasChoice = true;
-                    }
-                }
-            } catch {
-                hasChoice = false;
-            }
 
             return {
                 id: canvasId,
@@ -88,7 +55,7 @@
                 label: getCanvasLabel(canvas, index, viewerLocale),
                 src,
                 index,
-                hasChoice,
+                hasChoice: getCanvasChoices(canvas).length > 0,
                 // The AV variant of the no-thumbnail treatment. A canvas core
                 // cannot render has no image to fall back to and would
                 // otherwise be indistinguishable from a folio whose thumbnail
@@ -103,25 +70,29 @@
                     isUnsupportedCanvasFor(viewerState, canvas) &&
                     !viewerState.isCanvasClaimed(canvasId),
             };
-        });
-    });
+        }),
+    );
+
+    /**
+     * The paged pairing of the whole manifest. Only meaningful in `paged` mode,
+     * and only read there — the grouping, the click target, and the auto-scroll
+     * target are the same pairs, so they are computed once.
+     */
+    let pagedGroups = $derived(
+        getPagedCanvasGroups(canvases, viewerState.pagedOffset),
+    );
+
+    /** The paged pair a canvas belongs to. */
+    function groupOf(canvasId: string) {
+        return pagedGroups.find((group) =>
+            group.entries.some((entry) => entry.canvasId === canvasId),
+        );
+    }
 
     function selectCanvas(canvasId: string) {
         if (viewerState.viewingMode === 'paged') {
-            const pagedGroups = getPagedCanvasGroups(
-                canvases || [],
-                viewerState.pagedOffset,
-            );
-            const group = pagedGroups.find((group) =>
-                group.entries.some(
-                    (entry: { canvasId: string }) =>
-                        entry.canvasId === canvasId,
-                ),
-            );
-
-            if (group?.entries[0]?.canvasId) {
-                viewerState.setCanvas(group.entries[0].canvasId);
-            }
+            const first = groupOf(canvasId)?.entries[0]?.canvasId;
+            if (first) viewerState.setCanvas(first);
         } else {
             viewerState.setCanvas(canvasId);
         }
@@ -152,20 +123,7 @@
         let targetId = viewerState.canvasId;
 
         if (viewerState.viewingMode === 'paged') {
-            const pagedGroups = getPagedCanvasGroups(
-                canvases || [],
-                viewerState.pagedOffset,
-            );
-            const group = pagedGroups.find((group) =>
-                group.entries.some(
-                    (entry: { canvasId: string }) =>
-                        entry.canvasId === targetId,
-                ),
-            );
-
-            if (group) {
-                targetId = group.entries[0]?.canvasId || targetId;
-            }
+            targetId = groupOf(targetId)?.entries[0]?.canvasId || targetId;
         }
 
         const activeEl = galleryElement.querySelector(
@@ -328,11 +286,6 @@
             );
         }
 
-        const pagedGroups = getPagedCanvasGroups(
-            canvases || [],
-            viewerState.pagedOffset,
-        );
-
         for (const pagedGroup of pagedGroups) {
             const i = pagedGroup.startIndex;
             const first = thumbs[i];
@@ -475,11 +428,9 @@
                     })()}
                     <button
                         class={['thumb-item', isGroupSelected && 'selected']}
-                        style="{isHorizontal
-                            ? `height: ${thumbItemHeight}px;`
-                            : ''}{isGroupSelected
-                            ? 'outline: 2px solid var(--tri-color-primary); outline-offset: -2px;'
-                            : ''}"
+                        style={isHorizontal
+                            ? `height: ${thumbItemHeight}px`
+                            : undefined}
                         onclick={() => selectCanvas(thumbGroup.id)}
                         data-id={thumbGroup.id}
                         aria-label="Select canvas {thumbGroup.labels.join(
@@ -880,6 +831,8 @@
             var(--tri-color-primary) 5%,
             transparent
         );
+        outline: 2px solid var(--tri-color-primary);
+        outline-offset: -2px;
     }
 
     /* ===== Thumbnail frame (image container) =====

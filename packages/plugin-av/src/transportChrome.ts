@@ -9,6 +9,17 @@
  * beside it that are not playback state — the buffered ranges, the waveform
  * strip, and which text tracks actually loaded.
  *
+ * The view model is held in core's vocabulary rather than this plugin's, so a
+ * read is a shallow spread instead of a field-by-field copy through a renaming
+ * layer. Captions are therefore "tracks" here, as they are to a core that models
+ * no medium; `catalog.ts` is where they are captions again.
+ *
+ * Nothing here is reactive. Core reads through `$state.raw` and assigns the
+ * result, so the signal core acts on is {@link Transport.subscribe}'s callback
+ * and the identity of the object {@link Transport.view} hands back — never a
+ * dependency taken on a field. `$state` would only buy a Proxy per playback
+ * frame that nothing reads through.
+ *
  * Times crossing to core are FRACTIONS of the canvas timeline, never seconds:
  * core knows no clock. `seek` converts back at this boundary, and the seek-step
  * policy stays here, on the view.
@@ -20,7 +31,6 @@ import {
     type BufferedSpan,
     bufferedSpans,
     captionOptions,
-    elementSpans,
     formatMediaTime,
     fractionToTime,
     SEEK_STEP_LARGE,
@@ -30,7 +40,15 @@ import {
     volumeIsSettable,
 } from './transport';
 
-/** Every string the transport shows or announces, in the active locale. */
+/**
+ * Every string the transport shows or announces, in the active locale.
+ *
+ * Core's `TransportChromeLabels` keys, so the labels cross the seam by
+ * reference, plus the one name core has no use for. The clock readings carry no
+ * label: core's two spans are `aria-hidden`, because a `<span>` maps to role
+ * `generic`, which prohibits an accessible name — the scrubber's
+ * `aria-valuetext` announces the whole reading instead.
+ */
 export interface TransportLabels {
     readonly transport: string;
     readonly play: string;
@@ -39,22 +57,23 @@ export interface TransportLabels {
     readonly mute: string;
     readonly unmute: string;
     readonly volume: string;
-    readonly elapsed: string;
-    readonly duration: string;
-    readonly captions: string;
-    readonly captionsOff: string;
-    /** The generic name for a track that declares neither label nor language. */
-    readonly captionsTrack: string;
+    readonly tracks: string;
+    readonly tracksOff: string;
     readonly transcript: string;
+    /**
+     * The generic name for a track that declares neither label nor language.
+     * Read here to build {@link TransportView.tracks} and never sent onward:
+     * core renders the names, not the policy that chose them.
+     */
+    readonly trackFallback: string;
 }
 
 /**
- * The view model, in this plugin's own vocabulary.
+ * The view model, shaped as core's `TransportChromeView`.
  *
- * Structurally core's `TransportChromeView` with two differences that are this
- * side's business: captions are named captions rather than "alternative text
- * tracks", and the labels are this plugin's catalog keys. {@link Transport.view}
- * is where the two meet.
+ * Structural rather than typed against the import so this module's own tests
+ * need no core — but it is the same contract, field for field, and must stay
+ * that way: {@link Transport.view} hands a copy of this straight over.
  */
 export interface TransportView {
     /** A current canvas this activation has claimed. `false` renders nothing. */
@@ -64,7 +83,7 @@ export interface TransportView {
     currentTime: number;
     /** `currentTime` as `0..1` of the duration — the scrubber's own coordinate. */
     fraction: number;
-    buffered: BufferedSpan[];
+    buffered: readonly BufferedSpan[];
     muted: boolean;
     volume: number;
     /** False where programmatic volume is read-only (iOS): the slider hides. */
@@ -76,25 +95,31 @@ export interface TransportView {
      * a locale change re-announces it even on a paused canvas, where no clock
      * tick would otherwise recompute it.
      */
-    position: string;
+    positionText: string;
+    elapsedText: string;
+    durationText: string;
     /**
      * The whole recording drawn once as a picture, for the scrubber's static
      * strip, or `null` when this canvas links no waveform data. It is how
      * waveform data reaches a video canvas, which gets no timeline lane in v1.
      */
-    peaksStrip: string | null;
+    strip: string | null;
     /** Only tracks that LOADED, so a control over them can never be inert. */
-    captionOptions: { id: string; label: string }[];
+    tracks: readonly { id: string; label: string }[];
     /** The showing track's id, or `null` for off. */
-    activeCaption: string | null;
+    activeTrack: string | null;
     /**
      * Whether this canvas offers a transcript — timed cues or a linked file.
      * False renders no control, so the button never appears over a recording
      * whose words are nowhere.
      */
-    hasTranscript: boolean;
+    transcript: boolean;
     /** Whether the plugin's panel, where the transcript is read, is showing. */
-    panelOpen: boolean;
+    transcriptOpen: boolean;
+    /** Seconds an arrow moves the playhead. */
+    stepSmall: number;
+    /** Seconds a page key moves the playhead. */
+    stepLarge: number;
     labels: TransportLabels;
 }
 
@@ -115,8 +140,8 @@ export interface AudioPrefs {
 }
 
 export function createAudioPrefs(): AudioPrefs {
-    let volume = $state(1);
-    let muted = $state(false);
+    let volume = 1;
+    let muted = false;
 
     return {
         get volume(): number {
@@ -148,11 +173,12 @@ export interface TransportOptions {
     currentMedia(): HTMLMediaElement | null;
     /**
      * That element's buffered ranges as CANVAS-time spans, so they land where
-     * they belong on a scrubber that spans the whole canvas. Omitted wherever
-     * the canvas timeline is the element's own clock, which is
-     * {@link elementSpans}.
+     * they belong on a scrubber that spans the whole canvas. Wherever the canvas
+     * timeline IS the element's own clock this is `elementSpans` — passed in
+     * rather than defaulted to here, because which mapping applies is a property
+     * of how the canvas was composed and only the caller knows it.
      */
-    bufferedSpans?(ranges: TimeRanges | null | undefined): readonly TimeSpan[];
+    bufferedSpans(ranges: TimeRanges | null | undefined): readonly TimeSpan[];
     readonly prefs: AudioPrefs;
     labels(): TransportLabels;
     /** The current canvas's scrubber strip as a data URL, or `null`. */
@@ -195,45 +221,12 @@ export interface TransportPort {
 
 export interface Transport {
     /**
-     * The chrome as core reads it. Shaped to core's `TransportChromeView` —
-     * kept structural rather than typed against the import so this module's own
-     * tests need no core.
+     * The chrome as core reads it: a COPY of the held state, never the state
+     * object itself. Core keeps the result in `$state.raw` and `===`-compares
+     * the assignment, so handing back the same reference twice would silently
+     * stop every re-read from reaching the controls.
      */
-    view(): {
-        present: boolean;
-        paused: boolean;
-        duration: number | null;
-        currentTime: number;
-        fraction: number;
-        buffered: readonly { start: number; end: number }[];
-        muted: boolean;
-        volume: number;
-        volumeSettable: boolean;
-        positionText: string;
-        elapsedText: string;
-        durationText: string;
-        strip: string | null;
-        tracks: readonly { id: string; label: string }[];
-        activeTrack: string | null;
-        transcript: boolean;
-        transcriptOpen: boolean;
-        stepSmall: number;
-        stepLarge: number;
-        labels: {
-            transport: string;
-            play: string;
-            pause: string;
-            elapsed: string;
-            seek: string;
-            duration: string;
-            mute: string;
-            unmute: string;
-            volume: string;
-            tracks: string;
-            tracksOff: string;
-            transcript: string;
-        };
-    };
+    view(): TransportView;
     readonly port: TransportPort;
     /** Core's re-read cadence: AVState's two, handed over. Returns an unsubscribe. */
     subscribe(onChange: () => void): () => void;
@@ -251,7 +244,7 @@ export interface Transport {
 export function createTransport(options: TransportOptions): Transport {
     const { avState, prefs } = options;
 
-    const view = $state<TransportView>({
+    const state: TransportView = {
         present: false,
         paused: true,
         duration: null,
@@ -261,45 +254,35 @@ export function createTransport(options: TransportOptions): Transport {
         muted: prefs.muted,
         volume: prefs.volume,
         volumeSettable: true,
-        position: '',
-        peaksStrip: null,
-        captionOptions: [],
-        activeCaption: null,
-        hasTranscript: false,
-        panelOpen: false,
+        positionText: '',
+        elapsedText: '',
+        durationText: '',
+        strip: null,
+        tracks: [],
+        activeTrack: null,
+        transcript: false,
+        transcriptOpen: false,
+        stepSmall: SEEK_STEP_SMALL,
+        stepLarge: SEEK_STEP_LARGE,
         labels: options.labels(),
-    });
+    };
 
     // Probing costs a write and a read on the element, so it is done once per
     // element rather than once per frame.
     let probed: HTMLMediaElement | null = null;
 
-    /**
-     * Who core tells when to re-read: one callback, the render site's.
-     *
-     * Deliberately non-reactive. Nothing on this side renders from the set —
-     * the signal is the callback, which core turns into its own state write.
-     */
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    /** Who core tells when to re-read: one callback, the render site's. */
     const listeners = new Set<() => void>();
 
     function announce(): void {
         for (const listener of [...listeners]) listener();
     }
 
-    /** The playhead as the announced clock reading, in the active locale. */
-    function positionText(): string {
-        return options.t('av_position', {
-            current: formatMediaTime(view.currentTime, view.duration),
-            total: formatMediaTime(view.duration, view.duration),
-        });
-    }
-
     function refresh(): void {
         const media = options.currentMedia();
         if (media && media !== probed) {
             probed = media;
-            view.volumeSettable = volumeIsSettable(media);
+            state.volumeSettable = volumeIsSettable(media);
             // Volume and mute are remembered per activation, not per canvas,
             // and every stage is built up front — so the moment a navigation
             // brings a new element under this chrome is the moment it has to be
@@ -310,42 +293,49 @@ export function createTransport(options: TransportOptions): Transport {
         // No current claimed canvas is the transient case a navigation to an
         // image page puts the chrome in. It stays REGISTERED and renders
         // nothing, rather than deregistering and re-registering per page.
-        view.present = media !== null;
-        view.paused = avState.paused;
-        view.duration = avState.duration;
-        view.currentTime = avState.currentTime;
-        view.fraction = timeFraction(view.currentTime, view.duration);
-        view.buffered = bufferedSpans(
-            (options.bufferedSpans ?? elementSpans)(media?.buffered),
-            view.duration,
+        state.present = media !== null;
+        state.paused = avState.paused;
+        state.duration = avState.duration;
+        state.currentTime = avState.currentTime;
+        state.fraction = timeFraction(state.currentTime, state.duration);
+        state.buffered = bufferedSpans(
+            options.bufferedSpans(media?.buffered),
+            state.duration,
         );
-        view.muted = prefs.muted;
-        view.volume = prefs.volume;
-        view.position = positionText();
-        view.peaksStrip = options.peaksStrip();
+        state.muted = prefs.muted;
+        state.volume = prefs.volume;
+        // The two clock readings and the announced position are one formatting
+        // job rather than three: the announcement is built out of the readings.
+        state.elapsedText = formatMediaTime(state.currentTime, state.duration);
+        state.durationText = formatMediaTime(state.duration, state.duration);
+        state.positionText = options.t('av_position', {
+            current: state.elapsedText,
+            total: state.durationText,
+        });
+        state.strip = options.peaksStrip();
 
         const captions = options.captions();
-        view.captionOptions = captionOptions(
+        state.tracks = captionOptions(
             captions.tracks,
-            view.labels.captionsTrack,
+            state.labels.trackFallback,
         );
-        view.activeCaption = captions.active;
+        state.activeTrack = captions.active;
 
-        view.hasTranscript = options.hasTranscript();
-        view.panelOpen = options.panelOpen();
+        state.transcript = options.hasTranscript();
+        state.transcriptOpen = options.panelOpen();
 
         announce();
     }
 
     const port: TransportPort = {
         toggle(): void {
-            if (view.paused) avState.play();
+            if (state.paused) avState.play();
             else avState.pause();
         },
         seek(fraction: number): void {
             // Core's coordinate is the scrubber's; the canvas timeline's is
             // seconds. The conversion lives here because core knows no clock.
-            const seconds = fractionToTime(fraction, view.duration);
+            const seconds = fractionToTime(fraction, state.duration);
             if (seconds === null) return;
             avState.seek(seconds);
             // AVState notifies on its own cadence; pulling the view forward now
@@ -383,43 +373,8 @@ export function createTransport(options: TransportOptions): Transport {
     refresh();
 
     return {
-        view() {
-            const { labels } = view;
-            return {
-                present: view.present,
-                paused: view.paused,
-                duration: view.duration,
-                currentTime: view.currentTime,
-                fraction: view.fraction,
-                buffered: view.buffered,
-                muted: view.muted,
-                volume: view.volume,
-                volumeSettable: view.volumeSettable,
-                positionText: view.position,
-                elapsedText: formatMediaTime(view.currentTime, view.duration),
-                durationText: formatMediaTime(view.duration, view.duration),
-                strip: view.peaksStrip,
-                tracks: view.captionOptions,
-                activeTrack: view.activeCaption,
-                transcript: view.hasTranscript,
-                transcriptOpen: view.panelOpen,
-                stepSmall: SEEK_STEP_SMALL,
-                stepLarge: SEEK_STEP_LARGE,
-                labels: {
-                    transport: labels.transport,
-                    play: labels.play,
-                    pause: labels.pause,
-                    elapsed: labels.elapsed,
-                    seek: labels.seek,
-                    duration: labels.duration,
-                    mute: labels.mute,
-                    unmute: labels.unmute,
-                    volume: labels.volume,
-                    tracks: labels.captions,
-                    tracksOff: labels.captionsOff,
-                    transcript: labels.transcript,
-                },
-            };
+        view(): TransportView {
+            return { ...state };
         },
         port,
         subscribe(onChange: () => void): () => void {
@@ -430,10 +385,10 @@ export function createTransport(options: TransportOptions): Transport {
         },
         refresh,
         retranslate(): void {
-            view.labels = options.labels();
-            view.position = positionText();
-            // The generic track name is localized, so a locale change has to
-            // rebuild the options a nameless track is listed under.
+            state.labels = options.labels();
+            // `refresh` is what rebuilds everything the locale reaches: the
+            // options a nameless track is listed under, and the announced
+            // position.
             refresh();
         },
         destroy(): void {

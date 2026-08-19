@@ -18,6 +18,12 @@ export default defineConfig({
     resolve: { conditions: ['browser'] },
     test: {
         coverage,
+        // Vitest stubs CSS to an empty string by default, `?raw` imports
+        // included, and the stage tests assert computed styles against the real
+        // sheet (`styles.ts` → `stage.css`). Named rather than turned on
+        // wholesale: every other stylesheet here belongs to a component whose
+        // tests assert markup, and injecting those would change what they see.
+        css: { include: [/stage\.css/] },
         environment: 'jsdom',
         include: ['src/**/*.test.ts'],
         globals: false,

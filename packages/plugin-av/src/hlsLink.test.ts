@@ -12,6 +12,7 @@ function source(partial: Partial<AvSource>): AvSource {
         url: 'https://example.org/stream.m3u8',
         kind: 'video',
         format: null,
+        paintsPicture: true,
         ...partial,
     };
 }

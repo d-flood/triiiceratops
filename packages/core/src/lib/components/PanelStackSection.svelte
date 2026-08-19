@@ -73,9 +73,9 @@
             <span class="icon">
                 <PluginIcon descriptor={panel.iconDescriptor} size={18} />
             </span>
-        {:else if panel.icon}
+        {:else if panel.iconName}
             <span class="icon">
-                <panel.icon size={18} weight="bold" />
+                <Icon name={panel.iconName} size={18} weight="bold" />
             </span>
         {/if}
         <span class="title">{panel.title}</span>
@@ -93,6 +93,12 @@
         {/if}
     </div>
     <div class="content">
+        <!--
+        No core panel declares `embedded` any more — they render one way. It is
+        still passed because plugin panels may declare it, and the annotation
+        editor's does: this is the only signal telling a plugin panel it is
+        mounted in the stack rather than standing alone.
+        -->
         <panel.component {...panel.props ?? {}} embedded={true} />
     </div>
 </section>

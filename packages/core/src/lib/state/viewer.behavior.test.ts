@@ -752,4 +752,36 @@ describe('ViewerState manifest behavior', () => {
         expect(state.preserveCanvasScale).toBe(true);
         expect(state.getSnapshot().preserveCanvasScale).toBe(true);
     });
+
+    it('reports the canvas index within the selected sequence', async () => {
+        const id = 'http://example.org/manifest/multi-sequence-snapshot';
+        await load({
+            '@context': 'http://iiif.io/api/presentation/2/context.json',
+            '@id': id,
+            '@type': 'sc:Manifest',
+            label: 'Multi-sequence fixture',
+            sequences: [
+                {
+                    '@id': `${id}/sequence/1`,
+                    '@type': 'sc:Sequence',
+                    canvases: [v2Canvas(CANVAS_1), v2Canvas(CANVAS_2)],
+                },
+                {
+                    '@id': `${id}/sequence/2`,
+                    '@type': 'sc:Sequence',
+                    canvases: [v2Canvas(CANVAS_3), v2Canvas(CANVAS_4)],
+                },
+            ],
+        });
+
+        expect(state.sequenceCount).toBe(2);
+        expect(state.getSnapshot().currentCanvasIndex).toBe(0);
+
+        state.setSequenceIndex(1);
+        state.setCanvas(CANVAS_4);
+
+        // Read against the SELECTED sequence, not sequence 0, where CANVAS_4
+        // does not appear at all.
+        expect(state.getSnapshot().currentCanvasIndex).toBe(1);
+    });
 });

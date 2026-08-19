@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
+import dropLightDomOnly from './src/packaging/dropLightDomOnly';
 import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
 import { messageCompiler } from './src/packaging/messageCompiler';
 import { minifyCssPreprocessor } from './src/packaging/minifyCss';
@@ -51,6 +52,13 @@ export default defineConfig({
     esbuild: {
         pure: ['console.log', 'console.debug'],
         drop: ['debugger'],
+    },
+    css: {
+        // `app.css?inline` goes into the shadow root, which never holds the
+        // elements the marked reset rules target. Registered here and in
+        // vite.config.element-esm.ts ONLY; every other build — the demo
+        // documents and the published light-DOM sheet — gets the sheets whole.
+        postcss: { plugins: [dropLightDomOnly()] },
     },
     build: {
         // Lowering private fields leaks helpers outside Vite's generated IIFE.

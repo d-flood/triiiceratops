@@ -17,6 +17,7 @@
 
 import { toPlannerCanvas } from './canvasDescriptors';
 import type { PlannerCanvas, PlannerImage } from './types';
+import type { ChoiceSelection } from '../utils/paintingBodies';
 import { getDeclaredCanvasDimensions } from '../utils/resolveCanvasImage';
 
 import type { CompanionPhase } from '../state/viewer.svelte';
@@ -29,6 +30,10 @@ const COMPANION_PROPERTIES = {
     accompanying: 'accompanyingCanvas',
 } as const;
 
+/** Either of the two property names, as a claimant spells it when asking. */
+export type CompanionProperty =
+    (typeof COMPANION_PROPERTIES)[keyof typeof COMPANION_PROPERTIES];
+
 /**
  * One claimed canvas's companions, resolved once.
  *
@@ -36,6 +41,10 @@ const COMPANION_PROPERTIES = {
  * a choice between two values already in hand, not a re-plan (user story 29),
  * which is why both companions are resolved together and the phase appears
  * nowhere in this file except in {@link withCompanion}'s signature.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export interface CompanionCanvases {
     /**
@@ -157,6 +166,10 @@ function fitWithin(
  *   image — paints nothing and warns. The claimed canvas keeps the treatment it
  *   would otherwise have had, so a broken companion costs a picture rather than
  *   the canvas (user story 23).
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export function resolveCompanionCanvases(
     canvas: unknown,
@@ -248,6 +261,45 @@ export function resolveCompanionCanvases(
 }
 
 /**
+ * Whether core will paint the companion this canvas carries under `property`.
+ *
+ * The claimant's question, answered by the resolution that does the painting
+ * rather than by a restatement of its refusals. A claimant sets a companion
+ * phase only where core will actually put a picture in the rect: yielding it to
+ * one that never arrives leaves the reader a blank stage, where the honest
+ * fallback is the treatment the canvas would have had with no companion at all
+ * (SPEC — "Degradation and honesty"). Two implementations of that answer would
+ * drift apart silently, which is the whole reason this is exported.
+ *
+ * Asked with the reader's Choice selection, in either shape a caller already
+ * holds, because core resolves the companion with the same one.
+ */
+export function companionPaintable(
+    selection: ChoiceSelection | undefined,
+    canvas: unknown,
+    property: CompanionProperty,
+): boolean {
+    const getSelectedChoice: SelectedChoiceLookup =
+        typeof selection === 'function'
+            ? selection
+            : (canvasId) => selection?.getSelectedChoice(canvasId);
+
+    // `null` for a canvas the planner drops outright, which reaches
+    // `resolveCompanionCanvases` in no manifest and so paints no companion
+    // either (see `canvasRenderer`'s `companionsByCanvasId`).
+    const base = toPlannerCanvas(canvas, getSelectedChoice);
+    const companions =
+        base && resolveCompanionCanvases(canvas, base, getSelectedChoice);
+    if (!companions) return false;
+
+    return (
+        (property === COMPANION_PROPERTIES.placeholder
+            ? companions.placeholder
+            : companions.accompanying) !== null
+    );
+}
+
+/**
  * The claimed canvas's descriptor with the phase's companion painted into it.
  *
  * A **selection** over {@link resolveCompanionCanvases}' already-built result,
@@ -264,6 +316,10 @@ export function resolveCompanionCanvases(
  * it. A canvas whose claimant has set no phase at all never reaches this
  * function: the claim on its own changes nothing about what core renders
  * (user story 27).
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export function withCompanion(
     base: PlannerCanvas,

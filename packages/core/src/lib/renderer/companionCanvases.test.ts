@@ -22,10 +22,13 @@ import {
     unsupportedPresentationIds,
 } from './canvasDescriptors';
 import {
+    companionPaintable,
     resolveCompanionCanvases,
     withCompanion,
     type CompanionCanvases,
+    type CompanionProperty,
 } from './companionCanvases';
+import type { ChoiceSelection } from '../utils/paintingBodies';
 import type { PlannerCanvas } from './types';
 
 const AV_DIR = join(import.meta.dirname, '../test/fixtures/manifests/av');
@@ -813,5 +816,520 @@ describe('warming the companion the phase is about to name', () => {
             withCompanion(baseOf(only), companionsOf(only), 'placeholder')
                 .warmImages,
         ).toBeUndefined();
+    });
+});
+
+/**
+ * The claimant's question, as a table of manifest shape → core's answer.
+ *
+ * The AV plugin used to derive this itself, restating each of core's refusals
+ * in `stages.svelte.ts`. The two had already drifted apart in four of the rows
+ * below, which is what this table is here to keep from happening again: it
+ * pins core's answer, and each divergent row records what the deleted copy
+ * concluded and why that was wrong.
+ */
+describe('companionPaintable', () => {
+    const SERVICE_ONLY_IMAGE = {
+        type: 'Image',
+        format: 'image/jpeg',
+        width: 800,
+        height: 600,
+        service: [
+            {
+                id: 'https://example.test/iiif/poster',
+                type: 'ImageService3',
+                profile: 'level1',
+            },
+        ],
+    };
+
+    const SOURCELESS_IMAGE = { type: 'Image', width: 8, height: 6 };
+
+    const VIDEO_BODY = {
+        id: 'https://example.test/film.mp4',
+        type: 'Video',
+        format: 'video/mp4',
+        width: 640,
+        height: 360,
+        duration: 60,
+    };
+
+    const TEXT_BODY = {
+        id: 'https://example.test/notes.txt',
+        type: 'Text',
+        format: 'text/plain',
+    };
+
+    const SOUND_BODY = {
+        id: 'https://example.test/audio.mp3',
+        type: 'Sound',
+        format: 'audio/mp3',
+        duration: 120,
+    };
+
+    const COMPANION_ID = 'https://example.test/companion';
+    const CLAIMED_ID = 'https://example.test/canvas/1';
+
+    /** A companion Canvas spelled by hand, for the shapes the helpers cannot. */
+    function rawCompanion(
+        canvas: Record<string, unknown>,
+        bodies: unknown[],
+    ): Record<string, unknown> {
+        return {
+            ...canvas,
+            items: [
+                {
+                    type: 'AnnotationPage',
+                    items: bodies.map((body) => ({
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        body,
+                    })),
+                },
+            ],
+        };
+    }
+
+    function paintable(
+        companions: Record<string, unknown>,
+        property: CompanionProperty = 'placeholderCanvas',
+        selection?: ChoiceSelection,
+        canvas: Record<string, unknown> = {},
+    ): boolean {
+        return companionPaintable(
+            selection,
+            claimedCanvas(companions, canvas),
+            property,
+        );
+    }
+
+    /** A placeholder core paints, for the rows that vary the CLAIMED canvas. */
+    const PAINTABLE_PLACEHOLDER = {
+        placeholderCanvas: companionCanvas(COMPANION_ID, null, [PLAIN_IMAGE]),
+    };
+
+    describe('the corpus shapes', () => {
+        it('paints 0014 accompanying canvas and finds no placeholder on it', () => {
+            const canvas = firstCanvasOf('0014-accompanyingcanvas.json');
+
+            expect(
+                companionPaintable(undefined, canvas, 'accompanyingCanvas'),
+            ).toBe(true);
+            expect(
+                companionPaintable(undefined, canvas, 'placeholderCanvas'),
+            ).toBe(false);
+        });
+
+        it('paints 0013 placeholder canvas', () => {
+            expect(
+                companionPaintable(
+                    undefined,
+                    firstCanvasOf('0013-placeholderCanvas.json'),
+                    'placeholderCanvas',
+                ),
+            ).toBe(true);
+        });
+    });
+
+    describe('absent rather than broken', () => {
+        it('refuses a canvas carrying no such property', () => {
+            expect(paintable({})).toBe(false);
+        });
+
+        it.each([
+            ['a bare string', COMPANION_ID],
+            ['a number', 7],
+            ['null', null],
+        ])('refuses a companion that is %s', (_name, value) => {
+            expect(paintable({ placeholderCanvas: value })).toBe(false);
+        });
+
+        it('refuses an array of companions', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: [
+                        companionCanvas(COMPANION_ID, null, [PLAIN_IMAGE]),
+                    ],
+                }),
+            ).toBe(false);
+        });
+
+        it('refuses the v2 `images` spelling', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: {
+                        '@id': COMPANION_ID,
+                        '@type': 'sc:Canvas',
+                        images: [
+                            {
+                                '@type': 'oa:Annotation',
+                                motivation: 'sc:painting',
+                                resource: PLAIN_IMAGE,
+                            },
+                        ],
+                    },
+                }),
+            ).toBe(false);
+        });
+
+        it('refuses the 3.0-beta `content` spelling', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: {
+                        id: COMPANION_ID,
+                        type: 'Canvas',
+                        content: [
+                            {
+                                type: 'AnnotationPage',
+                                items: [
+                                    {
+                                        type: 'Annotation',
+                                        motivation: 'painting',
+                                        body: PLAIN_IMAGE,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                }),
+            ).toBe(false);
+        });
+
+        it('refuses an empty `items`', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: {
+                        id: COMPANION_ID,
+                        type: 'Canvas',
+                        items: [],
+                    },
+                }),
+            ).toBe(false);
+        });
+
+        it('refuses an AnnotationPage holding nothing', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, []),
+                }),
+            ).toBe(false);
+        });
+
+        it('refuses pages that are not AnnotationPages', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: {
+                        id: COMPANION_ID,
+                        type: 'Canvas',
+                        items: [null, 'page', 3],
+                    },
+                }),
+            ).toBe(false);
+        });
+    });
+
+    describe('nothing requestable', () => {
+        it('refuses a companion with no id', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: rawCompanion({ type: 'Canvas' }, [
+                        PLAIN_IMAGE,
+                    ]),
+                }),
+            ).toBe(false);
+        });
+
+        it('refuses a companion whose id is empty', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: rawCompanion(
+                        { id: '', type: 'Canvas' },
+                        [PLAIN_IMAGE],
+                    ),
+                }),
+            ).toBe(false);
+        });
+
+        it('refuses an image body with neither id nor service', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                        SOURCELESS_IMAGE,
+                    ]),
+                }),
+            ).toBe(false);
+        });
+
+        it('refuses an image body whose id is empty', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                        { ...PLAIN_IMAGE, id: '' },
+                    ]),
+                }),
+            ).toBe(false);
+        });
+
+        it('refuses a companion whose only annotation carries no body', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: {
+                        id: COMPANION_ID,
+                        type: 'Canvas',
+                        items: [
+                            {
+                                type: 'AnnotationPage',
+                                items: [
+                                    {
+                                        type: 'Annotation',
+                                        motivation: 'painting',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                }),
+            ).toBe(false);
+        });
+    });
+
+    describe('a companion core cannot paint', () => {
+        it.each([
+            ['a Video body', VIDEO_BODY],
+            ['a Text body', TEXT_BODY],
+        ])('refuses %s', (_name, body) => {
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                        body,
+                    ]),
+                }),
+            ).toBe(false);
+        });
+
+        it('refuses a Choice resting on its non-image alternative', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                        { type: 'Choice', items: [VIDEO_BODY, PLAIN_IMAGE] },
+                    ]),
+                }),
+            ).toBe(false);
+        });
+
+        it('refuses a Choice the reader has selected onto a non-image', () => {
+            expect(
+                paintable(
+                    {
+                        placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                            {
+                                type: 'Choice',
+                                items: [PLAIN_IMAGE, VIDEO_BODY],
+                            },
+                        ]),
+                    },
+                    'placeholderCanvas',
+                    (canvasId) =>
+                        canvasId === COMPANION_ID ? VIDEO_BODY.id : undefined,
+                ),
+            ).toBe(false);
+        });
+
+        it('refuses a Choice of videos beside a Text body', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                        [{ type: 'Choice', items: [VIDEO_BODY] }, TEXT_BODY],
+                    ]),
+                }),
+            ).toBe(false);
+        });
+    });
+
+    describe('a companion core will paint', () => {
+        it('accepts an ordinary image body', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                        PLAIN_IMAGE,
+                    ]),
+                }),
+            ).toBe(true);
+        });
+
+        it('accepts the v2 `@id` spelling on both canvas and body', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: rawCompanion({ '@id': COMPANION_ID }, [
+                        {
+                            '@id': 'https://example.test/poster.jpg',
+                            '@type': 'dctypes:Image',
+                        },
+                    ]),
+                }),
+            ).toBe(true);
+        });
+
+        it('accepts a Choice resting on its image alternative', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                        { type: 'Choice', items: [PLAIN_IMAGE, VIDEO_BODY] },
+                    ]),
+                }),
+            ).toBe(true);
+        });
+
+        it('accepts an image annotation beside a Video one', () => {
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                        VIDEO_BODY,
+                        PLAIN_IMAGE,
+                    ]),
+                }),
+            ).toBe(true);
+        });
+
+        it('answers each property independently', () => {
+            const companions = {
+                placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                    SOURCELESS_IMAGE,
+                ]),
+                accompanyingCanvas: companionCanvas(
+                    `${COMPANION_ID}/score`,
+                    { width: 400, height: 300 },
+                    [PLAIN_IMAGE],
+                ),
+            };
+
+            expect(paintable(companions, 'placeholderCanvas')).toBe(false);
+            expect(paintable(companions, 'accompanyingCanvas')).toBe(true);
+        });
+    });
+
+    /*
+        The reader's selection reaches the CLAIMED canvas's own descriptor, not
+        only the companion's. A mixed Choice is core's to paint while its image
+        alternative is selected and the AV plugin's while its media one is
+        (`stages.svelte.ts` subscribes to selection changes for exactly this),
+        so the selection is what decides whether the canvas paints images of its
+        own — and that in turn is what decides whether its companion is painted.
+    */
+    describe('a mixed Choice on the claimed canvas', () => {
+        const MIXED_CHOICE = rawCompanion({}, [
+            { type: 'Choice', items: [PLAIN_IMAGE, SOUND_BODY] },
+        ]);
+
+        it('refuses under the default selection, the image alternative', () => {
+            expect(
+                paintable(
+                    PAINTABLE_PLACEHOLDER,
+                    'placeholderCanvas',
+                    undefined,
+                    MIXED_CHOICE,
+                ),
+            ).toBe(false);
+        });
+
+        it('paints once the reader selects the sound alternative', () => {
+            expect(
+                paintable(
+                    PAINTABLE_PLACEHOLDER,
+                    'placeholderCanvas',
+                    (canvasId) =>
+                        canvasId === CLAIMED_ID ? SOUND_BODY.id : undefined,
+                    MIXED_CHOICE,
+                ),
+            ).toBe(true);
+        });
+    });
+
+    /*
+        The five rows the AV plugin's deleted copy got wrong. Each is core's
+        answer, which is the only one that decides pixels: whatever a claimant
+        believes, `resolveCompanionCanvases` is what paints.
+    */
+    describe('the rows the plugin used to disagree on', () => {
+        it('refuses a canvas that paints images of its own (0489)', () => {
+            // The deleted copy answered `true`: it read the companion and
+            // never the canvas carrying it. Core skips a composite canvas
+            // outright — its own images already paint, and a companion under
+            // them would be invisible at best — so the plugin claimed a
+            // companion phase, yielded the rect and hid the media element for
+            // a picture core had explicitly refused. The Cookbook's
+            // `0489-multimedia-canvas` is this shape, an image body beside a
+            // video one, which `sources.ts` already scans for.
+            expect(
+                paintable(
+                    PAINTABLE_PLACEHOLDER,
+                    'placeholderCanvas',
+                    undefined,
+                    rawCompanion({ width: 640, height: 360 }, [
+                        PLAIN_IMAGE,
+                        VIDEO_BODY,
+                    ]),
+                ),
+            ).toBe(false);
+        });
+
+        it('paints a body carrying a service and no id', () => {
+            // The deleted copy answered `false`: it required a non-empty string
+            // `id` on the body and never looked at the service, while its own
+            // doc comment claimed it refused only a body with "no id and no
+            // service". The reader silently lost a picture core would paint.
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                        SERVICE_ONLY_IMAGE,
+                    ]),
+                }),
+            ).toBe(true);
+        });
+
+        it('paints a body inside a SpecificResource wrapper', () => {
+            // The deleted copy answered `false`: it read `id` off the wrapper,
+            // whose own id names the selection rather than the resource. This
+            // is how an Image API region selector is authored.
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                        { type: 'SpecificResource', source: PLAIN_IMAGE },
+                    ]),
+                }),
+            ).toBe(true);
+        });
+
+        it('refuses a Choice whose SELECTED alternative names no source', () => {
+            // The deleted copy answered `true`: it scanned every Choice
+            // alternative for one with an id, while resolution takes only the
+            // selected one. That set a companion phase, yielded the rect and
+            // hid the media element for a picture core never painted — the
+            // blank stage this seam exists to prevent.
+            expect(
+                paintable({
+                    placeholderCanvas: companionCanvas(COMPANION_ID, null, [
+                        {
+                            type: 'Choice',
+                            items: [SOURCELESS_IMAGE, PLAIN_IMAGE],
+                        },
+                    ]),
+                }),
+            ).toBe(false);
+        });
+
+        it('paints a companion whose id is not a string', () => {
+            // The deleted copy answered `false` on `typeof id === 'string'`;
+            // `getCanvasId` takes the raw truthy value. A degenerate manifest
+            // either way, recorded so the answer is not re-litigated.
+            expect(
+                paintable({
+                    placeholderCanvas: rawCompanion(
+                        { id: 42, type: 'Canvas' },
+                        [PLAIN_IMAGE],
+                    ),
+                }),
+            ).toBe(true);
+        });
     });
 });

@@ -199,6 +199,14 @@ export {
     paintingBodyAlternatives,
 } from './utils/paintingBodies';
 
+// The claimant's companion question, on the same terms and for the same reason:
+// whether core will paint the `placeholderCanvas` or `accompanyingCanvas` a
+// canvas carries. A claimant sets a **companion phase** on that answer, and only
+// core's own resolution can give it — a second derivation of the same refusals
+// is a blank stage waiting for the two to drift apart.
+export type { CompanionProperty } from './renderer/companionCanvases';
+export { companionPaintable } from './renderer/companionCanvases';
+
 // Structures (TOC) exports
 export type { StructureNode } from './utils/structures';
 

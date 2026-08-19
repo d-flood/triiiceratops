@@ -8,11 +8,16 @@
  */
 
 import type { ViewingDirection, ViewingMode } from '../components/canvasLayout';
+import type { ImageSource } from '../utils/resolveCanvasImage';
 
 export type { ViewingDirection, ViewingMode };
 
 /**
  * Where a canvas's pixels come from.
+ *
+ * The renderer's name for `utils/resolveCanvasImage.ImageSource`, which is where
+ * the three-branch decision that produces one is made, so the planner and the
+ * legacy tile-source path cannot disagree about which URL a canvas resolves to.
  *
  * `static` is one known URL. `service` is an image service the planner resolves
  * once its `info.json` has been fetched — into a tile pyramid when it advertises
@@ -22,9 +27,7 @@ export type { ViewingDirection, ViewingMode };
  * its declared profile: a profile can be missing, and a level0 service that
  * advertises tiles is an ordinary pyramid.
  */
-export type SourceDescriptor =
-    | { kind: 'static'; url: string }
-    | { kind: 'service'; serviceId: string; profile: string | null };
+export type SourceDescriptor = ImageSource;
 
 /**
  * One picture placed on a canvas by one painting annotation: where its pixels

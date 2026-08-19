@@ -24,10 +24,10 @@ test.beforeEach(({ isMobile }) => {
 
 const MANIFEST = '/demo-manifests/a11y/manifest.json';
 
-async function loadViewer(page: Page): Promise<void> {
+async function loadViewer(page: Page, query = ''): Promise<void> {
     // Generous timeout: the first load after a cold dev-server start compiles
     // the whole app before the toolbar appears.
-    await page.goto(`/?manifest=${MANIFEST}`, {
+    await page.goto(`/?manifest=${MANIFEST}${query}`, {
         waitUntil: 'domcontentloaded',
         timeout: 60000,
     });
@@ -262,6 +262,70 @@ test('flyout menu opens, moves focus, arrow-navigates, and Escape returns focus'
     await page.keyboard.press('Escape');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect((await activeElementInfo(page)).label).toBe('Viewing Mode');
+});
+
+test('gallery-placement flyout re-docks the gallery by keyboard and Escape returns focus', async ({
+    page,
+}) => {
+    test.slow();
+    // The picker's button is gated on config, but re-docking is only observable
+    // with the gallery actually on screen.
+    const config = encodeURIComponent(
+        JSON.stringify({ gallery: { open: true, dockPosition: 'bottom' } }),
+    );
+    await loadViewer(page, `&config=${config}`);
+
+    // The band's position within the center column IS the dock side: the top
+    // band precedes the image surface, the bottom band follows it.
+    const topBand = page.locator('.gallery-band + .viewer-area');
+    const bottomBand = page.locator('.viewer-area + .gallery-band');
+    const rightRail = page.locator('.side-col-right .gallery-host');
+    await expect(bottomBand).toBeVisible();
+
+    const toggle = page.locator(
+        '[aria-controls="tri-flyout-gallery-placement"]',
+    );
+    const menu = page.locator('#tri-flyout-gallery-placement');
+    await toggle.focus();
+
+    // Open with keyboard; focus moves onto the first item ("Top").
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect
+        .poll(async () => (await activeElementInfo(page)).role)
+        .toBe('menuitemradio');
+
+    // Enter on an item re-docks the gallery for real — not just the checkmark.
+    await page.keyboard.press('Enter');
+    await expect(topBand).toBeVisible();
+    await expect(bottomBand).toHaveCount(0);
+    await expect(
+        menu.getByRole('menuitemradio', { name: 'Top' }),
+    ).toHaveAttribute('aria-checked', 'true');
+
+    // Arrow keys rove to the next item; Enter docks it.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(bottomBand).toBeVisible();
+    await expect(topBand).toHaveCount(0);
+
+    // End jumps to the last item ("Right"), which moves the gallery into the
+    // right side column. The toolbar rail sits on the left by default, so this
+    // side does not collide with it.
+    //
+    // "Left" is deliberately not exercised: docking the gallery to the
+    // toolbar's own side rebuilds the toolbar and drops focus to <body>. That
+    // hole predates this menu (the plain Gallery toggle does the same with
+    // `gallery.dockPosition: 'left'`) and is tracked as a follow-up.
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await expect(rightRail).toBeVisible();
+    await expect(bottomBand).toHaveCount(0);
+
+    // Escape closes the flyout and returns focus to the toggle.
+    await page.keyboard.press('Escape');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect((await activeElementInfo(page)).label).toBe('Gallery Placement');
 });
 
 test('structures panel closes on Escape and returns focus to its toolbar toggle', async ({

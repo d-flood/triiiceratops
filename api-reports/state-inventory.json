@@ -527,7 +527,6 @@
             "member": "visibleAnnotationIds",
             "classification": "command",
             "commands": [
-                "showCurrentCanvasAnnotations",
                 "showVisibleCanvasAnnotations",
                 "setAnnotationVisible",
                 "setAllAnnotationsVisible"

@@ -52,14 +52,18 @@ describe('isLevel0Profile', () => {
 
     it('reads the profile out of an object, however it is keyed', () => {
         expect(
-            isLevel0Profile({ '@id': 'http://iiif.io/api/image/2/level0.json' }),
+            isLevel0Profile({
+                '@id': 'http://iiif.io/api/image/2/level0.json',
+            }),
         ).toBe(true);
         expect(
             isLevel0Profile({ id: 'http://iiif.io/api/image/2/level0.json' }),
         ).toBe(true);
         expect(isLevel0Profile({ value: 'level0' })).toBe(true);
         expect(
-            isLevel0Profile({ '@id': 'http://iiif.io/api/image/2/level2.json' }),
+            isLevel0Profile({
+                '@id': 'http://iiif.io/api/image/2/level2.json',
+            }),
         ).toBe(false);
         expect(isLevel0Profile({ formats: ['jpg'] })).toBe(false);
     });

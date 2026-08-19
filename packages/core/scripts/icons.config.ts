@@ -40,11 +40,10 @@ export type ExtraIconWeight = Exclude<IconWeight, 'regular'>;
  * NON-regular weights each is rendered at. Every listed glyph is generated at
  * `regular`; an empty array means regular only.
  *
- * The `bold` entries are the panel-header glyphs — five of them reach
- * `PanelStackSection` as single-glyph components (`src/lib/components/icons/`)
- * rendered as `<panel.icon weight="bold">`, and `ListDashes` is bold inline in
- * `AnnotationPanel`. Every other glyph here renders at `regular` only, so `bold`
- * is currently the sole extra weight any of them declares.
+ * The `bold` entries are the panel-header glyphs, which `PanelStackSection`
+ * renders as `<Icon name={panel.iconName} weight="bold">`. Every other glyph
+ * here renders at `regular` only, so `bold` is currently the sole extra weight
+ * any of them declares.
  */
 export const CORE_ICONS = {
     ArrowsLeftRight: [],
@@ -63,9 +62,9 @@ export const CORE_ICONS = {
     Folder: ['bold'],
     ImageBroken: [],
     Info: ['bold'],
+    Layout: [],
     List: [],
     ListBullets: ['bold'],
-    ListDashes: ['bold'],
     MagnifyingGlass: ['bold'],
     MagnifyingGlassMinus: [],
     MagnifyingGlassPlus: [],

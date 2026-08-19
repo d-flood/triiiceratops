@@ -417,8 +417,8 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Mechanism:** `// triiiceratops-console-allow` marker comments on the
   preceding lines, at five call sites — four in `degradation.ts` and one shared
   `warn` helper in `sequencer/segments.ts`, which is in the lazily-loaded
-  sequencer chunk precisely because nothing eager may reach the segment map. The `warnOnce` helper is guarded by a
-  `WeakMap` keyed on the canvas JSON, so at most one line is emitted per canvas
+  sequencer chunk precisely because nothing eager may reach the segment map. The `warnOnce` helper is guarded by one
+  `WeakSet` of canvas JSON per reason, so at most one line is emitted per canvas
   per reason per manifest; `warnAboutUnreadableWaveform` is guarded by a `Set` of
   URLs already announced, so one broken waveform publish emits one line however
   many canvases link it; `warnAboutUnloadableCaptionTrack` is guarded the same

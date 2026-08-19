@@ -69,6 +69,7 @@ describe('scanCanvasForAv', () => {
             url: 'https://fixtures.iiif.io/video/indiana/lunchroom_manners/high/lunchroom_manners_1024kb.mp4',
             kind: 'video',
             format: 'video/mp4',
+            paintsPicture: true,
         });
         expect(scan?.temporallyComposed).toBe(false);
         expect(scan?.spatiallyTargeted).toBe(false);
@@ -90,6 +91,24 @@ describe('scanCanvasForAv', () => {
         const scans = canvases.map((canvas) => scanCanvasForAv(canvas));
 
         expect(scans[0]?.placements[0].alternatives[0].kind).toBe('video');
+        // The same body, read for the other question: the element is a
+        // `<video>` and the picture in the rect is still the accompanying
+        // canvas, so this body paints none of it.
+        expect(scans[0]?.placements[0].alternatives[0].paintsPicture).toBe(
+            false,
+        );
+    });
+
+    it('paints a picture from a Video body on a duration-only canvas', () => {
+        // `0015-start` declares no `width`/`height`, which says nothing about
+        // whether there is a picture: the body is typed `Video`.
+        const [canvas] = recipeCanvases('0015-start.json');
+
+        const scan = scanCanvasForAv(canvas);
+
+        expect(scan?.width).toBeNull();
+        expect(scan?.height).toBeNull();
+        expect(scan?.placements[0].alternatives[0].paintsPicture).toBe(true);
     });
 
     it('reports every alternative of a Choice, and is not composed by it', () => {
@@ -231,6 +250,7 @@ describe('scanCanvasForAv', () => {
             url: '/media/hls/bars.m3u8',
             kind: 'video',
             format: 'application/vnd.apple.mpegurl',
+            paintsPicture: true,
         });
     });
 

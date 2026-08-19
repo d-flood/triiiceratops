@@ -25,6 +25,8 @@ import {
     paintingBodyAlternatives,
 } from 'triiiceratops';
 
+import { asRecord, stringOrNull } from './iiifJson';
+
 /** One WebVTT resource a canvas offers, as authored. */
 export interface CaptionTrack {
     /** The resource id — what the `<track>`'s `src` becomes, and its identity. */
@@ -43,16 +45,6 @@ export interface CaptionTrack {
      * window. `sources.ts` numbers its placements over the same list.
      */
     readonly annotation: number | null;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-    return value && typeof value === 'object'
-        ? (value as Record<string, unknown>)
-        : null;
-}
-
-function stringOrNull(value: unknown): string | null {
-    return typeof value === 'string' && value !== '' ? value : null;
 }
 
 /**

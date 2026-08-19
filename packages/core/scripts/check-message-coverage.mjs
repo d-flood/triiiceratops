@@ -113,7 +113,10 @@ function stripComments(text) {
  * so requiring one separates the two cases without enumerating import styles.
  */
 function bindsMessageNamespace(text) {
-    return /\b(?:const|let|var)\s+m\s*=/.test(text) || /\bm\b[^\n]*from\s*['"][^'"]*(?:i18n|paraglide\/messages)/.test(text);
+    return (
+        /\b(?:const|let|var)\s+m\s*=/.test(text) ||
+        /\bm\b[^\n]*from\s*['"][^'"]*(?:i18n|paraglide\/messages)/.test(text)
+    );
 }
 
 /** name -> Set<"file:line"> for every `m.<name>` in the tree. */
@@ -126,7 +129,9 @@ if (!existsSync(ROOT)) {
         const text = stripComments(readFileSync(file, 'utf8'));
         if (!bindsMessageNamespace(text)) continue;
         text.split('\n').forEach((line, index) => {
-            for (const match of line.matchAll(/(?<![\w.$])m\.([A-Za-z_]\w*)/g)) {
+            for (const match of line.matchAll(
+                /(?<![\w.$])m\.([A-Za-z_]\w*)/g,
+            )) {
                 const name = match[1];
                 if (!referenced.has(name)) referenced.set(name, new Set());
                 referenced.get(name).add(`${rel(file)}:${index + 1}`);

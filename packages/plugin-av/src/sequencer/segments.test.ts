@@ -17,8 +17,9 @@ function placement(
     return {
         annotation,
         fragment,
-        alternatives: [{ url, kind: 'video', format: 'video/mp4' }],
-        temporal: fragment.includes('t='),
+        alternatives: [
+            { url, kind: 'video', format: 'video/mp4', paintsPicture: true },
+        ],
         spatial: fragment.includes('xywh='),
     };
 }

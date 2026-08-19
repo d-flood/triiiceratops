@@ -4,7 +4,7 @@
  *
  * This plugin bundles neither Svelte nor core's own utilities; its compiled
  * components call helpers off `window.Triiiceratops.svelteInternal` and its
- * modules read four functions off `window.Triiiceratops.core` (see
+ * modules read five functions off `window.Triiiceratops.core` (see
  * `vite.config.ts`). Those references
  * happen at MODULE scope — a compiled component's `$.from_html(...)` template
  * constant is evaluated when the script is evaluated — so by the time
@@ -30,6 +30,8 @@
  * requires — see `plugin.ts`.
  */
 
+import { PLUGIN_META } from './identity';
+
 /** The `window.Triiiceratops.svelte` members this plugin's own code calls. */
 export const REQUIRED_SVELTE_EXPORTS: readonly string[] = [
     'getContext',
@@ -49,13 +51,9 @@ export const REQUIRED_SVELTE_INTERNALS: readonly string[] = [
     'bind_this',
     'child',
     'from_html',
-    'get',
     'pop',
-    'proxy',
     'push',
     'reset',
-    'set',
-    'state',
 ];
 
 /**
@@ -65,42 +63,46 @@ export const REQUIRED_SVELTE_INTERNALS: readonly string[] = [
  * here rather than left to throw.
  */
 export const REQUIRED_CORE_UTILS: readonly string[] = [
+    'companionPaintable',
     'getPaintingAnnotations',
     'isImageBody',
     'isUnsupportedCanvasFor',
     'paintingBodyAlternatives',
 ];
 
-const ABSENT_MESSAGE =
-    '[triiiceratops] @triiiceratops/plugin-av did not register: ' +
-    'window.Triiiceratops is not on this page. This is the one plugin that does ' +
-    'not bundle its own Svelte runtime — it reads core’s off that ' +
-    // Not "…BEFORE it. Load triiiceratops-element…": the minifier names one of
-    // this bundle's own locals `it`, and `check-shared-runtime.mjs` scans the
-    // built text for `<local>.<Helper>` without excluding string literals, so
-    // that sentence reads as a helper named `Load` off the shared runtime and
-    // fails the build.
-    'namespace — so core’s script must load BEFORE it: load ' +
-    'triiiceratops-element.iife.js first, then this bundle.';
+/*
+    The three refusals, as a shared prefix and pointer plus one cause line each.
+    A cause line names what is missing and, where a list exists, the names in it;
+    the reasoning behind the arrangement lives in the docs the pointer names, not
+    in bytes on every page.
 
-const SKEW_MESSAGE_PREFIX =
-    '[triiiceratops] @triiiceratops/plugin-av did not register: core ';
+    The two skew cases share `SKEW_REMEDY`, which is the one action that fixes
+    either of them and is therefore worth its bytes once. The absent-core case
+    carries its own remedy instead, since nothing there is out of step.
 
-const SKEW_MESSAGE_MIDDLE =
-    ' is on this page but does not share the Svelte runtime this plugin was ' +
-    'built against. Missing helpers: ';
+    Wording constraint: no message may contain `<token>.<Identifier>` where
+    `<token>` could be a minified local bound to the shared-runtime namespace.
+    `check-shared-runtime.mjs` scans the built text for `<local>.<Helper>`
+    without excluding string literals, and the minifier is free to name one of
+    this bundle's own locals after a short English word — "…BEFORE it. Load
+    triiiceratops-element…" once read as a helper named `Load` off the shared
+    runtime and failed the build. `window.Triiiceratops` in `ABSENT_CAUSE` is
+    that same shape and safe: the scan only builds an access pattern for locals
+    it saw bound to the namespace, and `window` is never one of them.
+*/
 
-const SKEW_MESSAGE_SUFFIX =
-    '. Core and this plugin ship from one repository at one Svelte version; ' +
-    'load matching versions of both.';
+const REFUSAL = '[triiiceratops] @triiiceratops/plugin-av did not register: ';
 
-const CORE_UTILS_MESSAGE_MIDDLE =
-    ' is on this page but does not publish the curated core utilities this ' +
-    'plugin reads instead of bundling its own copies. Missing utilities: ';
+const SEE_DOCS = `. See ${PLUGIN_META.docs}`;
 
-const CORE_UTILS_MESSAGE_SUFFIX =
-    '. Core and this plugin ship from one repository at one version; load ' +
-    'matching versions of both.';
+const ABSENT_CAUSE =
+    'no window.Triiiceratops; load triiiceratops-element.iife.js first';
+
+const MISSING_HELPERS_CAUSE = '. Missing shared Svelte helpers: ';
+
+const MISSING_UTILS_CAUSE = '. Missing core utilities: ';
+
+const SKEW_REMEDY = '; load matching versions of core and this plugin';
 
 /**
  * The gate, as JavaScript source, for `rollupOptions.output.intro`.
@@ -115,12 +117,16 @@ export function sharedRuntimeGateSource(): string {
 
     return `
 var __triAvNs = typeof window === 'undefined' ? undefined : window.Triiiceratops;
+var __triAvWhy = ${literal(REFUSAL)};
+var __triAvSee = ${literal(SEE_DOCS)};
+var __triAvSkew = ${literal(SKEW_REMEDY)};
 if (!__triAvNs) {
     // triiiceratops-console-allow: see lint-allowlist.md — the last-resort
     // diagnostic of a bundle with no core to report through.
-    console.error(${literal(ABSENT_MESSAGE)});
+    console.error(__triAvWhy + ${literal(ABSENT_CAUSE)} + __triAvSee);
     return;
 }
+var __triAvCoreId = 'core ' + (__triAvNs.coreVersion || '(unknown version)');
 var __triAvSvelte = __triAvNs.svelte || {};
 var __triAvInternal = __triAvNs.svelteInternal || {};
 var __triAvMissing = ${literal(REQUIRED_SVELTE_EXPORTS)}
@@ -132,11 +138,12 @@ if (__triAvMissing.length > 0) {
     // triiiceratops-console-allow: see lint-allowlist.md — same last-resort
     // diagnostic, for a core whose shared runtime this plugin cannot use.
     console.error(
-        ${literal(SKEW_MESSAGE_PREFIX)} +
-            (__triAvNs.coreVersion || '(unknown version)') +
-            ${literal(SKEW_MESSAGE_MIDDLE)} +
+        __triAvWhy +
+            __triAvCoreId +
+            ${literal(MISSING_HELPERS_CAUSE)} +
             __triAvMissing.join(', ') +
-            ${literal(SKEW_MESSAGE_SUFFIX)},
+            __triAvSkew +
+            __triAvSee,
     );
     return;
 }
@@ -147,11 +154,12 @@ if (__triAvMissingCore.length > 0) {
     // triiiceratops-console-allow: see lint-allowlist.md — same last-resort
     // diagnostic, for a core that publishes no curated utilities to read.
     console.error(
-        ${literal(SKEW_MESSAGE_PREFIX)} +
-            (__triAvNs.coreVersion || '(unknown version)') +
-            ${literal(CORE_UTILS_MESSAGE_MIDDLE)} +
+        __triAvWhy +
+            __triAvCoreId +
+            ${literal(MISSING_UTILS_CAUSE)} +
             __triAvMissingCore.join(', ') +
-            ${literal(CORE_UTILS_MESSAGE_SUFFIX)},
+            __triAvSkew +
+            __triAvSee,
     );
     return;
 }

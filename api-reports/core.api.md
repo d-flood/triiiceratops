@@ -132,15 +132,18 @@ export interface SharedSvelteRuntime {
  * by the same three rules:
  *
  * 1. **The list is curated and small; never `export *`.** A name goes on it
- *    because a first-party plugin reads it now, and the initial set is exactly
- *    the four `@triiiceratops/plugin-av` reads. `export *` would defeat
- *    tree-shaking and retain core's whole utility surface, which is the thing
- *    this mechanism exists to avoid.
- * 2. **Growth is gated by the size ratchet.** Every function here is already
- *    retained by core's shipped graph, so exposing it costs core essentially
- *    nothing. A utility core does NOT already retain moves the element baseline,
- *    and that alarm reads as "plugin bytes are moving into core" — never as
- *    something to re-baseline away.
+ *    because a first-party plugin reads it now, and the set is exactly what
+ *    `@triiiceratops/plugin-av` reads. `export *` would defeat tree-shaking and
+ *    retain core's whole utility surface, which is the thing this mechanism
+ *    exists to avoid.
+ * 2. **Growth is gated by the size ratchet.** Exposing a function whose logic
+ *    core's shipped graph already retains costs core essentially nothing, and an
+ *    ADAPTER over such logic costs only the adapter: `companionPaintable` is a
+ *    new function that moved the element baseline 175 raw / 80 gzip, and it was
+ *    re-baselined because the pair fell 42. What the alarm is for is a utility
+ *    whose LOGIC core does not already have — that really is plugin bytes moving
+ *    into core, and no plugin saving buys it. `pnpm size:check:pair` is the
+ *    arbiter, never the element figure on its own.
  * 3. **Version skew fails closed, twice.** The `shared-core-utils` capability
  *    refuses activation on a core that publishes no such member; and the
  *    consuming bundle's own skew gate checks the namespace ahead of its first
@@ -1196,6 +1199,8 @@ export { createPluginSurface } from './plugin/surface';
 export { getPaintingAnnotations } from './utils/iiifParsing';
 export type { ChoiceSelection } from './utils/paintingBodies';
 export { isImageBody, isUnsupportedCanvas, isUnsupportedCanvasFor, paintingBodyAlternatives, } from './utils/paintingBodies';
+export type { CompanionProperty } from './renderer/companionCanvases';
+export { companionPaintable } from './renderer/companionCanvases';
 export type { StructureNode } from './utils/structures';
 export type { CollectionItem } from './utils/collections';
 export type { ThemeConfig, BuiltInTheme } from './theme/types';
@@ -1720,6 +1725,143 @@ export type TriiiceratopsViewerRef = ViewerHandle;
 export declare function TriiiceratopsViewer(props: TriiiceratopsViewerProps): ReactElement;
 
 // ======================================================================
+// FILE: dist/renderer/companionCanvases.d.ts
+// ======================================================================
+/**
+ * A claimed canvas's `placeholderCanvas` and `accompanyingCanvas`, resolved as
+ * the Canvases they are.
+ *
+ * These are ordinary Presentation 3 properties whose value is a Canvas, so they
+ * go through {@link toPlannerCanvas} exactly like every other canvas in the
+ * manifest. That is the whole design: the tile pyramid, the size ladder, Choice
+ * bodies, region-targeted placements, both id spellings, residency, and
+ * projection all apply to a companion because nothing here reimplements any of
+ * them (ADR 0017; SPEC §Rendering).
+ *
+ * Pure, like the rest of the renderer's planning modules. Degradations are
+ * returned as {@link CompanionCanvases.warnings} rather than logged, so this
+ * stays callable from a `$derived` and the host decides when to say each one
+ * once — the same division `ScenePlan.unresolvedThumbnails` already uses.
+ */
+import type { PlannerCanvas, PlannerImage } from './types';
+import type { ChoiceSelection } from '../utils/paintingBodies';
+import type { CompanionPhase } from '../state/viewer.svelte';
+type SelectedChoiceLookup = (canvasId: string) => string | undefined;
+/** The two Presentation 3 properties a companion can arrive under. */
+declare const COMPANION_PROPERTIES: {
+    readonly placeholder: "placeholderCanvas";
+    readonly accompanying: "accompanyingCanvas";
+};
+/** Either of the two property names, as a claimant spells it when asking. */
+export type CompanionProperty = (typeof COMPANION_PROPERTIES)[keyof typeof COMPANION_PROPERTIES];
+/**
+ * One claimed canvas's companions, resolved once.
+ *
+ * **The phase selects between these; it never rebuilds them.** Pressing play is
+ * a choice between two values already in hand, not a re-plan (user story 29),
+ * which is why both companions are resolved together and the phase appears
+ * nowhere in this file except in {@link withCompanion}'s signature.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export interface CompanionCanvases {
+    /**
+     * The rect the claimed canvas takes, **decided once and never by the
+     * phase**: its own declared dimensions, else its accompanying canvas's,
+     * else its placeholder's.
+     *
+     * Only a companion that resolved to something requestable donates a rect. A
+     * companion the reader will never see must not reflow the manifest around
+     * itself, so a broken one costs the canvas its picture and nothing else
+     * (user story 23).
+     *
+     * The accompanying canvas is preferred because it is the permanent
+     * companion, and the phase is excluded because a 640×360 poster giving way
+     * to a 772×998 score must not reflow the manifest the instant playback
+     * starts (user story 10).
+     *
+     * `null` where nothing declares any, which is the planner's existing signal
+     * to place the canvas from the median of its siblings.
+     */
+    width: number | null;
+    height: number | null;
+    /**
+     * Each companion's placed images, already transformed into the rect above —
+     * `null` where the canvas has no such companion, or where the one it has
+     * resolved to nothing requestable.
+     */
+    placeholder: PlannerImage[] | null;
+    accompanying: PlannerImage[] | null;
+    /**
+     * Developer-facing degradations, for the host to report once per canvas.
+     * Empty in every healthy case, including the ordinary one of a canvas that
+     * carries only one of the two companions.
+     */
+    warnings: string[];
+}
+/**
+ * A claimed canvas's companions, or `null` where it has neither and there is
+ * nothing to say about it.
+ *
+ * `base` is the descriptor {@link toPlannerCanvas} already built for the claimed
+ * canvas itself, which is what decides the two cases this refuses:
+ *
+ * - a canvas that **paints images of its own** is skipped entirely and warns. It
+ *   is a composite canvas whose own images already paint, and a companion under
+ *   them would be invisible at best;
+ * - a companion that resolves to nothing requestable — no service, no id, not an
+ *   image — paints nothing and warns. The claimed canvas keeps the treatment it
+ *   would otherwise have had, so a broken companion costs a picture rather than
+ *   the canvas (user story 23).
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function resolveCompanionCanvases(canvas: unknown, base: PlannerCanvas, getSelectedChoice?: SelectedChoiceLookup): CompanionCanvases | null;
+/**
+ * Whether core will paint the companion this canvas carries under `property`.
+ *
+ * The claimant's question, answered by the resolution that does the painting
+ * rather than by a restatement of its refusals. A claimant sets a companion
+ * phase only where core will actually put a picture in the rect: yielding it to
+ * one that never arrives leaves the reader a blank stage, where the honest
+ * fallback is the treatment the canvas would have had with no companion at all
+ * (SPEC — "Degradation and honesty"). Two implementations of that answer would
+ * drift apart silently, which is the whole reason this is exported.
+ *
+ * Asked with the reader's Choice selection, in either shape a caller already
+ * holds, because core resolves the companion with the same one.
+ */
+export declare function companionPaintable(selection: ChoiceSelection | undefined, canvas: unknown, property: CompanionProperty): boolean;
+/**
+ * The claimed canvas's descriptor with the phase's companion painted into it.
+ *
+ * A **selection** over {@link resolveCompanionCanvases}' already-built result,
+ * which is the whole of what a phase change costs.
+ *
+ * The phase that is not painting also names `PlannerCanvas.warmImages`, so that
+ * the companion about to be called for is resident before it is called for and
+ * the handover has something to paint in the frame it happens (user story 41).
+ *
+ * Note that the rect comes from the companions and not from the phase, so
+ * `'none'` keeps the geometry the painting phases had. A claimant whose canvas
+ * carries only a placeholder moves to `'none'` on first play, and reverting the
+ * rect there would reflow the page at exactly the moment user story 10 forbids
+ * it. A canvas whose claimant has set no phase at all never reaches this
+ * function: the claim on its own changes nothing about what core renders
+ * (user story 27).
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function withCompanion(base: PlannerCanvas, companions: CompanionCanvases, phase: CompanionPhase): PlannerCanvas;
+export {};
+
+// ======================================================================
 // FILE: dist/renderer/overlayLayers.d.ts
 // ======================================================================
 /**
@@ -2235,9 +2377,14 @@ export interface RendererPort {
  * planner runnable in plain Node.
  */
 import type { ViewingDirection, ViewingMode } from '../components/canvasLayout';
+import type { ImageSource } from '../utils/resolveCanvasImage';
 export type { ViewingDirection, ViewingMode };
 /**
  * Where a canvas's pixels come from.
+ *
+ * The renderer's name for `utils/resolveCanvasImage.ImageSource`, which is where
+ * the three-branch decision that produces one is made, so the planner and the
+ * legacy tile-source path cannot disagree about which URL a canvas resolves to.
  *
  * `static` is one known URL. `service` is an image service the planner resolves
  * once its `info.json` has been fetched — into a tile pyramid when it advertises
@@ -2247,14 +2394,7 @@ export type { ViewingDirection, ViewingMode };
  * its declared profile: a profile can be missing, and a level0 service that
  * advertises tiles is an ordinary pyramid.
  */
-export type SourceDescriptor = {
-    kind: 'static';
-    url: string;
-} | {
-    kind: 'service';
-    serviceId: string;
-    profile: string | null;
-};
+export type SourceDescriptor = ImageSource;
 /**
  * One picture placed on a canvas by one painting annotation: where its pixels
  * come from, and the box it paints into.
@@ -2837,7 +2977,18 @@ export declare class ManifestsState {
     private inFlightAnnotationLists;
     fetchAnnotationList(url: string): Promise<void>;
     private getStructureSequences;
-    private findCanvasInJson;
+    /**
+     * The enumerated canvases only — the same list the viewer renders, so an
+     * annotation is always read against the canvas that is on screen.
+     *
+     * A Canvas the enumerator does not reach is not looked for. That is not the
+     * same as a malformed manifest: `iiifParsing`'s enumeration reads
+     * `mediaSequences ?? sequences` as a *priority*, so a spec-valid IxIF
+     * wrapper carrying both (see the `vendored/audio.json` fixture) has the
+     * canvases of its `sequences` de-prioritized and therefore invisible here.
+     * Such a canvas is one this viewer never renders, so it has no annotations
+     * to read.
+     */
     private getCanvasJson;
     private getCanvasAnnotationListRefs;
     private matchesAnnotationSource;
@@ -2857,8 +3008,14 @@ export declare class ManifestsState {
      * clamped into range in either case.
      */
     getCanvases(manifestId: string, sequenceIndex?: number): any[];
+    /**
+     * Manifest-defined annotations only, read synchronously from whatever the
+     * cache already holds. Plugin-written display state (user annotations) is
+     * per-viewer on `ViewerState` (ADR 0007); the shared manifest cache is not
+     * plugin-facing and no longer stores it. The viewer merges its own user
+     * annotations on top of this result.
+     */
     getAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
-    manualGetAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
 }
 export declare const manifestsState: ManifestsState;
 
@@ -3127,15 +3284,20 @@ export interface TransportChromeIcons {
     /** The readable-text control. */
     transcript: IconDescriptor;
 }
-/** Every string the chrome shows or announces, in the claimant's locale. */
+/**
+ * Every string the chrome shows or announces, in the claimant's locale.
+ *
+ * The two clock readings carry none, and cannot: a `<span>` maps to role
+ * `generic`, which prohibits an accessible name, so the render site hides them
+ * from assistive technology and the scrubber's `aria-valuetext` announces the
+ * whole reading instead.
+ */
 export interface TransportChromeLabels {
     /** Names the control group itself, so it is distinguishable from the navigation. */
     transport: string;
     play: string;
     pause: string;
-    elapsed: string;
     seek: string;
-    duration: string;
     mute: string;
     unmute: string;
     volume: string;
@@ -3148,6 +3310,11 @@ export interface TransportChromeLabels {
 /**
  * The playback facts the chrome renders, read on core's own cadence and never
  * held across a frame.
+ *
+ * A claimant must return a FRESH object from every `view()` read. Core holds
+ * the result in `$state.raw`, which `===`-compares on assignment, so a claimant
+ * that mutates and hands back the same instance is silently ignored and the
+ * chrome freezes with no error anywhere.
  */
 export interface TransportChromeView {
     /** `false` renders no controls — no current target, or none claimed. */
@@ -3443,13 +3610,11 @@ export declare class ViewerState {
      * this is the *default* state and not a user choice: core calls it only while
      * the reader has not touched visibility themselves.
      *
-     * Distinct from {@link showCurrentCanvasAnnotations}, which is about ONE
-     * canvas and stays as it was. In `paged` the facing page's annotations would
-     * otherwise arrive hidden — drawn nowhere, and a panel row whose eye says
-     * "hidden" for something the reader never hid.
+     * Multi-canvas by design: in `paged` a single-canvas pass would leave the
+     * facing page's annotations hidden — drawn nowhere, and a panel row whose eye
+     * says "hidden" for something the reader never hid.
      */
     showVisibleCanvasAnnotations(): void;
-    showCurrentCanvasAnnotations(): void;
     private clearAnnotationVisibility;
     private setAnnotationsPanelOpen;
     tileSourceError: {
@@ -3535,8 +3700,6 @@ export declare class ViewerState {
     /**
      * Get current state as a plain object snapshot.
      * Safe to use outside Svelte's reactive system.
-     * NOTE: We calculate currentCanvasIndex inline to avoid triggering the canvases getter
-     * which can cause infinite loops when it auto-sets canvasId.
      */
     getSnapshot(): ViewerStateSnapshot;
     /**
@@ -4184,7 +4347,14 @@ export declare class ViewerState {
      */
     loadCollectionManifest(manifestId: string): Promise<void>;
     /**
-     * Internal: load a manifest by ID and apply its settings.
+     * Internal: make a manifest the active one and apply its settings.
+     *
+     * `register` registers a document the caller already holds; without it the
+     * manifest is fetched through the cache. Nothing else differs between the
+     * two, which is why they are one path. The choice reads the wrapper's
+     * presence rather than the JSON's, because `setManifestData` accepts an
+     * `undefined` document and must stay a pure store — a fixture with no JSON
+     * has to register nothing, never issue a request.
      */
     private _loadManifest;
     private ensureInitialCanvasSelection;
@@ -4238,25 +4408,6 @@ export declare class ViewerState {
     showSearchPanel: boolean;
     toggleSearchPanel(): void;
     searchAnnotations: any[];
-    /**
-     * This function now accounts for two-page mode when returning current canvas search annotations offset accordingly.
-     */
-    /**
-     * Search hits on the current canvas, in canvas space.
-     *
-     * Kept for callers that ask specifically about the current canvas. Core's own
-     * annotation surfaces do NOT use it: they read {@link searchAnnotations} for
-     * every canvas on screen through `collectCanvasAnnotations`, which is what
-     * puts a hit on the facing page of a spread on that page.
-     *
-     * It used to shift a facing page's hits sideways by `canvasWidth * 1.025` and
-     * hand them back as if they belonged to the current canvas — a hand-rolled
-     * offset standing in for multi-canvas layout, and wrong by construction: the
-     * renderer's inter-canvas gap is 1.25% of a page, not 2.5%, and the guess only
-     * ever covered two pages. Coordinates here are now each hit's own, unshifted,
-     * to be projected through its own canvas.
-     */
-    get currentCanvasSearchAnnotations(): any[];
     search(query: string): Promise<void>;
     private _performSearch;
     /** Set (or clear, with null) the currently hovered annotation id. */
@@ -5389,7 +5540,8 @@ export interface ToolbarConfig {
      */
     showSearch?: boolean;
     /**
-     * Whether the Gallery toggle button is shown in this menu.
+     * Whether the Gallery toggle and the Gallery Placement picker are shown in
+     * this menu.
      * @default true
      */
     showGallery?: boolean;
@@ -5732,11 +5884,6 @@ export interface ViewerConfig {
      * not. `radius` is in screen pixels (default 5).
      */
     pointStyle?: PointStyle;
-    /**
-     * Enable drag-and-drop loading of IIIF manifest URLs/content state text.
-     * @default false
-     */
-    enableDragDrop?: boolean;
     /**
      * Enable opt-in developer diagnostics. Production distributions are quiet
      * by default: when `false`, the viewer emits no unsolicited
@@ -6760,7 +6907,11 @@ export declare function getResourceId(resource: any): string | null;
  */
 export declare function getReferenceId(reference: unknown): string | null;
 export declare function getCanvasId(canvas: any): string;
-export declare function getAnnotationId(annotation: any): string;
+/**
+ * {@link getCanvasId} under the name its annotation callers read it by: the
+ * `id`/`@id` read is the same one, and `''` means "no id" for both.
+ */
+export declare const getAnnotationId: typeof getCanvasId;
 export declare function findCanvasIndexById(canvases: any[], canvasId: string | null): number;
 export declare function findCanvasById(canvases: any[], canvasId: string | null): any;
 
@@ -6777,6 +6928,19 @@ export declare function findCanvasById(canvases: any[], canvasId: string | null)
  * There is deliberately **no `Sequence` type** and no intermediate object
  * model. A canvas is the Canvas JSON as the manifest authored it.
  */
+/**
+ * Coerce a field that should be an array into one.
+ *
+ * IIIF fields that the spec declares as arrays turn up in real manifests as
+ * bare objects. Every array access over raw manifest JSON goes through here so
+ * that a bare object degrades to a one-element list rather than throwing or
+ * silently enumerating nothing, and an empty value degrades to no list at all.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function asArray(value: unknown): any[];
 /**
  * How many sequences a manifest has.
  *
@@ -6903,6 +7067,23 @@ export declare function getChoiceAlternatives(body: any): any[];
  * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function getCanvasChoices(canvas: any): any[];
+/**
+ * A `behavior`/`viewingHint` field as a list of bare terms.
+ *
+ * Either spelling may be a single string or an array of them, and a term may
+ * arrive fully qualified (`http://iiif.io/api/presentation/3#paged`) or
+ * prefixed, so each is reduced to its last path/fragment segment, trimmed and
+ * lowercased. Absent reads as no behaviors at all.
+ *
+ * The one reader of both spellings, everywhere: canvas hints
+ * ({@link getCanvasBehaviors}), a range's `sequence` marker, and the
+ * manifest-level viewing mode all resolve terms the same way.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function toBehaviorList(value: unknown): string[];
 /**
  * @internal Not exported from any package entry point. It appears in
  * `api-reports/core.api.md` because that report is a file-level rollup and a
@@ -7084,7 +7265,7 @@ export declare function resolveExportSizeOptions(resolved: ResolvedCanvasImage):
  *
  * IIIF v3 uses language maps: `{ "en": ["Hello"], "fr": ["Bonjour"] }`.
  * IIIF v2 may use plain strings, a JSON-LD value object, or an array of
- * `{ value, locale/language }` objects.
+ * `{ "@value", "@language" }` objects.
  */
 /**
  * Resolve a IIIF language-mapped value to a single display string.
@@ -7307,6 +7488,27 @@ export type TileSource = string | {
     type: 'image';
     url: string;
 };
+/**
+ * Where a canvas's pixels come from.
+ *
+ * `static` is one known URL. `service` is an image service the consumer resolves
+ * once its `info.json` has been fetched — into a tile pyramid when it advertises
+ * tiles, and otherwise into a fixed-size ladder. Which of the two a service is
+ * comes from what it advertises, not from its declared `profile`, which is
+ * carried here only for the consumers that report it.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export type ImageSource = {
+    kind: 'static';
+    url: string;
+} | {
+    kind: 'service';
+    serviceId: string;
+    profile: string | null;
+};
 export type RegionRect = {
     x: number;
     y: number;
@@ -7402,6 +7604,23 @@ export { getCanvasLabel, getCanvasId };
 export declare function getDeclaredCanvasDimensions(canvas: unknown): CanvasDimensions | null;
 export declare function resolveCanvasImage(canvas: any, options?: ResolveCanvasImageOptions): ResolvedCanvasImage | null;
 export declare function resolveAllCanvasImages(canvas: any, options?: ResolveCanvasImageOptions): ResolvedCanvasImage[];
+/**
+ * Where one resolved painting image's pixels come from — the three-branch source
+ * decision, made in one place for every consumer:
+ *
+ * 1. a service **plus** an Image API region is a prebuilt image request — a
+ *    single static image of the cropped region;
+ * 2. a service alone is a service to resolve against a tile pyramid or size
+ *    ladder;
+ * 3. otherwise the painting resource's own id is a plain static image.
+ *
+ * `null` where the image names no source at all.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function toImageSource(resolved: ResolvedCanvasImage): ImageSource | null;
 export declare function getCanvasTileSource(canvas: any, options?: ResolveCanvasImageOptions): TileSource | null;
 export declare function getCanvasTileSources(canvas: any, options?: ResolveCanvasImageOptions): PositionedTileSource[];
 export declare function buildIiifImageRequestUrl(serviceId: string, options?: {

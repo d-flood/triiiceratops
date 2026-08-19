@@ -159,9 +159,6 @@ interface ViewerConfig {
         strokeWidth?: number;
     };
 
-    // Drag-and-drop manifest/content-state loading
-    enableDragDrop?: boolean; // Default: false
-
     // Opt-in developer diagnostics. When true, viewer diagnostics are logged
     // through the core logger (prefixed `[triiiceratops]`). Actionable
     // failures always surface through `viewererror`/`pluginerror` regardless

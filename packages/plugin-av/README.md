@@ -10,7 +10,7 @@ those canvases and renders their media instead: a media stage over the canvas
 rect, a canvas-anchored transport, waveforms, captions, a transcript panel, and
 an `AVState` object the host application can command playback through.
 
-Nothing about it is in core's bundle. Registering it costs 22.6 KB gzip, and its
+Nothing about it is in core's bundle. Registering it costs 15.0 KB gzip, and its
 four heaviest pieces — hls.js, the waveform parsers, the segment sequencer and
 the transcript panel — are chunks fetched only when a manifest needs them.
 
@@ -214,8 +214,8 @@ stream costs one canvas, never the session.
 
 ## Bundle
 
-`dist/iife.js` is 21,402 gzip bytes. Registered alongside core's element it makes
-140,369 gzip, which is enforced as a standing budget against TIFY — the nearest
+`dist/iife.js` is 15,039 gzip bytes. Registered alongside core's element it makes
+126,640 gzip, which is enforced as a standing budget against TIFY — the nearest
 audiovisual-capable viewer measured — in CI. The four lazy chunks are outside
 that figure:
 
@@ -224,7 +224,7 @@ that figure:
 | `av-hls.js`        | 223,530 | an HLS body must play without native HLS support         |
 | `av-waveform.js`   |   2,584 | a canvas links waveform data                             |
 | `av-sequencer.js`  |   2,094 | a canvas is painted by several media tiling its duration |
-| `av-transcript.js` |   2,058 | the current canvas has a caption track with cues         |
+| `av-transcript.js` |   2,773 | the current canvas has a caption track with cues         |
 
 See the
 [bundle-size comparison](https://d-flood.github.io/triiiceratops/bundle-size-comparison/)

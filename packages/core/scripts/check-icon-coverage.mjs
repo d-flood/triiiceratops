@@ -20,7 +20,7 @@
  * it. The two directions together mean the manifest equals what the scanned
  * roots render.
  *
- * Three things keep it from passing vacuously:
+ * Four things keep it from passing vacuously:
  *
  *   1. It must find `<Icon>` usages at all. A scan that matched nothing — a moved
  *      component directory, a renamed element — fails instead of reporting
@@ -30,11 +30,19 @@
  *      `ViewerControls`'s nav caret both pick a name at runtime; the guard
  *      requires EVERY manifest name that appears as a literal anywhere in such a
  *      file, so it over-approximates rather than guessing the branch taken.
- *   3. A dynamic `weight={…}` binding is a hard failure unless it is a
- *      single-glyph wrapper forwarding its own `weight` prop (the
- *      `src/lib/components/icons/` pattern, rendered as `<panel.icon
- *      weight="bold">`). Anything else could ask for a weight this file cannot
- *      predict, which is precisely the case sparseness cannot survive.
+ *   3. `PanelStackSection` is the one dynamic name whose candidates are not in
+ *      its own file: it renders `<Icon name={panel.iconName}>` from a descriptor
+ *      table built elsewhere. Those resolve instead to every glyph literal
+ *      assigned to an `iconName` field in a `.svelte` file under the scanned
+ *      roots — the same over-approximation, widened to the seam. An empty
+ *      candidate set (a renamed field, a moved table) fails rather than passing
+ *      quietly. The match is pinned to `panel.iconName` rather than any
+ *      `…iconName` expression so that a second component with a same-named field
+ *      keeps rule 2's narrower file-scoped candidates instead of silently
+ *      inheriting this one's repo-wide set.
+ *   4. A dynamic `weight={…}` binding is a hard failure, full stop. A computed
+ *      weight could ask for one this file cannot predict, which is precisely the
+ *      case sparseness cannot survive.
  *
  * Run directly: `node ./scripts/check-icon-coverage.mjs`.
  */
@@ -186,35 +194,25 @@ function readBraced(text, open) {
     return null;
 }
 
-/* ------------------------------------- weights a forwarded `weight` can be */
-
-/**
- * Literal weights applied to something that is NOT `<Icon>` — i.e. to a glyph
- * passed around as a component (`<panel.icon weight="bold">`, the
- * `PanelStackSection` header). A single-glyph wrapper forwards its `weight`
- * prop straight into `<Icon>`, so those are exactly the weights it can be
- * asked for. `regular` is always included: a slot may omit the attribute.
- */
-const slotWeights = new Set(['regular']);
-for (const { file, text } of sources) {
-    for (const match of text.matchAll(
-        /<(?!Icon(?=[\s/>]))([A-Za-z][\w.]*)([^>]*?)\bweight\s*=\s*"([^"]*)"/g,
-    )) {
-        const weight = match[3];
-        if (!ICON_WEIGHTS.includes(weight)) {
-            problems.push(
-                `${rel(file)}: <${match[1]}> is rendered with weight="${weight}", ` +
-                    `which is not one of ${ICON_WEIGHTS.join(', ')}.`,
-            );
-            continue;
-        }
-        slotWeights.add(weight);
-    }
-}
-
 /* ----------------------------------------------------------- required pairs */
 
 const knownNames = new Set(KNOWN_ICON_NAMES);
+
+/**
+ * Glyph names a panel descriptor hands to `PanelStackSection`. The field is
+ * typed `IconName`, so `svelte-check` already pins the domain; what the guard
+ * adds is the WEIGHT the section renders them at, which no type can see.
+ */
+const descriptorNames = new Set();
+for (const { text } of sources) {
+    for (const match of text.matchAll(
+        /\biconName\s*:\s*'([A-Za-z]+)'|\biconName\s*:\s*"([A-Za-z]+)"/g,
+    )) {
+        const value = match[1] ?? match[2];
+        if (knownNames.has(value)) descriptorNames.add(value);
+    }
+}
+
 const required = new Map(); // name -> Set<weight>
 
 function require_(name, weight, where) {
@@ -244,7 +242,6 @@ for (const { file, text } of sources) {
         );
         continue;
     }
-    const declaresWeightProp = /\bweight\b/.test(propsDeclaration(text));
 
     for (const body of tags) {
         usages++;
@@ -263,15 +260,11 @@ for (const { file, text } of sources) {
                 continue;
             }
             weights = [weightAttr.value];
-        } else if (weightAttr.value === 'weight' && declaresWeightProp) {
-            // Single-glyph wrapper forwarding its own prop.
-            weights = [...slotWeights];
         } else {
             problems.push(
                 `${where}: <Icon weight={${weightAttr.value}}> is a dynamic weight binding. ` +
                     `The generated table is sparse, so a computed weight can silently ` +
-                    `fall back to the regular glyph. Use a literal weight, or forward a ` +
-                    `declared \`weight\` prop from a single-glyph wrapper.`,
+                    `fall back to the regular glyph. Use a literal weight.`,
             );
             continue;
         }
@@ -285,6 +278,17 @@ for (const { file, text } of sources) {
         let names;
         if (nameAttr.kind === 'literal') {
             names = [nameAttr.value];
+        } else if (/^panel\.iconName$/.test(nameAttr.value)) {
+            names = [...descriptorNames];
+            if (names.length === 0) {
+                problems.push(
+                    `${where}: <Icon name={${nameAttr.value}}> reads a panel descriptor's ` +
+                        `glyph, but no \`iconName: '…'\` literal exists under the scanned ` +
+                        `roots, so the guard cannot tell which glyphs the panel headers ` +
+                        `render. Keep the descriptor table's names as literals.`,
+                );
+                continue;
+            }
         } else if (/^[A-Za-z_$][\w$]*$/.test(nameAttr.value)) {
             names = [...literalNamesIn(text)];
             if (names.length === 0) {
@@ -309,15 +313,6 @@ for (const { file, text } of sources) {
             for (const weight of weights) require_(name, weight, where);
         }
     }
-}
-
-/** The `$props()` destructuring pattern of a component, or '' when absent. */
-function propsDeclaration(text) {
-    const at = text.indexOf('$props()');
-    if (at === -1) return '';
-    const open = text.lastIndexOf('{', at);
-    if (open === -1) return '';
-    return text.slice(open, at);
 }
 
 if (usages === 0) {

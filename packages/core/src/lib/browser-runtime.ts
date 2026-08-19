@@ -129,15 +129,18 @@ export interface SharedSvelteRuntime {
  * by the same three rules:
  *
  * 1. **The list is curated and small; never `export *`.** A name goes on it
- *    because a first-party plugin reads it now, and the initial set is exactly
- *    the four `@triiiceratops/plugin-av` reads. `export *` would defeat
- *    tree-shaking and retain core's whole utility surface, which is the thing
- *    this mechanism exists to avoid.
- * 2. **Growth is gated by the size ratchet.** Every function here is already
- *    retained by core's shipped graph, so exposing it costs core essentially
- *    nothing. A utility core does NOT already retain moves the element baseline,
- *    and that alarm reads as "plugin bytes are moving into core" — never as
- *    something to re-baseline away.
+ *    because a first-party plugin reads it now, and the set is exactly what
+ *    `@triiiceratops/plugin-av` reads. `export *` would defeat tree-shaking and
+ *    retain core's whole utility surface, which is the thing this mechanism
+ *    exists to avoid.
+ * 2. **Growth is gated by the size ratchet.** Exposing a function whose logic
+ *    core's shipped graph already retains costs core essentially nothing, and an
+ *    ADAPTER over such logic costs only the adapter: `companionPaintable` is a
+ *    new function that moved the element baseline 175 raw / 80 gzip, and it was
+ *    re-baselined because the pair fell 42. What the alarm is for is a utility
+ *    whose LOGIC core does not already have — that really is plugin bytes moving
+ *    into core, and no plugin saving buys it. `pnpm size:check:pair` is the
+ *    arbiter, never the element figure on its own.
  * 3. **Version skew fails closed, twice.** The `shared-core-utils` capability
  *    refuses activation on a core that publishes no such member; and the
  *    consuming bundle's own skew gate checks the namespace ahead of its first

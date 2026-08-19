@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { AVState } from './avState';
 import type { CaptionTrack } from './captions';
-import { createAudioPrefs, createTransport } from './transport.svelte';
+import { createAudioPrefs, createTransport } from './transportChrome';
 import {
     bufferedSpans,
     captionOptions,
@@ -206,12 +206,10 @@ describe('createTransport', () => {
         mute: 'Mute',
         unmute: 'Unmute',
         volume: 'Volume',
-        elapsed: 'Elapsed',
-        duration: 'Duration',
-        captions: 'Captions',
-        captionsOff: 'Off',
-        captionsTrack: 'Captions',
+        tracks: 'Captions',
+        tracksOff: 'Off',
         transcript: 'Transcript',
+        trackFallback: 'Captions',
     };
 
     /** An AVState stand-in: the members the transport reads, and its cadences. */
@@ -249,6 +247,7 @@ describe('createTransport', () => {
         const transport = createTransport({
             avState: state,
             currentMedia: () => current,
+            bufferedSpans: elementSpans,
             prefs,
             labels: () => LABELS,
             peaksStrip: () => null,
@@ -278,6 +277,7 @@ describe('createTransport', () => {
         const transport = createTransport({
             avState: state,
             currentMedia: () => media,
+            bufferedSpans: elementSpans,
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
@@ -307,6 +307,7 @@ describe('createTransport', () => {
         const transport = createTransport({
             avState: state,
             currentMedia: () => media,
+            bufferedSpans: elementSpans,
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
@@ -336,6 +337,7 @@ describe('createTransport', () => {
         const transport = createTransport({
             avState: state,
             currentMedia: () => media,
+            bufferedSpans: elementSpans,
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
@@ -354,12 +356,51 @@ describe('createTransport', () => {
         transport.destroy();
     });
 
+    /*
+        Core holds the view in `$state.raw` and `===`-compares the assignment,
+        so a `view()` that handed back the state object itself would leave every
+        re-read looking unchanged: the controls would freeze mid-playback with no
+        error anywhere. Nothing else in the suite can see that, because every
+        other assertion reads the fields rather than the identity.
+    */
+    it('hands core a fresh object on every read, so its assignment lands', () => {
+        const media = document.createElement('audio');
+        const { state, frame } = fakeAvState();
+        const transport = createTransport({
+            avState: state,
+            currentMedia: () => media,
+            bufferedSpans: elementSpans,
+            prefs: createAudioPrefs(),
+            labels: () => LABELS,
+            peaksStrip: () => null,
+            captions: () => ({ tracks: [], active: null }),
+            setCaptionTrack: () => {},
+            hasTranscript: () => false,
+            panelOpen: () => false,
+            setPanelOpen: () => {},
+            t: (key) => key,
+        });
+
+        const before = transport.view();
+        expect(transport.view()).not.toBe(before);
+
+        // And the copy is a snapshot, not a window: a later frame must not
+        // mutate a view core has already assigned and rendered from.
+        (state as { currentTime: number }).currentTime = 1;
+        frame();
+        expect(before.currentTime).toBe(0);
+        expect(transport.view().currentTime).toBe(1);
+
+        transport.destroy();
+    });
+
     it('carries the seek-step policy to core on the view', () => {
         const media = document.createElement('audio');
         const { state } = fakeAvState();
         const transport = createTransport({
             avState: state,
             currentMedia: () => media,
+            bufferedSpans: elementSpans,
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
@@ -384,6 +425,7 @@ describe('createTransport', () => {
         const transport = createTransport({
             avState: state,
             currentMedia: () => media,
+            bufferedSpans: elementSpans,
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
@@ -415,6 +457,7 @@ describe('createTransport', () => {
         const transport = createTransport({
             avState: state,
             currentMedia: () => media,
+            bufferedSpans: elementSpans,
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
@@ -482,6 +525,7 @@ describe('createTransport', () => {
         const transport = createTransport({
             avState: state,
             currentMedia: () => media,
+            bufferedSpans: elementSpans,
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,

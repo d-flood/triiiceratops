@@ -66,35 +66,58 @@ export function stageLanes(
     return { visual: null, timeline: null };
 }
 
+/** What the overlay container's box leaves showing of a projected rect. */
+export interface StageClip {
+    /** No part of the rect falls inside the container. */
+    readonly hidden: boolean;
+    /**
+     * The stage's `clip-path`, in the stage's own coordinates — `'none'` where
+     * the whole projection is inside the container.
+     */
+    readonly clipPath: string;
+}
+
 /**
- * The part of a projected rect that falls inside the overlay container's own
- * box, or `null` when none of it does.
+ * Clip a projected rect to the overlay container's own box.
  *
  * A projection is not bounded by the container: a canvas fitted to the viewer's
  * height overhangs it left and right, and any zoom overhangs it in both axes.
- * The stage box has to be the CLIPPED rect rather than the projected one,
- * because the stage's lanes take pointer events — an unclipped audio lane, which
- * fills its whole rect, reaches out over the side columns and swallows taps
- * aimed at the toolbar and the panels there. The lanes still divide the FULL
- * rect; only the box drawn around them is trimmed.
+ * The overhang has to go, because the stage's lanes take pointer events — an
+ * unclipped audio lane, which fills its whole rect, reaches out over the side
+ * columns and swallows taps aimed at the toolbar and the panels there.
+ *
+ * `clip-path` rather than a smaller box: the box IS the projection (the lanes
+ * divide the canvas, and the waveform's geometry is measured against it), and
+ * clipping takes the overhang out of hit testing as well as out of the picture,
+ * which shrinking the box would only do by restretching the layout. So the
+ * answer is the four insets — the clipped rect was only ever an intermediate on
+ * the way to them, and computing it separately meant computing them twice.
  *
  * A container with no measured box (before layout, and in jsdom) clips nothing:
  * the rect is unknown rather than empty, and hiding every stage would be worse
  * than drawing one that may overhang.
  */
-export function clipRect(
+export function stageClip(
     rect: StageRect,
     visible: { readonly width: number; readonly height: number },
-): StageRect | null {
-    if (!(visible.width > 0) || !(visible.height > 0)) return rect;
+): StageClip {
+    if (!(visible.width > 0) || !(visible.height > 0))
+        return { hidden: false, clipPath: 'none' };
 
-    const left = Math.max(rect.left, 0);
-    const top = Math.max(rect.top, 0);
-    const right = Math.min(rect.left + rect.width, visible.width);
-    const bottom = Math.min(rect.top + rect.height, visible.height);
-    if (!(right > left) || !(bottom > top)) return null;
+    const top = Math.max(-rect.top, 0);
+    const left = Math.max(-rect.left, 0);
+    const right = Math.max(rect.left + rect.width - visible.width, 0);
+    const bottom = Math.max(rect.top + rect.height - visible.height, 0);
 
-    return { left, top, width: right - left, height: bottom - top };
+    if (!(rect.width > left + right) || !(rect.height > top + bottom))
+        return { hidden: true, clipPath: 'none' };
+    if (top === 0 && left === 0 && right === 0 && bottom === 0)
+        return { hidden: false, clipPath: 'none' };
+
+    return {
+        hidden: false,
+        clipPath: `inset(${top}px ${right}px ${bottom}px ${left}px)`,
+    };
 }
 
 /**

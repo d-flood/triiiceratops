@@ -11,6 +11,7 @@ import {
     warnAboutUnloadableHlsChunk,
     warnAboutUnreadableWaveform,
 } from './degradation';
+import { PLUGIN_META } from './identity';
 import type { AvCanvasScan } from './sources';
 
 function scan(overrides: Partial<AvCanvasScan> = {}): AvCanvasScan {
@@ -24,18 +25,26 @@ function scan(overrides: Partial<AvCanvasScan> = {}): AvCanvasScan {
                 annotation: 0,
                 fragment: 'xywh=0,0,160,90&t=0,1',
                 alternatives: [
-                    { url: 'a.mp4', kind: 'video', format: 'video/mp4' },
+                    {
+                        url: 'a.mp4',
+                        kind: 'video',
+                        format: 'video/mp4',
+                        paintsPicture: true,
+                    },
                 ],
-                temporal: true,
                 spatial: true,
             },
             {
                 annotation: 1,
                 fragment: 't=1,2',
                 alternatives: [
-                    { url: 'b.mp4', kind: 'video', format: 'video/mp4' },
+                    {
+                        url: 'b.mp4',
+                        kind: 'video',
+                        format: 'video/mp4',
+                        paintsPicture: true,
+                    },
                 ],
-                temporal: true,
                 spatial: false,
             },
         ],
@@ -64,9 +73,8 @@ describe('warnAboutDegradation', () => {
         warnAboutDegradation({ id: 'canvas/1' }, scan());
 
         expect(messages()).toHaveLength(1);
-        expect(messages()[0]).toContain(
-            'Spatial placement of audiovisual content is not supported',
-        );
+        expect(messages()[0]).toContain('canvas/1');
+        expect(messages()[0]).toContain('spatial placement is unsupported');
     });
 
     /*
@@ -117,7 +125,7 @@ describe('warnAboutDegradation', () => {
             const said = messages();
             expect(said).toHaveLength(2);
             expect(said[0]).toContain('a/waveform.json');
-            expect(said[0]).toContain('The timeline still seeks.');
+            expect(said[0]).toContain('audiowaveform');
         });
     });
 
@@ -142,5 +150,38 @@ describe('warnAboutDegradation', () => {
             expect(said).toHaveLength(2);
             expect(said[0]).toContain('Access-Control-Allow-Origin');
         });
+    });
+
+    /*
+        Every warning is one cause line ending in the same docs pointer, so what
+        tells them apart is that line. Asserted over the whole contract rather
+        than warning by warning: no line may repeat or contain another, and each
+        must carry the pointer.
+    */
+    it('keeps every warning distinguishable, and each pointed at the docs', async () => {
+        // A fresh module, because the once-per-page and once-per-URL guards of
+        // the cases above have already been spent.
+        vi.resetModules();
+        const fresh = await import('./degradation');
+
+        fresh.warnAboutDegradation({ id: 'canvas/1' }, scan());
+        fresh.warnAboutCanvasRepeat({
+            id: 'canvas/1',
+            behavior: ['repeat'],
+        });
+        fresh.warnAboutUnreadableWaveform('https://distinct.test/peaks.json');
+        fresh.warnAboutUnloadableCaptionTrack('https://distinct.test/en.vtt');
+        fresh.warnAboutUnloadableHlsChunk(new Error('404'));
+
+        const said = messages();
+        expect(said).toHaveLength(5);
+        for (const line of said) expect(line).toContain(PLUGIN_META.docs);
+        expect(new Set(said).size).toBe(said.length);
+        for (const one of said) {
+            for (const other of said) {
+                if (one === other) continue;
+                expect(other).not.toContain(one);
+            }
+        }
     });
 });

@@ -25,13 +25,9 @@ import {
     bind_this,
     child,
     from_html,
-    get,
     pop,
-    proxy,
     push,
     reset,
-    set,
-    state,
 } from 'svelte/internal/client';
 
 import type { SharedSvelteRuntime } from './browser-runtime';
@@ -46,10 +42,15 @@ import type { SharedSvelteRuntime } from './browser-runtime';
  * tree-shaking. Adding a helper already reachable through core's shipped graph
  * — its own components, or the `@triiiceratops/ui` primitives
  * `packaging/inlineUi.ts` inlines into it — costs essentially nothing, because
- * nothing new is retained: the eleven the plugin's panel needs moved the element
- * IIFE by 11 bytes gzip. A helper that graph does NOT already reach is a
- * different thing entirely, and the size ratchet is what makes the difference
- * visible in review rather than silent.
+ * nothing new is retained: the set the plugin's panel needs moves the element
+ * IIFE by about ten bytes gzip either way, which is the property names in the
+ * object literal below and nothing else. A helper that graph does NOT already
+ * reach is a different thing entirely, and the size ratchet is what makes the
+ * difference visible in review rather than silent.
+ *
+ * The list SHRINKS the same way it grows — by re-deriving it from the built
+ * artifact, never by editing it to taste. `check:shared-runtime` in the plugin
+ * fails the build the moment the two sides disagree.
  */
 export const SHARED_SVELTE_RUNTIME: SharedSvelteRuntime = {
     svelte: { mount, unmount, getContext },
@@ -58,12 +59,8 @@ export const SHARED_SVELTE_RUNTIME: SharedSvelteRuntime = {
         bind_this,
         child,
         from_html,
-        get,
         pop,
-        proxy,
         push,
         reset,
-        set,
-        state,
     },
 };

@@ -15,14 +15,13 @@
 import { getCanvasId } from '../utils/iiifIds';
 import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
 import {
-    buildIiifImageRequestUrl,
     getDeclaredCanvasDimensions,
-    getRegionString,
     resolveAllCanvasImages,
+    toImageSource,
 } from '../utils/resolveCanvasImage';
 
 import { UNSIZED_CANVAS_PLACEHOLDER } from './rendererDefaults';
-import type { PlannerCanvas, PlannerImage, SourceDescriptor } from './types';
+import type { PlannerCanvas, PlannerImage } from './types';
 
 type SelectedChoiceLookup = (canvasId: string) => string | undefined;
 
@@ -56,47 +55,6 @@ export function getDeclaredThumbnailUrl(canvas: unknown): string | null {
 }
 
 /**
- * One canvas's source descriptor.
- *
- * The ordering mirrors `getCanvasTileSource`, so which URL a canvas resolves to
- * does not change with the renderer:
- *
- * 1. a service **plus** an Image API region is a prebuilt image request — a
- *    single static image of the cropped region (spec, user story 30);
- * 2. a service alone is a `service` source, resolved against the tile pyramid
- *    or size ladder;
- * 3. otherwise the painting resource's own id is a plain static image
- *    (user story 29).
- */
-function toSourceDescriptor(
-    resolved: ReturnType<typeof resolveAllCanvasImages>[number],
-): SourceDescriptor | null {
-    if (resolved.serviceId && resolved.imageApiRegion) {
-        return {
-            kind: 'static',
-            url: buildIiifImageRequestUrl(resolved.serviceId, {
-                region: getRegionString(resolved.imageApiRegion),
-                size: 'max',
-            }),
-        };
-    }
-
-    if (resolved.serviceId) {
-        return {
-            kind: 'service',
-            serviceId: resolved.serviceId,
-            profile: resolved.serviceProfile,
-        };
-    }
-
-    if (resolved.resourceId) {
-        return { kind: 'static', url: resolved.resourceId };
-    }
-
-    return null;
-}
-
-/**
  * One raw Canvas → a planner canvas, or `null` if it paints nothing usable.
  *
  * **Every painting annotation, not the first one.** `resolveAllCanvasImages`
@@ -112,7 +70,7 @@ function toSourceDescriptor(
  *
  * The Image API region selector on a body is a different mechanism and is
  * unaffected: that one is a crop of the SOURCE and is already handled by
- * {@link toSourceDescriptor} as a prebuilt static request.
+ * {@link toImageSource} as a prebuilt static request.
  *
  * A Canvas that declares no `width`/`height` is a spec violation the viewer
  * still has to render (user story 32), so it is **not** dropped here: it comes
@@ -149,7 +107,7 @@ export function toPlannerCanvas(
 
     const images: PlannerImage[] = [];
     resolved.forEach((image, index) => {
-        const source = toSourceDescriptor(image);
+        const source = toImageSource(image);
         if (!source) return;
 
         images.push({

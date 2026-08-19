@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -5,6 +6,11 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { bundledCss } from '@triiiceratops/ui/vite';
 import { defineConfig, type Plugin } from 'vite';
 
+// Core's build-time CSS pass, by source path: it lives in `src/packaging`, which
+// core neither publishes nor exports, so there is no package specifier to reach
+// it by. `scripts/check-shared-runtime.mjs` reads core's source the same way and
+// for the same reason — both are monorepo build tooling, never shipped.
+import { minifyCss } from '../core/src/packaging/minifyCss';
 import { sharedRuntimeGateSource } from './src/sharedRuntimeGate';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -67,11 +73,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * runtime, and `output.intro` below refuses to evaluate this bundle at all
  * against a core that is absent or shares a runtime it cannot use.
  *
- * The same bargain covers `triiiceratops` itself. Importing four utilities from
- * core drags the painting classifier and the IIIF parsing helpers behind them
- * into this bundle — all of it already parsed and retained by the core script
- * sitting beside it on the page. So the IIFE externalizes core too and reads the
- * four off `window.Triiiceratops.core`, fenced by the same pair of gates: the
+ * The same bargain covers `triiiceratops` itself. Importing core's curated
+ * utilities drags the painting classifier, the IIIF parsing helpers and the
+ * companion resolution behind them into this bundle — all of it already parsed
+ * and retained by the core script sitting beside it on the page. So the IIFE
+ * externalizes core too and reads them off `window.Triiiceratops.core`, fenced
+ * by the same pair of gates: the
  * `shared-core-utils` capability at activation, and `output.intro` ahead of the
  * bundle body.
  *
@@ -152,6 +159,40 @@ function __triAvChunkUrl(name) {
     return __triAvChunkBase ? new URL(name, __triAvChunkBase).href : './' + name;
 }
 `;
+
+/** The suffix `src/styles.ts` imports the stage stylesheet under. */
+const RAW_CSS_QUERY = '.css?raw';
+
+/**
+ * Minify the package-owned stylesheets `?raw` brings in as strings.
+ *
+ * A plugin's global CSS is installed through the SDK style service rather than
+ * appended by a bundler, so it reaches the bundle as a JS string literal — which
+ * means no CSS pipeline and no JS minifier ever visits it, and every comment and
+ * every indent would ship to every reader. `minifyCss` is the same conservative
+ * pass core's element builds run over component CSS for the same reason, proven
+ * semantics-preserving by `minifyCss.equivalence.test.ts`.
+ *
+ * A `load` hook rather than a `transform`: `?raw` is Vite's own asset suffix, so
+ * by transform time the module is already `export default "<the whole sheet>"`
+ * and the CSS would have to be dug back out of a JS literal. Claiming the load
+ * first keeps the pass on plain CSS text. Unit tests read the sheet through
+ * vitest's own config, which does not register this plugin, so they see the
+ * readable source — which is the point: formatting `stage.css` cannot change a
+ * shipped byte.
+ */
+function minifiedRawCss(): Plugin {
+    return {
+        name: 'tri-av-minify-raw-css',
+        apply: 'build',
+        enforce: 'pre',
+        async load(id) {
+            if (!id.endsWith(RAW_CSS_QUERY)) return null;
+            const css = await readFile(id.slice(0, -'?raw'.length), 'utf8');
+            return `export default ${JSON.stringify(minifyCss(css))};`;
+        },
+    };
+}
 
 /**
  * Emit the IIFE's dynamic imports as fetches of sibling files instead of
@@ -253,6 +294,7 @@ export default defineConfig({
             compilerOptions: { customElement: false },
         }),
         bundledCss(),
+        minifiedRawCss(),
         ...(format === 'iife' ? [chunkedIife()] : []),
     ],
     build: {

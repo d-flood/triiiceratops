@@ -10,7 +10,6 @@
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
-    let { embedded = false }: { embedded?: boolean } = $props();
     const m = getMessages();
 
     let searchQuery = $state('');
@@ -38,7 +37,6 @@
             viewerState.setCanvas(canvasId);
         }
     }
-    let position = $derived(viewerState.config.search?.position ?? 'right');
 
     let totalMatches = $derived(
         viewerState.searchResults.reduce(
@@ -96,22 +94,9 @@
     <div
         data-panel-id="search"
         class="panel"
-        class:standalone={!embedded}
-        class:bordered-left={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position === 'left'}
-        class:bordered-right={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position !== 'left'}
         role="dialog"
         aria-label={m.search_panel_title()}
     >
-        {#if !embedded}
-            <div class="header">
-                <h2 class="title">{m.search()}</h2>
-            </div>
-        {/if}
-
         <!-- Search Input -->
         <div class="search-bar">
             <div class="search-input-wrap">
@@ -137,11 +122,7 @@
         </div>
 
         <!-- Results -->
-        <div
-            bind:this={resultsContainer}
-            class="results"
-            class:scrollable={!embedded}
-        >
+        <div bind:this={resultsContainer} class="results">
             {#if viewerState.isSearching}
                 <div class="loading-wrap">
                     <Spinner size="lg" class="loading-primary" />
@@ -239,41 +220,6 @@
         display: flex;
         flex-direction: column;
     }
-    .panel.standalone {
-        height: 100%;
-        background-color: var(--panel-surface);
-        box-shadow: 0 25px 50px -12px #00000040;
-        z-index: 100;
-        transition-property: width;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.2s;
-    }
-    .panel.bordered-left {
-        border-right-width: 1px;
-        border-right-style: solid;
-        border-right-color: var(--tri-surface-border);
-    }
-    .panel.bordered-right {
-        border-left-width: 1px;
-        border-left-style: solid;
-        border-left-color: var(--tri-surface-border);
-    }
-
-    .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem;
-        border-bottom-width: 1px;
-        border-bottom-style: solid;
-        border-bottom-color: var(--tri-surface-border);
-    }
-    .title {
-        font-weight: 700;
-        font-size: 1.125rem;
-        line-height: 1.75rem;
-    }
-
     .search-bar {
         padding: 1rem;
         border-bottom-width: 1px;
@@ -304,11 +250,6 @@
     .results > * + * {
         margin-top: 1rem;
     }
-    .results.scrollable {
-        flex: 1 1 0%;
-        overflow-y: auto;
-    }
-
     .loading-wrap {
         display: flex;
         justify-content: center;

@@ -47,7 +47,6 @@
         toolbarOpen: true,
         showCanvasNav: true,
         showZoomControls: true,
-        enableDragDrop: true,
         leftPanelWidth: '320px',
         rightPanelWidth: '320px',
         toolbar: {

@@ -268,6 +268,15 @@ describe('Toolbar attribute matrix', () => {
                 flyoutToggle: true,
             }),
             row({
+                glyph: 'Layout',
+                tip: 'Gallery Placement',
+                label: 'Gallery Placement',
+                haspopup: 'menu',
+                menu: 'tri-flyout-gallery-placement',
+                expanded: 'false',
+                flyoutToggle: true,
+            }),
+            row({
                 glyph: 'Stack',
                 tip: 'Sequence',
                 label: 'Sequence',
@@ -358,6 +367,15 @@ describe('Toolbar attribute matrix', () => {
                 label: 'Viewing Mode',
                 haspopup: 'menu',
                 menu: 'tri-flyout-viewing-mode',
+                expanded: 'false',
+                flyoutToggle: true,
+            }),
+            row({
+                glyph: 'Layout',
+                tip: 'Gallery Placement',
+                label: 'Gallery Placement',
+                haspopup: 'menu',
+                menu: 'tri-flyout-gallery-placement',
                 expanded: 'false',
                 flyoutToggle: true,
             }),
@@ -612,6 +630,178 @@ describe('Toolbar attribute matrix', () => {
         expect(
             menuItems('tri-flyout-sequence-picker').map((item) => item.checked),
         ).toEqual(['false', 'true']);
+    });
+
+    /**
+     * The gallery-placement picker is the accessible replacement for the deleted
+     * drag-to-dock gesture, so its keyboard path is the feature, not a detail:
+     * every assertion below is reachable with a keyboard alone, and every
+     * activation is a `click` on a `<button>` — which is also what a touch tap
+     * dispatches, the case the mouse-only drag never served.
+     */
+    describe('gallery placement picker', () => {
+        /** Let the open-menu effect's `requestAnimationFrame` focus pass run. */
+        async function frame() {
+            await new Promise<void>((resolve) => {
+                requestAnimationFrame(() => resolve());
+            });
+            flushSync();
+        }
+
+        const toggle = () =>
+            actionButtons().find(
+                (button) =>
+                    button.getAttribute('aria-controls') ===
+                    'tri-flyout-gallery-placement',
+            )!;
+
+        const items = () => [
+            ...document.querySelectorAll<HTMLButtonElement>(
+                '#tri-flyout-gallery-placement > li > button',
+            ),
+        ];
+
+        it('renders one radio item per dock side, checked from the current side', async () => {
+            const viewerState = await mountToolbar();
+
+            expect(menuItems('tri-flyout-gallery-placement')).toEqual([
+                {
+                    role: 'menuitemradio',
+                    text: 'Top',
+                    glyph: 'CaretUp',
+                    checked: 'false',
+                    active: false,
+                    check: false,
+                },
+                {
+                    role: 'menuitemradio',
+                    text: 'Bottom',
+                    glyph: 'CaretDown',
+                    checked: 'true',
+                    active: true,
+                    check: true,
+                },
+                {
+                    role: 'menuitemradio',
+                    text: 'Left',
+                    glyph: 'CaretLeft',
+                    checked: 'false',
+                    active: false,
+                    check: false,
+                },
+                {
+                    role: 'menuitemradio',
+                    text: 'Right',
+                    glyph: 'CaretRight',
+                    checked: 'false',
+                    active: false,
+                    check: false,
+                },
+            ]);
+
+            viewerState.setDockSide('left');
+            flushSync();
+
+            expect(
+                menuItems('tri-flyout-gallery-placement').map(
+                    (item) => item.checked,
+                ),
+            ).toEqual(['false', 'false', 'true', 'false']);
+        });
+
+        /**
+         * The four items are paired to their sides by tuple position alone, so a
+         * transposed pair renders identical DOM and the matrix above still passes.
+         * Clicking each and naming the side it commits is what pins the pairing.
+         */
+        it('docks the gallery to the side each item names', async () => {
+            const viewerState = await mountToolbar();
+            const setDockSide = vi
+                .spyOn(viewerState, 'setDockSide')
+                .mockImplementation(() => {});
+
+            for (const [index, side] of [
+                'top',
+                'bottom',
+                'left',
+                'right',
+            ].entries()) {
+                setDockSide.mockClear();
+                items()[index].click();
+                flushSync();
+                expect(setDockSide.mock.calls).toEqual([[side]]);
+            }
+        });
+
+        /** Placement belongs to the gallery, so it follows the gallery's gate. */
+        it('is absent when the gallery is switched off', async () => {
+            await mountToolbar({ toolbar: { showGallery: false } });
+
+            expect(
+                document.querySelector('#tri-flyout-gallery-placement'),
+            ).toBeNull();
+            expect(matrix().map((button) => button.label)).not.toContain(
+                'Gallery Placement',
+            );
+        });
+
+        it('moves focus into the menu on open and back to the toggle on Escape', async () => {
+            await mountToolbar();
+
+            toggle().focus();
+            expect(document.activeElement).toBe(toggle());
+
+            toggle().click();
+            flushSync();
+            await frame();
+
+            expect(toggle().getAttribute('aria-expanded')).toBe('true');
+            expect(document.activeElement).toBe(items()[0]);
+
+            window.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Escape' }),
+            );
+            flushSync();
+
+            expect(toggle().getAttribute('aria-expanded')).toBe('false');
+            expect(document.activeElement).toBe(toggle());
+        });
+
+        it('roves focus through the four sides with the arrow and Home/End keys', async () => {
+            await mountToolbar();
+
+            toggle().click();
+            flushSync();
+            await frame();
+
+            const menu = document.querySelector(
+                '#tri-flyout-gallery-placement',
+            )!;
+            const press = (key: string) => {
+                menu.dispatchEvent(
+                    new KeyboardEvent('keydown', { key, bubbles: true }),
+                );
+                flushSync();
+            };
+
+            const at = () =>
+                items().indexOf(document.activeElement as HTMLButtonElement);
+
+            expect(at()).toBe(0);
+            press('ArrowDown');
+            expect(at()).toBe(1);
+            press('ArrowUp');
+            expect(at()).toBe(0);
+            // Wraps, so the last item is one ArrowUp from the first.
+            press('ArrowUp');
+            expect(at()).toBe(3);
+            press('ArrowDown');
+            expect(at()).toBe(0);
+            press('End');
+            expect(at()).toBe(3);
+            press('Home');
+            expect(at()).toBe(0);
+        });
     });
 
     /**

@@ -37,6 +37,8 @@
  * those transcripts remain reachable — just not readable in place.
  */
 
+import { asArray, asRecord, firstLabel } from './iiifJson';
+
 /** An untimed transcript linked from a canvas. */
 export interface TextTranscript {
     /** Where the transcript's bytes are. */
@@ -51,38 +53,6 @@ export interface TextTranscript {
 
 /** The one format whose bytes this plugin will render as words. */
 const PLAIN_TEXT = 'text/plain';
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-    return value && typeof value === 'object'
-        ? (value as Record<string, unknown>)
-        : null;
-}
-
-function asArray(value: unknown): unknown[] {
-    if (Array.isArray(value)) return value;
-    return value === undefined || value === null ? [] : [value];
-}
-
-/**
- * The first string in an IIIF language map, or a bare string label.
- *
- * Language-indifferent on purpose: this is one file, so there is no set of
- * candidates to choose the reader's language from — picking "the wrong
- * language's name for the only transcript there is" is not a failure mode that
- * exists. What matters is that a name authored under any language tag is used
- * rather than discarded.
- */
-function firstLabel(label: unknown): string {
-    if (typeof label === 'string') return label.trim();
-    const record = asRecord(label);
-    if (!record) return '';
-    for (const values of Object.values(record)) {
-        for (const value of asArray(values)) {
-            if (typeof value === 'string' && value.trim()) return value.trim();
-        }
-    }
-    return '';
-}
 
 /** The untimed transcript this canvas links, or `null` if it links none. */
 export function textTranscriptFor(canvas: unknown): TextTranscript | null {

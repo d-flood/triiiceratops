@@ -274,7 +274,7 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
         expect(asked(tileRequests, 'choice-xray')).toHaveLength(0);
 
         await page
-            .locator('.join-desktop button[aria-label="X-Ray"]')
+            .locator('.choice-join button[aria-label="2: X-Ray"]')
             .click({ timeout: 20_000 });
 
         // Its facts are fetched — the metadata record cannot answer for a

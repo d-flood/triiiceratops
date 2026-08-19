@@ -11,12 +11,22 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { PLUGIN_META } from './identity';
 import {
     REQUIRED_CORE_UTILS,
     REQUIRED_SVELTE_EXPORTS,
     REQUIRED_SVELTE_INTERNALS,
     sharedRuntimeGateSource,
 } from './sharedRuntimeGate';
+
+/**
+ * The shared remedy both skew refusals end their name list with.
+ *
+ * Included in the list assertions below so they pin the list as EXACTLY the
+ * names given: `toContain('… helpers: from_html')` alone also passes for
+ * `… helpers: from_html, anything, else`.
+ */
+const AFTER_NAMES = '; load matching versions of core and this plugin';
 
 interface GateRun {
     /** `true` when the gate let the bundle body run. */
@@ -74,10 +84,8 @@ describe('the shared-runtime skew gate', () => {
 
         expect(run.registered).toBe(false);
         expect(run.errors).toHaveLength(1);
-        expect(run.errors[0]).toContain(
-            'window.Triiiceratops is not on this page',
-        );
-        expect(run.errors[0]).toContain('must load BEFORE it');
+        expect(run.errors[0]).toContain('no window.Triiiceratops');
+        expect(run.errors[0]).toContain('triiiceratops-element.iife.js');
     });
 
     it('names the version when a core shares no runtime at all', () => {
@@ -90,7 +98,13 @@ describe('the shared-runtime skew gate', () => {
         expect(run.registered).toBe(false);
         expect(run.errors).toHaveLength(1);
         expect(run.errors[0]).toContain('core 1.0.0-rc.30');
-        expect(run.errors[0]).toContain('does not share the Svelte runtime');
+        // Every required name, since the page shares none of them.
+        expect(run.errors[0]).toContain(
+            `Missing shared Svelte helpers: ${[
+                ...REQUIRED_SVELTE_EXPORTS,
+                ...REQUIRED_SVELTE_INTERNALS,
+            ].join(', ')}${AFTER_NAMES}`,
+        );
     });
 
     it('names the missing helper when a newer core renamed one', () => {
@@ -105,7 +119,9 @@ describe('the shared-runtime skew gate', () => {
         expect(run.registered).toBe(false);
         expect(run.errors).toHaveLength(1);
         expect(run.errors[0]).toContain('core 2.0.0');
-        expect(run.errors[0]).toContain('Missing helpers: from_html.');
+        expect(run.errors[0]).toContain(
+            `Missing shared Svelte helpers: from_html${AFTER_NAMES}`,
+        );
     });
 
     it('names the version when a core publishes no core utilities', () => {
@@ -117,7 +133,7 @@ describe('the shared-runtime skew gate', () => {
         expect(run.errors).toHaveLength(1);
         expect(run.errors[0]).toContain('core 1.0.0-rc.30');
         expect(run.errors[0]).toContain(
-            'does not publish the curated core utilities',
+            `Missing core utilities: ${REQUIRED_CORE_UTILS.join(', ')}${AFTER_NAMES}`,
         );
     });
 
@@ -130,8 +146,41 @@ describe('the shared-runtime skew gate', () => {
         expect(run.registered).toBe(false);
         expect(run.errors).toHaveLength(1);
         expect(run.errors[0]).toContain(
-            'Missing utilities: isUnsupportedCanvasFor.',
+            `Missing core utilities: isUnsupportedCanvasFor${AFTER_NAMES}`,
         );
+    });
+
+    /*
+        The three refusals share a prefix and a docs pointer, so what tells them
+        apart is the cause line between them. Asserted as a property over the
+        whole set rather than case by case: no refusal may be a substring of
+        another, and each must carry the one pointer.
+    */
+    it('keeps every refusal distinguishable, and each pointed at the docs', () => {
+        const noHelpers = sharedRuntime({ coreVersion: '2.0.0' });
+        delete (noHelpers.svelteInternal as Record<string, unknown>).from_html;
+        const noUtils = sharedRuntime({ coreVersion: '2.0.0' });
+        delete (noUtils.core as Record<string, unknown>).isUnsupportedCanvasFor;
+
+        const refusals = [
+            runGate(undefined),
+            runGate(noHelpers),
+            runGate(noUtils),
+        ].map((run) => {
+            expect(run.errors).toHaveLength(1);
+            return run.errors[0] as string;
+        });
+
+        for (const refusal of refusals) {
+            expect(refusal).toContain(PLUGIN_META.docs);
+        }
+        expect(new Set(refusals).size).toBe(refusals.length);
+        for (const one of refusals) {
+            for (const other of refusals) {
+                if (one === other) continue;
+                expect(other).not.toContain(one);
+            }
+        }
     });
 
     it('emits exactly one diagnostic, never a bare throw', () => {

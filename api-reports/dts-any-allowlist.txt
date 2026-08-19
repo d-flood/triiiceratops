@@ -45,11 +45,9 @@ triiiceratops :: dist/state/manifests.svelte.d.ts :: fetchResource(url: string, 
 triiiceratops :: dist/state/manifests.svelte.d.ts :: getAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
 triiiceratops :: dist/state/manifests.svelte.d.ts :: getCanvases(manifestId: string, sequenceIndex?: number): any[];
 triiiceratops :: dist/state/manifests.svelte.d.ts :: json?: any;
-triiiceratops :: dist/state/manifests.svelte.d.ts :: manualGetAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
 triiiceratops :: dist/state/manifests.svelte.d.ts :: registerManifest(manifestId: string, json: any): Promise<void>;
 triiiceratops :: dist/state/viewer.svelte.d.ts :: ensureCanvasAnnotations(manifestId: string, canvasId: string, sourceId?: string): Promise<any[]>;
 triiiceratops :: dist/state/viewer.svelte.d.ts :: get canvases(): any[];
-triiiceratops :: dist/state/viewer.svelte.d.ts :: get currentCanvasSearchAnnotations(): any[];
 triiiceratops :: dist/state/viewer.svelte.d.ts :: getAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
 triiiceratops :: dist/state/viewer.svelte.d.ts :: getCanvases(manifestId: string, sequenceIndex?: number): any[];
 triiiceratops :: dist/state/viewer.svelte.d.ts :: getUserAnnotations(manifestId: string, canvasId: string): any[];
@@ -74,9 +72,9 @@ triiiceratops :: dist/utils/getThumbnailSrc.d.ts :: export declare function getT
 triiiceratops :: dist/utils/getThumbnailSrc.d.ts :: export declare function resolveThumbnailResourceSrc(thumbnail: any, size?: number): string;
 triiiceratops :: dist/utils/iiifIds.d.ts :: export declare function findCanvasById(canvases: any[], canvasId: string | null): any;
 triiiceratops :: dist/utils/iiifIds.d.ts :: export declare function findCanvasIndexById(canvases: any[], canvasId: string | null): number;
-triiiceratops :: dist/utils/iiifIds.d.ts :: export declare function getAnnotationId(annotation: any): string;
 triiiceratops :: dist/utils/iiifIds.d.ts :: export declare function getCanvasId(canvas: any): string;
 triiiceratops :: dist/utils/iiifIds.d.ts :: export declare function getResourceId(resource: any): string | null;
+triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function asArray(value: unknown): any[];
 triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function getCanvasBehaviors(canvas: any): string[];
 triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function getCanvasChoices(canvas: any): any[];
 triiiceratops :: dist/utils/iiifParsing.d.ts :: export declare function getCanvasesForSequence(manifest: any, index: number): any[];

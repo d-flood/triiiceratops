@@ -355,12 +355,6 @@ export interface ViewerConfig {
     pointStyle?: PointStyle;
 
     /**
-     * Enable drag-and-drop loading of IIIF manifest URLs/content state text.
-     * @default false
-     */
-    enableDragDrop?: boolean;
-
-    /**
      * Enable opt-in developer diagnostics. Production distributions are quiet
      * by default: when `false`, the viewer emits no unsolicited
      * console output. When `true`, viewer diagnostics are logged through the

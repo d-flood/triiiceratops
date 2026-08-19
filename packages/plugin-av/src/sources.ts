@@ -20,6 +20,8 @@ import {
     paintingBodyAlternatives,
 } from 'triiiceratops';
 
+import { asRecord, stringOrNull } from './iiifJson';
+
 /** Which element plays a source. */
 export type AvMediaKind = 'video' | 'audio';
 
@@ -29,6 +31,12 @@ export interface AvSource {
     readonly url: string;
     readonly kind: AvMediaKind;
     readonly format: string | null;
+    /**
+     * The picture in the canvas's rect is this body, shown by the element that
+     * plays it. Not the same question as `kind`: a `Sound` body formatted
+     * `video/mp4` plays through a `<video>` and paints no picture.
+     */
+    readonly paintsPicture: boolean;
 }
 
 /** One painting annotation that places a time-based body on the canvas. */
@@ -53,8 +61,6 @@ export interface AvPlacement {
      * asks.
      */
     readonly alternatives: readonly AvSource[];
-    /** The annotation's target carries a `t=` media fragment. */
-    readonly temporal: boolean;
     /** The annotation's target carries an `xywh=` media fragment. */
     readonly spatial: boolean;
 }
@@ -81,16 +87,6 @@ export interface AvCanvasScan {
     readonly temporallyComposed: boolean;
     /** At least one time-based body is placed into part of the canvas rect. */
     readonly spatiallyTargeted: boolean;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-    return value && typeof value === 'object'
-        ? (value as Record<string, unknown>)
-        : null;
-}
-
-function stringOrNull(value: unknown): string | null {
-    return typeof value === 'string' && value !== '' ? value : null;
 }
 
 function usableDimension(value: unknown): number | null {
@@ -122,7 +118,8 @@ function targetFragment(target: unknown): string {
 }
 
 /**
- * Which element a body plays in, or `null` if it is not time-based media at all.
+ * What a body IS, in the two senses the stage needs, or `null` if it is not
+ * time-based media at all.
  *
  * Answering `null` is the load-bearing half. Core's classifier only decides
  * whether core can PAINT a body, so "not an image" covers transcripts,
@@ -132,23 +129,48 @@ function targetFragment(target: unknown): string {
  * Treating any non-image body with an id as playable builds `<video
  * src="…vtt">` the moment a curator writes the caption first.
  *
- * The `type` is the weaker signal: `0014-accompanyingcanvas` types its body
- * `Sound` and formats it `video/mp4`, and a `<video>` plays a soundtrack while
- * an `<audio>` cannot show a picture. So a stated media type decides, and the
- * IIIF type is the fallback — which is also what carries the streaming
- * manifests, whose formats (`application/vnd.apple.mpegurl`) say nothing about
- * the medium.
+ * The two answers weigh the same two fields in opposite orders, and
+ * `0014-accompanyingcanvas` is why: it types its body `Sound` and formats it
+ * `video/mp4`.
+ *
+ * - `kind` — which element will play it. A `<video>` plays a soundtrack while
+ *   an `<audio>` cannot show a picture, so a stated media type decides and the
+ *   IIIF type is the fallback — which is also what carries the streaming
+ *   manifests, whose formats (`application/vnd.apple.mpegurl`) say nothing
+ *   about the medium.
+ * - `paintsPicture` — whether the picture in the rect is this body's. Here the
+ *   IIIF type decides, because it is what states the medium: 0014's picture
+ *   stays the accompanying canvas core paints behind the `<video>` decoding
+ *   its sound.
+ *
+ * The canvas's own dimensions answer neither. A duration-only canvas can paint
+ * a moving picture — `0015-start` declares no `width`/`height` — and reading
+ * the layout off them puts the video behind an audio timeline lane.
  */
-function mediaKind(body: Record<string, unknown>): AvMediaKind | null {
+function mediaFacts(
+    body: Record<string, unknown>,
+): Omit<AvSource, 'url'> | null {
     const format = stringOrNull(body.format);
-    if (format?.startsWith('audio/')) return 'audio';
-    if (format?.startsWith('video/')) return 'video';
-
     const type = body.type ?? body['@type'];
-    if (type === 'Sound' || type === 'dctypes:Sound') return 'audio';
-    if (type === 'Video' || type === 'dctypes:MovingImage') return 'video';
+    const sound = type === 'Sound' || type === 'dctypes:Sound';
+    const video = type === 'Video' || type === 'dctypes:MovingImage';
 
-    return null;
+    const kind: AvMediaKind | null = format?.startsWith('audio/')
+        ? 'audio'
+        : format?.startsWith('video/')
+          ? 'video'
+          : sound
+            ? 'audio'
+            : video
+              ? 'video'
+              : null;
+    if (!kind) return null;
+
+    return {
+        kind,
+        format,
+        paintsPicture: video || (!sound && kind === 'video'),
+    };
 }
 
 /**
@@ -171,10 +193,10 @@ function placedSources(annotation: unknown): AvSource[] {
         const url = stringOrNull(record?.id) ?? stringOrNull(record?.['@id']);
         if (!record || !url) continue;
 
-        const kind = mediaKind(record);
-        if (!kind) continue;
+        const facts = mediaFacts(record);
+        if (!facts) continue;
 
-        sources.push({ url, kind, format: stringOrNull(record.format) });
+        sources.push({ url, ...facts });
     }
 
     return sources;
@@ -204,7 +226,6 @@ export function scanCanvasForAv(canvas: unknown): AvCanvasScan | null {
             annotation: index,
             fragment,
             alternatives,
-            temporal: /(^|&)t=/.test(fragment),
             spatial: /(^|&)xywh=/.test(fragment),
         });
     });

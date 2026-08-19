@@ -1,5 +1,4 @@
 <script lang="ts">
-    import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages, language } from '../state/i18n.svelte';
@@ -9,7 +8,6 @@
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
-    let { embedded = false }: { embedded?: boolean } = $props();
     let viewerLocale = $derived(viewerState.config.locale ?? language.current);
 
     // Raw IIIF Manifest JSON, v2 or v3 as the publisher authored it. The
@@ -37,42 +35,16 @@
     let homepages = $derived(described.homepages);
     let rendering = $derived(described.rendering);
     let seeAlso = $derived(described.seeAlso);
-
-    let position = $derived(
-        viewerState.config.information?.position ?? 'right',
-    );
 </script>
 
 {#if viewerState.showMetadataPanel}
     <div
         data-panel-id="metadata"
         class="panel"
-        class:floating={!embedded}
-        class:bordered={!embedded && !viewerState.config.transparentBackground}
-        class:border-left={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position === 'left'}
-        class:border-right={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position !== 'left'}
         role="dialog"
         aria-label={m.metadata()}
     >
-        {#if !embedded}
-            <div class="header">
-                <div class="header-title">
-                    <Icon
-                        name="Info"
-                        size={20}
-                        weight="bold"
-                        class="header-icon"
-                    />
-                    <h2 class="header-heading">{m.metadata()}</h2>
-                </div>
-            </div>
-        {/if}
-
-        <div class="body" class:scrollable={!embedded}>
+        <div class="body">
             <h3 class="title">{title}</h3>
 
             {#if manifestThumbnail}
@@ -254,66 +226,8 @@
         flex-direction: column;
     }
 
-    .panel.floating {
-        height: 100%;
-        background-color: var(--panel-surface);
-        box-shadow: 0 25px 50px -12px #00000040;
-        z-index: 100;
-        transition-property: width;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.2s;
-    }
-
-    .panel.bordered.border-left {
-        border-right-width: 1px;
-        border-right-style: solid;
-        border-color: var(--tri-surface-border);
-    }
-
-    .panel.bordered.border-right {
-        border-left-width: 1px;
-        border-left-style: solid;
-        border-color: var(--tri-surface-border);
-    }
-
-    .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        padding: 1rem;
-        border-bottom-width: 1px;
-        border-bottom-style: solid;
-        border-color: var(--tri-surface-border);
-    }
-
-    .header-title {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        min-width: 0;
-    }
-
-    .header-title :global(.header-icon) {
-        flex-shrink: 0;
-    }
-
-    .header-heading {
-        font-weight: 700;
-        font-size: 1.125rem;
-        line-height: 1.75rem;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
     .body {
         padding: 1rem;
-    }
-
-    .body.scrollable {
-        flex: 1 1 0%;
-        overflow-y: auto;
     }
 
     .title {

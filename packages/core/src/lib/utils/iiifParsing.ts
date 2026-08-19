@@ -15,13 +15,17 @@ import { logger } from '../logging/logger';
  * Coerce a field that should be an array into one.
  *
  * IIIF fields that the spec declares as arrays turn up in real manifests as
- * bare objects. Every array access in this module goes through here so that
- * a bare object degrades to a one-element list rather than throwing or
- * silently enumerating nothing.
+ * bare objects. Every array access over raw manifest JSON goes through here so
+ * that a bare object degrades to a one-element list rather than throwing or
+ * silently enumerating nothing, and an empty value degrades to no list at all.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
  */
-function asArray(value: unknown): any[] {
+export function asArray(value: unknown): any[] {
     if (Array.isArray(value)) return value;
-    return value === null || value === undefined ? [] : [value];
+    return value ? [value] : [];
 }
 
 /**
@@ -341,10 +345,28 @@ export function getCanvasChoices(canvas: any) {
     return [];
 }
 
-/** Either spelling's value as a list, dropping empties and non-values. */
-function toBehaviorList(value: unknown): unknown[] {
-    if (value === null || value === undefined || value === '') return [];
-    return Array.isArray(value) ? value : [value];
+/**
+ * A `behavior`/`viewingHint` field as a list of bare terms.
+ *
+ * Either spelling may be a single string or an array of them, and a term may
+ * arrive fully qualified (`http://iiif.io/api/presentation/3#paged`) or
+ * prefixed, so each is reduced to its last path/fragment segment, trimmed and
+ * lowercased. Absent reads as no behaviors at all.
+ *
+ * The one reader of both spellings, everywhere: canvas hints
+ * ({@link getCanvasBehaviors}), a range's `sequence` marker, and the
+ * manifest-level viewing mode all resolve terms the same way.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export function toBehaviorList(value: unknown): string[] {
+    return asArray(value).map((entry) => {
+        const normalized = String(entry).trim().toLowerCase();
+        const segments = normalized.split(/[#/:]/);
+        return segments[segments.length - 1] || normalized;
+    });
 }
 
 /**
@@ -370,14 +392,10 @@ export function getCanvasBehaviors(canvas: any): string[] {
     // converter emits on every canvas while leaving `viewingHint` in place. A
     // truthiness test there discards the only hint the document carries and
     // re-pairs the single-page plate this function exists to keep unpaired.
-    const behaviors = [
-        toBehaviorList(canvas?.behavior),
-        toBehaviorList(canvas?.viewingHint),
-    ].find((list) => list.length > 0);
-
-    return (behaviors ?? []).map((value) => {
-        const normalized = String(value).trim().toLowerCase();
-        const segments = normalized.split(/[#/:]/);
-        return segments[segments.length - 1] || normalized;
-    });
+    return (
+        [
+            toBehaviorList(canvas?.behavior),
+            toBehaviorList(canvas?.viewingHint),
+        ].find((list) => list.length > 0) ?? []
+    );
 }

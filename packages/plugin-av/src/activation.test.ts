@@ -304,6 +304,58 @@ describe('activation and the canvas claim', () => {
 });
 
 /*
+    Which layout a claimed canvas gets is decided by whether the picture is the
+    plugin's element to show, and a duration-only canvas is not the answer to
+    that: `0015-start` declares no `width`/`height` and still paints a `Video`.
+*/
+describe('the stage layout', () => {
+    async function laneOf(
+        file: string,
+    ): Promise<{
+        media: Element | null;
+        visual: Element | null;
+        cleanup: () => void;
+    }> {
+        const { tc, cleanup } = await mountWith({
+            id: `https://iiif.io/api/cookbook/recipe/${file.replace('.json', '')}/manifest.json`,
+            json: recipe(file),
+        });
+        const viewer = mountViewerRoot(tc);
+        const stage = viewer.root.querySelector<HTMLElement>(
+            '[data-testid="av-stage"]',
+        )!;
+
+        return {
+            media: stage.querySelector('[data-testid="av-media"]'),
+            visual: stage.querySelector('[data-testid="av-visual-lane"]'),
+            cleanup: () => {
+                viewer.unmount();
+                cleanup();
+            },
+        };
+    }
+
+    it('puts the element in the visual lane of a duration-only video canvas', async () => {
+        const { media, visual, cleanup } = await laneOf('0015-start.json');
+
+        expect(media?.tagName).toBe('VIDEO');
+        expect(visual?.contains(media!)).toBe(true);
+
+        cleanup();
+    });
+
+    it('keeps a duration-only sound body out of the lane', async () => {
+        const { media, visual, cleanup } = await laneOf(
+            '0014-accompanyingcanvas.json',
+        );
+
+        expect(visual?.contains(media!)).toBe(false);
+
+        cleanup();
+    });
+});
+
+/*
     The companion phase is the second half of what claiming a canvas means: the
     claim suppresses core's placard, and the phase says which of the canvas's own
     companion Canvases core should paint into the rect instead. The plugin sets
@@ -995,9 +1047,7 @@ describe('the degradation contract', () => {
 
         expect(
             warnings().filter((message) =>
-                /Spatial placement of audiovisual content is not supported/.test(
-                    message,
-                ),
+                /spatial placement is unsupported/.test(message),
             ),
         ).toHaveLength(1);
 

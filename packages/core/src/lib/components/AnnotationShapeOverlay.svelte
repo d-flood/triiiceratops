@@ -467,152 +467,129 @@
     activation; read-only ones are inert, unfocusable, and take no pointer events
     so a pan can start on top of them. A full-canvas annotation has no meaningful
     box, so it is drawn only while its panel row is hovered.
+
+    The a11y ignores below are for that pairing: the compiler cannot see which
+    tag `<svelte:element>` resolves to, and the handlers exist only on the
+    `<button>` arm — a read-only shape is a `div` with no handler at all.
 -->
 <div bind:this={root} class="anno-shape-layer" data-testid="annotation-shapes">
     {#each shapes as shape (shape.id)}
         {#if isShapeDrawn(shape)}
+            {@const editable = isEditableShape(shape)}
+            {@const tip = editable && shouldShowShapeTooltip(shape)}
+            {@const hovered = !editable && readonlyTooltip?.id === shape.id}
+            {@const active = isActiveShape(shape)}
             {#if shape.type === 'RECTANGLE'}
-                {#if isEditableShape(shape)}
-                    <button
-                        type="button"
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-rect"
-                        class:tooltip={shouldShowShapeTooltip(shape)}
-                        class:tooltip-primary={shouldShowShapeTooltip(shape)}
-                        class:search-hit={shape.isSearchHit}
-                        class:active={isActiveShape(shape)}
-                        data-tip={shouldShowShapeTooltip(shape)
-                            ? shape.tooltip
-                            : undefined}
-                        aria-label={shape.tooltip}
-                        style:left="{shape.rect.x}px"
-                        style:top="{shape.rect.y}px"
-                        style:width="{shape.rect.width}px"
-                        style:height="{shape.rect.height}px"
-                        onclick={(event) =>
-                            requestAnnotationEdit(shape.annotationId, event)}
-                        onkeydown={(event) =>
-                            handleShapeKeydown(shape.annotationId, event)}
-                    ></button>
-                {:else}
-                    <div
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-readonly-wrap"
-                        style:left="{shape.rect.x}px"
-                        style:top="{shape.rect.y}px"
-                        style:width="{shape.rect.width}px"
-                        style:height="{shape.rect.height}px"
-                    >
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <svelte:element
+                    this={editable ? 'button' : 'div'}
+                    type={editable ? 'button' : undefined}
+                    id="annotation-visual-{shape.id}"
+                    data-annotation-id={shape.annotationId}
+                    class={editable ? 'anno-rect' : 'anno-readonly-wrap'}
+                    class:tooltip={tip}
+                    class:tooltip-primary={tip}
+                    class:search-hit={editable && shape.isSearchHit}
+                    class:active={editable && active}
+                    data-tip={tip ? shape.tooltip : undefined}
+                    aria-label={editable ? shape.tooltip : undefined}
+                    style:left="{shape.rect.x}px"
+                    style:top="{shape.rect.y}px"
+                    style:width="{shape.rect.width}px"
+                    style:height="{shape.rect.height}px"
+                    onclick={editable
+                        ? (event: MouseEvent) =>
+                              requestAnnotationEdit(shape.annotationId, event)
+                        : undefined}
+                    onkeydown={editable
+                        ? (event: KeyboardEvent) =>
+                              handleShapeKeydown(shape.annotationId, event)
+                        : undefined}
+                >
+                    {#if !editable}
                         <div
                             class="anno-rect-fill"
                             class:search-hit={shape.isSearchHit}
-                            class:hovered={readonlyTooltip?.id === shape.id}
-                            class:active={isActiveShape(shape)}
+                            class:hovered
+                            class:active
                         ></div>
-                    </div>
-                {/if}
+                    {/if}
+                </svelte:element>
             {:else if shape.type === 'POLYGON'}
-                {#if isEditableShape(shape)}
-                    <button
-                        type="button"
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-polygon-btn"
-                        class:tooltip={shouldShowShapeTooltip(shape)}
-                        class:tooltip-primary={shouldShowShapeTooltip(shape)}
-                        data-tip={shouldShowShapeTooltip(shape)
-                            ? shape.tooltip
-                            : undefined}
-                        aria-label={shape.tooltip}
-                        style:left="{shape.bounds.x}px"
-                        style:top="{shape.bounds.y}px"
-                        style:width="{shape.bounds.width}px"
-                        style:height="{shape.bounds.height}px"
-                        onclick={(event) =>
-                            requestAnnotationEdit(shape.annotationId, event)}
-                        onkeydown={(event) =>
-                            handleShapeKeydown(shape.annotationId, event)}
-                    >
-                        <svg class="anno-polygon-svg">
-                            <polygon
-                                points={shape.points
-                                    .map((point) => point.join(','))
-                                    .join(' ')}
-                                class="anno-polygon-shape interactive"
-                                class:search-hit={shape.isSearchHit}
-                                class:active={isActiveShape(shape)}
-                                stroke-width="2"
-                            />
-                        </svg>
-                    </button>
-                {:else}
-                    <div
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-readonly-wrap"
-                        style:left="{shape.bounds.x}px"
-                        style:top="{shape.bounds.y}px"
-                        style:width="{shape.bounds.width}px"
-                        style:height="{shape.bounds.height}px"
-                    >
-                        <svg class="anno-polygon-svg readonly">
-                            <polygon
-                                points={shape.points
-                                    .map((point) => point.join(','))
-                                    .join(' ')}
-                                class="anno-polygon-shape"
-                                class:search-hit={shape.isSearchHit}
-                                class:hovered={readonlyTooltip?.id === shape.id}
-                                class:active={isActiveShape(shape)}
-                                stroke-width="2"
-                            />
-                        </svg>
-                    </div>
-                {/if}
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <svelte:element
+                    this={editable ? 'button' : 'div'}
+                    type={editable ? 'button' : undefined}
+                    id="annotation-visual-{shape.id}"
+                    data-annotation-id={shape.annotationId}
+                    class={editable ? 'anno-polygon-btn' : 'anno-readonly-wrap'}
+                    class:tooltip={tip}
+                    class:tooltip-primary={tip}
+                    data-tip={tip ? shape.tooltip : undefined}
+                    aria-label={editable ? shape.tooltip : undefined}
+                    style:left="{shape.bounds.x}px"
+                    style:top="{shape.bounds.y}px"
+                    style:width="{shape.bounds.width}px"
+                    style:height="{shape.bounds.height}px"
+                    onclick={editable
+                        ? (event: MouseEvent) =>
+                              requestAnnotationEdit(shape.annotationId, event)
+                        : undefined}
+                    onkeydown={editable
+                        ? (event: KeyboardEvent) =>
+                              handleShapeKeydown(shape.annotationId, event)
+                        : undefined}
+                >
+                    <svg class="anno-polygon-svg" class:readonly={!editable}>
+                        <polygon
+                            points={shape.points
+                                .map((point) => point.join(','))
+                                .join(' ')}
+                            class="anno-polygon-shape"
+                            class:interactive={editable}
+                            class:search-hit={shape.isSearchHit}
+                            class:hovered
+                            class:active
+                            stroke-width="2"
+                        />
+                    </svg>
+                </svelte:element>
             {:else if shape.type === 'POINT'}
-                {#if isEditableShape(shape)}
-                    <button
-                        type="button"
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-point"
-                        class:tooltip={shouldShowShapeTooltip(shape)}
-                        class:tooltip-primary={shouldShowShapeTooltip(shape)}
-                        class:search-hit={shape.isSearchHit}
-                        class:active={isActiveShape(shape)}
-                        data-tip={shouldShowShapeTooltip(shape)
-                            ? shape.tooltip
-                            : undefined}
-                        aria-label={shape.tooltip}
-                        style:left="{shape.point.x - pointMarkerSize / 2}px"
-                        style:top="{shape.point.y - pointMarkerSize / 2}px"
-                        style:width="{pointMarkerSize}px"
-                        style:height="{pointMarkerSize}px"
-                        onclick={(event) =>
-                            requestAnnotationEdit(shape.annotationId, event)}
-                        onkeydown={(event) =>
-                            handleShapeKeydown(shape.annotationId, event)}
-                    ></button>
-                {:else}
-                    <div
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-readonly-wrap"
-                        style:left="{shape.point.x - pointMarkerSize / 2}px"
-                        style:top="{shape.point.y - pointMarkerSize / 2}px"
-                        style:width="{pointMarkerSize}px"
-                        style:height="{pointMarkerSize}px"
-                    >
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <svelte:element
+                    this={editable ? 'button' : 'div'}
+                    type={editable ? 'button' : undefined}
+                    id="annotation-visual-{shape.id}"
+                    data-annotation-id={shape.annotationId}
+                    class={editable ? 'anno-point' : 'anno-readonly-wrap'}
+                    class:tooltip={tip}
+                    class:tooltip-primary={tip}
+                    class:search-hit={editable && shape.isSearchHit}
+                    class:active={editable && active}
+                    data-tip={tip ? shape.tooltip : undefined}
+                    aria-label={editable ? shape.tooltip : undefined}
+                    style:left="{shape.point.x - pointMarkerSize / 2}px"
+                    style:top="{shape.point.y - pointMarkerSize / 2}px"
+                    style:width="{pointMarkerSize}px"
+                    style:height="{pointMarkerSize}px"
+                    onclick={editable
+                        ? (event: MouseEvent) =>
+                              requestAnnotationEdit(shape.annotationId, event)
+                        : undefined}
+                    onkeydown={editable
+                        ? (event: KeyboardEvent) =>
+                              handleShapeKeydown(shape.annotationId, event)
+                        : undefined}
+                >
+                    {#if !editable}
                         <div
                             class="anno-point-fill"
                             class:search-hit={shape.isSearchHit}
-                            class:hovered={readonlyTooltip?.id === shape.id}
-                            class:active={isActiveShape(shape)}
+                            class:hovered
+                            class:active
                         ></div>
-                    </div>
-                {/if}
+                    {/if}
+                </svelte:element>
             {/if}
         {/if}
     {/each}

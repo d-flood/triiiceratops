@@ -8,7 +8,6 @@
     import { Button } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
-    let { embedded = false }: { embedded?: boolean } = $props();
     const m = getMessages();
 
     let structures = $derived(
@@ -141,28 +140,16 @@
     <div
         data-panel-id="structures"
         class="panel"
-        class:standalone={!embedded}
         role="dialog"
         aria-label={m.structures_title()}
     >
-        {#if !embedded}
-            <div class="panel-header">
-                <div class="panel-header-title">
-                    <Icon name="ListBullets" size={20} weight="bold" />
-                    <h2 class="panel-h2">
-                        {m.structures_title()}
-                    </h2>
-                </div>
-            </div>
-        {/if}
-
         <!-- Tree Content -->
         {#if hasStructures}
-            <div class="tree" class:standalone={!embedded}>
+            <div class="tree">
                 {@render rangeTree(structures)}
             </div>
         {:else}
-            <div class="empty" class:standalone={!embedded}>
+            <div class="empty">
                 <p class="empty-text">{m.structures_empty()}</p>
             </div>
         {/if}
@@ -234,50 +221,15 @@
         display: flex;
         flex-direction: column;
     }
-    .panel.standalone {
-        height: 100%;
-        background-color: var(--panel-surface);
-        box-shadow: 0 25px 50px -12px #00000040;
-        z-index: 100;
-        transition: width 200ms;
-        border-left: 1px solid var(--tri-surface-border);
-    }
-
-    .panel-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem;
-        border-bottom: 1px solid var(--tri-surface-border);
-    }
-    .panel-header-title {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .panel-h2 {
-        font-weight: 700;
-        font-size: 1.125rem;
-        line-height: 1.75rem;
-    }
-
     .tree {
         display: flex;
         flex-direction: column;
     }
-    .tree.standalone {
-        flex: 1 1 0%;
-        overflow-y: auto;
-    }
-
     .empty {
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 2rem;
-    }
-    .empty.standalone {
-        flex: 1 1 0%;
     }
     .empty-text {
         font-size: 0.875rem;

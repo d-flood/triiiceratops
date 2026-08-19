@@ -86,21 +86,7 @@ import {
 } from '../utils/iiifIds';
 import { getPagedCanvasGroups } from '../components/viewerControls';
 import { getThumbnailSrc } from '../utils/getThumbnailSrc';
-
-/**
- * `behavior` (IIIF v3) and `viewingHint` (IIIF v2) may each be a bare string or
- * an array of them. Absent reads as no behaviors at all.
- */
-function asBehaviorList(value: unknown): string[] {
-    if (value === null || value === undefined || value === '') return [];
-    return (Array.isArray(value) ? [...value] : [value]) as string[];
-}
-
-function normalizeIiifBehavior(value: unknown): string {
-    const normalized = String(value).trim().toLowerCase();
-    const segments = normalized.split(/[#/:]/);
-    return segments[segments.length - 1] || normalized;
-}
+import { toBehaviorList } from '../utils/iiifParsing';
 
 /**
  * The media time a navigation carried, and the canvas it belongs to.
@@ -126,6 +112,14 @@ const COMPANION_PHASES: readonly string[] = [
     'placeholder',
     'accompanying',
 ];
+
+// Failure sentences that go out twice — once to the console, once as a
+// structured `ViewerError` message — so the two cannot drift apart.
+const FULLSCREEN_FAILED = 'Fullscreen request failed.';
+const FULLSCREEN_ELEMENT_MISSING =
+    'Cannot toggle fullscreen: viewer element not found.';
+const SEARCH_SERVICE_MISSING = 'No IIIF search service found in manifest.';
+const SEARCH_FAILED = 'Search request failed.';
 
 /**
  * Snapshot of viewer state for external consumers.
@@ -340,10 +334,9 @@ export class ViewerState {
      * this is the *default* state and not a user choice: core calls it only while
      * the reader has not touched visibility themselves.
      *
-     * Distinct from {@link showCurrentCanvasAnnotations}, which is about ONE
-     * canvas and stays as it was. In `paged` the facing page's annotations would
-     * otherwise arrive hidden — drawn nowhere, and a panel row whose eye says
-     * "hidden" for something the reader never hid.
+     * Multi-canvas by design: in `paged` a single-canvas pass would leave the
+     * facing page's annotations hidden — drawn nowhere, and a panel row whose eye
+     * says "hidden" for something the reader never hid.
      */
     showVisibleCanvasAnnotations() {
         this.clearAnnotationVisibility();
@@ -368,23 +361,6 @@ export class ViewerState {
         }
     }
 
-    showCurrentCanvasAnnotations() {
-        this.clearAnnotationVisibility();
-
-        if (!this.manifestId || !this.canvasId) {
-            return;
-        }
-
-        const annotations = this.getAnnotations(this.manifestId, this.canvasId);
-
-        annotations.forEach((annotation: any) => {
-            const id = getAnnotationId(annotation);
-            if (id) {
-                this.visibleAnnotationIds.add(id);
-            }
-        });
-    }
-
     private clearAnnotationVisibility() {
         this.annotationVisibilityTouched = false;
         this.visibleAnnotationIds.clear();
@@ -395,7 +371,7 @@ export class ViewerState {
         this.clearAnnotationVisibility();
 
         if (isOpen) {
-            this.showCurrentCanvasAnnotations();
+            this.showVisibleCanvasAnnotations();
         }
     }
 
@@ -484,9 +460,11 @@ export class ViewerState {
         'individuals',
     );
 
-    // Track whether viewingMode was explicitly set via config (user preference)
-    // When true, manifest behavior detection is skipped to respect user configuration
-    private _viewingModeUserConfigured = $state(false);
+    // Once the host configures a viewing mode, manifest behavior detection is
+    // skipped so the configured mode stands. Non-reactive: written by
+    // `updateConfig` and read by `_applyManifestSettings`, both plain calls, so
+    // nothing re-renders off it.
+    private _viewingModeUserConfigured = false;
 
     get viewingMode() {
         return this._viewingMode;
@@ -547,20 +525,12 @@ export class ViewerState {
     /**
      * Get current state as a plain object snapshot.
      * Safe to use outside Svelte's reactive system.
-     * NOTE: We calculate currentCanvasIndex inline to avoid triggering the canvases getter
-     * which can cause infinite loops when it auto-sets canvasId.
      */
     getSnapshot(): ViewerStateSnapshot {
-        let canvasIndex = -1;
-        if (this.manifestId && this.canvasId) {
-            const canvases = manifestsState.getCanvases(this.manifestId);
-            canvasIndex = findCanvasIndexById(canvases, this.canvasId);
-        }
-
         return {
             manifestId: this.manifestId,
             canvasId: this.canvasId,
-            currentCanvasIndex: canvasIndex,
+            currentCanvasIndex: this.currentCanvasIndex,
             showAnnotations: this.showAnnotations,
             showInformationPanel: this.showMetadataPanel,
             showThumbnailGallery: this.showThumbnailGallery,
@@ -657,13 +627,41 @@ export class ViewerState {
         return findCanvasIndexById(this.canvases, this.canvasId);
     }
 
+    /** The spreads `paged` mode groups the current canvas list into. */
+    get #pagedGroups() {
+        return getPagedCanvasGroups(this.canvases, this.pagedOffset);
+    }
+
+    /**
+     * Land on a paged group's first canvas. An index naming no group is a
+     * no-op, which is how "there is nothing that way" is expressed.
+     */
+    #gotoGroup(groupIndex: number) {
+        const canvasId = this.#pagedGroups[groupIndex]?.entries[0]?.canvasId;
+        if (canvasId && canvasId !== this.canvasId) {
+            this.setCanvas(canvasId);
+        }
+    }
+
+    /** One canvas in `individuals`/`continuous`, one spread in `paged`. */
+    #step(delta: 1 | -1) {
+        if (this.viewingMode === 'paged') {
+            this.#gotoGroup(this.getCurrentPagedCanvasGroupIndex() + delta);
+            return;
+        }
+
+        const canvasId = getCanvasId(
+            this.canvases[this.currentCanvasIndex + delta],
+        );
+        if (canvasId) this.setCanvas(canvasId);
+    }
+
     private getCurrentPagedCanvasGroupIndex(): number {
         if (this.viewingMode !== 'paged' || this.currentCanvasIndex < 0) {
             return -1;
         }
 
-        const groups = getPagedCanvasGroups(this.canvases, this.pagedOffset);
-        return groups.findIndex(
+        return this.#pagedGroups.findIndex(
             ({ startIndex, endIndex }) =>
                 this.currentCanvasIndex >= startIndex &&
                 this.currentCanvasIndex <= endIndex,
@@ -677,11 +675,7 @@ export class ViewerState {
 
         if (this.viewingMode === 'paged') {
             const groupIndex = this.getCurrentPagedCanvasGroupIndex();
-            const groups = getPagedCanvasGroups(
-                this.canvases,
-                this.pagedOffset,
-            );
-            return groupIndex >= 0 && groupIndex < groups.length - 1;
+            return groupIndex >= 0 && groupIndex < this.#pagedGroups.length - 1;
         } else {
             return this.currentCanvasIndex < this.canvases.length - 1;
         }
@@ -700,43 +694,11 @@ export class ViewerState {
     }
 
     nextCanvas() {
-        if (this.hasNext) {
-            if (this.viewingMode === 'paged') {
-                const groups = getPagedCanvasGroups(
-                    this.canvases,
-                    this.pagedOffset,
-                );
-                const canvasId =
-                    groups[this.getCurrentPagedCanvasGroupIndex() + 1]
-                        ?.entries[0]?.canvasId;
-                if (canvasId) this.setCanvas(canvasId);
-            } else {
-                const nextIndex = this.currentCanvasIndex + 1;
-                const canvas = this.canvases[nextIndex];
-                const canvasId = getCanvasId(canvas);
-                if (canvasId) this.setCanvas(canvasId);
-            }
-        }
+        if (this.hasNext) this.#step(1);
     }
 
     previousCanvas() {
-        if (this.hasPrevious) {
-            if (this.viewingMode === 'paged') {
-                const groups = getPagedCanvasGroups(
-                    this.canvases,
-                    this.pagedOffset,
-                );
-                const canvasId =
-                    groups[this.getCurrentPagedCanvasGroupIndex() - 1]
-                        ?.entries[0]?.canvasId;
-                if (canvasId) this.setCanvas(canvasId);
-            } else {
-                const prevIndex = this.currentCanvasIndex - 1;
-                const canvas = this.canvases[prevIndex];
-                const canvasId = getCanvasId(canvas);
-                if (canvasId) this.setCanvas(canvasId);
-            }
-        }
+        if (this.hasPrevious) this.#step(-1);
     }
 
     // ==================== VIEWPORT (SPEC.md §Public API) ======================
@@ -1352,30 +1314,13 @@ export class ViewerState {
      * primary path.
      */
     claimCanvas(canvasId: string, pluginId: string): () => void {
-        const canvas = typeof canvasId === 'string' ? canvasId.trim() : '';
-        const owner = typeof pluginId === 'string' ? pluginId.trim() : '';
-        if (!canvas || !owner) {
-            this.refuseCanvasClaim(
-                "claimCanvas needs a non-empty canvas id and the claiming plugin's id.",
-            );
-            return () => {};
-        }
+        const claim = this.#requireClaimant('claimCanvas', canvasId, pluginId);
+        if (!claim) return () => {};
 
-        // Answered from plugin UI state for the reason the overlay-layer
-        // registry's `isKnownPlugin` is: it is seeded before a plugin's
-        // `view.mount` runs — which is where a plugin claims from — while the
-        // chrome records are not populated until after it.
-        if (!this.pluginUiState.has(owner)) {
-            this.refuseCanvasClaim(
-                `claimCanvas ignored a claim on canvas "${canvas}" from "${owner}": the claimant must be a plugin of this viewer, so the claim is released when that plugin is.`,
-            );
-            return () => {};
-        }
-
-        const held = this.#claimedCanvases.get(canvas);
+        const { canvas, owner, held } = claim;
         if (held !== undefined) {
             this.refuseCanvasClaim(
-                `claimCanvas ignored a second claim on canvas "${canvas}" from "${owner}"; it is already claimed by "${held}".`,
+                `claimCanvas "${canvas}" from "${owner}": already claimed by "${held}".`,
             );
             return () => {};
         }
@@ -1394,6 +1339,42 @@ export class ViewerState {
                 this.companionPhases.delete(canvas);
             }
         };
+    }
+
+    /**
+     * The refusal ladder both claim commands share: trim the id pair, refuse an
+     * empty id or one this viewer knows no plugin by, and report who currently
+     * holds the canvas (`undefined` for nobody).
+     *
+     * Membership is answered from plugin UI state for the reason the
+     * overlay-layer registry's `isKnownPlugin` is: it is seeded before a
+     * plugin's `view.mount` runs — which is where a plugin claims from — while
+     * the chrome records are not populated until after it.
+     *
+     * Refusals name the operation, the canvas, and the caller and stop there:
+     * that is what places the mistake, and the reasoning behind each rule lives
+     * in the commands' own docs rather than in shipped strings.
+     */
+    #requireClaimant(
+        op: string,
+        canvasId: string,
+        pluginId: string,
+    ): { canvas: string; owner: string; held: string | undefined } | null {
+        const canvas = typeof canvasId === 'string' ? canvasId.trim() : '';
+        const owner = typeof pluginId === 'string' ? pluginId.trim() : '';
+        if (!canvas || !owner) {
+            this.refuseCanvasClaim(`${op}: empty canvas or plugin id.`);
+            return null;
+        }
+
+        if (!this.pluginUiState.has(owner)) {
+            this.refuseCanvasClaim(
+                `${op} "${canvas}" from "${owner}": not a plugin of this viewer.`,
+            );
+            return null;
+        }
+
+        return { canvas, owner, held: this.#claimedCanvases.get(canvas) };
     }
 
     /** Whether a plugin owns this canvas's non-image content. */
@@ -1457,39 +1438,24 @@ export class ViewerState {
         pluginId: string,
         phase: CompanionPhase,
     ): void {
-        const canvas = typeof canvasId === 'string' ? canvasId.trim() : '';
-        const owner = typeof pluginId === 'string' ? pluginId.trim() : '';
-        if (!canvas || !owner) {
-            this.refuseCanvasClaim(
-                "setCompanionPhase needs a non-empty canvas id and the claiming plugin's id.",
-            );
-            return;
-        }
+        const claim = this.#requireClaimant(
+            'setCompanionPhase',
+            canvasId,
+            pluginId,
+        );
+        if (!claim) return;
 
-        if (!this.pluginUiState.has(owner)) {
-            this.refuseCanvasClaim(
-                `setCompanionPhase ignored a phase for canvas "${canvas}" from "${owner}": the caller must be a plugin of this viewer.`,
-            );
-            return;
-        }
-
-        const held = this.#claimedCanvases.get(canvas);
-        if (held === undefined) {
-            this.refuseCanvasClaim(
-                `setCompanionPhase ignored a phase for canvas "${canvas}" from "${owner}": no plugin has claimed that canvas.`,
-            );
-            return;
-        }
+        const { canvas, owner, held } = claim;
         if (held !== owner) {
             this.refuseCanvasClaim(
-                `setCompanionPhase ignored a phase for canvas "${canvas}" from "${owner}": it is claimed by "${held}", and only a canvas's claimant may set its companion phase.`,
+                `setCompanionPhase "${canvas}" from "${owner}": not the claimant (${held ?? 'unclaimed'}).`,
             );
             return;
         }
 
         if (!COMPANION_PHASES.includes(phase)) {
             this.refuseCanvasClaim(
-                `setCompanionPhase ignored an unknown phase "${String(phase)}" for canvas "${canvas}": expected one of ${COMPANION_PHASES.join(', ')}.`,
+                `setCompanionPhase "${canvas}": unknown phase "${String(phase)}", expected ${COMPANION_PHASES.join('|')}.`,
             );
             return;
         }
@@ -1780,16 +1746,9 @@ export class ViewerState {
         manifestJson: any,
         options?: { canvasId?: string },
     ): Promise<void> {
-        this.startCanvasId = null;
-        this.selectedSequenceIndex = 0;
-        await manifestsState.registerManifest(manifestId, manifestJson);
-        this.manifestId = manifestId;
-        this.markManifestReady(manifestId);
-        if (options?.canvasId) {
-            this.setCanvas(options.canvasId);
-        }
-        this._applyManifestSettings(manifestId);
-        this.ensureInitialCanvasSelection();
+        await this._loadManifest(manifestId, options?.canvasId, {
+            json: manifestJson,
+        });
     }
 
     /**
@@ -1820,19 +1779,7 @@ export class ViewerState {
                 this.manifestRequestConfig,
             );
         } catch (_error: any) {
-            this.startCanvasId = null;
-            this.selectedSequenceIndex = 0;
-            await manifestsState.fetchManifest(
-                manifestId,
-                this.manifestRequestConfig,
-            );
-            this.manifestId = manifestId;
-            this.markManifestReady(manifestId);
-            if (options?.canvasId) {
-                this.setCanvas(options.canvasId);
-            }
-            this._applyManifestSettings(manifestId);
-            this.ensureInitialCanvasSelection();
+            await this._loadManifest(manifestId, options?.canvasId);
             this.dispatchStateChange('manifestchange');
             return;
         }
@@ -1884,15 +1831,28 @@ export class ViewerState {
     }
 
     /**
-     * Internal: load a manifest by ID and apply its settings.
+     * Internal: make a manifest the active one and apply its settings.
+     *
+     * `register` registers a document the caller already holds; without it the
+     * manifest is fetched through the cache. Nothing else differs between the
+     * two, which is why they are one path. The choice reads the wrapper's
+     * presence rather than the JSON's, because `setManifestData` accepts an
+     * `undefined` document and must stay a pure store — a fixture with no JSON
+     * has to register nothing, never issue a request.
      */
-    private async _loadManifest(manifestId: string, canvasId?: string) {
+    private async _loadManifest(
+        manifestId: string,
+        canvasId?: string,
+        register?: { json: any },
+    ) {
         this.startCanvasId = null;
         this.selectedSequenceIndex = 0;
-        await manifestsState.fetchManifest(
-            manifestId,
-            this.manifestRequestConfig,
-        );
+        await (register
+            ? manifestsState.registerManifest(manifestId, register.json)
+            : manifestsState.fetchManifest(
+                  manifestId,
+                  this.manifestRequestConfig,
+              ));
         this.manifestId = manifestId;
         this.markManifestReady(manifestId);
         if (canvasId) {
@@ -2064,8 +2024,8 @@ export class ViewerState {
                 // IIIF v3 — `behavior`, on the manifest root and on the
                 // sequence.
                 behaviors = [
-                    ...asBehaviorList(rawManifest?.behavior),
-                    ...asBehaviorList(rawSequence?.behavior),
+                    ...toBehaviorList(rawManifest?.behavior),
+                    ...toBehaviorList(rawSequence?.behavior),
                 ];
 
                 // IIIF v2 — `viewingHint` is the v2 spelling of the same idea.
@@ -2075,13 +2035,11 @@ export class ViewerState {
                 // for `viewingDirection` rather than inventing a second rule:
                 // the more specific declaration wins.
                 if (behaviors.length === 0) {
-                    behaviors = asBehaviorList(rawSequence?.viewingHint);
+                    behaviors = toBehaviorList(rawSequence?.viewingHint);
                 }
                 if (behaviors.length === 0) {
-                    behaviors = asBehaviorList(rawManifest?.viewingHint);
+                    behaviors = toBehaviorList(rawManifest?.viewingHint);
                 }
-
-                behaviors = behaviors.map(normalizeIiifBehavior);
             } catch (e) {
                 logger.warn('Error parsing behavior', e);
             }
@@ -2268,37 +2226,33 @@ export class ViewerState {
     }
 
     toggleFullScreen() {
-        if (!document.fullscreenElement) {
-            // Use stored reference if available, fallback to ID lookup (legacy/Svelte-only)
-            const el =
-                this.viewerElement ||
-                document.getElementById('triiiceratops-viewer');
-            if (el) {
-                el.requestFullscreen().catch((e) => {
-                    logger.warn('Fullscreen request failed', e);
-                    this.reportError({
-                        severity: 'warning',
-                        scope: 'viewport',
-                        code: 'fullscreen-failed',
-                        message: 'Fullscreen request failed.',
-                        error: e,
-                    });
-                });
-            } else {
-                logger.warn(
-                    'Cannot toggle fullscreen: Viewer element not found',
-                );
-                this.reportError({
-                    severity: 'warning',
-                    scope: 'viewport',
-                    code: 'fullscreen-element-missing',
-                    message:
-                        'Cannot toggle fullscreen: viewer element not found.',
-                });
-            }
-        } else {
+        if (document.fullscreenElement) {
             document.exitFullscreen();
+            return;
         }
+
+        const el = this.viewerElement;
+        if (!el) {
+            logger.warn(FULLSCREEN_ELEMENT_MISSING);
+            this.reportError({
+                severity: 'warning',
+                scope: 'viewport',
+                code: 'fullscreen-element-missing',
+                message: FULLSCREEN_ELEMENT_MISSING,
+            });
+            return;
+        }
+
+        el.requestFullscreen().catch((e) => {
+            logger.warn(FULLSCREEN_FAILED, e);
+            this.reportError({
+                severity: 'warning',
+                scope: 'viewport',
+                code: 'fullscreen-failed',
+                message: FULLSCREEN_FAILED,
+                error: e,
+            });
+        });
     }
 
     toggleMetadataPanel() {
@@ -2363,17 +2317,7 @@ export class ViewerState {
     setViewingMode(mode: 'individuals' | 'paged' | 'continuous') {
         this.viewingMode = mode;
         if (mode === 'paged') {
-            const groupIndex = this.getCurrentPagedCanvasGroupIndex();
-            const canvasId =
-                groupIndex >= 0
-                    ? getPagedCanvasGroups(this.canvases, this.pagedOffset)[
-                          groupIndex
-                      ]?.entries[0]?.canvasId
-                    : null;
-
-            if (canvasId && this.canvasId !== canvasId) {
-                this.setCanvas(canvasId);
-            }
+            this.#gotoGroup(this.getCurrentPagedCanvasGroupIndex());
         }
         this.dispatchStateChange();
     }
@@ -2381,17 +2325,7 @@ export class ViewerState {
     togglePagedOffset() {
         this.pagedOffset = this.pagedOffset === 0 ? 1 : 0;
         this.config.pagedViewOffset = this.pagedOffset === 1;
-        const groupIndex = this.getCurrentPagedCanvasGroupIndex();
-        const canvasId =
-            groupIndex >= 0
-                ? getPagedCanvasGroups(this.canvases, this.pagedOffset)[
-                      groupIndex
-                  ]?.entries[0]?.canvasId
-                : null;
-
-        if (canvasId && this.canvasId !== canvasId) {
-            this.setCanvas(canvasId);
-        }
+        this.#gotoGroup(this.getCurrentPagedCanvasGroupIndex());
         this.dispatchStateChange();
     }
 
@@ -2411,31 +2345,6 @@ export class ViewerState {
     }
 
     searchAnnotations: any[] = $state([]);
-
-    /**
-     * This function now accounts for two-page mode when returning current canvas search annotations offset accordingly.
-     */
-    /**
-     * Search hits on the current canvas, in canvas space.
-     *
-     * Kept for callers that ask specifically about the current canvas. Core's own
-     * annotation surfaces do NOT use it: they read {@link searchAnnotations} for
-     * every canvas on screen through `collectCanvasAnnotations`, which is what
-     * puts a hit on the facing page of a spread on that page.
-     *
-     * It used to shift a facing page's hits sideways by `canvasWidth * 1.025` and
-     * hand them back as if they belonged to the current canvas — a hand-rolled
-     * offset standing in for multi-canvas layout, and wrong by construction: the
-     * renderer's inter-canvas gap is 1.25% of a page, not 2.5%, and the guess only
-     * ever covered two pages. Coordinates here are now each hit's own, unshifted,
-     * to be projected through its own canvas.
-     */
-    get currentCanvasSearchAnnotations() {
-        if (!this.canvasId) return [];
-        return this.searchAnnotations.filter(
-            (a) => a.canvasId === this.canvasId,
-        );
-    }
 
     async search(query: string) {
         this.dispatchStateChange();
@@ -2475,12 +2384,12 @@ export class ViewerState {
             const service = discoverSearchService(manifestJson);
 
             if (!service) {
-                logger.warn('No IIIF search service found in manifest');
+                logger.warn(SEARCH_SERVICE_MISSING);
                 this.reportError({
                     severity: 'warning',
                     scope: 'search',
                     code: 'search-service-missing',
-                    message: 'No IIIF search service found in manifest.',
+                    message: SEARCH_SERVICE_MISSING,
                     detail: { query },
                 });
                 this.isSearching = false;
@@ -2490,7 +2399,7 @@ export class ViewerState {
             const searchUrl = `${service.serviceId}?q=${encodeURIComponent(query)}`;
 
             const response = await fetch(searchUrl);
-            if (!response.ok) throw new Error('Search request failed');
+            if (!response.ok) throw new Error(SEARCH_FAILED);
 
             const data = await response.json();
 
@@ -2509,7 +2418,7 @@ export class ViewerState {
                 severity: 'error',
                 scope: 'search',
                 code: 'search-failed',
-                message: 'Search request failed.',
+                message: SEARCH_FAILED,
                 error: e,
                 detail: { query },
             });

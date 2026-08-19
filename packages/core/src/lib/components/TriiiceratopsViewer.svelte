@@ -11,11 +11,6 @@
 
 <script lang="ts">
     import Icon from './Icon.svelte';
-    import MagnifyingGlassIcon from './icons/MagnifyingGlassIcon.svelte';
-    import ChatCenteredTextIcon from './icons/ChatCenteredTextIcon.svelte';
-    import InfoIcon from './icons/InfoIcon.svelte';
-    import ListBulletsIcon from './icons/ListBulletsIcon.svelte';
-    import FolderIcon from './icons/FolderIcon.svelte';
     import { onDestroy, setContext, untrack } from 'svelte';
     import { cubicOut } from 'svelte/easing';
     import {
@@ -78,7 +73,6 @@
         getViewerTileSources,
         getVisibleViewerCanvases,
     } from '../utils/resolveCanvasImage';
-    import { parseContentState } from '../utils/contentState';
     import { getCanvasId } from './viewerControls';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationShapeOverlay from './AnnotationShapeOverlay.svelte';
@@ -225,7 +219,6 @@
     let allPlugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
     // The SDK path (ticket 07) is the one plugin path.
     let sdkPlugins = $derived(allPlugins.filter(isSdkPlugin));
-    let isDragOver = $state(false);
     // Active locale (CONTEXT.md **Active locale**, ticket 06): the viewer's typed
     // `config.locale` if set, otherwise the page default. Published to chrome via
     // Svelte context (below) so every `m.*()` call renders in it; also mirrored
@@ -325,58 +318,10 @@
         internalViewerState.setInitialCanvasRegion(initialCanvasRegion);
     });
 
-    function clearDragState() {
-        isDragOver = false;
-    }
-
     function hasCanvas(canvasId: string) {
         return internalViewerState.canvases.some(
             (canvas: any) => getCanvasId(canvas) === canvasId,
         );
-    }
-
-    function handleDragOver(event: DragEvent) {
-        if (!internalViewerState.config.enableDragDrop) return;
-        event.preventDefault();
-        isDragOver = true;
-    }
-
-    function handleDragLeave(event: DragEvent) {
-        if (!internalViewerState.config.enableDragDrop) return;
-        if (event.currentTarget === event.target) {
-            isDragOver = false;
-        }
-    }
-
-    async function handleDrop(event: DragEvent) {
-        if (!internalViewerState.config.enableDragDrop) return;
-        event.preventDefault();
-        clearDragState();
-
-        const text = event.dataTransfer?.getData('text/plain')?.trim();
-        if (!text) return;
-
-        const parsed = parseContentState(text);
-        if (parsed?.manifestId) {
-            internalViewerState.setInitialCanvasRegion(parsed.region ?? null);
-            if (parsed.canvasId) {
-                internalViewerState.setCanvas(parsed.canvasId, parsed.time);
-            }
-            await internalViewerState.setManifest(parsed.manifestId, {
-                requestConfig: config?.requests,
-            });
-            if (parsed.canvasId) {
-                internalViewerState.setCanvas(parsed.canvasId, parsed.time);
-            }
-            return;
-        }
-
-        if (/^https?:\/\//i.test(text)) {
-            internalViewerState.setInitialCanvasRegion(null);
-            await internalViewerState.setManifest(text, {
-                requestConfig: config?.requests,
-            });
-        }
     }
 
     $effect(() => {
@@ -960,54 +905,99 @@
         };
     }
 
-    let visiblePanelsLeft = $derived.by<PanelStackItem[]>(() => {
+    /**
+     * One core panel. Every field is a thunk so the table below is built once
+     * and still reads live state: `open` is the panel's own visibility flag,
+     * `position` the column it asks for, `showClose` its close-button config,
+     * `toggle` how it closes.
+     *
+     * `position` is absent on the panels that have no left-hand position at all
+     * (structures, collection) — like an unset or unrecognized `position`, that
+     * resolves to the right column.
+     */
+    type CorePanel = {
+        id: string;
+        title: () => string;
+        iconName: PanelStackItem['iconName'];
+        component: PanelStackItem['component'];
+        open: () => boolean;
+        position?: () => 'left' | 'right' | undefined;
+        showClose: () => boolean | undefined;
+        toggle: () => void;
+    };
+
+    /** The core panels, in the order they stack within a column. */
+    const corePanels: CorePanel[] = [
+        {
+            id: 'search',
+            title: () => m.search(),
+            iconName: 'MagnifyingGlass',
+            component: SearchPanel,
+            open: () => internalViewerState.showSearchPanel,
+            position: () => internalViewerState.config.search?.position,
+            showClose: () => internalViewerState.config.search?.showCloseButton,
+            toggle: () => internalViewerState.toggleSearchPanel(),
+        },
+        {
+            id: 'annotations',
+            title: () => m.settings_submenu_annotations(),
+            iconName: 'ChatCenteredText',
+            component: AnnotationPanel,
+            open: () => internalViewerState.showAnnotations,
+            position: () => internalViewerState.config.annotations?.position,
+            showClose: () =>
+                internalViewerState.config.annotations?.showCloseButton,
+            toggle: () => internalViewerState.toggleAnnotations(),
+        },
+        {
+            id: 'metadata',
+            title: () => m.metadata(),
+            iconName: 'Info',
+            component: MetadataPanel,
+            open: () => internalViewerState.showMetadataPanel,
+            position: () => internalViewerState.config.information?.position,
+            showClose: () =>
+                internalViewerState.config.information?.showCloseButton,
+            toggle: () => internalViewerState.toggleMetadataPanel(),
+        },
+        {
+            id: 'structures',
+            title: () => m.structures_title(),
+            iconName: 'ListBullets',
+            component: StructuresPanel,
+            open: () => internalViewerState.showStructuresPanel,
+            showClose: () =>
+                internalViewerState.config.structures?.showCloseButton,
+            toggle: () => internalViewerState.toggleStructuresPanel(),
+        },
+        {
+            id: 'collection',
+            title: () => m.collection_title(),
+            iconName: 'Folder',
+            component: CollectionPanel,
+            open: () => showCollectionSidebar,
+            showClose: () =>
+                internalViewerState.config.collection?.showCloseButton,
+            toggle: () => internalViewerState.toggleCollectionPanel(),
+        },
+    ];
+
+    /** The panels docked to one column: core's first, then the plugins'. */
+    function buildPanels(column: 'left' | 'right'): PanelStackItem[] {
         const panels: PanelStackItem[] = [];
 
-        if (
-            internalViewerState.showSearchPanel &&
-            internalViewerState.config.search?.position === 'left'
-        ) {
+        for (const panel of corePanels) {
+            if (!panel.open()) continue;
+            if ((panel.position?.() === 'left' ? 'left' : 'right') !== column) {
+                continue;
+            }
             panels.push({
-                id: 'search',
-                title: m.search(),
-                icon: MagnifyingGlassIcon,
-                component: SearchPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.search?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleSearchPanel()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showAnnotations &&
-            internalViewerState.config.annotations?.position === 'left'
-        ) {
-            panels.push({
-                id: 'annotations',
-                title: m.settings_submenu_annotations(),
-                icon: ChatCenteredTextIcon,
-                component: AnnotationPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.annotations?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleAnnotations()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showMetadataPanel &&
-            internalViewerState.config.information?.position === 'left'
-        ) {
-            panels.push({
-                id: 'metadata',
-                title: m.metadata(),
-                icon: InfoIcon,
-                component: MetadataPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.information?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleMetadataPanel()
+                id: panel.id,
+                title: panel.title(),
+                iconName: panel.iconName,
+                component: panel.component,
+                close: showPanelCloseButton(panel.showClose())
+                    ? panel.toggle
                     : undefined,
             });
         }
@@ -1015,105 +1005,17 @@
         for (const panel of internalViewerState.pluginPanels) {
             if (
                 panel.isVisible() &&
-                internalViewerState.getPluginPosition(panel.pluginId) === 'left'
+                internalViewerState.getPluginPosition(panel.pluginId) === column
             ) {
                 panels.push(toPluginPanelItem(panel));
             }
         }
 
         return panels;
-    });
+    }
 
-    let visiblePanelsRight = $derived.by<PanelStackItem[]>(() => {
-        const panels: PanelStackItem[] = [];
-
-        if (
-            internalViewerState.showSearchPanel &&
-            internalViewerState.config.search?.position !== 'left'
-        ) {
-            panels.push({
-                id: 'search',
-                title: m.search(),
-                icon: MagnifyingGlassIcon,
-                component: SearchPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.search?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleSearchPanel()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showAnnotations &&
-            internalViewerState.config.annotations?.position !== 'left'
-        ) {
-            panels.push({
-                id: 'annotations',
-                title: m.settings_submenu_annotations(),
-                icon: ChatCenteredTextIcon,
-                component: AnnotationPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.annotations?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleAnnotations()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showMetadataPanel &&
-            internalViewerState.config.information?.position !== 'left'
-        ) {
-            panels.push({
-                id: 'metadata',
-                title: m.metadata(),
-                icon: InfoIcon,
-                component: MetadataPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.information?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleMetadataPanel()
-                    : undefined,
-            });
-        }
-        if (internalViewerState.showStructuresPanel) {
-            panels.push({
-                id: 'structures',
-                title: m.structures_title(),
-                icon: ListBulletsIcon,
-                component: StructuresPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.structures?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleStructuresPanel()
-                    : undefined,
-            });
-        }
-        if (showCollectionSidebar) {
-            panels.push({
-                id: 'collection',
-                title: m.collection_title(),
-                icon: FolderIcon,
-                component: CollectionPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.collection?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleCollectionPanel()
-                    : undefined,
-            });
-        }
-
-        for (const panel of internalViewerState.pluginPanels) {
-            if (
-                panel.isVisible() &&
-                internalViewerState.getPluginPosition(panel.pluginId) ===
-                    'right'
-            ) {
-                panels.push(toPluginPanelItem(panel));
-            }
-        }
-
-        return panels;
-    });
+    let visiblePanelsLeft = $derived.by(() => buildPanels('left'));
+    let visiblePanelsRight = $derived.by(() => buildPanels('right'));
 
     /**
      * The gallery, expanded to fill the center column as a thumbnail grid. It
@@ -1182,31 +1084,29 @@
     // hold the rail for 200ms of nothing after the preference is turned on.
     const SIDEBAR_ANIM_MS = $derived(prefersReducedMotion ? 0 : 200);
 
-    let leftSidebarPresent = $state(false);
-    $effect(() => {
-        if (isLeftSidebarVisible) {
-            leftSidebarPresent = true;
-            return;
-        }
-        const id = setTimeout(
-            () => (leftSidebarPresent = false),
-            SIDEBAR_ANIM_MS,
-        );
-        return () => clearTimeout(id);
-    });
+    /**
+     * One such latch over `visible`: true the instant the source is, false only
+     * once the close animation has had `SIDEBAR_ANIM_MS` to finish.
+     */
+    function latchSidebar(visible: () => boolean) {
+        let present = $state(false);
+        $effect(() => {
+            if (visible()) {
+                present = true;
+                return;
+            }
+            const id = setTimeout(() => (present = false), SIDEBAR_ANIM_MS);
+            return () => clearTimeout(id);
+        });
+        return {
+            get current() {
+                return present;
+            },
+        };
+    }
 
-    let rightSidebarPresent = $state(false);
-    $effect(() => {
-        if (isRightSidebarVisible) {
-            rightSidebarPresent = true;
-            return;
-        }
-        const id = setTimeout(
-            () => (rightSidebarPresent = false),
-            SIDEBAR_ANIM_MS,
-        );
-        return () => clearTimeout(id);
-    });
+    const leftSidebarPresent = latchSidebar(() => isLeftSidebarVisible);
+    const rightSidebarPresent = latchSidebar(() => isRightSidebarVisible);
 
     // The toolbar docks as the screen-edge rail of a side bar when it shares that
     // side with an open panel/gallery. Only `split` controls use a side toolbar;
@@ -1224,13 +1124,13 @@
         resolvedControls === 'split' &&
             toolbarSide === 'left' &&
             internalViewerState.toolbarOpen &&
-            (isLeftSidebarVisible || leftSidebarPresent),
+            (isLeftSidebarVisible || leftSidebarPresent.current),
     );
     let dockRailRight = $derived(
         resolvedControls === 'split' &&
             toolbarSide === 'right' &&
             internalViewerState.toolbarOpen &&
-            (isRightSidebarVisible || rightSidebarPresent),
+            (isRightSidebarVisible || rightSidebarPresent.current),
     );
     let toolbarDockedAsRail = $derived(dockRailLeft || dockRailRight);
 
@@ -1448,6 +1348,97 @@
     );
 </script>
 
+<!-- The docked gallery in a side column's rail. -->
+{#snippet galleryRail()}
+    <div
+        class="gallery-host"
+        style="--ui-gallery-rail: {galleryExtent}px"
+        transition:slideWidth|global
+    >
+        <ThumbnailGallery />
+    </div>
+{/snippet}
+
+<!-- The docked gallery in a band across the top or bottom of the center column. -->
+{#snippet galleryBand()}
+    <div class="gallery-band" style="--ui-gallery-band: {galleryExtent}px">
+        <ThumbnailGallery />
+    </div>
+{/snippet}
+
+<!--
+    The plugin panels docked at one position. `overlay` floats over the image
+    inside `.viewer-area`, `bottom` is a band below it in the center column —
+    different DOM parents, which is why this is rendered twice rather than
+    looped once.
+-->
+{#snippet pluginPanelsAt(position: 'overlay' | 'bottom')}
+    {#each internalViewerState.pluginPanels as panel (panel.id)}
+        {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === position}
+            <div
+                class:plugin-overlay={position === 'overlay'}
+                class:plugin-bottom={position === 'bottom'}
+            >
+                {#if panel.mount}
+                    <PluginMountHost mount={panel.mount} />
+                {/if}
+            </div>
+        {/if}
+    {/each}
+{/snippet}
+
+<!--
+    The viewer-wide cover over the image surface: a blurred thumbnail of the
+    canvas it could not show, and a card naming the reason. `role="alert"` for a
+    failure the reader's action caused (an auth challenge, a tile that would not
+    load), `role="status"` for a canvas that simply paints nothing.
+-->
+{#snippet cover(
+    role: 'alert' | 'status',
+    locked: boolean,
+    message: string | null,
+    details: string | null,
+)}
+    <div class="overlay-cover" {role}>
+        {#if currentCanvasThumbnail}
+            <img src={currentCanvasThumbnail} alt="" class="blur-bg" />
+            <div class="dim-50"></div>
+        {/if}
+        <div class="error-card">
+            {#if locked}
+                <!-- Inline rather than a manifest glyph: the padlock is drawn
+                     here and nowhere else in the library, so enrolling it in the
+                     per-artifact icon tables would ship the lookup as well as
+                     the shape. -->
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="warn-icon"
+                >
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <p class="msg">{message}</p>
+            {:else}
+                <Icon
+                    name="ImageBroken"
+                    size={48}
+                    color="var(--tri-color-warning)"
+                />
+                <p class="msg msg-strong">{message}</p>
+                {#if details}
+                    <p class="msg-details">{details}</p>
+                {/if}
+            {/if}
+        </div>
+    </div>
+{/snippet}
+
 <div
     bind:this={rootElement}
     id="triiiceratops-viewer"
@@ -1491,36 +1482,19 @@
             {/if}
 
             {#if galleryDocked && internalViewerState.dockSide === 'left'}
-                <div
-                    class="gallery-host"
-                    style="--ui-gallery-rail: {galleryExtent}px"
-                    transition:slideWidth|global
-                >
-                    <ThumbnailGallery {canvases} />
-                </div>
+                {@render galleryRail()}
             {/if}
         </div>
     {/if}
 
     <div class="center-col">
         {#if galleryDocked && internalViewerState.dockSide === 'top'}
-            <div
-                class="gallery-band"
-                style="--ui-gallery-band: {galleryExtent}px"
-            >
-                <ThumbnailGallery {canvases} />
-            </div>
+            {@render galleryBand()}
         {/if}
 
         <div
             class="viewer-area"
             class:opaque={!internalViewerState.config.transparentBackground}
-            role={internalViewerState.config.enableDragDrop
-                ? 'region'
-                : undefined}
-            ondragover={handleDragOver}
-            ondragleave={handleDragLeave}
-            ondrop={handleDrop}
         >
             {#if manifestData?.isFetching}
                 <div class="centered">
@@ -1536,57 +1510,13 @@
                 </div>
             {:else if tileSources || visibleCanvasUnsupported}
                 {#if tileSourceError}
-                    <div class="overlay-cover" role="alert">
-                        {#if currentCanvasThumbnail}
-                            <img
-                                src={currentCanvasThumbnail}
-                                alt=""
-                                class="blur-bg"
-                            />
-                            <div class="dim-50"></div>
-                        {/if}
-                        <div class="error-card">
-                            {#if tileSourceError.type === 'auth'}
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    class="warn-icon"
-                                >
-                                    <rect
-                                        x="3"
-                                        y="11"
-                                        width="18"
-                                        height="11"
-                                        rx="2"
-                                        ry="2"
-                                    />
-                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                </svg>
-                                <p class="msg">
-                                    {m.error_auth_required()}
-                                </p>
-                            {:else}
-                                <Icon
-                                    name="ImageBroken"
-                                    size={48}
-                                    color="var(--tri-color-warning)"
-                                />
-                                <p class="msg msg-strong">
-                                    {tileSourceErrorMessage}
-                                </p>
-                                {#if tileSourceErrorDetails}
-                                    <p class="msg-details">
-                                        {tileSourceErrorDetails}
-                                    </p>
-                                {/if}
-                            {/if}
-                        </div>
-                    </div>
+                    {@const auth = tileSourceError.type === 'auth'}
+                    {@render cover(
+                        'alert',
+                        auth,
+                        auth ? m.error_auth_required() : tileSourceErrorMessage,
+                        auth ? null : tileSourceErrorDetails,
+                    )}
                 {:else}
                     <!--
                         The one renderer. There is no renderer selection: the
@@ -1608,26 +1538,7 @@
                     undisplayable took the renderer branch above and gets the
                     unsupported presentation over its own rect instead.
                 -->
-                <div class="overlay-cover" role="status">
-                    {#if currentCanvasThumbnail}
-                        <img
-                            src={currentCanvasThumbnail}
-                            alt=""
-                            class="blur-bg"
-                        />
-                        <div class="dim-50"></div>
-                    {/if}
-                    <div class="error-card">
-                        <Icon
-                            name="ImageBroken"
-                            size={48}
-                            color="var(--tri-color-warning)"
-                        />
-                        <p class="msg msg-strong">
-                            {m.no_image_found()}
-                        </p>
-                    </div>
-                </div>
+                {@render cover('status', false, m.no_image_found(), null)}
             {/if}
 
             <!--
@@ -1687,45 +1598,16 @@
                 <Toolbar />
             {/if}
 
-            {#each internalViewerState.pluginPanels as panel (panel.id)}
-                {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'overlay'}
-                    <div class="plugin-overlay">
-                        {#if panel.mount}
-                            <PluginMountHost mount={panel.mount} />
-                        {/if}
-                    </div>
-                {/if}
-            {/each}
+            {@render pluginPanelsAt('overlay')}
 
             <ViewerControls />
-
-            {#if internalViewerState.config.enableDragDrop && isDragOver}
-                <div class="drag-overlay">
-                    <div class="drag-hint">
-                        {m.drop_manifest_hint()}
-                    </div>
-                </div>
-            {/if}
         </div>
 
         {#if galleryDocked && internalViewerState.dockSide === 'bottom'}
-            <div
-                class="gallery-band"
-                style="--ui-gallery-band: {galleryExtent}px"
-            >
-                <ThumbnailGallery {canvases} />
-            </div>
+            {@render galleryBand()}
         {/if}
 
-        {#each internalViewerState.pluginPanels as panel (panel.id)}
-            {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'bottom'}
-                <div class="plugin-bottom">
-                    {#if panel.mount}
-                        <PluginMountHost mount={panel.mount} />
-                    {/if}
-                </div>
-            {/if}
-        {/each}
+        {@render pluginPanelsAt('bottom')}
 
         <!-- Expanded Gallery. An overlay layer covering the center column, so
              the renderer keeps its size underneath (no re-layout or re-fit when it
@@ -1739,7 +1621,7 @@
                 class:inset-right={floatingToolbarSide === 'right'}
                 transition:expandGallery|global={galleryExpandFrom}
             >
-                <ThumbnailGallery {canvases} />
+                <ThumbnailGallery />
             </div>
         {/if}
     </div>
@@ -1764,13 +1646,7 @@
             {/if}
 
             {#if galleryDocked && internalViewerState.dockSide === 'right'}
-                <div
-                    class="gallery-host"
-                    style="--ui-gallery-rail: {galleryExtent}px"
-                    transition:slideWidth|global
-                >
-                    <ThumbnailGallery {canvases} />
-                </div>
+                {@render galleryRail()}
             {/if}
         </div>
     {/if}
@@ -2041,40 +1917,6 @@
         width: 100%;
         z-index: 40;
         pointer-events: auto;
-    }
-
-    .drag-overlay {
-        position: absolute;
-        inset: 0;
-        z-index: 45;
-        pointer-events: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: color-mix(
-            in oklab,
-            var(--tri-viewer-bg) 70%,
-            transparent
-        );
-        backdrop-filter: blur(4px);
-    }
-    .drag-hint {
-        border-radius: var(--tri-radius-box);
-        border: 2px dashed var(--tri-color-primary);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-viewer-bg) 90%,
-            transparent
-        );
-        padding-inline: 1.5rem;
-        padding-block: 1rem;
-        font-size: 0.875rem;
-        line-height: 1.25rem;
-        font-weight: 500;
-        color: var(--tri-content);
-        box-shadow:
-            0 10px 15px -3px #0000001a,
-            0 4px 6px -4px #0000001a;
     }
 
     /* Scoped scrollbar styles for the viewer */

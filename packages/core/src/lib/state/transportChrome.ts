@@ -66,15 +66,20 @@ export interface TransportChromeIcons {
     transcript: IconDescriptor;
 }
 
-/** Every string the chrome shows or announces, in the claimant's locale. */
+/**
+ * Every string the chrome shows or announces, in the claimant's locale.
+ *
+ * The two clock readings carry none, and cannot: a `<span>` maps to role
+ * `generic`, which prohibits an accessible name, so the render site hides them
+ * from assistive technology and the scrubber's `aria-valuetext` announces the
+ * whole reading instead.
+ */
 export interface TransportChromeLabels {
     /** Names the control group itself, so it is distinguishable from the navigation. */
     transport: string;
     play: string;
     pause: string;
-    elapsed: string;
     seek: string;
-    duration: string;
     mute: string;
     unmute: string;
     volume: string;
@@ -88,6 +93,11 @@ export interface TransportChromeLabels {
 /**
  * The playback facts the chrome renders, read on core's own cadence and never
  * held across a frame.
+ *
+ * A claimant must return a FRESH object from every `view()` read. Core holds
+ * the result in `$state.raw`, which `===`-compares on assignment, so a claimant
+ * that mutates and hands back the same instance is silently ignored and the
+ * chrome freezes with no error anywhere.
  */
 export interface TransportChromeView {
     /** `false` renders no controls — no current target, or none claimed. */

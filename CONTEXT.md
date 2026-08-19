@@ -488,5 +488,7 @@ _Avoid_: content state (that is the spec artifact, not the parsed result)
 - **Host ↔ Plugin**: the host customizes via the extension (behavior), the body editor
   (body UI), and the adapter (storage).
 - **Content state → delivery → View target**: a content state (the payload) arrives
-  through a delivery channel (the `iiif-content` parameter, drag-and-drop, etc.), is
-  parsed into a view target, and the viewer loads its manifest and frames its canvas/region.
+  through a delivery channel, which the host owns — the viewer ships none. The host
+  reads the channel (the `iiif-content` parameter, a drop handler, a paste), parses the
+  payload into a view target with `parseContentState`, and drives the viewer through
+  `manifestId`/`canvasId`/`initialCanvasRegion`.

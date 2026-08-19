@@ -153,6 +153,12 @@ export interface AvSource {
     readonly url: string;
     readonly kind: AvMediaKind;
     readonly format: string | null;
+    /**
+     * The picture in the canvas's rect is this body, shown by the element that
+     * plays it. Not the same question as `kind`: a `Sound` body formatted
+     * `video/mp4` plays through a `<video>` and paints no picture.
+     */
+    readonly paintsPicture: boolean;
 }
 /** One painting annotation that places a time-based body on the canvas. */
 export interface AvPlacement {
@@ -176,8 +182,6 @@ export interface AvPlacement {
      * asks.
      */
     readonly alternatives: readonly AvSource[];
-    /** The annotation's target carries a `t=` media fragment. */
-    readonly temporal: boolean;
     /** The annotation's target carries an `xywh=` media fragment. */
     readonly spatial: boolean;
 }

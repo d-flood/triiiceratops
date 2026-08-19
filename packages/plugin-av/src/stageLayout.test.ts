@@ -6,8 +6,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-    clipRect,
     laneFraction,
+    stageClip,
     stageLanes,
     stageLayoutKind,
 } from './stageLayout';
@@ -65,38 +65,48 @@ describe('stage layout', () => {
     describe('clipping a projection to the container', () => {
         const VISIBLE = { width: 480, height: 600 };
 
-        it('leaves a rect that is already inside alone', () => {
+        it('clips a rect that is already inside not at all', () => {
             const inside = { left: 10, top: 20, width: 100, height: 100 };
 
-            expect(clipRect(inside, VISIBLE)).toEqual(inside);
+            expect(stageClip(inside, VISIBLE)).toEqual({
+                hidden: false,
+                clipPath: 'none',
+            });
         });
 
         // The reader-facing case: a canvas fitted to the viewer's height
         // overhangs a narrower container on both sides, and an audio canvas's
         // lane fills its whole rect — so the overhang is a pointer target
-        // sitting over whatever chrome is docked beside the container.
+        // sitting over whatever chrome is docked beside the container. The
+        // insets are in the STAGE's coordinates, clockwise from the top.
         it('trims an overhang on every side', () => {
             expect(
-                clipRect(
+                stageClip(
                     { left: -60, top: -10, width: 600, height: 620 },
                     VISIBLE,
                 ),
-            ).toEqual({ left: 0, top: 0, width: 480, height: 600 });
+            ).toEqual({
+                hidden: false,
+                clipPath: 'inset(10px 60px 10px 60px)',
+            });
         });
 
-        it('refuses a rect entirely outside the container', () => {
+        it('hides a rect entirely outside the container', () => {
             expect(
-                clipRect(
+                stageClip(
                     { left: 500, top: 0, width: 100, height: 100 },
                     VISIBLE,
-                ),
-            ).toBeNull();
+                ).hidden,
+            ).toBe(true);
         });
 
         it('clips nothing against a container with no measured box', () => {
-            const rect = { left: -60, top: 0, width: 600, height: 600 };
-
-            expect(clipRect(rect, { width: 0, height: 0 })).toEqual(rect);
+            expect(
+                stageClip(
+                    { left: -60, top: 0, width: 600, height: 600 },
+                    { width: 0, height: 0 },
+                ),
+            ).toEqual({ hidden: false, clipPath: 'none' });
         });
     });
 

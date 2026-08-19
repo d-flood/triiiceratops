@@ -293,7 +293,11 @@
      * every other row is rendered by the one shared button template.
      */
     type ToolbarEntry =
-        | { key: string; show: boolean; flyout: 'viewing-mode' | 'sequence' }
+        | {
+              key: string;
+              show: boolean;
+              flyout: 'viewing-mode' | 'gallery-placement' | 'sequence';
+          }
         | {
               key: string;
               show: boolean;
@@ -310,9 +314,9 @@
               onclick: () => void;
           };
 
-    // The built-in toolbar entries in render order. A new flyout entry (e.g. a
-    // dock-side picker) belongs in this list, with its menu markup in the
-    // matching `{:else if}` branch of the `{#each}` below.
+    // The built-in toolbar entries in render order. A new flyout entry belongs in
+    // this list, with its menu markup in the matching `{:else if}` branch of the
+    // `{#each}` below.
     const toolbarEntries: ToolbarEntry[] = $derived([
         {
             key: 'collection',
@@ -362,6 +366,13 @@
             key: 'viewing-mode',
             show: showViewingMode,
             flyout: 'viewing-mode',
+        },
+        {
+            key: 'gallery-placement',
+            // Placement is a property of the gallery, so it shares the gallery's
+            // own gate: switch the gallery off and neither button appears.
+            show: showGallery,
+            flyout: 'gallery-placement',
         },
         {
             key: 'sequence-picker',
@@ -423,6 +434,15 @@
         ['continuous', 'Scroll', m.viewing_mode_continuous()],
     ] as const);
 
+    // [side, glyph, label] for the gallery-placement menu's radio items — the
+    // four dock sides, each glyph pointing at the edge it docks to.
+    const galleryPlacementItems = $derived([
+        ['top', 'CaretUp', m.gallery_placement_top()],
+        ['bottom', 'CaretDown', m.gallery_placement_bottom()],
+        ['left', 'CaretLeft', m.gallery_placement_left()],
+        ['right', 'CaretRight', m.gallery_placement_right()],
+    ] as const);
+
     let sortedPluginButtons = $derived.by(() => {
         void language.current;
         return viewerState.pluginMenuButtons
@@ -462,9 +482,9 @@
         return viewerState.pluginFlyouts.find((f) => f.domId === domId);
     }
 
-    // Built-in toolbar dropdowns (viewing mode, sequence picker) use the same
-    // non-top-layer flyout pattern as plugin flyouts, so tooltips paint above
-    // them too. Only one is open at a time.
+    // Built-in toolbar dropdowns (viewing mode, gallery placement, sequence
+    // picker) use the same non-top-layer flyout pattern as plugin flyouts, so
+    // tooltips paint above them too. Only one is open at a time.
     let openMenu = $state<string | null>(null);
     let toolbarRootEl: HTMLElement | undefined = $state();
 
@@ -664,8 +684,8 @@
             <!-- --- Standard Actions ---
                  One shared button per `toolbarEntries` row. A row naming a
                  flyout takes a branch of its own instead, because each menu is
-                 bespoke: a further flyout — a dock-side picker, say — adds a row
-                 to the descriptor and one more `else if` branch here. -->
+                 bespoke: a further flyout adds a row to the descriptor and one
+                 more `else if` branch here. -->
             {#each visibleEntries as entry (entry.key)}
                 {#if !entry.flyout}
                     <!-- The glyph name goes through a local binding because
@@ -766,6 +786,55 @@
                                     </button>
                                 </li>
                             {/if}
+                        </ul>
+                    </li>
+                {:else if entry.flyout === 'gallery-placement'}
+                    <li>
+                        <button
+                            class="menu-item tooltip {tooltipPlacement}"
+                            class:menu-active={openMenu === 'gallery-placement'}
+                            data-tip={m.gallery_placement_label()}
+                            data-flyout-toggle
+                            aria-label={m.gallery_placement_label()}
+                            aria-haspopup="menu"
+                            aria-controls="tri-flyout-gallery-placement"
+                            aria-expanded={openMenu === 'gallery-placement'}
+                            style="anchor-name:--anchor-gallery-placement"
+                            onclick={() => toggleMenu('gallery-placement')}
+                        >
+                            <Icon name="Layout" size={24} />
+                        </button>
+                        <ul
+                            id="tri-flyout-gallery-placement"
+                            data-flyout-panel
+                            role="menu"
+                            tabindex="-1"
+                            aria-label={m.gallery_placement_label()}
+                            class="menu popover-menu menu-flyout {flyoutPlacement}"
+                            class:open={openMenu === 'gallery-placement'}
+                            style="position-anchor: --anchor-gallery-placement;"
+                            onkeydown={onFlyoutMenuKeydown}
+                        >
+                            {#each galleryPlacementItems as [dockSide, icon, label] (dockSide)}
+                                <li role="none">
+                                    <button
+                                        class="menu-item"
+                                        role="menuitemradio"
+                                        aria-checked={viewerState.dockSide ===
+                                            dockSide}
+                                        class:menu-active={viewerState.dockSide ===
+                                            dockSide}
+                                        onclick={() =>
+                                            viewerState.setDockSide(dockSide)}
+                                    >
+                                        <Icon name={icon} size={16} />
+                                        <span>{label}</span>
+                                        {#if viewerState.dockSide === dockSide}
+                                            <Icon name="Check" size={16} />
+                                        {/if}
+                                    </button>
+                                </li>
+                            {/each}
                         </ul>
                     </li>
                 {:else if entry.flyout === 'sequence'}
@@ -1389,7 +1458,7 @@
         display: inline-flex;
     }
 
-    /* ===== Dropdown menu chrome (viewing mode, sequence picker) =====
+    /* ===== Dropdown menu chrome (built-in flyout menus) =====
        Same glass treatment as the plugin flyout's base bar. The blur/fill live
        on a ::before layer, not directly on .popover-menu (which also carries
        `border`) — see the matching comment on ImageManipulationFlyout's .base

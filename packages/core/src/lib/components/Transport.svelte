@@ -52,10 +52,10 @@
     // Read on core's own cadence: the claimant already runs the cadences its
     // published state runs on, and `subscribe` is how it hands them over.
     //
-    // `$state.raw`, so each read replaces the view wholesale. A deep proxy would
-    // buy nothing — the claimant is entitled to hand back the same object it
-    // mutated, so the assignment is the only signal there is — and would cost a
-    // proxy per playback frame.
+    // `$state.raw`, so each read replaces the view wholesale rather than costing
+    // a deep proxy per playback frame. The price is a contract on the claimant:
+    // `view()` must return a FRESH object every call, because the assignment is
+    // `===`-compared and a mutated-and-returned instance updates nothing.
     let view = $state.raw<TransportChromeView>(untrack(() => chrome.view()));
 
     $effect(() => {
@@ -140,7 +140,9 @@
     function onScrubberPointerdown(event: PointerEvent): void {
         // Primary button only, and only the primary pointer: a right-click must
         // not move the playhead or take capture, and a second finger landing
-        // mid-drag must not open a seek loop of its own.
+        // mid-drag must not open a seek loop of its own. Capture does not gate
+        // entry — a second pointer's `pointerdown` is still dispatched to the
+        // captured element — so this check is the only thing that stops it.
         if (!duration || event.button !== 0 || !event.isPrimary) return;
         const track = event.currentTarget as HTMLElement;
 
@@ -161,8 +163,8 @@
         track.focus();
 
         // Every listener is filtered by the pointer that opened the drag: a
-        // second finger must not seek inside someone else's gesture, and its up
-        // must not tear down the first pointer's listeners.
+        // second finger's moves hit-test to the track and would drive this seek
+        // loop, and its up would tear down the first pointer's listeners.
         const { pointerId } = event;
         const onMove = (move: PointerEvent): void => {
             if (move.pointerId === pointerId) seekToPointer(move.clientX);
@@ -177,12 +179,8 @@
         for (const type of POINTER_END) track.addEventListener(type, onUp);
     }
 
-    /** Capture lost to something else ends a drag as surely as an up does. */
-    const POINTER_END = [
-        'pointerup',
-        'pointercancel',
-        'lostpointercapture',
-    ] as const;
+    /** Both ways a drag ends; capture releases implicitly with either. */
+    const POINTER_END = ['pointerup', 'pointercancel'] as const;
 
     /**
      * The track list, "off" included and first: turning tracks off is then the

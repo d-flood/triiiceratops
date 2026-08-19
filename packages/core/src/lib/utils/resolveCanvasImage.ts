@@ -13,6 +13,23 @@ import { resolveLanguageValue } from './languageMap';
 
 export type TileSource = string | { type: 'image'; url: string };
 
+/**
+ * Where a canvas's pixels come from.
+ *
+ * `static` is one known URL. `service` is an image service the consumer resolves
+ * once its `info.json` has been fetched — into a tile pyramid when it advertises
+ * tiles, and otherwise into a fixed-size ladder. Which of the two a service is
+ * comes from what it advertises, not from its declared `profile`, which is
+ * carried here only for the consumers that report it.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export type ImageSource =
+    | { kind: 'static'; url: string }
+    | { kind: 'service'; serviceId: string; profile: string | null };
+
 export type RegionRect = {
     x: number;
     y: number;
@@ -414,18 +431,28 @@ export function resolveAllCanvasImages(
         .filter((result): result is ResolvedCanvasImage => result !== null);
 }
 
-export function getCanvasTileSource(
-    canvas: any,
-    options: ResolveCanvasImageOptions = {},
-): TileSource | null {
-    const resolved = resolveCanvasImage(canvas, options);
-    if (!resolved) {
-        return null;
-    }
-
+/**
+ * Where one resolved painting image's pixels come from — the three-branch source
+ * decision, made in one place for every consumer:
+ *
+ * 1. a service **plus** an Image API region is a prebuilt image request — a
+ *    single static image of the cropped region;
+ * 2. a service alone is a service to resolve against a tile pyramid or size
+ *    ladder;
+ * 3. otherwise the painting resource's own id is a plain static image.
+ *
+ * `null` where the image names no source at all.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export function toImageSource(
+    resolved: ResolvedCanvasImage,
+): ImageSource | null {
     if (resolved.serviceId && resolved.imageApiRegion) {
         return {
-            type: 'image',
+            kind: 'static',
             url: buildIiifImageRequestUrl(resolved.serviceId, {
                 region: getRegionString(resolved.imageApiRegion),
                 size: 'max',
@@ -434,14 +461,36 @@ export function getCanvasTileSource(
     }
 
     if (resolved.serviceId) {
-        return `${resolved.serviceId}/info.json`;
+        return {
+            kind: 'service',
+            serviceId: resolved.serviceId,
+            profile: resolved.serviceProfile,
+        };
     }
 
     if (resolved.resourceId) {
-        return { type: 'image', url: resolved.resourceId };
+        return { kind: 'static', url: resolved.resourceId };
     }
 
     return null;
+}
+
+/** The same decision as a {@link TileSource}, which spells a service as its `info.json`. */
+function toTileSource(resolved: ResolvedCanvasImage): TileSource | null {
+    const source = toImageSource(resolved);
+    if (!source) return null;
+
+    return source.kind === 'service'
+        ? `${source.serviceId}/info.json`
+        : { type: 'image', url: source.url };
+}
+
+export function getCanvasTileSource(
+    canvas: any,
+    options: ResolveCanvasImageOptions = {},
+): TileSource | null {
+    const resolved = resolveCanvasImage(canvas, options);
+    return resolved ? toTileSource(resolved) : null;
 }
 
 export function getCanvasTileSources(
@@ -450,22 +499,7 @@ export function getCanvasTileSources(
 ): PositionedTileSource[] {
     return resolveAllCanvasImages(canvas, options)
         .map((resolved) => {
-            let tileSource: TileSource | null = null;
-
-            if (resolved.serviceId && resolved.imageApiRegion) {
-                tileSource = {
-                    type: 'image',
-                    url: buildIiifImageRequestUrl(resolved.serviceId, {
-                        region: getRegionString(resolved.imageApiRegion),
-                        size: 'max',
-                    }),
-                };
-            } else if (resolved.serviceId) {
-                tileSource = `${resolved.serviceId}/info.json`;
-            } else if (resolved.resourceId) {
-                tileSource = { type: 'image', url: resolved.resourceId };
-            }
-
+            const tileSource = toTileSource(resolved);
             if (!tileSource) {
                 return null;
             }

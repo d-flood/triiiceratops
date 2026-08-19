@@ -12,6 +12,7 @@
  */
 
 import type { SharedCoreUtils } from './browser-runtime';
+import { companionPaintable } from './renderer/companionCanvases';
 import { getPaintingAnnotations } from './utils/iiifParsing';
 import {
     isImageBody,
@@ -21,11 +22,14 @@ import {
 
 /**
  * The curated set: exactly the utilities `@triiiceratops/plugin-av`'s IIFE
- * reads off the namespace instead of bundling. Every one is already retained by
- * core's own shipped graph, so exposing them retains nothing new. Read
- * `SharedCoreUtils`'s three rules before adding to it.
+ * reads off the namespace instead of bundling. Most are re-exports of functions
+ * core's own graph already retains, so they retain nothing new;
+ * `companionPaintable` is an adapter over logic core already has, and costs
+ * only the adapter. Read `SharedCoreUtils`'s three rules before adding to it —
+ * rule 2 draws the line between those two cases and the one they exclude.
  */
 export const SHARED_CORE_UTILS: SharedCoreUtils = {
+    companionPaintable,
     getPaintingAnnotations,
     isImageBody,
     isUnsupportedCanvasFor,

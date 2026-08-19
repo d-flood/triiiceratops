@@ -117,7 +117,6 @@ const DERIVED_READS = new Set([
     'annotatableCanvasIds',
     'canvases',
     'currentCanvasIndex',
-    'currentCanvasSearchAnnotations',
     'hasCollection',
     'hasNext',
     'hasPrevious',

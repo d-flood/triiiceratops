@@ -3,10 +3,9 @@
  *
  * What only a browser can settle:
  *
- * - **A temporal offset seeks and does not play.** A chapter click, a manifest
- *   `start` and a dropped content state all arrive as the same fact — the media
- *   time the navigation carried — and all three leave the viewer as paused as
- *   they found it.
+ * - **A temporal offset seeks and does not play.** A chapter click and a
+ *   manifest `start` both arrive as the same fact — the media time the
+ *   navigation carried — and both leave the viewer as paused as they found it.
  * - **The offset lands even when it arrives first.** On the navigation that
  *   first shows a canvas the element has no metadata yet, so the seek has to
  *   wait for it; nothing in a unit test can prove the wait ends.
@@ -180,46 +179,6 @@ test.describe('av temporal offsets — a seek, never a play', () => {
             .poll(async () => (await playback(page, BARS)).currentTime)
             .toBeCloseTo(1.5, 1);
         expect((await playback(page, BARS)).paused).toBe(true);
-    });
-
-    test('a dropped content state seeks the canvas its target names', async ({
-        page,
-    }) => {
-        await openViewer(page);
-
-        const contentState = {
-            // Deliberately not an `http(s):` id: `parseContentState` reads a
-            // resource whose own id is an absolute URL as a bare manifest
-            // reference and never looks at its target. A `urn:` id is the
-            // ordinary spelling for an annotation that is not dereferenceable.
-            id: 'urn:uuid:0a9f6a8e-content-state',
-            type: 'Annotation',
-            motivation: 'contentState',
-            target: `${TONE}#t=1.5`,
-            partOf: { id: MANIFEST, type: 'Manifest' },
-        };
-        const encoded = Buffer.from(JSON.stringify(contentState))
-            .toString('base64')
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=+$/, '');
-
-        // Drag-and-drop is the viewer's delivery path for a content state, and
-        // the fixture page enables it.
-        const dataTransfer = await page.evaluateHandle((text) => {
-            const transfer = new DataTransfer();
-            transfer.setData('text/plain', text);
-            return transfer;
-        }, encoded);
-        await page.locator('.viewer-area').dispatchEvent('drop', {
-            dataTransfer,
-        });
-
-        await expect.poll(() => currentCanvas(page)).toBe(TONE);
-        await expect
-            .poll(async () => (await playback(page, TONE)).currentTime)
-            .toBeCloseTo(1.5, 1);
-        expect((await playback(page, TONE)).paused).toBe(true);
     });
 });
 

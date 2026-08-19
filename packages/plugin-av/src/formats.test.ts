@@ -27,7 +27,7 @@ function recipeCanvases(name: string): unknown[] {
 }
 
 function source(url: string, format: string | null): AvSource {
-    return { url, format, kind: 'video' };
+    return { url, format, kind: 'video', paintsPicture: true };
 }
 
 const MOV = source('master.mov', 'video/quicktime');

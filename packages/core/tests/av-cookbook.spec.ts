@@ -37,6 +37,7 @@ test.skip(
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 const STAGE = '[data-testid="av-stage"]';
 const MEDIA = '[data-testid="av-media"]';
+const VISUAL_LANE = '[data-testid="av-visual-lane"]';
 const TRANSPORT = '[data-testid="transport"]';
 const PLAY = '[data-testid="transport-play"]';
 const MUTE = '[data-testid="transport-mute"]';
@@ -483,6 +484,36 @@ test.describe('demo av cookbook coverage', () => {
         await expect
             .poll(() => currentTime(page), { timeout: 30_000 })
             .toBeGreaterThan(0.2);
+    });
+
+    /*
+        The `video` layout, on the recipe that has nothing but its body to say
+        so: `0015-start` declares no `width`/`height`, so core lays its canvas
+        out from the unsized placeholder box. The element still has to be in
+        the visual lane and filling the rect — read off the layout rather than
+        the DOM alone, because a `<video>` parked outside the lane is attached,
+        sized zero, and invisible behind the audio timeline lane that took the
+        rect instead.
+    */
+    test('a duration-only video recipe shows its picture in the rect', async ({
+        page,
+    }) => {
+        const log = newLog();
+        await openRecipe(page, '0015-start', log);
+        const stage = page.locator(STAGE).first();
+        await stage.waitFor({ state: 'visible' });
+
+        const media = page.locator(MEDIA).first();
+        await expect(
+            page.locator(`${VISUAL_LANE} ${MEDIA}`).first(),
+        ).toBeAttached();
+        await expect(media).toBeVisible();
+
+        const box = await media.boundingBox();
+        const rect = await stage.boundingBox();
+        expect(box?.width).toBeGreaterThan(0);
+        expect(box?.height).toBeGreaterThan(0);
+        expect(box?.height).toBeCloseTo(rect!.height, 0);
     });
 
     test('a captions recipe plays end to end', async ({ page }) => {

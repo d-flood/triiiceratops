@@ -19,11 +19,8 @@
 
 import type { PluginContext } from '@triiiceratops/plugin-sdk';
 import {
-    getPaintingAnnotations,
-    isImageBody,
+    companionPaintable,
     isUnsupportedCanvasFor,
-    paintingBodyAlternatives,
-    type ChoiceSelection,
     type CompanionPhase,
 } from 'triiiceratops';
 
@@ -64,7 +61,7 @@ import {
     createAudioPrefs,
     createTransport,
     type TransportLabels,
-} from './transport.svelte';
+} from './transportChrome';
 import { type TextTranscript, textTranscriptFor } from './renderingTranscript';
 import { loadTranscript } from './transcriptLink';
 import type { VisibleBox } from './waveform/surface';
@@ -112,65 +109,6 @@ interface StageEntry {
      * cannot change without a restage.
      */
     readonly textTranscript: TextTranscript | null;
-}
-
-/**
- * Whether the canvas carries a companion Canvas under `property` that core will
- * paint — the whole of what the plugin needs to know to set a phase.
- *
- * Core reads the vocabulary, resolves the picture and sizes every request, so
- * nothing here inspects an image service or builds a URL: a companion is on the
- * same tier ladder as any other canvas precisely because this plugin has no
- * opinion about it (SPEC — "The plugin, reduced").
- *
- * A `true` answer has to mean core WILL paint, because the layout decision and
- * the paint decision have to agree: yielding the rect to a picture that never
- * arrives leaves the reader a blank stage, where the honest fallback is the
- * treatment the canvas would have had with no companion at all (SPEC —
- * "Degradation and honesty"). So each of core's own refusals is asked here:
- *
- * - a value that is not an object, or that carries no `items` holding a
- *   non-empty AnnotationPage, is **absent**. `items` and nothing else: core
- *   reaches a companion through that one spelling, so a v2 `images` or a
- *   3.0-beta `content` companion is absent to it however paintable it looks;
- * - a canvas with no id resolves to no images at all;
- * - a companion core cannot paint — a Text or Video body, and for a Choice the
- *   **selected** alternative rather than any of them — is refused by core's own
- *   classifier, asked with the same selection core resolves with;
- * - an image body with no id and no service resolves to nothing requestable.
- */
-function paintsCompanion(
-    selection: ChoiceSelection,
-    canvas: unknown,
-    property: string,
-): boolean {
-    const companion = (canvas as Record<string, unknown> | null | undefined)?.[
-        property
-    ];
-    if (!companion || typeof companion !== 'object') return false;
-
-    const pages = (companion as { items?: unknown }).items;
-    if (
-        !Array.isArray(pages) ||
-        !pages.some(
-            (page) =>
-                Array.isArray((page as { items?: unknown } | null)?.items) &&
-                (page as { items: unknown[] }).items.length > 0,
-        )
-    )
-        return false;
-    if (!canvasIdOf(companion)) return false;
-    if (isUnsupportedCanvasFor(selection, companion)) return false;
-
-    for (const annotation of getPaintingAnnotations(companion)) {
-        for (const body of paintingBodyAlternatives(annotation)) {
-            if (!isImageBody(body)) continue;
-            const record = body as Record<string, unknown>;
-            const id = record.id ?? record['@id'];
-            if (typeof id === 'string' && id !== '') return true;
-        }
-    }
-    return false;
 }
 
 function canvasIdOf(canvas: unknown): string {
@@ -251,12 +189,10 @@ export function createAvStageManager(
             mute: t('av_mute'),
             unmute: t('av_unmute'),
             volume: t('av_volume'),
-            elapsed: t('av_elapsed'),
-            duration: t('av_duration'),
-            captions: t('av_captions'),
-            captionsOff: t('av_captions_off'),
-            captionsTrack: t('av_captions_track'),
+            tracks: t('av_captions'),
+            tracksOff: t('av_captions_off'),
             transcript: t('av_transcript'),
+            trackFallback: t('av_captions_track'),
         };
     }
 
@@ -715,9 +651,14 @@ export function createAvStageManager(
         // outlives playback, so it is what decides whether this plugin draws
         // lanes at all. A canvas core paints one into gets none — only a tap
         // target and the glyph.
+        //
+        // The body says whether the picture is the element's, never the
+        // canvas's dimensions: `0015-start` is duration-only and paints a
+        // `Video`, so a canvas laid out from core's unsized placeholder box is
+        // still a video stage.
         const layout = stageLayoutKind(
-            scan.width !== null && scan.height !== null,
-            paintsCompanion(viewerState, canvas, 'accompanyingCanvas'),
+            source.paintsPicture,
+            companionPaintable(viewerState, canvas, 'accompanyingCanvas'),
         );
 
         /*
@@ -736,7 +677,10 @@ export function createAvStageManager(
             still's aspect keeps that rect through the handover, because a
             reflow at the moment playback starts is what story 10 forbids.
         */
-        const showsPlaceholder = paintsCompanion(
+        // Core's own answer, not a second derivation of it: a phase set for a
+        // picture core then declines to paint leaves the reader a blank stage,
+        // and only the resolution that does the painting can rule that out.
+        const showsPlaceholder = companionPaintable(
             viewerState,
             canvas,
             'placeholderCanvas',

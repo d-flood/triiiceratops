@@ -12,9 +12,9 @@ function placement(annotation: number, fragment: string): AvPlacement {
                 url: `body-${annotation}.mp4`,
                 kind: 'video',
                 format: 'video/mp4',
+                paintsPicture: true,
             },
         ],
-        temporal: true,
         spatial: false,
     };
 }
@@ -328,8 +328,18 @@ describe('the canvas timeline sequencer', () => {
                 {
                     ...placement(1, 't=2,4'),
                     alternatives: [
-                        { url: 'low.mp4', kind: 'video', format: 'video/mp4' },
-                        { url: 'high.mp4', kind: 'video', format: 'video/mp4' },
+                        {
+                            url: 'low.mp4',
+                            kind: 'video',
+                            format: 'video/mp4',
+                            paintsPicture: true,
+                        },
+                        {
+                            url: 'high.mp4',
+                            kind: 'video',
+                            format: 'video/mp4',
+                            paintsPicture: true,
+                        },
                     ],
                 },
             ],

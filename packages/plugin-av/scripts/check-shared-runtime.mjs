@@ -22,9 +22,9 @@
 //
 // Sharing the runtime has a second failure mode, and it is the quiet one: the
 // bundle can read a helper core does not publish. `svelte/internal/client` has
-// ~200 exports and core curates about thirty of them, so a markup change that
-// makes the compiler emit one of the other ~170 builds clean, passes every unit
-// test — unit tests mount against the REAL `svelte/internal`, not against the
+// ~200 exports and core curates the handful this plugin's markup reaches, so a
+// change that makes the compiler emit any of the rest builds clean, passes unit
+// tests — they mount against the REAL `svelte/internal`, not against the
 // curated object the browser gets — and then dies at mount with
 // `<local>.<helper> is not a function`. So the helpers the built artifacts
 // actually reference are compared here against the list core publishes.
@@ -432,18 +432,27 @@ const REQUIRED_GLOBALS = [
  * A ratchet a few bytes above the recorded actual, not a budget to spend: it is
  * set from a measurement and moved only by a change that is worth its bytes.
  * Re-derive the actual with `pnpm build`, then gzip `dist/iife.js` at level 9 —
- * the same level this script uses — which currently reads **17,017**.
+ * the same level this script uses — which currently reads **15,039**. The head
+ * over it is ~29 bytes, and can be that tight because this artifact is
+ * path-independent. Svelte's scoped-CSS class name is a variable-length hash of
+ * the filename the compiler is handed, and that filename is ABSOLUTE — so the
+ * hash, and with it the byte count, moves with the checkout directory — only
+ * for a component reached through a linked workspace dependency. This package
+ * has none: its one component, `src/Panel.svelte`, sits inside the build root
+ * and compiles from that package-relative path, so a build in a git worktree
+ * and a build on the mainline checkout agree to the byte. Adding a cross-package
+ * Svelte component would end that, and the head here would have to grow.
  *
  * The playback chrome is NOT in this number and must never come back into it:
- * core renders it, from the view model `src/transport.svelte.ts` registers
+ * core renders it, from the view model `src/transportChrome.ts` registers
  * through `registerTransportChrome`. What this bundle carries of the transport
  * is that view model, its formatting, and the six icon descriptors.
  *
  * What those eager bytes are:
  *
  * - the stage: the lane layout and its styling, the projection's clip to the
- *   overlay container, companion-canvas resolution, and the tap/pan seam that
- *   keeps a plain-audio canvas draggable;
+ *   overlay container, the companion query core answers, and the tap/pan seam
+ *   that keeps a plain-audio canvas draggable;
  * - temporal offsets and the playlist behaviors — the offset seeker, reading
  *   `behavior`, and the end-of-timeline decision. Eager because a manifest
  *   `start`, a chapter's `#t=` and `auto-advance` are all settled on the
@@ -475,10 +484,10 @@ const REQUIRED_GLOBALS = [
  *   scroll-follow, and the untimed file's fetch, paragraph reflow and
  *   fetch-failure link — are in `dist/av-transcript.js`, which is fetched only
  *   for a canvas that actually offers one of them;
- * - the version-skew gate's diagnostic prose, and the curator-facing degradation
- *   warnings (user story 45). Their prose is a real share of this number and is
- *   spent deliberately: a message that says what was ignored and what the term
- *   actually means costs a few hundred bytes more than one that says "ignored".
+ * - the version-skew gate's diagnostics, and the curator-facing degradation
+ *   warnings (user story 45). One cause line each: what failed, the names or URL
+ *   involved, the remedy, and a docs pointer. The explanation of why the term
+ *   means what it does is in the docs, not in bytes on every page.
  *
  * **The lazy chunks must never enter this number.** `dist/av-waveform.js`
  * (2,584 gzip), `dist/av-sequencer.js` (2,094 gzip), `dist/av-transcript.js`
@@ -494,18 +503,19 @@ const REQUIRED_GLOBALS = [
  * required globals above detect that exactly. The real ceiling on total shipped
  * weight is the competitive pair budget in `scripts/size-check.mjs`.
  */
-const MAX_IIFE_GZIP = 17_060;
+const MAX_IIFE_GZIP = 15_068;
 
 /**
  * Floor on the number of runtime helpers the IIFE entry must be seen to
  * dereference.
  *
  * Not a budget — a self-test. It exists so that a failure to READ the entry
- * cannot present as a clean entry; see where it is used. The entry references
- * 11 today (every name core publishes), so this is a floor no plausible markup
- * change reaches, only a broken resolver.
+ * cannot present as a clean entry; see where it is used. The entry references 7
+ * today (every name core publishes), so this is a floor no plausible markup
+ * change reaches, only a broken resolver — which is the reason it sits well
+ * below the actual rather than one step under it.
  */
-const MIN_ENTRY_HELPERS = 6;
+const MIN_ENTRY_HELPERS = 4;
 
 const failures = [];
 
@@ -646,9 +656,10 @@ if (iife !== null) {
         // yields an empty referenced set — no helper missing, and a green line
         // indistinguishable from a clean bundle. Both halves are checked: that
         // SOMETHING resolved, and that what resolved is the whole compiled
-        // graph rather than one stray binding. The entry references 11 helpers
+        // graph rather than one stray binding. The entry references 7 helpers
         // today; the floor is set well under that so ordinary markup churn
-        // never touches it, and a collapse to a handful is what it catches.
+        // never touches it, and a collapse to a stray binding is what it
+        // catches.
         const entryLocals = runtimeLocals(iife);
         const entryHelpers = referencedHelpers(iife);
         if (entryLocals.size === 0) {

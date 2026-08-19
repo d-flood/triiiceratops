@@ -35,31 +35,11 @@
  * transcript — is not adopted: no profile, no "waveform" anywhere in it.
  */
 
+import { asArray, asRecord, labelStrings } from './iiifJson';
 import type { Peaks } from './waveform/peaks';
 
 const BBC_WAVEFORM_PROFILE =
     /^https?:\/\/waveform\.prototyping\.bbc\.co\.uk\/?$/;
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-    return value && typeof value === 'object'
-        ? (value as Record<string, unknown>)
-        : null;
-}
-
-function asArray(value: unknown): unknown[] {
-    if (Array.isArray(value)) return value;
-    return value === undefined || value === null ? [] : [value];
-}
-
-/** Every string inside an IIIF language map (or a bare string label). */
-function labelStrings(label: unknown): string[] {
-    if (typeof label === 'string') return [label];
-    const record = asRecord(label);
-    if (!record) return [];
-    return Object.values(record)
-        .flatMap((values) => asArray(values))
-        .filter((value): value is string => typeof value === 'string');
-}
 
 function saysWaveform(entry: Record<string, unknown>, id: string): boolean {
     if (labelStrings(entry.label).some((text) => /waveform/i.test(text)))

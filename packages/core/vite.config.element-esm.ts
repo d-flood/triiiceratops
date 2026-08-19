@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
+import dropLightDomOnly from './src/packaging/dropLightDomOnly';
 import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
 import { messageCompiler } from './src/packaging/messageCompiler';
 import { minifyCssPreprocessor } from './src/packaging/minifyCss';
@@ -41,6 +42,11 @@ export default defineConfig({
     esbuild: {
         pure: ['console.log', 'console.debug'],
         drop: ['debugger'],
+    },
+    css: {
+        // The same shadow-root CSS trim the IIFE gets, from the same module, so
+        // the two artifacts cannot ship different stylesheets.
+        postcss: { plugins: [dropLightDomOnly()] },
     },
     build: {
         minify: true,

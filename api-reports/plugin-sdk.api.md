@@ -83,8 +83,8 @@ export declare function activatePlugin(plugin: SdkPluginMeta & {
  * every plugin bundle, so it takes on no runtime dependency (not even `semver`)
  * and implements only the three range styles a plugin declares in practice —
  * an exact version, a caret range, and a `>=` lower bound. Anything else
- * (`~`, `*`, `<`, a space-joined AND, a `||` OR set) is REFUSED with a thrown
- * error rather than answered, because the alternative to a narrow
+ * (`~`, `*`, `=`, `>`, `<`, `<=`, a space-joined AND, a `||` OR set) is REFUSED
+ * with a thrown error rather than answered, because the alternative to a narrow
  * implementation is not a broad one but a silently wrong one: a range style the
  * SDK does not understand would otherwise read as "incompatible" and take a
  * working plugin off the page with no explanation.
@@ -97,7 +97,9 @@ import type { PluginHost, SdkPluginMeta } from 'triiiceratops';
  * Does `version` satisfy `range`? Returns `false` for an unparseable version.
  *
  * `range` is one of exactly three styles — `1.2.3`, `^1.2.3`, `>=1.2.3`. Any
- * other syntax throws, and the throw is the point: see the module note.
+ * other syntax throws, and the throw is the point: see the module note. A range
+ * that is not a string at all — a plain-JS plugin that omits or typos
+ * `coreRange` — takes the same refusal rather than a `TypeError`.
  */
 export declare function satisfies(version: string, range: string): boolean;
 /**

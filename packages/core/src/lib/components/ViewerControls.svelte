@@ -328,39 +328,13 @@
 </script>
 
 {#snippet choiceControls(group: ChoiceGroup, abbreviated: boolean)}
+    {@const crowded = group.choices.length > 4}
     <div class="choice-controls">
         <div class="choice-stack">
             <Icon name="Stack" size={14} />
         </div>
 
-        {#if group.choices.length <= 4}
-            <div class="join join-desktop">
-                {#each group.choices as choice, i (getResourceId(choice) || i)}
-                    {@const id = getResourceId(choice)}
-                    {@const label = getChoiceLabel(choice, i)}
-                    {@const displayLabel = getChoiceDisplayLabel(
-                        choice,
-                        i,
-                        abbreviated,
-                    )}
-                    {@const isSelected = group.selectedChoiceId
-                        ? group.selectedChoiceId === id
-                        : i === 0}
-                    <Button
-                        class="join-item"
-                        size="xs"
-                        variant={isSelected ? 'primary' : 'default'}
-                        ghost={!isSelected}
-                        onclick={() => selectChoice(group.canvasId, choice)}
-                        aria-pressed={isSelected}
-                        aria-label={label}
-                        title={abbreviated ? label : undefined}
-                    >
-                        {displayLabel}
-                    </Button>
-                {/each}
-            </div>
-        {:else}
+        {#if crowded}
             {@const selectedValue =
                 group.selectedChoiceId ?? getResourceId(group.choices[0])}
             <div class="choice-select-wrap">
@@ -390,37 +364,41 @@
             </div>
         {/if}
 
-        <div class="join join-mobile">
+        <!-- One button per alternative, at every width. Narrow viewports show
+             the bare ordinal for the alternatives that are not current and the
+             full label for the one that is; from `640px` up every button shows
+             its label, and a group too long to fit as buttons hands over to the
+             select above. Which of the two spans is visible is CSS, so the live
+             button count is the number of alternatives.
+
+             The accessible name leads with the same ordinal, so whichever span
+             is showing, the visible text is contained in the name (WCAG 2.5.3)
+             and "click two" still reaches the button it names. -->
+        <div class="join choice-join" class:crowded>
             {#each group.choices as choice, i (getResourceId(choice) || i)}
                 {@const id = getResourceId(choice)}
                 {@const label = getChoiceLabel(choice, i)}
-                {@const displayLabel = getChoiceDisplayLabel(
-                    choice,
-                    i,
-                    abbreviated,
-                )}
                 {@const isSelected = group.selectedChoiceId
                     ? group.selectedChoiceId === id
                     : i === 0}
                 <Button
-                    class="join-item"
+                    class="join-item choice-btn"
                     size="xs"
                     variant={isSelected ? 'primary' : 'default'}
                     ghost={!isSelected}
-                    style="min-width:2rem"
                     onclick={() => selectChoice(group.canvasId, choice)}
                     aria-pressed={isSelected}
-                    aria-label={isSelected
-                        ? `Selected: ${label}`
-                        : `Option ${i + 1}: ${label}`}
+                    aria-label={`${i + 1}: ${label}`}
                     title={abbreviated ? label : undefined}
                 >
                     {#if abbreviated}
-                        {displayLabel}
-                    {:else if isSelected}
-                        {label}
-                    {:else}
                         {i + 1}
+                    {:else}
+                        <span class="choice-full" class:current={isSelected}
+                            >{label}</span
+                        ><span class="choice-ordinal" class:current={isSelected}
+                            >{i + 1}</span
+                        >
                     {/if}
                 </Button>
             {/each}
@@ -443,7 +421,7 @@
                 <Toolbar inline />
             </div>
             {#if dividerAfterToolbar}
-                <div class="divider-v group-divider"></div>
+                <div class="divider-v"></div>
             {/if}
         {/if}
 
@@ -461,7 +439,7 @@
                 bind:listOpen={trackListOpen}
             />
             {#if dividerAfterTransport}
-                <div class="divider-v group-divider"></div>
+                <div class="divider-v"></div>
             {/if}
         {/if}
 
@@ -869,20 +847,34 @@
         margin-inline-start: calc(var(--tri-border, 1px) * -1);
     }
 
-    .join-desktop {
+    /* The narrow-viewport presentation of a choice button: wide enough for an
+       ordinal, and showing the label only for the current alternative. */
+    .join > :global(.choice-btn) {
+        min-width: 2rem;
+    }
+    .choice-full:not(.current),
+    .choice-ordinal.current {
         display: none;
     }
     .choice-select-wrap {
         display: none;
     }
     @media (width >= 640px) {
-        .join-desktop {
-            display: inline-flex;
+        /* Room for every label, so the ordinals go away and a group too long to
+           fit as buttons is shown as the select instead. */
+        .join > :global(.choice-btn) {
+            min-width: auto;
+        }
+        .choice-full:not(.current) {
+            display: inline;
+        }
+        .choice-ordinal {
+            display: none;
         }
         .choice-select-wrap {
             display: flex;
         }
-        .join-mobile {
+        .choice-join.crowded {
             display: none;
         }
     }

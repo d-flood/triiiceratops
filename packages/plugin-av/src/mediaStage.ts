@@ -18,8 +18,8 @@ import type { HlsAttachment } from './hls/index';
 import { hasNativeHlsSupport, isHlsSource, loadHls } from './hlsLink';
 import type { AvSource } from './sources';
 import {
-    clipRect,
     laneFraction,
+    stageClip,
     stageLanes,
     type StageLayoutKind,
 } from './stageLayout';
@@ -132,8 +132,6 @@ export interface MediaStage {
     /** The positioned box, to be appended to the plugin's overlay layer. */
     readonly root: HTMLElement;
     readonly media: HTMLMediaElement;
-    /** Whether the stream failed and the stage shows the "can't play" treatment. */
-    readonly unplayable: boolean;
     /**
      * Place the stage over a projected canvas rect, or hide it when there is
      * none. `visible` is the overlay container's own box: the stage is clipped
@@ -292,24 +290,6 @@ function onLaneTap(
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onCancel);
     };
-}
-
-/**
- * The stage's clip, as an `inset()` in the root's own coordinates — `'none'`
- * when the whole projection is inside the container.
- *
- * `clip-path` rather than a smaller box: the box IS the projection (the lanes
- * divide the canvas, and the waveform's geometry is measured against it), and
- * clipping takes the overhang out of hit testing as well as out of the picture,
- * which shrinking the box would only do by restretching the layout.
- */
-function clipPathFor(rect: StageRect, shown: StageRect): string {
-    const top = shown.top - rect.top;
-    const left = shown.left - rect.left;
-    const right = rect.width - (left + shown.width);
-    const bottom = rect.height - (top + shown.height);
-    if (top <= 0 && left <= 0 && right <= 0 && bottom <= 0) return 'none';
-    return `inset(${top}px ${right}px ${bottom}px ${left}px)`;
 }
 
 /** Write one lane's box onto its element, or take the lane off the stage. */
@@ -708,16 +688,16 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
 
     function place(rect: StageRect | null, visible: VisibleBox): void {
         lastPlace = { rect, visible };
-        // What of the projection is inside the container. A stage whose
-        // rect overhangs stays the size of its rect — the lanes divide the
-        // canvas, not the viewport — and is CLIPPED to this instead, which
-        // takes the overhanging part out of hit testing as well as out of
-        // the picture (see `clipRect`). Without that, an audio canvas's
-        // lane, which fills its whole rect, reaches over the columns beside
-        // the container and swallows taps aimed at the chrome there.
-        const shown = rect ? clipRect(rect, visible) : null;
-        root.hidden = shown === null;
-        if (!rect || !shown) {
+        // A stage whose rect overhangs the container stays the size of its
+        // rect — the lanes divide the canvas, not the viewport — and is
+        // CLIPPED to what falls inside, which takes the overhanging part out
+        // of hit testing as well as out of the picture (see `stageClip`).
+        // Without that, an audio canvas's lane, which fills its whole rect,
+        // reaches over the columns beside the container and swallows taps
+        // aimed at the chrome there.
+        const clip = rect ? stageClip(rect, visible) : null;
+        root.hidden = clip === null || clip.hidden;
+        if (!rect || !clip || clip.hidden) {
             placement = null;
             waveform?.place(null, { width: 0, height: 0 });
             return;
@@ -726,7 +706,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         root.style.top = `${rect.top}px`;
         root.style.width = `${rect.width}px`;
         root.style.height = `${rect.height}px`;
-        root.style.clipPath = clipPathFor(rect, shown);
+        root.style.clipPath = clip.clipPath;
 
         // The lanes divide the rect in the ROOT's own coordinates, which
         // is why the split is computed from an origin-anchored copy: the
@@ -910,9 +890,6 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
             return current;
         },
         setSource,
-        get unplayable(): boolean {
-            return unplayable;
-        },
         adoptWaveform(module: WaveformModule, peaks: Peaks): void {
             // Only the `audio` layout has a timeline lane to draw into. Every
             // other layout's peaks go to the scrubber strip in the control bar

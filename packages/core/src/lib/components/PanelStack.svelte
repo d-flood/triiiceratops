@@ -1,14 +1,16 @@
 <script lang="ts" module>
     import type { Component } from 'svelte';
+    import type { IconName } from '../generated/icons';
     import type { IconDescriptor } from '../types/plugin';
 
     export interface PanelStackItem {
         id: string;
         title: string;
-        icon?: Component<any>;
+        /** Core glyph for the section header, resolved through `Icon`. */
+        iconName?: IconName;
         /**
          * Framework-neutral header icon descriptor. Rendered by `PluginIcon`
-         * when set; takes precedence over {@link icon}.
+         * when set; takes precedence over {@link iconName}.
          */
         iconDescriptor?: IconDescriptor;
         component: Component<any>;

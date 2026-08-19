@@ -38,7 +38,5 @@ export const catalog: LocaleCatalog = {
         av_transcript_loading: 'Loading transcript…',
         av_transcript_failed: 'This transcript could not be loaded here.',
         av_transcript_open: 'Open the transcript file',
-        av_elapsed: 'Elapsed time',
-        av_duration: 'Total time',
     },
 };

@@ -173,12 +173,11 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'visibleAnnotationIds',
         classification: 'command',
         commands: [
-            'showCurrentCanvasAnnotations',
             'showVisibleCanvasAnnotations',
             'setAnnotationVisible',
             'setAllAnnotationsVisible',
         ],
-        notes: 'Reactive SvelteSet of visible annotation ids; declared as a plain Set (see REACTIVE_COLLECTION_MEMBERS). showVisibleCanvasAnnotations is the multi-canvas default (every canvas on screen: the spread in paged, the folios the viewport meets in continuous); showCurrentCanvasAnnotations remains the single-canvas one.',
+        notes: 'Reactive SvelteSet of visible annotation ids; declared as a plain Set (see REACTIVE_COLLECTION_MEMBERS). showVisibleCanvasAnnotations is the default pass over every canvas on screen: the spread in paged, the folios the viewport meets in continuous.',
     },
     {
         member: 'annotationVisibilityTouched',
