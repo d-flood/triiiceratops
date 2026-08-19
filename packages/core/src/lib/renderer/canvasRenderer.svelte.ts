@@ -174,6 +174,7 @@ import {
     approachScale,
     canvasToScreen as canvasToScreenPoint,
     clamp,
+    compensatedScale,
     constrainCentre,
     fitBounds,
     insetFitCentre,
@@ -1063,17 +1064,33 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     let fitTargetMemo: { layout: LayoutRect[]; rect: Box } | null = null;
 
     /**
-     * The world the scene effect last refitted in — manifest, mode, reading
-     * direction, and scale policy. What tells canvas navigation (a move within
-     * one laid-out world, which eases) apart from a change of world (which does
-     * not); see the scene effect. `null` until the first refit, so a fresh mount
-     * is a change of world too.
+     * Everything the last refit was justified by, and the renderer's only
+     * record of it. `null` until the first refit, so a fresh mount is a change
+     * of world too.
      *
-     * Deliberately not the layout's identity, which would look like the obvious
-     * key and is useless here: `plannerCanvases` re-derives on every canvas
-     * change, so a new layout object is exactly what navigation produces.
+     * - `world` — manifest, mode, reading direction, and scale policy. What
+     *   tells canvas navigation (a move within one laid-out world, which eases)
+     *   apart from a change of world (which does not); see the scene effect.
+     *   Deliberately not the layout's identity, which would look like the
+     *   obvious key and is useless here: `plannerCanvases` re-derives on every
+     *   canvas change, so a new layout object is exactly what navigation
+     *   produces.
+     * - `sources` — the viewer's tile sources by IDENTITY. This is how
+     *   navigation reaches the refit: another canvas re-derives them.
+     * - `geometry` — the painted canvases' ids and their INTRINSIC sizes, not
+     *   their laid-out rects: a canvas resolving its real dimensions refits,
+     *   while a phase change under unchanged dimensions does not. The
+     *   arrangement of those canvases reaches this record through `world` and
+     *   `sources` instead, which is why the rects themselves are absent here.
+     *
+     * One record rather than two on purpose: the eased-travel decision and the
+     * guard are asking about the same fact, and two memories of it could drift.
      */
-    let fittedWorld: string | null = null;
+    let lastFit: {
+        world: string;
+        sources: unknown;
+        geometry: string;
+    } | null = null;
 
     /**
      * The bounds a fit is measured against, and the zoom ceiling's reference:
@@ -2107,15 +2124,27 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
         const backingWidth = Math.max(1, Math.round(width * dpr));
         const backingHeight = Math.max(1, Math.round(height * dpr));
-        if (
-            surface.width !== backingWidth ||
-            surface.height !== backingHeight
-        ) {
+        // Assigning either dimension CLEARS the canvas, so this is the moment
+        // the surface goes empty; `resized` carries that to the repaint at the
+        // end of this function.
+        const resized =
+            surface.width !== backingWidth || surface.height !== backingHeight;
+        if (resized) {
             surface.width = backingWidth;
             surface.height = backingHeight;
         }
 
         const hadSize = viewport.width > 0 && viewport.height > 0;
+        // Both surfaces, captured before `viewport` takes the new size: the
+        // docked-chrome branch is a function of the one leaving as well as the
+        // one arriving — the ratio of their extents, and the fit measured in
+        // each. The fit is only measured when that branch will run, because it
+        // scans for the fit target.
+        const previousSize = { width: viewport.width, height: viewport.height };
+        const previousFitScale =
+            hadSize && chromeCompensationInFlight
+                ? homeScale(viewportLimits())
+                : 0;
         viewport = { ...viewport, width, height };
 
         // The first time the container has a size there is no view to preserve,
@@ -2124,25 +2153,48 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // viewport centre happens to sit on.
         if (!hadSize && width > 0 && height > 0) {
             fitCurrentCanvas();
-        } else if (width > 0 && height > 0 && chromeRefitInFlight) {
-            // Core itself took part of the surface away (or gave it back). The
-            // preserved-scale rule below is wrong here: a projection fitted to
-            // the full viewer keeps its size and hangs off the side of the
-            // narrowed one, out of the picture and out of the hit test — taking
-            // canvas-anchored chrome with it. So the canvas is re-fitted to the
-            // surface that is actually left. The zoom change is visible and
-            // intended; see `refitForDockedChrome`.
+        } else if (width > 0 && height > 0 && chromeCompensationInFlight) {
+            // Core itself took part of the surface away, or gave it back. The
+            // reader asked for none of it, so they are not moved: the part of
+            // the canvas they were looking at stays the part they are looking
+            // at, shifted and scaled by exactly as much as the surface changed.
+            // `compensatedScale` is the rule and carries its own proof; the
+            // centre is a canvas-space point, so it needs no adjustment beyond
+            // the constraint every centre goes through.
             //
-            // `fitBoundsTarget`, NOT the `fitCurrentCanvas` the first-size
-            // branch above uses, and the difference is only visible in
-            // continuous mode: `fitCurrentCanvas` goes through
-            // `navigationBoundsTarget` and frames `viewerState.canvasId`, which
-            // after the reader has scrolled is not the canvas they are looking
-            // at. Docking a panel is not navigation — nobody asked to travel —
-            // so the canvas that must stay framed is the one under the viewport
-            // centre. Framing the "current" one instead would answer a panel
-            // opening by teleporting the reader to another folio.
-            applyFit(fitBoundsTarget(viewportLimits()), false);
+            // The fit scale is measured, because it is the compensation's floor
+            // and its ceiling, but no fit is ever *applied* and no canvas is
+            // travelled to. That is why continuous mode needs no answer to
+            // which canvas would be framed: docking a panel is not navigation,
+            // so moving the reader to another folio was never right.
+            const fitScale = homeScale(viewportLimits());
+            const scale = clampScale(
+                compensatedScale(
+                    viewport.scale,
+                    previousSize,
+                    { width, height },
+                    fitScale,
+                    previousFitScale,
+                ),
+            );
+            viewport = {
+                ...viewport,
+                scale,
+                centre: constrained(viewport.centre, scale),
+            };
+            // The target through the same rule, so a wheel zoom or a fit still
+            // easing lands at the compensated view rather than dragging the
+            // reader back to the one the surface had before.
+            targetScale = clampScale(
+                compensatedScale(
+                    targetScale,
+                    previousSize,
+                    { width, height },
+                    fitScale,
+                    previousFitScale,
+                ),
+            );
+            targetCentre = constrained(targetCentre, targetScale);
         } else if (width > 0 && height > 0) {
             // The constraint is a function of the VIEWPORT as well as the world,
             // so a resize can leave a legal centre illegal — widening the window
@@ -2160,6 +2212,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             targetCentre = constrained(targetCentre, targetScale);
         }
 
+        // Repainted SYNCHRONOUSLY when the backing store was resized, rather
+        // than only scheduled. Resizing cleared the canvas, and this runs from
+        // a ResizeObserver — after the frame's animation-frame callbacks, so
+        // after the frame loop has already painted, but before the browser
+        // composites. Leaving the repaint to the next frame therefore composites
+        // the cleared canvas: the image vanishes for that frame, and for every
+        // frame of a chrome slide, which is a resize per frame.
+        if (resized) paint();
         requestFrame();
     }
 
@@ -2168,7 +2228,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * chrome. True from the moment core reports a docked-chrome change until
      * the surface stops changing size — see {@link watchChromeSettle}.
      */
-    let chromeRefitInFlight = false;
+    let chromeCompensationInFlight = false;
     let chromeSettleFrame: number | null = null;
     let chromeSettleWidth = -1;
     let chromeSettleHeight = -1;
@@ -2181,10 +2241,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * More than one, because a single repeat is not evidence of anything at the
      * START of a transition: measured on a panel open, the box reads the same
      * for about two frames before `slideWidth` begins moving it, so a one-frame
-     * test declared the slide over before it had begun and left every
-     * intermediate width to the preserve-scale branch — the overhang, back
-     * again. Three frames clears that plateau while still ending the re-fit
-     * ~50ms after motion actually stops.
+     * test declares the slide over before it has begun and hands every
+     * intermediate width to the preserve-scale branch, which is the wrong rule
+     * for a change core caused. Three frames clears that plateau while still
+     * closing ~50ms after motion actually stops.
      *
      * Note what this is NOT: a duration. It measures stillness, so it cannot
      * expire while the surface is still moving, and it cannot go on standing
@@ -2193,32 +2253,37 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     const CHROME_SETTLE_FRAMES = 3;
 
     /**
-     * Hold the re-fit open until the surface has actually STOPPED resizing, and
-     * not one frame longer.
+     * Hold the compensation open until the surface has actually STOPPED
+     * resizing, and not one frame longer.
      *
      * The column does not arrive at its final width: `TriiiceratopsViewer`'s
      * `slideWidth` animates it, so the surface passes through a run of
-     * intermediate widths and only the last is the one the canvas has to end up
-     * fitting. Every intermediate re-fits — fitting only the first would leave
-     * the projection sized for a surface wider than the one that remains, which
-     * is the overhang this whole path exists to remove.
+     * intermediate widths. Two things need this, and neither is correctness of
+     * the endpoint — `compensatedScale`'s ratios compose exactly, so catching
+     * only the last width would land the reader in the same place. What is
+     * needed is that the flag stay up for every measurement the slide causes, so
+     * none of them is mistaken for a reader resizing the window, and that the
+     * intermediate widths be measured at all, so the image moves WITH the column
+     * instead of jumping when it arrives.
      *
      * Ending it on a CLOCK instead was wrong, and provably so: for as long as
-     * the window stood, a plain host resize arriving inside it was re-fitted
+     * the window stood, a plain host resize arriving inside it was compensated
      * too, collapsing the two cases the contract requires be held apart
      * (dragging a window edge, or a phone rotating, while a panel animates).
      * So the terminator is the geometry itself — {@link CHROME_SETTLE_FRAMES}
      * consecutive frames of an unchanged box — which is also why this samples
      * per frame rather than leaning on the ResizeObserver: an observer fires
      * only when the size CHANGES, so "the size stopped changing" is precisely
-     * the event it never delivers. That matters most in the case with no
+     * the event it never delivers. Ending the window is ALL this does — the
+     * observer compensates the intermediate widths, and duplicating that here
+     * bought nothing but a second fit measurement per frame. That matters most in the case with no
      * animation at all: under `prefers-reduced-motion` `slideWidth` has
      * duration 0, the column snaps in one step, and the observer's last
      * callback is indistinguishable from a mid-slide one.
      *
      * Residual, accepted: a reader dragging the window edge continuously while
-     * a panel animates keeps the surface changing, so the re-fit persists until
-     * the drag stops. The two cases are genuinely indistinguishable while they
+     * a panel animates keeps the surface changing, so the compensation persists
+     * until the drag stops. The two cases are genuinely indistinguishable while they
      * overlap; what matters is that this ends a few frames after the overlap
      * does rather than on a fixed timeout.
      */
@@ -2226,7 +2291,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         if (chromeSettleFrame !== null) return;
         const step = () => {
             chromeSettleFrame = null;
-            if (!chromeRefitInFlight || !root) return;
+            if (!chromeCompensationInFlight || !root) return;
             const rect = root.getBoundingClientRect();
             if (
                 rect.width === chromeSettleWidth &&
@@ -2234,17 +2299,13 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             ) {
                 chromeStableFrames += 1;
                 if (chromeStableFrames >= CHROME_SETTLE_FRAMES) {
-                    chromeRefitInFlight = false;
+                    chromeCompensationInFlight = false;
                     return;
                 }
             } else {
                 chromeStableFrames = 0;
                 chromeSettleWidth = rect.width;
                 chromeSettleHeight = rect.height;
-                // Re-fit at this intermediate width. The ResizeObserver may
-                // have done it already this frame; `measure()` is idempotent
-                // for an unchanged box.
-                measure();
             }
             chromeSettleFrame = requestAnimationFrame(step);
         };
@@ -2253,37 +2314,52 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
     /**
      * Core has docked or undocked chrome, so the viewer area is about to change
-     * width: re-fit rather than preserve the reader's scale.
+     * size: compensate the reader's view for it rather than preserving their
+     * scale.
      *
      * The distinction this draws is *why* the surface changed, not that it did.
      * A window resize preserves scale, because the reader chose that view and
-     * nothing was taken from them. A panel column is core removing ~320px of
-     * the surface the current projection was fitted to, and a projection that
-     * keeps its size across that overhangs the viewer area it lives in — the
-     * part that overhangs is clipped away, so canvas-anchored chrome sitting
-     * there becomes both invisible and unclickable. Re-fitting is a
-     * reader-visible zoom change, and it is the intended one: the alternative
-     * is a canvas hanging off the side of its own viewer.
+     * nothing was taken from them. A panel column is core removing ~320px of the
+     * surface the reader's view was composed in, and the honest answer to that
+     * is to keep the content of the view rather than either of its numbers:
+     * `compensatedScale` holds the canvas-space extent visible on the axis that
+     * changed, so the passage they were reading is still the passage on screen,
+     * and the centre needs no adjustment because it is a canvas-space point.
      *
-     * It stays open across several measurements rather than re-fitting once,
-     * because the column slides; {@link watchChromeSettle} is what closes it,
-     * and why it is closed on a signal rather than a timeout. The immediate
-     * `measure()` catches a change that has already been laid out.
+     * Nothing new can overhang the narrowed surface, which is the guarantee
+     * worth having: a projection larger than the fit hangs off the edges and the
+     * overhanging part is clipped away, taking canvas-anchored chrome out of
+     * both the picture and the hit test. `compensatedScale`'s floor and ceiling
+     * are what bound it — a reader who had the whole canvas still has it, at
+     * very nearly the size they had — and they do so without discarding a
+     * zoomed-in reader's view, which an absolute fit cannot.
+     *
+     * It stays open across several measurements rather than acting once, because
+     * the column slides and the image is to move with it; {@link
+     * watchChromeSettle} is what closes it, and why it is closed on a signal
+     * rather than a timeout. The first measurement is deliberately left to that
+     * watcher's first frame rather than taken here: at the moment this is
+     * called the column has been laid out at its FINAL width and the slide's
+     * from-state has not been applied yet, so a measurement taken now
+     * compensates the whole delta in one step and the next frame — reading the
+     * box back at its full width — undoes it. That is a visible flash of the
+     * end-state view before the slide begins. A `requestAnimationFrame`
+     * callback runs before paint, so deferring costs no stale frame even when
+     * the column arrives in a single step under `prefers-reduced-motion`.
      *
      * Deliberately not the viewport INSET: an inset states which edges are
      * reserved and, by contract, never moves the current view — only the next
-     * fit. That is right for a plugin's floating UI and useless here, where the
-     * current view is precisely what has become wrong.
+     * fit. That is right for a plugin's floating UI and wrong here, where the
+     * surface the current view lives on is itself changing size.
      */
-    function refitForDockedChrome() {
-        chromeRefitInFlight = true;
+    function compensateForDockedChrome() {
+        chromeCompensationInFlight = true;
         // Below any real box, so the first sampled frame always counts as a
         // change and the watch cannot mistake the pre-animation box for a
         // settled one.
         chromeSettleWidth = -1;
         chromeSettleHeight = -1;
         chromeStableFrames = 0;
-        measure();
         watchChromeSettle();
     }
 
@@ -3212,7 +3288,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             if (chromeSettleFrame !== null)
                 cancelAnimationFrame(chromeSettleFrame);
             chromeSettleFrame = null;
-            chromeRefitInFlight = false;
+            chromeCompensationInFlight = false;
             animating = false;
             momentum = null;
             clearHeldKeys();
@@ -3228,7 +3304,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
     /**
      * The body of the component's refit effect. It lives here because
-     * `fittedWorld` does: whether a refit is a TRAVEL within a laid-out world
+     * `lastFit` does: whether a refit is a TRAVEL within a laid-out world
      * or a jump into a new one is the renderer's own memory, not the
      * component's. The component supplies only the change signals.
      *
@@ -3240,6 +3316,15 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * overwrites the reader's centre and scale, so it fires on the signals the
      * component names and on nothing else. `currentInset`'s own `untrack` is the
      * same rule applied one read at a time, and stays for its browser spec.
+     *
+     * Idempotent, which is the point of `lastFit`: a run that can justify
+     * nothing fits nothing. The effect above is free to re-run for a reason
+     * that turns out not to be one — a host replacing its configuration object,
+     * a dependency someone adds later — and the reader keeps their place
+     * through it. The tile sources and the geometry are read UNTRACKED because
+     * they are a memo check rather than a subscription; the four world members
+     * stay tracked because they are how a mode or direction change arrives here
+     * at all.
      */
     function refitForCurrentWorld() {
         const world = [
@@ -3248,9 +3333,24 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             viewerState.viewingDirection,
             viewerState.preserveCanvasScale,
         ].join('|');
+        const sources = untrack(() => options.getTileSources());
+        const geometry = untrack(() => paintedGeometry);
+
+        if (
+            lastFit !== null &&
+            lastFit.world === world &&
+            lastFit.sources === sources &&
+            lastFit.geometry === geometry
+        ) {
+            // Before `requestFrame`, not after: a run that fits nothing needs
+            // no frame, and that saving is the other half of this guard.
+            return;
+        }
+
         const travelling =
-            viewerState.viewingMode === 'continuous' && fittedWorld === world;
-        fittedWorld = world;
+            viewerState.viewingMode === 'continuous' &&
+            lastFit?.world === world;
+        lastFit = { world, sources, geometry };
 
         untrack(() => fitCurrentCanvas(travelling));
         requestFrame();
@@ -3302,7 +3402,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         },
         requestFrame,
         refitForCurrentWorld,
-        refitForDockedChrome,
+        compensateForDockedChrome,
         /** Bumped when a decoded image, tile, or `info.json` lands. */
         get loadedGeneration() {
             return loadedGeneration;

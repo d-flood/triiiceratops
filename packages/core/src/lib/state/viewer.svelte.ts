@@ -432,26 +432,47 @@ export class ViewerState {
      */
     activeLocale = $state<string>(getLocale());
 
-    // Derived configuration specific getters
+    /*
+     * Derived configuration specific getters.
+     *
+     * Each resolves through a `$derived`, which propagates only when its value
+     * actually moves. Without that interposition a reader would depend on
+     * `config` itself: these keys are all optional, and reading an absent key
+     * off a deeply reactive object subscribes to the object's shape rather than
+     * to a value, so `updateConfig` replacing the object wholesale would wake
+     * every one of these readers even when each still resolves the same. A
+     * member's notification has to follow the member (ADR 0008).
+     *
+     * Two config-backed reads are deliberately not treated this way.
+     * `getPluginUiConfig` takes an argument and returns a config sub-object
+     * whose identity legitimately changes with the config, so there is no equal
+     * value to gate on. `zoomPerClick` is read only imperatively, from the zoom
+     * commands; wire it into a reactive reader and it needs a derivation too.
+     */
+    #showToggle = $derived(this.config.showToggle ?? true);
     get showToggle() {
-        return this.config.showToggle ?? true;
+        return this.#showToggle;
     }
+    #showCanvasNav = $derived(this.config.showCanvasNav ?? true);
     get showCanvasNav() {
-        return this.config.showCanvasNav ?? true;
+        return this.#showCanvasNav;
     }
+    #showZoomControls = $derived(this.config.showZoomControls ?? true);
     get showZoomControls() {
-        return this.config.showZoomControls ?? true;
+        return this.#showZoomControls;
     }
+    #preserveCanvasScale = $derived(this.config.preserveCanvasScale ?? false);
     get preserveCanvasScale() {
-        return this.config.preserveCanvasScale ?? false;
+        return this.#preserveCanvasScale;
     }
 
     /**
      * `gallery.size` — the docked band's height or the docked rail's width, and the
      * knob every thumbnail dimension is derived from. See `galleryGeometry`.
      */
+    #galleryExtent = $derived(this.config.gallery?.size ?? 100);
     get galleryExtent() {
-        return this.config.gallery?.size ?? 100;
+        return this.#galleryExtent;
     }
 
     // Dedicated reactive state for viewingMode to ensure proper reactivity
@@ -2572,6 +2593,9 @@ export class ViewerState {
         }
     >();
 
+    // Unlike the value-returning config getters, this one is not memoized
+    // against `config`: it takes an argument and returns a sub-object whose
+    // identity legitimately changes when the config does.
     private getPluginUiConfig(pluginId: string): PluginUiConfig | undefined {
         return this.config.plugins?.[pluginId];
     }

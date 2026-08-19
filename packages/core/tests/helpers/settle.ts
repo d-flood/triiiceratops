@@ -1,10 +1,11 @@
 /**
  * Wait for a laid-out value to stop moving.
  *
- * Why this exists as a shared helper rather than a line in each spec: core
- * re-fits the canvas while docked chrome slides in or out (ticket 20), so a
- * viewer that opens beside a docked panel spends the first few hundred
- * milliseconds animating its projection. Every assertion that reads a
+ * Why this exists as a shared helper rather than a line in each spec: the image
+ * still MOVES while docked chrome slides in or out — core no longer re-fits it,
+ * it compensates the reader's view in step with the slide — so a viewer that
+ * opens beside a docked panel spends the first few hundred milliseconds
+ * animating its projection. Every assertion that reads a
  * canvas-anchored box — and every click computed as a FRACTION of one — is
  * comparing two moments of that animation unless it waits for the end of it.
  */

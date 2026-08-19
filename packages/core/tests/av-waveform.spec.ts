@@ -291,9 +291,10 @@ test.describe('av waveform — linked peaks fill the timeline lane', () => {
             )
             .toBe(true);
 
-        // Settled, not sampled: the opening fit animates and core re-fits again
-        // as the docked panel column slides out, so a fraction taken off a
-        // moving box seeks to the wrong moment.
+        // Settled, not sampled: the opening fit animates and the image moves
+        // again as the docked panel column slides out — compensated for the
+        // narrower surface, not re-fitted — so a fraction taken off a moving box
+        // seeks to the wrong moment.
         const lane = await settledBox(page, TIMELINE_LANE);
         // The pointer lands on the WAVEFORM, not on bare lane — which is the
         // regression this asserts against: the seek origin is the lane's box.

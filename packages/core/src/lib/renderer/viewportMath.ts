@@ -281,6 +281,107 @@ export function zoomRange(
 }
 
 /**
+ * The scale that keeps the reader looking at the same part of the canvas when
+ * **core itself** takes surface away or gives it back — a side panel, the
+ * toolbar docked as a rail, a top or bottom thumbnail band.
+ *
+ * ```
+ * ratio     = min over the axes whose extent CHANGED of (next / previous)
+ * floor     = min(scale, fitScale)
+ * ceiling   = scale <= previousFitScale ? fitScale : Infinity
+ * result    = clamp(scale * ratio, floor, ceiling)
+ * ```
+ *
+ * `scale * ratio` is the region-preserving term. The viewport shows
+ * `size / scale` canvas units around its centre, so multiplying the scale by
+ * the surviving fraction of the changed axis holds that number constant. The
+ * centre is a canvas-space point and needs no adjustment at all: the visible
+ * rect is unchanged on the changed axis and grows on the other. Taking `min`
+ * over the changed axes rather than a product or an average is what makes that
+ * true of the *constraining* axis while every other axis reveals strictly more,
+ * so nothing on screen is cropped.
+ *
+ * Both fit scales are the fit of the same target, measured in the two surfaces:
+ * `fitScale` in the one arriving, `previousFitScale` in the one leaving.
+ *
+ * ## The floor and the ceiling, which are what make the rule safe
+ *
+ * **No overhang is introduced**: if `scale <= previousFitScale` then the result
+ * is at most `fitScale`. A projection larger than the fit hangs off the edges of
+ * its own surface, and the overhanging part is clipped away — taking
+ * canvas-anchored chrome out of both the picture and the hit test — so a reader
+ * who had the whole canvas must still have it afterwards. Each bound covers one
+ * direction:
+ *
+ * - Narrowing (`ratio < 1`) is the floor's side, and there the inequality holds
+ *   of the ratio term by itself: `fitScale` is a `min` over the axes of
+ *   `next / canvasExtent`, so it falls by at most the largest axis ratio, while
+ *   `scale` falls by the smallest. The floor then stops the compensation zooming
+ *   out *past* the whole canvas, where there is nothing left to preserve — which
+ *   is also why a viewer that opens with a panel already docked does not open a
+ *   height-constrained canvas needlessly small.
+ * - Widening (`ratio > 1`) is the ceiling's side, and it is not optional. Where
+ *   the fit is constrained by an axis the chrome did not change, `ratio` and
+ *   `fitScale` are independent: a portrait folio in a landscape viewer is
+ *   height-constrained at every width, so returning a panel's 300 px multiplies
+ *   the scale by 1.6 while the fit does not move at all, leaving a reader who had
+ *   the whole folio with 62% of one. The floor cannot catch that, being a lower
+ *   bound.
+ *
+ * The ceiling gates on the **previous** fit, never the arriving one. A reader who
+ * was genuinely zoomed in is already overhanging by choice and must be allowed
+ * to stay there; gating on the arriving fit reads their compensated scale as
+ * "at the fit" and drags them down to it, which would make a widening surface
+ * lose the zoom a narrowing one preserved. Ungated, the ceiling never binds while
+ * narrowing anyway, since `scale * ratio < scale` there.
+ *
+ * ## Composition
+ *
+ * `ratio` is relative, so the product of the ratios over a run of intermediate
+ * sizes equals the ratio of the endpoints: stepping a panel's slide through
+ * twelve widths lands exactly where one step to the final width lands, and a
+ * single-axis change is exactly invertible while neither bound is active. That
+ * is what frees the caller from having to observe every frame of a resize.
+ *
+ * Two kinds of input return `scale` untouched: a previous extent that is
+ * unmeasured or non-finite (or a non-finite next one), because there is no ratio
+ * to take against it, and a `scale` that is non-positive or non-finite, because
+ * there is no region to preserve. A *zero* next extent is not among them — it
+ * yields a ratio of 0 and lands on the floor — and callers never present one,
+ * since a surface with no width has nothing to compensate for.
+ */
+export function compensatedScale(
+    scale: number,
+    previous: { width: number; height: number },
+    next: { width: number; height: number },
+    fitScale: number,
+    previousFitScale: number,
+): number {
+    if (!(scale > 0) || !Number.isFinite(scale)) return scale;
+
+    let ratio = Infinity;
+    for (const axis of ['width', 'height'] as const) {
+        const was = previous[axis];
+        const now = next[axis];
+        if (now === was) continue;
+        if (!(was > 0) || !Number.isFinite(was) || !Number.isFinite(now)) {
+            return scale;
+        }
+        ratio = Math.min(ratio, now / was);
+    }
+    if (ratio === Infinity) return scale;
+
+    const usable = fitScale > 0 && Number.isFinite(fitScale);
+    const floor = usable ? Math.min(scale, fitScale) : 0;
+    const ceiling =
+        usable && previousFitScale > 0 && scale <= previousFitScale
+            ? fitScale
+            : Infinity;
+
+    return clamp(scale * ratio, floor, ceiling);
+}
+
+/**
  * Keep the world within reach of the viewport.
  *
  * Without this, pan is unbounded: a drag — and much more easily a flick, which

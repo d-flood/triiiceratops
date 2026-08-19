@@ -1139,16 +1139,16 @@
      *
      * Handed to `CanvasHost` purely as a CHANGE signal: the surface is about to
      * change size because CORE took some of it, which is a different event from
-     * the window changing size — the first re-fits the canvas, the second
-     * preserves the reader's scale. Nothing downstream reads the tokens; they
-     * are here because a named string is far easier to reason about in a
-     * debugger than a bare counter would be.
+     * the window changing size — the first compensates the reader's whole view
+     * for the change, the second preserves their scale. Nothing downstream reads
+     * the tokens; they are here because a named string is far easier to reason
+     * about in a debugger than a bare counter would be.
      *
      * Both axes count. A gallery docked to the top or bottom edge takes a band
      * of HEIGHT rather than a column of width, but it is docked chrome all the
-     * same, and the overhang it leaves is on the very axis canvas-anchored
-     * transport chrome sits on. `dockSide` defaults to `'bottom'`, so leaving
-     * the horizontal edges out made the default configuration the broken one.
+     * same, and the axis it takes from is the very one canvas-anchored transport
+     * chrome sits on. `dockSide` defaults to `'bottom'`, so leaving the
+     * horizontal edges out made the default configuration the broken one.
      * A left/right gallery needs no token of its own — it already shows up
      * through `isLeftSidebarVisible` / `isRightSidebarVisible`.
      *

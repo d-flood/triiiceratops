@@ -1,16 +1,28 @@
 /**
- * **Docked chrome and the fit**: what happens to the projection when CORE takes
- * part of the viewer surface for a panel column.
+ * **Docked chrome and the reader's view**: what happens to the projection when
+ * CORE takes part of the viewer surface for a panel column.
  *
- * A resize is not one event. A window resize preserves the reader's scale —
- * they chose that view and nothing was taken from them — while a docked panel
- * removes ~320px of the very surface the current projection was fitted to. A
- * projection that keeps its size across that overhangs `.viewer-area`, and the
- * overlay layer's `overflow: hidden` clips the overhang out of both the picture
- * and the hit test, so canvas-anchored chrome sitting there is invisible and
- * unclickable. These tests hold the two cases apart on BOTH axes — a bottom-docked
- * gallery takes height the same way a panel column takes width — and check that
+ * A resize is not one event. A window resize preserves the reader's scale — they
+ * chose that view and nothing was taken from them — while docked chrome takes
+ * ~320px of the very surface the projection was sized against. That surface
+ * change is *compensated*, not re-fitted: the canvas-space extent visible on the
+ * axis that changed is preserved and the centre does not move, floored and
+ * ceiled so that a reader who had the whole canvas still has it. Nothing new can
+ * overhang `.viewer-area`, which matters because the overlay layer's
+ * `overflow: hidden` clips an overhang out of both the picture and the hit test,
+ * taking canvas-anchored chrome with it.
+ *
+ * These tests hold the two cases apart on BOTH axes — a bottom-docked gallery
+ * takes height the same way a panel column takes width — and check that
  * canvas-anchored chrome over a viewer with a panel docked is still operable.
+ *
+ * A note on what discriminates. The two "stays inside the surface" specs below
+ * open at the HOME view, where the reader is already at the fit; the
+ * compensation keeps them at the fit and an absolute re-fit would land there
+ * too, so those specs pass under either rule and are anti-overhang coverage
+ * only. `a zoomed-in reader keeps their view when a panel docks` is the one that
+ * tells the rules apart, and it is the reader-facing symptom the compensation
+ * exists to fix.
  *
  * Browser-only by construction: the whole claim is about laid-out column widths
  * and hit testing.
@@ -20,12 +32,21 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { AV_MANIFESTS } from './helpers/avMedia';
 import { serveAvPluginDist } from './helpers/avPluginDist';
-import { getView } from './helpers/numberedGrid';
-import { settled } from './helpers/settle';
+import { getView, setView } from './helpers/numberedGrid';
+import { settled, settledBox } from './helpers/settle';
 
 const FIXTURE = '/e2e/canvas-renderer-wc.html';
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 const VIEWER_AREA = '.viewer-area';
+
+/** The AV plugin's transport, its leftmost control, and the element it drives. */
+const TRANSPORT = '[data-testid="transport"]';
+const TRANSPORT_PLAY = '[data-testid="transport-play"]';
+const TRANSPORT_MUTE = '[data-testid="transport-mute"]';
+const AV_MEDIA = '[data-testid="av-media"]';
+
+/** A canvas-space point, as the coordinate helpers hand it back. */
+type Point = { x: number; y: number };
 
 test.skip(
     ({ browserName }) => browserName !== 'chromium',
@@ -102,7 +123,34 @@ async function projectedHeight(page: Page): Promise<number> {
     });
 }
 
-test('docking a panel re-fits the canvas into the narrowed viewer area', async ({
+/**
+ * The two coordinate helpers a canvas-anchored consumer works in, read off the
+ * viewer element itself rather than the fixture's `#v` so they serve the demo
+ * application too. Both share `.viewer-area`'s origin.
+ */
+async function screenToCanvas(page: Page, point: Point): Promise<Point | null> {
+    return page.evaluate((p) => {
+        const host = document.querySelector(
+            'triiiceratops-viewer',
+        ) as unknown as {
+            viewerState: { screenToCanvas(point: Point): Point | null };
+        };
+        return host.viewerState.screenToCanvas(p);
+    }, point);
+}
+
+async function canvasToScreen(page: Page, point: Point): Promise<Point | null> {
+    return page.evaluate((p) => {
+        const host = document.querySelector(
+            'triiiceratops-viewer',
+        ) as unknown as {
+            viewerState: { canvasToScreen(point: Point): Point | null };
+        };
+        return host.viewerState.canvasToScreen(p);
+    }, point);
+}
+
+test('docking a panel keeps the canvas inside the narrowed viewer area', async ({
     page,
 }) => {
     await openFixture(page);
@@ -135,6 +183,59 @@ test('docking a panel re-fits the canvas into the narrowed viewer area', async (
     await expect
         .poll(() => projectedWidth(page), { timeout: 20_000 })
         .toBeGreaterThan(open.area + 1);
+});
+
+test('a zoomed-in reader keeps their view when a panel docks', async ({
+    page,
+}) => {
+    await openFixture(page);
+
+    const home = await settled(page, async (p) => ({
+        view: await getView(p),
+        area: await areaWidth(p),
+    }));
+
+    // A reader who chose this view: zoomed past the fit and panned off-centre.
+    // Set rather than gestured — reaching it by wheel would make the assertion
+    // depend on an animation settling, which is tested elsewhere.
+    await setView(page, {
+        scale: home.view.scale * 3,
+        centre: {
+            x: home.view.centre.x * 1.15,
+            y: home.view.centre.y * 1.15,
+        },
+    });
+
+    const before = await settled(page, async (p) => ({
+        view: await getView(p),
+        area: await areaWidth(p),
+    }));
+    // Anti-vacuity: they really are zoomed in, so a re-fit would be a visible
+    // jump rather than a no-op. This is what the home-view specs cannot say.
+    expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
+
+    await setMetadataPanel(page, true);
+    await expect
+        .poll(() => areaWidth(page), { timeout: 20_000 })
+        .toBeLessThan(before.area - 100);
+
+    const after = await settled(page, async (p) => ({
+        view: await getView(p),
+        area: await areaWidth(p),
+    }));
+
+    // The rule, in the reader's terms: the canvas-space extent visible on the
+    // axis that changed survives the narrowing, and the centre is a canvas-space
+    // point so it does not move at all.
+    expect(after.area / after.view.scale).toBeCloseTo(
+        before.area / before.view.scale,
+        0,
+    );
+    expect(after.view.centre.x).toBeCloseTo(before.view.centre.x, 0);
+    expect(after.view.centre.y).toBeCloseTo(before.view.centre.y, 0);
+    // And emphatically not thrown back to the home view, which is the symptom
+    // this whole behaviour exists to prevent.
+    expect(after.view.scale).toBeGreaterThan(home.view.scale * 1.5);
 });
 
 test('a plain window resize still preserves the reader’s scale', async ({
@@ -200,7 +301,7 @@ test('the toolbar’s buttons are still clickable with a panel docked', async ({
         .toBe(false);
 });
 
-test('docking a gallery to the BOTTOM re-fits the canvas into the shortened viewer area', async ({
+test('docking a gallery to the BOTTOM keeps the canvas inside the shortened viewer area', async ({
     page,
 }) => {
     await openFixture(page);
@@ -292,6 +393,692 @@ test('a host resize moments after a panel toggle still preserves scale', async (
 });
 
 /**
+ * **The real application, driven the way a reader drives it.**
+ *
+ * Everything above runs against `/e2e/canvas-renderer-wc.html` — a bare custom
+ * element with no host around it. That fixture reported the compensation
+ * working for a whole epic while the shipped application threw a zoomed reader
+ * back to the home view on every panel toggle, because the trigger is a host
+ * that mirrors viewer state into its own configuration object and re-hands it
+ * to the viewer. The demo application does exactly that, as any host with a
+ * settings UI reasonably might, and it is the only seam in this repository
+ * where the symptom was reproducible.
+ *
+ * So these cases navigate to `/`, reach the reader's view by real wheel and drag
+ * input, and press the toolbar's own buttons. What they assert is what the
+ * reader sees: the scale and centre they chose, before and after.
+ *
+ * The whole class is covered here, not just the reported panel: every piece of
+ * chrome the demo mirrors into its configuration, on both axes, and on a claimed
+ * time-based-media canvas. The structures panel is deliberately absent — the demo
+ * does not mirror it, so it is the control rather than a gap.
+ *
+ * They are the reader-facing statement, not a unit test of any one mechanism.
+ * Two independent defects produced the reset — an unconditional world-refit and
+ * a config-backed viewer-state read that woke on the object rather than on its
+ * value — and removing either one is enough to make these pass. The refit's
+ * idempotence is pinned on its own in
+ * `src/lib/renderer/canvasRenderer.idempotentRefit.svelte.test.ts`.
+ */
+test.describe('the real application — a reader keeps their place', () => {
+    /*
+     * Three uniform canvases, served locally, opening in `individuals` mode.
+     * Both of the "a genuine refit still happens" cases need that: the second
+     * canvas has a neighbour to be paired with, so switching to `paged` is a
+     * change of world with a visibly different spread, and no manifest
+     * behaviour has already chosen the mode for us.
+     */
+    const APP = '/?manifest=/demo-manifests/a11y/manifest.json';
+
+    /**
+     * A claimed time-based-media canvas in the same application: one Video
+     * canvas, the AV plugin bundled into the demo like any other first-party
+     * plugin, and the transport it registers rendered in the control bar.
+     *
+     * The demo resolves `@triiiceratops/plugin-av` to the plugin's BUILT dist
+     * (`vite.config.ts`), so this needs `pnpm build:all` like the AV describe
+     * below — without it the transport never appears and the wait times out.
+     */
+    const AV_APP = `/?manifest=${AV_MANIFESTS.video}`;
+
+    /** The toolbar's "n / total" canvas indicator. */
+    const NAV_INDEX = '.nav-index';
+
+    /** The reader's view and the width of the column it is measured against. */
+    async function reader(page: Page) {
+        return settled(page, async (p) => ({
+            view: await getView(p),
+            area: await areaWidth(p),
+        }));
+    }
+
+    /** The same, on the axis a top- or bottom-docked band takes from. */
+    async function readerVertical(page: Page) {
+        return settled(page, async (p) => ({
+            view: await getView(p),
+            area: await areaHeight(p),
+        }));
+    }
+
+    async function openApp(page: Page, url = APP): Promise<void> {
+        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        await page
+            .locator(SURFACE)
+            .waitFor({ state: 'visible', timeout: 30_000 });
+        await expect
+            .poll(async () => (await getView(page)).scale, { timeout: 20_000 })
+            .toBeGreaterThan(0);
+    }
+
+    /**
+     * Zoom past the fit and pan off-centre with real input.
+     *
+     * Gestured rather than set through the test handle, unlike the fixture
+     * specs above: the claim here is about the application a reader touches, and
+     * a view reached by wheel and drag is the one they arrive at. The reads that
+     * follow are settled, so the easing is waited out rather than raced.
+     */
+    async function zoomAndPan(page: Page): Promise<void> {
+        const box = await settledBox(page, SURFACE);
+        const x = box.x + box.width / 2;
+        const y = box.y + box.height / 2;
+
+        await page.mouse.move(x, y);
+        for (let i = 0; i < 6; i += 1) {
+            await page.mouse.wheel(0, -240);
+            await page.waitForTimeout(60);
+        }
+
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+        await page.mouse.move(x - 120, y - 80, { steps: 12 });
+        await page.mouse.up();
+    }
+
+    function toolbarButton(page: Page, name: string) {
+        return page.getByRole('button', { name, exact: true }).first();
+    }
+
+    /**
+     * Press Info and wait for the column to finish taking or giving back the
+     * width, so that every read afterwards is of the settled surface.
+     */
+    async function toggleInformation(
+        page: Page,
+        narrowed: boolean,
+        fullWidth: number,
+    ): Promise<void> {
+        await toolbarButton(page, 'Toggle Information').click();
+        const width = expect.poll(() => areaWidth(page), { timeout: 20_000 });
+        if (narrowed) await width.toBeLessThan(fullWidth - 100);
+        else await width.toBeGreaterThanOrEqual(fullWidth);
+    }
+
+    test('a zoomed-in reader keeps their view when the information panel docks', async ({
+        page,
+    }) => {
+        await openApp(page);
+        const home = await reader(page);
+
+        await zoomAndPan(page);
+        const before = await reader(page);
+        // Anti-vacuity: a reader at the fit would land on the fit either way.
+        expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
+
+        await toggleInformation(page, true, before.area);
+        const after = await reader(page);
+
+        // The compensation's rule, and this time it is what the reader is left
+        // with rather than what was computed and then overwritten: the
+        // canvas-space extent across the narrowed axis survives, and the centre
+        // is a canvas-space point, so it does not move at all.
+        expect(after.area / after.view.scale).toBeCloseTo(
+            before.area / before.view.scale,
+            0,
+        );
+        expect(after.view.centre.x).toBeCloseTo(before.view.centre.x, 0);
+        expect(after.view.centre.y).toBeCloseTo(before.view.centre.y, 0);
+        // And emphatically not the home view, which is where the unconditional
+        // refit put them: home scale, home centre, exactly.
+        expect(after.view.scale).toBeGreaterThan(home.view.scale * 1.5);
+    });
+
+    test('closing the information panel again leaves the reader where they were', async ({
+        page,
+    }) => {
+        await openApp(page);
+        const home = await reader(page);
+
+        await zoomAndPan(page);
+        const before = await reader(page);
+        expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
+
+        await toggleInformation(page, true, before.area);
+        await toggleInformation(page, false, before.area);
+        const after = await reader(page);
+
+        // Consulting a panel and dismissing it costs the reader nothing: the
+        // surface is the width it was, so the compensation composes back to the
+        // view they had.
+        expect(after.view.scale).toBeCloseTo(before.view.scale, 2);
+        expect(after.view.centre.x).toBeCloseTo(before.view.centre.x, 0);
+        expect(after.view.centre.y).toBeCloseTo(before.view.centre.y, 0);
+    });
+
+    test('navigating to another canvas in the real application still frames it', async ({
+        page,
+    }) => {
+        await openApp(page);
+        const home = await reader(page);
+
+        await zoomAndPan(page);
+        const before = await reader(page);
+        expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
+
+        await toolbarButton(page, 'Next Canvas').click();
+        // Anti-vacuity: the click really did move the reader to another canvas.
+        // Its rects are the same size as the first one's, so nothing about the
+        // view could say so on its own.
+        await expect(page.locator(NAV_INDEX)).toHaveText('2 / 3');
+        const after = await reader(page);
+
+        // A different canvas is a different world, so the reader is reframed —
+        // guarding the refit must not cost navigation its fit. The canvases in
+        // this manifest are the same size, so the fit is the home one.
+        expect(after.view.scale).toBeCloseTo(home.view.scale, 5);
+        expect(after.view.centre.x).toBeCloseTo(home.view.centre.x, 0);
+        expect(after.view.centre.y).toBeCloseTo(home.view.centre.y, 0);
+    });
+
+    test('a viewing-mode change in the real application still refits', async ({
+        page,
+    }) => {
+        await openApp(page);
+        const home = await reader(page);
+
+        // On the SECOND canvas, which `paged` pairs with the third — the first
+        // stands alone, so a mode change there would lay out the same rects and
+        // could not tell a refit from a no-op.
+        await toolbarButton(page, 'Next Canvas').click();
+        await expect(page.locator(NAV_INDEX)).toHaveText('2 / 3');
+
+        await zoomAndPan(page);
+        const before = await reader(page);
+        expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
+
+        await toolbarButton(page, 'Viewing Mode').click();
+        await page
+            .getByRole('menuitemradio', { name: 'Paged', exact: true })
+            .first()
+            .click();
+        const after = await reader(page);
+
+        // A change of mode is a change of world too: the reader is refitted
+        // rather than left at the zoom they had for the previous layout…
+        expect(after.view.scale).toBeLessThan(before.view.scale / 2);
+        // …and refitted to the SPREAD, whose centre is well to the right of the
+        // canvas centre the reader was framed on while it was alone on screen.
+        expect(after.view.centre.x).toBeGreaterThan(home.view.centre.x * 1.5);
+    });
+
+    test('toggling the toolbar leaves the reader’s view exactly as it was', async ({
+        page,
+    }) => {
+        await openApp(page);
+        const home = await reader(page);
+
+        await zoomAndPan(page);
+        const before = await reader(page);
+        expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
+
+        // The unified bar's collapse toggle, which is the control a reader has:
+        // it writes `toolbarOpen`, the host mirrors that into its configuration
+        // and hands the object back, and the viewer adopts it.
+        const fullHeight = await areaHeight(page);
+        await toolbarButton(page, 'Close Menu').click();
+        await expect(toolbarButton(page, 'Open Menu')).toBeVisible({
+            timeout: 20_000,
+        });
+        const collapsed = await reader(page);
+
+        await toolbarButton(page, 'Open Menu').click();
+        await expect(toolbarButton(page, 'Close Menu')).toBeVisible({
+            timeout: 20_000,
+        });
+        const reopened = await reader(page);
+
+        // The bar collapses within the control row and takes none of the
+        // surface, so there is nothing to compensate for and nothing to round:
+        // the reader's view is not merely close, it is untouched. Anything else
+        // means the toggle reached the projection, which is the whole defect.
+        // Both axes, so that a collapse which quietly changed the bar's HEIGHT
+        // is reported as the surface moving rather than as a scale mismatch
+        // three lines further down.
+        expect(collapsed.area).toBe(before.area);
+        expect(await areaHeight(page)).toBe(fullHeight);
+        expect(collapsed.view.scale).toBeCloseTo(before.view.scale, 5);
+        expect(collapsed.view.centre.x).toBeCloseTo(before.view.centre.x, 5);
+        expect(collapsed.view.centre.y).toBeCloseTo(before.view.centre.y, 5);
+        expect(reopened.view.scale).toBeCloseTo(before.view.scale, 5);
+        expect(reopened.view.centre.x).toBeCloseTo(before.view.centre.x, 5);
+        expect(reopened.view.centre.y).toBeCloseTo(before.view.centre.y, 5);
+    });
+
+    test('docking the thumbnail gallery beside the canvas keeps the framed content', async ({
+        page,
+    }) => {
+        await openApp(page);
+        const home = await reader(page);
+
+        // Placed to the LEFT so the band takes width, which is the axis
+        // `reader` measures. The placement itself is a host round-trip too —
+        // the demo mirrors `dockSide` into `gallery.dockPosition` — so this
+        // click is already an instance of the pattern, and the assertions below
+        // cover it as well as the gallery's own toggle.
+        await toolbarButton(page, 'Gallery Placement').click();
+        await page
+            .getByRole('menuitemradio', { name: 'Left', exact: true })
+            .first()
+            .click();
+
+        await zoomAndPan(page);
+        const before = await reader(page);
+        expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
+
+        await toolbarButton(page, 'Show Gallery').click();
+        await expect
+            .poll(() => areaWidth(page), { timeout: 20_000 })
+            .toBeLessThan(before.area - 50);
+        const after = await reader(page);
+
+        // Browsing thumbnails is not a navigation: the band narrows the
+        // surface, so the compensation trades scale for the width it took and
+        // the canvas-space extent across that axis survives intact.
+        expect(after.area / after.view.scale).toBeCloseTo(
+            before.area / before.view.scale,
+            0,
+        );
+        expect(after.view.centre.x).toBeCloseTo(before.view.centre.x, 0);
+        expect(after.view.centre.y).toBeCloseTo(before.view.centre.y, 0);
+        expect(after.view.scale).toBeGreaterThan(home.view.scale * 1.5);
+    });
+
+    test('a bottom-docked gallery band preserves the reader’s vertical position', async ({
+        page,
+    }) => {
+        await openApp(page);
+        const home = await readerVertical(page);
+
+        await zoomAndPan(page);
+        const before = await readerVertical(page);
+        expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
+
+        // `bottom` is the default placement, so this is the phone-shaped case a
+        // host gets without configuring anything: the band takes HEIGHT, and
+        // the compensation has to answer on that axis exactly as it does on
+        // width. Nothing else in this suite drives the vertical axis through
+        // the real application.
+        await toolbarButton(page, 'Show Gallery').click();
+        await expect
+            .poll(() => areaHeight(page), { timeout: 20_000 })
+            .toBeLessThan(before.area - 50);
+        const after = await readerVertical(page);
+
+        expect(after.area / after.view.scale).toBeCloseTo(
+            before.area / before.view.scale,
+            0,
+        );
+        expect(after.view.centre.x).toBeCloseTo(before.view.centre.x, 0);
+        expect(after.view.centre.y).toBeCloseTo(before.view.centre.y, 0);
+        expect(after.view.scale).toBeGreaterThan(home.view.scale * 1.5);
+    });
+
+    /**
+     * Record the reader's scale against the surface it was composed in, once
+     * per PAINT, for the duration of one interaction.
+     *
+     * Every other spec here reads the SETTLED view, which is blind to what the
+     * reader sees on the way: the compensation can arrive at exactly the right
+     * answer and still get there by a visible jump.
+     *
+     * Sampling happens inside a registered paint layer, whose `draw` the
+     * renderer calls while painting the frame. That seam is the whole point.
+     * An animation-frame callback cannot stand in for it: callbacks run in
+     * registration order, so one registered here reports the view either a
+     * frame stale or before the renderer has compensated, and a value written
+     * and overwritten between two callbacks of the SAME frame is never painted
+     * at all — invisible to the reader, and so not a defect.
+     */
+    type Frame = { frameId: number; surface: number; scale: number };
+
+    async function startTracking(page: Page): Promise<void> {
+        await page.locator(SURFACE).evaluate((surface) => {
+            const host = surface as HTMLCanvasElement & {
+                __triiiceratopsRenderer?: {
+                    getView(): { scale: number };
+                    registerPaintLayer(layer: {
+                        id: string;
+                        draw: () => void;
+                    }): () => void;
+                };
+            };
+            const handle = host.__triiiceratopsRenderer;
+            if (!handle) throw new Error('renderer test handle not installed');
+            type Frame = { frameId: number; surface: number; scale: number };
+            const w = window as unknown as {
+                __frames?: Frame[];
+                __framesStop?: () => void;
+            };
+            const out: Frame[] = [];
+            w.__frames = out;
+            // A frame counter, so paints can be grouped by the frame they
+            // belong to: a frame may be painted more than once (the loop, then
+            // again from the ResizeObserver after a resize), and only the LAST
+            // paint of a frame is the one composited and seen.
+            let frameId = 0;
+            let ticking = true;
+            const bump = () => {
+                if (!ticking) return;
+                frameId += 1;
+                requestAnimationFrame(bump);
+            };
+            requestAnimationFrame(bump);
+            const release = handle.registerPaintLayer({
+                id: 'e2e:flash-probe',
+                draw: () => {
+                    out.push({
+                        frameId,
+                        surface: host.getBoundingClientRect().width,
+                        scale: handle.getView().scale,
+                    });
+                },
+            });
+            w.__framesStop = () => {
+                ticking = false;
+                release();
+            };
+        });
+    }
+
+    async function stopTracking(page: Page): Promise<Frame[]> {
+        return page.evaluate(() => {
+            type Frame = { frameId: number; surface: number; scale: number };
+            const w = window as unknown as {
+                __frames?: Frame[];
+                __framesStop?: () => void;
+            };
+            w.__framesStop?.();
+            return w.__frames ?? [];
+        }) as Promise<Frame[]>;
+    }
+
+    test('the reader’s view slides with the column instead of flashing to the end state', async ({
+        page,
+    }) => {
+        await openApp(page);
+        const home = await reader(page);
+
+        await zoomAndPan(page);
+        const before = await reader(page);
+        expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
+
+        await startTracking(page);
+        await toolbarButton(page, 'Toggle Information').click();
+        await expect
+            .poll(() => areaWidth(page), { timeout: 20_000 })
+            .toBeLessThan(before.area - 100);
+        // Past the end of the slide, so the trace covers the whole animation.
+        await page.waitForTimeout(600);
+        const frames = await stopTracking(page);
+
+        // Anti-vacuity: an empty trace satisfies the assertion below, and an
+        // empty trace is exactly what a mis-wired sampler produces.
+        expect(frames.length).toBeGreaterThan(10);
+
+        // The compensation holds the visible canvas-space extent, so across the
+        // whole slide `surface / scale` is the one number that does not move.
+        //
+        // Matched against the current surface OR the previous painted one,
+        // because the renderer paints a frame before that frame's compensation
+        // lands: the paint runs in an animation-frame callback and `measure()`
+        // reaches it from the ResizeObserver afterwards, so the painted scale
+        // trails the column by exactly one frame for the whole slide. That lag
+        // is a real and separate defect — pinning it as correct here is not the
+        // claim; what this spec rejects is a JUMP, which no amount of lag
+        // explains. The defect it was written for painted the FINAL scale into
+        // the STILL-FULL-WIDTH surface, one frame before the column had moved.
+        // The compensation holds the visible canvas-space extent, so across the
+        // whole slide `surface / scale` is the one number that does not move.
+        //
+        // Asserted only over the LAST paint of each frame. A frame is painted
+        // twice while the column moves — once by the frame loop, then again
+        // from the ResizeObserver after the resize — and only the second
+        // reaches the screen. Judging every paint instead reads the discarded
+        // first one as a one-frame lag that no reader can see.
+        const extent = before.area / before.view.scale;
+        const composited = frames.filter(
+            (frame, index) =>
+                index === frames.length - 1 ||
+                frames[index + 1].frameId !== frame.frameId,
+        );
+        expect(composited.length).toBeGreaterThan(5);
+        const jumped = composited.filter(
+            (frame) =>
+                Math.abs(frame.surface / frame.scale - extent) / extent > 0.02,
+        );
+        expect(jumped).toEqual([]);
+    });
+
+    /**
+     * A tiled manifest, because this spec reads PIXELS: the accessibility
+     * fixture's canvases are flat colour, so a blank surface and a painted one
+     * are the same measurement there. The numbered grid has structure at every
+     * scale, and a canvas that is not painted collapses its spread to zero.
+     */
+    const TILED_APP = '/?manifest=/demo-manifests/tiled/manifest.json';
+
+    /**
+     * Measure the surface's painted content once per frame, at the END of the
+     * frame, for the duration of one interaction.
+     *
+     * Both halves of that matter. Resizing a canvas's backing store clears it,
+     * and `measure()` does exactly that from a ResizeObserver — which runs
+     * after the frame loop has painted and before the browser composites. So a
+     * cleared-and-not-repainted surface is visible only to a task scheduled
+     * from inside the frame callback: sample in the callback itself, or read
+     * the backing store at the start of the next frame, and the clear has
+     * either not happened yet or been painted over, and the spec passes over a
+     * viewer that blanks on every frame of the slide.
+     */
+    async function startBlankWatch(page: Page): Promise<void> {
+        await page.locator(SURFACE).evaluate((surface) => {
+            const host = surface as HTMLCanvasElement;
+            const w = window as unknown as {
+                __spread?: number[];
+                __spreadStop?: () => void;
+            };
+            const out: number[] = [];
+            w.__spread = out;
+            const off = document.createElement('canvas');
+            off.width = 32;
+            off.height = 32;
+            const octx = off.getContext('2d', { willReadFrequently: true });
+            if (!octx) throw new Error('no 2d context for the probe');
+            let running = true;
+            const sample = () => {
+                octx.clearRect(0, 0, 32, 32);
+                octx.drawImage(host, 0, 0, 32, 32);
+                const data = octx.getImageData(0, 0, 32, 32).data;
+                let sum = 0;
+                let sumSq = 0;
+                const n = 32 * 32;
+                for (let i = 0; i < n; i += 1) {
+                    const o = i * 4;
+                    const lum =
+                        0.299 * data[o] +
+                        0.587 * data[o + 1] +
+                        0.114 * data[o + 2];
+                    sum += lum;
+                    sumSq += lum * lum;
+                }
+                const mean = sum / n;
+                out.push(Math.sqrt(Math.max(0, sumSq / n - mean * mean)));
+            };
+            const tick = () => {
+                if (!running) return;
+                setTimeout(() => {
+                    if (running) sample();
+                }, 0);
+                requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+            w.__spreadStop = () => {
+                running = false;
+            };
+        });
+    }
+
+    async function stopBlankWatch(page: Page): Promise<number[]> {
+        return page.evaluate(() => {
+            const w = window as unknown as {
+                __spread?: number[];
+                __spreadStop?: () => void;
+            };
+            w.__spreadStop?.();
+            return w.__spread ?? [];
+        }) as Promise<number[]>;
+    }
+
+    test('the canvas keeps its picture through every frame of a panel slide', async ({
+        page,
+    }) => {
+        await openApp(page, TILED_APP);
+        const before = await reader(page);
+
+        await startBlankWatch(page);
+        await toolbarButton(page, 'Toggle Information').click();
+        await expect
+            .poll(() => areaWidth(page), { timeout: 20_000 })
+            .toBeLessThan(before.area - 100);
+        // Past the end of the slide, so the trace covers every resized frame.
+        await page.waitForTimeout(600);
+        const spreads = await stopBlankWatch(page);
+
+        // Anti-vacuity twice over: an empty trace asserts nothing, and a fixture
+        // whose picture has no structure would read as blank throughout.
+        expect(spreads.length).toBeGreaterThan(10);
+        expect(spreads[0]).toBeGreaterThan(5);
+
+        // An absolute floor rather than a fraction of the opening frame: the
+        // slide legitimately changes how much of the grid is on screen, so the
+        // spread moves a lot without anything being wrong. What cannot happen
+        // is a UNIFORM surface, which is the cleared canvas composited before
+        // anything repainted it — measured at exactly 0 when this regressed,
+        // against 19+ for the quietest genuinely painted frame.
+        const blanked = spreads.filter((spread) => spread < 2);
+        expect(blanked).toEqual([]);
+    });
+
+    test('a canvas-anchored point stays under the reader’s finger across a chrome change', async ({
+        page,
+    }) => {
+        await openApp(page);
+        const home = await reader(page);
+
+        await zoomAndPan(page);
+        const before = await reader(page);
+        // Anti-vacuity, and this case needs it more than most: at the HOME view
+        // the anchor IS the canvas centre, which a refit also parks at the
+        // surface centre, so every assertion below would hold under the rule
+        // this case exists to reject.
+        expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
+
+        // What a plugin author's overlay is pinned to: the canvas coordinate
+        // the reader has in the middle of the surface. `screenToCanvas` and
+        // `canvasToScreen` share `.viewer-area`'s origin, so the middle of the
+        // surface is (width/2, height/2) in both, before and after.
+        const height = await areaHeight(page);
+        const anchor = await screenToCanvas(page, {
+            x: before.area / 2,
+            y: height / 2,
+        });
+        expect(anchor).not.toBeNull();
+
+        await toggleInformation(page, true, before.area);
+        const after = await reader(page);
+        const projected = await canvasToScreen(page, anchor!);
+        expect(projected).not.toBeNull();
+
+        // The reader's ink has not moved: the point they were looking at is
+        // still in the middle of the surface they are left with. A refit would
+        // put the CANVAS centre there instead and carry the overlay with it,
+        // which is a change nobody made.
+        expect(projected!.x).toBeCloseTo(after.area / 2, 0);
+        expect(projected!.y).toBeCloseTo(height / 2, 0);
+        // And the round trip is the identity, so the agreement above is between
+        // the reader's view and the helpers rather than inside one of them.
+        const roundTripped = await screenToCanvas(page, projected!);
+        expect(roundTripped!.x).toBeCloseTo(anchor!.x, 3);
+        expect(roundTripped!.y).toBeCloseTo(anchor!.y, 3);
+    });
+
+    test('a claimed time-based-media canvas keeps its transport put when a panel docks', async ({
+        page,
+    }) => {
+        // The AV path is slow enough that the describe below buys itself 120s
+        // for the same reason: the plugin, its media, and the transport all have
+        // to arrive before the interaction starts.
+        test.slow();
+        await openApp(page, AV_APP);
+        await page
+            .locator(TRANSPORT)
+            .waitFor({ state: 'visible', timeout: 30_000 });
+        const home = await reader(page);
+
+        await zoomAndPan(page);
+        const before = await reader(page);
+        // Anti-vacuity. This canvas is 320x180 with no pyramid, so its zoom
+        // ceiling is far tighter than the image manifests': six wheel steps
+        // reaching the ceiling instead of a chosen view would leave a reader at
+        // the fit, where a refit and the compensation agree.
+        expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
+        const playBefore = await settledBox(page, TRANSPORT_PLAY);
+
+        await toggleInformation(page, true, before.area);
+        const after = await reader(page);
+        const playAfter = await settledBox(page, TRANSPORT_PLAY);
+
+        // The video stage is painted on the canvas, so the reader's view IS
+        // where the picture went: compensated for the width the panel took,
+        // centre untouched, and not thrown back to the fit.
+        expect(after.area / after.view.scale).toBeCloseTo(
+            before.area / before.view.scale,
+            0,
+        );
+        expect(after.view.centre.x).toBeCloseTo(before.view.centre.x, 0);
+        expect(after.view.centre.y).toBeCloseTo(before.view.centre.y, 0);
+
+        // PLAY is the transport's leftmost control and the row is anchored to
+        // the start of the control bar, so the panel narrowing the bar must not
+        // slide it: a reader with a finger on the play button still has one.
+        expect(playAfter.x).toBeCloseTo(playBefore.x, 0);
+        // A headless browser refuses audible script-initiated playback, so mute
+        // before asking for sound — a refusal would be state, not an error.
+        await page.locator(TRANSPORT_MUTE).click({ timeout: 20_000 });
+        await page.locator(TRANSPORT_PLAY).click({ timeout: 20_000 });
+        await expect
+            .poll(
+                () =>
+                    page
+                        .locator(AV_MEDIA)
+                        .evaluate((el) => (el as HTMLMediaElement).paused),
+                { timeout: 20_000 },
+            )
+            .toBe(false);
+    });
+});
+
+/**
  * The Contract line this whole ticket exists for, in the configuration that
  * produced the original report: a claimed AV canvas with the plugin's panel
  * docked beside it, and playback controls a reader has to be able to reach.
@@ -315,10 +1102,6 @@ test.describe('docked chrome — AV playback controls stay operable', () => {
     test.describe.configure({ timeout: 120_000 });
 
     const AV_FIXTURE = '/e2e/av-plugin.html';
-    const TRANSPORT = '[data-testid="transport"]';
-    const PLAY = '[data-testid="transport-play"]';
-    const MUTE = '[data-testid="transport-mute"]';
-    const MEDIA = '[data-testid="av-media"]';
 
     test('the transport’s leftmost control is inside the surface and clickable with the panel docked', async ({
         page,
@@ -354,18 +1137,18 @@ test.describe('docked chrome — AV playback controls stay operable', () => {
 
         // A headless browser refuses audible script-initiated playback, so mute
         // before asking for sound — a refusal would be state, not an error.
-        await page.locator(MUTE).click({ timeout: 20_000 });
+        await page.locator(TRANSPORT_MUTE).click({ timeout: 20_000 });
 
         // The other half: CLICKABLE. No `force` — a control clipped away or
         // pushed off the surface fails here rather than passing silently — and
         // the media element is read back, so a click that landed on nothing
         // cannot pass either.
-        await page.locator(PLAY).click({ timeout: 20_000 });
+        await page.locator(TRANSPORT_PLAY).click({ timeout: 20_000 });
         await expect
             .poll(
                 () =>
                     page
-                        .locator(MEDIA)
+                        .locator(AV_MEDIA)
                         .evaluate((el) => (el as HTMLMediaElement).paused),
                 { timeout: 20_000 },
             )

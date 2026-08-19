@@ -263,6 +263,72 @@ unsupported: past that the reader's zoom floor and the pan constraint cut into t
 the inset is honoured in direction but not in full.
 _Avoid_: margin, padding (both suggest a box model rather than a fit target)
 
+**Docked chrome**:
+Chrome core has docked beside the viewer that takes width or height from it: a side
+panel column, the toolbar docked as a rail, a top or bottom gallery band. A plugin
+flyout and an expanded gallery are not docked chrome — they float over the viewer and
+take no extent from it — and neither is a window resize, which core did not cause. The
+distinction is _why_ the surface changed, not that it did, and it is what selects
+between **surface compensation** and the preserve-scale response to a resize.
+_Avoid_: sidebar, panel (either names one member and misses the rail and the band),
+overlay chrome (that is the floating kind, which is the opposite)
+
+**Surface compensation**:
+What the renderer does when **docked chrome** takes surface away or gives it back: it
+preserves the canvas-space extent visible on the axis that changed, bounded by the whole
+canvas, and leaves the centre alone. One new scale, `scale * min(next / previous)` over the
+changed axes only, floored at the smaller of the reader's scale and the fit of the
+arriving surface, and — for a reader at or under the fit of the DEPARTING surface —
+capped at the fit of the arriving one. The floor is a lower bound on the result, not a
+promise about where a reader ends up: narrowing a surface leaves a reader who was already
+below the arriving fit exactly where they were. The two fits are named separately because
+gating on the wrong one is the easy mistake, and the reason this rule takes both as
+arguments: gating the cap on the ARRIVING fit would drag a genuinely zoomed-in reader
+down to it whenever the surface widens. The centre needs no adjustment
+because it is a canvas-space point; it goes through the usual pan constraint and nothing
+more. The ratio is relative, so it composes exactly across a slide's frames: twelve
+intermediate widths land where one jump to the final width lands, which is what makes a
+full animation, a coalesced observer callback and reduced motion's single step all agree.
+Two invariants hold, and are tested as properties rather than spot-checked: **no overhang
+is introduced** — a reader at or under the fit of the departing surface is at or under the
+fit of the arriving one, which is the guarantee the old absolute re-fit existed to provide
+— and **a single-axis change is exactly invertible** while the floor is inactive, so
+opening a panel and closing it returns the reader's scale and repeated toggling does not
+drift them outward.
+_Avoid_: re-fit, refit (the rule it replaced, and the thing it exists not to do),
+`compensateForReflow` (reflow compensation, a different operation: it holds a reader's
+place across a change to the world's LAYOUT, and it does move the centre)
+_Note_: five residuals are accepted rather than fixed. A simultaneous change on BOTH axes
+is not exactly invertible, because `min` over two ratios need not pick the same axis as
+`min` over their reciprocals; nothing crops either way and the round trip can only end at
+or below where it started. The centre's constraint is lossy on a widening surface, so the
+round trip is exact in scale but not always in centre for a reader parked hard against a
+pan limit. A reader parked at the zoom floor is still moved by the floor, which is derived
+from the live fit scale and so moves when the surface does. A reader BELOW the fit is
+ratcheted up to it by repeated toggling: the floor pins each narrowing to a no-op while the
+cap lets each widening apply the whole ratio, so from half the fit a portrait canvas walks
+0.5, 0.5, 0.8, 1.0 of the fit and stays there — bounded, terminating at the fit, and
+inward at every step, so neither invariant is touched. And the backing store is still
+reallocated on every frame of a slide, because the surface CSS box genuinely changes size.
+
+**World refit**:
+The renderer framing its world afresh: it resolves a fit target and writes an absolute
+scale and centre, discarding whatever view the reader had. It is a response to a change of
+**world** — a different manifest, viewing mode, reading direction, scale policy, current
+canvas, or a layout whose rects moved — and to nothing else. What it costs is why that
+list is short: a refit overwrites the reader's scale and centre, so anything that can
+trigger one is a thing that can move the reader. A change of _state_ is not a change of
+world. Opening a panel, docking a band, toggling the toolbar, or a host replacing its
+configuration object leave the framed world exactly where it was; the surface some of them
+take is answered by **surface compensation** instead. The renderer remembers what it last
+fitted — not one key but three reads, since the current canvas reaches it as the tile
+sources' identity rather than as a member — and returns without fitting when none of them
+moved, so a stray dependency on the effect that calls it costs a wasted call rather than
+the reader's place — that guard is the backstop, and member-level notification (ADR 0008)
+is what keeps such runs rare in the first place.
+_Avoid_: reset, snap back (the symptom of an unwanted refit, not the operation), refresh
+(suggests repainting, which a refit is not)
+
 **Unsupported presentation**:
 The first-class rendering of a canvas that has painting bodies core cannot display
 (non-image bodies) and nothing renderable: the canvas keeps its layout rect and its

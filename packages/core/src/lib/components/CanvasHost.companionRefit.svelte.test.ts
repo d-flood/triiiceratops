@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, tick, unmount } from 'svelte';
 
 import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
+import { installViewerSurface } from '../test/utils/mockViewerSurface';
 
 /**
  * A **companion phase** change must not refit the view.
@@ -48,11 +49,7 @@ describe('a companion phase change in a mounted viewer', () => {
     const mockFetch = vi.fn();
     let target: HTMLElement;
     const apps: Array<ReturnType<typeof mount>> = [];
-    const originals = {
-        rect: Element.prototype.getBoundingClientRect,
-        context: HTMLCanvasElement.prototype.getContext,
-        scrollIntoView: Element.prototype.scrollIntoView,
-    };
+    let surface: ReturnType<typeof installViewerSurface>;
 
     beforeEach(() => {
         vi.stubGlobal('fetch', mockFetch);
@@ -61,39 +58,7 @@ describe('a companion phase change in a mounted viewer', () => {
             json: async () => MANIFEST,
         }));
 
-        // happy-dom has no layout and no 2D context, and the renderer needs
-        // both before it lays anything out — see the sibling claim test, whose
-        // stubs these are.
-        Element.prototype.getBoundingClientRect = function () {
-            return {
-                x: 0,
-                y: 0,
-                width: 800,
-                height: 600,
-                top: 0,
-                left: 0,
-                right: 800,
-                bottom: 600,
-                toJSON: () => ({}),
-            } as DOMRect;
-        };
-        HTMLCanvasElement.prototype.getContext = function (
-            this: HTMLCanvasElement,
-        ) {
-            const drawn: Record<string | symbol, unknown> = { canvas: this };
-            return new Proxy(drawn, {
-                get(store, property) {
-                    if (property in store) return store[property];
-                    if (property === 'measureText') return () => ({ width: 0 });
-                    return () => undefined;
-                },
-                set(store, property, value) {
-                    store[property] = value;
-                    return true;
-                },
-            }) as unknown as CanvasRenderingContext2D;
-        } as unknown as typeof HTMLCanvasElement.prototype.getContext;
-        Element.prototype.scrollIntoView = function () {};
+        surface = installViewerSurface();
 
         target = document.createElement('div');
         document.body.appendChild(target);
@@ -102,9 +67,7 @@ describe('a companion phase change in a mounted viewer', () => {
     afterEach(async () => {
         for (const app of apps.splice(0)) await unmount(app);
         target.remove();
-        Element.prototype.getBoundingClientRect = originals.rect;
-        HTMLCanvasElement.prototype.getContext = originals.context;
-        Element.prototype.scrollIntoView = originals.scrollIntoView;
+        surface.restore();
         vi.restoreAllMocks();
     });
 

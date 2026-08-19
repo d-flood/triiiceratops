@@ -259,9 +259,10 @@ test.describe('av transport — chrome in the bar leaves the navigation reachabl
         const nextCanvas = page.getByRole('button', { name: 'Next Canvas' });
         const transport = page.locator(TRANSPORT);
 
-        // Settled, not merely present: the fixture's docked panel is still
-        // re-fitting the canvas as it slides out, so a single early read lands
-        // mid-transition (the reason the deleted group polled too).
+        // Settled, not merely present: the image still moves as the fixture's
+        // docked panel slides out — compensated for the narrower surface rather
+        // than re-fitted — so a single early read lands mid-transition (the
+        // reason the deleted group polled too).
         const before = await settled(page, async (p) =>
             p.locator(TRANSPORT).boundingBox(),
         );

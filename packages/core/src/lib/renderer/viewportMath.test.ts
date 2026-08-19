@@ -7,6 +7,7 @@ import {
     approachScale,
     canvasToScreen,
     clamp,
+    compensatedScale,
     constrainCentre,
     fitBounds,
     insetFitScale,
@@ -693,6 +694,407 @@ describe('wheelZoomRate', () => {
     it('refuses a nonsensical notch size rather than dividing by it', () => {
         for (const bad of [0, -100, Number.NaN, Number.POSITIVE_INFINITY])
             expect(wheelZoomRate(1.5, bad)).toBe(0);
+    });
+});
+
+describe('surface compensation', () => {
+    /**
+     * The rule's bounds are about the relationship between the axis that changed
+     * and the axis the fit is constrained by, so the table spans both regimes: a
+     * portrait canvas is height-constrained in every surface below, so its fit
+     * does not move when width does; a landscape one is width-constrained in the
+     * three surfaces a panel column narrows (FULL, NARROW, BOTH), so there its
+     * fit moves with exactly the axis the column takes, and height-constrained
+     * in the two that are short relative to their width (SHORT, MIXED); a square
+     * one changes which axis binds partway through the table.
+     */
+    const PORTRAIT = { x: 0, y: 0, width: 1200, height: 1800 };
+    const LANDSCAPE = { x: 0, y: 0, width: 3000, height: 2000 };
+    const SQUARE = { x: 0, y: 0, width: 1000, height: 1000 };
+    const CANVASES = [PORTRAIT, LANDSCAPE, SQUARE];
+
+    /** The whole surface, and what core's docked chrome leaves of it. */
+    const FULL = { width: 800, height: 600 };
+    const NARROW = { width: 500, height: 600 }; // a panel column's width
+    const SHORT = { width: 800, height: 480 }; // a gallery band's height
+    const BOTH = { width: 500, height: 480 }; // a column and a band at once
+    const MIXED = { width: 1200, height: 480 }; // one axis each way
+    const SIZES = [FULL, NARROW, SHORT, BOTH, MIXED];
+
+    /** Every ordered pair of distinct surfaces: narrowing and widening alike. */
+    const CHANGES = SIZES.flatMap((previous) =>
+        SIZES.filter((next) => next !== previous).map(
+            (next) => [previous, next] as const,
+        ),
+    );
+
+    function changedAxes(
+        previous: { width: number; height: number },
+        next: { width: number; height: number },
+    ) {
+        return (
+            (previous.width === next.width ? 0 : 1) +
+            (previous.height === next.height ? 0 : 1)
+        );
+    }
+
+    const SINGLE_AXIS = CHANGES.filter(
+        ([previous, next]) => changedAxes(previous, next) === 1,
+    );
+    const BOTH_AXES = CHANGES.filter(
+        ([previous, next]) => changedAxes(previous, next) === 2,
+    );
+    /** No axis widens: docked chrome only ever taking surface away. */
+    const NARROWING = CHANGES.filter(
+        ([previous, next]) =>
+            next.width <= previous.width && next.height <= previous.height,
+    );
+
+    // Each subset is asserted over by a spec below, and a spec that loops over
+    // nothing passes. Guards, so that an edit to SIZES cannot empty one silently.
+    it('has a table that covers each shape of change', () => {
+        expect(CHANGES).toHaveLength(20);
+        expect(SINGLE_AXIS).toHaveLength(12);
+        expect(BOTH_AXES).toHaveLength(8);
+        expect(NARROWING).toHaveLength(7);
+    });
+
+    function fitIn(
+        canvas: typeof PORTRAIT,
+        size: { width: number; height: number },
+    ) {
+        return fitBounds(canvas, size).scale;
+    }
+
+    /**
+     * `compensatedScale` with both fit scales measured the way the renderer
+     * measures them: the same fit target, once in the surface arriving and once
+     * in the surface being left.
+     */
+    function compensate(
+        canvas: typeof PORTRAIT,
+        scale: number,
+        previous: { width: number; height: number },
+        next: { width: number; height: number },
+    ) {
+        return compensatedScale(
+            scale,
+            previous,
+            next,
+            fitIn(canvas, next),
+            fitIn(canvas, previous),
+        );
+    }
+
+    it('introduces no overhang: a reader who had the whole canvas still has it', () => {
+        // The guarantee the old absolute re-fit existed to provide, and the
+        // reason it can be dropped. A projection larger than the fit hangs off
+        // the edges of its own surface and the overhanging part is clipped away,
+        // taking canvas-anchored chrome out of both the picture and the hit test.
+        let cases = 0;
+        for (const canvas of CANVASES) {
+            for (const [previous, next] of CHANGES) {
+                const previousFit = fitIn(canvas, previous);
+                const fit = fitIn(canvas, next);
+                // The antecedent is "the whole canvas was visible" — at or under
+                // the fit of the surface being left.
+                for (const fraction of [0.25, 0.5, 0.9, 1]) {
+                    const result = compensate(
+                        canvas,
+                        previousFit * fraction,
+                        previous,
+                        next,
+                    );
+                    expect(result).toBeLessThanOrEqual(fit * (1 + 1e-12));
+                    cases += 1;
+                }
+            }
+        }
+        // Not vacuous: three canvases, twenty ordered surface pairs, four scales.
+        expect(cases).toBe(240);
+    });
+
+    it('introduces no overhang while narrowing, on the ratio and the floor alone', () => {
+        // The spec above cannot fail on its narrowing half. Every scale it tries
+        // is at or under the fit of the departing surface, so the ceiling is
+        // armed on every row and `clamp(…, floor, fitScale) <= fitScale` holds
+        // whatever the ratio and the floor do. The narrowing half of the
+        // guarantee is the half that does not need the ceiling — there
+        // `scale * ratio < scale`, and the proof is a case split on which axis
+        // binds the fit — so it is asserted here with the ceiling disabled from
+        // the caller, by passing a previous fit scale of 0.
+        let cases = 0;
+        for (const canvas of CANVASES) {
+            for (const [previous, next] of NARROWING) {
+                const previousFit = fitIn(canvas, previous);
+                const fit = fitIn(canvas, next);
+                for (const fraction of [0.25, 0.5, 0.9, 1]) {
+                    const result = compensatedScale(
+                        previousFit * fraction,
+                        previous,
+                        next,
+                        fit,
+                        0,
+                    );
+                    expect(result).toBeLessThanOrEqual(fit * (1 + 1e-12));
+                    cases += 1;
+                }
+            }
+        }
+        // Three canvases, seven narrowing pairs, four scales.
+        expect(cases).toBe(84);
+    });
+
+    it('is exactly invertible on a single axis while neither bound is active', () => {
+        // Opening a panel and closing it again costs the reader nothing, so
+        // repeated toggling cannot drift them outward.
+        for (const canvas of CANVASES) {
+            for (const [previous, next] of SINGLE_AXIS) {
+                // Well clear of both fits. The floor is what makes a round trip
+                // lossy and it engages as soon as a narrowing would take the
+                // reader past the whole canvas; the widest single-axis ratio in
+                // the table is 500/1200, so anything under ~2.4x the fit reaches
+                // it.
+                const zoomedIn =
+                    3 * Math.max(fitIn(canvas, previous), fitIn(canvas, next));
+                for (const scale of [zoomedIn, zoomedIn * 4, zoomedIn * 40]) {
+                    const there = compensate(canvas, scale, previous, next);
+                    // The forward leg genuinely moved, so the round trip is not
+                    // being satisfied by a rule that does nothing.
+                    expect(there).not.toBe(scale);
+                    expect(
+                        compensate(canvas, there, next, previous),
+                    ).toBeCloseTo(scale, 8);
+                }
+            }
+        }
+    });
+
+    it('drifts inward, never outward, on a both-axis round trip', () => {
+        // Accepted residual, pinned rather than fixed: `min` over two ratios
+        // need not pick the same axis as `min` over their reciprocals, so
+        // docking a column and a band in one frame and undocking them again does
+        // not return the reader's exact scale. What holds is the direction — the
+        // round trip can only end at or below where it started, so it reveals
+        // more of the canvas rather than cropping it. A per-axis scale would be
+        // the only real fix and there is one scale, by design.
+        for (const canvas of CANVASES) {
+            for (const [previous, next] of BOTH_AXES) {
+                const zoomedIn =
+                    3 * Math.max(fitIn(canvas, previous), fitIn(canvas, next));
+                const there = compensate(canvas, zoomedIn, previous, next);
+                const back = compensate(canvas, there, next, previous);
+
+                expect(back).toBeLessThanOrEqual(zoomedIn * (1 + 1e-12));
+            }
+        }
+
+        // And the size of it: FULL → BOTH takes min(500/800, 480/600) = 0.625,
+        // where the reverse takes min(800/500, 600/480) = 1.25.
+        const scale = 4;
+        const there = compensate(SQUARE, scale, FULL, BOTH);
+        expect(compensate(SQUARE, there, BOTH, FULL)).toBeCloseTo(
+            scale * 0.625 * 1.25,
+            10,
+        );
+    });
+
+    it('takes the smallest ratio among the axes that changed, and only those', () => {
+        // A reader far above the fit, so neither bound is in play and the
+        // region-preserving term stands alone.
+        const scale = 100;
+        const table: Array<[typeof FULL, typeof FULL, number]> = [
+            [FULL, NARROW, 500 / 800], // width alone
+            [FULL, SHORT, 480 / 600], // height alone
+            [FULL, BOTH, 500 / 800], // both narrowing: the smaller
+            [BOTH, FULL, 600 / 480], // both widening: the smaller
+            [FULL, MIXED, 480 / 600], // one each way: the narrowing one
+            [MIXED, FULL, 800 / 1200], // and its reverse
+        ];
+
+        for (const [previous, next, ratio] of table) {
+            expect(compensate(SQUARE, scale, previous, next)).toBeCloseTo(
+                scale * ratio,
+                10,
+            );
+        }
+    });
+
+    it('is the identity when no axis changed', () => {
+        for (const canvas of CANVASES) {
+            for (const size of SIZES) {
+                for (const scale of [1e-4, fitIn(canvas, size), 0.9, 400]) {
+                    // A distinct object with the same extents: the rule is about
+                    // the numbers, not about the caller reusing a reference.
+                    expect(compensate(canvas, scale, size, { ...size })).toBe(
+                        scale,
+                    );
+                }
+            }
+        }
+    });
+
+    it('stops the zoom-out at the whole canvas rather than past it', () => {
+        // A portrait canvas is fitted by its HEIGHT in an 800x600 surface, so a
+        // panel column taking width moves the ratio and not the fit. Without the
+        // floor the reader would be shrunk by the width ratio for no reason —
+        // there is no more image to reveal — which is also what would open a
+        // viewer configured with a panel already docked needlessly small.
+        const fit = fitIn(PORTRAIT, FULL);
+        expect(fitIn(PORTRAIT, NARROW)).toBeCloseTo(fit, 12);
+        expect(compensate(PORTRAIT, fit, FULL, NARROW)).toBeCloseTo(fit, 12);
+
+        // Below the fit the floor is the reader's own scale: they already see the
+        // whole canvas, and a narrowing on a non-binding axis leaves them exactly
+        // where they are.
+        expect(compensate(PORTRAIT, fit / 2, FULL, NARROW)).toBeCloseTo(
+            fit / 2,
+            12,
+        );
+
+        // On the axis that DOES bind, the ratio term and the floor agree: the fit
+        // falls by the same factor the surface did.
+        const short = fitIn(PORTRAIT, SHORT);
+        expect(short).toBeCloseTo(fit * 0.8, 12);
+        expect(compensate(PORTRAIT, fit, FULL, SHORT)).toBeCloseTo(short, 12);
+
+        // …and a width-constrained canvas narrowed in width is the same story
+        // with the axes swapped.
+        expect(
+            compensate(LANDSCAPE, fitIn(LANDSCAPE, FULL), FULL, NARROW),
+        ).toBeCloseTo(fitIn(LANDSCAPE, NARROW), 12);
+    });
+
+    it('ratchets a reader below the fit up to the fit, and no further', () => {
+        // Accepted residual, pinned rather than fixed: the floor's narrowing
+        // no-op above is what story 19 depends on, and composing it with the
+        // ceiling walks a reader who was below the fit up to it. Narrowing does
+        // nothing (the floor is their own scale); widening applies the whole
+        // ratio and the ceiling stops it at the fit. So repeated toggling adds
+        // scale a step at a time until the fit, where it stops.
+        //
+        // Bounded, terminating, and inward — it only ever reveals MORE of the
+        // canvas and never passes the whole of it, so both headline invariants
+        // hold at every step. Fixing it means compensating from the reader's
+        // pre-change scale rather than the running one, which is a different
+        // rule.
+        const fit = fitIn(PORTRAIT, FULL);
+        const trace: number[] = [];
+        let scale = fit / 2;
+        for (let toggle = 0; toggle < 4; toggle += 1) {
+            scale = compensate(PORTRAIT, scale, FULL, NARROW);
+            trace.push(scale);
+            scale = compensate(PORTRAIT, scale, NARROW, FULL);
+            trace.push(scale);
+        }
+
+        // Open, close, open, close, …: half the fit, then 0.8 of the way to it,
+        // then the fit, and fixed from there.
+        expect(trace.map((step) => Number(step.toFixed(6)))).toEqual([
+            0.166667, 0.266667, 0.266667, 0.333333, 0.333333, 0.333333,
+            0.333333, 0.333333,
+        ]);
+        expect(scale).toBeCloseTo(fit, 12);
+    });
+
+    it('gates the ceiling on the fit of the surface the reader is leaving', () => {
+        // The two candidate gates are only distinguishable where the two fit
+        // scales differ, which needs a canvas the changed axis actually
+        // constrains. LANDSCAPE is width-constrained in both of the surfaces
+        // below, so a panel column moves its fit; every portrait fixture in the
+        // mounted suite has `fitScale === previousFitScale` and cannot see this
+        // at all.
+        //
+        // Note what the `compensatedScale(…, wide, wide)` lines are, since they
+        // are the only calls in this file that bypass `compensate`: they state
+        // what a WRONG implementation would return, so that swapping the gate is
+        // shown to change the answer. They are not coverage of the shipped rule
+        // — every assertion about that goes through `compensate`, which measures
+        // each fit in its own surface.
+        const wide = fitIn(LANDSCAPE, FULL);
+        const narrow = fitIn(LANDSCAPE, NARROW);
+        expect(narrow).toBeLessThan(wide);
+
+        // A reader zoomed in on the NARROW surface — above its fit, so already
+        // overhanging by choice — but still under what the wide surface fits.
+        for (const scale of [narrow * 1.05, (narrow + wide) / 2, wide * 0.99]) {
+            // Giving the width back multiplies their scale, untouched by the
+            // ceiling: they chose that zoom and nothing was taken from them.
+            expect(compensate(LANDSCAPE, scale, NARROW, FULL)).toBeCloseTo(
+                scale * (800 / 500),
+                10,
+            );
+
+            // Gating on the ARRIVING fit instead reads them as "at the fit" and
+            // drags them down to it, so a widening surface would lose the zoom a
+            // narrowing one preserved. Spelled by passing the arriving fit as
+            // both arguments, which is what a caller that read
+            // `previousFitScale` after the viewport had adopted the new size
+            // would compute.
+            expect(
+                compensatedScale(scale, NARROW, FULL, wide, wide),
+            ).toBeCloseTo(wide, 10);
+        }
+
+        // The same mutation breaks the round trip, which is the reader-facing
+        // shape of it: open the panel, close it, and be somewhere else.
+        const scale = wide * 1.125;
+        const opened = compensate(LANDSCAPE, scale, FULL, NARROW);
+        expect(compensate(LANDSCAPE, opened, NARROW, FULL)).toBeCloseTo(
+            scale,
+            10,
+        );
+        expect(compensatedScale(opened, NARROW, FULL, wide, wide)).toBeCloseTo(
+            wide,
+            10,
+        );
+    });
+
+    it('returns the scale untouched for inputs with no ratio to take', () => {
+        // An unmeasured or non-finite surface being left, and a non-finite one
+        // arriving: there is no ratio against either.
+        expect(compensate(SQUARE, 2, { width: 0, height: 600 }, FULL)).toBe(2);
+        expect(compensate(SQUARE, 2, { width: NaN, height: 600 }, FULL)).toBe(
+            2,
+        );
+        expect(
+            compensate(SQUARE, 2, { width: Infinity, height: 600 }, FULL),
+        ).toBe(2);
+        expect(compensate(SQUARE, 2, FULL, { width: NaN, height: 600 })).toBe(
+            2,
+        );
+
+        // No region to preserve.
+        for (const scale of [0, -1, NaN, Infinity]) {
+            expect(compensate(SQUARE, scale, FULL, NARROW)).toBe(scale);
+        }
+
+        // An unmeasured FIT is no bound at all, leaving the ratio term alone.
+        expect(compensatedScale(2, FULL, NARROW, 0, 0)).toBeCloseTo(1.25, 10);
+        expect(compensatedScale(2, FULL, NARROW, NaN, NaN)).toBeCloseTo(
+            1.25,
+            10,
+        );
+
+        // A zero extent ARRIVING is deliberately not among the guards: the ratio
+        // is 0 and there is no usable fit to floor it, so the answer is 0.
+        // Callers never present one — a surface with no width has nothing to
+        // compensate for.
+        expect(compensate(SQUARE, 2, FULL, { width: 0, height: 600 })).toBe(0);
+    });
+
+    it('pins what the empty-world fit sentinel does, unreachable though it is', () => {
+        // `homeScale()` answers a sentinel 1 when there is no fit target, and
+        // `compensatedScale` cannot tell that from a genuine fit scale of 1.0.
+        // Unreachable through the renderer's `measure()` — nothing is laid out,
+        // so no surface change is compensated — but a table over the function
+        // reaches it. Pinned rather than given a sentinel-detection argument.
+        const EMPTY = 1;
+
+        // Narrowing: the floor is the reader's own scale, so it is a no-op.
+        expect(compensatedScale(0.5, FULL, NARROW, EMPTY, EMPTY)).toBe(0.5);
+        // Widening: the ceiling caps them at the sentinel.
+        expect(compensatedScale(0.8, NARROW, FULL, EMPTY, EMPTY)).toBe(1);
     });
 });
 

@@ -17,7 +17,8 @@
          * the viewer. Only compared for CHANGE — a different string means the
          * size the renderer has to work with is about to change because core
          * took some of it, and nothing here reads the tokens themselves. A
-         * flyout is not in it: it floats and takes no width or height.
+         * flyout is not in it: it floats and takes no width or height, so it is
+         * not an event for the image.
          */
         dockedChrome?: string;
     } = $props();
@@ -68,7 +69,10 @@
     /*
      * What the renderer cannot see for itself: a resize caused by core taking
      * part of the surface for docked chrome, rather than by the window changing
-     * size. The two must not be collapsed — see `refitForDockedChrome`.
+     * size. The two must not be collapsed — a resize the reader asked for
+     * preserves their scale, and one core imposed compensates their whole view
+     * for it, so that the content on screen survives the narrower surface. See
+     * `compensateForDockedChrome`.
      *
      * The baseline is the empty string rather than the mount value on purpose.
      * A viewer that opens with a panel already docked still mounts this
@@ -81,7 +85,7 @@
         const docked = dockedChrome;
         if (docked === chromeDocked) return;
         chromeDocked = docked;
-        renderer.refitForDockedChrome();
+        renderer.compensateForDockedChrome();
     });
 
     $effect(() => {
