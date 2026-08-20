@@ -485,8 +485,12 @@ test.describe('demo av cookbook coverage', () => {
                 await expect(page.locator(TRANSPORT).first()).toBeVisible();
                 await expect(page.locator(CANNOT_PLAY).first()).toBeHidden();
 
-                // The plugin's own panel is reachable from the demo's chrome.
-                await openAvPanel(page);
+                // The plugin's own panel is reachable from the demo's chrome —
+                // on the recipes that have something to put in it. The rest
+                // offer no control, which is the no-dead-control rule and is
+                // asserted on its own recipes below.
+                if (await page.locator(PANEL_TOGGLE).count())
+                    await openAvPanel(page);
             } else {
                 // The documented degradation: the image body paints and the
                 // developer is told, in the console, what was not rendered.
@@ -718,17 +722,6 @@ test.describe('demo av cookbook coverage', () => {
         expect((await playback(page)).paused).toBe(true);
     });
 
-    /** No VTT, no transcript — ticket 13's no-dead-control rule, in the demo. */
-    test('a recipe with no captions offers no transcript', async ({ page }) => {
-        const log = newLog();
-        await openRecipe(page, '0002-mvm-audio', log);
-        await page.locator(STAGE).first().waitFor({ state: 'visible' });
-        await openAvPanel(page);
-
-        await expect(page.locator(PANEL)).toBeAttached();
-        await expect(page.locator(TRANSCRIPT)).toHaveCount(0);
-    });
-
     /**
      * `0017-transcription-av`'s subject is a `text/plain` transcript hung off
      * the *canvas*'s `rendering`, and the AV panel reads it: the plugin's
@@ -900,8 +893,9 @@ test.describe('demo av cookbook coverage', () => {
 
     /**
      * The other half of the same rule: a recipe with neither captions nor timed
-     * annotations offers no panel control at all, so the lazy chunk that
-     * renders both is never fetched.
+     * annotations offers no panel control at all — neither the transport's nor
+     * the TOOLBAR's, since there would be nothing behind either — so the lazy
+     * chunk that renders both is never fetched.
      */
     test('a recipe with neither captions nor notes offers no panel control', async ({
         page,
@@ -917,10 +911,7 @@ test.describe('demo av cookbook coverage', () => {
         await openRecipe(page, '0002-mvm-audio', log);
         await page.locator(STAGE).first().waitFor({ state: 'visible' });
         await expect(page.locator(PANEL_CONTROL)).toHaveCount(0);
-
-        await openAvPanel(page);
-        await expect(page.locator(TRANSCRIPT)).toHaveCount(0);
-        await expect(page.locator(NOTES)).toHaveCount(0);
+        await expect(page.locator(PANEL_TOGGLE)).toHaveCount(0);
         expect(chunkRequests).toEqual([]);
     });
 

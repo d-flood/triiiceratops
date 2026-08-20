@@ -264,7 +264,7 @@ test('flyout menu opens, moves focus, arrow-navigates, and Escape returns focus'
     expect((await activeElementInfo(page)).label).toBe('Viewing Mode');
 });
 
-test('gallery-placement flyout re-docks the gallery by keyboard and Escape returns focus', async ({
+test('gallery flyout re-docks the gallery by keyboard and Escape returns focus', async ({
     page,
 }) => {
     test.slow();
@@ -282,10 +282,8 @@ test('gallery-placement flyout re-docks the gallery by keyboard and Escape retur
     const rightRail = page.locator('.side-col-right .gallery-host');
     await expect(bottomBand).toBeVisible();
 
-    const toggle = page.locator(
-        '[aria-controls="tri-flyout-gallery-placement"]',
-    );
-    const menu = page.locator('#tri-flyout-gallery-placement');
+    const toggle = page.locator('[aria-controls="tri-flyout-gallery"]');
+    const menu = page.locator('#tri-flyout-gallery');
     await toggle.focus();
 
     // Open with keyboard; focus moves onto the first item ("Top").
@@ -309,15 +307,16 @@ test('gallery-placement flyout re-docks the gallery by keyboard and Escape retur
     await expect(bottomBand).toBeVisible();
     await expect(topBand).toHaveCount(0);
 
-    // End jumps to the last item ("Right"), which moves the gallery into the
-    // right side column. The toolbar rail sits on the left by default, so this
-    // side does not collide with it.
+    // End jumps to the last item ("Off"); one ArrowUp back is "Right", which
+    // moves the gallery into the right side column. The toolbar rail sits on the
+    // left by default, so this side does not collide with it.
     //
     // "Left" is deliberately not exercised: docking the gallery to the
     // toolbar's own side rebuilds the toolbar and drops focus to <body>. That
     // hole predates this menu (the plain Gallery toggle does the same with
     // `gallery.dockPosition: 'left'`) and is tracked as a follow-up.
     await page.keyboard.press('End');
+    await page.keyboard.press('ArrowUp');
     await page.keyboard.press('Enter');
     await expect(rightRail).toBeVisible();
     await expect(bottomBand).toHaveCount(0);
@@ -325,7 +324,14 @@ test('gallery-placement flyout re-docks the gallery by keyboard and Escape retur
     // Escape closes the flyout and returns focus to the toggle.
     await page.keyboard.press('Escape');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect((await activeElementInfo(page)).label).toBe('Gallery Placement');
+    expect((await activeElementInfo(page)).label).toBe('Gallery');
+
+    // "Off" is the same menu's fifth placement, and it hides the gallery
+    // outright — the only item that does.
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await menu.getByRole('menuitemradio', { name: 'Off' }).click();
+    await expect(rightRail).toHaveCount(0);
 });
 
 test('structures panel closes on Escape and returns focus to its toolbar toggle', async ({

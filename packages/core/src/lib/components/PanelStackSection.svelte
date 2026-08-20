@@ -65,6 +65,7 @@
     }}
     data-panel-id={panel.id}
     class="section"
+    class:fills={panel.fills}
     role={panel.dialog ? 'dialog' : undefined}
     aria-label={panel.dialog ? panel.title : undefined}
 >
@@ -160,5 +161,19 @@
     .content {
         min-height: 0;
         width: 100%;
+    }
+
+    /* The content box is the scroller, so a filling panel's body needs no height
+       cap of its own and the sticky header above it stays put. */
+    .section.fills {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .section.fills .content {
+        flex: 1 1 auto;
+        overflow-y: auto;
     }
 </style>

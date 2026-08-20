@@ -483,6 +483,70 @@ describe('ViewerControls transport chrome', () => {
         });
     });
 
+    describe('hover tooltips', () => {
+        /**
+         * The transport's buttons carry the toolbar's own tooltip vocabulary, so
+         * a unified toolbar and the transport beside it label their buttons the
+         * same way. A picture alone cannot say which of a transcript, a
+         * `rendering` transcript or timed notes the panel control opens.
+         */
+        it('names every button it renders, matching the accessible name', () => {
+            claim(
+                makeView({
+                    transcript: true,
+                    tracks: [{ id: 'en', label: 'English' }],
+                }),
+            );
+            render();
+
+            for (const [id, tip] of [
+                ['transport-play', 'Play'],
+                ['transport-mute', 'Mute'],
+                ['transport-tracks', 'Tracks'],
+                ['transport-transcript', 'Transcript'],
+            ] as const) {
+                const button = testId(id) as HTMLButtonElement;
+                expect(button, `no button ${id}`).not.toBeNull();
+                expect(button.getAttribute('data-tip'), id).toBe(tip);
+                // The tooltip and the accessible name are one string: a sighted
+                // reader and a screen-reader user are told the same thing.
+                expect(button.getAttribute('aria-label'), id).toBe(tip);
+                expect(button.className, id).toContain('tooltip');
+            }
+        });
+
+        it('follows the state the two-state controls are in', () => {
+            claim(makeView({ paused: false, muted: true, transcript: true }));
+            render();
+
+            expect(testId('transport-play')!.getAttribute('data-tip')).toBe(
+                'Pause',
+            );
+            expect(testId('transport-mute')!.getAttribute('data-tip')).toBe(
+                'Unmute',
+            );
+        });
+
+        it('points away from the edge the bar is docked to', () => {
+            // A tooltip above a bar docked to the top paints off the viewer.
+            state.config = { ...state.config, nav: { edge: 'top' } };
+            claim(makeView({ transcript: true }));
+            render();
+
+            expect(testId('transport-play')!.className).toContain(
+                'place-bottom',
+            );
+
+            unmount(mounted!);
+            mounted = null;
+            state.config = { ...state.config, nav: { edge: 'bottom' } };
+            claim(makeView({ transcript: true }));
+            render();
+
+            expect(testId('transport-play')!.className).toContain('place-top');
+        });
+    });
+
     it('subscribes once, however many frames the claimant publishes', () => {
         // Core and a plugin share one Svelte runtime, so a claimant's `view()`
         // touching its own `$state` is the ordinary case, not an exotic one. If

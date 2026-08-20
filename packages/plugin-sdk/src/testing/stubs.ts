@@ -63,7 +63,8 @@ export function createStubUiService(): PluginUiService {
  * "visible". A `false` stub would silently park every plugin that gates work on
  * `surface.isOpen` in its paused state and look like a broken plugin. `open`,
  * `close`, and `toggle` are no-ops — there is no chrome to move — and `isOpen`
- * therefore never changes, so a subscriber correctly never wakes.
+ * therefore never changes, so a subscriber correctly never wakes. `setAvailable`
+ * is a no-op for the same reason: there is no button to hide.
  */
 export function createStubSurfaceService(uiId?: string): PluginSurface {
     return {
@@ -73,5 +74,6 @@ export function createStubSurfaceService(uiId?: string): PluginSurface {
         open: noop,
         close: noop,
         toggle: noop,
+        setAvailable: noop,
     };
 }

@@ -180,6 +180,13 @@ export interface DefinePluginConfig {
     /** Where the plugin renders. Defaults to `panel`. */
     target?: PluginUiTarget;
     /**
+     * This panel scrolls its own content, so core gives it the height left over
+     * in its column instead of sizing it to its content. Set it only for a panel
+     * whose body is a long list or document; a short panel would just stretch.
+     * Ignored for `flyout` targets.
+     */
+    fills?: boolean;
+    /**
      * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (default) dismisses on
      * outside pointer-down / Escape; `explicit` closes only via the plugin's
      * toolbar button, so a live-editing surface is not dismissed by canvas
@@ -851,7 +858,8 @@ export declare function createStubUiService(): PluginUiService;
  * "visible". A `false` stub would silently park every plugin that gates work on
  * `surface.isOpen` in its paused state and look like a broken plugin. `open`,
  * `close`, and `toggle` are no-ops — there is no chrome to move — and `isOpen`
- * therefore never changes, so a subscriber correctly never wakes.
+ * therefore never changes, so a subscriber correctly never wakes. `setAvailable`
+ * is a no-op for the same reason: there is no button to hide.
  */
 export declare function createStubSurfaceService(uiId?: string): PluginSurface;
 

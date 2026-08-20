@@ -73,6 +73,25 @@
     const port = $derived(chrome.port);
     const icons = $derived(chrome.icons);
     const labels = $derived(view.labels);
+
+    /**
+     * The two controls whose picture and name both change with playback state.
+     * Derived once so the hover tooltip and the accessible name cannot drift
+     * apart — they are the same string by construction.
+     */
+    const playLabel = $derived(view.paused ? labels.play : labels.pause);
+    const muteLabel = $derived(view.muted ? labels.unmute : labels.mute);
+
+    /**
+     * Hover tooltips point away from the edge the bar is docked to, the same
+     * way the track list opens away from it — a tooltip above a bar docked to
+     * the top paints off the viewer.
+     *
+     * These are the toolbar's own `place-*` classes off core's global tooltip
+     * layer, so a unified toolbar and the transport beside it label their
+     * buttons identically.
+     */
+    const tooltipPlacement = $derived(openDown ? 'place-bottom' : 'place-top');
     const duration = $derived(view.duration);
 
     /**
@@ -303,8 +322,10 @@
             square
             ghost
             type="button"
+            class="tooltip {tooltipPlacement}"
             data-testid="transport-play"
-            aria-label={view.paused ? labels.play : labels.pause}
+            data-tip={playLabel}
+            aria-label={playLabel}
             onclick={() => port.toggle()}
         >
             <PluginIcon
@@ -385,9 +406,11 @@
             square
             ghost
             type="button"
+            class="tooltip {tooltipPlacement}"
             data-testid="transport-mute"
+            data-tip={muteLabel}
             aria-pressed={view.muted}
-            aria-label={view.muted ? labels.unmute : labels.mute}
+            aria-label={muteLabel}
             onclick={() => port.setMuted(!view.muted)}
         >
             <PluginIcon
@@ -427,7 +450,9 @@
                     square
                     ghost
                     type="button"
+                    class="tooltip {tooltipPlacement}"
                     data-testid="transport-tracks"
+                    data-tip={labels.tracks}
                     aria-pressed={tracksOn}
                     aria-expanded={listed ? listOpen : undefined}
                     aria-label={labels.tracks}
@@ -496,7 +521,9 @@
                 square
                 ghost
                 type="button"
+                class="tooltip {tooltipPlacement}"
                 data-testid="transport-transcript"
+                data-tip={labels.transcript}
                 aria-pressed={view.transcriptOpen}
                 aria-label={labels.transcript}
                 onclick={() => port.setTranscript(!view.transcriptOpen)}

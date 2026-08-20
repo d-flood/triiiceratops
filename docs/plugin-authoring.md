@@ -237,6 +237,10 @@ export function createExamplePlugin() {
         // There is no `position` field here — a panel's dock side is chosen
         // by the consuming app, not the plugin. See "Panel position" below.
         dismiss: 'light', // flyout dismiss: 'light' (default) or 'explicit'; ignored for panels
+        fills: false, // true gives the panel the height left over in its column
+        // and scrolls it there, instead of sizing it to its content. For a body
+        // that runs long (a list or a document); a short panel would only
+        // stretch. Ignored for flyouts.
         catalog: { en: { example_title: 'Example' } }, // package-owned localization
         view: {
             mount(container, context) {
@@ -724,6 +728,16 @@ function surfaceControls(context: PluginContext) {
     return done;
 }
 ```
+
+If your panel's content is a fact about the current canvas — captions, timed
+annotations, a transcript — declare it with `surface.setAvailable(false)` when
+there is none, and `true` when there is. That hides your toolbar button, so a
+canvas with nothing to show grows no control that opens an empty panel; it is the
+gating core's own annotations and structures buttons have. An open surface is
+closed as it goes, so nothing is left on screen with no way to dismiss it. Call
+it whenever the fact changes — a canvas change, a track that settles on the
+network — from wherever you already compute what the panel renders, so the button
+and the body cannot disagree.
 
 When a plugin is activated with no chrome at all — a bare `runActivation` into a
 container you placed yourself, with the test kit's `createStubSurfaceService()`

@@ -30,8 +30,7 @@ export interface ToolbarConfig {
      */
     showSearch?: boolean;
     /**
-     * Whether the Gallery toggle and the Gallery Placement picker are shown in
-     * this menu.
+     * Whether the Gallery placement picker is shown in this menu.
      * @default true
      */
     showGallery?: boolean;

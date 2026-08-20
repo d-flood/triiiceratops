@@ -125,6 +125,9 @@ export const AvPlugin: SdkPlugin = definePlugin({
     ],
     icon: FILM_STRIP_ICON,
     target: 'panel',
+    // Transcripts run long: core gives the panel the height its column has left
+    // and scrolls it, instead of capping the list at some constant.
+    fills: true,
     catalog,
     view,
 });

@@ -283,6 +283,7 @@
                 "closePluginFlyouts",
                 "setPluginTarget",
                 "setPluginPosition",
+                "setPluginAvailable",
                 "updateConfig",
                 "registerSdkChrome",
                 "unregisterPlugin",

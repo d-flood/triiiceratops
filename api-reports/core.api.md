@@ -1294,18 +1294,16 @@ export declare const logger: Logger;
  */
 export declare const CORE_VERSION = "1.0.0-rc.36";
 /**
- * The plugin API version, independent of {@link CORE_VERSION}. `1.5.0` for the
- * transcript control on the `transport-chrome` {@link capabilities} entry below,
- * over the `1.4.0` that added that entry.
+ * The plugin API version, independent of {@link CORE_VERSION}. `1.6.0` for
+ * `PluginSurface.setAvailable`, over the `1.5.0` that added the transcript
+ * control to the `transport-chrome` {@link capabilities} entry below.
  *
- * A minor rather than the major a semantic change would take, because the
- * contract it widens has not shipped: `transport-chrome` arrived in this same
- * unreleased line, so its view, port and icon set growing a control is still
- * that seam being drafted. Once a core carrying it is published, adding a
- * REQUIRED member to any of the three becomes a major — a claimant built against
- * the published contract would no longer satisfy it.
+ * A minor, not a major: `setAvailable` is a member core provides and plugins
+ * call, so a plugin written against 1.5 keeps working untouched — its chrome is
+ * available until it says otherwise. Adding a REQUIRED member to a contract
+ * plugins IMPLEMENT (a transport view, a port) is the case that takes a major.
  */
-export declare const pluginApiVersion = "1.5.0";
+export declare const pluginApiVersion = "1.6.0";
 /**
  * Runtime capabilities core declares. Capabilities describe compatibility, not
  * security permissions.
@@ -4540,6 +4538,28 @@ export declare class ViewerState {
      */
     setPluginPosition(pluginId: string, position: 'left' | 'right' | 'bottom' | 'overlay'): void;
     private applyPluginUiConfigToAll;
+    private isPluginAvailable;
+    /**
+     * Declare whether a plugin has anything to show on the current canvas. Its
+     * toolbar button is hidden while it has not, so a plugin whose content is a
+     * fact about the canvas — captions, timed annotations — gets the gating
+     * core's own annotations and structures buttons have, instead of a live
+     * button over an empty panel.
+     *
+     * Becoming unavailable CLOSES an open surface, rather than leaving it open
+     * and unrendered: hiding the button alone would strand a panel with nothing
+     * left to close it, and closing is a transition every render site already
+     * handles — it is what the toolbar button does. It also has to be closed
+     * rather than hidden, because a panel that stops rendering while core still
+     * holds it open orphans the plugin's content element (an open plugin's
+     * chrome is mounted once and re-parented, never re-mounted).
+     *
+     * Plugin-facing (`PluginSurface.setAvailable`) and independent of the
+     * consumer's `config.plugins[id].visible`, which stays the hard off-switch:
+     * both must agree for the button to render. No-op (and no notification) if
+     * the plugin is unknown or already in that state.
+     */
+    setPluginAvailable(pluginId: string, available: boolean): void;
     /**
      * Is a plugin's panel/flyout currently open? The read half of
      * {@link setPluginOpen}, and the state a plugin's `PluginSurface.isOpen`
@@ -4598,6 +4618,7 @@ export declare class ViewerState {
         target: PluginUiTarget;
         dismiss: 'light' | 'explicit';
         mount: PluginMountThunk;
+        fills?: boolean;
         position?: 'left' | 'right' | 'bottom' | 'overlay';
     }): void;
     /**
@@ -5553,8 +5574,7 @@ export interface ToolbarConfig {
      */
     showSearch?: boolean;
     /**
-     * Whether the Gallery toggle and the Gallery Placement picker are shown in
-     * this menu.
+     * Whether the Gallery placement picker is shown in this menu.
      * @default true
      */
     showGallery?: boolean;
@@ -5997,6 +6017,8 @@ export interface PluginPanel {
     mount?: PluginMountThunk;
     /** Props passed to the mounted content, if any. */
     props?: Record<string, unknown>;
+    /** The panel scrolls its own content; see {@link SdkPluginMeta.fills}. */
+    fills?: boolean;
     /** Reactive getter for visibility */
     isVisible: () => boolean;
 }
@@ -6212,6 +6234,14 @@ export interface PluginSurface {
     close(): void;
     /** Toggle this plugin's surface open state. */
     toggle(): void;
+    /**
+     * Declare whether this plugin has anything to show on the current canvas.
+     * `false` hides its toolbar button — the gating core's own annotations and
+     * structures buttons have — so a plugin whose content is a fact about the
+     * canvas never leaves a live button over an empty panel, and closes its
+     * surface if it was open. Call it whenever that fact changes.
+     */
+    setAvailable(available: boolean): void;
 }
 /**
  * How one member of a published state behaves, transplanting the viewer-state
@@ -6423,6 +6453,13 @@ export interface SdkPluginMeta {
     readonly icon: IconDescriptor;
     /** Where the plugin renders (`panel` or `flyout`). */
     readonly target: PluginUiTarget;
+    /**
+     * This panel scrolls its own content, so core gives it the height left over
+     * in its column rather than sizing it to its content. For a panel whose body
+     * is a long list or document; a short one would only stretch. Ignored for
+     * `flyout` targets.
+     */
+    readonly fills?: boolean;
     /**
      * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (the default)
      * dismisses on outside pointer-down / Escape; `explicit` closes only via the

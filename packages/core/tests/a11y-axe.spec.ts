@@ -110,15 +110,13 @@ test('axe: viewing-mode flyout open × all themes', async ({ page }) => {
     await scanAllThemes(page, 'flyout-open');
 });
 
-test('axe: gallery-placement flyout open × all themes', async ({ page }) => {
+test('axe: gallery flyout open × all themes', async ({ page }) => {
     test.slow();
     await loadViewer(page);
-    const toggle = page.locator(
-        '[aria-controls="tri-flyout-gallery-placement"]',
-    );
+    const toggle = page.locator('[aria-controls="tri-flyout-gallery"]');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await scanAllThemes(page, 'gallery-placement-open');
+    await scanAllThemes(page, 'gallery-open');
 });
 
 /*

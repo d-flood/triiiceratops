@@ -916,6 +916,72 @@ describe('the transport chrome', () => {
     });
 });
 
+describe('the panel control', () => {
+    /**
+     * Stand in for core's post-mount chrome registration and hand back the
+     * button's own visibility getter — the toolbar reads nothing else.
+     */
+    function buttonVisible(tc: TestViewerContext): () => boolean {
+        tc.viewerState.registerSdkChrome({
+            id: UI_ID,
+            name: '@triiiceratops/plugin-av',
+            icon: { kind: 'svg', inner: '', viewBox: '0 0 1 1' },
+            target: 'panel',
+            dismiss: 'light',
+            mount: () => () => {},
+        });
+        const button = tc.viewerState.pluginMenuButtons.find(
+            (entry) => entry.pluginId === UI_ID,
+        )!;
+        return () => button.isVisible?.() !== false;
+    }
+
+    it('is gone on a canvas whose panel would be empty', async () => {
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0003-mvm-video/manifest.json',
+            json: recipe('0003-mvm-video.json'),
+        });
+        const visible = buttonVisible(tc);
+        tc.viewerState.setCanvas(
+            'https://iiif.io/api/cookbook/recipe/0003-mvm-video/canvas',
+        );
+        await flush();
+
+        expect(visible()).toBe(false);
+
+        cleanup();
+    });
+
+    it('is gone on a manifest this plugin claims no canvas in', async () => {
+        const { tc, cleanup } = await mountWith({
+            id: IMAGE_MANIFEST.id,
+            json: IMAGE_MANIFEST,
+        });
+        const visible = buttonVisible(tc);
+        await flush();
+
+        expect(visible()).toBe(false);
+
+        cleanup();
+    });
+
+    it('is there on a canvas linking a transcript', async () => {
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0017-transcription-av/manifest.json',
+            json: recipe('0017-transcription-av.json'),
+        });
+        const visible = buttonVisible(tc);
+        tc.viewerState.setCanvas(
+            'https://iiif.io/api/cookbook/recipe/0017-transcription-av/canvas',
+        );
+        await flush();
+
+        expect(visible()).toBe(true);
+
+        cleanup();
+    });
+});
+
 /**
  * One canvas linking waveform data, composed of `bodies` bodies.
  *

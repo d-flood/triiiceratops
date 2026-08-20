@@ -149,18 +149,29 @@
     }
 
     /**
-     * Animate a side panel column's width (0 → full) so the center viewer
-     * resizes smoothly as the panel opens/closes, instead of the layout snapping
-     * to the panel's width in a single frame. Paired with the panel's own
-     * slide-in transition in PanelStack.
+     * Animate a side column's width (0 → full) so the center viewer resizes
+     * smoothly as the column opens/closes, instead of the layout snapping to its
+     * width in a single frame. Paired with the panel's own slide-in transition
+     * in PanelStack.
+     *
+     * `clip` hides the contents behind the animated edge, which is what a panel
+     * wants — its body is laid out at the full width and would otherwise reflow
+     * every frame. The docked toolbar rail passes `false`: it pins its buttons
+     * to the screen edge at full size and lets them overhang the shrinking
+     * column, so the toolbar stays exactly where it is while the surface it sat
+     * beside grows back (see `.rail-pin`).
      */
-    function slideWidth(node: HTMLElement, { duration = 200 } = {}) {
+    function slideWidth(
+        node: HTMLElement,
+        { duration = 200, clip = true } = {},
+    ) {
         const width = node.getBoundingClientRect().width;
         return {
             duration: prefersReducedMotion ? 0 : duration,
             easing: cubicOut,
             css: (t: number) =>
-                `width: ${t * width}px; min-width: 0; overflow: hidden;`,
+                `width: ${t * width}px; min-width: 0;` +
+                (clip ? ' overflow: hidden;' : ''),
         };
     }
 
@@ -665,6 +676,7 @@
             target: plugin.target,
             dismiss: plugin.dismiss ?? 'light',
             mount: mountThunk,
+            fills: plugin.fills,
         });
     }
 
@@ -892,6 +904,7 @@
             iconDescriptor: panel.iconDescriptor,
             component: PluginMountHost,
             props: { mount: panel.mount },
+            fills: panel.fills,
             // A plugin author cannot reach the section element, so core names
             // the panel here — the same `dialog` role a core panel component
             // renders for itself.
@@ -1073,66 +1086,42 @@
             visiblePanelsRight.length > 0,
     );
 
-    // Latch the "sidebar present" signal so it trails the column's close
-    // animation. When the last same-side panel closes, `isLeftSidebarVisible`
-    // flips false instantly, but the panel column keeps sliding shut for ~200ms
-    // (slideWidth outro). Holding this signal true across that window lets the
-    // docked rail stay put — full size, not collapsing — until the column is
-    // actually gone, then hand off to the floating toolbar in one atomic swap.
-    // `$derived`, because `prefersReducedMotion` is now watched rather than
-    // sampled at init: a latch sized to an animation that no longer runs would
-    // hold the rail for 200ms of nothing after the preference is turned on.
-    const SIDEBAR_ANIM_MS = $derived(prefersReducedMotion ? 0 : 200);
-
-    /**
-     * One such latch over `visible`: true the instant the source is, false only
-     * once the close animation has had `SIDEBAR_ANIM_MS` to finish.
-     */
-    function latchSidebar(visible: () => boolean) {
-        let present = $state(false);
-        $effect(() => {
-            if (visible()) {
-                present = true;
-                return;
-            }
-            const id = setTimeout(() => (present = false), SIDEBAR_ANIM_MS);
-            return () => clearTimeout(id);
-        });
-        return {
-            get current() {
-                return present;
-            },
-        };
-    }
-
-    const leftSidebarPresent = latchSidebar(() => isLeftSidebarVisible);
-    const rightSidebarPresent = latchSidebar(() => isRightSidebarVisible);
-
     // The toolbar docks as the screen-edge rail of a side bar when it shares that
     // side with an open panel/gallery. Only `split` controls use a side toolbar;
     // `unified` embeds the tools in the nav bar.
     //
-    // The rail is rendered as its OWN screen-edge column (a sibling of the panel
-    // column, not a child of it — see the markup), so it is not caught in the
-    // panel's slideWidth outro. That, plus the latched `…SidebarPresent` tail,
-    // means the rail stays mounted at full size through the close and then
-    // unmounts reactively the instant this flips false — in the SAME flush that
-    // mounts the floating toolbar. The result is an atomic hand-off: never two
-    // toolbars, never zero. `toolbarOpen` gates it directly (not via the latch)
-    // so collapsing the toolbar itself removes the rail immediately.
+    // The rail is its OWN screen-edge column (a sibling of the panel column, not
+    // a child of it — see the markup), and it slides open and shut on the same
+    // clock as the panel beside it. That is what makes the close one continuous
+    // motion: panel width and rail width come off the surface together over the
+    // one 200ms curve, where a rail that held full size and then vanished handed
+    // the center column its last ~37px in a single frame — a visible lurch at
+    // the very end of an otherwise smooth animation.
     let dockRailLeft = $derived(
         resolvedControls === 'split' &&
             toolbarSide === 'left' &&
             internalViewerState.toolbarOpen &&
-            (isLeftSidebarVisible || leftSidebarPresent.current),
+            isLeftSidebarVisible,
     );
     let dockRailRight = $derived(
         resolvedControls === 'split' &&
             toolbarSide === 'right' &&
             internalViewerState.toolbarOpen &&
-            (isRightSidebarVisible || rightSidebarPresent.current),
+            isRightSidebarVisible,
     );
     let toolbarDockedAsRail = $derived(dockRailLeft || dockRailRight);
+
+    /**
+     * True while an un-docking rail's outro is still on screen.
+     *
+     * The rail's buttons stay full size and pinned to the screen edge for the
+     * whole slide, so the floating toolbar must not mount into the same spot
+     * until they are gone — hence a signal taken from the transition itself
+     * rather than a timer sized to guess at it. Reset on `introstart` too,
+     * because reopening the panel mid-close reverses the outro and no
+     * `outroend` ever arrives.
+     */
+    let railLeaving = $state(false);
 
     /**
      * Which chrome core has docked beside the viewer, as one token each.
@@ -1184,7 +1173,7 @@
      * centered), so one side's worth of inset covers every preset.
      */
     let floatingToolbarSide = $derived(
-        !toolbarDockedAsRail && resolvedControls !== 'unified'
+        !toolbarDockedAsRail && !railLeaving && resolvedControls !== 'unified'
             ? (internalViewerState.config.toolbar?.side ?? 'left')
             : null,
     );
@@ -1450,15 +1439,21 @@
     data-nav-align={resolvedNavAlign}
 >
     <!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
-         OUTSIDE the panel column's slideWidth outro, so it stays full size
-         through the close and then swaps atomically with the floating toolbar
-         (see dockRailLeft) — no collapsing icons, no duplicate, no empty gap. -->
+         sliding on the same clock as the panel beside it; `.rail-pin` holds the
+         buttons at full size against the screen edge so they neither collapse
+         nor move while it does. See dockRailLeft. -->
     {#if dockRailLeft}
         <div
-            class="toolbar-rail-host rail-col"
+            class="toolbar-rail-host rail-col rail-left"
             class:opaque={!internalViewerState.config.transparentBackground}
+            transition:slideWidth|global={{ clip: false }}
+            onintrostart={() => (railLeaving = false)}
+            onoutrostart={() => (railLeaving = true)}
+            onoutroend={() => (railLeaving = false)}
         >
-            <Toolbar docked />
+            <div class="rail-pin">
+                <Toolbar docked />
+            </div>
         </div>
     {/if}
 
@@ -1590,11 +1585,12 @@
             {/each}
 
             <!-- Floating Toolbar (suppressed while the docked rail occupies its
-                 side — including the tail of the un-dock animation, since
-                 toolbarDockedAsRail is latched — or in `unified` controls where
-                 the buttons live in the nav). The hand-off is atomic: this mounts
-                 in the same flush the rail column unmounts. -->
-            {#if !toolbarDockedAsRail && resolvedControls !== 'unified'}
+                 side — including the tail of the un-dock animation, which is
+                 what `railLeaving` covers — or in `unified` controls where the
+                 buttons live in the nav). The rail's pinned buttons end the
+                 slide at this toolbar's own position, so the hand-off at
+                 `outroend` moves nothing on screen. -->
+            {#if !toolbarDockedAsRail && !railLeaving && resolvedControls !== 'unified'}
                 <Toolbar />
             {/if}
 
@@ -1652,15 +1648,21 @@
     {/if}
 
     <!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
-         OUTSIDE the panel column's slideWidth outro, so it stays full size
-         through the close and then swaps atomically with the floating toolbar
-         (see dockRailRight) — no collapsing icons, no duplicate, no empty gap. -->
+         sliding on the same clock as the panel beside it; `.rail-pin` holds the
+         buttons at full size against the screen edge so they neither collapse
+         nor move while it does. See dockRailRight. -->
     {#if dockRailRight}
         <div
-            class="toolbar-rail-host rail-col"
+            class="toolbar-rail-host rail-col rail-right"
             class:opaque={!internalViewerState.config.transparentBackground}
+            transition:slideWidth|global={{ clip: false }}
+            onintrostart={() => (railLeaving = false)}
+            onoutrostart={() => (railLeaving = true)}
+            onoutroend={() => (railLeaving = false)}
         >
-            <Toolbar docked />
+            <div class="rail-pin">
+                <Toolbar docked />
+            </div>
         </div>
     {/if}
 </div>
@@ -1710,9 +1712,28 @@
        the panel region — win regardless of DOM order. */
     .toolbar-rail-host.rail-col {
         z-index: 21;
+        display: flex;
     }
     .toolbar-rail-host.rail-col.opaque {
         background-color: var(--tri-viewer-bg);
+    }
+    /* Anchor the buttons to the SCREEN edge while the column's width animates,
+       so the toolbar holds still and full size through the slide and the column
+       opens (or closes) behind it. Each rail aligns to the edge it is docked
+       against, which is what puts the overhang on the inboard side;
+       `flex-shrink: 0` on the pin is what makes it an overhang rather than a
+       squeeze. */
+    .toolbar-rail-host.rail-left {
+        justify-content: flex-start;
+    }
+    .toolbar-rail-host.rail-right {
+        justify-content: flex-end;
+    }
+    .rail-pin {
+        display: flex;
+        flex: 0 0 auto;
+        height: 100%;
+        min-height: 0;
     }
 
     .panel-host {

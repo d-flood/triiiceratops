@@ -1,5 +1,5 @@
 {
-    "pluginApiVersion": "1.5.0",
+    "pluginApiVersion": "1.6.0",
     "capabilities": [
         "canvas-claim",
         "published-state",

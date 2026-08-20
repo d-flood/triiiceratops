@@ -153,7 +153,9 @@ current canvas, and every other visible AV canvas shows a play-state glyph.
   seeks without starting playback, and following the playhead stops the moment
   you scroll away. Audio and video alike — it is how a sound recording's words
   become readable, since an `<audio>` element has no area to paint captions in.
-  The captions **toggle** is video-only for that same reason.
+  The captions **toggle** is video-only for that same reason. The toolbar button that opens
+  the panel is absent on a canvas offering neither a transcript nor timed
+  annotations, so the panel is never opened onto nothing.
 
 ## Manifest shapes it understands
 

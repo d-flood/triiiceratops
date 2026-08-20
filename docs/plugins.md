@@ -255,7 +255,10 @@ package name by replacing every run of unsafe characters with `-` (e.g.
 Every field is a sparse override applied on top of the plugin's authored
 defaults; omitting a field leaves the current live value untouched:
 
-- `visible: false` hides only the plugin's toolbar button.
+- `visible: false` hides only the plugin's toolbar button. A plugin can also
+  hide its own button on a canvas it has nothing for (`surface.setAvailable`,
+  which closes an open surface as it goes); both must agree for the button to
+  render.
 - `open: true` opens the plugin's surface if it is registered.
 - `showCloseButton: false` removes the close button from the plugin's docked
   panel header, and with it the Escape-to-close path — one flag, not two. The

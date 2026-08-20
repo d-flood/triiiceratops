@@ -432,7 +432,7 @@ const REQUIRED_GLOBALS = [
  * A ratchet a few bytes above the recorded actual, not a budget to spend: it is
  * set from a measurement and moved only by a change that is worth its bytes.
  * Re-derive the actual with `pnpm build`, then gzip `dist/iife.js` at level 9 —
- * the same level this script uses — which currently reads **15,469**. The head
+ * the same level this script uses — which currently reads **15,495**. The head
  * over it is ~17 bytes, and can be that tight because this artifact is
  * path-independent. Svelte's scoped-CSS class name is a variable-length hash of
  * the filename the compiler is handed, and that filename is ABSOLUTE — so the
@@ -498,7 +498,7 @@ const REQUIRED_GLOBALS = [
  *
  * **The lazy chunks must never enter this number.** `dist/av-waveform.js`
  * (2,584 gzip), `dist/av-sequencer.js` (2,094 gzip), `dist/av-transcript.js`
- * (2,773 gzip) and `dist/av-hls.js` (223,530 gzip) are fetched on demand, and
+ * (3,216 gzip) and `dist/av-hls.js` (223,530 gzip) are fetched on demand, and
  * the marker checks below are what prove they are still out. A chunk folded back
  * into the entry would show up here as a jump of roughly its standalone size
  * less what the minifier saves by sharing scope — for the waveform that was
@@ -510,7 +510,7 @@ const REQUIRED_GLOBALS = [
  * required globals above detect that exactly. The real ceiling on total shipped
  * weight is the competitive pair budget in `scripts/size-check.mjs`.
  */
-const MAX_IIFE_GZIP = 15_486;
+const MAX_IIFE_GZIP = 15_512;
 
 /**
  * Floor on the number of runtime helpers the IIFE entry must be seen to

@@ -450,3 +450,108 @@ test.describe('av transcript — VTT cues as readable text', () => {
         expect((await playback(page)).paused).toBe(true);
     });
 });
+
+/**
+ * The panel's HEIGHT, which only a real layout can settle.
+ *
+ * The transcript declares `fills`, so core sizes its section from what the
+ * column has left rather than from its content, and the section scrolls it. Both
+ * halves of that need a browser: the flex leftover is a computed box, and
+ * whether a scroll bar exists is a comparison between two of them.
+ */
+test.describe('av transcript — the panel takes the height its column has', () => {
+    const COLUMN = '.panel-stack';
+    const SECTION = '[data-panel-id="av:panel"]';
+
+    /** More cues than any viewport this fixture runs at could show at once. */
+    const LONG_VTT = [
+        'WEBVTT',
+        ...Array.from({ length: 60 }, (_, index) => {
+            const at = (start: number) =>
+                `00:00:${start.toFixed(3).padStart(6, '0')}`;
+            return `\n${index + 1}\n${at(index * 0.03)} --> ${at(index * 0.03 + 0.02)}\nCue number ${index + 1}.`;
+        }),
+    ].join('\n');
+
+    /**
+     * The column's own box against the section's, plus whether either scrolls.
+     * Read in one evaluate so every number describes the same layout.
+     */
+    async function boxes(page: Page) {
+        return page.evaluate(
+            ([columnSelector, sectionSelector]) => {
+                const root = (document.getElementById('v') as HTMLElement)
+                    .shadowRoot;
+                const column = root?.querySelector(columnSelector);
+                const section = root?.querySelector(sectionSelector);
+                if (!column || !section) throw new Error('panel not rendered');
+                const scrolls = (element: Element) =>
+                    element.scrollHeight > element.clientHeight + 1;
+                return {
+                    column: column.clientHeight,
+                    section: section.getBoundingClientRect().height,
+                    columnScrolls: scrolls(column),
+                    sectionScrolls: [...section.querySelectorAll('*')].some(
+                        scrolls,
+                    ),
+                };
+            },
+            [COLUMN, SECTION] as const,
+        );
+    }
+
+    test('fills the column and scrolls inside it, alone', async ({ page }) => {
+        await page.route(`**${CAPTIONS_VTT}`, (route) =>
+            route.fulfill({ contentType: 'text/vtt', body: LONG_VTT }),
+        );
+        await openViewer(page, AUDIO_URL);
+        await expect(page.locator(TRANSCRIPT)).toBeVisible({ timeout: 30_000 });
+
+        // Poll: the section's height settles only after the column's open
+        // animation lands, and reading it mid-transition reads a tween.
+        await expect
+            .poll(async () => (await boxes(page)).section, { timeout: 10_000 })
+            .toBeGreaterThan(400);
+
+        const measured = await boxes(page);
+        // The whole column, edge to edge. Not "nearly": a strip of background
+        // left under the panel reads as space reserved for something.
+        expect(measured.section).toBe(measured.column);
+        // Which is the point of `fills`: the panel scrolls, the column doesn't.
+        expect(measured.sectionScrolls).toBe(true);
+        expect(measured.columnScrolls).toBe(false);
+    });
+
+    test('takes what a stacked core panel leaves', async ({ page }) => {
+        await page.route(`**${CAPTIONS_VTT}`, (route) =>
+            route.fulfill({ contentType: 'text/vtt', body: LONG_VTT }),
+        );
+        await openViewer(page, AUDIO_URL);
+        await expect(page.locator(TRANSCRIPT)).toBeVisible({ timeout: 30_000 });
+
+        const alone = await boxes(page);
+
+        // The metadata panel, docked to the AV panel's own column.
+        await page.evaluate(() => {
+            const host = document.getElementById('v') as unknown as {
+                config: unknown;
+                viewerState: { toggleMetadataPanel(): void };
+            };
+            host.config = {
+                plugins: { av: { open: true } },
+                information: { position: 'left' },
+            };
+            host.viewerState.toggleMetadataPanel();
+        });
+
+        await expect
+            .poll(async () => (await boxes(page)).section, { timeout: 10_000 })
+            .toBeLessThan(alone.section);
+
+        const shared = await boxes(page);
+        // Still the leftover rather than a constant: short enough for the other
+        // panel, tall enough that the column itself never has to scroll.
+        expect(shared.sectionScrolls).toBe(true);
+        expect(shared.columnScrolls).toBe(false);
+    });
+});

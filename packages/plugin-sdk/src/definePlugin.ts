@@ -74,6 +74,13 @@ export interface DefinePluginConfig {
     /** Where the plugin renders. Defaults to `panel`. */
     target?: PluginUiTarget;
     /**
+     * This panel scrolls its own content, so core gives it the height left over
+     * in its column instead of sizing it to its content. Set it only for a panel
+     * whose body is a long list or document; a short panel would just stretch.
+     * Ignored for `flyout` targets.
+     */
+    fills?: boolean;
+    /**
      * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (default) dismisses on
      * outside pointer-down / Escape; `explicit` closes only via the plugin's
      * toolbar button, so a live-editing surface is not dismissed by canvas
@@ -107,6 +114,7 @@ export function definePlugin(config: DefinePluginConfig): SdkPlugin {
         requiredCapabilities: config.requiredCapabilities ?? [],
         icon: config.icon,
         target: config.target ?? 'panel',
+        fills: config.fills,
         dismiss: config.dismiss,
         catalog: config.catalog,
         view: config.view,

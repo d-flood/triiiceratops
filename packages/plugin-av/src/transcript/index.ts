@@ -175,9 +175,9 @@ interface TimedListHandle {
 }
 
 /**
- * `max-height: 22rem` keeps the list scrolling inside the panel instead of
- * pushing its chrome off screen, while showing several rows at the short
- * mobile viewports covered by the media query.
+ * The list is deliberately uncapped and non-scrolling: the panel declares
+ * `fills`, so core sizes the section to its column and scrolls it there. A cap
+ * here would nest a second scroller inside that one.
  *
  * `min-height: 44px` makes each cue a finger-sized touch target under the
  * project's mobile interaction rule.
@@ -185,7 +185,7 @@ interface TimedListHandle {
  * Below 480px, the clock is clipped rather than `display: none` so it remains
  * in the accessible name that lets a screen-reader user distinguish two cues.
  */
-const TIMED_LIST_CSS = `.tri-av-transcript{display:flex;flex-direction:column;min-height:0;gap:.25rem}.tri-av-transcript-track{margin:0;font-size:.8125rem;opacity:.75}.tri-av-transcript-cues{list-style:none;margin:0;padding:0;overflow-y:auto;max-height:22rem}.tri-av-transcript-cue{display:flex;gap:.5rem;width:100%;padding:.375rem .5rem;border:0;border-radius:var(--tri-radius,4px);background:transparent;color:inherit;font:inherit;text-align:start;cursor:pointer;min-height:44px}.tri-av-transcript-cue:hover{background:var(--tri-hover-bg,rgba(127,127,127,.18))}.tri-av-transcript-cue:focus-visible{outline:2px solid var(--tri-focus-ring,currentColor);outline-offset:-2px}.tri-av-transcript-cue[aria-current='true']{background:var(--tri-selected-bg,rgba(127,127,127,.28));font-weight:600}.tri-av-transcript-time{flex:none;font-variant-numeric:tabular-nums;opacity:.7}@media (max-width:480px){.tri-av-transcript-cues{max-height:14rem}.tri-av-transcript-time{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}}`;
+const TIMED_LIST_CSS = `.tri-av-transcript{display:flex;flex-direction:column;min-height:0;gap:.25rem}.tri-av-transcript-track{margin:0;font-size:.8125rem;opacity:.75}.tri-av-transcript-cues{list-style:none;margin:0;padding:0}.tri-av-transcript-cue{display:flex;gap:.5rem;width:100%;padding:.375rem .5rem;border:0;border-radius:var(--tri-radius,4px);background:transparent;color:inherit;font:inherit;text-align:start;cursor:pointer;min-height:44px}.tri-av-transcript-cue:hover{background:var(--tri-hover-bg,rgba(127,127,127,.18))}.tri-av-transcript-cue:focus-visible{outline:2px solid var(--tri-focus-ring,currentColor);outline-offset:-2px}.tri-av-transcript-cue[aria-current='true']{background:var(--tri-selected-bg,rgba(127,127,127,.28));font-weight:600}.tri-av-transcript-time{flex:none;font-variant-numeric:tabular-nums;opacity:.7}@media (max-width:480px){.tri-av-transcript-time{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}}`;
 
 function installTimedListStyles(styles: TranscriptPort['styles']): () => void {
     return styles.install(TIMED_LIST_CSS, 'transcript');
@@ -537,8 +537,6 @@ export interface TextTranscriptPort {
 const TEXT_CSS = `
 .tri-av-transcript-text {
     margin: 0;
-    max-height: 22rem;
-    overflow-y: auto;
     font-size: 0.8125rem;
     line-height: 1.5;
 }
@@ -547,11 +545,6 @@ const TEXT_CSS = `
 }
 .tri-av-transcript-text p:last-child {
     margin-bottom: 0;
-}
-@media (max-width: 480px) {
-    .tri-av-transcript-text {
-        max-height: 14rem;
-    }
 }
 `;
 

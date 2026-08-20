@@ -459,6 +459,13 @@ export function createAvStageManager(
         // mounted together: they are appended to one host, so the only way to
         // guarantee the transcript comes first is to build both in order.
         const kind = track ? 'cues' : text ? 'text' : '';
+        // The panel holds the transcript and the notes and nothing else, so
+        // this IS whether it has anything to show. Declared from here rather
+        // than from `publishViews` so the toolbar button and the panel body can
+        // never disagree about the current canvas — and independently of `host`,
+        // because a hidden panel has no host and would otherwise hide the very
+        // button that reveals it.
+        context.surface.setAvailable(Boolean(kind) || hasNotes);
         // The locale is part of the key because both sections read their
         // heading and their list's accessible name once, when they are built.
         // Remounting is what re-reads them, and a language switch is rare

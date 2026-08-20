@@ -62,7 +62,6 @@ export const CORE_ICONS = {
     Folder: ['bold'],
     ImageBroken: [],
     Info: ['bold'],
-    Layout: [],
     List: [],
     ListBullets: ['bold'],
     MagnifyingGlass: ['bold'],

@@ -2588,6 +2588,13 @@ export class ViewerState {
         {
             open: boolean;
             visible: boolean;
+            /**
+             * Whether the plugin has anything to show on the CURRENT canvas, as
+             * declared by the plugin itself through
+             * {@link setPluginAvailable}. Plugin-owned, so unlike `visible` no
+             * config re-apply touches it.
+             */
+            available: boolean;
             target: PluginUiTarget;
             position: 'left' | 'right' | 'bottom' | 'overlay';
         }
@@ -2622,6 +2629,7 @@ export class ViewerState {
             this.pluginUiState.set(pluginId, {
                 open: config?.open ?? false,
                 visible: config?.visible ?? true,
+                available: true,
                 target: config?.target ?? defaultTarget,
                 position: config?.position ?? defaultPosition,
             });
@@ -2639,6 +2647,7 @@ export class ViewerState {
         this.pluginUiState.set(pluginId, {
             open: config?.open ?? current.open,
             visible: config?.visible ?? current.visible,
+            available: current.available,
             target: config?.target ?? current.target,
             position: config?.position ?? current.position,
         });
@@ -2705,6 +2714,42 @@ export class ViewerState {
         for (const pluginId of this.pluginUiState.keys()) {
             this.applyPluginUiConfig(pluginId);
         }
+    }
+
+    private isPluginAvailable(pluginId: string): boolean {
+        return this.pluginUiState.get(pluginId)?.available ?? true;
+    }
+
+    /**
+     * Declare whether a plugin has anything to show on the current canvas. Its
+     * toolbar button is hidden while it has not, so a plugin whose content is a
+     * fact about the canvas — captions, timed annotations — gets the gating
+     * core's own annotations and structures buttons have, instead of a live
+     * button over an empty panel.
+     *
+     * Becoming unavailable CLOSES an open surface, rather than leaving it open
+     * and unrendered: hiding the button alone would strand a panel with nothing
+     * left to close it, and closing is a transition every render site already
+     * handles — it is what the toolbar button does. It also has to be closed
+     * rather than hidden, because a panel that stops rendering while core still
+     * holds it open orphans the plugin's content element (an open plugin's
+     * chrome is mounted once and re-parented, never re-mounted).
+     *
+     * Plugin-facing (`PluginSurface.setAvailable`) and independent of the
+     * consumer's `config.plugins[id].visible`, which stays the hard off-switch:
+     * both must agree for the button to render. No-op (and no notification) if
+     * the plugin is unknown or already in that state.
+     */
+    setPluginAvailable(pluginId: string, available: boolean): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current || current.available === available) return;
+
+        this.pluginUiState.set(pluginId, {
+            ...current,
+            available,
+            open: available ? current.open : false,
+        });
+        this.dispatchStateChange();
     }
 
     /**
@@ -2810,9 +2855,10 @@ export class ViewerState {
         target: PluginUiTarget;
         dismiss: 'light' | 'explicit';
         mount: PluginMountThunk;
+        fills?: boolean;
         position?: 'left' | 'right' | 'bottom' | 'overlay';
     }): void {
-        const { id, name, label, icon, target, dismiss, mount } = config;
+        const { id, name, label, icon, target, dismiss, mount, fills } = config;
 
         this.ensurePluginUiState(id, target, config.position ?? 'left');
 
@@ -2833,7 +2879,9 @@ export class ViewerState {
                 this.togglePluginOpen(id);
             },
             isActive: () => this.isPluginOpen(id),
-            isVisible: () => this.pluginUiState.get(id)?.visible ?? true,
+            isVisible: () =>
+                (this.pluginUiState.get(id)?.visible ?? true) &&
+                this.isPluginAvailable(id),
             order: 200,
         };
 
@@ -2859,6 +2907,7 @@ export class ViewerState {
             label,
             iconDescriptor: icon,
             mount,
+            fills,
             isVisible: () =>
                 this.getPluginTarget(id) === 'panel' && this.isPluginOpen(id),
         };

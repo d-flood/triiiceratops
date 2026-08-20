@@ -247,9 +247,12 @@ describe('Toolbar attribute matrix', () => {
             }),
             row({
                 glyph: 'Slideshow',
-                tip: 'Show Gallery',
-                label: 'Show Gallery',
-                pressed: 'false',
+                tip: 'Gallery',
+                label: 'Gallery',
+                haspopup: 'menu',
+                menu: 'tri-flyout-gallery',
+                expanded: 'false',
+                flyoutToggle: true,
             }),
             row({
                 glyph: 'ListBullets',
@@ -264,15 +267,6 @@ describe('Toolbar attribute matrix', () => {
                 label: 'Viewing Mode',
                 haspopup: 'menu',
                 menu: 'tri-flyout-viewing-mode',
-                expanded: 'false',
-                flyoutToggle: true,
-            }),
-            row({
-                glyph: 'Layout',
-                tip: 'Gallery Placement',
-                label: 'Gallery Placement',
-                haspopup: 'menu',
-                menu: 'tri-flyout-gallery-placement',
                 expanded: 'false',
                 flyoutToggle: true,
             }),
@@ -311,8 +305,8 @@ describe('Toolbar attribute matrix', () => {
 
     /**
      * Every toggle announces itself pressed and styles itself active from the
-     * SAME state, and the three buttons whose label is a verb pair say what the
-     * next activation will do — a gallery that is open offers to hide it.
+     * SAME state, and the buttons whose label is a verb pair say what the next
+     * activation will do — annotations that are shown offer to hide themselves.
      */
     it('flips label, glyph, pressed state and active styling together', async () => {
         const viewerState = await mountToolbar();
@@ -348,10 +342,12 @@ describe('Toolbar attribute matrix', () => {
             }),
             row({
                 glyph: 'Slideshow',
-                tip: 'Hide Gallery',
-                label: 'Hide Gallery',
-                pressed: 'true',
-                active: true,
+                tip: 'Gallery',
+                label: 'Gallery',
+                haspopup: 'menu',
+                menu: 'tri-flyout-gallery',
+                expanded: 'false',
+                flyoutToggle: true,
             }),
             row({
                 glyph: 'ListBullets',
@@ -367,15 +363,6 @@ describe('Toolbar attribute matrix', () => {
                 label: 'Viewing Mode',
                 haspopup: 'menu',
                 menu: 'tri-flyout-viewing-mode',
-                expanded: 'false',
-                flyoutToggle: true,
-            }),
-            row({
-                glyph: 'Layout',
-                tip: 'Gallery Placement',
-                label: 'Gallery Placement',
-                haspopup: 'menu',
-                menu: 'tri-flyout-gallery-placement',
                 expanded: 'false',
                 flyoutToggle: true,
             }),
@@ -428,7 +415,6 @@ describe('Toolbar attribute matrix', () => {
         const commands = [
             'toggleCollectionPanel',
             'toggleSearchPanel',
-            'toggleThumbnailGallery',
             'toggleStructuresPanel',
             'toggleFullScreen',
             'toggleAnnotations',
@@ -441,7 +427,6 @@ describe('Toolbar attribute matrix', () => {
         const wiring: Array<[string, (typeof commands)[number]]> = [
             ['Toggle Collection', 'toggleCollectionPanel'],
             ['Toggle Search', 'toggleSearchPanel'],
-            ['Show Gallery', 'toggleThumbnailGallery'],
             ['Toggle Table of Contents', 'toggleStructuresPanel'],
             ['Enter Full Screen', 'toggleFullScreen'],
             ['Show Annotations (1)', 'toggleAnnotations'],
@@ -659,13 +644,13 @@ describe('Toolbar attribute matrix', () => {
     });
 
     /**
-     * The gallery-placement picker is the accessible replacement for the deleted
+     * The gallery menu is the accessible replacement for the deleted
      * drag-to-dock gesture, so its keyboard path is the feature, not a detail:
      * every assertion below is reachable with a keyboard alone, and every
      * activation is a `click` on a `<button>` — which is also what a touch tap
      * dispatches, the case the mouse-only drag never served.
      */
-    describe('gallery placement picker', () => {
+    describe('gallery menu', () => {
         /** Let the open-menu effect's `requestAnimationFrame` focus pass run. */
         async function frame() {
             await new Promise<void>((resolve) => {
@@ -678,19 +663,19 @@ describe('Toolbar attribute matrix', () => {
             actionButtons().find(
                 (button) =>
                     button.getAttribute('aria-controls') ===
-                    'tri-flyout-gallery-placement',
+                    'tri-flyout-gallery',
             )!;
 
         const items = () => [
             ...document.querySelectorAll<HTMLButtonElement>(
-                '#tri-flyout-gallery-placement > li > button',
+                '#tri-flyout-gallery > li > button',
             ),
         ];
 
-        it('renders one radio item per dock side, checked from the current side', async () => {
+        it('renders one radio item per dock side plus off, checked from the current placement', async () => {
             const viewerState = await mountToolbar();
 
-            expect(menuItems('tri-flyout-gallery-placement')).toEqual([
+            expect(menuItems('tri-flyout-gallery')).toEqual([
                 {
                     role: 'menuitemradio',
                     text: 'Top',
@@ -703,9 +688,9 @@ describe('Toolbar attribute matrix', () => {
                     role: 'menuitemradio',
                     text: 'Bottom',
                     glyph: 'CaretDown',
-                    checked: 'true',
-                    active: true,
-                    check: true,
+                    checked: 'false',
+                    active: false,
+                    check: false,
                 },
                 {
                     role: 'menuitemradio',
@@ -723,25 +708,34 @@ describe('Toolbar attribute matrix', () => {
                     active: false,
                     check: false,
                 },
+                {
+                    role: 'menuitemradio',
+                    text: 'Off',
+                    glyph: 'EyeSlash',
+                    checked: 'true',
+                    active: true,
+                    check: true,
+                },
             ]);
 
+            viewerState.showThumbnailGallery = true;
             viewerState.setDockSide('left');
             flushSync();
 
             expect(
-                menuItems('tri-flyout-gallery-placement').map(
-                    (item) => item.checked,
-                ),
-            ).toEqual(['false', 'false', 'true', 'false']);
+                menuItems('tri-flyout-gallery').map((item) => item.checked),
+            ).toEqual(['false', 'false', 'true', 'false', 'false']);
         });
 
         /**
-         * The four items are paired to their sides by tuple position alone, so a
+         * The items are paired to their placements by tuple position alone, so a
          * transposed pair renders identical DOM and the matrix above still passes.
          * Clicking each and naming the side it commits is what pins the pairing.
          */
         it('docks the gallery to the side each item names', async () => {
             const viewerState = await mountToolbar();
+            viewerState.showThumbnailGallery = true;
+            flushSync();
             const setDockSide = vi
                 .spyOn(viewerState, 'setDockSide')
                 .mockImplementation(() => {});
@@ -759,15 +753,38 @@ describe('Toolbar attribute matrix', () => {
             }
         });
 
-        /** Placement belongs to the gallery, so it follows the gallery's gate. */
+        /**
+         * A dock side is also a request to see the gallery, and 'Off' is the only
+         * item that hides it — so each item's effect on visibility is asserted
+         * alongside the side it commits.
+         */
+        it('shows the gallery for a side and hides it for off', async () => {
+            const viewerState = await mountToolbar();
+
+            items()[2].click();
+            flushSync();
+            expect(viewerState.showThumbnailGallery).toBe(true);
+            expect(viewerState.dockSide).toBe('left');
+
+            // Re-docking an open gallery leaves it open.
+            items()[0].click();
+            flushSync();
+            expect(viewerState.showThumbnailGallery).toBe(true);
+            expect(viewerState.dockSide).toBe('top');
+
+            items()[4].click();
+            flushSync();
+            expect(viewerState.showThumbnailGallery).toBe(false);
+            // Off leaves the side alone, so re-opening restores the last one.
+            expect(viewerState.dockSide).toBe('top');
+        });
+
         it('is absent when the gallery is switched off', async () => {
             await mountToolbar({ toolbar: { showGallery: false } });
 
-            expect(
-                document.querySelector('#tri-flyout-gallery-placement'),
-            ).toBeNull();
+            expect(document.querySelector('#tri-flyout-gallery')).toBeNull();
             expect(matrix().map((button) => button.label)).not.toContain(
-                'Gallery Placement',
+                'Gallery',
             );
         });
 
@@ -793,16 +810,14 @@ describe('Toolbar attribute matrix', () => {
             expect(document.activeElement).toBe(toggle());
         });
 
-        it('roves focus through the four sides with the arrow and Home/End keys', async () => {
+        it('roves focus through the placements with the arrow and Home/End keys', async () => {
             await mountToolbar();
 
             toggle().click();
             flushSync();
             await frame();
 
-            const menu = document.querySelector(
-                '#tri-flyout-gallery-placement',
-            )!;
+            const menu = document.querySelector('#tri-flyout-gallery')!;
             const press = (key: string) => {
                 menu.dispatchEvent(
                     new KeyboardEvent('keydown', { key, bubbles: true }),
@@ -820,11 +835,11 @@ describe('Toolbar attribute matrix', () => {
             expect(at()).toBe(0);
             // Wraps, so the last item is one ArrowUp from the first.
             press('ArrowUp');
-            expect(at()).toBe(3);
+            expect(at()).toBe(4);
             press('ArrowDown');
             expect(at()).toBe(0);
             press('End');
-            expect(at()).toBe(3);
+            expect(at()).toBe(4);
             press('Home');
             expect(at()).toBe(0);
         });

@@ -26,18 +26,16 @@
 export const CORE_VERSION = '1.0.0-rc.36';
 
 /**
- * The plugin API version, independent of {@link CORE_VERSION}. `1.5.0` for the
- * transcript control on the `transport-chrome` {@link capabilities} entry below,
- * over the `1.4.0` that added that entry.
+ * The plugin API version, independent of {@link CORE_VERSION}. `1.6.0` for
+ * `PluginSurface.setAvailable`, over the `1.5.0` that added the transcript
+ * control to the `transport-chrome` {@link capabilities} entry below.
  *
- * A minor rather than the major a semantic change would take, because the
- * contract it widens has not shipped: `transport-chrome` arrived in this same
- * unreleased line, so its view, port and icon set growing a control is still
- * that seam being drafted. Once a core carrying it is published, adding a
- * REQUIRED member to any of the three becomes a major — a claimant built against
- * the published contract would no longer satisfy it.
+ * A minor, not a major: `setAvailable` is a member core provides and plugins
+ * call, so a plugin written against 1.5 keeps working untouched — its chrome is
+ * available until it says otherwise. Adding a REQUIRED member to a contract
+ * plugins IMPLEMENT (a transport view, a port) is the case that takes a major.
  */
-export const pluginApiVersion = '1.5.0';
+export const pluginApiVersion = '1.6.0';
 
 /**
  * Runtime capabilities core declares. Capabilities describe compatibility, not

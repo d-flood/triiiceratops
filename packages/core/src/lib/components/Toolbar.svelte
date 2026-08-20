@@ -304,7 +304,7 @@
         | {
               key: string;
               show: boolean;
-              flyout: 'viewing-mode' | 'gallery-placement' | 'sequence';
+              flyout: 'viewing-mode' | 'gallery' | 'sequence';
           }
         | {
               key: string;
@@ -350,15 +350,7 @@
         {
             key: 'gallery',
             show: showGallery,
-            icon: 'Slideshow',
-            tip: viewerState.showThumbnailGallery
-                ? m.hide_gallery()
-                : m.show_gallery(),
-            label: viewerState.showThumbnailGallery
-                ? m.hide_gallery()
-                : m.show_gallery(),
-            pressed: viewerState.showThumbnailGallery,
-            onclick: () => viewerState.toggleThumbnailGallery(),
+            flyout: 'gallery',
         },
         {
             key: 'structures',
@@ -374,13 +366,6 @@
             key: 'viewing-mode',
             show: showViewingMode,
             flyout: 'viewing-mode',
-        },
-        {
-            key: 'gallery-placement',
-            // Placement is a property of the gallery, so it shares the gallery's
-            // own gate: switch the gallery off and neither button appears.
-            show: showGallery,
-            flyout: 'gallery-placement',
         },
         {
             key: 'sequence-picker',
@@ -442,14 +427,35 @@
         ['continuous', 'Scroll', m.viewing_mode_continuous()],
     ] as const);
 
-    // [side, glyph, label] for the gallery-placement menu's radio items — the
-    // four dock sides, each glyph pointing at the edge it docks to.
+    // [side, glyph, label] for the gallery menu's radio items — the four dock
+    // sides, each glyph pointing at the edge it docks to, plus the off state.
+    // 'off' is a placement in the menu's terms, not a dock side, so choosing a
+    // side implies showing the gallery and choosing 'off' hides it.
     const galleryPlacementItems = $derived([
         ['top', 'CaretUp', m.gallery_placement_top()],
         ['bottom', 'CaretDown', m.gallery_placement_bottom()],
         ['left', 'CaretLeft', m.gallery_placement_left()],
         ['right', 'CaretRight', m.gallery_placement_right()],
+        ['off', 'EyeSlash', m.gallery_placement_off()],
     ] as const);
+
+    /** The menu item currently checked: the dock side, or 'off' when hidden. */
+    const galleryPlacement = $derived(
+        viewerState.showThumbnailGallery ? viewerState.dockSide : 'off',
+    );
+
+    function setGalleryPlacement(placement: string) {
+        if (placement === 'off') {
+            if (viewerState.showThumbnailGallery) {
+                viewerState.toggleThumbnailGallery();
+            }
+            return;
+        }
+        viewerState.setDockSide(placement);
+        if (!viewerState.showThumbnailGallery) {
+            viewerState.toggleThumbnailGallery();
+        }
+    }
 
     let sortedPluginButtons = $derived.by(() => {
         void language.current;
@@ -490,7 +496,7 @@
         return viewerState.pluginFlyouts.find((f) => f.domId === domId);
     }
 
-    // Built-in toolbar dropdowns (viewing mode, gallery placement, sequence
+    // Built-in toolbar dropdowns (viewing mode, gallery, sequence
     // picker) use the same non-top-layer flyout pattern as plugin flyouts, so
     // tooltips paint above them too. Only one is open at a time.
     let openMenu = $state<string | null>(null);
@@ -796,48 +802,48 @@
                             {/if}
                         </ul>
                     </li>
-                {:else if entry.flyout === 'gallery-placement'}
+                {:else if entry.flyout === 'gallery'}
                     <li>
                         <button
                             class="menu-item tooltip {tooltipPlacement}"
-                            class:menu-active={openMenu === 'gallery-placement'}
-                            data-tip={m.gallery_placement_label()}
+                            class:menu-active={openMenu === 'gallery'}
+                            data-tip={m.gallery_label()}
                             data-flyout-toggle
-                            aria-label={m.gallery_placement_label()}
+                            aria-label={m.gallery_label()}
                             aria-haspopup="menu"
-                            aria-controls="tri-flyout-gallery-placement"
-                            aria-expanded={openMenu === 'gallery-placement'}
-                            style="anchor-name:--anchor-gallery-placement"
-                            onclick={() => toggleMenu('gallery-placement')}
+                            aria-controls="tri-flyout-gallery"
+                            aria-expanded={openMenu === 'gallery'}
+                            style="anchor-name:--anchor-gallery"
+                            onclick={() => toggleMenu('gallery')}
                         >
-                            <Icon name="Layout" size={24} />
+                            <Icon name="Slideshow" size={24} />
                         </button>
                         <ul
-                            id="tri-flyout-gallery-placement"
+                            id="tri-flyout-gallery"
                             data-flyout-panel
                             role="menu"
                             tabindex="-1"
-                            aria-label={m.gallery_placement_label()}
+                            aria-label={m.gallery_label()}
                             class="menu popover-menu menu-flyout {flyoutPlacement}"
-                            class:open={openMenu === 'gallery-placement'}
-                            style="position-anchor: --anchor-gallery-placement;"
+                            class:open={openMenu === 'gallery'}
+                            style="position-anchor: --anchor-gallery;"
                             onkeydown={onFlyoutMenuKeydown}
                         >
-                            {#each galleryPlacementItems as [dockSide, icon, label] (dockSide)}
+                            {#each galleryPlacementItems as [placement, icon, label] (placement)}
                                 <li role="none">
                                     <button
                                         class="menu-item"
                                         role="menuitemradio"
-                                        aria-checked={viewerState.dockSide ===
-                                            dockSide}
-                                        class:menu-active={viewerState.dockSide ===
-                                            dockSide}
+                                        aria-checked={galleryPlacement ===
+                                            placement}
+                                        class:menu-active={galleryPlacement ===
+                                            placement}
                                         onclick={() =>
-                                            viewerState.setDockSide(dockSide)}
+                                            setGalleryPlacement(placement)}
                                     >
                                         <Icon name={icon} size={16} />
                                         <span>{label}</span>
-                                        {#if viewerState.dockSide === dockSide}
+                                        {#if galleryPlacement === placement}
                                             <Icon name="Check" size={16} />
                                         {/if}
                                     </button>

@@ -670,22 +670,20 @@ test.describe('the real application — a reader keeps their place', () => {
         await openApp(page);
         const home = await reader(page);
 
-        // Placed to the LEFT so the band takes width, which is the axis
-        // `reader` measures. The placement itself is a host round-trip too —
-        // the demo mirrors `dockSide` into `gallery.dockPosition` — so this
-        // click is already an instance of the pattern, and the assertions below
-        // cover it as well as the gallery's own toggle.
-        await toolbarButton(page, 'Gallery Placement').click();
-        await page
-            .getByRole('menuitemradio', { name: 'Left', exact: true })
-            .first()
-            .click();
-
         await zoomAndPan(page);
         const before = await reader(page);
         expect(before.view.scale).toBeGreaterThan(home.view.scale * 2);
 
-        await toolbarButton(page, 'Show Gallery').click();
+        // Placed to the LEFT so the band takes width, which is the axis
+        // `reader` measures; choosing a side both docks and reveals the
+        // gallery. The placement is a host round-trip too — the demo mirrors
+        // `dockSide` into `gallery.dockPosition` — so this click is an instance
+        // of that pattern as well.
+        await toolbarButton(page, 'Gallery').click();
+        await page
+            .getByRole('menuitemradio', { name: 'Left', exact: true })
+            .first()
+            .click();
         await expect
             .poll(() => areaWidth(page), { timeout: 20_000 })
             .toBeLessThan(before.area - 50);
@@ -718,7 +716,11 @@ test.describe('the real application — a reader keeps their place', () => {
         // the compensation has to answer on that axis exactly as it does on
         // width. Nothing else in this suite drives the vertical axis through
         // the real application.
-        await toolbarButton(page, 'Show Gallery').click();
+        await toolbarButton(page, 'Gallery').click();
+        await page
+            .getByRole('menuitemradio', { name: 'Bottom', exact: true })
+            .first()
+            .click();
         await expect
             .poll(() => areaHeight(page), { timeout: 20_000 })
             .toBeLessThan(before.area - 50);
@@ -867,6 +869,109 @@ test.describe('the real application — a reader keeps their place', () => {
                 Math.abs(frame.surface / frame.scale - extent) / extent > 0.02,
         );
         expect(jumped).toEqual([]);
+    });
+
+    /**
+     * The same application with the information panel on the toolbar's OWN
+     * side, which is what docks the toolbar as the panel column's screen-edge
+     * rail rather than leaving it floating over the image.
+     */
+    const SAME_SIDE_APP = `${APP}&config=${encodeURIComponent(
+        JSON.stringify({
+            information: {
+                open: false,
+                position: 'left',
+                showButton: true,
+                showCloseButton: true,
+            },
+        }),
+    )}`;
+
+    /** Sample `.viewer-area`'s width once per frame, for one interaction. */
+    async function startWidthTrack(page: Page): Promise<void> {
+        await page.locator(VIEWER_AREA).evaluate((area) => {
+            const w = window as unknown as {
+                __widths?: number[];
+                __widthsStop?: () => void;
+            };
+            const out: number[] = [];
+            w.__widths = out;
+            let running = true;
+            const tick = () => {
+                if (!running) return;
+                out.push(area.getBoundingClientRect().width);
+                requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+            w.__widthsStop = () => {
+                running = false;
+            };
+        });
+    }
+
+    async function stopWidthTrack(page: Page): Promise<number[]> {
+        return page.evaluate(() => {
+            const w = window as unknown as {
+                __widths?: number[];
+                __widthsStop?: () => void;
+            };
+            w.__widthsStop?.();
+            return w.__widths ?? [];
+        }) as Promise<number[]>;
+    }
+
+    test('a same-side panel gives the surface back on one curve, with no last-frame lurch', async ({
+        page,
+    }) => {
+        await openApp(page, SAME_SIDE_APP);
+        const full = await areaWidth(page);
+
+        await toggleInformation(page, true, full);
+        // Anti-vacuity, and the whole premise of the case: with the panel on
+        // the toolbar's other side there is no rail, and this is an ordinary
+        // panel close that never had the defect.
+        await expect(page.locator('.toolbar-rail-host.rail-col')).toBeVisible();
+        // Settled, so the trace below starts from a still surface and the
+        // travel it is measured against is the whole of it.
+        const narrowed = await settled(page, areaWidth);
+        const travel = full - narrowed;
+        expect(travel).toBeGreaterThan(100);
+
+        await startWidthTrack(page);
+        await toolbarButton(page, 'Toggle Information').click();
+        await expect
+            .poll(() => areaWidth(page), { timeout: 20_000 })
+            .toBeGreaterThanOrEqual(full);
+        // Past the end of the slide, so the trace covers the whole close.
+        await page.waitForTimeout(600);
+        const widths = await stopWidthTrack(page);
+
+        // Anti-vacuity: an empty trace satisfies the assertion below.
+        expect(widths.length).toBeGreaterThan(10);
+
+        // `cubicOut` decelerates to a stop, so a frame that moves the surface
+        // by only a few pixels means the slide is all but over — and nothing
+        // may move it appreciably after that. What this rejects is a column
+        // that holds its width through the whole slide and then vanishes: the
+        // docked rail used to unmount on a timer once the panel beside it had
+        // finished, handing the surface its last ~37px in a single frame, at
+        // the one moment the eye is following a curve that has nearly stopped.
+        //
+        // Both bounds are in pixels rather than fractions of the travel,
+        // because both are claims about what a reader sees: the tail of an
+        // eased slide runs at 4px a frame and under, and a jump of 12px is
+        // visible however wide the column was. The margin either side is wide
+        // enough that a dropped frame, which merges two deltas into one,
+        // cannot reach it.
+        const deltas: number[] = [];
+        for (let i = 1; i < widths.length; i += 1) {
+            deltas.push(widths[i] - widths[i - 1]);
+        }
+        const tail = deltas.findIndex((delta) => delta > 0 && delta < 5);
+        expect(tail).toBeGreaterThan(0);
+        expect(deltas.slice(tail + 1).filter((delta) => delta > 12)).toEqual(
+            [],
+        );
     });
 
     /**

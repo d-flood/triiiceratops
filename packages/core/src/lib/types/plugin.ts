@@ -107,6 +107,9 @@ export interface PluginPanel {
     /** Props passed to the mounted content, if any. */
     props?: Record<string, unknown>;
 
+    /** The panel scrolls its own content; see {@link SdkPluginMeta.fills}. */
+    fills?: boolean;
+
     /** Reactive getter for visibility */
     isVisible: () => boolean;
 }
@@ -358,6 +361,14 @@ export interface PluginSurface {
     close(): void;
     /** Toggle this plugin's surface open state. */
     toggle(): void;
+    /**
+     * Declare whether this plugin has anything to show on the current canvas.
+     * `false` hides its toolbar button — the gating core's own annotations and
+     * structures buttons have — so a plugin whose content is a fact about the
+     * canvas never leaves a live button over an empty panel, and closes its
+     * surface if it was open. Call it whenever that fact changes.
+     */
+    setAvailable(available: boolean): void;
 }
 
 /**
@@ -603,6 +614,13 @@ export interface SdkPluginMeta {
     readonly icon: IconDescriptor;
     /** Where the plugin renders (`panel` or `flyout`). */
     readonly target: PluginUiTarget;
+    /**
+     * This panel scrolls its own content, so core gives it the height left over
+     * in its column rather than sizing it to its content. For a panel whose body
+     * is a long list or document; a short one would only stretch. Ignored for
+     * `flyout` targets.
+     */
+    readonly fills?: boolean;
     /**
      * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (the default)
      * dismisses on outside pointer-down / Escape; `explicit` closes only via the
