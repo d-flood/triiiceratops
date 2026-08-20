@@ -234,6 +234,14 @@
             return 0;
         }
 
+        // A claimed canvas has no annotation surface of core's: the panel this
+        // button opens and the overlay behind it both filter by
+        // `annotatableCanvasIds`. Counting annotations core cannot render would
+        // put a live button over an empty panel. The claimant surfaces its own.
+        if (!viewerState.annotatableCanvasIds.includes(viewerState.canvasId)) {
+            return 0;
+        }
+
         return viewerState.getAnnotations(
             viewerState.manifestId,
             viewerState.canvasId,

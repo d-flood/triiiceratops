@@ -57,10 +57,7 @@ export const REQUIRED_SVELTE_INTERNALS: readonly string[] = [
 ];
 
 /**
- * The `window.Triiiceratops.core` utilities this plugin's modules import from
- * `triiiceratops`. Its IIFE externalizes core, so these are dereferenced at
- * module scope exactly as the Svelte helpers are, and skew must be reported
- * here rather than left to throw.
+ * The `window.Triiiceratops.core` utilities this IIFE validates before loading.
  */
 export const REQUIRED_CORE_UTILS: readonly string[] = [
     'companionPaintable',
@@ -68,6 +65,7 @@ export const REQUIRED_CORE_UTILS: readonly string[] = [
     'isImageBody',
     'isUnsupportedCanvasFor',
     'paintingBodyAlternatives',
+    'parseIiifTime',
 ];
 
 /*

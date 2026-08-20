@@ -309,9 +309,7 @@ describe('activation and the canvas claim', () => {
     that: `0015-start` declares no `width`/`height` and still paints a `Video`.
 */
 describe('the stage layout', () => {
-    async function laneOf(
-        file: string,
-    ): Promise<{
+    async function laneOf(file: string): Promise<{
         media: Element | null;
         visual: Element | null;
         cleanup: () => void;
@@ -877,6 +875,29 @@ describe('the transport chrome', () => {
         expect(view.paused).toBe(av.paused);
         expect(view.duration).toBe(av.duration);
         expect(view.currentTime).toBe(av.currentTime);
+
+        cleanup();
+    });
+
+    // The panel control names what it opens (user story 13). The canvas's
+    // linked transcript is not read until its stage is built, which happens
+    // after the transport, so a label captured once reads "Notes" over a panel
+    // holding a transcript.
+    it('names the panel control for the transcript its canvas links', async () => {
+        const { tc, cleanup } = await mountWith({
+            id: 'https://iiif.io/api/cookbook/recipe/0017-transcription-av/manifest.json',
+            json: recipe('0017-transcription-av.json'),
+        });
+        tc.viewerState.setCanvas(
+            'https://iiif.io/api/cookbook/recipe/0017-transcription-av/canvas',
+        );
+        await flush();
+
+        const view = tc.viewerState.transportChrome[0]!.view();
+        expect(view.transcript).toBe(true);
+        // The test context echoes catalog keys rather than translating them:
+        // the point is which key, not which language.
+        expect(view.labels.transcript).toBe('av_transcript');
 
         cleanup();
     });

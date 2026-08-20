@@ -55,6 +55,24 @@ export function getDeclaredThumbnailUrl(canvas: unknown): string | null {
 }
 
 /**
+ * The Canvas's declared `duration` in seconds, or `null`.
+ *
+ * Raw JSON, like {@link getDeclaredThumbnailUrl} above it and for the same
+ * reason: this module is the renderer's only contact with manifest shape.
+ * `duration` is Presentation 3 only — a v2 Canvas has no such property — and
+ * must be a positive number to mean anything, so anything else is `null` rather
+ * than passed on for arithmetic downstream to trip over.
+ */
+export function getDeclaredDuration(canvas: unknown): number | null {
+    const declared = (canvas as { duration?: unknown } | null)?.duration;
+    return typeof declared === 'number' &&
+        Number.isFinite(declared) &&
+        declared > 0
+        ? declared
+        : null;
+}
+
+/**
  * One raw Canvas → a planner canvas, or `null` if it paints nothing usable.
  *
  * **Every painting annotation, not the first one.** `resolveAllCanvasImages`
@@ -130,6 +148,7 @@ export function toPlannerCanvas(
             id: resolved[0].canvasId,
             width: declared?.width ?? null,
             height: declared?.height ?? null,
+            duration: getDeclaredDuration(canvas),
             images,
             thumbnailUrl: getDeclaredThumbnailUrl(canvas),
         };
@@ -164,6 +183,7 @@ export function toPlannerCanvas(
         id: canvasId,
         width: declared?.width ?? null,
         height: declared?.height ?? null,
+        duration: getDeclaredDuration(canvas),
         images,
     };
 }

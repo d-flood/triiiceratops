@@ -99,6 +99,25 @@ export const DEFAULT_BUDGETS: PlannerBudgets = {
 export const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
 
 /**
+ * The box a **duration-only** canvas gets when nothing else declares one: a
+ * canvas with a duration, no dimensions, no picture core can paint, and no
+ * companion Canvas to take a rect from — an audio recording, in other words.
+ *
+ * A strip rather than {@link UNSIZED_CANVAS_PLACEHOLDER}'s square, because the
+ * two placeholders answer different questions. That one stands in for a shape
+ * nobody stated and something may yet report; this canvas's shape is not
+ * unknown — there is no picture, so the only thing that will ever occupy the
+ * rect is a timeline, and an AV plugin's audio stage fills it with exactly that
+ * (`plugin-av/stageLayout.stageLayoutKind`, the `audio` layout). A square asks
+ * the reader to accept a waveform lane as tall as a page.
+ *
+ * Only the ratio matters, for the same reason it does there: a world of one such
+ * canvas is fitted to the viewport, so this decides that an audio canvas is
+ * fitted as a band across it rather than as a block down it.
+ */
+export const DURATION_ONLY_CANVAS_PLACEHOLDER = { width: 1000, height: 160 };
+
+/**
  * The gutter between adjacent canvases, as a fraction of the median laid-out
  * canvas extent along the axis the world flows in.
  *

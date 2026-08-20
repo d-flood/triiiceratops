@@ -24,6 +24,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { serveAvPluginDist } from './helpers/avPluginDist';
+import { E2E_ALIAS_ORIGIN } from './helpers/origin';
 import {
     AV_MANIFESTS,
     BARS_MP4,
@@ -140,7 +141,7 @@ const MULTI_MANIFEST = captionedManifest(MULTI_URL, {
  */
 const NO_CORS_URL = '/media/manifests/av-captions-no-cors.json';
 const NO_CORS_MANIFEST = captionedManifest(NO_CORS_URL, {
-    id: `http://localhost:5175${NO_CORS_CAPTIONS_VTT}`,
+    id: `${E2E_ALIAS_ORIGIN}${NO_CORS_CAPTIONS_VTT}`,
     type: 'Text',
     format: 'text/vtt',
     language: 'en',
@@ -318,13 +319,13 @@ test.describe('av captions — VTT text tracks', () => {
         // request context, which is not subject to the page's CORS rules and
         // therefore reports the headers as the server actually sent them.
         const served = await page.request.get(
-            `http://localhost:5175${NO_CORS_CAPTIONS_VTT}`,
+            `${E2E_ALIAS_ORIGIN}${NO_CORS_CAPTIONS_VTT}`,
         );
         expect(served.status()).toBe(200);
         expect(served.headers()['access-control-allow-origin']).toBeUndefined();
         // And the ordinary one differs in exactly that header.
         const granted = await page.request.get(
-            `http://localhost:5175${CAPTIONS_VTT}`,
+            `${E2E_ALIAS_ORIGIN}${CAPTIONS_VTT}`,
         );
         expect(granted.status()).toBe(200);
         expect(granted.headers()['access-control-allow-origin']).toBe('*');

@@ -432,8 +432,8 @@ const REQUIRED_GLOBALS = [
  * A ratchet a few bytes above the recorded actual, not a budget to spend: it is
  * set from a measurement and moved only by a change that is worth its bytes.
  * Re-derive the actual with `pnpm build`, then gzip `dist/iife.js` at level 9 —
- * the same level this script uses — which currently reads **15,039**. The head
- * over it is ~29 bytes, and can be that tight because this artifact is
+ * the same level this script uses — which currently reads **15,469**. The head
+ * over it is ~17 bytes, and can be that tight because this artifact is
  * path-independent. Svelte's scoped-CSS class name is a variable-length hash of
  * the filename the compiler is handed, and that filename is ABSOLUTE — so the
  * hash, and with it the byte count, moves with the checkout directory — only
@@ -484,6 +484,13 @@ const REQUIRED_GLOBALS = [
  *   scroll-follow, and the untimed file's fetch, paragraph reflow and
  *   fetch-failure link — are in `dist/av-transcript.js`, which is fetched only
  *   for a canvas that actually offers one of them;
+ * - the timed manifest annotations' EAGER half, about 350 bytes: the scan that
+ *   turns a canvas's `commenting` annotations into timed entries (cookbook
+ *   0103), the answer the panel control is rendered on, and the two catalog
+ *   strings. Eager because the chunk is built self-contained and so cannot
+ *   reach core's `#t=` parser, and because the entries ARE the value handed
+ *   across the port; the section that renders them is in the same lazy chunk as
+ *   the transcript;
  * - the version-skew gate's diagnostics, and the curator-facing degradation
  *   warnings (user story 45). One cause line each: what failed, the names or URL
  *   involved, the remedy, and a docs pointer. The explanation of why the term
@@ -503,7 +510,7 @@ const REQUIRED_GLOBALS = [
  * required globals above detect that exactly. The real ceiling on total shipped
  * weight is the competitive pair budget in `scripts/size-check.mjs`.
  */
-const MAX_IIFE_GZIP = 15_068;
+const MAX_IIFE_GZIP = 15_486;
 
 /**
  * Floor on the number of runtime helpers the IIFE entry must be seen to

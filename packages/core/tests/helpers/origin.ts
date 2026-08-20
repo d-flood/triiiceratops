@@ -13,3 +13,11 @@
 export const E2E_PORT = process.env.E2E_PORT ?? '5175';
 
 export const E2E_ORIGIN = `http://127.0.0.1:${E2E_PORT}`;
+
+/**
+ * The same server reached through the `localhost` alias, which the browser
+ * treats as a DIFFERENT origin from `127.0.0.1`. The CORS specs load the page
+ * from `E2E_ORIGIN` and fetch a fixture from here, so the refusal they assert
+ * is the browser's own rather than something staged in JavaScript.
+ */
+export const E2E_ALIAS_ORIGIN = `http://localhost:${E2E_PORT}`;

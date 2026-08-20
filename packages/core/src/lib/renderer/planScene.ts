@@ -85,7 +85,10 @@
  */
 
 import { getCanvasDisplayLayouts } from '../components/canvasLayout';
-import { UNSIZED_CANVAS_PLACEHOLDER } from './rendererDefaults';
+import {
+    DURATION_ONLY_CANVAS_PLACEHOLDER,
+    UNSIZED_CANVAS_PLACEHOLDER,
+} from './rendererDefaults';
 import { viewportBox } from './viewportMath';
 import {
     boxContains,
@@ -198,6 +201,32 @@ function aspectOf(box: { width: number; height: number } | null) {
 }
 
 /**
+ * The box a canvas takes when neither the manifest, a service, nor a sibling
+ * offers one — the geometry of last resort, chosen on the only thing known about
+ * the canvas at that point: whether it has a picture at all.
+ *
+ * A canvas with a duration and no images is an audio recording (a Sound body is
+ * required to state a duration and forbidden to state dimensions), and nothing
+ * will ever paint a picture in its rect: no service to reflow from, no companion
+ * Canvas — one of those would have donated a rect before the descriptor reached
+ * this function (`companionCanvases.withCompanion`) — so a page-shaped box would
+ * be a page-shaped nothing. It gets a strip instead, which is the shape of the
+ * timeline that is the only thing an AV plugin will put there.
+ *
+ * A canvas that omits its dimensions and declares no duration is the ordinary
+ * spec violation of user story 32: a picture whose shape is unknown, and a
+ * fetch may yet report it.
+ */
+function placeholderBox(canvas: PlannerCanvas): {
+    width: number;
+    height: number;
+} {
+    return canvas.images.length === 0 && isUsableDimension(canvas.duration)
+        ? DURATION_ONLY_CANVAS_PLACEHOLDER
+        : UNSIZED_CANVAS_PLACEHOLDER;
+}
+
+/**
  * The geometry each canvas is laid out with, in canvas space.
  *
  * Four rungs, in this order, and the order is the decision:
@@ -227,10 +256,13 @@ function aspectOf(box: { width: number; height: number } | null) {
  *    positional (see `residencyWindow`), not a smaller input, so the median a
  *    continuous world guesses from really is the manifest's — and it still
  *    needs the floor below, because an individuals-mode input is ONE canvas.
- * 4. **Failing even that, {@link UNSIZED_CANVAS_PLACEHOLDER}.** The rung that
- *    makes the drop unreachable, and it is reachable itself on the path users
- *    actually take: in individuals and continuous mode the host feeds ONE
+ * 4. **Failing even that, a placeholder** — {@link placeholderBox}. The rung
+ *    that makes the drop unreachable, and it is reachable itself on the path
+ *    users actually take: in individuals and continuous mode the host feeds ONE
  *    canvas, so an unsized canvas there has no siblings to take a median from.
+ *    It is also the whole of a bare audio manifest's geometry, which is why the
+ *    box is shaped by what the canvas turns out to be rather than being one
+ *    constant.
  *
  * Only a canvas with no usable id is dropped: it cannot be keyed, so nothing
  * downstream could name it.
@@ -304,13 +336,16 @@ function resolveGeometry(
         (canvas) =>
             isUsableDimension(canvas.width) && isUsableDimension(canvas.height),
     );
+    // `null` where no sibling declared both axes and there is nothing to take a
+    // median of. The last rung is then per canvas rather than one box for the
+    // whole world, so a duration-only canvas is not shaped like a page.
     const guess =
         declared.length > 0
             ? {
                   width: median(declared.map((canvas) => canvas.width!)),
                   height: median(declared.map((canvas) => canvas.height!)),
               }
-            : UNSIZED_CANVAS_PLACEHOLDER;
+            : null;
 
     return usable.map((canvas): SizedCanvas => {
         // The PRIMARY image's service, and only it, can reflow the canvas. The
@@ -331,7 +366,7 @@ function resolveGeometry(
             isUsableDimension(facts.height)
                 ? { width: facts.width, height: facts.height }
                 : null;
-        const fallback = reported ?? guess;
+        const fallback = reported ?? guess ?? placeholderBox(canvas);
 
         // Whichever axes the manifest stated, kept; the rest taken from the
         // fallback box, and shaped by its aspect ratio so a canvas that stated

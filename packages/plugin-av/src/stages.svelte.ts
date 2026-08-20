@@ -63,6 +63,7 @@ import {
     type TransportLabels,
 } from './transportChrome';
 import { type TextTranscript, textTranscriptFor } from './renderingTranscript';
+import { timedAnnotationsFor, type TimedEntry } from './timedAnnotations';
 import { loadTranscript } from './transcriptLink';
 import type { VisibleBox } from './waveform/surface';
 import { loadPeaks, waveformUrlFor } from './waveformLink';
@@ -179,6 +180,38 @@ export function createAvStageManager(
     const prefs = createAudioPrefs();
     const canPlay = createPlayabilityProbe();
 
+    /**
+     * The current canvas's timed manifest annotations, in canvas time
+     * (cookbook 0103).
+     *
+     * Held rather than derived per read, because the transport asks
+     * {@link panelAvailable} on its playback cadence while `getAnnotations`
+     * builds a fresh array of fresh objects on every call. It is rescanned from
+     * {@link publishViews} — the manager's own pulse, which is event-driven:
+     * play and pause, caption tracks settling, a segment seam, a canvas
+     * selection, a waveform load, a manifest rescan. Nothing re-runs it when an
+     * externally referenced annotation page resolves, so such a page appears
+     * only if one of those events happens to follow it. 0103 embeds its page;
+     * the epic defers that invalidation deliberately.
+     */
+    let notes: readonly TimedEntry[] = [];
+
+    function rescanNotes(): void {
+        const canvasId = currentEntry()?.stage.canvasId;
+        const manifestId = viewerState.manifestId;
+        notes =
+            canvasId && manifestId
+                ? timedAnnotationsFor(
+                      viewerState.getAnnotations(manifestId, canvasId),
+                  )
+                : [];
+    }
+
+    /**
+     * The transport's strings, read afresh on every publish — which is what
+     * lets one of them depend on the CURRENT canvas rather than on the locale
+     * alone.
+     */
     function transportLabels(): TransportLabels {
         const { t } = context.locale;
         return {
@@ -191,7 +224,12 @@ export function createAvStageManager(
             volume: t('av_volume'),
             tracks: t('av_captions'),
             tracksOff: t('av_captions_off'),
-            transcript: t('av_transcript'),
+            // The panel control names what it opens: a canvas whose panel
+            // holds only the manifest's notes must not be reached through a
+            // button labelled "Transcript".
+            transcript: transcriptAvailable()
+                ? t('av_transcript')
+                : t('av_notes_panel'),
             trackFallback: t('av_captions_track'),
         };
     }
@@ -245,7 +283,7 @@ export function createAvStageManager(
             // running no frame cadence to notice on its own.
             publishViews();
         },
-        hasTranscript: transcriptAvailable,
+        hasTranscript: panelAvailable,
         // The panel's open state belongs to core, which owns the chrome that
         // opens it; `context.surface` is this plugin's live projection of it.
         panelOpen: () => context.surface.isOpen,
@@ -287,8 +325,9 @@ export function createAvStageManager(
     }
 
     let transcriptHost: HTMLElement | null = null;
-    let transcriptPanel: { refresh(): void; destroy(): void } | null = null;
-    /** Which canvas the mounted panel was built for, or `null` for no panel. */
+    /** The panel's mounted sections, in the order a reader reads them. */
+    let panelSections: { refresh(): void; destroy(): void }[] = [];
+    /** What the mounted panel was built for, or `null` for no panel. */
     let transcriptKey: string | null = null;
     /** Discriminates an in-flight chunk load from the mount that superseded it. */
     let transcriptToken = 0;
@@ -335,6 +374,20 @@ export function createAvStageManager(
         const entry = currentEntry();
         if (!entry) return false;
         return transcriptTrack() !== null || entry.textTranscript !== null;
+    }
+
+    /**
+     * Whether the current canvas offers a PANEL at all — a transcript, notes,
+     * or both.
+     *
+     * `TransportView.transcript` is core's media-agnostic "the claimant offers
+     * a panel" flag, and this is the whole of what it means now. The field is
+     * not renamed to match: the rename would be honest but touches core's API
+     * report, its i18n keys and several end-to-end specs for no reader-visible
+     * gain, and the epic records it as debt instead.
+     */
+    function panelAvailable(): boolean {
+        return transcriptAvailable() || notes.length > 0;
     }
 
     /**
@@ -398,45 +451,83 @@ export function createAvStageManager(
         // the same words with none of that, so it fills the gap rather than
         // competing for the panel.
         const text = track ? null : (currentEntry()?.textTranscript ?? null);
+        const hasNotes = notes.length > 0;
         // The KIND is part of the key, not just the canvas. Caption tracks
         // settle on the network, so a canvas that links both mounts the file
         // first and must hand over to the cue list the moment the VTT parses.
+        // Whether there are notes joins it for the same reason the sections are
+        // mounted together: they are appended to one host, so the only way to
+        // guarantee the transcript comes first is to build both in order.
+        const kind = track ? 'cues' : text ? 'text' : '';
+        // The locale is part of the key because both sections read their
+        // heading and their list's accessible name once, when they are built.
+        // Remounting is what re-reads them, and a language switch is rare
+        // enough that the lost scroll position costs a reader nothing.
         const key =
-            host && (track || text)
-                ? `${viewerState.canvasId}\n${track ? 'cues' : 'text'}`
+            host && (kind || hasNotes)
+                ? `${viewerState.canvasId}\n${kind}\n${hasNotes}\n${context.locale.current}`
                 : null;
         if (key === transcriptKey) {
-            transcriptPanel?.refresh();
+            for (const section of panelSections) section.refresh();
             return;
         }
 
         transcriptKey = key;
         transcriptToken += 1;
-        transcriptPanel?.destroy();
-        transcriptPanel = null;
+        for (const section of panelSections) section.destroy();
+        panelSections = [];
         if (!host || !key) return;
 
+        // Nothing to fetch for a canvas offering neither: the chunk is the
+        // whole cost of this feature, and a manifest that never uses it must
+        // never pay for it.
         const token = transcriptToken;
         void loadTranscript().then((module) => {
             if (token !== transcriptToken || !module) return;
-            transcriptPanel = text
-                ? module.createTextTranscriptPanel(host, {
-                      url: text.url,
-                      label: text.label,
-                      styles: context.styles,
-                      t: context.locale.t,
-                  })
-                : module.createTranscriptPanel(host, {
-                      avState: publication.state,
-                      source: transcriptSource,
-                      formatTime: formatMediaTime,
-                      styles: context.styles,
-                      t: context.locale.t,
-                  });
+            if (text)
+                panelSections.push(
+                    module.createTextTranscriptPanel(host, {
+                        url: text.url,
+                        label: text.label,
+                        styles: context.styles,
+                        t: context.locale.t,
+                    }),
+                );
+            else if (track)
+                panelSections.push(
+                    module.createTranscriptPanel(host, {
+                        avState: publication.state,
+                        source: transcriptSource,
+                        formatTime: formatMediaTime,
+                        styles: context.styles,
+                        t: context.locale.t,
+                    }),
+                );
+            if (hasNotes)
+                panelSections.push(
+                    module.createNotesPanel(host, {
+                        avState: publication.state,
+                        // Read live rather than captured: an annotation page
+                        // that lands late reaches the section on the next pulse
+                        // without a remount.
+                        entries: () => notes,
+                        formatTime: formatMediaTime,
+                        styles: context.styles,
+                        t: context.locale.t,
+                    }),
+                );
         });
     }
 
     function publishViews(): void {
+        rescanNotes();
+        // The panel control names what it opens, and what the panel holds is a
+        // fact about the CURRENT canvas that settles late — the canvas the
+        // transport was built beside is not yet the canvas a reader is on, and
+        // a linked transcript arrives with the stage. The transport holds its
+        // labels rather than re-reading them per frame, so this pulse is what
+        // carries a canvas change to them.
+        transport.relabel();
         publication.sync();
         syncTranscript();
     }
@@ -644,6 +735,17 @@ export function createAvStageManager(
             context.surface.id
         )
             return;
+
+        // Name what is PLAYING in the Choice picker: core's picker has no codec
+        // probe and falls back to first-wins, the one rule `formats.ts`
+        // departs from. Only when it differs, because `sourceFor` reads this
+        // selection back and an unconditional write would never settle.
+        const alternatives = scan.placements[0].alternatives;
+        if (
+            alternatives.length > 1 &&
+            viewerState.getSelectedChoice(scan.canvasId) !== source.url
+        )
+            viewerState.selectChoice(scan.canvasId, source.url);
 
         const rect = rectFor(scan);
 
@@ -952,7 +1054,11 @@ export function createAvStageManager(
     const stopCurrent = context.selectors
         .select((state) => state.canvasId)
         .subscribe(() => {
-            publication.sync();
+            // The whole pulse rather than AVState alone: the panel describes
+            // the canvas the reader is on, so its sections are rebuilt for the
+            // new one here — which is also the only thing that brings them
+            // back after navigating away and returning.
+            publishViews();
             // Which stage wears the play-state glyph follows the selection,
             // rather than waiting for the next viewport frame.
             placeAll();
@@ -1038,7 +1144,10 @@ export function createAvStageManager(
         for (const entry of entries.values()) {
             entry.stage.setCannotPlayMessage(message);
         }
-        transport.retranslate();
+        transport.relabel();
+        // The panel's sections carry translated strings too, and no playback
+        // cadence runs on a paused canvas to carry a language switch to them.
+        syncTranscript();
     });
 
     sync();
@@ -1054,8 +1163,8 @@ export function createAvStageManager(
         },
         avState: publication.state,
         destroy(): void {
-            transcriptPanel?.destroy();
-            transcriptPanel = null;
+            for (const section of panelSections) section.destroy();
+            panelSections = [];
             transcriptToken += 1;
             publication.destroy();
             stopCurrent();

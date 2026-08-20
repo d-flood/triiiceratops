@@ -144,6 +144,11 @@
 }
 
 .tri-av-unplayable {
+    /* The lanes are absolutely positioned and opaque, so they paint over an
+       in-flow sibling however late it appears in the DOM. Positioning the
+       notice puts it in the same layer and above them. */
+    position: relative;
+    z-index: 1;
     padding: 0.75rem 1rem;
     max-width: 100%;
     text-align: center;

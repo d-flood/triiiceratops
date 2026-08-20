@@ -1197,6 +1197,7 @@ export { logger, configureLogging, isDebugEnabled } from './logging/logger';
 export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 export { createPluginSurface } from './plugin/surface';
 export { getPaintingAnnotations } from './utils/iiifParsing';
+export { parseIiifTime } from './utils/iiifTime';
 export type { ChoiceSelection } from './utils/paintingBodies';
 export { isImageBody, isUnsupportedCanvas, isUnsupportedCanvasFor, paintingBodyAlternatives, } from './utils/paintingBodies';
 export type { CompanionProperty } from './renderer/companionCanvases';
@@ -2461,6 +2462,22 @@ export interface PlannerCanvas {
     width: number | null;
     height: number | null;
     /**
+     * The Canvas's declared `duration` in seconds, or `null` where it declares
+     * none — which is every image canvas, and so the overwhelmingly common case.
+     *
+     * Carried for one purpose: a canvas with a duration and no picture has a
+     * KNOWN shape rather than an unknown one, and `planScene.resolveGeometry`
+     * gives it a timeline-shaped rect instead of a page-shaped guess. It is
+     * consulted nowhere else, and never for a canvas that paints images — a
+     * canvas carrying both a video body and an image one is core's to paint, and
+     * its geometry is its images' (`0489-multimedia-canvas`).
+     *
+     * Not the playhead's business: the AV plugin reads the duration it plays
+     * against off the manifest itself (`plugin-av/sources.scanCanvasForAv`), and
+     * core makes no claim here about what any element will report.
+     */
+    duration?: number | null;
+    /**
      * Every picture painted on this canvas, in the manifest's own annotation
      * order — which is paint order, so a later entry paints over an earlier one.
      *
@@ -3656,10 +3673,6 @@ export declare class ViewerState {
     get showCanvasNav(): boolean;
     get showZoomControls(): boolean;
     get preserveCanvasScale(): boolean;
-    /**
-     * `gallery.size` — the docked band's height or the docked rail's width, and the
-     * knob every thumbnail dimension is derived from. See `galleryGeometry`.
-     */
     get galleryExtent(): number;
     private _viewingMode;
     private _viewingModeUserConfigured;
@@ -7099,14 +7112,26 @@ export declare function getCanvasBehaviors(canvas: any): string[];
  * fragment names only a start.
  *
  * This rides on `ViewerState.setCanvas` and `ContentStateTarget`, so it is a
- * public type. It lives apart from the `iiifTargets` parsers that produce it
- * because those are internal, and a public type would drag the whole module —
- * target normalization, selectors, `xywh=` — into the API contract with it.
+ * public type. `parseIiifTime` is public because a first-party claimant needs
+ * it; the rest of `iiifTargets` remains internal because publishing it would
+ * drag target normalization, selectors, and `xywh=` into the API contract.
  */
 export type IiifTemporalFragment = {
     seconds: number;
     endSeconds?: number;
 };
+/**
+ * Parse the temporal dimension of a media fragment (`#t=157`, `#t=157,203`,
+ * `#t=,203`), the time counterpart of an IIIF `xywh` fragment.
+ *
+ * Only Normal Play Time in plain seconds is read — the form every IIIF
+ * Cookbook recipe uses — with an explicit `npt:` prefix accepted and ignored
+ * on either bound. NPT's `hh:mm:ss` spelling is valid Media Fragments but is
+ * not parsed: it yields `null` rather than a wrong number of seconds. Only the
+ * fragment component is inspected, so a `t=` in a query string (`?t=157`,
+ * `?foo=1&t=157`) is never mistaken for a media fragment.
+ */
+export declare function parseIiifTime(value: string): IiifTemporalFragment | null;
 
 // ======================================================================
 // FILE: dist/utils/imageExport.d.ts

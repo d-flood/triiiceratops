@@ -465,6 +465,32 @@ describe('Toolbar attribute matrix', () => {
         }
     });
 
+    /**
+     * A claimant owns its canvas's annotation surface: `AnnotationPanel` and
+     * `AnnotationOverlay` both filter by `annotatableCanvasIds`, so a claimed
+     * canvas renders neither. The toolbar has to agree, or the button opens a
+     * panel that is empty by construction — which is what a manifest carrying
+     * timed annotations on a claimed AV canvas produces.
+     */
+    it('offers no annotations action on a canvas a plugin has claimed', async () => {
+        const viewerState = await mountToolbar();
+
+        expect(matrix().map((button) => button.label)).toContain(
+            'Show Annotations (1)',
+        );
+
+        viewerState.ensurePluginUiState('av');
+        viewerState.claimCanvas(viewerState.canvasId!, 'av');
+        flushSync();
+
+        expect(matrix().map((button) => button.label)).not.toContain(
+            'Show Annotations (1)',
+        );
+        expect(
+            matrix().some((button) => button.panelToggle === 'annotations'),
+        ).toBe(false);
+    });
+
     it('hides an action its config switched off, keeping the rest in order', async () => {
         await mountToolbar({
             toolbar: {

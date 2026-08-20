@@ -96,6 +96,22 @@ export interface PlannerCanvas {
     width: number | null;
     height: number | null;
     /**
+     * The Canvas's declared `duration` in seconds, or `null` where it declares
+     * none — which is every image canvas, and so the overwhelmingly common case.
+     *
+     * Carried for one purpose: a canvas with a duration and no picture has a
+     * KNOWN shape rather than an unknown one, and `planScene.resolveGeometry`
+     * gives it a timeline-shaped rect instead of a page-shaped guess. It is
+     * consulted nowhere else, and never for a canvas that paints images — a
+     * canvas carrying both a video body and an image one is core's to paint, and
+     * its geometry is its images' (`0489-multimedia-canvas`).
+     *
+     * Not the playhead's business: the AV plugin reads the duration it plays
+     * against off the manifest itself (`plugin-av/sources.scanCanvasForAv`), and
+     * core makes no claim here about what any element will report.
+     */
+    duration?: number | null;
+    /**
      * Every picture painted on this canvas, in the manifest's own annotation
      * order — which is paint order, so a later entry paints over an earlier one.
      *

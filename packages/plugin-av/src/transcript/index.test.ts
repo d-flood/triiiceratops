@@ -8,7 +8,13 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createTranscriptPanel, type TranscriptPort } from './index';
+import {
+    createNotesPanel,
+    createTranscriptPanel,
+    type NoteEntry,
+    type NotesPort,
+    type TranscriptPort,
+} from './index';
 
 function cue(startTime: number, endTime: number, text: string): VTTCue {
     return { startTime, endTime, text } as VTTCue;
@@ -23,7 +29,10 @@ const CUES = [
 interface Harness {
     readonly container: HTMLElement;
     readonly port: TranscriptPort;
+    /** The same clock, styles and catalog, for the panel's other section. */
+    readonly notesPort: NotesPort;
     readonly seeks: number[];
+    notes: NoteEntry[];
     tick(): void;
     time: number;
     duration: number | null;
@@ -46,6 +55,7 @@ function harness(): Harness {
     const state: Harness = {
         container,
         seeks,
+        notes: [],
         time: 0,
         duration: 2,
         offset: 0,
@@ -95,13 +105,24 @@ function harness(): Harness {
                     : mmss;
             },
             styles: { install: () => () => {} },
-            t: (key: string, params?: Record<string, string>) =>
-                key === 'av_transcript_showing'
-                    ? `Showing ${params?.track}`
-                    : 'Transcript',
+            t: label,
+        },
+        get notesPort(): NotesPort {
+            return {
+                avState: state.port.avState,
+                entries: () => state.notes,
+                formatTime: state.port.formatTime,
+                styles: state.port.styles,
+                t: label,
+            };
         },
     };
     return state;
+}
+
+function label(key: string, params?: Record<string, string>): string {
+    if (key === 'av_transcript_showing') return `Showing ${params?.track}`;
+    return key === 'av_notes' ? 'Notes' : 'Transcript';
 }
 
 function cueButtons(container: HTMLElement): HTMLButtonElement[] {
@@ -475,5 +496,268 @@ describe('transcript panel', () => {
         expect(release).toHaveBeenCalledTimes(1);
         // A tick after destruction reaches nothing.
         expect(() => h.tick()).not.toThrow();
+    });
+});
+
+/**
+ * The notes section, over the same fake port — a second SOURCE in the panel,
+ * not a second panel.
+ */
+describe('notes section', () => {
+    let h: Harness;
+
+    const NOTES: NoteEntry[] = [
+        { id: 'a', startSeconds: 0.5, endSeconds: 1, text: 'The first note.' },
+        { id: 'b', startSeconds: 1.4, endSeconds: 2, text: 'The second note.' },
+    ];
+
+    beforeEach(() => {
+        document.body.replaceChildren();
+        h = harness();
+        h.notes = [...NOTES];
+    });
+
+    function noteButtons(): HTMLButtonElement[] {
+        return [
+            ...h.container.querySelectorAll<HTMLButtonElement>(
+                '[data-testid="av-notes"] button',
+            ),
+        ];
+    }
+
+    it('lists every note in order, each with the span it covers', () => {
+        createNotesPanel(h.container, h.notesPort);
+
+        const section = h.container.querySelector('[data-testid="av-notes"]');
+        expect(section?.querySelector('h3')?.textContent).toBe('Notes');
+        expect(section?.querySelector('ol')?.getAttribute('aria-label')).toBe(
+            'Notes',
+        );
+        // The span and the text both, so the accessible name of a row says
+        // which moment it describes as well as what it says about it.
+        expect(noteButtons().map((button) => button.textContent)).toEqual([
+            '0:00–0:01The first note.',
+            '0:01–0:02The second note.',
+        ]);
+    });
+
+    it('lists a note that named only a start, and seeks to it', () => {
+        h.notes = [{ id: 'point', startSeconds: 1.4, text: 'A moment.' }];
+        createNotesPanel(h.container, h.notesPort);
+
+        expect(noteButtons()[0].textContent).toBe('0:01A moment.');
+        noteButtons()[0].click();
+        expect(h.seeks).toEqual([1.4]);
+    });
+
+    it('seeks to a note’s start without ever starting playback', () => {
+        createNotesPanel(h.container, h.notesPort);
+
+        noteButtons()[1].click();
+
+        // The port carries no `play` at all: seeking is the whole of what a
+        // note can do (the epic's standing "seek, never autoplay" rule).
+        expect(h.seeks).toEqual([1.4]);
+        expect('play' in h.notesPort.avState).toBe(false);
+    });
+
+    /*
+        Keyboard reach and activation come from the platform, which is the
+        reason each row is a real `<button>` inside real list semantics rather
+        than a styled `<div>` with a handler. jsdom does not implement Enter
+        activating a focused button, so what is asserted is the button-ness the
+        browser's own behaviour rests on, plus that activation works from the
+        focused element.
+    */
+    it('reaches and activates every note from the keyboard', () => {
+        createNotesPanel(h.container, h.notesPort);
+
+        for (const button of noteButtons()) {
+            expect(button.tagName).toBe('BUTTON');
+            expect(button.type).toBe('button');
+            expect(button.closest('li')?.parentElement?.tagName).toBe('OL');
+        }
+
+        noteButtons()[1].focus();
+        expect(document.activeElement).toBe(noteButtons()[1]);
+        (document.activeElement as HTMLButtonElement).click();
+        expect(h.seeks).toEqual([1.4]);
+    });
+
+    /*
+        Nothing stops a publisher spelling one IRI on two annotations, and the
+        rows are keyed for the DOM's benefit rather than the manifest's: two
+        rows keyed alike would reconcile into one, carrying the second's text
+        and seeking the first's start.
+    */
+    it('keeps two notes sharing an id as two rows, each seeking its own start', () => {
+        h.notes = [
+            { id: 'same', startSeconds: 0.5, text: 'The first note.' },
+            { id: 'same', startSeconds: 1.4, text: 'The second note.' },
+        ];
+        createNotesPanel(h.container, h.notesPort);
+
+        expect(noteButtons().map((button) => button.textContent)).toEqual([
+            '0:00The first note.',
+            '0:01The second note.',
+        ]);
+
+        noteButtons()[0].click();
+        noteButtons()[1].click();
+        expect(h.seeks).toEqual([0.5, 1.4]);
+    });
+
+    it('renders no section at all while the canvas has no notes', () => {
+        h.notes = [];
+        const panel = createNotesPanel(h.container, h.notesPort);
+
+        // No heading and no empty box — nothing.
+        expect(
+            h.container.querySelector('[data-testid="av-notes"]'),
+        ).toBeNull();
+        expect(h.container.textContent).toBe('');
+
+        // And it appears once the source has something to show.
+        h.notes = [...NOTES];
+        panel.refresh();
+        expect(noteButtons()).toHaveLength(2);
+    });
+
+    /*
+        The duration decides the SHAPE of every stamp, and it lands on
+        `durationchange` — after the panel may already have rendered. A list
+        left in the old shape would spell a moment differently from the
+        transport's own clock.
+    */
+    it('reformats its stamps once the canvas duration lands', () => {
+        h.duration = null;
+        const panel = createNotesPanel(h.container, h.notesPort);
+        expect(noteButtons()[0].textContent).toBe('0:00–0:01The first note.');
+
+        h.duration = 4000;
+        panel.refresh();
+        expect(noteButtons()[0].textContent).toBe(
+            '0:00:00–0:00:01The first note.',
+        );
+    });
+
+    /** Which rows read as current, by their position in the list. */
+    function current(): number[] {
+        return noteButtons().flatMap((button, index) =>
+            button.getAttribute('aria-current') === 'true' ? [index] : [],
+        );
+    }
+
+    it('marks the note covering the playhead and clears it on the way out', () => {
+        createNotesPanel(h.container, h.notesPort);
+        expect(current()).toEqual([]);
+
+        h.time = 0.7;
+        h.tick();
+        expect(current()).toEqual([0]);
+
+        // No grace period: the gap between two notes is the recording, not
+        // punctuation, so a lapsed note keeps no mark (unlike a lapsed cue).
+        h.time = 1.2;
+        h.tick();
+        expect(current()).toEqual([]);
+
+        h.time = 1.5;
+        h.tick();
+        expect(current()).toEqual([1]);
+    });
+
+    it('marks every note whose span covers the playhead at once', () => {
+        h.notes = [
+            {
+                id: 'a',
+                startSeconds: 0.5,
+                endSeconds: 2,
+                text: 'The wide one.',
+            },
+            {
+                id: 'b',
+                startSeconds: 1,
+                endSeconds: 1.5,
+                text: 'The inner one.',
+            },
+            {
+                id: 'c',
+                startSeconds: 1.8,
+                endSeconds: 2,
+                text: 'The late one.',
+            },
+        ];
+        createNotesPanel(h.container, h.notesPort);
+
+        h.time = 1.2;
+        h.tick();
+        expect(current()).toEqual([0, 1]);
+    });
+
+    it('never marks a note that named only a start', () => {
+        h.notes = [{ id: 'point', startSeconds: 1, text: 'A moment.' }];
+        createNotesPanel(h.container, h.notesPort);
+
+        for (const time of [1, 1.000_001, 2]) {
+            h.time = time;
+            h.tick();
+            expect(current()).toEqual([]);
+        }
+    });
+
+    /*
+        Half-open at the end, so the boundary belongs to the note starting
+        there and two adjacent notes never both light up on one frame.
+    */
+    it('marks exactly one note at the boundary between two adjacent spans', () => {
+        h.notes = [
+            { id: 'a', startSeconds: 0, endSeconds: 1, text: 'The first.' },
+            { id: 'b', startSeconds: 1, endSeconds: 2, text: 'The second.' },
+        ];
+        createNotesPanel(h.container, h.notesPort);
+
+        h.time = 1;
+        h.tick();
+        expect(current()).toEqual([1]);
+    });
+
+    it('shows the transcript and the notes as two labelled sections', () => {
+        createTranscriptPanel(h.container, h.port);
+        createNotesPanel(h.container, h.notesPort);
+
+        const lists = [...h.container.querySelectorAll('ol')];
+        expect(lists.map((list) => list.getAttribute('aria-label'))).toEqual([
+            'Transcript',
+            'Notes',
+        ]);
+        // The transcript first: the machine-timed words, then the editor's.
+        expect(lists[0].dataset.testid).toBe('av-transcript-cues');
+        expect(lists[1].dataset.testid).toBe('av-notes-list');
+        expect(noteButtons()).toHaveLength(2);
+    });
+
+    it('releases its DOM, its subscription and its styles', () => {
+        const release = vi.fn();
+        const panel = createNotesPanel(h.container, {
+            ...h.notesPort,
+            styles: { install: () => release },
+        });
+
+        panel.destroy();
+
+        expect(
+            h.container.querySelector('[data-testid="av-notes"]'),
+        ).toBeNull();
+        expect(release).toHaveBeenCalledTimes(1);
+        // A frame after destruction reaches nothing.
+        h.time = 0.7;
+        expect(() => h.tick()).not.toThrow();
+        // Load-bearing: a leaked frame listener would re-enter `render()`,
+        // find the detached root and rebuild and re-append the section, so a
+        // still-null query is what proves the subscription was dropped.
+        expect(
+            h.container.querySelector('[data-testid="av-notes"]'),
+        ).toBeNull();
     });
 });

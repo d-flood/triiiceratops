@@ -236,8 +236,16 @@ export interface Transport {
      * clock — the scrubber's waveform strip arriving from the network.
      */
     refresh(): void;
-    /** Re-read the labels after a locale change. */
-    retranslate(): void;
+    /**
+     * Re-read the labels.
+     *
+     * They are held rather than read per view, because {@link refresh} runs on
+     * the frame cadence and rebuilding every string sixty times a second would
+     * buy nothing. So whoever knows a label's inputs have moved says so: the
+     * locale changed, or — for the panel control, which names what it opens —
+     * the current canvas's reading matter did.
+     */
+    relabel(): void;
     destroy(): void;
 }
 
@@ -384,9 +392,9 @@ export function createTransport(options: TransportOptions): Transport {
             };
         },
         refresh,
-        retranslate(): void {
+        relabel(): void {
             state.labels = options.labels();
-            // `refresh` is what rebuilds everything the locale reaches: the
+            // `refresh` is what rebuilds everything the labels reach: the
             // options a nameless track is listed under, and the announced
             // position.
             refresh();

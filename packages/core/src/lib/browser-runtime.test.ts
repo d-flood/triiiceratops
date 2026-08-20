@@ -109,6 +109,7 @@ describe('the shared core utilities', () => {
             'isImageBody',
             'isUnsupportedCanvasFor',
             'paintingBodyAlternatives',
+            'parseIiifTime',
         ]);
         for (const name of Object.keys(shared)) {
             expect(typeof shared[name]).toBe('function');

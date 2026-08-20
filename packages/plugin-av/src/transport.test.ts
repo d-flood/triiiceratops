@@ -295,7 +295,7 @@ describe('createTransport', () => {
         // A paused canvas never ticks, so nothing but the locale change itself
         // can recompute what the scrubber announces.
         locale = 'fr';
-        transport.retranslate();
+        transport.relabel();
         expect(transport.view().positionText).toBe('fr:av_position:0:00/0:02');
 
         transport.destroy();
@@ -567,6 +567,40 @@ describe('createTransport', () => {
     it('names the control from the catalog, so it announces in the locale', () => {
         const { transport } = transcriptTransport(true);
         expect(transport.view().labels.transcript).toBe('Transcript');
+        transport.destroy();
+    });
+
+    it('renames the control when the canvas gains a transcript late', () => {
+        // Cookbook 0017 links its transcript from the canvas, which is not
+        // read until a stage is built — long after the transport is. A control
+        // still saying "Notes" over a panel of transcript is the defect.
+        const media = document.createElement('audio');
+        const { state } = fakeAvState();
+        let transcript = false;
+        const transport = createTransport({
+            avState: state,
+            currentMedia: () => media,
+            bufferedSpans: elementSpans,
+            prefs: createAudioPrefs(),
+            labels: () => ({
+                ...LABELS,
+                transcript: transcript ? 'Transcript' : 'Notes',
+            }),
+            peaksStrip: () => null,
+            captions: () => ({ tracks: [], active: null }),
+            setCaptionTrack: () => {},
+            hasTranscript: () => true,
+            panelOpen: () => false,
+            setPanelOpen: () => {},
+            t: (key) => key,
+        });
+
+        expect(transport.view().labels.transcript).toBe('Notes');
+
+        transcript = true;
+        transport.relabel();
+        expect(transport.view().labels.transcript).toBe('Transcript');
+
         transport.destroy();
     });
 });

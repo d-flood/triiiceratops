@@ -27,6 +27,8 @@ import { basename, join } from 'node:path';
 
 import { expect, test, type Page, type Route } from '@playwright/test';
 
+import { E2E_ORIGIN } from './helpers/origin';
+
 test.describe.configure({ timeout: 180_000 });
 
 test.skip(
@@ -54,7 +56,15 @@ const PANEL_TOGGLE = '[data-plugin-toggle="av"]';
 const PANEL = '[data-testid="av-panel"]';
 const TRANSCRIPT = '[data-testid="av-transcript"]';
 const TRANSCRIPT_TRACK = '[data-testid="av-transcript-track"]';
+const TRANSCRIPT_TEXT = '[data-testid="av-transcript-text"]';
 const CUES = '[data-testid="av-transcript-cues"] button';
+
+// The transport's own panel control, and the panel's notes section.
+const PANEL_CONTROL = '[data-testid="transport-transcript"]';
+const NOTES = '[data-testid="av-notes"]';
+const NOTE_ROWS = '[data-testid="av-notes-list"] button';
+const CURRENT_NOTE =
+    '[data-testid="av-notes-list"] button[aria-current="true"]';
 
 // Core's canvas-info popover — the only surface that renders a canvas-level
 // `rendering` link. Selected by ARIA rather than a test id because that is the
@@ -290,7 +300,7 @@ async function installRoutes(page: Page, log: Log): Promise<void> {
         const path = new URL(route.request().url()).pathname;
         const rest = path.replace('/api/image/3.0/example/reference/', '');
         const response = await route.fetch({
-            url: `http://127.0.0.1:5175/iiif-fixture/${rest}`,
+            url: `${E2E_ORIGIN}/iiif-fixture/${rest}`,
         });
         return route.fulfill({ response });
     });
@@ -345,6 +355,26 @@ function transcriptRenderingHits(page: Page): Promise<number> {
     });
 }
 
+/**
+ * The file name of the built transcript chunk — the one the panel's sections
+ * both live in.
+ *
+ * Resolved from the ESM entry's own `import(...)` calls rather than hard-coded,
+ * because the name carries a content hash that changes with every build. The
+ * marker is the same one `lazy-chunks.guard.test.ts` identifies the chunk by.
+ */
+function transcriptChunkName(): string {
+    const dist = join(import.meta.dirname, '../../plugin-av/dist');
+    const entry = readFileSync(join(dist, 'index.js'), 'utf8');
+    for (const [, name] of entry.matchAll(
+        /import\(\s*["']\.\/([^"']+\.js)["']\s*\)/g,
+    )) {
+        const chunk = readFileSync(join(dist, name), 'utf8');
+        if (chunk.includes('tri-av-transcript-cues')) return name;
+    }
+    throw new Error('no transcript chunk in packages/plugin-av/dist');
+}
+
 /** The media element's own view of playback. */
 async function playback(
     page: Page,
@@ -356,6 +386,73 @@ async function playback(
             const media = element as HTMLMediaElement;
             return { currentTime: media.currentTime, paused: media.paused };
         });
+}
+
+/**
+ * `0103`'s recording, at the length the recipe wrote its note against.
+ *
+ * The note covers seconds 702–705 of a 707.81-second reading, so the two-second
+ * tone every other recipe borrows cannot be played into it at all — and the
+ * mark is only worth asserting where a playhead can actually cross a span. The
+ * stand-in is the same tone's frames repeated to the recording's real length
+ * rather than six megabytes of vendored silence.
+ *
+ * The ID3 tag and the encoder's Xing/Info frame are dropped, so the demuxer
+ * takes the duration from the bitrate and the byte count instead of from a
+ * frame table describing two seconds.
+ */
+function buildPoetryReadingMp3(): Buffer {
+    const file = readFileSync(join(MEDIA_DIR, 'tone.mp3'));
+    if (file.toString('latin1', 0, 3) !== 'ID3')
+        throw new Error(
+            'tone.mp3 does not start with an ID3v2 tag: regenerate.sh has ' +
+                'changed the encoder output, so the audio frames cannot be found.',
+        );
+    // ID3v2: a ten-byte header, then a syncsafe (seven bits per byte) length.
+    const tag =
+        10 + ((file[6] << 21) | (file[7] << 14) | (file[8] << 7) | file[9]);
+    // Past the first frame — the Xing/Info one — to the second frame's sync.
+    let audio = tag + 2;
+    while (
+        audio < file.length &&
+        !(file[audio] === 0xff && (file[audio + 1] & 0xe0) === 0xe0)
+    )
+        audio += 1;
+    if (audio >= file.length)
+        throw new Error(
+            'no MPEG frame sync found after the Xing/Info frame of tone.mp3: ' +
+                'regenerate.sh has changed the encoder output.',
+        );
+
+    // The tone is CBR at 64 kbps — 8000 bytes per second — so its byte count
+    // alone fixes how long one repeat runs (~16.3 kB of frames is ~2.04 s).
+    // Repeated past 715 seconds, comfortably beyond the note's 705-second end.
+    const frames = file.subarray(audio);
+    const perRepeat = frames.length / (64_000 / 8);
+    return Buffer.concat(
+        Array.from({ length: Math.ceil(715 / perRepeat) }, () => frames),
+    );
+}
+
+let poetryReading: Buffer | undefined;
+
+/** Built once: every range request during seek and playback asks for it. */
+function poetryReadingMp3(): Buffer {
+    return (poetryReading ??= buildPoetryReadingMp3());
+}
+
+/** Seek through the plugin's published state — the path a host would take. */
+async function seekPlugin(page: Page, seconds: number): Promise<void> {
+    await page.evaluate((at) => {
+        const host = document.querySelector(
+            'triiiceratops-viewer',
+        ) as unknown as {
+            viewerState: {
+                getPluginState(id: string): { seek(t: number): void } | null;
+            };
+        };
+        host?.viewerState?.getPluginState('av')?.seek(at);
+    }, seconds);
 }
 
 test.describe('demo av cookbook coverage', () => {
@@ -634,17 +731,18 @@ test.describe('demo av cookbook coverage', () => {
 
     /**
      * `0017-transcription-av`'s subject is a `text/plain` transcript hung off
-     * the *canvas*'s `rendering`. The plugin plays the video, but the recipe's
-     * own feature is not surfaced to a reader, and this test pins that down so
-     * the docs cannot drift back into claiming otherwise.
+     * the *canvas*'s `rendering`, and the AV panel reads it: the plugin's
+     * untimed-transcript source fetches the linked file and writes its words
+     * into the panel under the publisher's own label.
      *
-     * Core renders canvas `rendering` links in one place only — the canvas-info
-     * popover in `ViewerControls` — and that popover is gated behind
-     * `showNav`, which requires `canvases.length > 1`. `0017` is a
-     * single-canvas manifest, so the trigger is never rendered and the link has
-     * no route to the screen. Nothing else in the viewer offers it either.
+     * Core still has no route to the link itself — canvas `rendering` links
+     * render in one place only, the canvas-info popover in `ViewerControls`,
+     * and that popover is gated behind `showNav`, which requires
+     * `canvases.length > 1`. `0017` is a single-canvas manifest, so the trigger
+     * never renders. Both halves are asserted here: the link is unreachable,
+     * and the transcript is served anyway.
      */
-    test('the transcript recipe plays, but its rendering is not offered anywhere', async ({
+    test('the transcript recipe serves its rendering in the panel, not as a link', async ({
         page,
     }) => {
         const log = newLog();
@@ -656,18 +754,174 @@ test.describe('demo av cookbook coverage', () => {
         await expect(page.locator(CANVAS_INFO)).toHaveCount(0);
         await expect(page.locator(RENDERING_LINK)).toHaveCount(0);
 
-        // Nor does any other disclosure the viewer offers surface it.
-        for (const label of [
-            'Toggle Information',
-            'Toggle Table of Contents',
-            'Show Gallery',
-        ]) {
-            const button = page.locator(`button[aria-label="${label}"]`);
-            if (await button.count()) await button.first().click();
-        }
+        // The control names what it opens. This canvas's transcript is linked
+        // rather than embedded, so it is read after the transport exists — a
+        // label captured once would leave the button saying "Notes".
+        await expect(page.locator(PANEL_CONTROL)).toHaveAttribute(
+            'aria-label',
+            'Transcript',
+            { timeout: 30_000 },
+        );
+
         await openAvPanel(page);
 
-        expect(await transcriptRenderingHits(page)).toBe(0);
+        // The panel names the transcript as the recipe labels it, and carries
+        // the linked file's own bytes — `volleyball.txt`, stood in for by the
+        // hermetic corpus's plain-text body.
+        await expect(page.locator(TRANSCRIPT_TRACK)).toHaveText('Transcript');
+        await expect(page.locator(TRANSCRIPT_TEXT)).toHaveText('transcript');
+
+        expect(await transcriptRenderingHits(page)).toBeGreaterThan(0);
+    });
+
+    /**
+     * `0103-poetry-reading-annotations` is the recipe this feature exists for:
+     * a 707.81-second audio canvas whose only subject is a `commenting`
+     * annotation targeting `#t=702.0,705.0`. It carries no captions at all, so
+     * it is also where the panel control has to earn its own name.
+     */
+    test('the annotation recipe lists its timed notes, and one seeks without playing', async ({
+        page,
+    }) => {
+        const log = newLog();
+        await openRecipe(page, '0103-poetry-reading-annotations', log);
+        await page.locator(STAGE).first().waitFor({ state: 'visible' });
+
+        // The panel is reachable although there is no transcript behind it, and
+        // the control says what it opens rather than promising one.
+        const control = page.locator(PANEL_CONTROL);
+        await expect(control).toHaveAttribute('aria-label', 'Notes');
+        await control.click();
+
+        await expect(page.locator(NOTES)).toBeVisible({ timeout: 30_000 });
+        await expect(page.locator(TRANSCRIPT)).toHaveCount(0);
+        // The recipe's own annotation, at the recipe's own times, spelled by
+        // the transport's clock formatter.
+        await expect(page.locator(NOTE_ROWS)).toHaveText([
+            '11:42–11:45Soft laughter, rustling',
+        ]);
+
+        expect((await playback(page)).paused).toBe(true);
+        await page.locator(NOTE_ROWS).first().click();
+
+        /*
+            The note starts at second 702 of a recording the hermetic corpus
+            stands in for with a two-second tone, so the browser clamps the seek
+            to the end of the bytes it actually has. What the clock can show
+            here is that the click moved it off zero and left it there; that the
+            target was 702 is what the row above says and what the panel's own
+            unit spec pins. Polled, because the element services a seek on its
+            own schedule.
+        */
+        await expect
+            .poll(async () => (await playback(page)).currentTime, {
+                timeout: 10_000,
+            })
+            .toBeGreaterThan(1.9);
+        expect((await playback(page)).paused).toBe(true);
+
+        await expect(page.locator(UNSUPPORTED)).toHaveCount(0);
+        await expect(page.locator(ERROR)).toHaveCount(0);
+    });
+
+    /**
+     * The mark, against the recipe's own note and a playhead that really
+     * crosses it: entering `#t=702.0,705.0` lights the row, and leaving it puts
+     * the row out again with no grace period of the kind the cue list keeps.
+     *
+     * Everything is polled rather than sampled — the mark rides the frame
+     * cadence, so any single read lands mid-frame by luck rather than by
+     * meaning.
+     */
+    test('the notes section marks the note covering the playhead as the recipe plays', async ({
+        page,
+    }) => {
+        const log = newLog();
+        await installRoutes(page, log);
+        // Registered last, so it wins the by-extension stand-in: Playwright
+        // matches the most recently added route first.
+        await page.route('https://fixtures.iiif.io/audio/ubc/**', (route) =>
+            route.fulfill(
+                rangeAware(
+                    {
+                        contentType: 'audio/mpeg',
+                        body: poetryReadingMp3(),
+                    },
+                    route.request().headers().range,
+                ),
+            ),
+        );
+        await page.goto(
+            `/?manifest=${encodeURIComponent(recipeUrl('0103-poetry-reading-annotations'))}`,
+            { waitUntil: 'domcontentloaded' },
+        );
+        await page
+            .locator(SURFACE)
+            .waitFor({ state: 'visible', timeout: 60_000 });
+
+        await page.locator(PANEL_CONTROL).click();
+        await expect(page.locator(NOTE_ROWS)).toHaveCount(1, {
+            timeout: 30_000,
+        });
+
+        // Parked shortly before the span, where the row must read as ordinary.
+        // The landing point is only approximate — an MP3 with no seek table is
+        // sought by the demuxer's own estimate — so what is asserted is the
+        // side of 702 it came down on, not the second. Read off the canvas
+        // clock the mark itself is computed from, not the element's.
+        await seekPlugin(page, 700);
+        await expect
+            .poll(
+                async () => {
+                    const at = await currentTime(page);
+                    return at > 690 && at < 701.5;
+                },
+                { timeout: 30_000 },
+            )
+            .toBe(true);
+        await expect(page.locator(CURRENT_NOTE)).toHaveCount(0);
+
+        // Muted first, so the transport's own play button is a plain user
+        // gesture no autoplay policy has anything to say about.
+        await page.locator(MUTE).click();
+        await page.locator(PLAY).click();
+
+        // Into the span at 702 …
+        await expect(page.locator(CURRENT_NOTE)).toHaveCount(1, {
+            timeout: 30_000,
+        });
+        // … and out of it at 705, with nothing carried past the end.
+        await expect(page.locator(CURRENT_NOTE)).toHaveCount(0, {
+            timeout: 30_000,
+        });
+
+        await expect(page.locator(ERROR)).toHaveCount(0);
+    });
+
+    /**
+     * The other half of the same rule: a recipe with neither captions nor timed
+     * annotations offers no panel control at all, so the lazy chunk that
+     * renders both is never fetched.
+     */
+    test('a recipe with neither captions nor notes offers no panel control', async ({
+        page,
+    }) => {
+        const log = newLog();
+        const chunk = transcriptChunkName();
+        const chunkRequests: string[] = [];
+        page.on('request', (request) => {
+            if (request.url().endsWith(`/${chunk}`))
+                chunkRequests.push(request.url());
+        });
+
+        await openRecipe(page, '0002-mvm-audio', log);
+        await page.locator(STAGE).first().waitFor({ state: 'visible' });
+        await expect(page.locator(PANEL_CONTROL)).toHaveCount(0);
+
+        await openAvPanel(page);
+        await expect(page.locator(TRANSCRIPT)).toHaveCount(0);
+        await expect(page.locator(NOTES)).toHaveCount(0);
+        expect(chunkRequests).toEqual([]);
     });
 
     /** The captions half of user story 12, on the corpus the epic is judged by. */

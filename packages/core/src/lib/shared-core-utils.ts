@@ -14,6 +14,7 @@
 import type { SharedCoreUtils } from './browser-runtime';
 import { companionPaintable } from './renderer/companionCanvases';
 import { getPaintingAnnotations } from './utils/iiifParsing';
+import { parseIiifTime } from './utils/iiifTime';
 import {
     isImageBody,
     isUnsupportedCanvasFor,
@@ -34,4 +35,5 @@ export const SHARED_CORE_UTILS: SharedCoreUtils = {
     isImageBody,
     isUnsupportedCanvasFor,
     paintingBodyAlternatives,
+    parseIiifTime,
 };

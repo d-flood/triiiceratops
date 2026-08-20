@@ -709,6 +709,67 @@ describe('planScene — multi-canvas layout', () => {
             });
         });
 
+        /**
+         * A bare audio canvas: a duration, no dimensions, and no picture — the
+         * descriptor `toPlannerCanvas` builds for a Canvas whose only painting
+         * body is a `Sound`.
+         */
+        const durationOnly: PlannerCanvas = {
+            id: 'recording',
+            width: null,
+            height: null,
+            duration: 180,
+            images: [],
+        };
+
+        it('gives a lone duration-only canvas a timeline-shaped rect, not a square', () => {
+            // Nothing will ever paint a picture here — no images to reflow from,
+            // no companion Canvas to donate a rect — so the square that stands in
+            // for an unknown shape is the wrong stand-in: it makes an AV plugin's
+            // waveform lane, which fills the rect, as tall as a page.
+            const rect = plan([durationOnly]).layout[0];
+
+            expect(rect.height).toBeLessThan(rect.width);
+            expect(rect.height / rect.width).toBeCloseTo(0.16, 6);
+        });
+
+        it('keeps the square for an unsized canvas that does paint a picture', () => {
+            // The other side of the same rung: a canvas that omits its
+            // dimensions and declares no duration has an UNKNOWN shape, which a
+            // service may yet report, and guessing a strip for it would be a
+            // guess about the folio rather than about the absence of one.
+            const rect = plan([
+                {
+                    id: 'lonely',
+                    width: null,
+                    height: null,
+                    images: [fills('lonely', serviceSource('lonely'), 1, 1)],
+                },
+            ]).layout[0];
+
+            expect(rect.height).toBe(rect.width);
+        });
+
+        it('still prefers a sibling median over the timeline placeholder', () => {
+            // The placeholder is the LAST rung, and a duration-only canvas does
+            // not jump the queue: among sized siblings the median is a real
+            // figure from this manifest, and a strip between two folios would be
+            // stretched by height normalization into a band several folios wide.
+            const result = plan(
+                [
+                    staticCanvas('a', 1000, 750),
+                    durationOnly,
+                    staticCanvas('c', 1200, 900),
+                ],
+                { mode: 'paged', preserveCanvasScale: true },
+            );
+
+            expect(result.layout[1]).toMatchObject({
+                width: 1100,
+                height: 825,
+            });
+        });
+
         it('reaches a fixed point: the reflow does not re-enter the guess', () => {
             // The reflow terminates only because the host's `knownMetadata` is
             // append-only (`CanvasHost.requestMetadata`). Asserted here, in the

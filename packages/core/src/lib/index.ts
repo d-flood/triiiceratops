@@ -169,6 +169,7 @@ export { createPluginSurface } from './plugin/surface';
 // `triiiceratops/image-export`. The manifest itself is available as raw JSON
 // through `viewerState.manifestEntry?.json`.
 export { getPaintingAnnotations } from './utils/iiifParsing';
+export { parseIiifTime } from './utils/iiifTime';
 
 // The painting-body classifier, in the minimum that answers "is this canvas
 // mine to claim" (ADR 0017).

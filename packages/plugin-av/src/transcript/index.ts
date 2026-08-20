@@ -1,6 +1,7 @@
 /**
  * The **transcript panel**: a claimed canvas's WebVTT cues as readable,
- * navigable text.
+ * navigable text, and the editorial notes its manifest timed against the same
+ * recording.
  *
  * A lazy chunk, and that is a budget decision rather than an architectural one:
  * the competitive pair budget (`scripts/size-check.mjs`) had 560 gzip to spare
@@ -151,75 +152,362 @@ function activeIndex(cues: readonly TranscriptCue[], time: number): number {
     return found;
 }
 
-const CSS = `
-.tri-av-transcript {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    gap: 0.25rem;
+/** One timed row after its caller has resolved source-specific values. */
+interface TimedRow {
+    /**
+     * Stable and unique within one render, so a row keeps its DOM identity on
+     * update. Duplicate keys collapse to one rendered row.
+     */
+    readonly key: string;
+    /** Formatted by the caller, which owns the source's clock. */
+    readonly stamp: string;
+    readonly text: string;
 }
-.tri-av-transcript-track {
-    margin: 0;
-    font-size: 0.8125rem;
-    opacity: 0.75;
+
+interface TimedListHandle {
+    readonly list: HTMLOListElement;
+    /** Replaces rows and clears every current mark; callers must mark again. */
+    render(rows: readonly TimedRow[]): void;
+    /** The rows that should read as current; an empty set clears every mark. */
+    mark(current: ReadonlySet<string>): void;
+    button(key: string): HTMLButtonElement | undefined;
+    destroy(): void;
 }
-.tri-av-transcript-cues {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    overflow-y: auto;
-    /* Bounded so the list scrolls inside the panel instead of pushing the
-       panel's own chrome off screen; tall enough to show several cues at the
-       narrow, short viewports the mobile layout below is for. */
-    max-height: 22rem;
+
+/**
+ * `max-height: 22rem` keeps the list scrolling inside the panel instead of
+ * pushing its chrome off screen, while showing several rows at the short
+ * mobile viewports covered by the media query.
+ *
+ * `min-height: 44px` makes each cue a finger-sized touch target under the
+ * project's mobile interaction rule.
+ *
+ * Below 480px, the clock is clipped rather than `display: none` so it remains
+ * in the accessible name that lets a screen-reader user distinguish two cues.
+ */
+const TIMED_LIST_CSS = `.tri-av-transcript{display:flex;flex-direction:column;min-height:0;gap:.25rem}.tri-av-transcript-track{margin:0;font-size:.8125rem;opacity:.75}.tri-av-transcript-cues{list-style:none;margin:0;padding:0;overflow-y:auto;max-height:22rem}.tri-av-transcript-cue{display:flex;gap:.5rem;width:100%;padding:.375rem .5rem;border:0;border-radius:var(--tri-radius,4px);background:transparent;color:inherit;font:inherit;text-align:start;cursor:pointer;min-height:44px}.tri-av-transcript-cue:hover{background:var(--tri-hover-bg,rgba(127,127,127,.18))}.tri-av-transcript-cue:focus-visible{outline:2px solid var(--tri-focus-ring,currentColor);outline-offset:-2px}.tri-av-transcript-cue[aria-current='true']{background:var(--tri-selected-bg,rgba(127,127,127,.28));font-weight:600}.tri-av-transcript-time{flex:none;font-variant-numeric:tabular-nums;opacity:.7}@media (max-width:480px){.tri-av-transcript-cues{max-height:14rem}.tri-av-transcript-time{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}}`;
+
+function installTimedListStyles(styles: TranscriptPort['styles']): () => void {
+    return styles.install(TIMED_LIST_CSS, 'transcript');
 }
-.tri-av-transcript-cue {
-    display: flex;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0.375rem 0.5rem;
-    border: 0;
-    border-radius: var(--tri-radius, 4px);
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-align: start;
-    cursor: pointer;
-    /* A touch target a finger can hit, per the repo's mobile rule. */
-    min-height: 44px;
-}
-.tri-av-transcript-cue:hover {
-    background: var(--tri-hover-bg, rgba(127, 127, 127, 0.18));
-}
-.tri-av-transcript-cue:focus-visible {
-    outline: 2px solid var(--tri-focus-ring, currentColor);
-    outline-offset: -2px;
-}
-.tri-av-transcript-cue[aria-current='true'] {
-    background: var(--tri-selected-bg, rgba(127, 127, 127, 0.28));
-    font-weight: 600;
-}
-.tri-av-transcript-time {
-    flex: none;
-    font-variant-numeric: tabular-nums;
-    opacity: 0.7;
-}
-@media (max-width: 480px) {
-    .tri-av-transcript-cues {
-        max-height: 14rem;
+
+/**
+ * The source-neutral DOM mechanics for a list that follows a timeline.
+ *
+ * Values cross this boundary already resolved and formatted, so the list can
+ * serve a cue source without knowing WebVTT or another timed source without
+ * learning its vocabulary.
+ */
+function createTimedList(
+    container: HTMLElement,
+    label: string,
+    onActivate: (key: string) => void,
+): TimedListHandle {
+    const list = document.createElement('ol');
+    list.className = 'tri-av-transcript-cues';
+    list.dataset.testid = 'av-transcript-cues';
+    list.setAttribute('aria-label', label);
+    container.append(list);
+
+    let buttons = new Map<string, HTMLButtonElement>();
+
+    function createButton(key: string): HTMLButtonElement {
+        const item = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'tri-av-transcript-cue';
+        // Existing unit and end-to-end specs freeze this attribute name; it is
+        // a compatibility hook, not evidence that this generic list is cue-specific.
+        button.dataset.cueIndex = key;
+
+        const stamp = document.createElement('span');
+        stamp.className = 'tri-av-transcript-time';
+        button.append(stamp, document.createElement('span'));
+        button.addEventListener('click', () => onActivate(key));
+        item.append(button);
+        return button;
     }
-    .tri-av-transcript-time {
-        /* The clock is redundant beside the text on a phone-width panel, and
-           it costs the cue text a third of the line. Still in the accessible
-           name, because it is how a screen-reader user tells two cues apart. */
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip-path: inset(50%);
+
+    function mark(current: ReadonlySet<string>): void {
+        for (const [key, button] of buttons) {
+            if (current.has(key)) button.setAttribute('aria-current', 'true');
+            else button.removeAttribute('aria-current');
+        }
     }
+
+    return {
+        list,
+        render(rows: readonly TimedRow[]): void {
+            // Keep this reconciliation node-reusing rather than rewriting it as
+            // `list.replaceChildren`: replacement resets `scrollTop`, which the
+            // scroll handler reads as the reader scrolling away and silently
+            // latches following to false.
+            const next = new Map<string, HTMLButtonElement>();
+            let last: HTMLButtonElement | undefined;
+            for (const [index, row] of rows.entries()) {
+                const button = buttons.get(row.key) ?? createButton(row.key);
+                button.firstElementChild!.textContent = row.stamp;
+                button.lastElementChild!.textContent = row.text;
+                next.set(row.key, button);
+                const item = button.parentElement!;
+                if (list.children[index] !== item)
+                    list.insertBefore(item, list.children[index] ?? null);
+                last = button;
+            }
+
+            // A shorter list can strand focus on a button about to be removed;
+            // move it to the last surviving row rather than letting it fall to
+            // `<body>`.
+            const activeElement = (list.getRootNode() as Document | ShadowRoot)
+                .activeElement;
+            const focused = activeElement?.getAttribute('data-cue-index');
+            if (
+                focused != null &&
+                buttons.get(focused) === activeElement &&
+                !next.has(focused)
+            )
+                last?.focus();
+            for (const [key, button] of buttons)
+                if (!next.has(key)) button.parentElement?.remove();
+            buttons = next;
+            mark(new Set());
+        },
+        mark,
+        button(key: string): HTMLButtonElement | undefined {
+            return buttons.get(key);
+        },
+        destroy(): void {
+            buttons.clear();
+            list.remove();
+        },
+    };
 }
-`;
+
+/**
+ * One timed manifest annotation, in canvas time.
+ *
+ * Declared here rather than imported from the eager scanner that produces it:
+ * a chunk is built self-contained (`vite.config.ts`), so this file owns every
+ * name it uses. The two declarations cannot drift apart in silence — the stage
+ * manager passes the scanner's output straight into {@link NotesPort.entries},
+ * and `pnpm check` is what compares them.
+ */
+export interface NoteEntry {
+    /**
+     * The annotation's IRI, or a positional fallback when it declares none.
+     *
+     * Not the row key: a manifest may spell the same IRI on two annotations,
+     * and two rows keyed alike would collapse into one. Rows key by position
+     * in this list instead, which is unique by construction.
+     */
+    readonly id: string;
+    readonly startSeconds: number;
+    /** Absent for a note that named only a start. */
+    readonly endSeconds?: number;
+    readonly text: string;
+}
+
+/**
+ * What the notes section needs from the eager side.
+ *
+ * No track: a note's times are the CANVAS's, already resolved by the scanner,
+ * so the LIST has no source to re-read on a cadence and is rebuilt from the
+ * manager's own pulse through {@link TranscriptPanel.refresh}. The frame
+ * subscription is here for the MARK alone — the playhead moves between pulses,
+ * and it is the same subscription the cue list rides rather than a second one.
+ */
+export interface NotesPort {
+    readonly avState: {
+        /** The playhead, in canvas time; a note covering it reads as current. */
+        readonly currentTime: number;
+        /** The canvas's duration, which decides the SHAPE of every timestamp,
+         * exactly as it does for the cue list. */
+        readonly duration: number | null;
+        /** Seeking never starts playback — the epic's standing rule. */
+        seek(seconds: number): void;
+        subscribeFrame(callback: () => void): () => void;
+    };
+    /** The notes for the current canvas, earliest first. */
+    entries(): readonly NoteEntry[];
+    /** The entry's own clock formatter, so this chunk carries no second one. */
+    formatTime(seconds: number, total: number | null): string;
+    /** The SDK's root-aware, nonce-aware style service. */
+    readonly styles: { install(css: string, id: string): () => void };
+    /** The plugin's locale catalog. */
+    t(key: string, params?: Record<string, string>): string;
+}
+
+/**
+ * A note's span as one reading, or its start alone when it named no end.
+ *
+ * Through the port's formatter, which is the transport's own, so the panel and
+ * the scrubber never spell the same moment two ways.
+ */
+function span(entry: NoteEntry, port: NotesPort): string {
+    const total = port.avState.duration;
+    const start = port.formatTime(entry.startSeconds, total);
+    return entry.endSeconds === undefined
+        ? start
+        : `${start}–${port.formatTime(entry.endSeconds, total)}`;
+}
+
+/**
+ * The row keys the playhead is inside, half-open at the end so two adjacent
+ * notes never both light up at the boundary.
+ *
+ * Deliberately not {@link activeIndex}: that carries a lapsed cue through the
+ * breath-sized gaps a VTT file leaves between sentences, and it marks one row.
+ * The gaps between editorial notes are the recording rather than punctuation,
+ * so a lapsed note keeps no mark — and notes legitimately overlap, so a set
+ * rather than an index. A note that named no end has no span to be inside and
+ * is never current.
+ *
+ * Keys are positions, matching how the rows are keyed: a manifest may spell one
+ * IRI on two annotations.
+ */
+function activeKeys(entries: readonly NoteEntry[], time: number): Set<string> {
+    const current = new Set<string>();
+    for (const [index, entry] of entries.entries())
+        if (
+            entry.endSeconds !== undefined &&
+            entry.startSeconds <= time &&
+            time < entry.endSeconds
+        )
+            current.add(String(index));
+    return current;
+}
+
+function sameEntries(
+    a: readonly NoteEntry[],
+    b: readonly NoteEntry[],
+): boolean {
+    return (
+        a.length === b.length &&
+        a.every(
+            (entry, index) =>
+                entry.id === b[index].id &&
+                entry.startSeconds === b[index].startSeconds &&
+                entry.endSeconds === b[index].endSeconds &&
+                entry.text === b[index].text,
+        )
+    );
+}
+
+/**
+ * Render a canvas's timed manifest annotations into `container` (cookbook 0103).
+ *
+ * The transcript's behaviour over a different source, which is why it is
+ * affordable: the rows, their list semantics, their keyboard reach and their
+ * stylesheet are {@link createTimedList}'s, and all this adds is a heading and
+ * the span each note covers.
+ *
+ * A second section rather than a second panel, so a canvas carrying both
+ * captions and commentary shows the machine-timed words and the editor's notes
+ * as distinct, labelled lists. It renders nothing at all — no heading, no empty
+ * box — while the source is empty.
+ */
+export function createNotesPanel(
+    container: HTMLElement,
+    port: NotesPort,
+): TranscriptPanel {
+    const releaseStyles = installTimedListStyles(port.styles);
+    const name = port.t('av_notes');
+
+    const root = document.createElement('div');
+    root.className = 'tri-av-transcript';
+    root.dataset.testid = 'av-notes';
+
+    // A real heading, so the section is a landmark a screen-reader user can
+    // jump to rather than something they have to arrow past the transcript for.
+    const heading = document.createElement('h3');
+    heading.className = 'tri-av-transcript-track';
+    heading.textContent = name;
+
+    let entries: readonly NoteEntry[] = [];
+    /** The duration the mounted stamps were formatted against. */
+    let renderedTotal: number | null = null;
+    /** What the mounted rows currently read as, so a frame that changed
+     * nothing writes no attributes. */
+    let marked: ReadonlySet<string> = new Set();
+
+    const timedList = createTimedList(root, name, (key) => {
+        const entry = entries[Number(key)];
+        // Seek, never play: the port carries no `play` for this to reach.
+        if (entry) port.avState.seek(entry.startSeconds);
+    });
+    // The cue list's test id names the transcript's rows; the notes are a
+    // second list in the same panel and must be selectable apart from them.
+    timedList.list.dataset.testid = 'av-notes-list';
+    root.prepend(heading);
+
+    /** Rebuild the rows when the source or the stamp shape has moved. */
+    function render(): void {
+        const next = port.entries();
+        const total = port.avState.duration;
+        // Guarded, because `refresh` runs on every pulse the manager publishes
+        // and an unchanged list has no reason to be rewritten under a reader's
+        // focus. The duration joins the entries in the comparison because it
+        // decides the SHAPE of every stamp: a canvas whose duration lands after
+        // the first render turns `11:42` into `0:11:42`, and a list still
+        // showing the old shape would disagree with the transport's clock.
+        if (
+            root.isConnected &&
+            total === renderedTotal &&
+            sameEntries(entries, next)
+        )
+            return;
+        entries = next;
+        renderedTotal = total;
+        // `TimedListHandle.render` clears every mark it does not create, and an
+        // empty section has no row to carry one at all.
+        marked = new Set();
+
+        if (!entries.length) {
+            root.remove();
+            return;
+        }
+        timedList.render(
+            entries.map((entry, index) => ({
+                key: String(index),
+                stamp: span(entry, port),
+                text: entry.text,
+            })),
+        );
+        if (!root.isConnected) container.append(root);
+    }
+
+    /** Mark every note whose span covers the playhead, and clear the rest. */
+    function highlight(): void {
+        const current = activeKeys(entries, port.avState.currentTime);
+        if (
+            current.size === marked.size &&
+            [...current].every((key) => marked.has(key))
+        )
+            return;
+        marked = current;
+        timedList.mark(current);
+    }
+
+    function sync(): void {
+        render();
+        highlight();
+    }
+
+    sync();
+    // The frame cadence for the playhead; `refresh` for everything that changes
+    // a PAUSED canvas, where no frames run at all.
+    const unsubscribe = port.avState.subscribeFrame(sync);
+
+    return {
+        refresh: sync,
+        destroy(): void {
+            unsubscribe();
+            timedList.destroy();
+            root.remove();
+            releaseStyles();
+        },
+    };
+}
 
 /**
  * What the untimed panel needs from the eager side.
@@ -432,7 +720,7 @@ export function createTranscriptPanel(
     container: HTMLElement,
     port: TranscriptPort,
 ): TranscriptPanel {
-    const releaseStyles = port.styles.install(CSS, 'transcript');
+    const releaseStyles = installTimedListStyles(port.styles);
 
     const root = document.createElement('div');
     root.className = 'tri-av-transcript';
@@ -442,16 +730,7 @@ export function createTranscriptPanel(
     showing.className = 'tri-av-transcript-track';
     showing.dataset.testid = 'av-transcript-track';
 
-    const list = document.createElement('ol');
-    list.className = 'tri-av-transcript-cues';
-    list.dataset.testid = 'av-transcript-cues';
-    list.setAttribute('aria-label', port.t('av_transcript'));
-
-    root.append(showing, list);
-    container.append(root);
-
     let cues: TranscriptCue[] = [];
-    const buttons: HTMLButtonElement[] = [];
     let renderedOffset = Number.NaN;
     /** How many cues the track carried when the list was last built — not
      * `cues.length`, which drops the empty ones. */
@@ -476,22 +755,23 @@ export function createTranscriptPanel(
      * can tell its own writes from the reader's. */
     let scrolledTo = 0;
 
+    const timedList = createTimedList(root, port.t('av_transcript'), (key) => {
+        const index = Number(key);
+        const cue = cues[index];
+        if (!cue) return;
+        following = true;
+        port.avState.seek(cue.start);
+        highlight(index);
+    });
+    const { list } = timedList;
+    root.prepend(showing);
+    container.append(root);
+
     list.addEventListener('scroll', () => {
         if (Math.abs(list.scrollTop - scrolledTo) > 2) following = false;
     });
 
-    /**
-     * Rebuild the list for a new track, offset or cue count.
-     *
-     * Nodes are REUSED rather than replaced, and that is a correctness
-     * requirement rather than a performance one. Emptying the list would reset
-     * `scrollTop`, which the scroll handler above would read as the reader
-     * having scrolled away and silently latch the follow off; and it would
-     * destroy the focused button, dropping DOM focus to `<body>` so that a
-     * keyboard reader mid-playback could only get back by tabbing in from the
-     * top of the page. A cue button at index `i` always shows cue `i`, so
-     * rewriting its two spans is the whole of the update.
-     */
+    /** Rebuild the source-specific cue values for a new track or offset. */
     function render(
         track: TextTrack | null,
         offset: number,
@@ -511,50 +791,14 @@ export function createTranscriptPanel(
             });
         }
 
-        while (buttons.length < cues.length) {
-            const index = buttons.length;
-            const item = document.createElement('li');
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'tri-av-transcript-cue';
-            button.dataset.cueIndex = String(index);
-
-            const time = document.createElement('span');
-            time.className = 'tri-av-transcript-time';
-            button.append(time, document.createElement('span'));
-            button.addEventListener('click', () => {
-                const cue = cues[index];
-                if (!cue) return;
-                following = true;
-                port.avState.seek(cue.start);
-                highlight(index);
-            });
-            item.append(button);
-            list.append(item);
-            buttons.push(button);
-        }
-
-        // A shorter track can strand focus on a button about to be removed;
-        // move it to the last surviving cue rather than letting it fall to
-        // `<body>`.
-        const focused = buttons.indexOf(
-            (root.getRootNode() as Document | ShadowRoot)
-                .activeElement as HTMLButtonElement,
-        );
-        if (focused >= cues.length && cues.length > 0)
-            buttons[cues.length - 1].focus();
-
-        while (buttons.length > cues.length)
-            (buttons.pop() as HTMLButtonElement).parentElement?.remove();
-
         const total = port.avState.duration;
-        cues.forEach((cue, index) => {
-            const button = buttons[index];
-            button.removeAttribute('aria-current');
-            (button.firstElementChild as HTMLElement).textContent =
-                port.formatTime(cue.start, total);
-            (button.lastElementChild as HTMLElement).textContent = cue.text;
-        });
+        timedList.render(
+            cues.map((cue, index) => ({
+                key: String(index),
+                stamp: port.formatTime(cue.start, total),
+                text: cue.text,
+            })),
+        );
 
         // The rebuild may have changed the list's height and so clamped
         // `scrollTop`. That is the panel's own doing, never the reader's, so
@@ -565,11 +809,11 @@ export function createTranscriptPanel(
     /** Mark one cue as the playhead's and, while following, scroll it in. */
     function highlight(index: number): void {
         if (index === current) return;
-        buttons[current]?.removeAttribute('aria-current');
         current = index;
-        const button = buttons[index];
+        const key = String(index);
+        timedList.mark(index >= 0 ? new Set([key]) : new Set());
+        const button = timedList.button(key);
         if (!button) return;
-        button.setAttribute('aria-current', 'true');
         if (!following) return;
 
         // `scrollTop` rather than `scrollIntoView`: the latter scrolls every
@@ -609,6 +853,7 @@ export function createTranscriptPanel(
         refresh: sync,
         destroy(): void {
             unsubscribe();
+            timedList.destroy();
             root.remove();
             releaseStyles();
         },

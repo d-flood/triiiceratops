@@ -38,5 +38,15 @@ export const catalog: LocaleCatalog = {
         av_transcript_loading: 'Loading transcript…',
         av_transcript_failed: 'This transcript could not be loaded here.',
         av_transcript_open: 'Open the transcript file',
+        // The panel's second section: the annotations timed against moments in
+        // the recording — the manifest's own commentary, and any user
+        // annotation the viewer holds for the canvas (cookbook 0103).
+        av_notes: 'Notes',
+        // What the transport's panel control is called when the canvas offers
+        // notes but no transcript, so a button never names something the panel
+        // does not hold. A separate key from `av_notes` although English spells
+        // them alike: one names a control, the other heads a section, and a
+        // translation is free to distinguish them.
+        av_notes_panel: 'Notes',
     },
 };
