@@ -331,6 +331,8 @@ server-rendering behavior below.
 | `manifestId` | `string` | attribute (`manifest-id`) |
 | `canvasId` | `string` | attribute (`canvas-id`) |
 | `theme` | `string` | attribute (`theme`) |
+| `contentState` | `string` | attribute (`content-state`) |
+| `readContentStateFromUrl` | `boolean` | attribute (`read-content-state-from-url`) |
 | `manifestJson` | `string \| Record<string, any>` | property |
 | `themeConfig` | `string \| ThemeConfig` | property |
 | `config` | `string \| ViewerConfig` | property |
@@ -525,7 +527,8 @@ nothing is registered.
 
 On the server, `<TriiiceratopsViewer>` renders an **inert host** — the
 `<triiiceratops-viewer>` tag carrying the attribute tier (`manifest-id`,
-`canvas-id`, `theme`) and your forwarded host attributes, and nothing else. No
+`canvas-id`, `theme`, `content-state`, `read-content-state-from-url`) and your
+forwarded host attributes, and nothing else. No
 shadow-DOM internals, no property-tier values, no renderer. The client's
 first render emits the identical attribute set, so hydration reuses and upgrades
 the same host with no mismatch, and viewer internals initialize only in the

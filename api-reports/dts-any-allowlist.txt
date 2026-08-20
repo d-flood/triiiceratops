@@ -102,4 +102,4 @@ triiiceratops :: dist/vue/viewer.d.ts :: onPluginError?: ((error: PluginError) =
 triiiceratops :: dist/vue/viewer.d.ts :: onStateChange?: ((snapshot: ViewerStateSnapshot) => any) | undefined;
 triiiceratops :: dist/vue/viewer.d.ts :: onViewerError?: ((error: ViewerError) => any) | undefined;
 triiiceratops :: dist/vue/viewer.d.ts :: readonly type: PropType<string | Record<string, any>>;
-triiiceratops :: dist/vue/viewer.d.ts :: }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+triiiceratops :: dist/vue/viewer.d.ts :: }, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;

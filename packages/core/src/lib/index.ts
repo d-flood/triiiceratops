@@ -171,6 +171,24 @@ export { createPluginSurface } from './plugin/surface';
 export { getPaintingAnnotations } from './utils/iiifParsing';
 export { parseIiifTime } from './utils/iiifTime';
 
+// The shape of the `initialCanvasRegion` input, so a host that assigns one can
+// name its type. Already re-exported by `./react` and `./vue`; without it here,
+// a Svelte or vanilla-TypeScript consumer can satisfy the prop but cannot name
+// what it satisfies. Type-only, and `contentState` reaches nothing Svelte, so
+// the root entry's no-Svelte type promise is unaffected.
+export type { CanvasRegion } from './utils/contentState';
+
+// Content-state resolution (ADR 0006). The viewer's own channels — the
+// `content-state` input and the opt-in `iiif-content` URL parameter — cover
+// handing it a content state to open. This resolver is for a host that needs the
+// view target ITSELF: to inspect a drop or a paste before acting on it, to route
+// on it, or to drive something other than the viewer with it. Otherwise it
+// reimplements IIIF Content State parsing, or reaches into core's source. Pure
+// and network-free: a bare URI comes back as the manifest id for the host to
+// dereference.
+export type { ContentStateTarget } from './utils/contentState';
+export { parseContentState } from './utils/contentState';
+
 // The painting-body classifier, in the minimum that answers "is this canvas
 // mine to claim" (ADR 0017).
 //

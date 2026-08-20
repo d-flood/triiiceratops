@@ -129,6 +129,8 @@ reactivity already does that work, so you do not need it here.
 | :-- | :-- |
 | `manifestId` | `string` |
 | `canvasId` | `string` |
+| `contentState` | `string` |
+| `readContentStateFromUrl` | `boolean` (default `false`) |
 | `manifestJson` | `Record<string, any>` |
 | `theme` | `BuiltInTheme` |
 | `themeConfig` | `ThemeConfig` |

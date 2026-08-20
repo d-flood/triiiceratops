@@ -1,0 +1,269 @@
+{
+    "$comment": "Provenance and expectations for the content-state fixtures beside this file. Read by contentStateFixtures.ts (tests) and scripts/docs-content-state.mjs (the generated conformance table in docs/content-state.md). JSON rather than TypeScript so both readers can load it with no build step. Adding an entry adds test coverage and requires regenerating the docs table.",
+    "capturedAt": "2026-08-20",
+    "fixtures": [
+        {
+            "id": "bare-uri",
+            "file": "bare-uri.txt",
+            "encoding": "raw",
+            "row": "bare-uri",
+            "form": "Bare IIIF URI",
+            "resolvesVia": "Returned as the manifest id for the caller to dereference",
+            "source": "Constructed over vendored cookbook recipe manifest 0009-book-1",
+            "recipe": "0009-book-1",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json"
+            }
+        },
+        {
+            "id": "encoded-annotation",
+            "file": "encoded-annotation.txt",
+            "encoding": "raw",
+            "row": "encoded-annotation",
+            "form": "base64url-encoded Annotation",
+            "resolvesVia": "Decoded, then parsed as an Annotation",
+            "source": "IIIF Content State API 1.0 target/partOf example, over vendored cookbook recipe manifest 0299-region. Its French label is chosen so the encoded value contains both `-` and `_`, pinning the URL-safe alphabet; the decoded document is the same shape as object-target-partof-array.json.",
+            "recipe": "0299-region",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0299-region/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0299-region/canvas/p1",
+                "region": {
+                    "x": 265,
+                    "y": 661,
+                    "width": 1260,
+                    "height": 1239
+                }
+            }
+        },
+        {
+            "id": "string-target-region",
+            "file": "string-target-region.json",
+            "encoding": "base64url",
+            "row": "target-string",
+            "form": "Annotation, `target` as string",
+            "resolvesVia": "The target string is the Canvas; the Annotation's `partOf` names the Manifest",
+            "source": "Constructed over vendored cookbook recipe manifest 0299-region",
+            "recipe": "0299-region",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0299-region/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0299-region/canvas/p1",
+                "region": {
+                    "x": 265,
+                    "y": 661,
+                    "width": 1260,
+                    "height": 1239
+                }
+            }
+        },
+        {
+            "id": "object-target-partof-array",
+            "file": "object-target-partof-array.json",
+            "encoding": "json",
+            "row": "target-object",
+            "form": "Annotation, `target` as object",
+            "resolvesVia": "`target.id` is the Canvas; `target.partOf` names the Manifest",
+            "source": "IIIF Content State API 1.0 target/partOf example, over vendored cookbook recipe manifest 0299-region",
+            "recipe": "0299-region",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0299-region/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0299-region/canvas/p1",
+                "region": {
+                    "x": 265,
+                    "y": 661,
+                    "width": 1260,
+                    "height": 1239
+                }
+            }
+        },
+        {
+            "id": "object-target-partof-object",
+            "file": "object-target-partof-object.json",
+            "encoding": "json",
+            "row": "target-object",
+            "form": "Annotation, `target` as object with a single `partOf`",
+            "resolvesVia": "`target.partOf` as a bare object rather than an array",
+            "source": "Constructed over vendored cookbook recipe manifest 0009-book-1",
+            "recipe": "0009-book-1",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p2"
+            }
+        },
+        {
+            "id": "object-target-time",
+            "file": "object-target-time.json",
+            "encoding": "json",
+            "row": "target-object",
+            "form": "Annotation, `target` as object carrying a `#t=` media time",
+            "resolvesVia": "The fragment on `target.id`, through the shared IIIF target helpers",
+            "source": "Constructed over vendored cookbook recipe manifest 0002-mvm-audio",
+            "recipe": "0002-mvm-audio",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas",
+                "time": {
+                    "seconds": 120,
+                    "endSeconds": 150
+                }
+            }
+        },
+        {
+            "id": "partof-array-collection-first",
+            "file": "partof-array-collection-first.json",
+            "encoding": "json",
+            "row": "partof-array",
+            "form": "`partOf` as array, Collection first",
+            "resolvesVia": "First entry whose type is `Manifest`, skipping the Collection",
+            "source": "Constructed over vendored cookbook recipe manifests 0009-book-1 and 0032-collection",
+            "recipe": "0009-book-1",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p1"
+            }
+        },
+        {
+            "id": "partof-array-untyped",
+            "file": "partof-array-untyped.json",
+            "encoding": "json",
+            "row": "partof-array",
+            "form": "`partOf` as array, no entry declaring a type",
+            "resolvesVia": "First entry, since none declares `Manifest`",
+            "source": "Constructed over vendored cookbook recipe manifest 0009-book-1",
+            "recipe": "0009-book-1",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p1"
+            }
+        },
+        {
+            "id": "partof-array-no-manifest",
+            "file": "partof-array-no-manifest.json",
+            "encoding": "json",
+            "row": "partof-array",
+            "form": "`partOf` as array, typed but naming no Manifest",
+            "resolvesVia": "Nothing — a Collection is not fetchable as a manifest, so it degrades rather than resolving",
+            "source": "Constructed over vendored cookbook recipe manifest 0009-book-1 and collection 0032-collection",
+            "recipe": "0032-collection",
+            "capturedAt": "2026-08-20",
+            "warns": "names no Manifest",
+            "expected": null
+        },
+        {
+            "id": "target-array",
+            "file": "target-array.json",
+            "encoding": "json",
+            "row": "target-array",
+            "form": "Annotation, `target` as array",
+            "resolvesVia": "First entry; the rest are dropped with a dev-mode warning",
+            "source": "Constructed over vendored cookbook recipe manifest 0009-book-1",
+            "recipe": "0009-book-1",
+            "capturedAt": "2026-08-20",
+            "warns": "the rest are dropped",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p1"
+            }
+        },
+        {
+            "id": "motivation-string",
+            "file": "motivation-string.json",
+            "encoding": "json",
+            "row": "motivation",
+            "form": "`motivation` as the bare string `contentState`",
+            "resolvesVia": "Accepted alongside the array form",
+            "source": "Constructed over vendored cookbook recipe manifest 0009-book-1",
+            "recipe": "0009-book-1",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p1"
+            }
+        },
+        {
+            "id": "motivation-missing",
+            "file": "motivation-missing.json",
+            "encoding": "json",
+            "row": "motivation",
+            "form": "`motivation` absent or not `contentState`",
+            "resolvesVia": "Resolved anyway, with a dev-mode warning",
+            "source": "Constructed over vendored cookbook recipe manifest 0009-book-1",
+            "recipe": "0009-book-1",
+            "capturedAt": "2026-08-20",
+            "warns": "does not declare `motivation: contentState`",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p1"
+            }
+        },
+        {
+            "id": "legacy-at-id",
+            "file": "legacy-at-id.json",
+            "encoding": "json",
+            "row": "target-object",
+            "form": "Annotation spelling identifiers `@id` and types `@type`",
+            "resolvesVia": "Both spellings read at every level",
+            "source": "Constructed over vendored cookbook recipe manifest 0009-book-1, re-spelled in the IIIF Presentation 2 vocabulary",
+            "recipe": "0009-book-1",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p1",
+                "region": {
+                    "x": 100,
+                    "y": 200,
+                    "width": 300,
+                    "height": 400
+                }
+            }
+        },
+        {
+            "id": "manifest-document",
+            "file": "manifest-document.json",
+            "encoding": "json",
+            "row": "manifest-document",
+            "form": "A Manifest document rather than an Annotation",
+            "resolvesVia": "The document's own id",
+            "source": "Constructed over vendored cookbook recipe manifest 0009-book-1",
+            "recipe": "0009-book-1",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json"
+            }
+        },
+        {
+            "id": "canvas-document-partof",
+            "file": "canvas-document-partof.json",
+            "encoding": "json",
+            "row": "resource-document",
+            "form": "A Canvas document naming its Manifest in `partOf`",
+            "resolvesVia": "`partOf` names the Manifest; the document's own id is the view target",
+            "source": "Constructed over vendored cookbook recipe manifest 0009-book-1",
+            "recipe": "0009-book-1",
+            "capturedAt": "2026-08-20",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p2"
+            }
+        },
+        {
+            "id": "no-manifest",
+            "file": "no-manifest.json",
+            "encoding": "json",
+            "row": "unresolvable",
+            "form": "Annotation naming a Canvas but no Manifest",
+            "resolvesVia": "Nothing — no manifest is resolvable",
+            "source": "Constructed over vendored cookbook recipe manifest 0009-book-1",
+            "recipe": "0009-book-1",
+            "capturedAt": "2026-08-20",
+            "expected": null
+        }
+    ]
+}

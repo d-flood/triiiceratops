@@ -1,0 +1,11 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p2",
+    "type": "Canvas",
+    "partOf": [
+        {
+            "id": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
+            "type": "Manifest"
+        }
+    ]
+}

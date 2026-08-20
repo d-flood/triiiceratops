@@ -141,6 +141,24 @@ needs no Svelte.
     [plugin SDK](plugin-authoring.md) and use them from React, Vue, Svelte, Lit, or
     vanilla JS. See [using plugins](plugins.md#adding-a-plugin-to-your-viewer).
 
+## Audio and video
+
+Core is an image viewer, and time-based media is **opt-in**: add
+[`@triiiceratops/plugin-av`](plugin-av.md) to a viewer's `plugins` list and its
+`Sound` and `Video` canvases play — a media stage over the canvas rect, playback
+controls in the viewer's own control bar, waveforms, WebVTT captions, a transcript
+panel, and an `AVState` object your application commands playback through.
+
+```ts
+import { AvPlugin } from '@triiiceratops/plugin-av';
+
+viewer.plugins = [AvPlugin];
+```
+
+Nothing about it is in core's bundle, and nothing activates unless you add it, so a
+manifest of scanned folios pays nothing for it. [Read the AV
+guide](plugin-av.md){ .md-button }
+
 ## Once it renders
 
 The guides below are framework-neutral: every example carries a tab per stack,
@@ -154,11 +172,14 @@ and the tab you picked above follows you across the site.
 - **[Plugins](plugins.md)** — add the first-party plugins, or
   [author](plugin-authoring.md) and [test](plugin-testing.md) your own against
   the framework-neutral SDK.
+- **[Audio & video](plugin-av.md)** — play a manifest's `Sound` and `Video`
+  canvases. Opt-in: add one plugin to the `plugins` list.
 - **[Content Security Policy](csp.md)** — ready-made strict-CSP recipes.
 
 ## Features
 
 - **IIIF Presentation API**: Compatible with versions 2.0 and 3.0
+- **Audio and Video**: `Sound` and `Video` canvases — media stage, transport in the control bar, waveforms, WebVTT captions, and a transcript panel. Opt-in via [the AV plugin](plugin-av.md)
 - **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side, expandable to a full-column grid) or prev/next controls
 - **Viewing Modes**: Single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
 - **Behaviors**: Detects and applies IIIF `behavior` and `viewingDirection` (including RTL and top-to-bottom)
@@ -168,14 +189,14 @@ and the tab you picked above follows you across the site.
 - **IIIF Choice**: Switch between alternate image views (e.g. color vs. infrared)
 - **Multi-image Canvases**: Composites canvases painted with multiple images
 - **IIIF Search**: Full Content Search API support with hit highlighting
-- **Content State API**: Opens at a specific manifest, canvas, and region via the `iiif-content` URL parameter
+- **Content State targets**: Opens at a specific manifest, canvas, region, and — with the AV plugin — media time, from a decoded IIIF Content State
 - **Direct Manifest Injection**: Pass manifest JSON directly instead of loading over HTTP
 - **Custom Search Providers**: React, Vue, Svelte, and custom-element hosts can all feed search results from local state or app services
 - **Metadata Display**: Manifest metadata, rights, `homepage`, `rendering`, `seeAlso`, and `provider`
 - **Multi-language**: Language-aware metadata with fallback chain; English and German UI translations
 - **Image Services**: IIIF Image API v1/v2/v3 tiled deep-zoom
 - **Theming**: Four built-in themes plus typed `themeConfig` and raw CSS-variable overrides
-- **Plugin System**: Framework-agnostic plugins via an independently versioned SDK
+- **Plugin System**: Framework-agnostic plugins via an independently versioned SDK; first-party plugins for audio/video, image adjustment, image download, and PDF export
 
 ## Development
 

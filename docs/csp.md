@@ -50,6 +50,7 @@ Content-Security-Policy:
     style-src 'self' 'nonce-<RANDOM>';
     style-src-attr 'unsafe-inline';
     img-src 'self' data: blob: https:;
+    media-src 'self' blob: https:;
     connect-src 'self' https:;
     worker-src 'self' blob:;
     object-src 'none';
@@ -72,6 +73,7 @@ Content-Security-Policy:
     style-src 'self' 'unsafe-inline';
     style-src-attr 'unsafe-inline';
     img-src 'self' data: blob: https:;
+    media-src 'self' blob: https:;
     connect-src 'self' https:;
     worker-src 'self' blob:;
     object-src 'none';
@@ -88,10 +90,64 @@ Notes (both distributions):
 - `img-src` includes `data:` for canvas/thumbnail data URIs, `blob:` for
   generated image exports, and `https:` for remote IIIF image tiles; tighten
   to the specific IIIF hosts you use.
-- `worker-src 'self' blob:` — some plugins (e.g. the annotation editor) run
-  work off the main thread via a blob-URL `Worker`.
+- `media-src` governs `<audio>`, `<video>` and `<track>`, so it matters only when
+  [the AV plugin](plugin-av.md) is loaded — see [audio and video](#audio-and-video)
+  below. Drop the directive entirely if you never play time-based media.
+- `worker-src 'self' blob:` — a plugin may run work off the main thread through a
+  blob-URL `Worker`; hls.js, behind the AV plugin, is the first-party case.
 - `connect-src` must allow the IIIF hosts your manifests and image services live
-  on.
+  on — and, if you pass content states, the hosts those live on too; see
+  [content states](#content-states) below.
+
+## Content states
+
+A [content state](content-state.md) delivered as a **bare IIIF URI** is
+dereferenced: the viewer fetches the document at that URI before it can know
+which manifest to open. The request goes through the same fetch path a
+`manifest-id` uses, so it is governed by `connect-src` — and it is easy to miss,
+because the URI is often not on the host your manifests come from.
+
+A policy locked down to your own manifest host, like
+
+```
+connect-src 'self' https://iiif.example.edu;
+```
+
+opens every manifest you publish and refuses a content state someone links to
+you from anywhere else. The failure is quiet by design: ingestion never throws,
+so the browser blocks the request and the viewer reports it as a `content-state`
+scoped [`viewererror`](integration.md#attributes-properties-and-events) with the code
+`content-state-dereference-failed`. It then **falls back to loading the URI as a
+manifest** — a second request to the same blocked host, which the same policy
+refuses, so nothing opens. Allow the hosts you accept content states from, or
+accept content states only as JSON on the `content-state` input, which fetches
+nothing.
+
+This adds no trust boundary: a content-state URI is exactly as trusted as a
+manifest URI, and this policy is the control on both.
+
+## Audio and video
+
+Core is an image viewer and needs no `media-src` at all. The directive is in the
+recipes above because [the AV plugin](plugin-av.md) is opt-in and common enough to
+plan for; three things about it are worth stating explicitly.
+
+- **`media-src` covers the caption track too.** CSP treats `<track>` as a media
+  request, so a policy that allows the video host but not the VTT host loads the
+  media and silently offers no captions.
+- **`blob:` is required for HLS.** Where a browser has no native HLS the plugin
+  falls back to hls.js, which drives the media element through Media Source
+  Extensions — the element's `src` becomes a blob URL. Without `blob:` in
+  `media-src`, progressive files play and HLS streams do not.
+- **The lazy chunks are scripts.** The plugin fetches hls.js, the waveform
+  parsers, the segment sequencer and the transcript panel as separate ES modules
+  at the moment a manifest needs them, so they are governed by `script-src` and
+  must be served from an origin it allows. Under the IIFE distribution that means
+  the whole `dist/` directory, not one file out of it.
+
+Media also has to be **CORS-readable** — a requirement of the plugin, not of your
+CSP, and the usual reason a file that plays in a plain `<video>` tag will not play
+here. See [the AV plugin's page](plugin-av.md#cors) for that side of it.
 
 ## Advertising the style nonce
 

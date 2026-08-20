@@ -554,7 +554,11 @@ _Avoid_: content state (that is the spec artifact, not the parsed result)
 - **Host ↔ Plugin**: the host customizes via the extension (behavior), the body editor
   (body UI), and the adapter (storage).
 - **Content state → delivery → View target**: a content state (the payload) arrives
-  through a delivery channel, which the host owns — the viewer ships none. The host
-  reads the channel (the `iiif-content` parameter, a drop handler, a paste), parses the
-  payload into a view target with `parseContentState`, and drives the viewer through
-  `manifestId`/`canvasId`/`initialCanvasRegion`.
+  through a delivery channel, and the channel is the host's. The viewer ships no
+  channel of its own — but it accepts the payload directly on the `content-state`
+  input, and it can be handed ONE channel: `read-content-state-from-url` (off by
+  default) delegates the `iiif-content` parameter to the viewer, read once on mount.
+  Anything else — a drop handler, a paste, a `FileReader` — the host reads itself,
+  parses with `parseContentState`, and drives through
+  `manifestId`/`canvasId`/`initialCanvasRegion`. Those discrete inputs outrank
+  `content-state`, which outranks the URL parameter (ADR 0006).

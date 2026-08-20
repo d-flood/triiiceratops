@@ -66,6 +66,10 @@
     import { createPluginUiService } from '../plugin/uiService';
     import { createPluginSurface } from '../plugin/surface';
     import type { CanvasRegion } from '../utils/contentState';
+    import {
+        readContentStateFromLocation,
+        resolveContentState,
+    } from '../utils/contentStateIngestion';
     import { sdkPluginChromeId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
@@ -179,6 +183,26 @@
         manifestId?: string;
         manifestJson?: any;
         canvasId?: string;
+        /**
+         * A IIIF Content State naming the view to open (ADR 0006): a bare IIIF
+         * URI, an Annotation as JSON, or that Annotation base64url-encoded.
+         *
+         * Ignored whenever {@link manifestId} or {@link manifestJson} is set,
+         * and its canvas and region yield to {@link canvasId} and
+         * {@link initialCanvasRegion} — the discrete inputs are the
+         * manual-driving API and win. Ingestion never throws: what cannot be
+         * honored degrades, reporting on the `content-state` scope of the
+         * `viewererror` channel.
+         */
+        contentState?: string;
+        /**
+         * Opt in to reading the `iiif-content` parameter from the host's
+         * address, once on mount (ADR 0006). Off by default, and the
+         * lowest-precedence source: a viewer dropped into a page it does not
+         * own must not consume a parameter meant for the host application. The
+         * address bar is never mutated.
+         */
+        readContentStateFromUrl?: boolean;
         plugins?: readonly SdkPlugin[] | null | boolean;
         /** Built-in theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
         theme?: BuiltInTheme;
@@ -216,6 +240,8 @@
         manifestId,
         manifestJson,
         canvasId,
+        contentState,
+        readContentStateFromUrl = false,
         plugins: rawPlugins = [],
         theme,
         themeConfig,
@@ -397,6 +423,92 @@
             });
         }
     });
+
+    // ── Content-state ingestion (ADR 0006) ─────────────────────────────────
+    // Precedence: discrete props > `contentState` > the `iiif-content` URL
+    // parameter. The URL is read at most once, on mount, and only when the host
+    // opted in; the address bar is never written.
+    let urlContentStateChecked = false;
+    let ingestedContentState: string | undefined;
+
+    $effect(() => {
+        const drivenByProps = !!(manifestId || manifestJson);
+        const explicit = contentState?.trim();
+
+        const fromUrl = untrack(() => {
+            if (urlContentStateChecked) return undefined;
+            // "Once on mount" is unconditional: a manifest prop cleared later
+            // must not make the viewer reach into the address bar long after the
+            // host's own routing has moved on.
+            urlContentStateChecked = true;
+            if (drivenByProps || explicit || !readContentStateFromUrl) {
+                return undefined;
+            }
+            return readContentStateFromLocation();
+        });
+
+        if (drivenByProps) return;
+
+        const value = explicit || fromUrl;
+        if (!value || value === ingestedContentState) return;
+        ingestedContentState = value;
+        untrack(() => void ingestContentState(value));
+    });
+
+    /**
+     * Resolve one delivered content state and drive the viewer with it. The
+     * region is staged before the manifest load so the canvas selection it
+     * triggers already has it; the time is applied after, once the canvas the
+     * target names is the current one.
+     *
+     * Each part of the target yields to the discrete prop that covers it: the
+     * whole discrete tier outranks a content state, not just its manifest.
+     */
+    async function ingestContentState(value: string): Promise<void> {
+        const resolved = await resolveContentState(value, {
+            requestConfig: config?.requests,
+            report: emitViewerError,
+        });
+        // A second content state delivered while this one was dereferencing
+        // owns the viewer now — and so does a discrete manifest prop that
+        // arrived meanwhile, which outranks every content state.
+        if (
+            !resolved ||
+            value !== ingestedContentState ||
+            manifestId ||
+            manifestJson
+        ) {
+            return;
+        }
+        const { target, manifestJson: dereferenced } = resolved;
+
+        if (target.region && !initialCanvasRegion) {
+            internalViewerState.setInitialCanvasRegion(target.region);
+        }
+        // A `canvasId` prop is already applied by its own effect, and outranks
+        // the canvas the content state names.
+        const requestedCanvasId = canvasId ? undefined : target.canvasId;
+        if (dereferenced) {
+            await internalViewerState.setManifestData(
+                target.manifestId,
+                dereferenced,
+                { canvasId: requestedCanvasId },
+            );
+        } else {
+            await internalViewerState.setManifest(target.manifestId, {
+                requestConfig: config?.requests,
+                canvasId: requestedCanvasId,
+            });
+        }
+        // The manifest load selected the canvas but dropped the time the target
+        // carried — `setCanvas` clears the temporal offset unless it is handed
+        // one — so this second selection is what applies it. Guarded like the
+        // `canvasId` prop's own effect: a canvas the manifest does not contain
+        // is not navigable.
+        if (requestedCanvasId && target.time && hasCanvas(requestedCanvasId)) {
+            internalViewerState.setCanvas(requestedCanvasId, target.time);
+        }
+    }
 
     // Track last applied config to prevent redundant updates and loops
     let lastConfigStr = '';

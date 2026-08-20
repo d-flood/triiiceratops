@@ -1,0 +1,1 @@
+https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json

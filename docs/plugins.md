@@ -6,8 +6,9 @@ description: "The Triiiceratops plugin system: component-based extensions that r
 # Plugin System
 
 Triiiceratops has a component-based plugin system for extending the viewer. A
-plugin renders its UI either as a **panel** docked to the left or right sidebar
-or as a compact **flyout** popover anchored to its toolbar button.
+plugin renders its UI either as a **panel** — docked to a sidebar, banded below
+the image, or floated over it — or as a compact **flyout** popover anchored to its
+toolbar button.
 
 ## How the Plugin System Works
 
@@ -30,8 +31,6 @@ Each first-party plugin is its own independently versioned npm package under the
   `window.Triiiceratops.plugins` registry. Loading a script does **not** activate
   the plugin; activation is explicit and per-viewer. Scripts may load in any
   order, **except `@triiiceratops/plugin-av`** — see below.
-
-The RC's `window.TriiiceratopsPlugins` globals have been removed.
 
 ### Script order: `@triiiceratops/plugin-av` loads after core
 
@@ -185,9 +184,9 @@ is added the same way.
 
 ## Multiple and configured plugins
 
-`plugins` is a list — add as many as you like. Plugins that expose a `create*`
-factory (PDF export, annotation editor) are configured by calling the factory;
-see the [available plugins reference](#available-plugins).
+`plugins` is a list — add as many as you like. A plugin that takes options exposes
+a `create*` factory (PDF export is the one first-party plugin that does); call it
+and pass the result. See the [available plugins reference](#available-plugins).
 
 ```ts
 import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-export';
@@ -198,9 +197,11 @@ viewer.plugins = [ImageDownloadPlugin, createPdfExportPlugin()];
 
 ## Panels and flyouts
 
-A **panel** docks into the left or right sidebar stack. Panels on the same
-side stack vertically; each side's width is set once by `leftPanelWidth` /
-`rightPanelWidth` — there is no per-plugin width.
+A **panel** docks at one of four positions. `left` and `right` put it in that
+sidebar stack, where panels on the same side stack vertically and the side's width
+is set once by `leftPanelWidth` / `rightPanelWidth` — there is no per-plugin width.
+`bottom` is a full-width band below the image in the center column. `overlay`
+floats the panel over the image itself, inside the viewer area.
 
 A **flyout** is a compact popover anchored to the plugin's toolbar button. It opens
 on click (click-outside / `Esc` to dismiss) and grows toward the canvas so it never
@@ -215,11 +216,11 @@ flyout is open](plugin-authoring.md#knowing-whether-your-panel-or-flyout-is-open
 The authored `target` is only a **default**. Every plugin registers both a panel and
 a flyout entry, so the effective target is switchable at runtime — like
 `visible`/`open` — via `config.plugins[id].target` or
-`viewerState.setPluginTarget(id, target)`. A panel's dock side works the same way:
-`config.plugins[id].position` or `viewerState.setPluginPosition(id, position)` sets
-it for any plugin as a consumer-only decision; `definePlugin` itself has no
-`position` field, so a plugin author cannot fix one. This lets one plugin render as a panel on desktop and
-a flyout on a narrow viewport; see [controlling plugin UI at
+`viewerState.setPluginTarget(id, target)`. A panel's dock position works the same
+way: `config.plugins[id].position` or `viewerState.setPluginPosition(id, position)`
+sets it for any plugin as a consumer-only decision; `definePlugin` itself has no
+`position` field, so a plugin author cannot fix one. This lets one plugin render as
+a panel on desktop and a flyout on a narrow viewport; see [controlling plugin UI at
 runtime](#controlling-plugin-ui-at-runtime) below for the per-framework code.
 Switching remounts the plugin UI in the new container, so a plugin that must
 survive the switch keeps its state in viewer state or its own store, not in local
@@ -240,15 +241,15 @@ type ViewerConfig = {
             open?: boolean; // open/close the plugin panel
             showCloseButton?: boolean; // Default: true
             target?: 'panel' | 'flyout'; // override where the plugin renders
-            position?: 'left' | 'right'; // override the panel's dock side
+            position?: 'left' | 'right' | 'bottom' | 'overlay'; // override the panel's dock position
         }
     >;
 };
 ```
 
 The record key is the plugin's stable id — its `uiId`. First-party plugins set
-short, documented ids (`pdf-export`, `image-download`, `image-manipulation`,
-`annotation-editor`). If a plugin omits `uiId`, core derives a stable id from its
+short, documented ids (`av`, `pdf-export`, `image-download`,
+`image-manipulation`). If a plugin omits `uiId`, core derives a stable id from its
 package name by replacing every run of unsafe characters with `-` (e.g.
 `@scope/plugin-foo` → `scope-plugin-foo`).
 
@@ -265,9 +266,10 @@ defaults; omitting a field leaves the current live value untouched:
   default is `true`, matching every core panel.
 - `target: 'flyout' | 'panel'` moves the plugin between its docked panel and its
   anchored flyout; the switch remounts the plugin UI.
-- `position: 'left' | 'right'` docks the panel on a different side — a
-  consuming app's own choice, independent of whatever the plugin was authored
-  with. Ignored while the effective `target` is `'flyout'`.
+- `position: 'left' | 'right' | 'bottom' | 'overlay'` docks the panel somewhere
+  else — a consuming app's own choice, independent of whatever the plugin was
+  authored with. Ignored while the effective `target` is `'flyout'`, since a
+  flyout is anchored to its toolbar button rather than docked.
 
 Update `config` and the change applies reactively.
 
@@ -422,10 +424,9 @@ conformance test kit.
 See the [plugin authoring guide](plugin-authoring.md) and the
 [plugin testing guide](plugin-testing.md) for the full API and examples.
 
-`definePlugin` is the only plugin path. The Svelte-only shortcut (`PluginDef`,
-`createPanelPlugin`/`createFlyoutPlugin`) was removed in 1.0; a Svelte host
-mounts its component from the SDK's `mount()` instead — see the Svelte tab in
-[rendering UI in your
+`definePlugin` is the only plugin path — there is no Svelte-only shortcut, and a
+Svelte host mounts its component from the SDK's `mount()` like every other
+framework. See the Svelte tab in [rendering UI in your
 framework](plugin-authoring.md#rendering-ui-in-your-framework).
 
 ---
@@ -434,31 +435,13 @@ framework](plugin-authoring.md#rendering-ui-in-your-framework).
 
 | Plugin | What it does | Renders as |
 | :----- | :------------ | :--------- |
+| [Audio & Video](plugin-av.md) | Plays a canvas's `Sound` and `Video` bodies — media stage over the canvas rect, transport in the control bar, waveforms, captions, transcript | Panel (transcript) + canvas stage |
 | [Image Manipulation](plugin-image-manipulation.md) | Brightness, contrast, saturation, invert, and grayscale controls for the displayed image | Flyout |
 | [Image Download](plugin-image-export.md) | Downloads the current canvas (composite, single image, or current view) as a raster image | Panel |
 | [PDF Export](plugin-pdf-export.md) | Exports a range of canvases as a browser-generated PDF, with optional OCR text and a cover sheet | Panel |
-| [Annotation Editor](plugin-annotation-editor.md) — **paused** | Rectangle/polygon/point annotation authoring with pluggable persistence and host extension hooks | Panel or flyout |
 
 Each page above has its own install command, setup snippet, and configuration
 reference.
-
-!!! warning "Annotation Editor is paused in this release line"
-
-    `@triiiceratops/plugin-annotation-editor` is **no longer published to npm**
-    and does not work against this version of the viewer. The viewer's renderer
-    is first-party now, and the plugin's editing surface
-    (`@annotorious/openseadragon`) is built from the raw OpenSeadragon viewer
-    instance that core no longer exposes. Registering it fails loudly with a
-    `PluginCompatibilityError` naming the retired `osd@5` capability rather than
-    installing a button that does nothing.
-
-    The last working combination is
-    `@triiiceratops/plugin-annotation-editor@1.0.0-rc.7` against
-    `triiiceratops@1.0.0-rc.36` — still on npm, but its peer range
-    (`^1.0.0-rc.33`) will let npm resolve a core that cannot run it, so pin core
-    yourself. Editing returns with the phase-2 drawing layer, built on core's
-    paint hook and input-claim API. See
-    [the plugin's page](plugin-annotation-editor.md) for the full disposition.
 
 ---
 
@@ -468,6 +451,7 @@ reference.
 | ---------------------------------------------------- | ---------------------------------------- |
 | `triiiceratops`                                      | Core Svelte component and utilities      |
 | `triiiceratops/style.css`                            | Core stylesheet (Svelte usage)           |
+| `triiiceratops/svelte`                               | [Svelte 5 component](svelte.md) — a superset of the root entry |
 | `triiiceratops/react`                                | [React 19 framework wrapper](react.md)   |
 | `triiiceratops/vue`                                  | [Vue 3.5 framework wrapper](vue.md)      |
 | `triiiceratops/selectors`                            | Framework-neutral selector runtime       |
@@ -479,20 +463,11 @@ reference.
 | `@triiiceratops/plugin-sdk/register-shared`          | Browser/IIFE registration for a plugin that cannot load before core — without a shared-runtime load-order gate it silently no-ops with no diagnostic, so third-party plugins should keep using `/register` |
 | `@triiiceratops/plugin-sdk/{svelte,react,vue,lit}`   | SDK framework adapters                   |
 | `@triiiceratops/plugin-sdk/testing`                  | SDK plugin test kit                      |
+| `@triiiceratops/plugin-av`                           | Audio & video plugin (ES module)         |
+| `@triiiceratops/plugin-av/iife`                      | Audio & video plugin (IIFE — serve the whole `dist/` directory, and load it after core) |
 | `@triiiceratops/plugin-image-manipulation`           | Image manipulation plugin (ES module)    |
 | `@triiiceratops/plugin-image-manipulation/iife`      | Image manipulation plugin (IIFE)         |
-| `@triiiceratops/plugin-image-export`               | Image download plugin (ES module)        |
-| `@triiiceratops/plugin-image-export/iife`          | Image download plugin (IIFE)             |
+| `@triiiceratops/plugin-image-export`                 | Image download plugin (ES module)        |
+| `@triiiceratops/plugin-image-export/iife`            | Image download plugin (IIFE)             |
 | `@triiiceratops/plugin-pdf-export`                   | PDF export plugin (ES module)            |
 | `@triiiceratops/plugin-pdf-export/iife`              | PDF export plugin (IIFE)                 |
-
-The annotation-editor plugin is **paused and unpublished** in this release line,
-so none of its entry points are installable alongside this core. They existed on
-the last published version (`1.0.0-rc.7`, which needs `triiiceratops@1.0.0-rc.36`)
-and return with the phase-2 drawing layer:
-
-| Export path (paused — not published)                 | Description                              |
-| ---------------------------------------------------- | ---------------------------------------- |
-| `@triiiceratops/plugin-annotation-editor`            | Annotation editor plugin (ES module)     |
-| `@triiiceratops/plugin-annotation-editor/iife`       | Annotation editor plugin (IIFE)          |
-| `@triiiceratops/plugin-annotation-editor/testing`    | Adapter conformance suite                |

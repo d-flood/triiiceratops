@@ -13,7 +13,7 @@ export function createExamplePlugin() {
         // like 'Example' works too. Omit it and the toolbar shows `name`.
         uiId: 'my-plugin', // stable, DOM-safe key for config.plugins[uiId]
         version: '1.0.0',
-        coreRange: '>=1.0.0-rc.0', // core versions this plugin supports
+        coreRange: '>=1.0.0', // core versions this plugin supports
         pluginApiRange: '^1.0.0', // plugin API versions supported
         requiredCapabilities: [], // normally empty; see "Capabilities" below
         icon,
@@ -22,6 +22,10 @@ export function createExamplePlugin() {
         // There is no `position` field here — a panel's dock side is chosen
         // by the consuming app, not the plugin. See "Panel position" below.
         dismiss: 'light', // flyout dismiss: 'light' (default) or 'explicit'; ignored for panels
+        fills: false, // true gives the panel the height left over in its column
+        // and scrolls it there, instead of sizing it to its content. For a body
+        // that runs long (a list or a document); a short panel would only
+        // stretch. Ignored for flyouts.
         catalog: { en: { example_title: 'Example' } }, // package-owned localization
         view: {
             mount(container, context) {

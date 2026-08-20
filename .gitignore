@@ -125,3 +125,7 @@ docs/viewer*
 # swallowed the authored `docs/svelte.md` guide, which owns the /svelte/ URL.
 docs/svelte-demo/
 .tracker/
+
+# Advisory cookbook drift report (scripts/recipe-drift.mjs); posted as a GitHub
+# issue by .github/workflows/recipe-drift.yml, never committed.
+recipe-drift-report.md

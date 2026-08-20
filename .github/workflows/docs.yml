@@ -8,9 +8,12 @@ permissions:
     contents: read
 jobs:
     # Required PR gate: the docs site builds with zero warnings and zero broken
-    # internal links (`zensical build --strict`), and every extracted doc example
-    # is in sync with the Markdown (`docs:examples:check`). Runs on pull requests;
-    # the deploy job below runs only on pushes to main.
+    # internal links (`zensical build --strict`), every extracted doc example is
+    # in sync with the Markdown (`docs:examples:check`), the content-state
+    # conformance table matches its fixture index (`docs:content-state:check`),
+    # and the published Cookbook recipe-support numbers match the catalog
+    # (`docs:recipes:check`).
+    # Runs on pull requests; the deploy job below runs only on pushes to main.
     #
     # Skipped on the Changesets "Version Packages" PR (see the note in test.yml):
     # its diff is generated version bumps + CHANGELOG entries, which cannot break
@@ -40,8 +43,10 @@ jobs:
             - name: Install zensical
               run: pip install zensical
 
-            # `pnpm docs:build` = doc-example sync check + `zensical build
-            # --clean --strict` (warnings-as-failures + internal link check).
+            # `pnpm docs:build` = doc-example sync check + content-state
+            # conformance check + recipe-support sync check +
+            # `zensical build --clean --strict` (warnings-as-failures +
+            # internal link check).
             - name: Build docs (strict) + verify examples in sync
               run: pnpm docs:build
 

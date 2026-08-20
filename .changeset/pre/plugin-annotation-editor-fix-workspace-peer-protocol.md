@@ -1,5 +1,4 @@
 ---
-'@triiiceratops/plugin-annotation-editor': patch
 ---
 
 Republish to supersede `1.0.0-rc.1`, whose published tarball carried

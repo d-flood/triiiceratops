@@ -4,7 +4,6 @@
 '@triiiceratops/plugin-pdf-export': patch
 '@triiiceratops/plugin-image-export': patch
 '@triiiceratops/plugin-image-manipulation': patch
-'@triiiceratops/plugin-annotation-editor': patch
 ---
 
 Fix SDK plugin chrome being labelled with the raw package name. A plugin's toolbar tooltip/aria-label and its docked-panel header rendered `@triiiceratops/plugin-pdf-export` instead of "PDF Export": core passed `SdkPluginMeta.name` — the package-qualified identity — straight through as display copy, and then resolved it against CORE's message catalog, where a plugin's own title key never lives.

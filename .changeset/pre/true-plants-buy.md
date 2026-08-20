@@ -1,5 +1,4 @@
 ---
-'@triiiceratops/plugin-annotation-editor': patch
 'triiiceratops': patch
 ---
 

@@ -91,6 +91,33 @@
         },
     ];
 
+    /**
+     * Live Avalon Media System manifests whose canvases link real waveform data.
+     *
+     * Kept apart from `AV_MANIFESTS` because that list is pinned to the fifteen
+     * Cookbook recipes. These are the only public deployment found still serving
+     * the bytes: the canvas `seeAlso` is a `Dataset` of `application/json`
+     * pointing at `master_files/<id>/waveform.json`, which is the Avalon half of
+     * the linkage contract in `@triiiceratops/plugin-av`'s `waveformLink`. The
+     * Avalon project's own demo instance advertises the same shape but its
+     * waveform files now 404, and the British Library's BBC-profile `.dat` shape
+     * has no reachable example at all, so it is exercised only by fixtures.
+     *
+     * These are third-party URLs on someone else's server: they can go away
+     * without notice, and their media bodies are HLS behind expiring tokens, so
+     * the manifest has to be re-fetched to play rather than cached and replayed.
+     */
+    const WAVEFORM_MANIFESTS = [
+        {
+            label: 'IU — A Mende Song (waveform, 1 canvas)',
+            url: 'https://media.dlib.indiana.edu/media_objects/rv043j64d/manifest',
+        },
+        {
+            label: 'IU — Reminisce-In (waveform, 2 canvases, ~6 MB each)',
+            url: 'https://media.dlib.indiana.edu/media_objects/8k71np66t/manifest',
+        },
+    ];
+
     const IMAGE_MANIFESTS = [
         {
             label: 'Wellcome Collection (b18035723)',
@@ -262,7 +289,11 @@
         },
     ];
 
-    const SUGGESTED_MANIFESTS = [...IMAGE_MANIFESTS, ...AV_MANIFESTS];
+    const SUGGESTED_MANIFESTS = [
+        ...IMAGE_MANIFESTS,
+        ...AV_MANIFESTS,
+        ...WAVEFORM_MANIFESTS,
+    ];
 
     let {
         manifestUrl = $bindable(),
@@ -467,6 +498,16 @@
                         data-testid="av-recipes"
                     >
                         {#each AV_MANIFESTS as manifest (manifest.url)}
+                            <option value={manifest.url}
+                                >{manifest.label}</option
+                            >
+                        {/each}
+                    </optgroup>
+                    <optgroup
+                        label="Waveforms (live Avalon)"
+                        data-testid="av-waveforms"
+                    >
+                        {#each WAVEFORM_MANIFESTS as manifest (manifest.url)}
                             <option value={manifest.url}
                                 >{manifest.label}</option
                             >

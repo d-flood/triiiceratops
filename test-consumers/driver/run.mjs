@@ -60,11 +60,11 @@ import {
 // Packages packed into tarballs for the fixtures below. Core first (its dist must
 // exist before the SDK type-checks against it); the SDK follows.
 //
-// This is NOT the publishable set. `scripts/release/packages.mjs` lists the five
-// packages that reach npm; this list is six, because the paused
-// `@triiiceratops/plugin-annotation-editor` still has to be packed for the
-// fixtures that consume it from a real tarball (its adapter-conformance suite,
-// the docs examples). Packing proves the tarball's contents; it is not published.
+// This is NOT the publishable set. `scripts/release/packages.mjs` lists the
+// packages that reach npm; this list adds the paused
+// `@triiiceratops/plugin-annotation-editor`, which still has to be packed for the
+// one fixture that consumes it from a real tarball (its adapter-conformance
+// suite). Packing proves the tarball's contents; it is not published.
 const PACKAGES_TO_PACK = [
     {
         filter: 'triiiceratops',
@@ -98,6 +98,15 @@ const PACKAGES_TO_PACK = [
         filter: '@triiiceratops/plugin-image-export',
         build: ['build'],
         tarballName: '_triiiceratops_plugin-image-export.tgz',
+    },
+    {
+        // Audiovisual plugin. `build` = ESM + IIFE + lazy IIFE chunks (vite) +
+        // types (tsc), then a shared-runtime guard. Its IIFE deliberately bundles
+        // no Svelte and no core utilities — it reads both off
+        // `window.Triiiceratops` — so it must stay AFTER core and the SDK.
+        filter: '@triiiceratops/plugin-av',
+        build: ['build'],
+        tarballName: '_triiiceratops_plugin-av.tgz',
     },
     {
         // Pdf-export plugin. `build` = ESM + IIFE (vite) + types (tsc);

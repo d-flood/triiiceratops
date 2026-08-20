@@ -38,9 +38,9 @@ The element comes in two forms:
 - **Self-contained IIFE** (`triiiceratops/element`) for no-bundler pages loaded
   from a `<script>` tag.
 
-Both register the **same tag** and expose the same properties, methods, events,
-styles, and content-state behavior. Styles and themes are installed **inside the
-element's shadow root** — there is no separate element stylesheet to import.
+Both register the **same tag** and expose the same properties, methods, and
+events. Styles and themes are installed **inside the element's shadow root** —
+there is no separate element stylesheet to import.
 
 ## Install
 
@@ -127,7 +127,9 @@ cannot replace an already-registered tag.
 
 ### Attributes, properties, and events
 
-- **Attributes** — `manifest-id`, `canvas-id`, `theme`. Strings only.
+- **Attributes** — `manifest-id`, `canvas-id`, `theme`, `content-state`. Strings
+  only, plus the boolean attribute `read-content-state-from-url` (presence opts
+  in; see [content state](content-state.md#passing-one-to-the-viewer)).
 - **Properties** — `manifestJson`, `themeConfig`, `config`,
   `initialCanvasRegion`, `plugins`, `searchProvider`. Objects, arrays, and
   functions cannot travel through an HTML attribute, so assign them to the
