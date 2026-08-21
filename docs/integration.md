@@ -327,6 +327,16 @@ watch(() => props.manifestId, sync);
 The wrapper removes the `isCustomElement` configuration, the property
 assignments, and the manual listeners.
 
+## Live examples
+
+Two example pages are published beside these docs and run this release's bundles:
+
+- [Plain HTML](examples/plain-html/) — one script tag, one element, no
+  bundler and no plugins.
+- [Web component](examples/web-component/) — the same element plus
+  `@triiiceratops/plugin-av`, loaded from a second script tag in the required
+  order and registered per viewer.
+
 ## Verified against the packed package
 
 CI runs packed-consumer fixtures across Chromium, Firefox, and WebKit for both

@@ -656,3 +656,9 @@ React-specific:
 Direct custom-element integration also remains fully supported for hosts that
 want it — see [driving the element directly](integration.md#driving-the-element-directly).
 Adopting the wrapper is not required.
+
+There is no React example page: the wrapper's whole job is to hand you React
+idioms over the same element every host uses. To see that element running this
+release's bundles in a browser, open the
+[web component example](examples/web-component/), which loads it from a script
+tag with no bundler.

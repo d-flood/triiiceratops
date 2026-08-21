@@ -125,9 +125,11 @@ const OBSERVED_ATTRIBUTES = /static\s+get\s+observedAttributes\s*\(\s*\)/;
  * load-bearing and gone — has no signal at all: the element renders unstyled,
  * degraded rather than absent, in the shipped viewer only.
  *
- * The risk is not hypothetical. `src/demo/` reaches for `<details>/<summary>`
- * and `<optgroup>` one directory away from the library tree, and demo chrome
- * has leaked back into that tree before.
+ * The risk is not hypothetical. The playground reaches for `<details>/<summary>`
+ * and `<optgroup>`, and demo chrome has leaked into the library tree three
+ * times. The playground is a separate workspace package under `apps/`, held
+ * outside the library by the boundary rule in `eslint.boundaries.js`; this guard
+ * covers the components that remain.
  *
  * TWO LIMITS, deliberately not papered over:
  *

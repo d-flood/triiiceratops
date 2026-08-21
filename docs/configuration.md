@@ -20,12 +20,12 @@ the supported integration path — see the [React](react.md), [Vue](vue.md), and
 
 ## Configuration Object
 
-<!-- Absolute URL, not a relative `./viewer/` link: the demo is published at a
-stable, unversioned path (see docs-publish.mjs) because IIIF cookbook recipes
-link to it directly. -->
+<!-- Absolute URL, not a relative link: the playground is published at a stable,
+unversioned path (see docs-publish.mjs), outside the per-version documentation
+directory this page is served from. -->
 !!! tip "Interactive Configuration"
 
-    You can experiment with these settings in the [Live Demo](https://d-flood.github.io/triiiceratops/viewer/){target=_blank}.
+    You can experiment with these settings in the [Live Demo](https://d-flood.github.io/triiiceratops/demo/){target=_blank}.
     Open the settings menu (gear icon), tweak the configuration, then click
     **"Copy Config"** to get the JSON for your project.
 
@@ -451,7 +451,7 @@ interface ViewerStateSnapshot {
     ```
 
     You can use these events to sync your application's UI with the viewer, as
-    demonstrated in `src/demo/Demo.svelte`.
+    demonstrated in `apps/demo/src/Demo.svelte`.
 
 === "React"
 
@@ -1463,7 +1463,7 @@ if (target && !routeAlreadyNamesAManifest) {
 }
 ```
 
-The [live demo](https://d-flood.github.io/triiiceratops/viewer/){target=_blank}
+The [bare viewer](https://d-flood.github.io/triiiceratops/viewer/){target=_blank}
 does exactly this, which is why IIIF Cookbook recipes can link straight into it.
 
 ### Media time

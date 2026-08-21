@@ -155,7 +155,7 @@ for (const key of orphans) {
         `"${key}" is in ${rel(CATALOG)} but nothing under ${rel(ROOT)} calls ` +
             `\`m.${key}\`. The Proxy puts it in the element bundle regardless, ` +
             `so delete it from messages/en.json and messages/de.json — or, if it ` +
-            `belongs to the demo chrome, to src/demo/i18n.svelte.ts.`,
+            `belongs to the playground's chrome, to apps/demo/src/i18n.svelte.ts.`,
     );
 }
 

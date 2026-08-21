@@ -46,7 +46,7 @@ test.describe('quiet production console (ticket 18)', () => {
     }) => {
         const messages = collectViewerMessages(page);
 
-        await page.goto(`/?manifest=${MANIFEST}`, {
+        await page.goto(`/e2e/harness.html?manifest=${MANIFEST}`, {
             waitUntil: 'domcontentloaded',
         });
         await runJourney(page);
@@ -58,9 +58,12 @@ test.describe('quiet production console (ticket 18)', () => {
         const messages = collectViewerMessages(page);
 
         const config = encodeURIComponent(JSON.stringify({ debug: true }));
-        await page.goto(`/?manifest=${MANIFEST}&config=${config}`, {
-            waitUntil: 'domcontentloaded',
-        });
+        await page.goto(
+            `/e2e/harness.html?manifest=${MANIFEST}&config=${config}`,
+            {
+                waitUntil: 'domcontentloaded',
+            },
+        );
         await runJourney(page);
 
         expect(messages.length).toBeGreaterThan(0);

@@ -50,14 +50,8 @@ const OUT_DIR = join(
     'generated',
 );
 
-// Build artifacts / non-authored trees under docs/ that must never be scanned.
-const SKIP_DIRS = new Set([
-    'viewer',
-    'demo-consumer',
-    'demo',
-    'svelte-demo',
-    'media',
-]);
+// Non-Markdown asset trees under docs/, skipped rather than walked.
+const SKIP_DIRS = new Set(['media']);
 
 const EXT_BY_LANG = {
     ts: 'ts',

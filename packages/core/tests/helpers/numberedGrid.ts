@@ -247,7 +247,7 @@ const SURFACE = '[data-testid="canvas-renderer-surface"]';
 
 /** Open the numbered-grid fixture. */
 export async function openGridManifest(page: Page): Promise<void> {
-    await page.goto(`/?manifest=${GRID_MANIFEST}`, {
+    await page.goto(`/e2e/harness.html?manifest=${GRID_MANIFEST}`, {
         waitUntil: 'domcontentloaded',
     });
     await page.locator(SURFACE).waitFor({ state: 'visible', timeout: 20_000 });
@@ -283,7 +283,7 @@ export async function openRendererManifest(
     page: Page,
     manifest: string,
     /**
-     * Viewer config for the demo app to boot with, as its `config` URL
+     * Viewer config for the harness to boot with, as its `config` URL
      * parameter takes it. The way a spec reaches a viewing mode or a paged
      * offset without driving the settings UI to get there.
      */
@@ -303,7 +303,7 @@ export async function openRendererManifest(
     const query = config
         ? `?manifest=${manifest}&config=${encodeURIComponent(JSON.stringify(config))}`
         : `?manifest=${manifest}`;
-    await page.goto(query, {
+    await page.goto(`/e2e/harness.html${query}`, {
         waitUntil: 'domcontentloaded',
     });
     await page.locator(SURFACE).waitFor({ state: 'visible', timeout });

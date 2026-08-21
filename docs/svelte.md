@@ -180,6 +180,13 @@ single viewer instance.
 import { manifestsState } from 'triiiceratops/svelte';
 ```
 
+## Live example
+
+[The Svelte example](examples/svelte/) is a Vite + Svelte 5 application that
+imports `triiiceratops/svelte` and `triiiceratops/style.css` from the published
+package. It is published beside these pages and runs this release's bundles, so
+what it does is what the version documented here does.
+
 ## Where to go next
 
 Everything below is framework-neutral and has a **Svelte** tab on every example:

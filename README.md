@@ -172,8 +172,8 @@ The web component can also load manifest JSON directly via the `manifestJson` pr
 ```bash
 pnpm install
 
-pnpm dev           # Start local demo server
-pnpm build:all     # Build library, web component, and demo
+pnpm build:all     # Build the packages, the playground, and the example pages
+pnpm dev           # Serve the playground (consumes the built packages)
 pnpm test          # Run unit tests
 pnpm test:e2e      # Run end-to-end tests
 ```

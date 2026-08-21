@@ -79,9 +79,12 @@ async function openRecipe(
     const config = encodeURIComponent(
         JSON.stringify({ gallery: { open: true, dockPosition: 'bottom' } }),
     );
-    await page.goto(`/?manifest=${recipe.url}&config=${config}`, {
-        waitUntil: 'domcontentloaded',
-    });
+    await page.goto(
+        `/e2e/harness.html?manifest=${recipe.url}&config=${config}`,
+        {
+            waitUntil: 'domcontentloaded',
+        },
+    );
     await page.locator(SURFACE).waitFor({ state: 'visible', timeout: 30_000 });
 
     return requested;

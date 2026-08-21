@@ -8,11 +8,11 @@ A modern, lightweight, **framework-agnostic** IIIF viewer. Use the typed React
 or Vue component, drop the standards-based web component into plain HTML or any
 other frontend, or use the native Svelte component if that's your stack.
 
-<!-- Absolute URL, not a relative `./viewer/` link: the demo is published at a
-stable, unversioned path (see docs-publish.mjs) because IIIF cookbook recipes
-link to it directly. A relative link would resolve inside the current
-docs version directory, where the demo no longer lives. -->
-[**View Live Demo**](https://d-flood.github.io/triiiceratops/viewer/){ .md-button .md-button--primary }
+<!-- Absolute URL, not a relative link: the playground is published at a stable,
+unversioned path (see docs-publish.mjs), while this page is served out of a
+per-version documentation directory. A relative link would resolve inside that
+version directory, where the playground does not live. -->
+[**View Live Demo**](https://d-flood.github.io/triiiceratops/demo/){ .md-button .md-button--primary }
 
 !!! info "This documentation describes the Triiiceratops 1.0 release line"
 
@@ -203,8 +203,8 @@ and the tab you picked above follows you across the site.
 ```bash
 pnpm install
 
-pnpm dev           # Start local demo server
-pnpm build:all     # Build library, web component, and demo
+pnpm build:all     # Build the packages, the playground, and the example pages
+pnpm dev           # Serve the playground (consumes the built packages)
 pnpm test          # Run unit tests
 pnpm test:e2e      # Run end-to-end tests
 ```

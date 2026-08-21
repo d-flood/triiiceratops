@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Triiiceratops IIIF Viewer</title>
+        <link rel="canonical" href="https://d-flood.github.io/triiiceratops/" />
+
+        <!--
+            This page is not rendered by the documentation theme, so it carries
+            its own copy of the social tags rather than including
+            overrides/partials/social-meta.html. Absolute URLs throughout: a
+            relative og:image or og:url is the most common cause of a blank
+            preview card. The image path is unversioned so scrapers, which cache
+            preview images by URL for weeks, resolve the same file across every
+            release.
+        -->
+        <meta
+            name="description"
+            content="A modern, lightweight, framework-agnostic IIIF viewer."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Triiiceratops IIIF Viewer" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:title" content="Triiiceratops IIIF Viewer" />
+        <meta
+            property="og:description"
+            content="A modern, lightweight, framework-agnostic IIIF viewer."
+        />
+        <meta
+            property="og:url"
+            content="https://d-flood.github.io/triiiceratops/"
+        />
+        <meta
+            property="og:image"
+            content="https://d-flood.github.io/triiiceratops/social/og-landing-v1.png"
+        />
+        <meta
+            property="og:image:secure_url"
+            content="https://d-flood.github.io/triiiceratops/social/og-landing-v1.png"
+        />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta
+            property="og:image:alt"
+            content="Triiiceratops: a modern, lightweight, framework-agnostic IIIF viewer."
+        />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@FloodDavid" />
+        <meta name="twitter:creator" content="@FloodDavid" />
+        <meta name="twitter:title" content="Triiiceratops IIIF Viewer" />
+        <meta
+            name="twitter:description"
+            content="A modern, lightweight, framework-agnostic IIIF viewer."
+        />
+        <meta
+            name="twitter:image"
+            content="https://d-flood.github.io/triiiceratops/social/og-landing-v1.png"
+        />
+        <meta
+            name="twitter:image:alt"
+            content="Triiiceratops: a modern, lightweight, framework-agnostic IIIF viewer."
+        />
+        <meta name="fediverse:creator" content="@davidflood@fosstodon.org" />
+        <meta name="theme-color" content="#e9ab2b" />
+
+        <!-- Self-contained: no stylesheet, font or script request, so the page
+             renders from disk and cannot be broken by a build elsewhere. -->
+        <style>
+            /* Declared so a browser's own auto-dark-mode heuristic leaves the
+               page alone: without it, Chrome darkens a page it thinks has no
+               dark support, on top of the dark rules below. */
+            :root {
+                color-scheme: light dark;
+            }
+            body {
+                font-family: system-ui, sans-serif;
+                max-width: 34rem;
+                margin: 6rem auto;
+                padding: 0 1rem;
+                line-height: 1.6;
+            }
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+            p {
+                margin-top: 0;
+            }
+            ul {
+                list-style: none;
+                padding: 0;
+                margin-top: 2rem;
+            }
+            li {
+                padding: 0.5rem 0;
+                border-bottom: 1px solid #ddd;
+            }
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background: #111;
+                    color: #eee;
+                }
+                li {
+                    border-color: #333;
+                }
+                a {
+                    color: #7ab7ff;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Triiiceratops</h1>
+        <p>A modern, lightweight, framework-agnostic IIIF viewer.</p>
+        <ul>
+            <li><a href="./latest/">Documentation</a></li>
+            <li><a href="./demo/">Playground</a></li>
+            <li>
+                <a href="https://github.com/d-flood/triiiceratops">Source</a>
+            </li>
+        </ul>
+    </body>
+</html>

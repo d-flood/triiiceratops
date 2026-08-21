@@ -1,17 +1,18 @@
 #!/usr/bin/env node
-// Render the two social-preview ("Open Graph") card images.
+// Render the social-preview ("Open Graph") card images.
 //
 // The cards are COMMITTED PNGs under docs/media/social/ — nothing in CI runs
 // this script. It exists so the cards stay editable source rather than opaque
 // binaries: change the HTML below, re-run, commit the result.
 //
-//   node scripts/social-cards.mjs               # re-render both cards
+//   node scripts/social-cards.mjs               # re-render every card
 //   node scripts/social-cards.mjs --out /tmp/x  # render elsewhere (preview)
 //   node scripts/social-cards.mjs --capture     # also re-shoot the viewer image
 //
-// Two cards, not one, because the two URLs make different promises: the docs
-// root says "read about this library", /viewer/ says "click and it runs". A
-// shared card would undersell whichever one it wasn't written for.
+// One card per promise, rather than one card for the site: the landing page says
+// "here is what this is", the docs root says "read about this library", and
+// /viewer/ says "click and it runs". A shared card would undersell whichever URL
+// it wasn't written for.
 //
 // FILENAMES ARE VERSIONED (`-v1`) ON PURPOSE. Facebook, LinkedIn and Slack
 // cache preview images by URL for days-to-weeks with no reliable purge, so a
@@ -229,6 +230,41 @@ function viewerCard(logo, shot) {
 <div class="url mono">${SITE}<b>/viewer/</b></div>`);
 }
 
+/**
+ * Landing card: the site root. This is the URL an announcement post carries, so
+ * it says the one sentence the landing page says and nothing more — the docs
+ * card's three claims are for a reader who already followed a link.
+ */
+function landingCard(logo) {
+    return shell(`
+<style>
+  body {
+    background-image:
+      radial-gradient(78% 88% at 96% 34%, color-mix(in oklab, var(--amber) 20%, transparent) 0%, transparent 60%),
+      radial-gradient(75% 70% at 0% 100%, var(--deep) 0%, transparent 72%);
+  }
+  .logo {
+    position: absolute; right: 46px; top: 50%; transform: translateY(-50%);
+    width: 420px; height: auto;
+    filter: drop-shadow(0 22px 55px rgba(0, 0, 0, 0.5));
+  }
+  .copy { position: absolute; left: 72px; top: 176px; width: 620px; }
+  h1 { margin-top: 18px; font-size: 90px; line-height: 0.98; }
+  .rule {
+    width: 76px; height: 5px; margin: 26px 0 22px;
+    background: var(--amber); border-radius: 999px;
+  }
+</style>
+<img class="logo" src="${logo}" alt="">
+<div class="copy">
+  <div class="eyebrow mono">IIIF Viewer</div>
+  <h1>Triiiceratops</h1>
+  <div class="rule"></div>
+  <p>A modern, lightweight, framework&#8209;agnostic IIIF&nbsp;viewer.</p>
+</div>
+<div class="url mono">${SITE}</div>`);
+}
+
 // ---------------------------------------------------------------------------
 // --capture: re-shoot the viewer image used by the demo card
 // ---------------------------------------------------------------------------
@@ -276,10 +312,10 @@ function serveViewer(root) {
  * stays sharp on retina.
  */
 async function captureViewer(chromium) {
-    const root = join(REPO_ROOT, 'docs', 'viewer');
+    const root = join(REPO_ROOT, 'apps', 'demo', 'dist');
     if (!existsSync(join(root, 'index.html'))) {
         throw new Error(
-            `--capture needs the built demo at docs/viewer/. Run \`pnpm build:demo\` first.`,
+            `--capture needs the built playground at apps/demo/dist/. Run \`pnpm build:demo\` first.`,
         );
     }
     const { server, port } = await serveViewer(root);
@@ -407,6 +443,7 @@ async function main() {
         for (const [name, html] of [
             ['og-docs-v1.png', docsCard(logo)],
             ['og-viewer-v1.png', viewerCard(logo, shot)],
+            ['og-landing-v1.png', landingCard(logo)],
         ]) {
             await page.setContent(html, { waitUntil: 'load' });
             // `display=block` on the font request means text is invisible until
@@ -425,4 +462,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     await main();
 }
 
-export { docsCard, viewerCard };
+export { docsCard, landingCard, viewerCard };

@@ -131,7 +131,7 @@ right is better.
 Core alone supports **34** of 67, which is also what the matrix lists Triiiceratops at. With
 `plugin-av` the pair reaches **48**: those recipes plus 14
 of the 15 audiovisual recipes the AV spec suite drives end to end against the
-[public demo](https://d-flood.github.io/triiiceratops/viewer/).
+[public demo](https://d-flood.github.io/triiiceratops/demo/).
 
 A further recipe is counted as partial rather than supported, because it renders
 while the recipe's own feature does not:
@@ -190,7 +190,7 @@ Diva.js, Canvas Panel and Mango have no matrix column; Theseus leads it at 64 of
     on every build, so they cannot drift from this page without CI going red:
 
     ```bash
-    pnpm build:all       # ends in `pnpm size:check:pair`
+    pnpm build:packages  # ends in `pnpm size:check:pair`
     ```
 
 ??? note "What this comparison does not tell you"

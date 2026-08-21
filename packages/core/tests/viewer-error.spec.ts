@@ -28,7 +28,7 @@ test('conflicting nav config dispatches a structured viewererror event', async (
             toolbar: { anchor: 'top' },
         }),
     );
-    await page.goto(`/?manifest=${MANIFEST}&config=${config}`, {
+    await page.goto(`/e2e/harness.html?manifest=${MANIFEST}&config=${config}`, {
         waitUntil: 'domcontentloaded',
     });
 

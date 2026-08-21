@@ -1,8 +1,8 @@
 /**
  * The `__triiiceratopsRenderer` handle the geometric e2e suite drives.
  *
- * NOT shipped: this directory is outside `src/lib` and is reached only from
- * `src/main.ts`, the dev entry, so the element build never pulls it in. The
+ * NOT shipped: this directory is outside `src/lib` and is reached only from the
+ * e2e harness page, so the element build never pulls it in. The
  * shaping lives here rather than in the renderer so that none of it reaches a
  * production bundle.
  *

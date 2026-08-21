@@ -3,7 +3,7 @@
 //
 // The repository makes claims about IIIF Cookbook recipes that only stay true
 // while the Cookbook keeps publishing what it published when the claims were
-// written: `packages/core/src/lib/cookbook/recipes.ts` names a manifest URL per
+// written: `packages/cookbook/src/recipes.ts` names a manifest URL per
 // recipe, `src/lib/test/fixtures/manifests/{cookbook,av}/` vendors most of those
 // manifests verbatim, and the content-state fixture index pins a manifest id and
 // canvas id per fixture. This script fetches the live Cookbook and reports where
@@ -32,7 +32,7 @@ import {
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { COOKBOOK_RECIPES } from '../packages/core/src/lib/cookbook/recipes.ts';
+import { COOKBOOK_RECIPES } from '../packages/cookbook/src/recipes.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..');

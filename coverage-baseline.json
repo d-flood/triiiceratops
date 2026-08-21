@@ -1,4 +1,8 @@
 {
+    "@triiiceratops/cookbook": {
+        "lines": 100,
+        "branches": 100
+    },
     "@triiiceratops/plugin-annotation-editor": {
         "lines": 62.66,
         "branches": 41.86

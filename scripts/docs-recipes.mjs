@@ -3,7 +3,7 @@
 //
 // Every recipe-support number and per-recipe note published in
 // docs/bundle-size-comparison.md is derived from the one committed catalog —
-// `packages/core/src/lib/cookbook/recipes.ts` — so a hand-maintained tally cannot
+// `packages/cookbook/src/recipes.ts` — so a hand-maintained tally cannot
 // drift from what the catalog records. Node runs the catalog's TypeScript
 // directly, exactly as `scripts/api-report.ts` is run, so there is no build step.
 //
@@ -23,15 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..');
-const CATALOG = join(
-    REPO_ROOT,
-    'packages',
-    'core',
-    'src',
-    'lib',
-    'cookbook',
-    'recipes.ts',
-);
+const CATALOG = join(REPO_ROOT, 'packages', 'cookbook', 'src', 'recipes.ts');
 const PAGE = join(REPO_ROOT, 'docs', 'bundle-size-comparison.md');
 
 const REGENERATE = 'Regenerate with: node scripts/docs-recipes.mjs';
@@ -46,7 +38,7 @@ const X_ORIGIN = 70;
 const X_PER_RECIPE = (567 - 70) / 60;
 const LABEL_OFFSET = 11;
 
-const DEMO_URL = 'https://d-flood.github.io/triiiceratops/viewer/';
+const DEMO_URL = 'https://d-flood.github.io/triiiceratops/demo/';
 
 /** Report a generation failure the way the catalog check does, and stop. */
 function fail(message) {

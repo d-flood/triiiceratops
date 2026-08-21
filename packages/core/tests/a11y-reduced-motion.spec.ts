@@ -25,7 +25,7 @@ test('viewer chrome has no CSS transitions/animations under reduced motion', asy
 }) => {
     test.slow();
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto(`/?manifest=${MANIFEST}`, {
+    await page.goto(`/e2e/harness.html?manifest=${MANIFEST}`, {
         waitUntil: 'domcontentloaded',
         timeout: 60000,
     });
@@ -86,7 +86,7 @@ test('transitions are present WITHOUT the reduced-motion preference', async ({
 }) => {
     test.slow();
     await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await page.goto(`/?manifest=${MANIFEST}`, {
+    await page.goto(`/e2e/harness.html?manifest=${MANIFEST}`, {
         waitUntil: 'domcontentloaded',
         timeout: 60000,
     });
