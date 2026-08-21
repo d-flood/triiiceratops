@@ -46,6 +46,77 @@ function contentStateUrl(manifest: string, extra = ''): string {
     return `/?iiif-content=${encodeURIComponent(manifest)}${extra}`;
 }
 
+/**
+ * A content-state Annotation naming a canvas and, optionally, a region of it —
+ * the cookbook's published shape, and the only form that can carry `#xywh=`.
+ */
+function regionContentStateUrl(manifest: string, fragment = ''): string {
+    const document = {
+        id: 'https://example.org/content-state/1',
+        type: 'Annotation',
+        motivation: 'contentState',
+        target: {
+            id: `${manifest}/canvas/1${fragment}`,
+            type: 'Canvas',
+            partOf: [{ id: manifest, type: 'Manifest' }],
+        },
+    };
+    const encoded = Buffer.from(JSON.stringify(document), 'utf8')
+        .toString('base64url')
+        .replace(/=+$/, '');
+    return `/?iiif-content=${encoded}`;
+}
+
+/**
+ * The share of the renderer's surface covered by opaque pixels, once it has
+ * stopped changing.
+ *
+ * How much of the surface the picture covers is what framing means from
+ * outside: the smoke fixture's canvas is square, so fitting the whole of it
+ * leaves the surface letterboxed, while framing a wide strip of it fills the
+ * surface edge to edge. Settled rather than sampled — the image has to decode
+ * and the fit is a transition, so a single read is a moment of an animation.
+ */
+async function settledOpaqueShare(page: Page): Promise<number> {
+    const read = () =>
+        page.locator(SURFACE).evaluate((element) => {
+            const canvas = element as HTMLCanvasElement;
+            const context = canvas.getContext('2d');
+            if (!context || canvas.width === 0) return 0;
+            const { data } = context.getImageData(
+                0,
+                0,
+                canvas.width,
+                canvas.height,
+            );
+            let opaque = 0;
+            for (let index = 3; index < data.length; index += 4) {
+                if (data[index] === 255) opaque += 1;
+            }
+            return opaque / (canvas.width * canvas.height);
+        });
+
+    let previous = -1;
+    let unchanged = 0;
+    let latest = 0;
+    await expect
+        .poll(
+            async () => {
+                latest = await read();
+                if (latest === previous) unchanged += 1;
+                else {
+                    unchanged = 0;
+                    previous = latest;
+                }
+                return latest > 0 && unchanged >= 3;
+            },
+            { intervals: [100] },
+        )
+        .toBe(true);
+
+    return latest;
+}
+
 function serveJson(page: Page, url: string, body: unknown): Promise<void> {
     return page.route(url, (route) =>
         route.fulfill({
@@ -118,6 +189,25 @@ test('a content-state URL renders a canvas', async ({ page }) => {
     await expect(page.locator(SURFACE)).toBeVisible();
     await expect(page.locator(UNSUPPORTED)).toHaveCount(0);
     await expect(page.locator(FALLBACK_INPUT)).toHaveCount(0);
+});
+
+test('a content state naming a region opens framed on it', async ({ page }) => {
+    // The whole 8x8 canvas: square on a landscape surface, so it is letterboxed
+    // and covers well under all of it. The comparison the framed load has to
+    // beat, measured rather than assumed so the surface's own size stays out of
+    // the arithmetic.
+    await page.goto(regionContentStateUrl(IMAGE_MANIFEST));
+    await expect(page.locator(SURFACE)).toBeVisible({ timeout: 30_000 });
+    const whole = await settledOpaqueShare(page);
+    expect(whole).toBeLessThan(0.75);
+
+    // A 4x1 rectangle in the middle of it. Framing that means a scale at which
+    // the canvas is larger than the surface in both directions, so the picture
+    // covers the surface edge to edge — which a canvas the viewer opened
+    // unframed cannot do.
+    await page.goto(regionContentStateUrl(IMAGE_MANIFEST, '#xywh=2,2,4,1'));
+    await expect(page.locator(SURFACE)).toBeVisible({ timeout: 30_000 });
+    expect(await settledOpaqueShare(page)).toBeGreaterThan(0.95);
 });
 
 test('with no parameters the fallback input renders', async ({ page }) => {

@@ -1436,35 +1436,34 @@ opens at; a `canvasId` explicitly supplied takes priority over the manifest's
 
 ### IIIF Content State
 
-Nothing in the viewer reads `window.location`. Deliberately: a component that
-claimed the address bar could hijack your routing, or consume an `iiif-content`
-parameter meant for the page around it
-([ADR 0006](adr/0006-content-state-is-an-explicit-component-input.md)). So a host
-that wants [IIIF Content State](https://iiif.io/api/content-state/) links decodes
-the parameter itself and maps the result onto the inputs above — which is also how
-you decide what wins when your own routing already names a manifest.
+A [content state](content-state.md) is a portable IIIF description of a view. The
+viewer takes one as an explicit input, and reads the `iiif-content` URL parameter
+only when the host opts in
+([ADR 0006](adr/0006-content-state-is-an-explicit-component-input.md)):
 
-An `iiif-content` value is either a plain HTTPS manifest URL or a base64url-encoded
-JSON Content State document whose `target` carries the canvas id and, optionally,
-an `#xywh=` region and a `#t=` media time:
+| Input | Attribute | Default |
+| :-- | :-- | :-- |
+| `contentState` | `content-state` | none |
+| `readContentStateFromUrl` | `read-content-state-from-url` | off |
 
-```js
-// `decodeContentState` is yours: base64url-decode the value (or take it as a
-// manifest URL when it is one) and read the target's canvas id, `xywh` box and
-// `t` time out of it.
-const param = new URLSearchParams(location.search).get('iiif-content');
-const target = param ? decodeContentState(param) : null;
+With the flag off — the default — the viewer never touches `window.location`, so a
+component embedded in your application cannot consume an `iiif-content` parameter
+meant for the page around it. Turning it on delegates that one channel to the
+viewer; every other delivery channel (paste, drop, `FileReader`, a `data-*`
+attribute) stays the host's.
 
-// Your own routing wins — the URL parameter is the fallback, not the authority.
-if (target && !routeAlreadyNamesAManifest) {
-    viewer.manifestId = target.manifestId;
-    if (target.canvasId) viewer.canvasId = target.canvasId;
-    if (target.region) viewer.initialCanvasRegion = target.region;
-}
-```
+The discrete inputs above win over `contentState`, which wins over the URL
+parameter. A content state's region is honoured when the canvas it names opens, so
+supply it with the content state rather than assigning `initialCanvasRegion` to a
+viewer that is already showing something.
 
-The [bare viewer](https://triiiceratops.org/viewer/){target=_blank}
-does exactly this, which is why IIIF Cookbook recipes can link straight into it.
+Hosts that want a view target without handing the viewer a content state can call
+`parseContentState`, which is public API and resolves every form
+[the conformance table lists](content-state.md#supported-forms).
+
+The [bare viewer](https://triiiceratops.org/viewer/){target=_blank} sets
+`read-content-state-from-url`, which is why IIIF Cookbook recipes can link
+straight into it.
 
 ### Media time
 
