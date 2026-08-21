@@ -22,7 +22,7 @@ import { join } from 'node:path';
 import { REPO_ROOT, docsVersion, packageVersion } from './docs-version.mjs';
 
 // The canonical site root. Must match `site_url` in zensical.toml.
-const BASE_URL = 'https://d-flood.github.io/triiiceratops/';
+const BASE_URL = 'https://triiiceratops.org/';
 const EFFECTIVE_CONFIG = join(REPO_ROOT, '.zensical.effective.toml');
 
 function parseArgs(argv) {

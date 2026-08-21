@@ -85,25 +85,12 @@ const OWNER_HINTS = {
 };
 
 /**
- * Top-level names the manifest and the ownership table account for. Anything
- * else at the root of the tree is reported by check 4.
- *
- * `sitemap.xml`, `robots.txt` and `CNAME` are deliberately ABSENT: nothing
- * emits them yet, and when something does, the warning naming them is the
- * forcing function that says those paths owe the manifest an entry. Silencing
- * the warning by pre-seeding a name here removes the only thing that asks.
+ * Host control files: served out of the publish root but not public URLs, and so
+ * not manifest entries. A manifest entry is a promise about a URL somebody can
+ * link; `CNAME` is host configuration, the same category as the dotfiles check 4
+ * already skips.
  */
-const OWNED_TOP_LEVEL = new Set([
-    'docs',
-    'viewer',
-    'demo',
-    'latest',
-    'versions',
-    'social',
-    'index.html',
-    '404.html',
-    'versions.json',
-]);
+const HOST_CONTROL_FILES = new Set(['CNAME']);
 
 /** The publish job's own hand-written and generated pages, relative to the tree. */
 const OWNED_PAGES = [
@@ -132,6 +119,20 @@ function resolveUrl(url, version) {
         ? `${withVersion}index.html`
         : withVersion;
     return normalize(path.replace(/^\/+/, ''));
+}
+
+/**
+ * The top-level names the manifest accounts for: the first path segment of each
+ * entry's resolved path. Derived rather than listed, so promising a URL in the
+ * manifest is the whole of what it takes to account for its top-level name, and
+ * the two can never disagree.
+ */
+function ownedTopLevel(manifest, version) {
+    return new Set(
+        manifest.urls.map(
+            (entry) => resolveUrl(entry.url, version).split(sep)[0],
+        ),
+    );
 }
 
 /** True when `absolute` is inside `root` (or is `root` itself). */
@@ -344,10 +345,14 @@ function main() {
     }
 
     // ---- 4. Unowned top-level entries: report, never remove --------------
-    // Dotfiles are skipped: they are host and tooling control files
-    // (`.nojekyll` and the like), never public URLs.
+    // Dotfiles are skipped for the same reason as HOST_CONTROL_FILES: they are
+    // host and tooling control files (`.nojekyll` and the like), never public URLs.
+    const owned = ownedTopLevel(manifest, version);
     const unowned = readdirSync(tree).filter(
-        (name) => !name.startsWith('.') && !OWNED_TOP_LEVEL.has(name),
+        (name) =>
+            !name.startsWith('.') &&
+            !owned.has(name) &&
+            !HOST_CONTROL_FILES.has(name),
     );
     if (unowned.length > 0) {
         console.warn(

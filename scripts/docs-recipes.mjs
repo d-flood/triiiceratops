@@ -38,7 +38,7 @@ const X_ORIGIN = 70;
 const X_PER_RECIPE = (567 - 70) / 60;
 const LABEL_OFFSET = 11;
 
-const DEMO_URL = 'https://d-flood.github.io/triiiceratops/demo/';
+const DEMO_URL = 'https://triiiceratops.org/demo/';
 
 /** Report a generation failure the way the catalog check does, and stop. */
 function fail(message) {

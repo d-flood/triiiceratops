@@ -62,6 +62,16 @@
             "note": "The machine-readable version index the documentation's version switcher reads. Newest first, with the latest release carrying the \"latest\" alias."
         },
         {
+            "url": "/sitemap.xml",
+            "owner": "publish",
+            "note": "The site-wide sitemap. It names the landing page, the playground, the bare viewer and the current documentation version only; archived versions are absent here and carry a noindex in the directory itself, so what is offered for indexing and what is allowed to be indexed say the same thing."
+        },
+        {
+            "url": "/robots.txt",
+            "owner": "publish",
+            "note": "The crawl policy. It points crawlers at the sitemap and disallows nothing on purpose: a Disallow on an archived version directory would stop crawlers reading the noindex inside it, which is the only thing that gets an already-indexed archived page out of the results."
+        },
+        {
             "url": "/social/og-docs-v1.png",
             "owner": "publish",
             "note": "The social preview image every documentation page's og:image points at. Unversioned and suffix-stamped because scrapers cache preview images by URL for weeks; renaming it invalidates that cache, moving it breaks every card already in circulation."

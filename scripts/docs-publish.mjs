@@ -12,14 +12,17 @@
 //   <dest>/{index.html,404.html} apps/landing/ verbatim — the site root is a
 //                                real page, not a redirect
 //   <dest>/{latest/,versions/,versions.json,social/}  generated below
+//   <dest>/{sitemap.xml,robots.txt,CNAME}             generated below
 //
 // Each subtree has exactly one owner and is written only by the job that owns
 // it. `--only <names>` selects which of `docs,examples,viewer,demo,landing` this
 // run rebuilds; unselected subtrees are left exactly as the assembly root
 // already holds them, which is how a documentation typo fix leaves the viewer
 // bytes untouched. The publish-job-owned pieces — `versions.json`,
-// `/versions/`, `/latest/` and `/social/` — are regenerated on every run: they
-// are cheap, and all four are derived from the tree rather than from a build.
+// `/versions/`, `/latest/`, `/social/`, `sitemap.xml`, `robots.txt` and `CNAME`
+// — are regenerated on every run: they are cheap, and none of them needs a
+// build. Most are derived from the version directories present in the tree;
+// `robots.txt` and `CNAME` are constants of the site itself.
 //
 // CI assembles into `published/` (restored from the durable `docs-site` branch
 // first, so untouched version directories and unselected subtrees survive); a
@@ -53,6 +56,7 @@ import {
     cpSync,
     existsSync,
     mkdirSync,
+    readFileSync,
     readdirSync,
     rmSync,
     statSync,
@@ -144,7 +148,7 @@ function publishedVersions(dest) {
 // The site root needs nothing from here: it is the landing page, a real document
 // carrying its own tags (see apps/landing/index.html).
 // ---------------------------------------------------------------------------
-const SITE_ROOT = 'https://d-flood.github.io/triiiceratops/';
+const SITE_ROOT = 'https://triiiceratops.org/';
 const SITE_NAME = 'Triiiceratops IIIF Viewer';
 // Absolute, and outside any version directory: scrapers cache preview images by
 // URL for days-to-weeks, so every release resolves to the same cached file. The
@@ -269,6 +273,200 @@ ${items}
     writeFileSync(join(dir, 'index.html'), html, 'utf8');
 }
 
+// ---------------------------------------------------------------------------
+// Crawl metadata: the site-wide sitemap, the robots file, and the domain file.
+// ---------------------------------------------------------------------------
+
+const XML_ESCAPES = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&apos;',
+};
+
+/** No emitted URL currently needs this; a sitemap that silently mis-encodes one later does. */
+function xmlEscape(text) {
+    return text.replaceAll(/[&<>"']/g, (c) => XML_ESCAPES[c]);
+}
+
+/**
+ * The current documentation version's pages, as absolute URLs on this site.
+ *
+ * Derived from the sitemap Zensical emitted for the pages it built, which is the
+ * authoritative set: a filesystem walk for `index.html` is NOT equivalent, since
+ * Zensical deliberately excludes the architecture-decision and security pages
+ * from its sitemap and a walk would publish them into the site-wide one.
+ *
+ * The host in those `<loc>` values is not trusted. A publish that rebuilds only
+ * the landing page carries the previous deploy's version directory forward
+ * verbatim, so its locs can still name the host that deploy was built for. Only
+ * the `docs/<version>/` segment onwards is kept, and re-rooted at SITE_ROOT.
+ *
+ * Absent or empty is fatal. A sitemap naming no documentation at all is the
+ * exact failure this guards, and it is invisible in a green build.
+ */
+function documentationLocs(dest, latest) {
+    const source = join(dest, 'docs', latest, 'sitemap.xml');
+    if (!existsSync(source)) {
+        throw new Error(
+            `no documentation sitemap at ${source} — the site-wide sitemap is ` +
+                'derived from it, and one naming no documentation pages is worse ' +
+                'than none at all',
+        );
+    }
+    const segment = `docs/${latest}/`;
+    const locs = [];
+    for (const m of readFileSync(source, 'utf8').matchAll(
+        /<loc>\s*([^<]+?)\s*<\/loc>/g,
+    )) {
+        const at = m[1].indexOf(segment);
+        if (at === -1) {
+            throw new Error(
+                `${source}: <loc> ${m[1]} does not contain "${segment}", so it ` +
+                    'cannot be re-rooted at this site. Refusing to guess.',
+            );
+        }
+        locs.push(`${SITE_ROOT}${segment}${m[1].slice(at + segment.length)}`);
+    }
+    if (locs.length === 0) {
+        throw new Error(
+            `${source} yielded no <loc> entries — the site-wide sitemap would ` +
+                'name no documentation at all',
+        );
+    }
+    return locs;
+}
+
+/**
+ * One site-wide sitemap: the landing page, the playground, the bare viewer and
+ * the CURRENT documentation version. Archived versions are excluded here and
+ * carry `noindex` in the directory itself, so the two halves agree.
+ *
+ * The first three are emitted unconditionally rather than guarded on the
+ * directory existing: they are the site's contract constants, and
+ * scripts/url-contract.mjs check 1 is what asserts they resolve. A guard would
+ * be actively worse — a publish narrowed with `--only` leaves the other
+ * subtrees to the assembly root it was handed, so a guard would silently drop a
+ * path that IS being served, and a short sitemap is invisible in a green build.
+ *
+ * Escaping is deliberately asymmetric. The three URLs above are constructed
+ * here from raw text, so they are escaped here. The documentation locs come out
+ * of Zensical's sitemap ALREADY XML-escaped and are re-rooted, not rebuilt, so
+ * escaping them again would turn a source `&amp;` into `&amp;amp;`.
+ */
+function writeSitemap(dest, latest) {
+    const urls = [
+        ...[SITE_ROOT, `${SITE_ROOT}demo/`, `${SITE_ROOT}viewer/`].map(
+            xmlEscape,
+        ),
+        ...documentationLocs(dest, latest),
+    ];
+    const body = urls
+        .map((u) => `  <url>\n    <loc>${u}</loc>\n  </url>`)
+        .join('\n');
+    writeFileSync(
+        join(dest, 'sitemap.xml'),
+        '<?xml version="1.0" encoding="UTF-8"?>\n' +
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+            `${body}\n</urlset>\n`,
+        'utf8',
+    );
+    return urls.length;
+}
+
+/**
+ * The crawl policy: point crawlers at the sitemap, disallow nothing.
+ *
+ * The absence of a `Disallow` for archived version directories is load-bearing,
+ * not an oversight. A `Disallow` stops the crawl, which stops the crawler ever
+ * seeing the `noindex` those directories carry, which can leave already-indexed
+ * archived URLs indexed indefinitely. `noindex` is the mechanism; robots.txt has
+ * to stay permissive for it to work.
+ *
+ * The `Sitemap:` line is emitted only when a sitemap was actually written. With
+ * no version directory in the tree there is no site-wide sitemap to write, and a
+ * `Sitemap:` naming a file that does not exist is worse than none: crawlers
+ * report it as an error and fall back to nothing. The policy itself is always
+ * valid, so it is unconditional.
+ */
+function writeRobots(dest, { sitemap }) {
+    writeFileSync(
+        join(dest, 'robots.txt'),
+        `User-agent: *\nAllow: /\n` +
+            (sitemap ? `Sitemap: ${SITE_ROOT}sitemap.xml\n` : ''),
+        'utf8',
+    );
+}
+
+/**
+ * The custom-domain file, written into the ARTIFACT rather than committed at the
+ * repository root: Pages serves an uploaded artifact, so a repository-root file
+ * would never reach the served tree.
+ */
+function writeCname(dest) {
+    writeFileSync(join(dest, 'CNAME'), `${new URL(SITE_ROOT).host}\n`, 'utf8');
+}
+
+const NOINDEX_META = '<meta name="robots" content="noindex" />';
+
+/**
+ * Mark every page of one archived version directory `noindex`.
+ *
+ * Two documentation versions competing for the same query is the most common
+ * failure of versioned documentation sites, and this is what prevents it. It has
+ * to happen here: version directories are otherwise immutable, so the moment a
+ * version stops being latest is the only moment anything rewrites it.
+ *
+ * The insertion is the single meta element after the document's first `<head>`;
+ * every other byte is preserved. A document whose HEAD already carries a robots
+ * tag is left alone, so re-running a publish never accumulates duplicates — and
+ * a page carrying some other robots directive is never given a conflicting
+ * second one. The guard is scoped to the head because the body is prose: a
+ * documentation page that shows a `<meta name="robots">` example in its text
+ * would otherwise exempt itself from being marked.
+ *
+ * A page that cannot be marked is fatal, not skipped. It would stay fully
+ * indexable and compete with the current version for the same query, which is
+ * the failure this function exists to prevent, so the only safe response is to
+ * stop rather than publish a half-marked archive.
+ */
+function markArchived(dest, version) {
+    const dir = join(dest, 'docs', version);
+    let marked = 0;
+    for (const entry of readdirSync(dir, {
+        withFileTypes: true,
+        recursive: true,
+    })) {
+        if (!entry.isFile() || !entry.name.endsWith('.html')) continue;
+        const file = join(entry.parentPath, entry.name);
+        const html = readFileSync(file, 'utf8');
+        const head = html.indexOf('<head>');
+        if (head === -1) {
+            throw new Error(
+                `${file}: no <head> to mark noindex, so archived documentation ` +
+                    `version ${version} cannot be marked. Refusing to publish a ` +
+                    'half-marked archive that would compete with the current ' +
+                    'version in search results.',
+            );
+        }
+        const cut = head + '<head>'.length;
+        // An unterminated head falls back to the whole document: without a
+        // boundary there is nothing to scope to, and over-matching only ever
+        // skips a page, never duplicates a directive.
+        const headEnd = html.indexOf('</head>', cut);
+        const headHtml = headEnd === -1 ? html : html.slice(0, headEnd);
+        if (headHtml.includes('<meta name="robots"')) continue;
+        writeFileSync(
+            file,
+            `${html.slice(0, cut)}\n    ${NOINDEX_META}${html.slice(cut)}`,
+            'utf8',
+        );
+        marked++;
+    }
+    return marked;
+}
+
 /** An application's build output is a required input, not an optional extra. */
 function requireBuildOutput(dir, command) {
     if (!existsSync(dir)) {
@@ -362,6 +560,8 @@ function main() {
     //    deploys as well as the one just placed.
     const versions = publishedVersions(args.dest); // newest first
     const latest = versions[0];
+    let sitemapUrls = 0;
+    const archived = [];
 
     // 5. (Re)generate the switcher data + the `/latest/` redirect. These live
     //    OUTSIDE any version directory, so regenerating them never mutates old
@@ -372,11 +572,17 @@ function main() {
     //    would name a version that does not exist. They are left exactly as the
     //    tree already holds them instead — an empty `versions.json` and a
     //    `/latest/` forwarding nowhere are worse than the previous deploy's.
+    //
+    //    The site-wide sitemap and the archived-version marking are governed by
+    //    the same condition, for the same reason: both are statements about which
+    //    version is current, and with no version directory there is no such
+    //    statement to make.
     if (versions.length === 0) {
         console.warn(
             `docs-publish: WARNING ${args.dest} holds no docs/<major.minor> ` +
-                'directory, so versions.json, /versions/ and /latest/ were left ' +
-                'untouched. Publish a documentation version to generate them.',
+                'directory, so versions.json, /versions/, /latest/ and ' +
+                'sitemap.xml were left untouched. Publish a documentation ' +
+                'version to generate them.',
         );
     } else {
         writeVersionsJson(args.dest, versions, latest);
@@ -392,7 +598,20 @@ function main() {
             }),
             'utf8',
         );
+        sitemapUrls = writeSitemap(args.dest, latest);
+        for (const v of versions) {
+            if (v === latest) continue;
+            const marked = markArchived(args.dest, v);
+            if (marked > 0) archived.push(`${v} (${marked})`);
+        }
     }
+
+    // 5b. Crawl policy and the domain file, both written whether or not the tree
+    //     holds a version. `CNAME` describes the domain, never a version. The
+    //     crawl policy is version-independent too, but its `Sitemap:` line is
+    //     not: it may only be emitted when a sitemap was actually written above.
+    writeRobots(args.dest, { sitemap: sitemapUrls > 0 });
+    writeCname(args.dest);
 
     // 6. The social card images, at an unversioned top-level path. They must NOT
     //    live inside a version directory: scrapers cache preview images by URL for
@@ -437,6 +656,12 @@ function main() {
                     : versions
                           .map((v) => (v === latest ? `${v} (latest)` : v))
                           .join(', ')
+            }\n` +
+            (sitemapUrls > 0 ? `  sitemap: ${sitemapUrls} URL(s)\n` : '') +
+            `  noindex: ${
+                archived.length === 0
+                    ? 'no archived version needed marking'
+                    : `${archived.length} archived version(s) marked — ${archived.join(', ')}`
             }`,
     );
 }

@@ -25,7 +25,7 @@ unversioned path (see docs-publish.mjs), outside the per-version documentation
 directory this page is served from. -->
 !!! tip "Interactive Configuration"
 
-    You can experiment with these settings in the [Live Demo](https://d-flood.github.io/triiiceratops/demo/){target=_blank}.
+    You can experiment with these settings in the [Live Demo](https://triiiceratops.org/demo/){target=_blank}.
     Open the settings menu (gear icon), tweak the configuration, then click
     **"Copy Config"** to get the JSON for your project.
 
@@ -1463,7 +1463,7 @@ if (target && !routeAlreadyNamesAManifest) {
 }
 ```
 
-The [bare viewer](https://d-flood.github.io/triiiceratops/viewer/){target=_blank}
+The [bare viewer](https://triiiceratops.org/viewer/){target=_blank}
 does exactly this, which is why IIIF Cookbook recipes can link straight into it.
 
 ### Media time

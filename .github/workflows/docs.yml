@@ -4,6 +4,13 @@ on:
         branches:
             - main
     pull_request:
+    # Rollback. See the `republish` job at the bottom of this file.
+    workflow_dispatch:
+        inputs:
+            publish_ref:
+                description: 'Git ref (tag or branch) whose tree is force-published over docs-site and deployed'
+                required: true
+                type: string
 permissions:
     contents: read
 jobs:
@@ -160,8 +167,58 @@ jobs:
                   done
                   node scripts/url-contract.mjs --tree published --version "${{ steps.docsver.outputs.version }}"
 
+            # An archived documentation version competing with the current one
+            # for the same query is the failure the noindex marking exists to
+            # prevent, and nothing about a single-version tree exercises it. This
+            # assembles two versions into a scratch tree and asserts the three
+            # things that have to be simultaneously true afterwards: the version
+            # that stopped being latest carries the meta on every page, the new
+            # latest carries it on none, and the site-wide sitemap offers only the
+            # new one for indexing.
+            - name: Prove archived versions are marked noindex
+              env:
+                  VERSION: ${{ steps.docsver.outputs.version }}
+              run: |
+                  set -euo pipefail
+                  tree="${RUNNER_TEMP}/noindex"
+                  rm -rf "${tree}"
+                  # The first version reuses the `site/` the assembly step above
+                  # already built for it; the second is built, because a version
+                  # directory's sitemap carries its own version's URLs and the
+                  # site-wide sitemap is derived from them.
+                  node scripts/docs-publish.mjs --dest "${tree}" --no-build --site site --version "${VERSION}"
+                  node scripts/docs-publish.mjs --dest "${tree}" --version 99.0 --only docs,examples
+                  unmarked="$(grep -rL 'name="robots" content="noindex"' --include='*.html' "${tree}/docs/${VERSION}" || true)"
+                  if [ -n "${unmarked}" ]; then
+                      echo "::error::pages under the archived docs/${VERSION}/ are missing the noindex meta: ${unmarked}" >&2
+                      exit 1
+                  fi
+                  marked="$(grep -rl 'name="robots" content="noindex"' --include='*.html' "${tree}/docs/99.0" || true)"
+                  if [ -n "${marked}" ]; then
+                      echo "::error::the current docs/99.0/ carries a noindex meta; it must be indexable: ${marked}" >&2
+                      exit 1
+                  fi
+                  grep -q "docs/99\.0/" "${tree}/sitemap.xml"
+                  if grep -q "docs/${VERSION}/" "${tree}/sitemap.xml"; then
+                      echo "::error::the site-wide sitemap names the archived docs/${VERSION}/" >&2
+                      exit 1
+                  fi
+
     deploy:
         if: github.event_name == 'push'
+        # Serialised against `republish`, which shares this group: both jobs
+        # force-push the same `docs-site` branch, so a rollback that races an
+        # in-flight deploy is silently undone — the deploy force-pushes the tree
+        # it restored before the rollback landed, and both runs go green. Queued,
+        # never cancelled: a cancelled deploy would leave the branch and the
+        # served artifact describing different trees.
+        #
+        # Job-level rather than workflow-level on purpose: a workflow-level group
+        # would queue every pull request's `build-check` and `url-contract` gate
+        # runs behind each other.
+        concurrency:
+            group: docs-site-publish
+            cancel-in-progress: false
         environment:
             name: github-pages
             url: ${{ steps.deployment.outputs.page_url }}
@@ -385,6 +442,123 @@ jobs:
             # how many deploys happen. Splitting this into parallel per-subtree
             # jobs would race the `docs-site` storage branch and drop whichever
             # subtree lost the push, so it is deliberately one sequential job.
+            - uses: actions/upload-pages-artifact@v5
+              with:
+                  path: published
+            - uses: actions/deploy-pages@v5
+              id: deployment
+
+    # Rollback: force-publish the tree held by an arbitrary ref of this
+    # repository, usually a tag taken from `docs-site` before a risky deploy.
+    #
+    # Reverting the commit is NOT a sufficient undo. A migration that changes the
+    # published tree's LAYOUT cannot be undone by rebuilding the old tree into a
+    # branch that still holds the new layout's subtrees: the old publisher does
+    # not know to remove them, so the result is a hybrid of both layouts. A
+    # tagged known-good tree that can be force-published is the only clean
+    # rollback. Tag it BEFORE the risky deploy:
+    #
+    #     git fetch origin docs-site
+    #     git tag docs-site-pre-restructure origin/docs-site
+    #     git push origin docs-site-pre-restructure
+    #
+    # then run this workflow with `publish_ref: docs-site-pre-restructure`.
+    #
+    # It rebuilds NOTHING and classifies nothing: the tree is taken verbatim from
+    # the ref. `deploy` stays restricted to `push` so a rollback can never be
+    # mistaken for a normal deploy, and so no build or classification can run
+    # against a tree that predates them.
+    republish:
+        if: github.event_name == 'workflow_dispatch'
+        # Shares the `deploy` job's group; see the comment there.
+        concurrency:
+            group: docs-site-publish
+            cancel-in-progress: false
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        permissions:
+            # As `deploy`: `contents: write` to force the restored tree back onto
+            # the durable `docs-site` storage branch, so the NEXT path-filtered
+            # deploy carries the rolled-back tree forward rather than the bad one.
+            contents: write
+            pages: write
+            id-token: write
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/configure-pages@v6
+            # This checkout is only the workflow's own working directory; the tree
+            # that gets published comes from the fetched ref below, not from here.
+            - uses: actions/checkout@v7
+
+            # Fails closed at three points, because every one of them has a
+            # failure mode that looks like success. Without `pipefail` the
+            # pipeline's exit status is tar's alone, so a `git archive` that dies
+            # is reported as a success whenever tar was happy with what it did
+            # receive. A ref that does not exist must abort here rather than fall
+            # through to a no-op that force-pushes whatever is lying around. And
+            # a valid archive of an EMPTY tree extracts cleanly to nothing, which
+            # no exit status can catch — that is the case that would force-push an
+            # empty tree over `docs-site` and destroy every published version, so
+            # both the emptiness and the missing landing page are checked before
+            # anything is written or pushed.
+            #
+            # The input is attacker-controlled text and needs all three of the
+            # defences below, none of which substitutes for the others. It
+            # arrives through `env` rather than `${{ }}` in the script, because
+            # `${{ }}` is textual substitution into the shell body; it is quoted,
+            # so the shell does not read it as metacharacters or split it; and it
+            # is passed after `--`, because git parses options AFTER the
+            # positional remote name, so without the separator a value like
+            # `--dry-run`, `--all` or `--negotiation-tip=…` is read as a git
+            # option. That option class is the dangerous one precisely because
+            # the fetch then SUCCEEDS while `FETCH_HEAD` names something other
+            # than the requested ref — actions/checkout has already left a
+            # `FETCH_HEAD` pointing at the repository source tree, which is
+            # non-empty and carries an index.html, so it would pass both
+            # assertions below and be force-pushed over `docs-site`. A failure
+            # that looks like success is the one the checks cannot catch.
+            - name: Restore the named ref into published/
+              env:
+                  REF: ${{ inputs.publish_ref }}
+              run: |
+                  set -euo pipefail
+                  rm -rf published && mkdir -p published
+                  if ! git fetch --depth 1 origin -- "${REF}"; then
+                      echo "::error::Cannot fetch ${REF} from this repository. Refusing to continue: a ref that does not exist would otherwise publish an empty tree." >&2
+                      exit 1
+                  fi
+                  git archive FETCH_HEAD | tar -x -C published
+                  if [ -z "$(ls -A published)" ]; then
+                      echo "::error::${REF} restored to an empty tree. Refusing to continue: publishing from here would force-push an empty tree over docs-site and delete every published documentation version." >&2
+                      exit 1
+                  fi
+                  if [ ! -s published/index.html ]; then
+                      echo "::error::${REF} restored without a non-empty index.html, so it is not a published site tree. Refusing to continue." >&2
+                      exit 1
+                  fi
+
+            # Deliberately NOT gated on scripts/url-contract.mjs. The point of a
+            # rollback is to republish a tree from BEFORE a restructure, whose
+            # layout predates the current manifest by definition — gating it on
+            # the current contract would make rollback impossible exactly when it
+            # is needed. Do not add the gate here.
+            - name: Force the restored tree onto docs-site
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  REF: ${{ inputs.publish_ref }}
+              run: |
+                  set -euo pipefail
+                  cd published
+                  git init -q -b docs-site
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add -A
+                  git commit -q -m "docs: republish from ${REF} [skip ci]"
+                  git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" docs-site
+                  # Drop the storage .git so it is not shipped in the Pages artifact.
+                  rm -rf .git
+
             - uses: actions/upload-pages-artifact@v5
               with:
                   path: published

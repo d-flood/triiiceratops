@@ -48,11 +48,13 @@
     <body>
         <h1>Page not found</h1>
         <p>That page is not here. Nothing is broken on your end.</p>
-        <!-- Absolute, not `/` or `./`: this file answers for any path depth on a
-             static host, and the site lives under a path prefix, so neither
-             relative form reaches the landing page. -->
+        <!-- Absolute, not `/` or `./`: `./` is relative to the requested path,
+             which for a 404 is any path at any depth, and `/` reaches the
+             landing page only on a host that serves this tree at its root —
+             the same artifact is also served under a path prefix. An absolute
+             URL is the only form correct from every host and every depth. -->
         <p>
-            <a href="https://d-flood.github.io/triiiceratops/"
+            <a href="https://triiiceratops.org/"
                 >Go to the Triiiceratops home page</a
             >
         </p>

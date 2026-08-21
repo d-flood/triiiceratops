@@ -35,7 +35,7 @@ import { createRequire } from 'node:module';
 import { extname, join } from 'node:path';
 import { REPO_ROOT } from './docs-version.mjs';
 
-const SITE = 'd-flood.github.io/triiiceratops';
+const SITE = 'triiiceratops.org';
 const SOCIAL_DIR = join(REPO_ROOT, 'docs', 'media', 'social');
 // The captured viewer screenshot the demo card is composed from. Deliberately
 // NOT under docs/: everything in docs/ is copied into the built site and then
@@ -227,7 +227,7 @@ function viewerCard(logo, shot) {
   <h1>Triiiceratops</h1>
   <p>Open any IIIF manifest.</p>
 </div>
-<div class="url mono">${SITE}<b>/viewer/</b></div>`);
+<div class="url mono">${SITE}<b>/demo/</b></div>`);
 }
 
 /**

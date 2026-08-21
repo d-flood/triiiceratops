@@ -131,7 +131,7 @@ right is better.
 Core alone supports **34** of 67, which is also what the matrix lists Triiiceratops at. With
 `plugin-av` the pair reaches **48**: those recipes plus 14
 of the 15 audiovisual recipes the AV spec suite drives end to end against the
-[public demo](https://d-flood.github.io/triiiceratops/demo/).
+[public demo](https://triiiceratops.org/demo/).
 
 A further recipe is counted as partial rather than supported, because it renders
 while the recipe's own feature does not:

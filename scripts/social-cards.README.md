@@ -66,7 +66,7 @@ Not from `media/social/` in the published site. `scripts/docs-publish.mjs` copie
 them to `<publish root>/social/`, an **unversioned** top-level path, so that
 
 ```
-https://d-flood.github.io/triiiceratops/social/og-docs-v1.png
+https://triiiceratops.org/social/og-docs-v1.png
 ```
 
 stays one stable URL across every release. Inside a version directory the URL
@@ -84,6 +84,6 @@ header first — it explains the whole scheme). After a deploy:
 - <https://www.linkedin.com/post-inspector/> — LinkedIn
 - Slack and Discord: paste the link into any channel you can delete from
 
-Check the publish **root** (`https://d-flood.github.io/triiiceratops/`), not just
+Check the publish **root** (`https://triiiceratops.org/`), not just
 a versioned page. It is the URL people actually paste, and it is the landing
 page, which carries its own hand-written tags rather than the theme's.

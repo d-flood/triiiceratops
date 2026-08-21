@@ -12,7 +12,7 @@ other frontend, or use the native Svelte component if that's your stack.
 unversioned path (see docs-publish.mjs), while this page is served out of a
 per-version documentation directory. A relative link would resolve inside that
 version directory, where the playground does not live. -->
-[**View Live Demo**](https://d-flood.github.io/triiiceratops/demo/){ .md-button .md-button--primary }
+[**View Live Demo**](https://triiiceratops.org/demo/){ .md-button .md-button--primary }
 
 !!! info "This documentation describes the Triiiceratops 1.0 release line"
 
