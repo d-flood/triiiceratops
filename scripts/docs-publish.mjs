@@ -12,17 +12,19 @@
 //   <dest>/{index.html,404.html} apps/landing/ verbatim — the site root is a
 //                                real page, not a redirect
 //   <dest>/{latest/,versions/,versions.json,social/}  generated below
-//   <dest>/{sitemap.xml,robots.txt,CNAME}             generated below
+//   <dest>/{sitemap.xml,robots.txt}                generated below
+//   <dest>/CNAME                 generated only when PUBLISH_CNAME=1
 //
 // Each subtree has exactly one owner and is written only by the job that owns
 // it. `--only <names>` selects which of `docs,examples,viewer,demo,landing` this
 // run rebuilds; unselected subtrees are left exactly as the assembly root
 // already holds them, which is how a documentation typo fix leaves the viewer
 // bytes untouched. The publish-job-owned pieces — `versions.json`,
-// `/versions/`, `/latest/`, `/social/`, `sitemap.xml`, `robots.txt` and `CNAME`
-// — are regenerated on every run: they are cheap, and none of them needs a
-// build. Most are derived from the version directories present in the tree;
-// `robots.txt` and `CNAME` are constants of the site itself.
+// `/versions/`, `/latest/`, `/social/`, `sitemap.xml` and `robots.txt` — are
+// regenerated on every run: they are cheap, and none of them needs a build. Most
+// are derived from the version directories present in the tree; `robots.txt` is a
+// constant of the site itself. `CNAME` describes the domain and is written only
+// when PUBLISH_CNAME=1 — see writeCname.
 //
 // CI assembles into `published/` (restored from the durable `docs-site` branch
 // first, so untouched version directories and unselected subtrees survive); a
@@ -403,8 +405,20 @@ function writeRobots(dest, { sitemap }) {
  * The custom-domain file, written into the ARTIFACT rather than committed at the
  * repository root: Pages serves an uploaded artifact, so a repository-root file
  * would never reach the served tree.
+ *
+ * Gated on PUBLISH_CNAME=1, and off by default, because a custom-domain file can
+ * make the default `*.github.io` host redirect to the custom domain. Until that
+ * domain resolves and is bound in the repository's Pages settings, publishing one
+ * can leave the site unreachable at both hosts — including the `/viewer/` URL that
+ * published IIIF Cookbook recipes link directly. Enable it once DNS resolves.
  */
 function writeCname(dest) {
+    if (process.env.PUBLISH_CNAME !== '1') {
+        console.log(
+            'docs-publish: CNAME not written (set PUBLISH_CNAME=1 once the domain resolves)',
+        );
+        return;
+    }
     writeFileSync(join(dest, 'CNAME'), `${new URL(SITE_ROOT).host}\n`, 'utf8');
 }
 
@@ -606,8 +620,8 @@ function main() {
         }
     }
 
-    // 5b. Crawl policy and the domain file, both written whether or not the tree
-    //     holds a version. `CNAME` describes the domain, never a version. The
+    // 5b. Crawl policy and the domain file, both independent of whether the tree
+    //     holds a version: `CNAME` describes the domain, never a version. The
     //     crawl policy is version-independent too, but its `Sitemap:` line is
     //     not: it may only be emitted when a sitemap was actually written above.
     writeRobots(args.dest, { sitemap: sitemapUrls > 0 });
