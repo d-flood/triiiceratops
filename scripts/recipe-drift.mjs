@@ -14,8 +14,8 @@
 // never be able to fail a build over third-party infrastructure. A human reads
 // the report and decides.
 //
-// Node reads the catalog's TypeScript directly, as `scripts/docs-recipes.mjs`
-// does, so there is no build step.
+// Node reads the catalog's TypeScript directly, as `scripts/api-report.ts` is
+// run, so there is no build step.
 //
 // Usage:
 //   node scripts/recipe-drift.mjs

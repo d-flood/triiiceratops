@@ -33,8 +33,10 @@ import {
     assertCoreExportTargets,
     assertCoreOptionalPeers,
     assertTarballContents,
+    assertTarballNoEmbeddedFonts,
     assertTarballPeerRanges,
     selfCheckFrameworkSubpathAssertions,
+    selfCheckNoFonts,
     selfCheckPeerRangeRejectsPin,
     selfCheckPlantedTest,
 } from './assert-tarball-contents.mjs';
@@ -188,7 +190,7 @@ export const FIXTURES = [
     'strict-dts',
     // Doc-example compilation. A non-browser fixture that type-checks
     // (`tsc --noEmit`) every `ts`/`tsx`/`js` code sample importing package code
-    // (extracted from `docs/**/*.md` into its `generated/` dir by
+    // (extracted from the site's content documents into its `generated/` dir by
     // `scripts/docs-examples.mjs`) against the packed tarballs of every packed
     // package, so published documentation matches what users can install.
     'docs-examples',
@@ -320,6 +322,16 @@ async function assertContentsFromTarballs(tarballs) {
     results.push({ label: 'tarball-subpath-self', ok: subpathSelf.ok });
     ok = ok && subpathSelf.ok;
 
+    // One-time guard that the no-font rule rejects both a planted `.woff2` and
+    // a face embedded in a stylesheet as a data URI.
+    const fontSelf = selfCheckNoFonts();
+    (fontSelf.ok ? pass : fail)(
+        'contract: no-font rule rejects a planted face, file or embedded',
+        fontSelf.detail,
+    );
+    results.push({ label: 'tarball-fonts-self', ok: fontSelf.ok });
+    ok = ok && fontSelf.ok;
+
     for (const pkg of PACKAGES_TO_PACK) {
         const tarball = tarballs[pkg.filter];
         const { ok: pkgOk, checks } = assertTarballContents(
@@ -343,6 +355,18 @@ async function assertContentsFromTarballs(tarballs) {
         }
         results.push({ label: `tarball-peers:${pkg.filter}`, ok: peerOk });
         ok = ok && peerOk;
+
+        // No typeface, in any form. The extension half is the allowlist's; this
+        // reads every published stylesheet for a declared face.
+        const { ok: fontOk, checks: fontChecks } = assertTarballNoEmbeddedFonts(
+            tarball,
+            pkg.filter,
+        );
+        for (const chk of fontChecks) {
+            (chk.ok ? pass : fail)(chk.name, chk.detail);
+        }
+        results.push({ label: `tarball-fonts:${pkg.filter}`, ok: fontOk });
+        ok = ok && fontOk;
 
         // Core only: the export map must be
         // backed by real files (the framework wrappers among them) and the

@@ -89,6 +89,40 @@ const SAFE_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
 const SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
 
 /**
+ * Strip what the URL parser strips, before any scheme is read off a URL.
+ *
+ * Browsers remove ASCII tab, LF and CR from anywhere in a URL and skip leading
+ * C0 control characters and space, so `java\nscript:alert(1)` and
+ * `javascript:alert(1)` name the same scheme by the time either is navigated.
+ */
+function normalizeUrl(value: string): string {
+    return (
+        value
+            .replace(/[\t\n\r]/g, '')
+            // eslint-disable-next-line no-control-regex
+            .replace(/^[\u0000-\u0020]+/, '')
+    );
+}
+
+/**
+ * Does this URL name an absolute `http:`/`https:` resource?
+ *
+ * Stricter than {@link isSafeUrl}, and asking a different question. That one
+ * asks whether a URL is safe to put in an `href`; this asks whether a string is
+ * a dereferenceable web identity — the test for a manifest value whose whole
+ * purpose is to be a resource the reader can follow, such as the external
+ * source of an annotation body. `mailto:` and the scheme-relative forms
+ * `isSafeUrl` deliberately admits are not such identities, so they are refused
+ * here.
+ */
+export function isHttpUrl(value: string | null | undefined): boolean {
+    if (!value) return false;
+
+    const scheme = SCHEME_PATTERN.exec(normalizeUrl(value))?.[0]?.toLowerCase();
+    return scheme === 'http:' || scheme === 'https:';
+}
+
+/**
  * Is this URL safe to put in an `href` or `src`?
  *
  * Shared by the rich-text renderer and by every hand-written anchor in the
@@ -111,14 +145,7 @@ const SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
 export function isSafeUrl(value: string | null | undefined): boolean {
     if (!value) return false;
 
-    // Match the URL parser before testing the scheme: browsers strip ASCII tab,
-    // LF and CR from anywhere in a URL and skip leading C0 control characters
-    // and space, so `java\nscript:alert(1)` and `javascript:alert(1)` are
-    // both `javascript:` by the time they are navigated.
-    const normalized = value
-        .replace(/[\t\n\r]/g, '')
-        // eslint-disable-next-line no-control-regex
-        .replace(/^[\u0000-\u0020]+/, '');
+    const normalized = normalizeUrl(value);
     if (!normalized) return false;
 
     const scheme = SCHEME_PATTERN.exec(normalized)?.[0];

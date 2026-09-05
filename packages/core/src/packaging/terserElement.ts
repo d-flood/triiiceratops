@@ -9,13 +9,28 @@
  * `build.minify: true` and register this
  * plugin, which minifies each rendered chunk a second time.
  *
- * The options are fixed by the same measurements:
+ * The options are fixed by the same measurements, except where a note below
+ * says a setting is a correctness constraint instead:
  *
- *   - `compress: { passes: 3, pure_getters: true }`. More passes stop paying.
- *   - `unsafe*` compression is deliberately OFF. It was measured and gains 468
- *     further bytes over a ~122 KB artifact, which does not buy the risk of
- *     terser assuming things about coercion and prototypes in Svelte's compiled
- *     signal plumbing.
+ *   - `compress: { passes: 3 }`. More passes stop paying.
+ *   - `pure_getters` is deliberately OFF, and this one is a CORRECTNESS
+ *     setting rather than a measurement. It tells terser that reading a
+ *     property has no side effects, which is false for every Svelte 5 signal:
+ *     a `$derived` is subscribed to BY READING IT. An effect that names its
+ *     dependency as a bare read — `void renderer.paintedGeometry;` in
+ *     `CanvasHost.svelte` is the pattern — then has that statement deleted as
+ *     dead, and the effect silently loses a dependency it still needs. What
+ *     that costs, concretely: a claimed audiovisual canvas whose companion
+ *     geometry arrives after its world does never gets its opening fit, and the
+ *     picture is framed at the surface's top-left corner — in the shipped
+ *     artifact only, while the dev server shows it centred. Nothing in the
+ *     source can defend against it, and no unit test can see it; only an e2e
+ *     spec driving the BUILT element does (`tests/av-audio.spec.ts`, the
+ *     companion drag and wheel).
+ *   - `unsafe*` compression is OFF for the same class of reason. It was
+ *     measured and gains 468 further bytes over a ~122 KB artifact, which does
+ *     not buy the risk of terser assuming things about coercion and prototypes
+ *     in Svelte's compiled signal plumbing.
  *   - Default mangling, meaning identifiers only. Property mangling is what
  *     would break this artifact quietly: the wrapper's custom-element props
  *     definition is a plain object whose `attribute` keys and `'manifest-id'`
@@ -48,7 +63,7 @@ import type { Plugin } from 'vite';
  * two configs share one copy and a test can hold the contract still.
  */
 export const ELEMENT_TERSER_OPTIONS: MinifyOptions = {
-    compress: { passes: 3, pure_getters: true },
+    compress: { passes: 3 },
     mangle: true,
     format: { comments: false },
 };

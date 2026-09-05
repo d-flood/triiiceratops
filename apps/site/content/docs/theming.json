@@ -1,0 +1,6091 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Triiiceratops ships a small set of vanilla-CSS design tokens. There are three ways to style the viewer, from easiest to most granular:"
+				}
+			],
+			"attrs": {
+				"id": "d606cd29-044d-478d-98f4-a2580bbb3d3f"
+			}
+		},
+		{
+			"type": "orderedList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Pick a "
+								},
+								{
+									"type": "text",
+									"text": "built-in theme",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " ("
+								},
+								{
+									"type": "text",
+									"text": "theme",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " prop)."
+								}
+							],
+							"attrs": {
+								"id": "c385ce47-2d36-43d2-bbb1-3eca52f7212d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c4ff1829-b9a2-428c-ab06-9bb4a2d261e3"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Override tokens with the "
+								},
+								{
+									"type": "text",
+									"text": "themeConfig",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " prop",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " (typed, friendly names)."
+								}
+							],
+							"attrs": {
+								"id": "a3bc6b48-d60f-4769-81db-1e6accc399a1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4d61b2a7-742e-4d1c-9047-e1e58e7aefd6"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Set the underlying "
+								},
+								{
+									"type": "text",
+									"text": "CSS variables",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " directly on the host element."
+								}
+							],
+							"attrs": {
+								"id": "b2cd616c-6449-41fd-a362-e44a989cc66a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e27f66ea-a7ac-432a-9e86-68cac1111ccf"
+					}
+				}
+			],
+			"attrs": {
+				"id": "ae9e899d-2554-4256-a106-a5da92652952"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "These aren't exclusive tiers you have to climb in order — you can override just one piece of a built-in theme (e.g. tweak "
+				},
+				{
+					"type": "text",
+					"text": "primary",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " via "
+				},
+				{
+					"type": "text",
+					"text": "themeConfig",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " while keeping "
+				},
+				{
+					"type": "text",
+					"text": "dark",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "'s other tokens as-is), or skip built-in themes entirely and build a fully custom theme from scratch by setting the CSS variables yourself."
+				}
+			],
+			"attrs": {
+				"id": "9f9d62ff-6498-414a-9dab-da4064aec8cf"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "These three are the "
+				},
+				{
+					"type": "text",
+					"text": "whole",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " styling surface. The viewer's shadow-DOM internals are not reachable from the outside: there is no "
+				},
+				{
+					"type": "text",
+					"text": "::part()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " surface, no way to inject a consumer stylesheet into the shadow root, and no light-DOM styling hook for internal elements. Everything about the "
+				},
+				{
+					"type": "text",
+					"text": "host",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " element — layout, size, borders, and any CSS that treats it as a box in your page — is yours as usual."
+				}
+			],
+			"attrs": {
+				"id": "987250ac-b52e-4543-99d9-2e4db7806ac2"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every host takes the same two inputs, "
+				},
+				{
+					"type": "text",
+					"text": "theme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "themeConfig",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — as props in "
+				},
+				{
+					"type": "text",
+					"text": "React",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/react/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "Vue",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/vue/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and "
+				},
+				{
+					"type": "text",
+					"text": "Svelte",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/svelte/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and as an attribute plus a property on the "
+				},
+				{
+					"type": "text",
+					"text": "custom element",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/integration/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Pick your stack's tab in the examples below."
+				}
+			],
+			"attrs": {
+				"id": "2efba274-5510-4fa9-8a5a-21a539101b06"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "All three compose, but they do not have equal precedence. From lowest to highest: OS-aware default tokens, CSS variables inherited from the host/page, an explicit built-in "
+				},
+				{
+					"type": "text",
+					"text": "theme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", then "
+				},
+				{
+					"type": "text",
+					"text": "themeConfig",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " inline styles. If you set "
+				},
+				{
+					"type": "text",
+					"text": "theme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", that selected theme wins over CSS variables set outside the viewer; use "
+				},
+				{
+					"type": "text",
+					"text": "themeConfig",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for overrides that must win over an explicit built-in theme."
+				}
+			],
+			"attrs": {
+				"id": "edff231e-1e71-4c21-a06f-1b7d36ce4a5a"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "1-built-in-themes",
+				"id": "93f6733a-13ee-45f9-b6f3-d9ab88d3b0c9"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "1. Built-in Themes"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Four themes ship with the viewer: two light ("
+				},
+				{
+					"type": "text",
+					"text": "light",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "teal",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") and two dark ("
+				},
+				{
+					"type": "text",
+					"text": "dark",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "dracula",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "). Theme names are case-sensitive. When no theme is set, the viewer follows the OS "
+				},
+				{
+					"type": "text",
+					"text": "prefers-color-scheme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " defaults and can inherit CSS variables from the host/page."
+				}
+			],
+			"attrs": {
+				"id": "60d5950b-3430-4b6c-8453-c0c6af06b0fd"
+			}
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "framework",
+				"id": "7984a3f1-ac35-4155-9b00-50e2b2b8371f"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "HTML",
+						"id": "069d8fca-f0d8-446a-aec5-973205641856"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "57f88593-ae9f-4a0f-9346-2ed823ab29f3"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<triiiceratops-viewer manifest-id=\"...\" theme=\"dark\"></triiiceratops-viewer>"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "React",
+						"id": "765dbbda-339e-4ddd-90ef-f72d42d99304"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "tsx",
+								"id": "f28821bf-f7a6-4f06-ae94-07191adce464"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import { TriiiceratopsViewer } from 'triiiceratops/react';\n\nexport function Reader() {\n    return <TriiiceratopsViewer manifestId=\"...\" theme=\"dracula\" />;\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Vue",
+						"id": "4810eb8f-0bea-43fe-8db2-c6706e7c8a51"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "vue",
+								"id": "b1dd34cf-34d2-472a-ac35-cad96c0849d2"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<template>\n    <TriiiceratopsViewer manifest-id=\"...\" theme=\"dracula\" />\n</template>"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Svelte",
+						"id": "017c13cf-225d-454f-99a5-4c41441e223a"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "8b54fa1f-5402-45d8-876d-73e6aebdf6ac"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script>\n    import { TriiiceratopsViewer } from 'triiiceratops/svelte';\n    // Import the library styles once in your app:\n    import 'triiiceratops/style.css';\n</script>\n\n<TriiiceratopsViewer manifestId=\"...\" theme=\"dracula\" />"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "horizontalRule",
+			"attrs": {
+				"id": "1f8f0fad-3ce7-400c-83ee-6410c7f2bef9"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "2-custom-theme-configuration",
+				"id": "d22e4c7b-e333-4d79-87b3-dfd3ce360c87"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "2. Custom Theme Configuration"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Override individual tokens with "
+				},
+				{
+					"type": "text",
+					"text": "themeConfig",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — no CSS required. Colors accept "
+				},
+				{
+					"type": "text",
+					"text": "Hex",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " ("
+				},
+				{
+					"type": "text",
+					"text": "#3b82f6",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "), "
+				},
+				{
+					"type": "text",
+					"text": "RGB",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " ("
+				},
+				{
+					"type": "text",
+					"text": "rgb(59, 130, 246)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "), or "
+				},
+				{
+					"type": "text",
+					"text": "OKLCH",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " ("
+				},
+				{
+					"type": "text",
+					"text": "oklch(60% 0.25 250)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "); they are normalized to OKLCH internally."
+				}
+			],
+			"attrs": {
+				"id": "c57ee751-32ab-4139-a02d-d54a61799338"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "palette",
+				"id": "697e3f94-72cf-4ddf-9797-c7fec54d3d35"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Palette"
+				}
+			]
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Keyword"
+										}
+									],
+									"attrs": {
+										"id": "43dff7e2-1776-4f9f-af87-7043b696cb1c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "39316ff7-28ef-423b-8253-de4a79c7f5ad"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Description"
+										}
+									],
+									"attrs": {
+										"id": "97599b7e-beb1-4351-86f4-b09b099ef575"
+									}
+								}
+							],
+							"attrs": {
+								"id": "cd4743fd-9dd7-4392-9207-34db611ea85d"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "CSS Variable"
+										}
+									],
+									"attrs": {
+										"id": "13d9eb28-908f-4cfd-91ca-33aa36700eb4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "cbb1900d-31ed-4479-a927-2bc3c6b12874"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6092b02c-b9a7-4973-aa4e-b2e5c1c48656"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "primary",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "51af0c14-04e1-4437-bcde-75914be7a72d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "63ee6015-1c6a-47ab-8f50-2174e5fc3c16"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Primary brand color (buttons, active states)"
+										}
+									],
+									"attrs": {
+										"id": "87e55963-115e-433e-b045-7639ae2a940d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7cb4e997-b01b-4183-8914-adf3be71c430"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-color-primary",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b0113dc2-9340-43d7-bd1d-8a21f8a89dd7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "30d9e219-0a9c-48b1-b36e-389256614cd8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d997b51b-16e2-4f8e-92ee-cc10c51bc1e8"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "primaryContent",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "778b2521-df42-4bff-988a-5503f534bbd0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4fa8058f-6d64-421f-afbd-0cd9c3f9651c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Text color on a primary background"
+										}
+									],
+									"attrs": {
+										"id": "81eada39-60b8-4f70-b6ff-2e434f0dbf9b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "13df1ab4-7eb7-40aa-83dc-05e06bb886f9"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-color-primary-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d72d49d0-55bd-4189-bbc5-d050dcb5a836"
+									}
+								}
+							],
+							"attrs": {
+								"id": "72d39d4c-fe40-40cd-91cf-6555b5374229"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f5b19175-efae-4cba-8bb7-cf23cdd8bcb4"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "neutral",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "47c48f02-eb1c-4531-b053-8e4238667f76"
+									}
+								}
+							],
+							"attrs": {
+								"id": "536bb223-341e-4381-b80e-ed35e1dd1220"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Neutral color (tooltips, active menu items)"
+										}
+									],
+									"attrs": {
+										"id": "6b72322b-3113-4494-93d6-8504659c26d8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "93dae31c-8f92-4d00-aeda-8558ebe8c9ba"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-color-neutral",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "680fc808-775d-4be8-ac45-a1942be5a830"
+									}
+								}
+							],
+							"attrs": {
+								"id": "11ce0567-a069-4747-a833-186231eb756b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "09c7af21-892c-47f2-af79-ed183de8f9fb"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "neutralContent",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2cac5269-b052-41e1-ab98-1e029140a6d7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f21d2a83-8dbc-4069-9e23-94aadd224808"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Text color on a neutral background"
+										}
+									],
+									"attrs": {
+										"id": "cdbcbd38-312c-47e8-a311-75b28f4d272b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e470dfc0-bd5b-451f-b118-b23d6269fa87"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-color-neutral-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e5aee5e2-c447-425d-aaf7-a432809fd9b6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4ac7f93c-e82f-48d7-a965-08470b0f4f2e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3ee36012-1d01-4b4e-ab69-f663939449ee"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "success",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "027132ab-8781-48c7-9617-40d8e8d43d55"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1e86de65-d102-4074-ab2b-57325645648f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Success state"
+										}
+									],
+									"attrs": {
+										"id": "f2f31f82-d314-43ce-9abd-1d41948206ef"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5a91e48a-c388-4cdd-a476-70735d87d9ea"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-color-success",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f47f1e98-1f74-4f71-bc46-8e9a46bf3821"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a0dc7a28-8ba1-485f-80aa-524e13061828"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f47d4420-db2a-4e00-9ebf-61c9db934051"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "successContent",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4d009c62-7294-403b-b7b2-a1fdf4376582"
+									}
+								}
+							],
+							"attrs": {
+								"id": "64a749c1-a6d7-494f-80cf-50b813a9e653"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Text color on a success background"
+										}
+									],
+									"attrs": {
+										"id": "88836d8d-ca65-4147-9eea-324dca535927"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ac967ae5-ab69-43ef-a546-e878a751b609"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-color-success-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "9ae5e928-5ac4-4e24-bef2-640cbd9227e9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4ba81b04-c7e0-47b1-a10f-e65908c5151d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f26a83ae-dbd4-4891-bb90-af18bcf1cb0f"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "warning",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4fc99748-86f0-48f4-9ff9-209112b12d5a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2621d41c-f3e3-46d5-a70a-110dc7e46d91"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Warning state"
+										}
+									],
+									"attrs": {
+										"id": "223041da-4766-41cf-af7d-7b654bff189e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "741d076e-c36a-4fb3-b863-e111975f26ca"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-color-warning",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f94efb9f-2911-4f51-9cdf-818c30ce6888"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9385c435-106d-4dbb-a0bc-3d7c27365b7a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7d5cc494-a030-4552-8aaa-8a556011eab3"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "warningContent",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "bb7598eb-33ec-474f-8204-0efca2e27a6c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ec322a8b-a7fb-49f4-8010-91c09577fdbf"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Text color on a warning background"
+										}
+									],
+									"attrs": {
+										"id": "d241ec50-3fa0-4126-91e1-cb664d1c119b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "11ec1de5-779a-4121-8ad8-60c971865367"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-color-warning-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "9ff1aa00-cb21-4c01-92da-7bfafe5adff2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b036aa1b-492b-4bbc-b597-b56b8c9e0759"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9abbfdb0-61f1-4475-b07d-c02e2afee2a9"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "error",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7216d821-80c4-44ea-b3eb-25937597b92b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0bc284b5-16ea-48a5-802f-5870989e4786"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Error state"
+										}
+									],
+									"attrs": {
+										"id": "e4f4bb2f-025b-4e81-9b4f-171ac18b6d79"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a9a1c9eb-567a-4f76-b863-54c21172a387"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-color-error",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3362095d-1404-46e1-ab09-28b21fed832d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "520050da-cd21-4a93-b410-3c7bb76e02d7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "cf4e2754-ecdf-452e-b11e-6e54913a9546"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "errorContent",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "caad8cb5-0b88-48e5-ae2e-ee1cfb62e5b0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e8aafc81-8963-4b02-b92d-681a57641979"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Text color on an error background"
+										}
+									],
+									"attrs": {
+										"id": "6a2b7f2d-c77e-4c0b-b46e-3dfe6e00a553"
+									}
+								}
+							],
+							"attrs": {
+								"id": "26e69db4-532b-4ff5-9334-8991738c011e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-color-error-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4047bf95-eae3-4729-a946-f08897f6318d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f8e0a56d-d529-446c-bb2c-5cdea389784a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4f57a313-f395-4790-a848-789d42601a73"
+					}
+				}
+			],
+			"attrs": {
+				"id": "78d83a82-b8e5-4d6f-b18d-2823ef8fa333"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "surfaces",
+				"id": "71f17062-d586-4b52-84d5-9b729ed596ab"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Surfaces"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Surfaces are named by the region they paint. "
+				},
+				{
+					"type": "text",
+					"text": "panelBg",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the default for "
+				},
+				{
+					"type": "text",
+					"text": "every",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " panel (including plugin panels); "
+				},
+				{
+					"type": "text",
+					"text": "galleryBg",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "inputBg",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " follow "
+				},
+				{
+					"type": "text",
+					"text": "viewerBg",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " by default."
+				}
+			],
+			"attrs": {
+				"id": "a53d9afb-eca9-4082-958a-ef4d4fe4eeed"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Keyword"
+										}
+									],
+									"attrs": {
+										"id": "c4c467bd-add5-4b20-a088-10439bf664ca"
+									}
+								}
+							],
+							"attrs": {
+								"id": "eb46c63d-2e0b-4aa1-97f6-8bf631dc3f93"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Description"
+										}
+									],
+									"attrs": {
+										"id": "f6a3c1c3-b4e9-4a67-8b29-cfb6497ba415"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8338ef8b-0f76-414c-9b8f-27add5c0d4df"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "CSS Variable"
+										}
+									],
+									"attrs": {
+										"id": "487ea7db-46ff-4141-ae7c-db49cbbb5cce"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8b12eddc-bde5-4721-b88e-99c1048fcee9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "dad32862-d3ce-47b9-b28d-54d015dc2fc7"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "viewerBg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "137353f3-db71-4a50-9dea-fed845bc2b31"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1a096161-3df9-4a02-9af2-d894729e17c7"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Main viewer/canvas background"
+										}
+									],
+									"attrs": {
+										"id": "c04c6665-2707-4335-9a5f-487c5aa814ca"
+									}
+								}
+							],
+							"attrs": {
+								"id": "779e2ae7-df5b-4a2d-a2b1-c6d77d248793"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-viewer-bg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "47d71446-e46a-4bf2-8c05-00cc7d365190"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e216a792-14c3-454b-9352-4e94647148fa"
+							}
+						}
+					],
+					"attrs": {
+						"id": "362d64c2-c111-4554-a8f4-747ba2cbc8ec"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "toolbarBg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2c26463b-d25f-4ca9-a0dc-26d58ac49af3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "209df2de-d2fc-4fba-a540-e3987932b1b1"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Toolbar + canvas-nav controls background"
+										}
+									],
+									"attrs": {
+										"id": "e285b72e-aa67-42a1-b011-fb915fa5e4fa"
+									}
+								}
+							],
+							"attrs": {
+								"id": "309ef137-1cf2-450c-bb63-e3d1de06f790"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-toolbar-bg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7fa15a4f-61d8-4e32-9a58-d50bc0515d04"
+									}
+								}
+							],
+							"attrs": {
+								"id": "056d6807-2ddf-4399-8353-cce26ca11a6a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "55a2bc73-ef5e-47ac-8eb7-8483b812a115"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "panelBg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "45399a47-e7d4-427d-bf60-88bbf7dc5aab"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4f6c007d-f293-4a90-b401-a9057e22bc6f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Default background for all side panels"
+										}
+									],
+									"attrs": {
+										"id": "f4199fe2-15b8-4aa1-ba0a-4d87fa4ad74a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e7ff0eac-4c5d-4ffa-8945-27fa370baede"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-panel-bg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b34aba90-9ddb-441a-af7c-f1fec7c74bed"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3d456efe-7aec-4530-8c1d-dbbc8bddbc81"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4f20c196-826e-4808-92bf-56f29878b9b4"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "galleryBg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b68a679e-aca9-4173-a3a3-e003bb9baec9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e2c0befb-cbfb-485b-b375-8d96d9b3affa"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Thumbnail gallery background"
+										}
+									],
+									"attrs": {
+										"id": "80d4147c-6fb6-434c-b39e-cd4a9c880070"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d519f358-6424-497a-85f2-e26646cd6417"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-gallery-bg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "92f03587-a42b-4f24-bc13-d29f5e6cfca6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2a11a9d1-8f38-4cca-8ee3-a4c69c00ffc8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8e4c1d1d-7129-441a-b847-3e3e61598afc"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "inputBg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "28929751-4f0c-4320-8c33-f11003c22b40"
+									}
+								}
+							],
+							"attrs": {
+								"id": "bd26f3f4-dc53-4734-bd44-09a9d2677e9d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Form input/control surface"
+										}
+									],
+									"attrs": {
+										"id": "2c3b981d-737d-4285-86bb-98785880c159"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2b04e17d-6873-48d5-bbd0-1f427651c867"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-input-bg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "83cf2c35-0c82-41de-b49d-f90e95569dbf"
+									}
+								}
+							],
+							"attrs": {
+								"id": "aacf3195-aa96-4121-9e31-a411fb626de9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e6986df9-b79f-4d95-9d10-9b4b969b5608"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "surfaceBorder",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "16ba2b65-df2a-44e6-844c-3e46cbb0557a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "31346789-1291-451a-93d3-f5b5cf6a1310"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Borders and dividers"
+										}
+									],
+									"attrs": {
+										"id": "07af416e-7abe-42a2-9d63-478ac8e9481c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6ffc626c-ff8c-496b-84b4-76f587dba748"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-surface-border",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3729d105-5006-418a-9d77-1a9e8b04f631"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9498d312-0b9a-4741-8b41-9955d0d49c62"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6b6713d9-770a-42e3-ba12-013dc1c10f91"
+					}
+				}
+			],
+			"attrs": {
+				"id": "151a36fb-9488-4041-996e-686cbd9245eb"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "content-foreground",
+				"id": "3a47c7cb-7998-43f4-8665-a4755304d969"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Content (foreground)"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "content",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the global text/icon color. The per-region tokens below inherit from it and let you retint text in one region without touching the rest."
+				}
+			],
+			"attrs": {
+				"id": "c0241e9d-3648-4d3e-a7c4-30734bdfcaf0"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Keyword"
+										}
+									],
+									"attrs": {
+										"id": "06141164-675a-4c29-a699-211fc1203a82"
+									}
+								}
+							],
+							"attrs": {
+								"id": "89f63bcd-68eb-4ff9-a987-7c81ee3f725a"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Description"
+										}
+									],
+									"attrs": {
+										"id": "e3ae6ee7-b344-4109-9d5a-b1c8d088bfd0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5989a694-e710-4b00-867b-3cfa165d5d7c"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "CSS Variable"
+										}
+									],
+									"attrs": {
+										"id": "d68c6c39-2369-4b53-b04e-06bd4eb05610"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c336be8e-9d30-4756-8277-a3230a9594e7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7a35a8f2-fe53-4012-9f41-a91dc8489600"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "0293fb96-d152-4e3d-befc-5d920f571542"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3908049c-76e6-4723-a838-33e5e7cb5fe4"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Global default text/icon color"
+										}
+									],
+									"attrs": {
+										"id": "1dc8edfd-9d87-4b9d-bb6d-85eae3492acb"
+									}
+								}
+							],
+							"attrs": {
+								"id": "87786110-fd11-4589-a8a8-b4f7e6df1fc6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "020c4bad-78f3-4b4d-9b80-5598dc0e7329"
+									}
+								}
+							],
+							"attrs": {
+								"id": "64cbe551-93d1-4f88-9dce-5d41a3d59b21"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f943a25d-4254-446b-8c6a-96899f0b4bab"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "panelContent",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2c14fa4a-c382-4ca6-8ae2-104b86707075"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c2ef4804-852d-44a5-a534-a0d3fdde2045"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Text color inside panels"
+										}
+									],
+									"attrs": {
+										"id": "8a4b4f7e-13d2-4aff-80e0-175f0b1d69d7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2cfe598a-628a-4559-a6c7-61f8a0bca37a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-panel-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f4fac604-2f1e-4575-ac6a-75ce22810084"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8a673e8a-b81f-4ecc-afd5-08825431a0d4"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6dc954f2-9462-4627-8e15-cf084f2a35e2"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "toolbarContent",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3f4aa8ce-cbc0-47a3-b0f9-d0fc6bf07494"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3995bc75-355d-4419-9026-11aa4d1e00c0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Text color inside the toolbar"
+										}
+									],
+									"attrs": {
+										"id": "e37e2fc1-1af8-416e-9818-14cd8e3fcc1e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "16d66412-141e-4d3f-83f9-a3ab4afdd18e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-toolbar-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3c6946d0-bed3-4960-b281-02bcc53d5b9c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "19510853-c4b5-4fc9-9370-da0f4a86631c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f53cf747-a98e-4639-9a78-c293577d107b"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "viewerContent",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a0cda052-c96e-4365-aee6-da032a8c2153"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6453e2f9-a560-4608-8dd2-274e813856f6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Text color over the viewer surface"
+										}
+									],
+									"attrs": {
+										"id": "90f53e52-fd41-4563-a0ed-ec8f7bd79a34"
+									}
+								}
+							],
+							"attrs": {
+								"id": "06f3cf06-712b-4293-8653-7a9a5b38725c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-viewer-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "171e205f-2dbf-4081-8202-66f42d3942e5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4601094f-bab8-430a-a820-377cb2c3cb79"
+							}
+						}
+					],
+					"attrs": {
+						"id": "175bf390-baf5-4660-a749-25a85d3ab0f1"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "galleryContent",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "563c6a9e-ef0a-4399-ab87-5319788c5d79"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1e1ee535-0a57-470e-a25f-510ccf60ac1a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Text color inside the gallery"
+										}
+									],
+									"attrs": {
+										"id": "eb9f2a80-761c-4bc0-980f-d014979a0a6a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "afc87fd6-1806-4495-b29e-21561d2120a8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-gallery-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7937de7c-2f3e-419f-955a-73750d5f390b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5258072b-0eca-4cc6-9724-0f9c5a7b08d2"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3c9c74b7-6f85-478c-bd55-c3915fd1939f"
+					}
+				}
+			],
+			"attrs": {
+				"id": "c7d8187e-bba2-48f0-a74f-1272556ce7c7"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "per-panel-overrides",
+				"id": "1099232e-07fc-4e18-bd45-c0ec5e0abddd"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Per-panel overrides"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Each panel's background and text default to "
+				},
+				{
+					"type": "text",
+					"text": "panelBg",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "panelContent",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Override one panel without affecting the others. Setting "
+				},
+				{
+					"type": "text",
+					"text": "panelBg: 'green'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tints every panel; additionally setting "
+				},
+				{
+					"type": "text",
+					"text": "metadataPanelBg: 'white'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " overrides just the metadata panel."
+				}
+			],
+			"attrs": {
+				"id": "ef076424-643b-4996-96f6-4dae5bbef95e"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Keyword ("
+										},
+										{
+											"type": "text",
+											"text": "…Bg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " / "
+										},
+										{
+											"type": "text",
+											"text": "…Content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "2013fe60-ff46-4c4b-84c2-ba91342b5803"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e6015a70-f1e6-439b-bf58-dae9d1248dde"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Panel"
+										}
+									],
+									"attrs": {
+										"id": "74e40985-5310-41d0-953a-213e63b5013d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "170a5f27-fc93-47d6-a158-51a44bbdd528"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "CSS Variable ("
+										},
+										{
+											"type": "text",
+											"text": "…-bg",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " / "
+										},
+										{
+											"type": "text",
+											"text": "…-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "4381af56-1175-4ee8-83db-9454d1a7ee37"
+									}
+								}
+							],
+							"attrs": {
+								"id": "48f159c3-d047-49e1-aaaa-a3645e959724"
+							}
+						}
+					],
+					"attrs": {
+						"id": "53152d17-c369-4667-8187-2620e1acb76e"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "metadataPanel…",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "505e96c2-af19-4efe-8817-6158d57254fd"
+									}
+								}
+							],
+							"attrs": {
+								"id": "584395e6-c042-46bc-9130-4da03b6842c6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Information / metadata panel"
+										}
+									],
+									"attrs": {
+										"id": "25264441-d224-49ba-af62-c074769bd567"
+									}
+								}
+							],
+							"attrs": {
+								"id": "514ea073-6bf1-4716-ba82-c7e3b7474edf"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-metadata-panel-…",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "9281ddd6-daab-4583-8944-32a90b06cf07"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1dad5888-629b-4df0-a20c-a7c68b05f290"
+							}
+						}
+					],
+					"attrs": {
+						"id": "cb2d2807-4f8e-49c5-a6f1-e3ae56aca7d2"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "annotationsPanel…",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b8045d42-beaf-4022-b940-af735b43bcd6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6d4ba352-19cc-47bf-9483-e1ff38bc0a95"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Annotations panel"
+										}
+									],
+									"attrs": {
+										"id": "50b196c0-f62e-4a86-a051-94ae66ce6409"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4946b24a-3d8a-4c5e-b139-5eb4b4f0ae8c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-annotations-panel-…",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3288a3e1-759e-46aa-9f23-8f877a9af478"
+									}
+								}
+							],
+							"attrs": {
+								"id": "74a55368-3a8a-4943-a01c-dce384eb0f72"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9f9bf20b-5e7b-454c-a8e6-d7280909ed44"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "searchPanel…",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3e777956-97e1-4576-ae73-9b7523e8d784"
+									}
+								}
+							],
+							"attrs": {
+								"id": "730c2156-3e1b-451f-8d5f-a32b0c57bc86"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Search panel"
+										}
+									],
+									"attrs": {
+										"id": "013f5e89-b80e-448c-992d-e132f89aa034"
+									}
+								}
+							],
+							"attrs": {
+								"id": "741fe24a-7697-44a6-a787-12987952ff7a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-search-panel-…",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "39b3aeca-3da3-468b-96f8-1e48df8490d2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "37ac450c-da58-4d10-8839-0112d24dcb0e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "0fcd9bad-5113-41cd-8789-ba6fa349ac9e"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "structuresPanel…",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a682417b-0e58-4f60-bf58-811750474cbc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f0ac5657-d320-4d4e-9dd3-d80aaad8851d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Table-of-contents panel"
+										}
+									],
+									"attrs": {
+										"id": "60ef5865-7dee-42a8-9e2f-c01bb0c2cfd1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2fb03717-cf0b-49d9-912b-0f715dbecf0c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-structures-panel-…",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e931e5be-9aa8-423a-acdd-384583e57925"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fe8e5632-b04e-4f7b-b7c9-532021ad1ca8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "769bf469-ca61-4a6e-8520-6a520c4a5d0d"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "collectionPanel…",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e1b1cd96-ec4f-4be1-9450-70b203e44200"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c600a68a-a991-4197-97f0-976a9db00b96"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Collection panel"
+										}
+									],
+									"attrs": {
+										"id": "4de0747b-9331-46a9-a4eb-9f975e66e6a7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a4868538-fcfd-4100-8666-8a87d75bf27e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-collection-panel-…",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b4a20341-5514-4f16-b096-94871dbd2d62"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b3a4553c-938b-4e3d-802d-79afc3aaa1ff"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1585fdd6-98ab-49c3-88e9-0f4a683f5a07"
+					}
+				}
+			],
+			"attrs": {
+				"id": "1de6eac3-4161-40dc-8033-62460042b06f"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Plugin panels have no per-panel token of their own: they take "
+				},
+				{
+					"type": "text",
+					"text": "panelBg",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "panelContent",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " like every other panel. First-party plugin CSS reads the public "
+				},
+				{
+					"type": "text",
+					"text": "--tri-*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tokens above ("
+				},
+				{
+					"type": "text",
+					"text": "--tri-input-bg",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "--tri-surface-border",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "--tri-radius-panels",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and the palette), so retinting those retints the plugin panels with them. A plugin that defines its own custom property can be fed through the "
+				},
+				{
+					"type": "text",
+					"text": "cssVars",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#raw-css-variables"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " escape hatch."
+				}
+			],
+			"attrs": {
+				"id": "8d4cdc46-8c56-410b-875c-30b96ec93eae"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "border-radius",
+				"id": "9256b391-2cde-4c69-81b7-28343fa413e3"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Border radius"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The top-level trio sets the defaults; the per-region overrides inherit from them, so you can keep everything consistent or fine-tune one region."
+				}
+			],
+			"attrs": {
+				"id": "f9751123-3ae0-48fd-803d-b4dd54aa8271"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Keyword"
+										}
+									],
+									"attrs": {
+										"id": "2f3832f2-c058-4ae9-a7ff-0888b15db6a0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "65a2f97e-0192-4d52-88c6-0e0d4200c101"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Description"
+										}
+									],
+									"attrs": {
+										"id": "8884ca20-47f5-4f8d-8658-7c8178cf0c10"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5eea3aa3-9cc4-450c-b941-b30f613e1032"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Inherits"
+										}
+									],
+									"attrs": {
+										"id": "1aae3155-e6ae-4c52-98b5-62fea692e082"
+									}
+								}
+							],
+							"attrs": {
+								"id": "304d24e8-8dfc-498c-b8b3-4e9347ef28f6"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "CSS Variable"
+										}
+									],
+									"attrs": {
+										"id": "d3c3bd15-06ec-408e-9f3a-6f972b2b848c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f5029eaf-f3be-432d-8152-357a37cf37a2"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8ed7cfa0-4169-4c55-aaee-0269234dc9e6"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "radiusBox",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a11c3ede-5f08-4069-940f-5fde0948c97a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c5cebe36-df07-4e46-bf64-dded1fae995f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Large containers (cards, panels, popovers)"
+										}
+									],
+									"attrs": {
+										"id": "da341087-0af4-4ee5-a55a-a4cc0647bad9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "625ef23e-6c01-4dc6-9818-8e06114e4a68"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "—"
+										}
+									],
+									"attrs": {
+										"id": "43f7ee20-751e-4a49-8b47-2e00cd46831c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3bcd071b-510e-4772-b243-6b75711f1528"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-radius-box",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ad07c384-464d-4d4b-b00e-8f4242535a85"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e55a5925-4d37-47b7-815d-adea17e2feb3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "67d82d25-cb1d-4fa8-ac20-189d81c5206a"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "radiusButtons",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "fe61dd62-e107-482a-b03b-76ed393e7cdc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "421fe2f1-3dd0-4abc-8543-9803e2489cfd"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Buttons, inputs, and button groups"
+										}
+									],
+									"attrs": {
+										"id": "7c43dcd4-6611-408a-ac1f-33368c31f72f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "17b1349d-1b53-4b4a-9232-47c54321e95a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "—"
+										}
+									],
+									"attrs": {
+										"id": "c793a67c-3a63-4da8-be65-3e05ecdac0c1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fa45d027-f693-4e0c-b2c2-0be5c52a2f8d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-radius-buttons",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "6e7ab51a-6364-413b-9d8e-6e05c118d8a8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3b824514-e13d-4fc2-a3b6-cc5769b22142"
+							}
+						}
+					],
+					"attrs": {
+						"id": "63743ce0-c19c-480e-b159-8cde141591cc"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "radiusSelector",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a0fae10a-da8f-40ec-b156-8e00f059d36b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "bf7dc543-b683-4e5e-9f5b-0ea59e68543c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Small selectors (checkboxes, badges)"
+										}
+									],
+									"attrs": {
+										"id": "a2b9ca5a-057c-43cd-8591-66674c2e291b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "05aa0bcf-17da-450e-aebe-2d9ec90303cb"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "—"
+										}
+									],
+									"attrs": {
+										"id": "e680ac7a-dcae-4077-9bcc-39b1dc71cf38"
+									}
+								}
+							],
+							"attrs": {
+								"id": "013a52b4-dac8-4cd0-9788-6493485e8ef3"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-radius-selector",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ab1a4770-9a4d-4b52-b867-16104aa0219b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "cd37c4bf-3320-4e77-afc6-435a3e943bdf"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e0ffc8dc-3d64-47df-90dc-4f2fa24fa481"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "radiusToolbar",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ed6c223c-7486-437d-a520-6ff49d08a8e9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8ee9701c-443b-4cd3-bc66-aad8c6de2747"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Toolbar corners"
+										}
+									],
+									"attrs": {
+										"id": "e97b293a-7c6b-4d7a-b106-1706e6242826"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e0fe9290-faea-4268-9291-15a963ee25e1"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "radiusButtons",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c49da971-3fa3-488f-9f7a-ea1024213836"
+									}
+								}
+							],
+							"attrs": {
+								"id": "475c40e0-cd2b-43b1-a685-8366b5be497a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-radius-toolbar",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "5a6d10ce-2860-4640-b774-9c184019ac35"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ab1f2385-dc77-4fb8-89ca-16cdcac52fbb"
+							}
+						}
+					],
+					"attrs": {
+						"id": "67af7b25-0883-48ae-9095-0547b5edcbc1"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "radiusPanels",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f954a7ad-a7f7-44d0-8b9c-4e0b428f37bb"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f917bf43-fdc2-4841-8717-2fe2b1e19959"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Panel corners"
+										}
+									],
+									"attrs": {
+										"id": "40c775cc-b622-4c42-adad-063e3f0d9b2e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e427da71-405e-4486-b975-4a2fc0cafb80"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "radiusBox",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7b6584d1-2795-4ad5-b824-2f7467369c0f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "138d66ac-cfe3-48c4-afdc-70333f50dfa6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-radius-panels",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b8c3159b-fdca-4342-96b0-8552e074dc69"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c3d8e79c-a196-43b2-8427-1c50256c61ee"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4325369b-c973-43c3-9938-44937e330ce5"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "radiusControls",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "1f85cc27-ac9a-4048-9a2f-77cb50112dda"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d164383c-547d-4718-b5e7-3bab94a8e860"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Canvas-nav controls pill"
+										}
+									],
+									"attrs": {
+										"id": "c250508f-3c2e-4dd6-a220-ecc5eb01d6ee"
+									}
+								}
+							],
+							"attrs": {
+								"id": "63d01395-9cd9-49db-99f3-c0cbee7da100"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "radiusButtons",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "955289d8-ec9d-4d4e-bfdd-efd43b70521a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "40dac7bf-fb61-4cf5-9772-056349cc47b8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-radius-controls",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "6d773815-a067-4773-9a87-5ad570624504"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e619b09d-0a07-4c83-9636-f6e8a71bed53"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f83c0a83-0a1d-471b-9bc7-14d92da06029"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "radiusControlsButtons",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "323b9364-0666-45ae-99e7-fd138c7c9ef8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d8098330-02b7-436a-a8e9-021992ac7f90"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "The buttons inside the canvas-nav pill"
+										}
+									],
+									"attrs": {
+										"id": "6e039bc3-a810-4fa3-8d13-ed6249161b8a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e55eb75b-8b08-4309-b2ed-aeb55985ffc5"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "radiusButtons",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "dd28221a-a786-41ac-b839-6b5c962523f8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4e016549-8ac3-4a47-b0c8-2bf659a2a63f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-radius-controls-buttons",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "881f1183-e6b1-418a-a73d-d1d88f2d8386"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c3cbb764-9f24-4446-9647-b816fd062191"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8e65d893-1de5-46c8-a059-cd6ecbab6e57"
+					}
+				}
+			],
+			"attrs": {
+				"id": "61780730-bedd-48de-bd25-51c160600d97"
+			}
+		},
+		{
+			"type": "blockquote",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Want the classic pill?",
+							"marks": [
+								{
+									"type": "bold"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " The canvas-nav controls now inherit the button radius by default. To restore the fully-rounded capsule and circular buttons, set "
+						},
+						{
+							"type": "text",
+							"text": "radiusControls: '9999px'",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " and "
+						},
+						{
+							"type": "text",
+							"text": "radiusControlsButtons: '9999px'",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": "."
+						}
+					],
+					"attrs": {
+						"id": "50e79fb6-d36b-4111-bcc0-cec178222e24"
+					}
+				}
+			],
+			"attrs": {
+				"id": "1319ab5c-3e1a-4c8a-9525-be9876c93d53"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "sizing-effects",
+				"id": "cd5a5429-600e-4123-9e5a-549c743178f7"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Sizing & effects"
+				}
+			]
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Keyword"
+										}
+									],
+									"attrs": {
+										"id": "f4800876-28ef-44ce-a7ed-6534e84ffa3f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "60aaec5e-da16-447b-8464-75b1c189388b"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Description"
+										}
+									],
+									"attrs": {
+										"id": "3bfe2960-9232-40ee-8dc1-592b55d98677"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0be9102d-5fbe-4006-a5ce-cacd3b8c65c7"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "CSS Variable"
+										}
+									],
+									"attrs": {
+										"id": "18b839ab-c498-4ed0-96a1-c086c5ef88d7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ca0e1a19-d74b-4908-b26c-bf569ea8b548"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Example"
+										}
+									],
+									"attrs": {
+										"id": "a2227e85-3c71-4b6d-8375-5fced42afccc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4905ab5f-2dbb-42b6-ac77-28b77a683c39"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2ad62ff1-0720-4e03-a047-d542b0dca36b"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "sizeField",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "27d56098-4358-414e-8446-4990588b8af0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3e236290-2463-497a-960e-d62790b430f4"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Base padding/size for inputs"
+										}
+									],
+									"attrs": {
+										"id": "99a0f7e5-7a40-4c45-b899-687ab38fab38"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c0fb13d6-6674-4578-a042-3858f133a40e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-size-field",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "9fc9cba3-c8ab-4d6b-87d1-e10f67e521d4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "46be9857-d3be-42d6-8b21-0cd2e9a74fc4"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "0.25rem",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "bb0a786f-10ac-44ed-8f55-5db116996fa4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e4881b22-4149-46a4-b635-422d3b1e7918"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f9f5238e-d4da-4c24-b8a8-9a240e3cf811"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "sizeSelector",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ee252fa4-116f-4ba4-91eb-33e819bd3e4e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2d6a5280-f026-4fca-8373-94506a3aa4dd"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Base padding/size for selectors"
+										}
+									],
+									"attrs": {
+										"id": "d65632cf-0420-4362-b9a9-2ab2c845c388"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c3c0f716-12cf-48f5-8778-6481c03af00b"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-size-selector",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3a940888-959d-4051-857a-cc71d825f906"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1457c92a-0aa8-4f2d-8fc7-d227bb8fdfbd"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "0.25rem",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "cb08da04-1d3e-490b-88f1-825afd7ce3e4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "02b88fb7-65b3-48e0-8b16-43fed909c4b4"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3a6c33ae-ea89-42bc-af15-13662a2d36ed"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "border",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "dbdd9057-5479-4464-a27a-0a6739f61643"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b7836837-3908-4404-ae01-f3242bee9da6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Border width"
+										}
+									],
+									"attrs": {
+										"id": "1d8a0777-de56-48c7-b99e-fc3f1a9a6fab"
+									}
+								}
+							],
+							"attrs": {
+								"id": "29d28334-46db-4ead-8720-20b50a8ab9f6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-border",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "70bf546b-e84c-4f12-afa0-3e5831efe7bc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "46d877c9-c084-4142-af63-123e5aa3523d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "1px",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "5cef29bb-e294-4e64-81f6-857685a0d773"
+									}
+								}
+							],
+							"attrs": {
+								"id": "603dffe5-86ca-42de-b006-bf5a5f9cbb21"
+							}
+						}
+					],
+					"attrs": {
+						"id": "cb6f3cd0-d662-489d-a47c-9d389cd75275"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "depth",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4425f845-ebdf-4195-a016-53d873599dae"
+									}
+								}
+							],
+							"attrs": {
+								"id": "71ece373-7a8d-453a-b34a-de528a5e2742"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Drop shadows ("
+										},
+										{
+											"type": "text",
+											"text": "1",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " = on, "
+										},
+										{
+											"type": "text",
+											"text": "0",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " = off)"
+										}
+									],
+									"attrs": {
+										"id": "cffb8d8d-0966-4809-a142-4d019a8e4c54"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1253e369-12cd-49d7-91d8-4d2fe95a356a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-depth",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "5ba63e14-8ef8-4182-b598-d4446f0e36f7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "08cd0502-da15-497f-89c0-b8312c3329db"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "1",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a8b53a6d-77f2-4d75-86e9-6a26fcb508bd"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1f4f5ff6-242e-40d2-8af9-db013b42505f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9758d369-7a00-4bf7-bae3-a84dd2c139d7"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "colorScheme",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f9ca5aeb-6b5e-49af-932e-76f5eca1da14"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1b8aae5b-6fa3-4ce2-b7d7-bb532b3026c1"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Browser UI hint ("
+										},
+										{
+											"type": "text",
+											"text": "light",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "/"
+										},
+										{
+											"type": "text",
+											"text": "dark",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "f79907c9-8370-411b-9cd7-0b10d46d3e95"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8ffeaf43-1d7d-410a-b21f-c2cefdbfe7cd"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "color-scheme",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2e268838-fc9e-4103-b7a6-255d2301fbc6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2fd55726-b9e2-46cf-ae12-4e3c7856d591"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "light",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "84f2c5b3-ee06-4ab4-a896-6fdfadcb0a2a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "aa70c4e2-2d8f-45a5-bb17-00fa3c31df1c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d29141cf-bb55-4690-8daf-a3cac2a494a5"
+					}
+				}
+			],
+			"attrs": {
+				"id": "f24e01ce-3143-4dac-b91d-d22c81112d2a"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "complete-public-token-reference",
+				"id": "e39e767b-e723-4a58-9549-3745e4bc9166"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Complete public token reference"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every token below is part of the "
+				},
+				{
+					"type": "text",
+					"text": "semver-governed public customization surface",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Variables outside the "
+				},
+				{
+					"type": "text",
+					"text": "--tri-*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " namespace are internal implementation details with no stability guarantee — "
+				},
+				{
+					"type": "text",
+					"text": "--ui-*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " layout plumbing and component-local "
+				},
+				{
+					"type": "text",
+					"text": "--btn-*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "--range-*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " variables among them — with two exceptions, the typeface properties documented in "
+				},
+				{
+					"type": "text",
+					"text": "Typefaces",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#typefaces"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " below. Set a token either by its "
+				},
+				{
+					"type": "text",
+					"text": "themeConfig",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " key or by writing the raw CSS variable; tokens marked "
+				},
+				{
+					"type": "text",
+					"text": "— (raw only)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " have no typed key and must be set through "
+				},
+				{
+					"type": "text",
+					"text": "cssVars",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#raw-css-variables"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or plain CSS."
+				}
+			],
+			"attrs": {
+				"id": "56504ffa-3d33-4584-9b0d-40db00f01849"
+			}
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "note",
+				"title": "This table is generated",
+				"id": "a1300e3f-564c-4ebf-9253-b0d256bb425d"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "The table below is derived at build time from "
+						},
+						{
+							"type": "text",
+							"text": "api-reports/css-tokens.json",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": ", which is generated from "
+						},
+						{
+							"type": "text",
+							"text": "packages/core/src/lib/theme/publicTokens.ts",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " — the single source of truth for the public token set. There is no copy of the list in this page to hand-edit, and none to fall out of date."
+						}
+					],
+					"attrs": {
+						"id": "10e83991-f70c-442f-b8ff-8e41a44813f3"
+					}
+				}
+			]
+		},
+		{
+			"type": "cssTokens",
+			"attrs": {
+				"id": "5b8a6329-5155-4d09-8eef-45c32efc6e10"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 4,
+				"slug": "typefaces",
+				"id": "1a691073-600c-45ea-8ec1-0b0ce1e040c3"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Typefaces"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The viewer "
+				},
+				{
+					"type": "text",
+					"text": "ships no font files and downloads none",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". It names two custom properties and falls back to the reader's system faces, so out of the box it is set in whatever your platform's UI sans and mono are. These two are public API alongside the "
+				},
+				{
+					"type": "text",
+					"text": "--tri-*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tokens above, despite being outside that namespace: they are the whole mechanism for matching the viewer to your own site's type."
+				}
+			],
+			"attrs": {
+				"id": "5bc6b868-4c28-4b1c-b0c5-00c84084d81a"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "CSS variable"
+										}
+									],
+									"attrs": {
+										"id": "6afb46b5-a469-4175-8455-672d6605096f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "833274ea-d7c7-47a4-96d3-ab69efb91cd3"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Applies to"
+										}
+									],
+									"attrs": {
+										"id": "9460e853-f5fc-435b-ad63-786e0b9d5850"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4ba0531e-2d12-4fbb-b8f4-d0109af40521"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Fallback when unset"
+										}
+									],
+									"attrs": {
+										"id": "0e0ab319-9a94-4383-b27d-464671ec1ab5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c98e7191-d086-42c7-a2bb-1a42a22f603a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a594a9b7-1098-4b75-8890-6844b517a4b6"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--default-font-family",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "8373484c-e48e-4a7f-924f-de9e9da66bb6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9a53661d-7d30-4679-abe2-776f5dd7f99a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "all text in the viewer"
+										}
+									],
+									"attrs": {
+										"id": "77b86a30-2024-479a-bb58-83ade622aa54"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5836ea16-d7a5-48c5-ad8e-1f0b3a76136b"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "0e096cc3-ab23-4dba-be6e-e387030780d0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f76c0bae-5ece-42c1-985e-1ec887a5c6c1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "484b4f85-452a-4182-8f3b-470ce139e523"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--default-mono-font-family",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "0158f8da-60e3-42e0-8422-5c21d2d919cf"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d5dd5c1b-1b52-41e4-b86f-5ffa1d23e661"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "code",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "kbd",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "samp",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "pre",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b348b932-79fb-4c09-912c-7a46dca85cf8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d1317306-87f5-4e6c-9120-d36474288e06"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "620dbce7-1388-45bf-a8c9-31f0d15c5d48"
+									}
+								}
+							],
+							"attrs": {
+								"id": "93f548cf-327b-406c-9d06-eb3a89ba7e4e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1ebc13bc-6d7a-4caa-86a1-c88ce4e1b4ea"
+					}
+				}
+			],
+			"attrs": {
+				"id": "b3df5875-1375-4d79-bb7e-9f29521758bc"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Neither has a "
+				},
+				{
+					"type": "text",
+					"text": "themeConfig",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " key: a typeface is a property of the page the viewer sits in rather than of a theme, and the viewer is meant to inherit it. Set them wherever they will reach the viewer — on "
+				},
+				{
+					"type": "text",
+					"text": ":root",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for a whole page, or on the viewer's own element to give it its own type:"
+				}
+			],
+			"attrs": {
+				"id": "41fefb55-f8ac-45c1-ac24-e8965fa6e016"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "css",
+				"id": "df7e0f38-621b-44ef-bec5-270411e118bf"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": ":root {\n    --default-font-family: 'Source Serif 4', Georgia, serif;\n    --default-mono-font-family: 'Source Code Pro', ui-monospace, monospace;\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Both take a full font stack, not a single family, and it is worth writing the fallbacks out: the viewer cannot load a face for you, so a stack naming only a webfont your page has not fetched renders in the browser's last-resort default. Loading the face — an "
+				},
+				{
+					"type": "text",
+					"text": "@font-face",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " rule, a "
+				},
+				{
+					"type": "text",
+					"text": "<link>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", whatever your site already does — remains yours."
+				}
+			],
+			"attrs": {
+				"id": "b60b084a-d86b-487d-9259-05a6b093801e"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "example-usage",
+				"id": "c293c6c5-31f5-4117-8d91-a8aa4b3634f4"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Example Usage"
+				}
+			]
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "framework",
+				"id": "1ca1e0a7-4fac-4cf3-ac2f-5d94840f0a2f"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "HTML",
+						"id": "eb2aafff-5023-47b4-88c9-a1587478078d"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "As an attribute, JSON-encoded:"
+								}
+							],
+							"attrs": {
+								"id": "bd2f28c3-d60c-4612-b94d-b1c81aff5512"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "df315002-18e0-441a-807e-778aa844ac2b"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<triiiceratops-viewer\n    manifest-id=\"...\"\n    theme=\"light\"\n    theme-config='{\"primary\":\"#ff0000\",\"panelBg\":\"#fafafa\",\"radiusBox\":\"0px\"}'\n></triiiceratops-viewer>"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Or as a property, from JavaScript:"
+								}
+							],
+							"attrs": {
+								"id": "7dc93bd0-cc0d-42ba-8234-eec81811925f"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "5ccca59d-2662-4a9b-ac20-41992e75751d"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<triiiceratops-viewer manifest-id=\"...\"></triiiceratops-viewer>\n\n<script>\n    const viewer = document.querySelector('triiiceratops-viewer');\n    viewer.theme = 'light';\n    viewer.themeConfig = {\n        primary: '#3b82f6',\n        toolbarBg: '#1f2937',\n        panelBg: '#f3f4f6',\n        metadataPanelBg: '#ffffff',\n        content: '#1f2937',\n        radiusBox: '0.75rem',\n        border: '2px',\n    };\n</script>"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Assign a new "
+								},
+								{
+									"type": "text",
+									"text": "themeConfig",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " object when updating from JavaScript. Mutating a nested property on the existing object does not notify the custom element."
+								}
+							],
+							"attrs": {
+								"id": "86d6ba6e-f4f0-40cb-b5ab-9467aa7158c7"
+							}
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "React",
+						"id": "90a21919-7939-471c-9299-b143a0c8271d"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "tsx",
+								"id": "9eda8c90-4961-4706-b8c5-8c4d988ffb17"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import { TriiiceratopsViewer } from 'triiiceratops/react';\nimport type { ThemeConfig } from 'triiiceratops';\n\n// Defined outside the component (or memoized) so the wrapper's shallow\n// equality check sees a stable value and never re-applies it.\nconst customTheme: ThemeConfig = {\n    primary: '#0ea5e9',\n    panelBg: '#0f172a',\n    radiusBox: '1rem',\n};\n\nexport function Reader() {\n    return (\n        <TriiiceratopsViewer\n            manifestId=\"...\"\n            theme=\"light\"\n            themeConfig={customTheme}\n        />\n    );\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Vue",
+						"id": "81e7085b-a2d8-464d-998e-dc35e8553365"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "vue",
+								"id": "be6bc293-aecc-49de-a790-cc289fe36bcd"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script setup lang=\"ts\">\nimport { shallowRef } from 'vue';\nimport { TriiiceratopsViewer } from 'triiiceratops/vue';\nimport type { ThemeConfig } from 'triiiceratops';\n\nconst customTheme = shallowRef<ThemeConfig>({\n    primary: '#0ea5e9',\n    panelBg: '#0f172a',\n    radiusBox: '1rem',\n});\n</script>\n\n<template>\n    <TriiiceratopsViewer\n        manifest-id=\"...\"\n        theme=\"light\"\n        :theme-config=\"customTheme\"\n    />\n</template>"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Svelte",
+						"id": "144d94dd-d79c-4a3c-8b33-74a0a8186052"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "19e8f053-26b3-4caa-b5dd-ef8ba9a7e563"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script lang=\"ts\">\n    import { TriiiceratopsViewer } from 'triiiceratops/svelte';\n    import 'triiiceratops/style.css';\n    import type { ThemeConfig } from 'triiiceratops';\n\n    const customTheme: ThemeConfig = {\n        primary: '#0ea5e9',\n        panelBg: '#0f172a',\n        radiusBox: '1rem',\n    };\n</script>\n\n<TriiiceratopsViewer manifestId=\"...\" theme=\"light\" themeConfig={customTheme} />"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 4,
+				"slug": "raw-css-variables",
+				"id": "b3886872-a5e3-45d0-8f2c-09958957971c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Raw CSS variables"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "For tokens without a typed key — "
+				},
+				{
+					"type": "text",
+					"text": "--tri-color-primary-text",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", or a custom property a plugin reads — use the "
+				},
+				{
+					"type": "text",
+					"text": "cssVars",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " escape hatch. Keys are CSS variable names "
+				},
+				{
+					"type": "text",
+					"text": "without",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " the leading "
+				},
+				{
+					"type": "text",
+					"text": "--",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and values are applied verbatim (no color normalization), so a name nothing reads simply has no effect:"
+				}
+			],
+			"attrs": {
+				"id": "bbe94b1a-776c-41fb-bfd9-a9daff60a36b"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "js",
+				"id": "cbb07971-8df5-4f04-a2ba-6cb10af9dcc3"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "viewer.themeConfig = {\n    panelBg: 'oklch(20% 0.02 277)',\n    cssVars: {\n        'tri-color-primary-text': '#c7d2fe',\n        'my-plugin-accent': '#0b1020',\n    },\n};"
+				}
+			]
+		},
+		{
+			"type": "horizontalRule",
+			"attrs": {
+				"id": "114301ea-e4ce-4ba0-922f-5a7c607d443e"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "3-styling-with-css-variables",
+				"id": "1b8878bf-0111-4ec5-b1ba-8ed8da42a219"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "3. Styling with CSS Variables"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Because the tokens are plain custom properties that inherit through the shadow boundary, you can theme the viewer from your own CSS by targeting the host element. This is equivalent to "
+				},
+				{
+					"type": "text",
+					"text": "themeConfig",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " only when no explicit "
+				},
+				{
+					"type": "text",
+					"text": "theme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is set; if a built-in "
+				},
+				{
+					"type": "text",
+					"text": "theme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is selected, the theme's token values win over host CSS variables."
+				}
+			],
+			"attrs": {
+				"id": "776a7483-da0c-402b-9463-a5ba38310ad3"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "css",
+				"id": "f31c53d2-8cc8-47fc-8183-00226b21248e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "triiiceratops-viewer {\n    --tri-color-primary: oklch(65% 0.25 260);\n    --tri-panel-bg: #1e1e2e;\n    --tri-metadata-panel-bg: #181825; /* override one panel */\n    --tri-radius-box: 0;\n    --tri-radius-controls: 9999px; /* keep the controls pill rounded */\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A selected built-in "
+				},
+				{
+					"type": "text",
+					"text": "theme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " wins over CSS variables you set this way; "
+				},
+				{
+					"type": "text",
+					"text": "themeConfig",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (inline styles) wins over everything. In Svelte/light-DOM usage, you can also switch among built-in themes by setting "
+				},
+				{
+					"type": "text",
+					"text": "data-theme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " on an ancestor when you leave the viewer's "
+				},
+				{
+					"type": "text",
+					"text": "theme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " prop unset:"
+				}
+			],
+			"attrs": {
+				"id": "514ffc44-ec5d-4231-8103-02a157ac17d1"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "44b5764a-9eb1-418e-81d2-28471e641d05"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<div data-theme=\"dracula\">\n    <TriiiceratopsViewer manifestId=\"...\" />\n</div>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "For the web component, prefer the "
+				},
+				{
+					"type": "text",
+					"text": "theme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " attribute/property for built-in themes:"
+				}
+			],
+			"attrs": {
+				"id": "337c0a4d-3354-40f1-8736-1cb3fab99f5c"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "65487151-8c37-46d5-812f-c6411d067b24"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer manifest-id=\"...\" theme=\"dracula\"></triiiceratops-viewer>"
+				}
+			]
+		}
+	],
+	"meta": {
+		"title": "Theming and Styling",
+		"shortTitle": "Theming",
+		"intro": "Style Triiiceratops with vanilla-CSS design tokens: three approaches, from swapping a built-in theme to overriding individual tokens."
+	}
+}

@@ -115,6 +115,7 @@ function getQueryAccessors(instance: object): Set<string> {
 const DERIVED_READS = new Set([
     // Projections of the manifest cache and the current canvas index.
     'annotatableCanvasIds',
+    'availableLocales',
     'canvases',
     'currentCanvasIndex',
     'hasCollection',

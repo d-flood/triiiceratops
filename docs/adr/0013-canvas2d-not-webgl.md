@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # The deep-zoom renderer is Canvas2D only — no WebGL, no backend selection, no fallback
 
 The renderer draws through a single `CanvasRenderingContext2D`, with the backing store

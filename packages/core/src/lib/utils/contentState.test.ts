@@ -147,6 +147,35 @@ describe('contentState', () => {
         });
     });
 
+    it('resolves recipe 0485’s published iiif-content value, verbatim', () => {
+        const { input } = fixture('0485-published');
+
+        expect(parseContentState(input)).toEqual({
+            manifestId:
+                'https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json',
+            canvasId:
+                'https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p2',
+            region: { x: 1528, y: 3024, width: 344, height: 408 },
+        });
+    });
+
+    it('leaves a percent sign inside a JSON string value alone', () => {
+        const payload = {
+            id: 'https://example.org/annotation/50%25',
+            type: 'Annotation',
+            target: 'https://example.org/canvas/1',
+            partOf: { id: 'https://example.org/manifest/50%25' },
+        };
+        const value = Buffer.from(JSON.stringify(payload), 'utf8').toString(
+            'base64url',
+        );
+
+        expect(parseContentState(value)).toEqual({
+            manifestId: 'https://example.org/manifest/50%25',
+            canvasId: 'https://example.org/canvas/1',
+        });
+    });
+
     it.each([
         ['an empty value', ''],
         ['whitespace', '   '],

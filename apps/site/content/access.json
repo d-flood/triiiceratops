@@ -1,0 +1,149 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "heading",
+			"attrs": {
+				"id": "5c6151a6-4b3a-5705-a89e-706931f13bf2",
+				"slug": "placeholder-section",
+				"level": 2
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder section"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "e14fb7d7-7f93-5dfc-b5dd-7f86f5ee175f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder paragraph. This block exists so the page's measure, rhythm and rule weights can be judged at the width a reader will see them, and so the route is a real document rather than an empty one."
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "dac69338-4e36-50f8-b8ae-cfe1503a7d54"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder paragraph. A second paragraph, because a single one does not show how the spacing between them reads."
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"id": "09680da2-bf26-59f9-b69b-22728ababcc5",
+				"slug": "a-second-placeholder-section",
+				"level": 2
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "A second placeholder section"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "6469772c-8618-5a5c-a10f-416ec89d37f5"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder paragraph. Ideas on this site sit on ruled rows and lists rather than in cards, so the list below stands in for whatever the finished page arranges here."
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"attrs": {
+				"id": "6403035e-48a6-58c9-b38a-e5b97cfd2f7b"
+			},
+			"content": [
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "1b294331-fc2f-5800-a6ac-ffb74337291a"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "c50aa930-be8e-50ac-b6d4-0be57209c0b3"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Placeholder item."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "dd6013bd-7a20-5dd9-a07a-d27ee1925038"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "fa8adef8-f603-5e5a-8257-4679d91c1325"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Placeholder item."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "be6bc567-26d1-570f-be1c-2ab34d9bead2"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "f027e535-5d75-5152-9e53-0b5224f81609"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Placeholder item."
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "7ad66478-bf69-514d-ba4e-7d6b3591c3f1"
+			}
+		}
+	],
+	"meta": {
+		"title": "Accessibility and standards",
+		"shortTitle": "Accessibility and standards",
+		"intro": "Which standards the viewer holds itself to, how that is enforced rather than asserted, and where the gates live."
+	}
+}

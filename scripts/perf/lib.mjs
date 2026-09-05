@@ -798,6 +798,14 @@ export async function addWorktree(dir, ref) {
         cwd: REPO_ROOT,
         timeout: 120_000,
     });
+    // `git worktree add` leaves submodule directories empty, and the Uncial
+    // submodule is a workspace member, so `pnpm install` in the worktree cannot
+    // resolve `uncial@workspace:*` without this. A no-op at a ref from before
+    // the submodule existed, which is what a base ref may well be.
+    await run('git', ['submodule', 'update', '--init', '--recursive'], {
+        cwd: dir,
+        timeout: 300_000,
+    });
 }
 
 export async function removeWorktree(dir) {

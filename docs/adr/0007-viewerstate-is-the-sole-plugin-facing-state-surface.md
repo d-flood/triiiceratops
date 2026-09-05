@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # `ViewerState` is the sole integration-facing state surface
 
 Plugins and framework wrappers receive one live object — the per-viewer `ViewerState` —

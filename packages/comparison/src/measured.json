@@ -1,0 +1,823 @@
+{
+    "measuredAt": "2026-08-21",
+    "compression": {
+        "gzipLevel": 9,
+        "brotliQuality": 11
+    },
+    "sessionManifests": {
+        "image": "https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json",
+        "audiovisual": "https://iiif.io/api/cookbook/recipe/0003-mvm-video/manifest.json"
+    },
+    "viewers": [
+        {
+            "id": "triiiceratops",
+            "name": "Triiiceratops",
+            "version": "1.0.0-rc.36",
+            "isSelf": true,
+            "sessions": [
+                {
+                    "kind": "image",
+                    "raw": 387450,
+                    "gzip": 113888,
+                    "brotli": 95317,
+                    "files": [
+                        {
+                            "url": "packages/core/dist/triiiceratops-element.iife.js",
+                            "name": "triiiceratops-element.iife.js",
+                            "raw": 387450,
+                            "gzip": 113888,
+                            "brotli": 95317
+                        }
+                    ]
+                }
+            ],
+            "note": "The whole viewer in one file, with its CSS injected into the shadow root \u2014 the official plain-HTML embed."
+        },
+        {
+            "id": "triiiceratops-av",
+            "name": "Triiiceratops + plugin-av",
+            "version": "1.0.0-rc.36 + 1.0.0-rc.0",
+            "isSelf": true,
+            "sessions": [
+                {
+                    "kind": "image",
+                    "raw": 428311,
+                    "gzip": 129383,
+                    "brotli": 109132,
+                    "files": [
+                        {
+                            "url": "packages/core/dist/triiiceratops-element.iife.js",
+                            "name": "triiiceratops-element.iife.js",
+                            "raw": 387450,
+                            "gzip": 113888,
+                            "brotli": 95317
+                        },
+                        {
+                            "url": "packages/plugin-av/dist/iife.js",
+                            "name": "iife.js",
+                            "raw": 40861,
+                            "gzip": 15495,
+                            "brotli": 13815
+                        }
+                    ]
+                },
+                {
+                    "kind": "audiovisual",
+                    "raw": 428311,
+                    "gzip": 129383,
+                    "brotli": 109132,
+                    "files": [
+                        {
+                            "url": "packages/core/dist/triiiceratops-element.iife.js",
+                            "name": "triiiceratops-element.iife.js",
+                            "raw": 387450,
+                            "gzip": 113888,
+                            "brotli": 95317
+                        },
+                        {
+                            "url": "packages/plugin-av/dist/iife.js",
+                            "name": "iife.js",
+                            "raw": 40861,
+                            "gzip": 15495,
+                            "brotli": 13815
+                        }
+                    ]
+                }
+            ],
+            "lazyArtifacts": [
+                {
+                    "url": "packages/plugin-av/dist/av-hls.js",
+                    "name": "av-hls.js",
+                    "raw": 856596,
+                    "gzip": 223530,
+                    "brotli": 178449
+                },
+                {
+                    "url": "packages/plugin-av/dist/av-transcript.js",
+                    "name": "av-transcript.js",
+                    "raw": 9172,
+                    "gzip": 3216,
+                    "brotli": 2804
+                },
+                {
+                    "url": "packages/plugin-av/dist/av-waveform.js",
+                    "name": "av-waveform.js",
+                    "raw": 6569,
+                    "gzip": 2584,
+                    "brotli": 2292
+                },
+                {
+                    "url": "packages/plugin-av/dist/av-sequencer.js",
+                    "name": "av-sequencer.js",
+                    "raw": 5506,
+                    "gzip": 2094,
+                    "brotli": 1869
+                }
+            ],
+            "note": "The same element file plus the audiovisual plugin. This is the like-for-like row against the viewers below that play time-based media."
+        },
+        {
+            "id": "tify",
+            "name": "TIFY",
+            "version": "0.35.0",
+            "isSelf": false,
+            "sessions": [
+                {
+                    "kind": "image",
+                    "raw": 541485,
+                    "gzip": 141467,
+                    "brotli": 119874,
+                    "files": [
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/tify@0.35.0/dist/tify.css",
+                            "name": "tify.css",
+                            "raw": 61381,
+                            "gzip": 7008,
+                            "brotli": 6173
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/tify@0.35.0/dist/tify.js",
+                            "name": "tify.js",
+                            "raw": 480104,
+                            "gzip": 134459,
+                            "brotli": 113701
+                        }
+                    ]
+                },
+                {
+                    "kind": "audiovisual",
+                    "raw": 541485,
+                    "gzip": 141467,
+                    "brotli": 119874,
+                    "files": [
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/tify@0.35.0/dist/tify.css",
+                            "name": "tify.css",
+                            "raw": 61381,
+                            "gzip": 7008,
+                            "brotli": 6173
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/tify@0.35.0/dist/tify.js",
+                            "name": "tify.js",
+                            "raw": 480104,
+                            "gzip": 134459,
+                            "brotli": 113701
+                        }
+                    ]
+                }
+            ],
+            "note": "The CDN embed its README documents: one script and one stylesheet."
+        },
+        {
+            "id": "diva",
+            "name": "Diva.js",
+            "version": "7.4.0",
+            "isSelf": false,
+            "sessions": [
+                {
+                    "kind": "image",
+                    "raw": 643863,
+                    "gzip": 173784,
+                    "brotli": 144601,
+                    "files": [
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/openseadragon@6.0.2/build/openseadragon/openseadragon.min.js",
+                            "name": "openseadragon.min.js",
+                            "raw": 345310,
+                            "gzip": 85265,
+                            "brotli": 71095
+                        },
+                        {
+                            "url": "https://unpkg.com/diva.js@7.4.0/build/diva.js",
+                            "name": "diva.js",
+                            "raw": 298553,
+                            "gzip": 88519,
+                            "brotli": 73506
+                        }
+                    ]
+                }
+            ],
+            "note": "Diva.js plus the OpenSeadragon its README tells a page to load first. All its CSS and image assets are bundled into the library."
+        },
+        {
+            "id": "canvas-panel",
+            "name": "Canvas Panel",
+            "version": "1.0.74",
+            "isSelf": false,
+            "sessions": [
+                {
+                    "kind": "image",
+                    "raw": 604070,
+                    "gzip": 180757,
+                    "brotli": 140948,
+                    "files": [
+                        {
+                            "url": "https://unpkg.com/@digirati/canvas-panel-web-components@1.0.74/dist/bundle.css",
+                            "name": "bundle.css",
+                            "raw": 3427,
+                            "gzip": 953,
+                            "brotli": 804
+                        },
+                        {
+                            "url": "https://unpkg.com/@digirati/canvas-panel-web-components@1.0.74/dist/bundle.js",
+                            "name": "bundle.js",
+                            "raw": 600643,
+                            "gzip": 179804,
+                            "brotli": 140144
+                        }
+                    ]
+                },
+                {
+                    "kind": "audiovisual",
+                    "raw": 604070,
+                    "gzip": 180757,
+                    "brotli": 140948,
+                    "files": [
+                        {
+                            "url": "https://unpkg.com/@digirati/canvas-panel-web-components@1.0.74/dist/bundle.css",
+                            "name": "bundle.css",
+                            "raw": 3427,
+                            "gzip": 953,
+                            "brotli": 804
+                        },
+                        {
+                            "url": "https://unpkg.com/@digirati/canvas-panel-web-components@1.0.74/dist/bundle.js",
+                            "name": "bundle.js",
+                            "raw": 600643,
+                            "gzip": 179804,
+                            "brotli": 140144
+                        }
+                    ]
+                }
+            ],
+            "note": "The web-component bundle and its stylesheet."
+        },
+        {
+            "id": "mango",
+            "name": "Mango",
+            "version": "0.4.2",
+            "isSelf": false,
+            "sessions": [
+                {
+                    "kind": "image",
+                    "raw": 1717644,
+                    "gzip": 413541,
+                    "brotli": 336305,
+                    "files": [
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/Icon-Cvpo4WK3.js",
+                            "name": "Icon-Cvpo4WK3.js",
+                            "raw": 1833,
+                            "gzip": 977,
+                            "brotli": 859
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/ImageRenderer-CgawZbSj.js",
+                            "name": "ImageRenderer-CgawZbSj.js",
+                            "raw": 27518,
+                            "gzip": 8098,
+                            "brotli": 7061
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/PanelCloseButton-D7-jQK2k.js",
+                            "name": "PanelCloseButton-D7-jQK2k.js",
+                            "raw": 2276,
+                            "gzip": 1187,
+                            "brotli": 1035
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/annotationResolver-CWDG2HN2.js",
+                            "name": "annotationResolver-CWDG2HN2.js",
+                            "raw": 2967,
+                            "gzip": 1101,
+                            "brotli": 973
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/canonical-BMXBiIH5.js",
+                            "name": "canonical-BMXBiIH5.js",
+                            "raw": 78336,
+                            "gzip": 21568,
+                            "brotli": 18754
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/chapterTransitionOrchestrator-wIpbH9_G.js",
+                            "name": "chapterTransitionOrchestrator-wIpbH9_G.js",
+                            "raw": 208055,
+                            "gzip": 47623,
+                            "brotli": 40699
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/chunk-CIAQZ2EB-DqSS9hwI.js",
+                            "name": "chunk-CIAQZ2EB-DqSS9hwI.js",
+                            "raw": 33542,
+                            "gzip": 10290,
+                            "brotli": 9123
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/client-Cm8_y0us.js",
+                            "name": "client-Cm8_y0us.js",
+                            "raw": 83490,
+                            "gzip": 25147,
+                            "brotli": 22384
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/diagnostics-BfIxNtb_.js",
+                            "name": "diagnostics-BfIxNtb_.js",
+                            "raw": 1929,
+                            "gzip": 864,
+                            "brotli": 748
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/i18n-_7zXmz2A.js",
+                            "name": "i18n-_7zXmz2A.js",
+                            "raw": 218420,
+                            "gzip": 64428,
+                            "brotli": 45674
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/languages-lftQejiG.js",
+                            "name": "languages-lftQejiG.js",
+                            "raw": 912,
+                            "gzip": 557,
+                            "brotli": 490
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/mango-viewer-element.js",
+                            "name": "mango-viewer-element.js",
+                            "raw": 626362,
+                            "gzip": 135344,
+                            "brotli": 110100
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/openseadragon-CcFUb5Ax.js",
+                            "name": "openseadragon-CcFUb5Ax.js",
+                            "raw": 428744,
+                            "gzip": 94601,
+                            "brotli": 76818
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/rectangleLabelLayout-DXE16e7J.js",
+                            "name": "rectangleLabelLayout-DXE16e7J.js",
+                            "raw": 1866,
+                            "gzip": 903,
+                            "brotli": 802
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/rolldown-runtime-B0aSnxlc.js",
+                            "name": "rolldown-runtime-B0aSnxlc.js",
+                            "raw": 951,
+                            "gzip": 528,
+                            "brotli": 476
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/x-CW6F0VwH.js",
+                            "name": "x-CW6F0VwH.js",
+                            "raw": 443,
+                            "gzip": 325,
+                            "brotli": 309
+                        }
+                    ]
+                },
+                {
+                    "kind": "audiovisual",
+                    "raw": 1494951,
+                    "gzip": 364582,
+                    "brotli": 296585,
+                    "files": [
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/AVRenderer-D53voMUH.js",
+                            "name": "AVRenderer-D53voMUH.js",
+                            "raw": 25552,
+                            "gzip": 8084,
+                            "brotli": 7131
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/Icon-Cvpo4WK3.js",
+                            "name": "Icon-Cvpo4WK3.js",
+                            "raw": 1833,
+                            "gzip": 977,
+                            "brotli": 859
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/PanelCloseButton-D7-jQK2k.js",
+                            "name": "PanelCloseButton-D7-jQK2k.js",
+                            "raw": 2276,
+                            "gzip": 1187,
+                            "brotli": 1035
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/annotationResolver-CWDG2HN2.js",
+                            "name": "annotationResolver-CWDG2HN2.js",
+                            "raw": 2967,
+                            "gzip": 1101,
+                            "brotli": 973
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/canonical-BMXBiIH5.js",
+                            "name": "canonical-BMXBiIH5.js",
+                            "raw": 78336,
+                            "gzip": 21568,
+                            "brotli": 18754
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/chapterTransitionOrchestrator-wIpbH9_G.js",
+                            "name": "chapterTransitionOrchestrator-wIpbH9_G.js",
+                            "raw": 208055,
+                            "gzip": 47623,
+                            "brotli": 40699
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/chunk-CIAQZ2EB-DqSS9hwI.js",
+                            "name": "chunk-CIAQZ2EB-DqSS9hwI.js",
+                            "raw": 33542,
+                            "gzip": 10290,
+                            "brotli": 9123
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/client-Cm8_y0us.js",
+                            "name": "client-Cm8_y0us.js",
+                            "raw": 83490,
+                            "gzip": 25147,
+                            "brotli": 22384
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/diagnostics-BfIxNtb_.js",
+                            "name": "diagnostics-BfIxNtb_.js",
+                            "raw": 1929,
+                            "gzip": 864,
+                            "brotli": 748
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/dist-WuoOL2vb.js",
+                            "name": "dist-WuoOL2vb.js",
+                            "raw": 204528,
+                            "gzip": 44523,
+                            "brotli": 36097
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/i18n-BAnagCyi.js",
+                            "name": "i18n-BAnagCyi.js",
+                            "raw": 3489,
+                            "gzip": 1133,
+                            "brotli": 931
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/i18n-_7zXmz2A.js",
+                            "name": "i18n-_7zXmz2A.js",
+                            "raw": 218420,
+                            "gzip": 64428,
+                            "brotli": 45674
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/languages-lftQejiG.js",
+                            "name": "languages-lftQejiG.js",
+                            "raw": 912,
+                            "gzip": 557,
+                            "brotli": 490
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/mango-viewer-element.js",
+                            "name": "mango-viewer-element.js",
+                            "raw": 626362,
+                            "gzip": 135344,
+                            "brotli": 110100
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/rectangleLabelLayout-DXE16e7J.js",
+                            "name": "rectangleLabelLayout-DXE16e7J.js",
+                            "raw": 1866,
+                            "gzip": 903,
+                            "brotli": 802
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/rolldown-runtime-B0aSnxlc.js",
+                            "name": "rolldown-runtime-B0aSnxlc.js",
+                            "raw": 951,
+                            "gzip": 528,
+                            "brotli": 476
+                        },
+                        {
+                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/x-CW6F0VwH.js",
+                            "name": "x-CW6F0VwH.js",
+                            "raw": 443,
+                            "gzip": 325,
+                            "brotli": 309
+                        }
+                    ]
+                }
+            ],
+            "note": "The element module its README's standalone embed resolves to, plus every chunk the session fetched. It injects its styles from JavaScript, so there is no stylesheet. The version-pinned bare package URL is served as a file rather than redirected, which leaves the module's own relative chunk imports unresolvable, so the embed names the resolved path."
+        },
+        {
+            "id": "universal-viewer",
+            "name": "Universal Viewer",
+            "version": "4.4.2",
+            "isSelf": false,
+            "sessions": [
+                {
+                    "kind": "image",
+                    "raw": 1803998,
+                    "gzip": 502284,
+                    "brotli": 347749,
+                    "files": [
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/132.3ef33a42897845911a4a.js",
+                            "name": "132.3ef33a42897845911a4a.js",
+                            "raw": 46649,
+                            "gzip": 17748,
+                            "brotli": 15690
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/3708.1b4cda0f9774d95bfbb9.js",
+                            "name": "3708.1b4cda0f9774d95bfbb9.js",
+                            "raw": 5952,
+                            "gzip": 2376,
+                            "brotli": 1983
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/3885.8609aa33f6bb354ebcec.js",
+                            "name": "3885.8609aa33f6bb354ebcec.js",
+                            "raw": 199050,
+                            "gzip": 62677,
+                            "brotli": 53578
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/560.3d50ebd90220503763a4.js",
+                            "name": "560.3d50ebd90220503763a4.js",
+                            "raw": 345716,
+                            "gzip": 85686,
+                            "brotli": 71299
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/561.b4bc0392dd5030a85245.js",
+                            "name": "561.b4bc0392dd5030a85245.js",
+                            "raw": 194335,
+                            "gzip": 59908,
+                            "brotli": 50176
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/6104.fbb963cb65ce34e6f0b6.js",
+                            "name": "6104.fbb963cb65ce34e6f0b6.js",
+                            "raw": 39822,
+                            "gzip": 9858,
+                            "brotli": 8710
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/6520.8ac5d910823add256c55.js",
+                            "name": "6520.8ac5d910823add256c55.js",
+                            "raw": 688640,
+                            "gzip": 181851,
+                            "brotli": 75958
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/8444.b0d2fdb9c3e9e3440259.js",
+                            "name": "8444.b0d2fdb9c3e9e3440259.js",
+                            "raw": 113495,
+                            "gzip": 25823,
+                            "brotli": 21688
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/UV.js",
+                            "name": "UV.js",
+                            "raw": 170129,
+                            "gzip": 56213,
+                            "brotli": 48570
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/uv.css",
+                            "name": "uv.css",
+                            "raw": 210,
+                            "gzip": 144,
+                            "brotli": 97
+                        }
+                    ]
+                },
+                {
+                    "kind": "audiovisual",
+                    "raw": 2705783,
+                    "gzip": 800413,
+                    "brotli": 583670,
+                    "files": [
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/132.3ef33a42897845911a4a.js",
+                            "name": "132.3ef33a42897845911a4a.js",
+                            "raw": 46649,
+                            "gzip": 17748,
+                            "brotli": 15690
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/3708.1b4cda0f9774d95bfbb9.js",
+                            "name": "3708.1b4cda0f9774d95bfbb9.js",
+                            "raw": 5952,
+                            "gzip": 2376,
+                            "brotli": 1983
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/3885.8609aa33f6bb354ebcec.js",
+                            "name": "3885.8609aa33f6bb354ebcec.js",
+                            "raw": 199050,
+                            "gzip": 62677,
+                            "brotli": 53578
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/3989.5671062f0e729189a186.js",
+                            "name": "3989.5671062f0e729189a186.js",
+                            "raw": 973754,
+                            "gzip": 280480,
+                            "brotli": 235778
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/5560.313850c17e9909186a50.js",
+                            "name": "5560.313850c17e9909186a50.js",
+                            "raw": 371719,
+                            "gzip": 111209,
+                            "brotli": 51410
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/561.b4bc0392dd5030a85245.js",
+                            "name": "561.b4bc0392dd5030a85245.js",
+                            "raw": 194335,
+                            "gzip": 59908,
+                            "brotli": 50176
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/6104.fbb963cb65ce34e6f0b6.js",
+                            "name": "6104.fbb963cb65ce34e6f0b6.js",
+                            "raw": 39822,
+                            "gzip": 9858,
+                            "brotli": 8710
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/8341.3409f6c4d3712b4a1d81.js",
+                            "name": "8341.3409f6c4d3712b4a1d81.js",
+                            "raw": 410172,
+                            "gzip": 128351,
+                            "brotli": 57429
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/8444.b0d2fdb9c3e9e3440259.js",
+                            "name": "8444.b0d2fdb9c3e9e3440259.js",
+                            "raw": 113495,
+                            "gzip": 25823,
+                            "brotli": 21688
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/906.7bc8ae67f658fad31f3e.js",
+                            "name": "906.7bc8ae67f658fad31f3e.js",
+                            "raw": 180496,
+                            "gzip": 45626,
+                            "brotli": 38561
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/umd/UV.js",
+                            "name": "UV.js",
+                            "raw": 170129,
+                            "gzip": 56213,
+                            "brotli": 48570
+                        },
+                        {
+                            "url": "https://unpkg.com/universalviewer@4.4.2/dist/uv.css",
+                            "name": "uv.css",
+                            "raw": 210,
+                            "gzip": 144,
+                            "brotli": 97
+                        }
+                    ]
+                }
+            ],
+            "note": "The UMD build and its stylesheet, plus every chunk the session fetched."
+        },
+        {
+            "id": "clover",
+            "name": "Clover IIIF",
+            "version": "3.12.0",
+            "isSelf": false,
+            "sessions": [
+                {
+                    "kind": "image",
+                    "raw": 2129446,
+                    "gzip": 623761,
+                    "brotli": 517691,
+                    "files": [
+                        {
+                            "url": "https://unpkg.com/@samvera/clover-iiif@3.12.0/dist/web-components/index.umd.js",
+                            "name": "index.umd.js",
+                            "raw": 2129446,
+                            "gzip": 623761,
+                            "brotli": 517691
+                        }
+                    ]
+                },
+                {
+                    "kind": "audiovisual",
+                    "raw": 2129446,
+                    "gzip": 623761,
+                    "brotli": 517691,
+                    "files": [
+                        {
+                            "url": "https://unpkg.com/@samvera/clover-iiif@3.12.0/dist/web-components/index.umd.js",
+                            "name": "index.umd.js",
+                            "raw": 2129446,
+                            "gzip": 623761,
+                            "brotli": 517691
+                        }
+                    ]
+                }
+            ],
+            "note": "The web-components UMD build. Its documented script tag loads no stylesheet."
+        },
+        {
+            "id": "mirador",
+            "name": "Mirador",
+            "version": "4.1.0",
+            "isSelf": false,
+            "sessions": [
+                {
+                    "kind": "image",
+                    "raw": 2430874,
+                    "gzip": 713937,
+                    "brotli": 558083,
+                    "files": [
+                        {
+                            "url": "https://unpkg.com/mirador@4.1.0/dist/mirador.min.js",
+                            "name": "mirador.min.js",
+                            "raw": 2430874,
+                            "gzip": 713937,
+                            "brotli": 558083
+                        }
+                    ]
+                },
+                {
+                    "kind": "audiovisual",
+                    "raw": 2430874,
+                    "gzip": 713937,
+                    "brotli": 558083,
+                    "files": [
+                        {
+                            "url": "https://unpkg.com/mirador@4.1.0/dist/mirador.min.js",
+                            "name": "mirador.min.js",
+                            "raw": 2430874,
+                            "gzip": 713937,
+                            "brotli": 558083
+                        }
+                    ]
+                }
+            ],
+            "note": "The self-contained UMD build its README documents. Its ESM build looks smaller only because it externalises React and MUI."
+        },
+        {
+            "id": "glycerine",
+            "name": "Glycerine Viewer",
+            "version": "2.1.0",
+            "isSelf": false,
+            "sessions": [
+                {
+                    "kind": "image",
+                    "raw": 2937265,
+                    "gzip": 756475,
+                    "brotli": 610070,
+                    "files": [
+                        {
+                            "url": "https://unpkg.com/glycerine-viewer@2.1.0/jslib/glycerine-viewer.umd.cjs",
+                            "name": "glycerine-viewer.umd.cjs",
+                            "raw": 2380299,
+                            "gzip": 695156,
+                            "brotli": 569594
+                        },
+                        {
+                            "url": "https://unpkg.com/glycerine-viewer@2.1.0/jslib/style.css",
+                            "name": "style.css",
+                            "raw": 556966,
+                            "gzip": 61319,
+                            "brotli": 40476
+                        }
+                    ]
+                },
+                {
+                    "kind": "audiovisual",
+                    "raw": 2937265,
+                    "gzip": 756475,
+                    "brotli": 610070,
+                    "files": [
+                        {
+                            "url": "https://unpkg.com/glycerine-viewer@2.1.0/jslib/glycerine-viewer.umd.cjs",
+                            "name": "glycerine-viewer.umd.cjs",
+                            "raw": 2380299,
+                            "gzip": 695156,
+                            "brotli": 569594
+                        },
+                        {
+                            "url": "https://unpkg.com/glycerine-viewer@2.1.0/jslib/style.css",
+                            "name": "style.css",
+                            "raw": 556966,
+                            "gzip": 61319,
+                            "brotli": 40476
+                        }
+                    ]
+                }
+            ],
+            "note": "The `jslib/` widget its README documents for a script tag, packed with Vue and PrimeVue. Its `dist/` build externalises them and is not what a page loads."
+        }
+    ]
+}

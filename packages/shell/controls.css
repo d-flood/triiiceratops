@@ -1,0 +1,266 @@
+/*
+ * The shell's form controls: text fields, selects, buttons, segmented groups,
+ * checkboxes and ranges, drawn in the tokens `tokens.css` declares.
+ *
+ * An application surface needs controls; the marketing site's pages, which are
+ * prose, mostly do not. This is the layer that lets the playground be an
+ * application without inventing a second visual language for it — every value
+ * here is a token, so the light/dark toggle carries the controls with it and
+ * nothing is measured twice.
+ *
+ * Classes are prefixed `sh-` so that a surface can tell shell chrome from its
+ * own layout at a glance, and so that nothing here can collide with the
+ * viewer's `tri-` namespace on a page that hosts both.
+ *
+ * Every control is 32px tall, which is the rail toggle's size on the site and
+ * what makes a row of mixed controls line up. `--sh-control-h` is the one place
+ * to change it.
+ */
+
+:where(:root, [data-theme]) {
+    --sh-control-h: 32px;
+    /* The shell's corner. Nearly square: the site's own embeds set the viewer's
+       radius trio to 2px for the same reason. */
+    --sh-radius: 2px;
+}
+
+/* ---- Text fields and selects ----------------------------------------
+   One skin, two elements. A select is a field that happens to open a list, so
+   it takes the field's border, ground and height and adds room for a caret.
+   -------------------------------------------------------------------- */
+.sh-field,
+.sh-select {
+    height: var(--sh-control-h);
+    min-width: 0;
+    padding: 0 var(--s3);
+    font: 400 var(--t-small) / 1 var(--face);
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--sh-radius);
+    transition: border-color 0.15s;
+}
+.sh-field::placeholder {
+    color: var(--ink-2);
+    font-style: italic;
+}
+.sh-field:hover:not(:disabled),
+.sh-select:hover:not(:disabled) {
+    border-color: var(--ink-2);
+}
+.sh-field:disabled,
+.sh-select:disabled {
+    color: var(--ink-2);
+    background: var(--bench);
+    cursor: not-allowed;
+}
+
+/* The caret is drawn here because `appearance: none` removes the platform's,
+   and two gradient triangles cost no data URI to percent-encode. */
+.sh-select {
+    appearance: none;
+    padding-inline-end: calc(var(--s5) - 2px);
+    cursor: pointer;
+    text-overflow: ellipsis;
+    background-image:
+        linear-gradient(45deg, #0000 50%, currentColor 50%),
+        linear-gradient(135deg, currentColor 50%, #0000 50%);
+    background-repeat: no-repeat;
+    background-position:
+        calc(100% - 15px) calc(50% + 1px),
+        calc(100% - 11px) calc(50% + 1px);
+    background-size:
+        4px 4px,
+        4px 4px;
+}
+/* The popup belongs to the platform and cannot be styled, but engines that do
+   paint option colours read them from here. Without this a dark scheme renders
+   pale ink on the platform's light default. */
+.sh-select option {
+    background: var(--paper);
+    color: var(--ink);
+}
+
+/* ---- Buttons ---------------------------------------------------------
+   Three weights, one shape. `.sh-btn` is the quiet default; `--cta` is the one
+   filled colour field, which carries its own ground and so keeps its values in
+   both schemes; `--quiet` is chrome that should disappear until pointed at.
+   -------------------------------------------------------------------- */
+.sh-btn {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s2);
+    height: var(--sh-control-h);
+    padding: 0 var(--s4);
+    font: 600 var(--t-small) / 1 var(--face);
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--sh-radius);
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+        background-color 0.15s,
+        border-color 0.15s,
+        color 0.15s;
+}
+.sh-btn:hover:not(:disabled) {
+    background: var(--bench);
+    border-color: var(--ink-2);
+}
+.sh-btn:disabled {
+    color: var(--ink-2);
+    background: var(--bench);
+    cursor: not-allowed;
+}
+
+.sh-btn--cta {
+    color: var(--cta-ink);
+    background: var(--cta);
+    border-color: var(--cta);
+}
+.sh-btn--cta:hover:not(:disabled) {
+    color: var(--cta-ink);
+    background: color-mix(in srgb, var(--cta) 88%, #000);
+    border-color: color-mix(in srgb, var(--cta) 88%, #000);
+}
+
+.sh-btn--quiet {
+    color: var(--ink-2);
+    background: none;
+    border-color: transparent;
+}
+.sh-btn--quiet:hover:not(:disabled) {
+    color: var(--ink);
+    background: var(--paper);
+    border-color: var(--rule-2);
+}
+
+/* A square button carrying a glyph and nothing else. */
+.sh-btn--icon {
+    width: var(--sh-control-h);
+    padding: 0;
+}
+
+/* ---- Segmented group -------------------------------------------------
+   A run of controls sharing their borders, so the group reads as one object
+   rather than as buttons that happen to be adjacent. The shared edge is one
+   pixel, not two: each item after the first pulls itself onto its neighbour's
+   border, and only the outer corners of the run are rounded.
+
+   The selected item is a change of ground and of weight, per the house rule —
+   no accent bar. `isolation` lifts it so its own border draws over the pulled
+   margins on both sides.
+   -------------------------------------------------------------------- */
+.sh-group {
+    display: inline-flex;
+    align-items: stretch;
+    min-width: 0;
+}
+.sh-group > * {
+    /* A group member is often wrapped — in a tooltip span, say — and the wrapper
+       has to stretch, or the control inside it rides at the wrapper's baseline
+       and the shared border breaks. */
+    display: flex;
+    min-width: 0;
+}
+.sh-group .sh-btn,
+.sh-group .sh-select,
+.sh-group .sh-field {
+    border-radius: 0;
+}
+.sh-group > *:not(:first-child) :where(.sh-btn, .sh-select, .sh-field),
+.sh-group > :where(.sh-btn, .sh-select, .sh-field):not(:first-child) {
+    margin-inline-start: -1px;
+}
+.sh-group > :first-child :where(.sh-btn, .sh-select, .sh-field),
+.sh-group > :where(.sh-btn, .sh-select, .sh-field):first-child {
+    border-start-start-radius: var(--sh-radius);
+    border-end-start-radius: var(--sh-radius);
+}
+.sh-group > :last-child :where(.sh-btn, .sh-select, .sh-field),
+.sh-group > :where(.sh-btn, .sh-select, .sh-field):last-child {
+    border-start-end-radius: var(--sh-radius);
+    border-end-end-radius: var(--sh-radius);
+}
+
+/* A radio drawn as a group member: the label rides in `::after` from
+   `aria-label`, so the control keeps its own accessible name.
+
+   `--on` is the same selected look for a button that carries the state itself.
+   It is a class and not `[aria-pressed]` because a toggle whose two states are
+   equals — a light/dark switch — is pressed half the time and must not read as
+   selected chrome. */
+.sh-segment {
+    appearance: none;
+    margin: 0;
+}
+.sh-segment::after {
+    content: attr(aria-label);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sh-segment:checked,
+.sh-btn--on {
+    isolation: isolate;
+    font-weight: 600;
+    color: var(--paper);
+    background: var(--ink);
+    border-color: var(--ink);
+}
+.sh-segment:checked:hover,
+.sh-btn--on:hover {
+    color: var(--paper);
+    background: var(--ink-soft);
+    border-color: var(--ink-soft);
+}
+
+/* ---- Checkbox and range ---------------------------------------------
+   Both keep the platform's behaviour and take only their colour from the
+   palette: `accent-color` is the whole of what a checkbox and a slider need to
+   stop looking like a stray from another site.
+   -------------------------------------------------------------------- */
+.sh-check,
+.sh-range {
+    accent-color: var(--cta);
+    cursor: pointer;
+}
+.sh-check {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    margin: 0;
+}
+.sh-range {
+    height: var(--sh-control-h);
+}
+
+/* ---- Focus -----------------------------------------------------------
+   One ring for every control, matching the site's. It is drawn above the
+   segmented group's pulled margins. */
+:where(
+    .sh-field,
+    .sh-select,
+    .sh-btn,
+    .sh-segment,
+    .sh-check,
+    .sh-range
+):focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+    isolation: isolate;
+}
+
+/* ---- Captions --------------------------------------------------------
+   The house rule forbids uppercase letter-spaced micro-labels; a caption or an
+   aside is italic instead. */
+.sh-caption {
+    font-style: italic;
+    font-size: var(--t-tiny);
+    color: var(--ink-2);
+}

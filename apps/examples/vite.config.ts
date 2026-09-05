@@ -11,12 +11,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // script copies them verbatim.
 //
 // Everything this app produces lands under its own `dist/`, laid out as the exact
-// subtree it owns inside a published documentation version directory
-// (`/docs/<ver>/`): `dist/examples/{svelte,web-component,plain-html}/` alongside
-// `dist/dist/`, the release bundles. The doubled `dist` is deliberate — the inner
-// name is the published URL path that the web-component and plain-HTML examples'
-// `../../dist/…` script tags resolve against, so renaming it breaks them. The
-// publish job copies this tree into the version directory verbatim.
+// subtree it occupies in the published site: `dist/examples/{svelte,web-component,
+// plain-html}/` alongside `dist/dist/`, the release bundles. The doubled `dist` is
+// deliberate — the inner name is the published URL path that the web-component and
+// plain-HTML examples' `../../dist/…` script tags resolve against, so renaming it
+// breaks them. `apps/site/scripts/place-examples.mjs` copies this tree into the
+// root of the site's build output verbatim.
 export default defineConfig({
     plugins: [svelte()],
     resolve: {

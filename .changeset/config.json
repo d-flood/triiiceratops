@@ -7,5 +7,11 @@
     "access": "public",
     "baseBranch": "main",
     "updateInternalDependencies": "patch",
-    "ignore": []
+    "ignore": [
+        "uncial",
+        "uncial-cms",
+        "uncial-cms-auth",
+        "uncial-docs",
+        "uncial-wagtail"
+    ]
 }

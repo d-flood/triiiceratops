@@ -1,9 +1,8 @@
 /**
  * The IIIF Cookbook recipe catalog: the single source for what Triiiceratops
- * supports, and the only place a support claim is recorded. Every recipe number
- * in `docs/bundle-size-comparison.md` is generated from here by
- * `scripts/docs-recipes.mjs`, whose `--check` gate fails the documentation build
- * when the two disagree.
+ * supports, and the only place a support claim is recorded. The marketing site's
+ * capability axis is computed from here at build time, so a support claim moves
+ * on this file and nowhere else.
  */
 
 /** The Cookbook's own categories, with its audiovisual recipes gathered into one group. */
@@ -17,7 +16,7 @@ export type RecipeGroup =
     | 'content-state'
     | 'audiovisual';
 
-export type RecipeSupport = 'supported' | 'partial' | 'unsupported';
+export type RecipeSupport = 'supported' | 'unsupported';
 
 export interface CookbookRecipe {
     /** Cookbook recipe id, e.g. `0489-multimedia-canvas`. Its numeric prefix is the recipe number. */
@@ -37,8 +36,10 @@ export interface CookbookRecipe {
      */
     group: RecipeGroup;
     /**
-     * `'partial'` is a distinct claim, not a weaker `'supported'`: a recipe that
-     * renders but whose own feature is not honoured.
+     * Binary by policy: a recipe whose own feature does not happen is
+     * `'unsupported'`, however much of its manifest still renders. There is no
+     * degraded middle claim, so a support figure counted from here never needs a
+     * footnote to be read correctly.
      */
     support: RecipeSupport;
     /** True for a recipe that needs `@triiiceratops/plugin-av` to reach its `support` level. */
@@ -49,7 +50,7 @@ export interface CookbookRecipe {
      * attributing our own `support` status to it; the two can legitimately differ.
      */
     matrixSupport: boolean;
-    /** Why the recipe is not fully supported. Required whenever `support` is not `'supported'`. */
+    /** Why the recipe is unsupported. Required whenever `support` is not `'supported'`. */
     reason?: string;
 }
 
@@ -272,10 +273,9 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0025-newspaper-article-index/manifest.json',
         group: 'structures',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
     {
         id: '0026-toc-opera',
@@ -578,10 +578,9 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0258-tagging-external-resource/manifest.json',
         group: 'annotations',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
     {
         id: '0261-non-rectangular-commenting',
@@ -683,10 +682,9 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0346-multilingual-annotation-body/manifest.json',
         group: 'annotations',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
     {
         id: '0377-image-in-annotation',
@@ -715,10 +713,9 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0466-link-for-loading-manifest/manifest.json',
         group: 'content-state',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
     {
         id: '0485-contentstate-canvas-region',
@@ -726,10 +723,9 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0485-contentstate-canvas-region/manifest.json',
         group: 'content-state',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
     {
         id: '0489-multimedia-canvas',
@@ -737,10 +733,10 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0489-multimedia-canvas/manifest.json',
         group: 'audiovisual',
-        support: 'partial',
+        support: 'unsupported',
         requiresPluginAv: true,
         matrixSupport: false,
-        reason: 'A painting body targeted at `#xywh=` is not placed within the canvas: the canvas plays under `plugin-av`, but degrades to its image body with a developer-console warning. Documented degradation — see the spatial-placement fence in `docs/plugin-av.md`.',
+        reason: 'The canvas composites a video body with image bodies placed at `#xywh=` regions. No painting body is placed within a time-based canvas, so the canvas renders its image body alone and warns on the developer console: the recipe’s own feature does not happen. See the spatial-placement fence on the `/docs/plugin-av/` page.',
     },
     {
         id: '0540-link-for-opening-multiple-canvases',
@@ -759,9 +755,8 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0599-drag-and-drop/manifest.json',
         group: 'content-state',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
 ];

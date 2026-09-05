@@ -11,7 +11,9 @@
             correctness never depends on the demo's chrome.
 
             Query parameters: `manifest`, `canvas`, `config` (URL-encoded JSON,
-            merged over the same defaults the demo starts from) and `theme`.
+            merged over the same defaults the demo starts from), `theme`, and
+            `plugins` (which of the bundled plugins to mount; all of them when
+            absent).
         -->
         <!-- Dev-only: installs the renderer e2e handle (see src/devtools). -->
         <script type="module" src="/src/devtools/register.ts"></script>

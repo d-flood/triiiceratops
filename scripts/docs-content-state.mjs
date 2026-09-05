@@ -7,8 +7,13 @@
 // documentation cannot claim a form no fixture pins. The index is plain JSON for
 // exactly this reason: this script reads it with no build step.
 //
-// Only the marked region of docs/content-state.md is generated; the prose around
-// it is hand-written.
+// What it writes is the `fixtures` attribute of the single read-only
+// `contentStateFixtures` block in the page's content document. The block renders
+// from those attributes and the editor refuses to modify them, which is what
+// makes `--check` — a byte comparison of the committed document against a
+// regeneration — a check on this script's output rather than on the editor's
+// serialization. Everything else in the document is the author's, and this
+// script rewrites none of it.
 //
 // Usage:
 //   node scripts/docs-content-state.mjs           # (re)generate the table
@@ -21,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..');
-const INDEX = join(
+export const INDEX = join(
     REPO_ROOT,
     'packages',
     'core',
@@ -32,70 +37,81 @@ const INDEX = join(
     'content-state',
     'index.json',
 );
-const FIXTURE_DIR = dirname(INDEX);
-const PAGE = join(REPO_ROOT, 'docs', 'content-state.md');
+const PAGE = join(
+    REPO_ROOT,
+    'apps',
+    'site',
+    'content',
+    'docs',
+    'content-state.json',
+);
 
-const BEGIN = '<!-- BEGIN GENERATED conformance table — do not edit by hand.';
-const BEGIN_LINE = `${BEGIN} Regenerate with: node scripts/docs-content-state.mjs -->`;
-const END = '<!-- END GENERATED conformance table -->';
+export const BLOCK = 'contentStateFixtures';
 
-/** Escape the cell separator so a fixture description cannot break the table. */
-function cell(text) {
-    return String(text).replace(/\|/g, '\\|');
-}
-
-function recipeCell(recipe) {
-    if (!recipe) return '—';
-    return `[${recipe}](https://iiif.io/api/cookbook/recipe/${recipe}/){target=_blank}`;
-}
-
-/** The generated region's body, derived from the fixture index. */
-export function conformanceTable() {
-    const index = JSON.parse(readFileSync(INDEX, 'utf8'));
-    const rows = index.fixtures.map(
-        (fixture) =>
-            `| ${cell(fixture.form)} | ${cell(fixture.resolvesVia)} | ` +
-            `\`${cell(fixture.file)}\` | ${recipeCell(fixture.recipe)} | ${cell(fixture.capturedAt)} |`,
-    );
-
-    return [
-        `${index.fixtures.length} committed fixtures, each parsed by`,
-        '`packages/core/src/lib/utils/contentState.test.ts`. Nothing here is fetched.',
-        '',
-        '| Form | Resolves via | Fixture | Cookbook recipe | Captured |',
-        '| --- | --- | --- | --- | --- |',
-        ...rows,
-    ].join('\n');
+/** The block's `fixtures` attribute, derived from the fixture index. */
+export function conformanceFixtures(indexFile = INDEX) {
+    const index = JSON.parse(readFileSync(indexFile, 'utf8'));
+    return index.fixtures.map((fixture) => ({
+        form: fixture.form,
+        resolvesVia: fixture.resolvesVia,
+        file: fixture.file,
+        recipe: fixture.recipe ?? null,
+        capturedAt: fixture.capturedAt,
+    }));
 }
 
 /**
  * Fixture files no index entry names. An uncatalogued file is invisible to both
  * the tests and the table, so it is reported rather than silently tolerated.
  */
-function orphanedFixtures() {
-    const index = JSON.parse(readFileSync(INDEX, 'utf8'));
+export function orphanedFixtures(indexFile = INDEX) {
+    const index = JSON.parse(readFileSync(indexFile, 'utf8'));
     const named = new Set(index.fixtures.map((fixture) => fixture.file));
-    return readdirSync(FIXTURE_DIR).filter(
+    return readdirSync(dirname(indexFile)).filter(
         (name) => name !== 'index.json' && !named.has(name),
     );
 }
 
-/** Replace the generated region of the page, leaving the prose untouched. */
-function render(page, body) {
-    const start = page.indexOf(BEGIN);
-    const end = page.indexOf(END);
-    if (start === -1 || end === -1 || end < start) {
+/**
+ * The document with the conformance block's rows replaced, and everything else —
+ * the prose, the block's own persisted identity — left exactly as it was.
+ */
+export function withFixtures(document, fixtures) {
+    let found = 0;
+    const rewrite = (node) => {
+        const content = Array.isArray(node.content)
+            ? node.content.map(rewrite)
+            : node.content;
+        if (node.type !== BLOCK) {
+            return content === node.content ? node : { ...node, content };
+        }
+        found += 1;
+        return { ...node, attrs: { ...node.attrs, fixtures } };
+    };
+
+    const next = {
+        ...document,
+        content: (document.content ?? []).map(rewrite),
+    };
+    if (found !== 1) {
         throw new Error(
-            `${relative(REPO_ROOT, PAGE)}: generated-region markers not found`,
+            `expected exactly one "${BLOCK}" block, found ${found}`,
         );
     }
-    return `${page.slice(0, start)}${BEGIN_LINE}\n\n${body}\n\n${page.slice(end)}`;
+    return next;
+}
+
+/** The on-disk form of a content document: tab-indented JSON, newline-ended. */
+function serialize(document) {
+    return `${JSON.stringify(document, null, '\t')}\n`;
 }
 
 function main() {
     const check = process.argv.includes('--check');
     const page = readFileSync(PAGE, 'utf8');
-    const wanted = render(page, conformanceTable());
+    const wanted = serialize(
+        withFixtures(JSON.parse(page), conformanceFixtures()),
+    );
 
     if (!check) {
         writeFileSync(PAGE, wanted, 'utf8');

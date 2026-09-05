@@ -1,0 +1,149 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "heading",
+			"attrs": {
+				"id": "b8fef6a6-3d5d-5c96-92d6-ba6c19bc35d4",
+				"slug": "placeholder-section",
+				"level": 2
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder section"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "e4c5ac01-06f0-5c32-8268-1de9030d01e3"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder paragraph. This block exists so the page's measure, rhythm and rule weights can be judged at the width a reader will see them, and so the route is a real document rather than an empty one."
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "ef5e6ffb-0a8f-5270-b367-e137dd43c9a8"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder paragraph. A second paragraph, because a single one does not show how the spacing between them reads."
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"id": "890ff5ab-8e11-55d4-9052-24c03b703ffa",
+				"slug": "a-second-placeholder-section",
+				"level": 2
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "A second placeholder section"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "fa4677f7-7748-5330-a1b1-707018b48620"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder paragraph. Ideas on this site sit on ruled rows and lists rather than in cards, so the list below stands in for whatever the finished page arranges here."
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"attrs": {
+				"id": "bbf38b09-0a0c-542e-93be-9b5e1d9cf3d3"
+			},
+			"content": [
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "e0ec2f23-c123-5da5-ab48-b087d25b5936"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "9922a8a5-154f-5c66-82b9-70b6ca91b731"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Placeholder item."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "ea42ead4-df75-5aec-afdf-e1e9b3b7229c"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "89d09984-2ef2-5201-b8ad-dd003b44f5f9"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Placeholder item."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "04b3132f-d5e0-5131-8e1e-18f9197e7288"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "0df998ce-b0f9-5e12-b55f-74817a59e300"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Placeholder item."
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "d9a100d9-8a2a-5053-b5f8-bb50614f7ba6"
+			}
+		}
+	],
+	"meta": {
+		"title": "Install and frameworks",
+		"shortTitle": "Install and frameworks",
+		"intro": "What the two lines on the front page cannot cover: framework specifics, versioning, and bundler notes."
+	}
+}

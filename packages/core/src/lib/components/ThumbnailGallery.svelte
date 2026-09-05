@@ -3,7 +3,7 @@
     import { getContext } from 'svelte';
     import type { IconName } from '../generated/icons';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { getMessages, language } from '../state/i18n.svelte';
+    import { getMessages } from '../state/i18n.svelte';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { getCanvasChoices } from '../utils/iiifParsing';
     import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
@@ -29,9 +29,7 @@
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
-    let viewerLocale = $derived(
-        (viewerState.config as { locale?: string }).locale || language.current,
-    );
+    let viewerLocale = $derived(viewerState.activeLocale);
 
     let galleryElement: HTMLElement | null = $state(null);
 

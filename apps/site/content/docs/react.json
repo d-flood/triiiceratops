@@ -1,0 +1,5704 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "triiiceratops/react",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a "
+				},
+				{
+					"type": "text",
+					"text": "framework wrapper",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": a real React 19 component that hosts the Triiiceratops custom element and translates its lifecycle, properties, events, and viewer state into React idioms. It does not implement or own a second viewer — there is exactly one viewer implementation, behind the custom-element boundary."
+				}
+			],
+			"attrs": {
+				"id": "52e41f92-9557-4bb4-bb27-847aa87e3285"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "That boundary is also where Svelte stays. You do "
+				},
+				{
+					"type": "text",
+					"text": "not",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " install Svelte, add a Svelte plugin to Vite, declare a custom-element tag, register anything, or write "
+				},
+				{
+					"type": "text",
+					"text": "useEffect",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " blocks that assign properties to a ref. "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/react",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is precompiled JavaScript plus declarations that resolve with "
+				},
+				{
+					"type": "text",
+					"text": "no ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "svelte",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " package installed",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "1eb7def6-8e61-4379-868a-5f88d636e435"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "install",
+				"id": "eda1cd84-cba6-445b-b420-7f53ee72549a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Install"
+				}
+			]
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "package-manager",
+				"id": "870e2322-2617-4441-83c0-effa501625e8"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "pnpm",
+						"id": "0ae1d97f-a6d3-42bb-81d5-8535e7e5c4d2"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "775c8c65-6c72-44ab-899a-ce6a91ffb1f6"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pnpm add triiiceratops"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "npm",
+						"id": "98d7c8c6-cf21-4ce3-a9fe-e0735062d0ba"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "e3b3f025-8b36-4233-b482-9ca3b8d9a027"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "npm install triiiceratops"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "bun",
+						"id": "cb7f9e39-5a7e-4f7f-a115-9dd44be5535b"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "85844749-fd3e-4594-8211-ae3854a65011"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "bun add triiiceratops"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "React 19 is an "
+				},
+				{
+					"type": "text",
+					"text": "optional peer dependency",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — installing Triiiceratops for a different integration never pulls React in, and React is never bundled into the package."
+				}
+			],
+			"attrs": {
+				"id": "a3d94a8b-143c-40d7-b069-eb2a5f9b01d6"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "your-first-viewer",
+				"id": "1eb94542-a25f-4365-9d10-67f594c795b7"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Your first viewer"
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "tsx",
+				"id": "03b74bc8-482b-4193-8c9d-d3a2bf1d4aad"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { TriiiceratopsViewer } from 'triiiceratops/react';\n\nexport function Reader() {\n    return (\n        <TriiiceratopsViewer\n            manifestId=\"https://example.org/manifest.json\"\n            style={{ display: 'block', height: '600px' }}\n        />\n    );\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "That is the whole integration. Some things worth knowing right away:"
+				}
+			],
+			"attrs": {
+				"id": "56e9c9cd-1f8d-43ca-8b53-fb45122ee676"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Registration is automatic.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " The first "
+								},
+								{
+									"type": "text",
+									"text": "<TriiiceratopsViewer>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " to mount in the browser lazily imports and registers the self-contained custom element. The work is memoized and shared, so a hundred viewers do it once. There is no side-effect import to remember and no "
+								},
+								{
+									"type": "text",
+									"text": "element/register",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " in a React app."
+								}
+							],
+							"attrs": {
+								"id": "775d4636-3ed7-4dcc-bcab-5806237c62ae"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2403237d-6825-4c6b-8948-48e60ebd3ea4"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "The wrapper renders exactly one element",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — the "
+								},
+								{
+									"type": "text",
+									"text": "<triiiceratops-viewer>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " host, and nothing else. No layout "
+								},
+								{
+									"type": "text",
+									"text": "<div>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " wraps it, so adopting the wrapper changes no sizing or CSS. Give the host a height, as above."
+								}
+							],
+							"attrs": {
+								"id": "f4571e16-646d-4151-8ab9-d69e3d7a142e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b5b7aa50-f8a7-421e-b57c-80658e0f07e3"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "It takes no children.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " "
+								},
+								{
+									"type": "text",
+									"text": "children",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is typed "
+								},
+								{
+									"type": "text",
+									"text": "never",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "; the viewer's chrome is not composable from React elements. See "
+								},
+								{
+									"type": "text",
+									"text": "what the wrapper does not do",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "#what-the-wrapper-does-not-do"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "f4b5f50e-deb7-4786-acd8-9495fcc6a7c7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8aa49b6c-bd76-4ef1-b024-6c77d49f6afc"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Styles are bundled inside the element's shadow root.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " There is no stylesheet to import."
+								}
+							],
+							"attrs": {
+								"id": "3b73be10-fd8c-4825-b4b4-02fb83128e0b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6c15b111-757b-4489-a307-98c30b9550c6"
+					}
+				}
+			],
+			"attrs": {
+				"id": "cb233158-d57c-4c38-a8d8-55c183f11657"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "the-handle-is-the-store",
+				"id": "4eddf333-6088-4d65-838e-c5aa5de4dfee"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The handle is the store"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Everything that reads or commands the viewer goes through a "
+				},
+				{
+					"type": "text",
+					"text": "handle",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Create it with "
+				},
+				{
+					"type": "text",
+					"text": "useViewerHandle()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", pass it to the component's "
+				},
+				{
+					"type": "text",
+					"text": "handle",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " prop, and read through it:"
+				}
+			],
+			"attrs": {
+				"id": "afd2747d-c9a3-4381-86a0-1f447ca1a768"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "tsx",
+				"id": "8906e305-a910-4814-9f24-22f2abc31140"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import {\n    TriiiceratopsViewer,\n    useViewer,\n    useViewerHandle,\n    useViewerSelector,\n} from 'triiiceratops/react';\n\nexport function Reader() {\n    const handle = useViewerHandle();\n\n    // Reactive read: re-renders only when the selected value changes.\n    const canvasId = useViewerSelector(handle, (state) => state.canvasId);\n    // The live state object: commands and on-demand reads, no subscription.\n    const viewer = useViewer(handle);\n\n    return (\n        <div className=\"reader\">\n            <p>{canvasId ?? 'No canvas yet'}</p>\n            <button type=\"button\" onClick={() => viewer?.nextCanvas()}>\n                Next canvas\n            </button>\n            <TriiiceratopsViewer\n                handle={handle}\n                manifestId=\"https://example.org/manifest.json\"\n                style={{ display: 'block', height: '600px' }}\n            />\n        </div>\n    );\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "If you already reach for "
+				},
+				{
+					"type": "text",
+					"text": "useForm",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "-style APIs, the shape is familiar: the hook returns a stable box, the component fills it in, and helpers take the box."
+				}
+			],
+			"attrs": {
+				"id": "41e79d2c-7da2-439e-a19f-a9628e9b20e5"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The handle is a stable box, not the state.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " "
+				},
+				{
+					"type": "text",
+					"text": "useViewerHandle()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " returns the same object for the component's whole lifetime. What changes is the value inside it — "
+				},
+				{
+					"type": "text",
+					"text": "null",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " until the element publishes its viewer state, a new binding after a detach/reattach, "
+				},
+				{
+					"type": "text",
+					"text": "null",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " again on unmount. That is why the box is what you pass around."
+				}
+			],
+			"attrs": {
+				"id": "c5b8f30c-ac01-4453-a95c-206c9141dad9"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Reads are ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "undefined",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " until the viewer's state exists.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Nothing is gated or withheld to manufacture a non-nullable value; "
+				},
+				{
+					"type": "text",
+					"text": "undefined",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the honest state of the world in the window between \"React mounted the host\" and \"the custom element finished mounting its viewer\". Handle it the way you handle any other asynchronous resource — the "
+				},
+				{
+					"type": "text",
+					"text": "??",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and the optional call above are the whole pattern."
+				}
+			],
+			"attrs": {
+				"id": "e5700642-a97b-4363-8ce3-166a9f1524ae"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Your UI can live anywhere.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " The examples put controls before the viewer, but nothing about the wrapper constrains your markup: the handle is a value, so controls can be siblings, ancestors, nested inside your own layout boxes, or in a completely different part of the tree."
+				}
+			],
+			"attrs": {
+				"id": "08acdffd-1382-462f-891b-e121ff5c0e84"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The handle is optional.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " A viewer that nothing reads from needs no handle at all — the first example above passes none."
+				}
+			],
+			"attrs": {
+				"id": "fc3072b1-9054-4cd1-b091-1071a5d30466"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "One handle per viewer.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Passing the same handle to a second "
+				},
+				{
+					"type": "text",
+					"text": "<TriiiceratopsViewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " throws "
+				},
+				{
+					"type": "text",
+					"text": "TriiiceratopsHandleConflictError",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " naming both elements, because ambiguous ownership would silently break per-viewer isolation. Two viewers on a page means two "
+				},
+				{
+					"type": "text",
+					"text": "useViewerHandle()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " calls."
+				}
+			],
+			"attrs": {
+				"id": "f021a6f4-043a-4c1b-becc-864f42d4141e"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "useviewer-vs-useviewerselector",
+				"id": "877b71a6-3c78-432e-89b0-224d7bfaabd1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "useViewer()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " vs "
+				},
+				{
+					"type": "text",
+					"text": "useViewerSelector()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [],
+									"attrs": {
+										"id": "e1ec2481-9b5c-48de-877e-193dde912091"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3eb3e185-50f1-4cc1-8f6b-8c7ffd00c424"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "useViewer(handle)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "bba9c266-b195-4745-af28-9737644dec35"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f5a59bbc-54dd-4b25-a5ed-1e5b82e97e55"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "useViewerSelector(handle, projection, options?)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "6a92476e-8f4c-4c61-96c5-d4a662cc64b5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "dbfabb18-645c-4f85-b2ad-421617cf1bba"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e257be18-ec8f-49bf-b951-a87c8a8315fb"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Returns"
+										}
+									],
+									"attrs": {
+										"id": "f5ef9cfd-a188-4862-b0eb-c319d08d7586"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4160807b-f536-4878-ae71-ec15e1e68802"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ReadonlyViewerState | undefined",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f44150b2-be7a-4ceb-ad4f-d93e878e05c2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ee918830-7cc3-48a0-8e24-812abeb5fd87"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the projected value, or "
+										},
+										{
+											"type": "text",
+											"text": "undefined",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "8831f5c9-f76d-4026-99b1-9bd5175fdfd5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "49bd341e-12c1-417d-ab7a-6b2723cd07d4"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6facac15-7ad0-42cf-b2eb-6878dd950c0f"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Subscribes to state"
+										}
+									],
+									"attrs": {
+										"id": "6ca0ac0e-94d9-4ef0-8ec7-dcda1a81d27d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3bb3198c-a8e2-4819-b0aa-1fddfdab7680"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "No",
+											"marks": [
+												{
+													"type": "bold"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "5f440276-5e32-4b1d-aa16-3853b49bad36"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e76ea521-d185-4f6a-bd23-173b0a3f253d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Yes"
+										}
+									],
+									"attrs": {
+										"id": "67e3de72-984c-498d-852a-a6964144a1d6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "37fd4423-5857-4e57-a868-fca75dd9bfe8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "46be4da4-d6a3-421a-8fde-02761e0032be"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Re-renders when"
+										}
+									],
+									"attrs": {
+										"id": "d46b8de1-f3d8-42f8-8691-ff09c2370c81"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9464774e-eebc-4eb1-a9a7-18cb551ea489"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the viewer binds, rebinds, or unmounts"
+										}
+									],
+									"attrs": {
+										"id": "c87348ca-792a-45aa-bb62-49eb4eab452b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "93ba6933-3f63-46a1-9a83-ed38f010b5f5"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the selected value changes"
+										}
+									],
+									"attrs": {
+										"id": "bd546fe6-0d9b-456d-a0d0-017c959049c9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f88dcd6f-0e5d-4d58-ab59-e732a54f9035"
+							}
+						}
+					],
+					"attrs": {
+						"id": "5aa6e26b-f951-4782-b9db-4c143fb04906"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Use it for"
+										}
+									],
+									"attrs": {
+										"id": "b5f28c19-b609-4db8-95fd-cf24d8b1d60e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0e334743-bcbd-4a63-8cfa-dc2624ed4cb8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "commands, one-shot reads inside handlers"
+										}
+									],
+									"attrs": {
+										"id": "b9d1d4f7-78e5-4fd7-b94b-21ce3133c7e8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0a237232-4a74-474a-a4c9-187338c713a2"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "anything you render"
+										}
+									],
+									"attrs": {
+										"id": "c4563370-3243-4230-b138-991586fb970a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d9023e00-ea6d-4350-9d78-76ab91b9f2d0"
+							}
+						}
+					],
+					"attrs": {
+						"id": "baec8ebd-851d-404e-ac74-7c6e636de03e"
+					}
+				}
+			],
+			"attrs": {
+				"id": "9242654d-f040-484e-be68-37f84347ac13"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Both also have a context form that omits the handle — see "
+				},
+				{
+					"type": "text",
+					"text": "passing the handle to a deep tree",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#passing-the-handle-to-a-deep-tree"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "9fb433d3-e754-4484-9aed-8971bffd186d"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "useViewer()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " returns a typed, readonly view of the very same live "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " object the element owns — no facade, no "
+				},
+				{
+					"type": "text",
+					"text": "Proxy",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", no copy — with the four lifecycle-plumbing methods ("
+				},
+				{
+					"type": "text",
+					"text": "setEventTarget",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "setViewerElement",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "destroy",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "destroyAllPlugins",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") hidden so autocomplete offers only supported operations. Identity comparisons hold: the object is reference-equal to "
+				},
+				{
+					"type": "text",
+					"text": "handle.get()?.state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and to the element's own "
+				},
+				{
+					"type": "text",
+					"text": "viewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "1cd9f56a-aa7c-4fa4-ad3c-809639e7d437"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Reading a notifying member off that object does "
+				},
+				{
+					"type": "text",
+					"text": "not",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " subscribe to it. Reading "
+				},
+				{
+					"type": "text",
+					"text": "viewer.canvasId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " during render gives you the value at render time and no re-render when it changes — that is what "
+				},
+				{
+					"type": "text",
+					"text": "useViewerSelector()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is for."
+				}
+			],
+			"attrs": {
+				"id": "bc1ed822-0bf2-48db-a243-2a10e63e30ce"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "reactive-reads",
+				"id": "65b16a8c-4f37-4f64-ad2c-eda1e143e74a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Reactive reads"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "useViewerSelector()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is one generic, memoized, equality-gated projection. "
+				},
+				{
+					"type": "text",
+					"text": "T",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is inferred from the projection, so reactive state access stays concise and type safe:"
+				}
+			],
+			"attrs": {
+				"id": "fad1144f-4c82-462b-9494-b6ff021fd0c1"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "tsx",
+				"id": "c17e5eea-4b1d-4d17-b951-ea7d49a7dcc2"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { useViewerSelector } from 'triiiceratops/react';\nimport type { ViewerHandleSlot } from 'triiiceratops/react';\n\nexport function GalleryBadge({ handle }: { handle: ViewerHandleSlot }) {\n    // `boolean | undefined`, inferred.\n    const open = useViewerSelector(handle, (state) => state.showThumbnailGallery);\n    return <span>{open ? 'Gallery open' : 'Gallery closed'}</span>;\n}"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "equality-gating",
+				"id": "f92a31b0-4ec1-4ec1-8aa0-ca063f372ddc"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Equality gating"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A projection is memoized twice over. Within one notification it is computed once and repeated reads return the same reference — which is what makes an inline projection a valid React external-store snapshot with no extra machinery. Across notifications, the equality gate decides: when a recompute produces a value that satisfies "
+				},
+				{
+					"type": "text",
+					"text": "equals",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", the projection keeps returning the "
+				},
+				{
+					"type": "text",
+					"text": "previous reference",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so React does not re-render."
+				}
+			],
+			"attrs": {
+				"id": "63ec0d7e-3d94-46c1-bc11-a31540a8e300"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "equals",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " defaults to "
+				},
+				{
+					"type": "text",
+					"text": "Object.is",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", which is right for the primitives above. A projection that builds a fresh object or array on every run is never "
+				},
+				{
+					"type": "text",
+					"text": "Object.is",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "-equal to its predecessor, so it would re-render on every viewer notification — give those an "
+				},
+				{
+					"type": "text",
+					"text": "equals",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ":"
+				}
+			],
+			"attrs": {
+				"id": "ee504892-17ab-44d7-bf27-928c17f7c16f"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "tsx",
+				"id": "5cccfbf7-1f67-467b-85c0-5a84f419bcc2"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { useViewerSelector } from 'triiiceratops/react';\nimport type { ViewerHandleSlot } from 'triiiceratops/react';\n\nexport function CanvasCounter({ handle }: { handle: ViewerHandleSlot }) {\n    const position = useViewerSelector(\n        handle,\n        (state) => ({\n            index: state.currentCanvasIndex,\n            total: state.canvases.length,\n        }),\n        { equals: (a, b) => a.index === b.index && a.total === b.total },\n    );\n    if (!position) return null;\n    return (\n        <span>\n            {position.index + 1} / {position.total}\n        </span>\n    );\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "No ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "useCallback",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "useMemo",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is needed",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " on either the projection or the equality function. Inline arrows whose closures change between renders read current values, which is what makes the helper idiomatic under React 19 and the React Compiler. Reads are correct under concurrent rendering and Strict Mode: the helper is built on React's own "
+				},
+				{
+					"type": "text",
+					"text": "useSyncExternalStore",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and it never mutates a shared projection during a render pass."
+				}
+			],
+			"attrs": {
+				"id": "49df42f2-7419-4e08-b0a3-5851e4ac9067"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "All selectors for one viewer share one underlying subscription.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Adding selector components does not multiply "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState.subscribe",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " registrations."
+				}
+			],
+			"attrs": {
+				"id": "00d8db88-09c1-4aee-a498-867be83ded86"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Projection failures reach your error boundary.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " If a projection or equality function throws, the failure is retained and rethrown from your component's own read. It is never swallowed, never converted into a "
+				},
+				{
+					"type": "text",
+					"text": "viewererror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or "
+				},
+				{
+					"type": "text",
+					"text": "pluginerror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and never served as a stale selected value."
+				}
+			],
+			"attrs": {
+				"id": "e5909379-8f85-4aa0-8c75-49aaddbdd46f"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "selector-cadence",
+				"id": "47adfa4e-adeb-470d-afd9-2adeaa2f7a24"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Selector cadence"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The "
+				},
+				{
+					"type": "text",
+					"text": "cadence",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " option chooses which notification wakes a projection: the default "
+				},
+				{
+					"type": "text",
+					"text": "state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for anything in the viewer's state inventory, and "
+				},
+				{
+					"type": "text",
+					"text": "frame",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the query-only viewport values (scale, centre, bounds, container size) that the renderer answers per frame and that are deliberately not mirrored into viewer state. "
+				},
+				{
+					"type": "text",
+					"text": "Selector cadence",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#selector-cadence"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " explains the split and why it exists; the React call is one option:"
+				}
+			],
+			"attrs": {
+				"id": "1eaba726-13d0-47bc-a678-433aca4d7b04"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "tsx",
+				"id": "38307f94-1440-4183-b1b3-7e33e16c249e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { useViewerSelector } from 'triiiceratops/react';\nimport type { ViewerHandleSlot } from 'triiiceratops/react';\n\nexport function ZoomReadout({ handle }: { handle: ViewerHandleSlot }) {\n    const zoom = useViewerSelector(\n        handle,\n        (state) => state.viewportScale,\n        { cadence: 'frame' },\n    );\n    if (zoom === undefined) return null;\n    return <span>{Math.round(zoom * 100)}%</span>;\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Reading a query-only viewport value ("
+				},
+				{
+					"type": "text",
+					"text": "viewportScale",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "viewportCentre",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "viewportBounds",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") at the default "
+				},
+				{
+					"type": "text",
+					"text": "state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " cadence is the one selector mistake that fails silently — the projection simply appears frozen. See "
+				},
+				{
+					"type": "text",
+					"text": "what notifies",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#what-notifies"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the inventory that decides which members a "
+				},
+				{
+					"type": "text",
+					"text": "state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "-cadence projection may read."
+				}
+			],
+			"attrs": {
+				"id": "c01c8a00-8dee-42df-81bc-9794e4978fb7"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "passing-the-handle-to-a-deep-tree",
+				"id": "b43c8133-e250-4335-a6e0-dbd4be6a43d1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Passing the handle to a deep tree"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Threading the handle through every intermediate component gets old. "
+				},
+				{
+					"type": "text",
+					"text": "<ViewerProvider value={handle}>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " publishes it to a subtree, and both hooks have a context form that omits the handle argument:"
+				}
+			],
+			"attrs": {
+				"id": "259c9937-921c-41c7-b74e-769d7257d5a5"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "tsx",
+				"id": "469eda69-a603-4121-9fa8-2a0bbd0ff6a8"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import {\n    TriiiceratopsViewer,\n    useViewer,\n    useViewerHandle,\n    useViewerSelector,\n    ViewerProvider,\n} from 'triiiceratops/react';\n\nfunction CanvasLabel() {\n    const canvasId = useViewerSelector((state) => state.canvasId);\n    return <p>{canvasId ?? 'No canvas yet'}</p>;\n}\n\nfunction ZoomButtons() {\n    const viewer = useViewer();\n    return (\n        <>\n            <button type=\"button\" onClick={() => viewer?.zoomOut()}>\n                −\n            </button>\n            <button type=\"button\" onClick={() => viewer?.zoomIn()}>\n                +\n            </button>\n        </>\n    );\n}\n\nexport function Reader() {\n    const handle = useViewerHandle();\n    return (\n        <ViewerProvider value={handle}>\n            <header>\n                <CanvasLabel />\n                <ZoomButtons />\n            </header>\n            <TriiiceratopsViewer\n                handle={handle}\n                manifestId=\"https://example.org/manifest.json\"\n                style={{ display: 'block', height: '600px' }}\n            />\n        </ViewerProvider>\n    );\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "<ViewerProvider>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a trivial value provider — ordinary React context. It gates nothing, renders its children unconditionally, and has no fallback; reads through the handle stay nullable. Nest a second provider to scope a second viewer, and the nearest one wins."
+				}
+			],
+			"attrs": {
+				"id": "3fb3764b-5b88-47f8-817b-5112193de83a"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Calling a hook with neither an explicit handle nor a provider above it throws immediately with a message naming the fix, rather than returning "
+				},
+				{
+					"type": "text",
+					"text": "undefined",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " forever."
+				}
+			],
+			"attrs": {
+				"id": "26b13497-4c7a-430d-aeba-e89cd1880f58"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "props",
+				"id": "b684896b-2fef-4b40-8dd7-ecebb8a7522d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Props"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every viewer input is a typed prop. Which mechanism carries it to the element is an implementation detail you never have to manage, but it explains the server-rendering behavior below."
+				}
+			],
+			"attrs": {
+				"id": "95fa4887-3790-4f2d-a8ac-ecabc3c729bc"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Prop"
+										}
+									],
+									"attrs": {
+										"id": "457f1c09-34b9-4790-abb5-87def3dc399c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "802d3c3a-eaa7-4a63-9fbc-845d3ff8d085"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Type"
+										}
+									],
+									"attrs": {
+										"id": "bc4530c1-c8bb-40cf-88f9-c6a024375663"
+									}
+								}
+							],
+							"attrs": {
+								"id": "cf8f138b-8725-4140-89ee-79d5b030d2ce"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Carried as"
+										}
+									],
+									"attrs": {
+										"id": "af8a33b1-f761-4def-a4ca-734c90d53f19"
+									}
+								}
+							],
+							"attrs": {
+								"id": "822dd16c-0214-4ec4-801b-eee89aaac9b3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7734692d-85b9-4aa5-9739-9febae2f438e"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "manifestId",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "8dd681e7-e020-45d2-a1d1-f65804225de0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "393f701e-f6b4-4426-9ebb-a06d6ecf7900"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "20d1a8d6-f23d-4511-9589-205162e582fc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fa2bb39f-d0e3-4f99-97ed-6515f8dfbc59"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "manifest-id",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "7af026cd-7164-432d-b032-4fd8e0481411"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d871889a-89f8-49a6-adc1-9667754ca918"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f1fcede8-1179-4a64-b63f-4ab4aed4b275"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "canvasId",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "32ed9972-7e3e-4464-822f-6e89144b1bc5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "230538bc-7483-4802-b142-dfeabce82fb5"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "30a4ff12-0c98-4c44-b366-6fb5126b4070"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d54d5389-be38-48d8-a1f5-6c2879deb2ee"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "canvas-id",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "defb6c40-9a2b-4220-9c37-9583b88825c2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "48ae3280-094e-45fd-a389-fc103a8bc2ba"
+							}
+						}
+					],
+					"attrs": {
+						"id": "02579a1c-4516-411e-b138-a553d691374b"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "theme",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2b6a14b2-b6fc-4dc1-96a4-063b8deeb499"
+									}
+								}
+							],
+							"attrs": {
+								"id": "eff4365e-bd4e-4333-85ff-63bfcbfda603"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "633ef4fa-52d7-4d1e-89aa-1bbc8c1aa397"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7988e997-c530-4bd7-99c5-83ca13b26e48"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "theme",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "e123d321-3b77-439b-92ba-ff878662559f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fe5ad32e-c435-4c8b-8597-316fac3d5814"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ba338935-c064-48bc-8024-dd522cbb2dfd"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "contentState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "42211ca1-1ea3-4615-824b-3504912226ca"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3f92b159-fd8a-4d94-95dd-62015430f9d2"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e81d3a08-1e49-4017-8519-2d3a104a09ad"
+									}
+								}
+							],
+							"attrs": {
+								"id": "72841f18-d1f8-4a8f-96e1-346f29a806bb"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "content-state",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "6cd99b01-7c82-476f-a5d5-48b90f03cfd2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "67f342d6-229d-4a7a-aca6-798773c3a9b5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3ad4fa12-7c13-41c5-9ea8-3291472929b3"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "readContentStateFromUrl",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a2d57204-f611-49fe-aa17-d7d466bef8fd"
+									}
+								}
+							],
+							"attrs": {
+								"id": "29a299d2-fe83-4ee3-9303-0e5b068d4825"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "boolean",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f2108fee-f996-4ef8-bf8d-f8879267c6c5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "12b903e5-5245-4468-a37e-93b7fb9bc1e2"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "read-content-state-from-url",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "6208d8c9-0f25-4449-a989-2b4aba7e9c78"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fe8d39d1-1cb9-4872-8fdf-7fe43d5582bd"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b0841b43-8700-4cb8-97dd-0a337428a760"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "manifestJson",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ed27dd49-f397-497f-abc2-1d5dccc8902a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "13dce08a-448d-4874-9dfd-61bbf3b69a4b"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string | Record<string, any>",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "8629c489-5f01-4951-9431-efd5dd8056bc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "64f99f4f-c15b-4557-b0d1-0938415cdf17"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "98c1dd26-29d5-4c24-9bea-29bfefc6797b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b804cfbd-55cf-4788-8545-a7a3cf9e6c6f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "150a6bf5-0999-4f2c-b09e-e20b7a28c5e6"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "themeConfig",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "75c31a5f-9322-4c41-a7e8-a3cebf0bf1a1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e7edfd65-05b8-4a66-a9ab-966a86c1c868"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string | ThemeConfig",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "eb784e1d-47b2-4496-b754-a99f4b68ac58"
+									}
+								}
+							],
+							"attrs": {
+								"id": "69d9e94d-2f05-438d-946e-666da08a7ae0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "a9539fbd-c785-4b0c-8594-f893696720cc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9083a047-df80-4c82-af9d-2292c545fce5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "61e26cfd-e5e4-45fa-877c-8439799c8cb7"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "config",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "0a5fa162-3705-4ae3-b2d2-e0835b327e88"
+									}
+								}
+							],
+							"attrs": {
+								"id": "57916020-f460-4061-b450-359d0c71328d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string | ViewerConfig",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "24825f3f-b1fb-4556-abff-9c57cb37c16b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "01d8f529-5de2-4881-ae53-8780f5a99bd8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "6eafe50c-9ff9-4d9a-b340-2b7e58b77cde"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d77d5cc3-b71c-494d-bb16-4752b46ccc79"
+							}
+						}
+					],
+					"attrs": {
+						"id": "bc24f683-0b42-4eb1-aea6-e0ee6e9a0111"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "initialCanvasRegion",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "cef6ef98-49ff-40ec-aca4-0a92bcdff293"
+									}
+								}
+							],
+							"attrs": {
+								"id": "62d2d6d4-cd74-4a43-ad33-851086d3bec7"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string | CanvasRegion",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c5e05a5d-ae98-42e4-8ab5-1e49549fd5bf"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ab4d05e5-43ad-4871-b3ab-7cf8e0b349ad"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "d4d79123-cc47-4e05-b204-74edd3bc6de0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a5aa7f98-4016-4524-a632-6c8daa790af3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4a3000c8-648d-43fd-bcb4-d6e857ebed03"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "plugins",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a2b30e5f-9375-4912-ba11-719cc96ab68b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "147a4dc0-59db-4801-92f3-70c191c7a58e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "readonly SdkPlugin[]",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f9bdf16b-039c-4aca-af76-b7ad0495c9b2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e8b87423-9315-42de-9924-4910e8233c7d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "495fabd1-0d44-4705-b4a9-f639473087e3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7a68a024-a910-47a4-a7d5-9d68eb7e19ca"
+							}
+						}
+					],
+					"attrs": {
+						"id": "bcdc1f90-3e48-4266-9945-5e150f394310"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "searchProvider",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2357ac59-a9a4-41b0-8d6f-c83d7d9ef27f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c3c2d639-4e09-4a4a-937a-fb8f2433df40"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "SearchProvider | null",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a00c2cfa-c4b7-4b2f-a4fd-8a15781be6bd"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fdcfd995-5af9-4548-9568-8b33f8781fca"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "304c9318-2b6f-4d1d-923b-8c48cb01e67b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b7a0bbc7-e06e-441f-bd7e-d05f29b457bd"
+							}
+						}
+					],
+					"attrs": {
+						"id": "0bd30ff9-6d4d-4465-999f-936a487f9ff9"
+					}
+				}
+			],
+			"attrs": {
+				"id": "24295cb3-906c-4ace-afe1-2bbe02c74a87"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Everything else you pass — "
+				},
+				{
+					"type": "text",
+					"text": "className",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "style",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "data-*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "aria-*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", ordinary DOM attributes and DOM event handlers — is forwarded to the host element by React, unchanged. Object- and function-valued inputs always reach the element as JavaScript "
+				},
+				{
+					"type": "text",
+					"text": "properties",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", never stringified into attributes, whether or not the lazy registration has finished."
+				}
+			],
+			"attrs": {
+				"id": "7154d9c4-df9d-4603-bf4b-9663d9834957"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "All tiers are "
+				},
+				{
+					"type": "text",
+					"text": "edge-triggered",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": a write happens only when the prop value differs from the value the wrapper last applied. A parent re-render with equal props writes nothing, so it never reloads your manifest, snaps the viewport, or restarts your plugins."
+				}
+			],
+			"attrs": {
+				"id": "77bc1979-c554-415a-b733-dd89c40439d9"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "manifestid-and-canvasid-are-uncontrolled",
+				"id": "bf6074cf-162c-4059-bb55-4bb81d315f20"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "manifestId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "canvasId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are uncontrolled"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "They are one-way instructions to the viewer, not continuously enforced bindings — "
+				},
+				{
+					"type": "text",
+					"text": "defaultValue",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " + "
+				},
+				{
+					"type": "text",
+					"text": "onChange",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", never "
+				},
+				{
+					"type": "text",
+					"text": "value",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " + "
+				},
+				{
+					"type": "text",
+					"text": "onChange",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". After the user navigates internally, re-asserting the same "
+				},
+				{
+					"type": "text",
+					"text": "canvasId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " writes nothing, so the wrapper never fights the user. There is no controlled mode."
+				}
+			],
+			"attrs": {
+				"id": "560757c0-8e1e-4eb8-b1f2-2a6097e53c65"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "To follow where the viewer actually is, observe it — with a selector, or with the "
+				},
+				{
+					"type": "text",
+					"text": "onCanvasChange",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "onManifestChange",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " callbacks when you want to sync something outside React state (a URL, say):"
+				}
+			],
+			"attrs": {
+				"id": "b5e4f768-6d1d-456d-8c3b-c8ef5c3323a7"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "tsx",
+				"id": "36a76a6d-c8a9-42e8-ab70-95dc847808ee"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { useState } from 'react';\nimport { TriiiceratopsViewer } from 'triiiceratops/react';\n\nexport function Reader({ initialCanvasId }: { initialCanvasId: string }) {\n    const [currentCanvasId, setCurrentCanvasId] = useState(initialCanvasId);\n\n    return (\n        <>\n            <p>Showing {currentCanvasId}</p>\n            <TriiiceratopsViewer\n                manifestId=\"https://example.org/manifest.json\"\n                // An instruction, not a binding: this value is applied when it\n                // changes, and internal navigation is never overwritten by it.\n                canvasId={initialCanvasId}\n                onCanvasChange={(snapshot) => {\n                    if (snapshot.canvasId) setCurrentCanvasId(snapshot.canvasId);\n                }}\n                style={{ display: 'block', height: '600px' }}\n            />\n        </>\n    );\n}"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "keep-object-props-stable",
+				"id": "457bcdb2-6abd-48ad-925c-d77cea9926d9"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Keep object props stable"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Property-tier inputs are compared with one uniform, one-level shallow equality: identical by "
+				},
+				{
+					"type": "text",
+					"text": "Object.is",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "; or both arrays of equal length with identical elements; or both plain objects with equal own-key sets and identical values. Deep equality is deliberately not used, because it would make write suppression depend on the shape of your data."
+				}
+			],
+			"attrs": {
+				"id": "25693fad-7c31-4df8-bc1b-68c344310de6"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "So a "
+				},
+				{
+					"type": "text",
+					"text": "nested",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " object rebuilt on every render is written on every render — and writing "
+				},
+				{
+					"type": "text",
+					"text": "config",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or "
+				},
+				{
+					"type": "text",
+					"text": "manifestJson",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is not free. Hoist it, or memoize it:"
+				}
+			],
+			"attrs": {
+				"id": "d3f78d74-b5f8-4071-ba99-37d546e957fc"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "tsx",
+				"id": "0b11358f-b5ba-45ef-9e68-39e223284ecd"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { useMemo } from 'react';\nimport { TriiiceratopsViewer } from 'triiiceratops/react';\nimport type { ThemeConfig, ViewerConfig } from 'triiiceratops/react';\n\n// Hoisted: one object for the module's lifetime.\nconst THEME_CONFIG: ThemeConfig = { panelBg: '#101014' };\n\nexport function Reader({ side }: { side: 'left' | 'right' }) {\n    // Memoized: a new object only when what it depends on changes.\n    const config = useMemo<ViewerConfig>(() => ({ toolbar: { side } }), [side]);\n    return (\n        <TriiiceratopsViewer\n            manifestId=\"https://example.org/manifest.json\"\n            config={config}\n            themeConfig={THEME_CONFIG}\n            style={{ display: 'block', height: '600px' }}\n        />\n    );\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "With "
+				},
+				{
+					"type": "text",
+					"text": "config: { debug: true }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " the wrapper warns once, naming the prop, after one property-tier input has been re-assigned an implausible number of times on one element — so an unmemoized object prop is diagnosable instead of mysterious."
+				}
+			],
+			"attrs": {
+				"id": "1c1dc126-5a0c-4746-b0ee-03dc1105f9cd"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "plugins",
+				"id": "eb35040e-65ec-447e-bae6-3db9529d24e1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Plugins"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "plugins",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " takes framework-neutral "
+				},
+				{
+					"type": "text",
+					"text": "SDK plugins",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — "
+				},
+				{
+					"type": "text",
+					"text": "readonly SdkPlugin[]",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", with no Svelte types or Svelte runtime involved. The "
+				},
+				{
+					"type": "text",
+					"text": "plugins guide",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#adding-a-plugin-to-your-viewer"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " has the React example."
+				}
+			],
+			"attrs": {
+				"id": "c4a1ee41-7e00-4405-8516-18d76a095c46"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Activation lifetime is keyed to "
+				},
+				{
+					"type": "text",
+					"text": "plugin identity",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", not to the identity of the list: re-supplying an equal list leaves running plugins completely untouched — no teardown, no restart, no re-injected styles. Hoist the list anyway, since a fresh "
+				},
+				{
+					"type": "text",
+					"text": "createPdfExportPlugin()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " call per render would produce a genuinely different plugin each time."
+				}
+			],
+			"attrs": {
+				"id": "a025ec41-009b-4258-8773-29811048ba25"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "events",
+				"id": "7154e5c9-3f9f-419f-8686-baf79d5b069f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Events"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The custom element's channels are typed callback props. Each receives the event "
+				},
+				{
+					"type": "text",
+					"text": "detail",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " directly — never a "
+				},
+				{
+					"type": "text",
+					"text": "CustomEvent",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — so your code is independent of the DOM event envelope."
+				}
+			],
+			"attrs": {
+				"id": "37bcd4d0-f5a6-47d4-9fb7-9fc8f18e624f"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Prop"
+										}
+									],
+									"attrs": {
+										"id": "7964d8eb-da18-406d-b14e-c4e73e36b624"
+									}
+								}
+							],
+							"attrs": {
+								"id": "adad98fd-f73c-49cd-93c3-dd61773b64b3"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Payload"
+										}
+									],
+									"attrs": {
+										"id": "9957b282-9c4d-44a3-af0f-00d6ce55004f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c65c7bf7-228d-4b87-8c3f-b6ebac9477d9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8d61b5fb-12b0-4584-a066-04ce58ffff4f"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "onStateChange",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "1ba640ff-55cc-445c-90f9-e48e738a36e7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4cd79b36-efec-42b7-b867-eb689cafa001"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ViewerStateSnapshot",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " (any inventoried change, batched)"
+										}
+									],
+									"attrs": {
+										"id": "2b8e89c5-bac7-459d-9c4f-324bc8ad24e2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3e14a71f-5207-4aed-aa5b-d642dc805932"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c437ede2-d445-4b15-81a1-a9f12ecd5da8"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "onCanvasChange",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "47c15073-e022-4391-9b83-8016887729f0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "dcd795ee-d854-4ed1-8aa6-b549de23c455"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ViewerStateSnapshot",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "47840e26-fa57-4956-b93e-2967717a850a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c8c7c170-564b-4f83-886b-64d8911c854b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1a994588-c2af-4894-a4f0-4a691f5c6640"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "onManifestChange",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b4971e7a-1bf1-4afa-9513-830b0e66a651"
+									}
+								}
+							],
+							"attrs": {
+								"id": "37ff5dd2-74fd-47b5-99e6-a48cd06f99bf"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ViewerStateSnapshot",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "139bc4c5-44f6-45b7-a5a2-0b8bbc87c694"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e72bb4a7-a8bb-43de-86f9-36ee9b4cd652"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f8d53f51-b0ed-4032-970a-8b0201b5abda"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "onChoiceChange",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "bad18a11-df90-40fd-b608-c5afcc0c11d5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4ff9f106-dbd1-497c-8851-23a96f5ebd3c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ViewerStateSnapshot",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "9309f973-3cfc-4d77-a947-b1b18d5edfcb"
+									}
+								}
+							],
+							"attrs": {
+								"id": "09c8fbc4-ea96-401b-ae1a-08ca213adcf1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "5708742c-2db4-4ff1-b59a-d17675addbc4"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "onPluginError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b57b45ed-119e-4b49-b715-56e13e679428"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2f15e91c-7d5f-41bb-a876-02221201b950"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the exact "
+										},
+										{
+											"type": "text",
+											"text": "PluginError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", with a callable "
+										},
+										{
+											"type": "text",
+											"text": "retry()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4741d534-20b4-4720-9893-22d3b1ea0302"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8d2ae434-5a3f-43c0-a787-fbd708c0df31"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2d1ff004-d015-41b5-803f-262922bf4b39"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "onViewerError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d6539b15-622b-44a1-ae51-bc6414815280"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c785220d-1334-4908-9479-81b79678e757"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the exact typed "
+										},
+										{
+											"type": "text",
+											"text": "ViewerError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c8e2c537-421a-4fbc-be95-b93e76166e5e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "94184943-37f1-46be-8880-f6eaf716ac99"
+							}
+						}
+					],
+					"attrs": {
+						"id": "0c419096-4587-4d28-93e4-e2fe5c358521"
+					}
+				}
+			],
+			"attrs": {
+				"id": "cce8b19e-7a60-4e63-b485-bbac7b1485ab"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "tsx",
+				"id": "dc770c01-0541-45e0-984a-34b15afeccc1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { TriiiceratopsViewer } from 'triiiceratops/react';\n\nexport function Reader() {\n    return (\n        <TriiiceratopsViewer\n            manifestId=\"https://example.org/manifest.json\"\n            onCanvasChange={(snapshot) => history.replaceState(\n                null,\n                '',\n                `?canvas=${encodeURIComponent(snapshot.canvasId ?? '')}`,\n            )}\n            // The original PluginError object, recovery behavior intact.\n            onPluginError={(error) => error.retry()}\n            onViewerError={(error) => console.error(error.message)}\n            style={{ display: 'block', height: '600px' }}\n        />\n    );\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Changing a callback prop between renders neither leaks nor duplicates a DOM listener: one listener per channel is installed for the element's lifetime and always calls the current callback."
+				}
+			],
+			"attrs": {
+				"id": "19ca47cb-6cab-4911-844f-b9fc5c0d1095"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "custom-search",
+				"id": "3183a11d-9b6e-4d72-9ea5-eafa36e09a71"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Custom search"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The "
+				},
+				{
+					"type": "text",
+					"text": "searchProvider",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " prop supplies search results from your own application code instead of a manifest-declared IIIF Content Search service. It behaves the same in every host, so it is documented once with a React tab in "
+				},
+				{
+					"type": "text",
+					"text": "custom search providers",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#custom-search-providers"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "ebbb5e07-d7ab-4e60-bb7e-a6a0e1b63640"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "the-imperative-escape-hatch",
+				"id": "ebe8c8b7-94d4-4062-b8af-bf90538b2f5d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The imperative escape hatch"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "When a hook is unsuitable — a test, an integration with imperative code — a forwarded "
+				},
+				{
+					"type": "text",
+					"text": "ref",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " yields the same two-member "
+				},
+				{
+					"type": "text",
+					"text": "ViewerHandle",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " the handle publishes:"
+				}
+			],
+			"attrs": {
+				"id": "859d3afa-b234-4278-997c-cf71a82e3395"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "tsx",
+				"id": "4c54f701-4b39-4468-b4d8-961416825ce8"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { useRef } from 'react';\nimport { TriiiceratopsViewer } from 'triiiceratops/react';\nimport type { TriiiceratopsViewerRef } from 'triiiceratops/react';\n\nexport function Reader() {\n    const ref = useRef<TriiiceratopsViewerRef | null>(null);\n    return (\n        <>\n            <button\n                type=\"button\"\n                onClick={() => ref.current?.element.scrollIntoView()}\n            >\n                Scroll to viewer\n            </button>\n            <TriiiceratopsViewer\n                ref={ref}\n                manifestId=\"https://example.org/manifest.json\"\n                style={{ display: 'block', height: '600px' }}\n            />\n        </>\n    );\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "ref.current",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is "
+				},
+				{
+					"type": "text",
+					"text": "null",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " until the viewer publishes its state and again after unmount. It has exactly two members — "
+				},
+				{
+					"type": "text",
+					"text": "element",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (the "
+				},
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " host) and "
+				},
+				{
+					"type": "text",
+					"text": "state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (the readonly viewer state) — so the escape hatch stays small and discoverable. "
+				},
+				{
+					"type": "text",
+					"text": "ref.current.state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is reference-equal to what "
+				},
+				{
+					"type": "text",
+					"text": "useViewer()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " returns."
+				}
+			],
+			"attrs": {
+				"id": "aaa55fb9-c0af-4136-b480-68f45d64628c"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "server-rendering",
+				"id": "c875be14-81a7-43e1-96a6-efbba5bceb35"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Server rendering"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Importing "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/react",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is safe where "
+				},
+				{
+					"type": "text",
+					"text": "window",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "document",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and "
+				},
+				{
+					"type": "text",
+					"text": "customElements",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " do not exist: nothing browser-only runs at module evaluation and nothing is registered."
+				}
+			],
+			"attrs": {
+				"id": "468997f5-820c-48a2-9c30-0288f9e7f1b1"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "On the server, "
+				},
+				{
+					"type": "text",
+					"text": "<TriiiceratopsViewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " renders an "
+				},
+				{
+					"type": "text",
+					"text": "inert host",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — the "
+				},
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tag carrying the attribute tier ("
+				},
+				{
+					"type": "text",
+					"text": "manifest-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "canvas-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "theme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "content-state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "read-content-state-from-url",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") and your forwarded host attributes, and nothing else. No shadow-DOM internals, no property-tier values, no renderer. The client's first render emits the identical attribute set, so hydration reuses and upgrades the same host with no mismatch, and viewer internals initialize only in the browser."
+				}
+			],
+			"attrs": {
+				"id": "14a12ef6-8a60-4083-ace3-61d216902672"
+			}
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "warning",
+				"title": "State-reading components must not render on the server",
+				"id": "888d3b86-967b-4027-8a31-fc06595bc88a"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "useViewer()",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " and "
+						},
+						{
+							"type": "text",
+							"text": "useViewerSelector()",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " deliberately ship "
+						},
+						{
+							"type": "text",
+							"text": "no",
+							"marks": [
+								{
+									"type": "bold"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " "
+						},
+						{
+							"type": "text",
+							"text": "getServerSnapshot",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": ", so React fails loudly ("
+						},
+						{
+							"type": "text",
+							"text": "Missing getServerSnapshot",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": ") rather than inventing a server-side readiness value. There is no viewer, and therefore no viewer state, during a server render."
+						}
+					],
+					"attrs": {
+						"id": "27bf7252-ee56-4a48-86f1-3cc69a1c2aaa"
+					}
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Keep the components that read viewer state on the client — with your framework's own client-only boundary — and let "
+						},
+						{
+							"type": "text",
+							"text": "<TriiiceratopsViewer>",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " itself server-render the inert host. Because reads are nullable rather than gated, server and client agree with no special-cased readiness rendering."
+						}
+					],
+					"attrs": {
+						"id": "ea5eeb79-74ae-4879-bab6-d22644a881bf"
+					}
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Triiiceratops ships no meta-framework-specific components; there is no Next.js package or adapter. The wrapper is a plain React component with SSR-safe evaluation, and the client-only boundary is yours to place."
+				}
+			],
+			"attrs": {
+				"id": "51c9dedb-d561-42df-b33e-1ce564d5e547"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "when-wiring-goes-wrong",
+				"id": "96a43b10-571b-4eab-80e2-8ae4fd37bca4"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "When wiring goes wrong"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Failures are thrown so they reach a React error boundary rather than the console."
+				}
+			],
+			"attrs": {
+				"id": "b0108ea9-c0e3-42ca-8504-0c96ab12d07f"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Error"
+										}
+									],
+									"attrs": {
+										"id": "7389a8db-daf0-4796-9838-2f9e5146a9b5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d756eb90-d959-4d82-8a57-a23a112367c7"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Means"
+										}
+									],
+									"attrs": {
+										"id": "6a663406-9441-4998-a685-28340ef884e1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2d35e1be-5a96-4752-85fd-d51d39b7192c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c6b5b663-862f-4c69-abf5-cc619465027f"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "TriiiceratopsHandleConflictError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "94c09f69-2eee-45a4-ae8c-6d01d46d8af7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8fef73b0-a724-4be7-b357-b773c2171623"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "one handle was passed to two viewers"
+										}
+									],
+									"attrs": {
+										"id": "964aa797-34a0-40c7-a120-a20e2d960da8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0d9ec0a9-7beb-46d2-99ca-775a4b8a3bb6"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8e2dc470-6a9a-4f18-91e1-b28be7c230f9"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "TriiiceratopsElementVersionError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "9e2c5aea-fb51-4660-a80e-5d367e41770e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3e046750-f037-487b-9b58-7c1f17b16594"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "<triiiceratops-viewer>",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " is already defined by a constructor with no "
+										},
+										{
+											"type": "text",
+											"text": "viewerState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " getter — usually a second, older Triiiceratops core that registered first"
+										}
+									],
+									"attrs": {
+										"id": "a5f383a6-abb4-4e95-bc06-992417ac4da4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9f0780a5-cdb9-4c63-9ffb-a3eb1536bf67"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9b06a801-4b83-441c-9083-52173db88e44"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "TriiiceratopsCoreConflictError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d729b325-8119-4391-a596-74f286e1fbee"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9b8f584e-0c5b-47a7-911b-c0528bdca012"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "two different Triiiceratops core versions loaded on one page"
+										}
+									],
+									"attrs": {
+										"id": "6efcf7c8-0ad7-43b4-a451-b141533da7c9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2c8780c7-c96e-4316-a8cd-6ee8eaf56e42"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7c30f111-cdf2-4dd9-b36c-e29190c47804"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "TriiiceratopsElementRegistrationError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d4e0fae0-c0a0-41ad-b111-566c5b5010f0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "525dbe26-ae45-4a07-a222-5f8d654166c0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "no "
+										},
+										{
+											"type": "text",
+											"text": "customElements",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " registry — the mount path ran outside a browser"
+										}
+									],
+									"attrs": {
+										"id": "e2844969-42fa-49fc-bf79-ca13bfe85d70"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0d8baf1d-0479-4f6d-a5f6-11ff2bafe6b7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1bc083c6-720a-48b0-a8d6-42473dc24290"
+					}
+				}
+			],
+			"attrs": {
+				"id": "2bd435e5-5fb4-4900-a963-16c8f5450263"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Version conflicts are diagnosed "
+				},
+				{
+					"type": "text",
+					"text": "synchronously",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", right after registration: the wrapper probes the constructor that actually owns the tag for the "
+				},
+				{
+					"type": "text",
+					"text": "viewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " getter. There is no timeout, deadline, retry, or "
+				},
+				{
+					"type": "text",
+					"text": "customElements.whenDefined",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " poll anywhere in the path, so an incompatible page fails fast instead of hanging."
+				}
+			],
+			"attrs": {
+				"id": "cee48b26-9dbe-49bc-b31a-d5b57cf381a4"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Three further failure modes are silent by design and surface only under "
+				},
+				{
+					"type": "text",
+					"text": "config: { debug: true }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — an unmemoized property-tier prop, a handle created and never passed to a viewer, and a "
+				},
+				{
+					"type": "text",
+					"text": "state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "-cadence projection reading through a query-only viewport value. See "
+				},
+				{
+					"type": "text",
+					"text": "debug diagnostics",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#debug-diagnostics"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "c49a06cd-cd84-45cc-acd0-1a1c8e4e9497"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "testing-your-own-components",
+				"id": "e33ab430-4fd2-477e-83fa-8b160ae341f3"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Testing your own components"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "triiiceratops/testing",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " builds a handle backed by a "
+				},
+				{
+					"type": "text",
+					"text": "real",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — real commands, real batched notifications, the real selector runtime "
+				},
+				{
+					"type": "text",
+					"text": "useViewerSelector()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " consults — with no DOM viewer, no custom element, no renderer surface, and no network. Run it under "
+				},
+				{
+					"type": "text",
+					"text": "jsdom",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or "
+				},
+				{
+					"type": "text",
+					"text": "happy-dom",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — which a React test runner already provides — because the published entry bundles a "
+				},
+				{
+					"type": "text",
+					"text": "fetch",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " polyfill that reaches for a "
+				},
+				{
+					"type": "text",
+					"text": "self",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " global, so bare Node fails with "
+				},
+				{
+					"type": "text",
+					"text": "ReferenceError: self is not defined",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (or set "
+				},
+				{
+					"type": "text",
+					"text": "globalThis.self = globalThis",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " first)."
+				}
+			],
+			"attrs": {
+				"id": "56e0bd0c-9464-4073-8585-fb9a6ff35743"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "React consumers pass the test handle straight in wherever a "
+				},
+				{
+					"type": "text",
+					"text": "useViewerHandle()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " slot would go — no wrapper, no "
+				},
+				{
+					"type": "text",
+					"text": ".get()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ":"
+				}
+			],
+			"attrs": {
+				"id": "3e9b8694-a0ae-477f-8c63-43735c23f9d8"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "tsx",
+				"id": "767a5376-ebfb-4a93-bd86-422a6e99747f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { act } from 'react';\nimport { createRoot } from 'react-dom/client';\nimport { afterEach, expect, test } from 'vitest';\nimport { createTestViewerHandle, flush } from 'triiiceratops/testing';\nimport type { TestViewerHandle } from 'triiiceratops/testing';\nimport { useViewerSelector } from 'triiiceratops/react';\n\n// React logs \"The current testing environment is not configured to support\n// act(...)\" unless you set this. Most React setups put it in a shared test\n// setup file; Testing Library sets it for you.\n(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =\n    true;\n\nfunction CanvasLabel({ handle }: { handle: TestViewerHandle }) {\n    const canvasId = useViewerSelector(handle, (state) => state.canvasId);\n    return <p>{canvasId ?? 'No canvas yet'}</p>;\n}\n\nlet handle: TestViewerHandle | undefined;\n// `dispose()` drops the underlying subscription. It is idempotent, so an\n// already-disposed handle is fine here.\nafterEach(() => handle?.dispose());\n\ntest('follows the viewer to a new canvas', async () => {\n    handle = createTestViewerHandle();\n    const container = document.createElement('div');\n    const root = createRoot(container);\n    await act(async () => root.render(<CanvasLabel handle={handle!} />));\n    expect(container.textContent).toBe('No canvas yet');\n\n    handle.state.setCanvas('https://example.org/canvas/2');\n    // Notifications are batched: settle the flush before asserting.\n    await act(async () => flush());\n\n    expect(container.textContent).toBe('https://example.org/canvas/2');\n    // Unmounting is a React update too, so it belongs inside `act` as well.\n    await act(async () => root.unmount());\n});"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Swap "
+				},
+				{
+					"type": "text",
+					"text": "react-dom/client",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for your own render helper or Testing Library if you have one — the part that matters is that the handle is real state, and that a command plus "
+				},
+				{
+					"type": "text",
+					"text": "await flush()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is how you drive it."
+				}
+			],
+			"attrs": {
+				"id": "6dadacee-7994-4597-953b-1403ac4b476b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "createTestViewerHandle()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " accepts "
+				},
+				{
+					"type": "text",
+					"text": "{ fixtures }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to seed a config, an active locale, or already-parsed manifest JSON (through the real "
+				},
+				{
+					"type": "text",
+					"text": "setManifestData",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " command — still no network). "
+				},
+				{
+					"type": "text",
+					"text": "handle.attachRenderer()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " mounts core's headless renderer stand-in and fires the real readiness path, which is how a "
+				},
+				{
+					"type": "text",
+					"text": "cadence: 'frame'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " projection and the query-only viewport values are exercised headlessly. It returns the stand-in, which is also the controller: "
+				},
+				{
+					"type": "text",
+					"text": "setView",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " moves the viewport and "
+				},
+				{
+					"type": "text",
+					"text": "emitFrame",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " fires one animation event, synchronously."
+				}
+			],
+			"attrs": {
+				"id": "7e843ad2-86a3-4a28-86f8-bf27e29583c7"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "what-the-wrapper-does-not-do",
+				"id": "7b39cf2a-268c-47b7-aae4-bff60a69395a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "What the wrapper does not do"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The promise of this wrapper is "
+				},
+				{
+					"type": "text",
+					"text": "idiomatic access",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to the viewer. Two limits are deliberately outside it, and both are shared by every host rather than being React-specific:"
+				}
+			],
+			"attrs": {
+				"id": "8b0e5a3b-6084-4271-a531-feed2838b87b"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Styling stops at theme tokens.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " "
+								},
+								{
+									"type": "text",
+									"text": "theme",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "themeConfig",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and the "
+								},
+								{
+									"type": "text",
+									"text": "--tri-*",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " custom properties are the whole surface; the shadow-DOM internals are not reachable. Everything about the "
+								},
+								{
+									"type": "text",
+									"text": "host",
+									"marks": [
+										{
+											"type": "italic"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " element — "
+								},
+								{
+									"type": "text",
+									"text": "className",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "style",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", layout, size, borders — is yours as usual. See "
+								},
+								{
+									"type": "text",
+									"text": "theming",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/theming/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "a5b16864-2d33-49ca-9f66-bfe8df8217c3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "445576fd-b65e-46d1-b2bd-7597cc07f085"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Viewer chrome is not composable.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " You cannot supply React components for the toolbar, panels, or navigation, and the component accepts no children or slot content. "
+								},
+								{
+									"type": "text",
+									"text": "Building your own chrome",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/configuration/#building-your-own-chrome"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " covers the three supported answers, with a React custom-toolbar example."
+								}
+							],
+							"attrs": {
+								"id": "136b129d-585f-422c-9ca6-dacd89e598d1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "48d20b70-3875-469f-bc85-9d07c61aa032"
+					}
+				}
+			],
+			"attrs": {
+				"id": "8eb710bd-b916-44f8-a6a9-dbe3ebb17c90"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Direct custom-element integration also remains fully supported for hosts that want it — see "
+				},
+				{
+					"type": "text",
+					"text": "driving the element directly",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/integration/#driving-the-element-directly"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Adopting the wrapper is not required."
+				}
+			],
+			"attrs": {
+				"id": "a4a32fc3-08e7-43fc-828a-98417694d3de"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "There is no React example page: the wrapper's whole job is to hand you React idioms over the same element every host uses. To see that element running this release's bundles in a browser, open the "
+				},
+				{
+					"type": "text",
+					"text": "web component example",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/examples/web-component/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", which loads it from a script tag with no bundler."
+				}
+			],
+			"attrs": {
+				"id": "b4f70a49-d9d8-4234-9ba2-65a8bb4e0a17"
+			}
+		}
+	],
+	"meta": {
+		"title": "React",
+		"shortTitle": "React",
+		"intro": "Use Triiiceratops in React 19: a typed component that hosts the viewer's custom element and maps its lifecycle, props and events to React idioms."
+	}
+}

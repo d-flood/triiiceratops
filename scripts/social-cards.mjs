@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Render the social-preview ("Open Graph") card images.
 //
-// The cards are COMMITTED PNGs under docs/media/social/ — nothing in CI runs
+// The cards are COMMITTED PNGs under apps/site/static/social/ — nothing in CI runs
 // this script. It exists so the cards stay editable source rather than opaque
 // binaries: change the HTML below, re-run, commit the result.
 //
@@ -19,9 +19,10 @@
 // card is effectively immutable once shared. To change a card, bump the
 // filename to `-v2` here AND at every reference listed in scripts/social-cards.README.md.
 //
-// Requires Playwright's Chromium (a devDependency of packages/core) and network
-// access for the Inter webfont — the same font the docs site loads. Without the
-// network it falls back to a system sans and the cards render slightly off.
+// Requires Playwright's Chromium (a devDependency of packages/core) and nothing
+// else: the two faces are the repository's own self-hosted ones, embedded as data
+// URIs, so a render is hermetic and reproducible rather than dependent on a font
+// host being up.
 
 import {
     existsSync,
@@ -33,14 +34,14 @@ import {
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { extname, join } from 'node:path';
-import { REPO_ROOT } from './docs-version.mjs';
+import { REPO_ROOT } from './package-version.mjs';
 
 const SITE = 'triiiceratops.org';
-const SOCIAL_DIR = join(REPO_ROOT, 'docs', 'media', 'social');
+const SOCIAL_DIR = join(REPO_ROOT, 'apps', 'site', 'static', 'social');
 // The captured viewer screenshot the demo card is composed from. Deliberately
-// NOT under docs/: everything in docs/ is copied into the built site and then
-// into every published version directory, and this is build input, not a site
-// asset — it would ship ~1.4 MB per release for nothing.
+// NOT under the site's `static/`, which is copied verbatim into the published
+// tree: this is build input, not a site asset, and would ship ~1.4 MB for
+// nothing.
 const SHOT = 'scripts/social-cards/viewer-dark.jpg';
 // Wheel-zoom steps applied before capture. Enough that the manuscript fills the
 // frame, few enough that its silhouette still reads as a fragment rather than
@@ -56,8 +57,8 @@ const LAYOUT_PRESET = 'Unified bar';
 // `close_menu`). Collapses the unified bar's tool row back to a menu button.
 const CLOSE_MENU_LABEL = 'Close Menu';
 
-// The docs theme tokens, copied from docs/stylesheets/triiiceratops.css so the
-// cards read as part of the same product as the site they link to.
+// The viewer's own dark theme, so the cards read as part of the same product as
+// the site they link to.
 const NAVY = 'oklch(25.33% 0.016 252.42)'; // --tri-viewer-bg (slate)
 const DEEP = 'oklch(17.5% 0.012 254.09)'; // --tri-surface-border (slate)
 const AMBER = 'oklch(78% 0.15 80)'; // --tri-primary
@@ -92,15 +93,43 @@ function dataUri(relPath) {
     return `data:${mime};base64,${buf.toString('base64')}`;
 }
 
+/** One of the repository's self-hosted faces, as a data URI. */
+function fontUri(name) {
+    const buf = readFileSync(
+        join(REPO_ROOT, 'apps', 'site', 'static', 'fonts', name),
+    );
+    return `data:font/woff2;base64,${buf.toString('base64')}`;
+}
+
+/**
+ * The faces a card is set in, embedded.
+ *
+ * A card is a committed PNG, so the render has to be reproducible: a webfont
+ * fetched from a third party makes the output depend on a host being up and on
+ * whatever that host is serving today. These are the same files the marketing
+ * site and the documentation serve, so a card reads as part of the same product.
+ */
+const FONT_FACES = `
+  @font-face {
+    font-family: 'Source Serif 4';
+    src: url(${fontUri('SourceSerif4Variable-Roman.woff2')}) format('woff2');
+    font-weight: 200 900;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Source Code Pro';
+    src: url(${fontUri('SourceCodeVariable-Roman.woff2')}) format('woff2');
+    font-weight: 200 900;
+    font-style: normal;
+  }`;
+
 /** Shared page chrome: 1200x630 exactly, no scrollbars, brand tokens in scope. */
 function shell(body) {
     return `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=block">
-<style>
+<style>${FONT_FACES}
   :root {
     --navy: ${NAVY}; --deep: ${DEEP}; --amber: ${AMBER};
     --amber-ink: ${AMBER_INK}; --paper: ${PAPER};
@@ -108,14 +137,14 @@ function shell(body) {
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1200px; height: 630px; overflow: hidden; }
   body {
-    font-family: Inter, system-ui, sans-serif;
+    font-family: 'Source Serif 4', Georgia, serif;
     background: var(--navy);
     color: var(--paper);
     position: relative;
     background-image:
       radial-gradient(75% 70% at 0% 100%, var(--deep) 0%, transparent 72%);
   }
-  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .mono { font-family: 'Source Code Pro', ui-monospace, monospace; }
   /* A card is read at thumbnail size; the eyebrow has to survive that. */
   .eyebrow {
     font-size: 22px; font-weight: 700; letter-spacing: 0.2em;
@@ -269,7 +298,7 @@ function landingCard(logo) {
 // --capture: re-shoot the viewer image used by the demo card
 // ---------------------------------------------------------------------------
 
-// The manifest the docs already showcase (see docs/index.md), so the card shows
+// The manifest the docs already showcase (see `/docs/`), so the card shows
 // what a visitor sees when they follow it.
 const DEMO_MANIFEST =
     'https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/manifest/';
@@ -281,9 +310,10 @@ const MIME = {
     '.ico': 'image/x-icon',
     '.png': 'image/png',
     '.svg': 'image/svg+xml',
+    '.woff2': 'font/woff2',
 };
 
-/** Serve the built demo over http:// — file:// breaks its module imports. */
+/** Serve the built site over http:// — file:// breaks its module imports. */
 function serveViewer(root) {
     const server = createServer((req, res) => {
         let p = join(root, decodeURIComponent(req.url.split('?')[0]));
@@ -312,10 +342,11 @@ function serveViewer(root) {
  * stays sharp on retina.
  */
 async function captureViewer(chromium) {
-    const root = join(REPO_ROOT, 'apps', 'demo', 'dist');
-    if (!existsSync(join(root, 'index.html'))) {
+    const root = join(REPO_ROOT, 'apps', 'site', 'build');
+    if (!existsSync(join(root, 'demo', 'index.html'))) {
         throw new Error(
-            `--capture needs the built playground at apps/demo/dist/. Run \`pnpm build:demo\` first.`,
+            '--capture needs the built playground at apps/site/build/demo/. ' +
+                'Run `pnpm build:site` first.',
         );
     }
     const { server, port } = await serveViewer(root);
@@ -330,7 +361,7 @@ async function captureViewer(chromium) {
             colorScheme: 'dark',
         });
         await page.goto(
-            `http://localhost:${port}/?manifest=${encodeURIComponent(DEMO_MANIFEST)}`,
+            `http://localhost:${port}/demo/?manifest=${encodeURIComponent(DEMO_MANIFEST)}`,
             { waitUntil: 'load' },
         );
         await page.waitForTimeout(6000);
@@ -430,7 +461,7 @@ async function main() {
     if (argv.includes('--capture')) await captureViewer(chromium);
 
     mkdirSync(outDir, { recursive: true });
-    const logo = dataUri('docs/media/logo.png');
+    const logo = dataUri('scripts/social-cards/logo.png');
     const shot = dataUri(SHOT);
 
     const browser = await chromium.launch();

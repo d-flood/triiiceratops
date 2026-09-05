@@ -271,6 +271,35 @@
         toolbarConfig.showCollection !== false && viewerState.hasCollection,
     );
     const showSequencePicker = $derived(viewerState.sequenceCount > 1);
+
+    // Manifest-driven, like the sequence picker: a radio menu offering one
+    // language cannot do anything, so a monolingual manifest gets no button and
+    // no toolbar width spent on it.
+    const availableLocales = $derived(viewerState.availableLocales);
+    const showLocalePicker = $derived(
+        toolbarConfig.showLocalePicker !== false && availableLocales.length > 1,
+    );
+    /**
+     * [tag, endonym] for the language menu's radio items.
+     *
+     * Each name is built in its OWN language, not the active one, so the menu
+     * stays legible to a reader who cannot read the locale the viewer is
+     * currently rendering in — the whole point of a language picker. A tag
+     * `Intl.DisplayNames` cannot name (it echoes the input, or throws on a
+     * malformed tag) falls back to the tag itself.
+     */
+    const localeItems = $derived(
+        availableLocales.map((tag): [string, string] => {
+            try {
+                const name = new Intl.DisplayNames([tag], {
+                    type: 'language',
+                }).of(tag);
+                return [tag, name && name !== tag ? name : tag];
+            } catch {
+                return [tag, tag];
+            }
+        }),
+    );
     const sequenceOptions = $derived.by(() => {
         if (sequenceStructures.length > 0) {
             return sequenceStructures.map((node, index) => ({
@@ -304,7 +333,7 @@
         | {
               key: string;
               show: boolean;
-              flyout: 'viewing-mode' | 'gallery' | 'sequence';
+              flyout: 'viewing-mode' | 'gallery' | 'sequence' | 'locale';
           }
         | {
               key: string;
@@ -371,6 +400,11 @@
             key: 'sequence-picker',
             show: showSequencePicker,
             flyout: 'sequence',
+        },
+        {
+            key: 'locale',
+            show: showLocalePicker,
+            flyout: 'locale',
         },
         {
             key: 'fullscreen',
@@ -900,6 +934,55 @@
                                         <Icon name="Stack" size={16} />
                                         <span>{option.label}</span>
                                         {#if viewerState.selectedSequenceIndex === option.index}
+                                            <Icon name="Check" size={16} />
+                                        {/if}
+                                    </button>
+                                </li>
+                            {/each}
+                        </ul>
+                    </li>
+                {:else if entry.flyout === 'locale'}
+                    <li>
+                        <button
+                            class="menu-item tooltip {tooltipPlacement}"
+                            class:menu-active={openMenu === 'locale'}
+                            data-tip={m.locale_label()}
+                            data-flyout-toggle
+                            aria-label={m.locale_label()}
+                            aria-haspopup="menu"
+                            aria-controls="tri-flyout-locale"
+                            aria-expanded={openMenu === 'locale'}
+                            style="anchor-name:--anchor-locale"
+                            onclick={() => toggleMenu('locale')}
+                        >
+                            <Icon name="Translate" size={24} />
+                        </button>
+                        <ul
+                            id="tri-flyout-locale"
+                            data-flyout-panel
+                            role="menu"
+                            tabindex="-1"
+                            aria-label={m.locale_label()}
+                            class="menu popover-menu wide menu-flyout {flyoutPlacement}"
+                            class:open={openMenu === 'locale'}
+                            style="position-anchor: --anchor-locale;"
+                            onkeydown={onFlyoutMenuKeydown}
+                        >
+                            {#each localeItems as [tag, name] (tag)}
+                                <li role="none">
+                                    <button
+                                        class="menu-item"
+                                        role="menuitemradio"
+                                        lang={tag}
+                                        aria-checked={viewerState.activeLocale ===
+                                            tag}
+                                        class:menu-active={viewerState.activeLocale ===
+                                            tag}
+                                        onclick={() =>
+                                            viewerState.setLocale(tag)}
+                                    >
+                                        <span>{name}</span>
+                                        {#if viewerState.activeLocale === tag}
                                             <Icon name="Check" size={16} />
                                         {/if}
                                     </button>

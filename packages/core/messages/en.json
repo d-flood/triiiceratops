@@ -34,6 +34,7 @@
     "error_prefix": "Error: ",
     "no_image_found": "No Image Available",
     "viewing_mode_label": "Viewing Mode",
+    "locale_label": "Language",
     "viewing_mode_individuals": "Individuals",
     "viewing_mode_paged": "Paged",
     "viewing_mode_continuous": "Continuous",

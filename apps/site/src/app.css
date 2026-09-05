@@ -1,0 +1,1507 @@
+@import '@triiiceratops/shell/tokens.css';
+
+/*
+ * The site's shell: base type, the rail, the mobile chrome, and the page frame.
+ * Direction "Warm Rail" — a flat rail of equally weighted tinted bands down the
+ * right edge, on warm paper.
+ *
+ * The colour, type and space tokens and the three self-hosted faces are not
+ * here: they are `@triiiceratops/shell`, imported above and shared with the
+ * playground at /demo/, so the two surfaces cannot drift into two identities.
+ * That package's `src/palette.ts` carries the measured contrast table, and its
+ * unit suite holds the two to the same values.
+ */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+html {
+    -webkit-text-size-adjust: 100%;
+}
+body {
+    margin: 0;
+    background: var(--bone);
+    color: var(--ink);
+    font: 400 var(--t-body) / 1.6 var(--face);
+    -webkit-font-smoothing: antialiased;
+}
+h1,
+h2,
+h3 {
+    margin: 0;
+    font-weight: 400;
+    line-height: 1.06;
+}
+h1 {
+    font-size: var(--t-h1);
+}
+h2 {
+    font-size: var(--t-h2);
+}
+h3 {
+    font-size: var(--t-h3);
+    font-weight: 600;
+}
+p {
+    margin: 0;
+}
+a {
+    color: inherit;
+}
+button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-align: left;
+}
+img,
+svg {
+    max-width: 100%;
+}
+:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+    border-radius: 1px;
+}
+code {
+    font: 400 0.92em / 1.5 var(--mono);
+}
+
+.aside {
+    font-style: italic;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+.link {
+    color: var(--link);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+.vh {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.skip {
+    position: absolute;
+    left: var(--s4);
+    top: -100px;
+    z-index: 60;
+    background: var(--ink);
+    color: var(--paper);
+    padding: var(--s3) var(--s4);
+    text-decoration: none;
+    transition: top 0.15s;
+}
+.skip:focus {
+    top: var(--s4);
+}
+
+/* ---- Shell ---------------------------------------------------------- */
+.shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--rail-w);
+    min-height: 100dvh;
+}
+.main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+.main > .pagebody {
+    flex: 1;
+}
+
+/* ---- The rail: the whole navigation, flat and equally weighted ------ */
+.rail {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--rule);
+    background: var(--rail-bg);
+}
+.rail__top {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: 19px var(--s5);
+    border-bottom: 1px solid var(--rule);
+}
+.rail__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    text-decoration: none;
+}
+.rail__brand svg {
+    width: 25px;
+    height: 25px;
+    flex: none;
+}
+.rail__brand b {
+    font-weight: 600;
+}
+
+/* ---- The colour-scheme toggle ---------------------------------------
+   Which face the control shows is decided here rather than in script, from the
+   same two inputs the palette reads. Prerendered markup cannot know the
+   reader's scheme, so painting the icon from script would flash the wrong one
+   on the page whose whole point is not flashing.
+   -------------------------------------------------------------------- */
+.themebtn {
+    margin-left: auto;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--rule-2);
+    border-radius: 50%;
+    color: var(--ink-2);
+    flex: none;
+}
+.themebtn:hover {
+    color: var(--ink);
+    background: var(--paper);
+}
+.themebtn svg {
+    width: 16px;
+    height: 16px;
+}
+.themebtn .on-dark {
+    display: none;
+}
+:root[data-theme='dark'] .themebtn .on-dark {
+    display: block;
+}
+:root[data-theme='dark'] .themebtn .on-light {
+    display: none;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .themebtn .on-dark {
+        display: block;
+    }
+    :root:not([data-theme='light']) .themebtn .on-light {
+        display: none;
+    }
+}
+/* ---- Site search ----------------------------------------------------
+   In the rail, under the wordmark: one field over the marketing pages and the
+   documentation together, which is the whole point of their being one site. The
+   result list grows in place rather than floating over the rail — a rail is a
+   column with room to spare, and an overlay would need to trap focus to be
+   usable at all.
+   -------------------------------------------------------------------- */
+.search {
+    display: block;
+    padding: var(--s3) var(--s5);
+    border-bottom: 1px solid var(--rule);
+}
+.search__field {
+    width: 100%;
+    padding: var(--s2) var(--s3);
+    font: inherit;
+    font-size: var(--t-small);
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+}
+.search__status {
+    margin: var(--s2) 0 0;
+    font-size: var(--t-tiny);
+    color: var(--ink-2);
+}
+.search__status:empty {
+    display: none;
+}
+.search__results {
+    margin: var(--s2) 0 0;
+    padding: 0;
+    list-style: none;
+    max-height: 40dvh;
+    overflow: auto;
+}
+.search__results a {
+    display: block;
+    padding: var(--s2) 0;
+    text-decoration: none;
+    border-top: 1px solid var(--rule);
+}
+.search__results b {
+    display: block;
+    font-size: var(--t-small);
+    font-weight: 600;
+    color: var(--link);
+}
+.search__results span {
+    display: block;
+    font-size: var(--t-tiny);
+    color: var(--ink-2);
+}
+.search__results mark {
+    background: none;
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.rail__list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+.rail__item {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: 0 var(--s5);
+    height: 100%;
+    min-height: 46px;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.055);
+    transition:
+        background 0.2s,
+        padding 0.2s;
+}
+.rail__item .n {
+    font-size: var(--t-tiny);
+    color: var(--ink-2);
+    width: 15px;
+    flex: none;
+}
+.rail__item:hover {
+    background: var(--paper);
+    padding-left: 30px;
+}
+.rail__item.g1 {
+    background: var(--band-1);
+}
+.rail__item.g2 {
+    background: var(--band-2);
+}
+.rail__item.g3 {
+    background: var(--band-3);
+}
+/* Current page: a change of ground and of weight, never a left accent bar. */
+.rail__item[aria-current='page'] {
+    background: var(--paper);
+    font-weight: 600;
+}
+.rail__item[aria-current='page'] .n {
+    color: var(--link);
+}
+.rail__out {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+}
+.rail__out a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--s4) var(--s5);
+    text-decoration: none;
+    font-size: 16px;
+}
+.rail__out .viewer {
+    background: var(--amber);
+    color: var(--amber-ink);
+}
+.rail__out .demo {
+    background: var(--cta);
+    color: var(--cta-ink);
+}
+.rail__out .docs {
+    background: var(--ink-block);
+    color: var(--ink-on-dark);
+}
+.rail__out .plain {
+    background: transparent;
+    border-top: 1px solid var(--rule);
+}
+.rail__out a:hover {
+    filter: brightness(1.07);
+}
+
+/* ---- Mobile chrome: a slim bar plus a full-screen sheet -------------- */
+.mbar {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3) var(--s4);
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+}
+.mbar b {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-weight: 600;
+    font-size: 16px;
+}
+.mbar b svg {
+    width: 20px;
+    height: 20px;
+}
+.mbar .where {
+    margin-left: auto;
+    font-style: italic;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+.mbar .open {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: var(--s2);
+    margin: calc(var(--s2) * -1);
+}
+.mbar .open i {
+    width: 19px;
+    height: 1.5px;
+    background: var(--ink);
+    display: block;
+}
+.sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: var(--bone);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+.sheet__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--s4);
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+}
+.sheet__top b {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-weight: 600;
+}
+.sheet__top b svg {
+    width: 20px;
+    height: 20px;
+}
+/* The sheet is the rail at phone size, so it carries the rail's brand row —
+   including the scheme toggle, which is otherwise unreachable there. */
+.sheet__controls {
+    display: flex;
+    align-items: center;
+    gap: var(--s4);
+}
+.sheet__controls .themebtn {
+    margin-left: 0;
+}
+.sheet a.rail__item {
+    min-height: 52px;
+}
+
+/* ---- Page frame ----------------------------------------------------- */
+.pagehead {
+    padding: var(--s7) clamp(var(--s5), 4vw, var(--s8)) var(--s6);
+}
+.pagehead h1 {
+    max-width: 24ch;
+}
+.pagehead .lede {
+    margin-top: var(--s4);
+    max-width: 56ch;
+    color: var(--ink-soft);
+    font-size: 1.08rem;
+}
+.band {
+    padding: var(--s7) clamp(var(--s5), 4vw, var(--s8));
+    border-top: 1px solid var(--rule);
+}
+.band--paper {
+    background: var(--paper);
+}
+.prose {
+    max-width: var(--measure);
+}
+.prose h2 {
+    margin: var(--s6) 0 var(--s3);
+}
+.prose h2:first-child {
+    margin-top: 0;
+}
+.prose p {
+    margin: 0 0 var(--s4);
+    color: var(--ink-soft);
+}
+.prose ul {
+    margin: 0 0 var(--s4);
+    padding-left: 1.2em;
+}
+.prose li {
+    margin-bottom: var(--s2);
+}
+
+/* ---- A content document --------------------------------------------------
+   Keyed on the content root that Uncial's renderer and its editor share, never
+   on the wrapper around either: an edit variant's editing surface is a shadow
+   root seeded with this stylesheet, so a selector naming an ancestor above that
+   root cannot reach inside it. Naming the root is what holds an edit variant to
+   the measure, rhythm and rule weights a reader will actually see.
+
+   The two surfaces differ in one way, and every structural rule here names
+   both: a document's blocks are children of that root in the renderer, and
+   children of the ProseMirror surface inside it in the editor, where a block
+   with a component of its own is wrapped in a node view.
+
+   The measure sits on the text rather than on the container, because a derived
+   block brings its own layout — a two-column grid, ruled rows — and lays out at
+   the band's full width, which a container capped at the measure would
+   collapse. */
+.uncial-rich-content h2 {
+    margin: var(--s6) 0 var(--s3);
+}
+.uncial-rich-content h2:first-child {
+    margin-top: 0;
+}
+.uncial-rich-content p {
+    margin: 0 0 var(--s4);
+    color: var(--ink-soft);
+}
+.uncial-rich-content ul {
+    margin: 0 0 var(--s4);
+    padding-left: 1.2em;
+}
+.uncial-rich-content li {
+    margin-bottom: var(--s2);
+}
+:is(.uncial-rich-content, .uncial-rich-content > .ProseMirror)
+    > :is(p, h2, h3, h4, ul, ol, blockquote) {
+    max-width: var(--measure);
+}
+/* Each derived block is a section of the page, so what separates it from what
+   precedes it is the band's vertical step rather than a paragraph's. The two
+   container blocks are not sections: a tab group is a paragraph's worth of
+   prose in panels, and the documentation carries twenty-five of them
+   mid-argument, and a callout brings its own spacing. */
+:is(.uncial-rich-content, .uncial-rich-content > .ProseMirror)
+    > *
+    + :is(
+        .install,
+        section:not(.uncial-tabs),
+        nav,
+        .uncial-nodeview:not(
+            [data-uncial-block-id='tabs'],
+            [data-uncial-block-id='callout']
+        )
+    ) {
+    margin-top: var(--s7);
+}
+:is(.uncial-rich-content, .uncial-rich-content > .ProseMirror)
+    > *
+    + :is(.uncial-tabs, .uncial-nodeview[data-uncial-block-id='tabs']) {
+    margin-top: var(--s4);
+}
+.uncial-rich-content .uncial-tabs {
+    margin-bottom: var(--s5);
+}
+
+/* ---- The documentation: the site's chrome, plus a sidebar and contents ----
+   Uncial's own tokens are scoped custom properties on its renderer, and this
+   application loads none of its stylesheets, so a documentation page inherits
+   the type, palette and rules above the way every other page does. */
+.docspage {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: clamp(var(--s5), 3vw, var(--s7));
+    align-items: start;
+}
+.docspage__body {
+    min-width: 0;
+}
+.docsnav {
+    position: sticky;
+    top: var(--s5);
+    font-size: var(--t-small);
+}
+.docsnav__section {
+    margin: var(--s5) 0 var(--s2);
+    font-size: var(--t-tiny);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+.docsnav__section:first-child {
+    margin-top: 0;
+}
+.docsnav__list {
+    margin: 0 0 var(--s3);
+    padding: 0;
+    list-style: none;
+    border-left: 1px solid var(--rule);
+}
+.docsnav__list a {
+    display: block;
+    padding: var(--s2) var(--s3);
+    margin-left: -1px;
+    border-left: 2px solid transparent;
+    color: var(--ink-soft);
+    text-decoration: none;
+}
+.docsnav__list a:hover {
+    background: var(--bench);
+}
+.docsnav__list a[aria-current='page'] {
+    border-left-color: var(--link);
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.toc {
+    margin-bottom: var(--s6);
+    padding: var(--s4) var(--s5);
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    font-size: var(--t-small);
+}
+.toc__title {
+    margin: 0 0 var(--s2);
+    font-size: var(--t-tiny);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+.toc ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.toc li {
+    margin: var(--s1) 0;
+}
+/* One indent step per heading level below the page's own, so the contents show
+   the page's shape rather than a flat list of its headings. */
+.toc__l3 {
+    padding-left: var(--s4);
+}
+.toc__l4,
+.toc__l5,
+.toc__l6 {
+    padding-left: var(--s6);
+}
+.toc a {
+    color: var(--ink-soft);
+    text-decoration: none;
+}
+.toc a:hover {
+    color: var(--link);
+    text-decoration: underline;
+}
+
+/* A heading a reader has just followed a contents link to must not sit against
+   the top edge of the window. */
+.uncial-rich-content :is(h2, h3, h4, h5, h6)[id] {
+    scroll-margin-top: var(--s5);
+}
+
+/* ---- Documentation prose ---------------------------------------------
+   The constructs the ported documentation brought with it: code blocks,
+   tables, callouts and links. They are described once here rather than per
+   page, because a documentation page is a content document like any other and
+   a marketing page may use any of them.
+
+   Code blocks and tables are deliberately outside the measure rule above: a
+   line of TypeScript and a five-column reference table both read worse wrapped
+   than scrolled, so they lay out at the band's width and scroll within it. */
+.uncial-rich-content h3,
+.uncial-rich-content h4 {
+    margin: var(--s5) 0 var(--s3);
+}
+.uncial-rich-content h4 {
+    font-size: 1.06rem;
+    font-weight: 600;
+}
+.uncial-rich-content ol {
+    margin: 0 0 var(--s4);
+    padding-left: 1.4em;
+}
+.uncial-rich-content a {
+    color: var(--link);
+}
+.uncial-rich-content code {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    overflow-wrap: anywhere;
+}
+.uncial-rich-content blockquote {
+    margin: 0 0 var(--s4);
+    padding-left: var(--s4);
+    border-left: 2px solid var(--rule-2);
+    color: var(--ink-2);
+}
+.uncial-rich-content hr {
+    margin: var(--s6) 0;
+    border: 0;
+    border-top: 1px solid var(--rule);
+}
+
+/* The element rather than the renderer's class on it: the editor's own code
+   block carries no class, and a fence must read the same in both. */
+.uncial-rich-content pre {
+    margin: 0 0 var(--s4);
+    padding: var(--s4);
+    background: var(--code-bg);
+    color: var(--ink-on-dark);
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.55;
+}
+.uncial-rich-content pre code {
+    font-family: var(--mono);
+    /* The block scrolls; a line must not be broken to avoid scrolling it. */
+    overflow-wrap: normal;
+    white-space: pre;
+}
+
+/* Lowlight's class names, in the palette the rest of the site already owns.
+   Four roles rather than a token per grammar: a documentation page is prose
+   with code in it, not an editor. */
+.hljs-comment,
+.hljs-quote {
+    color: var(--ink-dim-on-dark);
+    font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag,
+.hljs-meta {
+    color: var(--amber);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-number,
+.hljs-attr,
+.hljs-attribute,
+.hljs-template-variable {
+    color: #d9a68a;
+}
+.hljs-title,
+.hljs-name,
+.hljs-type,
+.hljs-built_in,
+.hljs-tag,
+.hljs-section {
+    color: #a8c7b5;
+}
+
+/* The scroll box is the renderer's, and a derived block that builds its own
+   table brings one too; the editor's table has no box around it, so there the
+   box's spacing sits on the table. The rules a cell reads by are on the table
+   either way. */
+.uncial-table-scroll {
+    margin: 0 0 var(--s4);
+    overflow-x: auto;
+}
+.uncial-rich-content .ProseMirror > table {
+    margin: 0 0 var(--s4);
+}
+.uncial-rich-content table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--t-small);
+}
+.uncial-rich-content :is(th, td) {
+    padding: var(--s2) var(--s4) var(--s2) 0;
+    border-bottom: 1px solid var(--rule);
+    text-align: left;
+    vertical-align: baseline;
+}
+.uncial-rich-content th {
+    color: var(--ink-2);
+    font-weight: 600;
+    border-bottom-color: var(--rule-2);
+}
+.uncial-rich-content :is(th, td) p {
+    margin: 0;
+    max-width: none;
+    color: inherit;
+}
+
+/* An aside the reader is meant to stop at. The kind is carried by the left
+   rule's colour alone: a tinted panel at this measure reads as a different
+   page, and the documentation has sixteen of these. */
+.callout {
+    margin: 0 0 var(--s4);
+    padding: var(--s3) 0 var(--s3) var(--s4);
+    border-left: 3px solid var(--rule-2);
+    max-width: var(--measure);
+}
+.callout--tip,
+.callout--info {
+    border-left-color: var(--link);
+}
+.callout--warning,
+.callout--important {
+    border-left-color: var(--amber);
+}
+.callout__title {
+    color: var(--ink);
+    font-weight: 600;
+}
+.callout > :last-child {
+    margin-bottom: 0;
+}
+
+/* The public-token table: one derived block rendering a heading and a table per
+   category, so the headings match the prose headings around it. */
+.tokentable h4:first-child {
+    margin-top: 0;
+}
+
+.next {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s4);
+    padding: var(--s6) clamp(var(--s5), 4vw, var(--s8));
+    border-top: 1px solid var(--rule-2);
+    text-decoration: none;
+}
+.next:hover {
+    background: var(--paper);
+}
+/* Deliberately not italic, for the reason `.hero__pick` is not.
+   The next-page link is on every listed route, so italicising two words here
+   makes the 164 KB italic slice a load-time dependency of all of them; measured
+   on the front page it cost three points, because the slice competes with the
+   preloaded roman for the throttled link. */
+.next .lbl {
+    color: var(--ink-2);
+    font-size: var(--t-small);
+    display: block;
+    margin-bottom: var(--s1);
+}
+.next .ttl {
+    font-size: 1.3rem;
+}
+.next .go {
+    color: var(--link);
+}
+
+.sitefoot {
+    padding: var(--s6) clamp(var(--s5), 4vw, var(--s8));
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s3) var(--s6);
+    font-size: var(--t-small);
+    color: var(--ink-2);
+}
+.sitefoot a {
+    color: var(--ink-2);
+}
+
+/* ---- Ruled rows: the default container, in place of cards ----------- */
+.rows {
+    border-top: 1px solid var(--rule-2);
+}
+.rows a,
+.rows div {
+    display: grid;
+    grid-template-columns: 2.2ch minmax(0, 22ch) minmax(0, 1fr) auto;
+    gap: var(--s4);
+    align-items: baseline;
+    padding: var(--s5) 0;
+    border-bottom: 1px solid var(--rule);
+    text-decoration: none;
+    transition: padding 0.2s;
+}
+.rows a:hover {
+    padding-left: var(--s3);
+}
+.rows .n {
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.rows .ttl {
+    font-size: 1.2rem;
+}
+.rows .say {
+    color: var(--ink-2);
+}
+.rows .go {
+    color: var(--link);
+    font-size: var(--t-small);
+}
+
+/* ---- The design-token appendix -------------------------------------- */
+.swatches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--s4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.sw {
+    border: 1px solid var(--rule);
+}
+/* Two chips for a token that re-steps between the schemes, one for a filled
+   colour field that deliberately keeps its value in both. */
+.sw .chips {
+    display: flex;
+}
+.sw .chip {
+    flex: 1;
+    height: 56px;
+}
+.sw .meta {
+    padding: var(--s2) var(--s3);
+    font-size: var(--t-tiny);
+    color: var(--ink-2);
+}
+.sw .meta b {
+    display: block;
+    color: var(--ink);
+    font-size: var(--t-small);
+    font-weight: 600;
+}
+.scale {
+    border-top: 1px solid var(--rule);
+    margin: 0;
+}
+.scale > div {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: var(--s4);
+    align-items: baseline;
+    padding: var(--s3) 0;
+    border-bottom: 1px solid var(--rule);
+}
+.scale .nm {
+    font-style: italic;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+/* Wide content scrolls in its own box: the page body never scrolls sideways. */
+.ratios {
+    overflow-x: auto;
+    margin: var(--s5) 0;
+}
+.ratios table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--t-small);
+}
+.ratios th,
+.ratios td {
+    text-align: left;
+    padding: var(--s3) var(--s4) var(--s3) 0;
+    border-bottom: 1px solid var(--rule);
+    font-weight: 400;
+    white-space: nowrap;
+}
+.ratios thead th {
+    border-bottom: 1px solid var(--rule-2);
+    font-style: italic;
+    color: var(--ink-2);
+}
+.ratios .nm {
+    font-style: italic;
+    color: var(--ink-2);
+}
+.ratios td {
+    color: var(--ink-soft);
+}
+.ratios .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+}
+
+/* ---- The comparison: bars, scatter and the checking material -------- */
+
+/* A muted explanatory paragraph. Deliberately not `.aside`, which is italic:
+   this page sets several of these above the fold, and the italic face is a
+   separate slice that first paint otherwise has no use for. */
+.explain {
+    max-width: var(--measure);
+    margin: var(--s4) 0 0;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+.figcap {
+    max-width: var(--measure);
+    margin: var(--s3) 0 0;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+
+/* Bar lengths are inline `width` percentages, each row's gzip as a share of the
+   largest, so the markup carries the data and this block only carries the
+   appearance. Every cell is placed by an explicit `grid-column`, because the
+   bar is the last sibling but sits in the middle column. */
+.chart {
+    margin: var(--s5) 0 0;
+    font-size: var(--t-small);
+}
+.chart__row {
+    display: grid;
+    grid-template-columns: 13ch 1fr 7ch;
+    align-items: center;
+    column-gap: var(--s4);
+    padding: var(--s2) 0;
+}
+.chart__row > * {
+    grid-row: 1;
+}
+.chart__label {
+    grid-column: 1;
+    color: var(--ink-2);
+}
+.chart__label.self {
+    color: var(--ink);
+    font-weight: 600;
+}
+.chart__track {
+    grid-column: 2;
+    height: 1.1rem;
+    background: var(--grid);
+}
+.chart__fill {
+    display: block;
+    height: 100%;
+    background: var(--mark);
+}
+.chart__fill.self {
+    background: var(--mark-emphasis);
+}
+.chart__value {
+    grid-column: 3;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+}
+
+/* Wide content scrolls in its own box: the page body never scrolls sideways. */
+.scatter {
+    overflow-x: auto;
+    margin: var(--s5) 0 0;
+}
+.scatter svg {
+    display: block;
+    width: 100%;
+    min-width: 480px;
+    height: auto;
+}
+.scatter__axis {
+    stroke: var(--rule-2);
+    stroke-width: 1;
+}
+.scatter__grid {
+    stroke: var(--grid);
+    stroke-width: 1;
+}
+.scatter__tick,
+.scatter__label {
+    fill: var(--ink-2);
+    font-size: 13px;
+}
+.scatter__tick {
+    text-anchor: end;
+}
+.scatter__tick--x {
+    text-anchor: middle;
+}
+.scatter__axislabel {
+    fill: var(--ink-2);
+    font-size: 13px;
+    text-anchor: middle;
+}
+.scatter__point {
+    fill: var(--mark);
+}
+.scatter__point--self {
+    fill: var(--mark-emphasis);
+}
+.scatter__label--self {
+    fill: var(--ink);
+    font-weight: 600;
+}
+
+/* A table with no italic in it. The comparison's two lead tables sit near the
+   top of the one page whose whole argument is about bytes, and the italic slice
+   is 164 KB that its first paint otherwise has no use for — the same trade
+   `.hero__pick` and `.next .lbl` make. The appendix keeps the italic, because it
+   preloads that face for its captions anyway. */
+.ratios--roman thead th,
+.ratios--roman .nm {
+    font-style: normal;
+}
+
+/* The emphasised row of a data table, matching the emphasised mark. */
+.ratios tr.self th,
+.ratios tr.self td {
+    color: var(--ink);
+    font-style: normal;
+    font-weight: 600;
+}
+.ratios .wrap {
+    white-space: normal;
+    min-width: 24ch;
+}
+
+/* The checking material: present for the reader who wants it, closed for the
+   reader who does not, and adding no heading above it that the page's own
+   argument has to step around. */
+.disclose {
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule);
+}
+.disclose > summary {
+    padding: var(--s4) 0;
+    color: var(--link);
+    cursor: pointer;
+}
+.disclose h3 {
+    margin: var(--s6) 0 0;
+}
+.disclose > *:last-child {
+    margin-bottom: var(--s5);
+}
+.counted {
+    margin: var(--s4) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--t-small);
+}
+.counted > li {
+    padding: var(--s3) 0;
+    border-bottom: 1px solid var(--rule);
+}
+.counted .ver {
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+.counted .explain {
+    display: block;
+    margin-top: var(--s1);
+}
+.counted ul {
+    margin: var(--s2) 0 0;
+    padding-left: 1.2em;
+    color: var(--ink-soft);
+}
+
+/* ---- Responsive ----------------------------------------------------- */
+@media (max-width: 900px) {
+    .shell {
+        grid-template-columns: 1fr;
+    }
+    .rail {
+        display: none;
+    }
+    .mbar {
+        display: flex;
+    }
+    .pagehead {
+        padding: var(--s6) var(--s5) var(--s5);
+    }
+    .rows a,
+    .rows div {
+        grid-template-columns: 2.2ch minmax(0, 1fr) auto;
+        row-gap: var(--s1);
+    }
+    .rows .say {
+        grid-column: 2 / 4;
+    }
+    /* A fixed label column plus a value column leaves too little track on a
+       phone for the bars to compare anything, so the label and the value share
+       the top line and the bar spans the width below. */
+    .chart__row {
+        grid-template-columns: 1fr max-content;
+        row-gap: var(--s1);
+    }
+    .chart__value {
+        grid-column: 2;
+    }
+    .chart__track {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        height: 0.9rem;
+    }
+    /* The documentation sidebar is a column only while there is a column to
+       spare; on a phone it is a block of links above the page. */
+    .docspage {
+        grid-template-columns: 1fr;
+    }
+    .docsnav {
+        position: static;
+    }
+    /* The front page doubles as the site index at phone size, so its rail
+       stays fully unrolled there rather than collapsing into the sheet. */
+    .shell--index {
+        grid-template-columns: 1fr;
+    }
+    .shell--index .rail {
+        display: flex;
+        position: static;
+        height: auto;
+        border-left: 0;
+        border-top: 1px solid var(--rule);
+    }
+    .shell--index .rail__top {
+        display: none;
+    }
+}
+
+/* ---- The front page: hero ------------------------------------------- */
+.hero {
+    padding: clamp(var(--s5), 4vw, var(--s8));
+    background: radial-gradient(
+        120% 90% at 12% 0%,
+        var(--paper) 0%,
+        var(--bone) 60%,
+        var(--bench) 100%
+    );
+}
+.hero__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: clamp(var(--s5), 3.4vw, var(--s7));
+    align-items: center;
+}
+.hero h1 {
+    font-size: var(--t-display);
+    line-height: 0.96;
+    max-width: 15ch;
+}
+.hero__lede {
+    margin-top: var(--s5);
+    max-width: 44ch;
+    color: var(--ink-soft);
+    font-size: clamp(1.05rem, 0.95rem + 0.4vw, 1.26rem);
+}
+/* Not italic, and not `.aside`: these labels sit above the fold on the one
+   route that must score full marks, and the italic face is 347 KB that first
+   paint otherwise has no use for. */
+.hero__pick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s3) var(--s5);
+    margin-top: var(--s3);
+}
+.hero__pick button {
+    padding: 0;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+    opacity: 0.55;
+    transition:
+        opacity 0.3s,
+        color 0.3s;
+}
+.hero__pick button:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+.hero__pick button.on {
+    opacity: 1;
+    color: var(--link);
+}
+
+/* ---- Embedded viewers ------------------------------------------------
+   Every embed reserves its height from its first canvas's aspect ratio, so the
+   renderer starting cannot move anything below it. The first canvas is painted
+   into the box as an image and the viewer sits over it: the image is what a
+   reader sees in the frames before the renderer has a manifest, and what a
+   reader with no script sees for good.
+
+   The viewer takes its colour from the site's own measured palette and its type
+   from the site's face, so a dark page cannot contain a light island and the
+   viewer does not island in a system sans either. `--tri-*` are the viewer's
+   public theme tokens and the two font properties are its public type surface;
+   both are declared once here, in terms of tokens that already re-step between
+   the schemes, so the toggle carries the viewer with it.
+   -------------------------------------------------------------------- */
+.vw {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--rule-2);
+    background: var(--bench);
+    box-shadow: 0 14px 34px -24px rgba(60, 40, 10, 0.55);
+
+    /* The viewer's two public type properties. It ships no font files and names
+       no family, so an embed set in the site's own face is a matter of letting
+       it inherit one. The colour half of matching the page is `themeConfig`,
+       in src/lib/viewerTheme.ts — the viewer declares its colour tokens on its
+       own root, where an inherited value cannot reach them. */
+    --default-font-family: var(--face);
+    --default-mono-font-family: var(--mono);
+}
+.vw__first,
+.vw__live {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+.vw__first {
+    object-fit: contain;
+}
+/* The live viewer covers the placeholder rather than the placeholder being
+   removed: a removal needs a readiness signal, and covering needs none. */
+.vw__live {
+    z-index: 1;
+}
+
+/* ---- The chrome skeleton --------------------------------------------
+   The viewer's chrome as markup, drawn by this stylesheet, in the page a
+   reader is served. Its geometry is measured from the real chrome's first
+   arrangement — a 36px handle in the top-left corner and a 213x32 control
+   cluster centred on the bottom edge — and, like the real chrome, it is
+   anchored to the box's edges and sized in pixels rather than scaled with it,
+   so the two agree at every width. Both live inside the reserved box, so the
+   swap on mount is a change of contents, never of layout.
+   -------------------------------------------------------------------- */
+.vwc {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    color: var(--ink);
+}
+.vwc__handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: color-mix(in srgb, var(--paper) 70%, transparent);
+    border-radius: 0 0 2px 0;
+}
+.vwc__handle span {
+    width: 15px;
+    height: 1.5px;
+    background: currentColor;
+}
+.vwc__bar {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    /* 8 + the 1px divider + 8 is the 17px the real cluster leaves between the
+       zoom group and the pager. */
+    gap: 8px;
+    height: 33px;
+    padding: 1px 9px 0;
+    border-radius: 2px 2px 0 0;
+}
+.vwc__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+}
+.vwc__btn {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+}
+.vwc__at {
+    width: 50px;
+    text-align: center;
+    font-size: 15px;
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+}
+.vwc__div {
+    width: 1px;
+    height: 18px;
+    background: currentColor;
+    opacity: 0.25;
+}
+.vwc__lens {
+    position: relative;
+    width: 13px;
+    height: 13px;
+    border: 1.6px solid currentColor;
+    border-radius: 50%;
+}
+/* The lens's handle, and the sign inside it. */
+.vwc__lens::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 11px;
+    width: 6px;
+    height: 1.6px;
+    background: currentColor;
+    transform: rotate(45deg);
+    transform-origin: left center;
+}
+.vwc__lens::before {
+    content: '';
+    position: absolute;
+    left: 1.7px;
+    top: 4.1px;
+    width: 6px;
+    height: 1.6px;
+    background: currentColor;
+}
+/* The second lens is the same glyph with a stroke across it, so one rule
+   draws both and only the plus needs an element of its own. */
+.vwc__lens span {
+    position: absolute;
+    left: 4.5px;
+    top: 1.2px;
+    width: 1.6px;
+    height: 6px;
+    background: currentColor;
+}
+.vwc__chev {
+    width: 8px;
+    height: 8px;
+    border: 1.6px solid currentColor;
+    border-width: 1.6px 1.6px 0 0;
+}
+.vwc__chev--prev {
+    transform: rotate(-135deg);
+    margin-left: 3px;
+}
+.vwc__chev--next {
+    transform: rotate(45deg);
+    margin-right: 3px;
+}
+
+/* ---- The front page: install ---------------------------------------- */
+.install {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: clamp(var(--s5), 3vw, var(--s7));
+}
+.install h2 {
+    margin-bottom: var(--s3);
+}
+/* Deliberately not `.aside`, which is italic. This note sits within the first
+   viewport on a desktop reading of the front page, and Chrome fetches a face
+   only for glyphs it actually paints — so italicising two sentences here makes
+   the 347 KB italic a first-paint dependency of the one route that must score
+   full marks. Same reasoning as the placeholder notice's. */
+.install__note {
+    margin-top: var(--s3);
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+/* Uncial's tabs, in the site's own hand: a ruled row of labels rather than a
+   strip of buttons, so a tab group reads as part of the page's structure. */
+.uncial-tabs [role='tablist'] {
+    display: flex;
+    border-bottom: 1px solid var(--rule);
+}
+.uncial-tabs [role='tablist'] button {
+    padding: var(--s2) var(--s4);
+    color: var(--ink-2);
+    font-size: 16px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.uncial-tabs [role='tablist'] button[aria-selected='true'] {
+    color: var(--ink);
+    font-weight: 600;
+    border-bottom-color: var(--ink);
+}
+.cmd {
+    display: flex;
+    align-items: center;
+    gap: var(--s4);
+    padding: var(--s4);
+    background: var(--code-bg);
+    color: var(--ink-on-dark);
+    overflow-x: auto;
+}
+.cmd code {
+    flex: 1;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 15px;
+}
+.cmd button {
+    flex: none;
+    color: var(--ink-dim-on-dark);
+    font-size: var(--t-small);
+}
+.cmd button:hover {
+    color: var(--paper);
+}
+
+/* ---- The front page: production strip -------------------------------- */
+.prod__say {
+    margin-top: var(--s2);
+}
+.prod {
+    margin-top: var(--s5);
+    border-top: 1px solid var(--rule-2);
+}
+.prod a {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--s4);
+    align-items: baseline;
+    padding: var(--s4) 0;
+    border-bottom: 1px solid var(--rule);
+    text-decoration: none;
+}
+.prod .who {
+    font-size: 1.2rem;
+}
+.prod a:hover .who {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+.prod .what {
+    display: block;
+    margin-top: 2px;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+.prod .go {
+    color: var(--link);
+    font-size: var(--t-small);
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .hero__grid {
+        grid-template-columns: 1fr;
+    }
+    .hero h1 {
+        font-size: clamp(2.2rem, 9vw, 3rem);
+    }
+}

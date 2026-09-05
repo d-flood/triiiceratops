@@ -8,12 +8,17 @@
             produce a TrustedHTML. Svelte renders every component via
             `<template>.innerHTML` and the viewer/plugins render trusted markup
             through `{@html}`, so core installs a pass-through **default** Trusted
-            Types policy (utils/trustedTypes) at module load. The policy name
-            `default` is permitted by the `trusted-types` directive below.
+            Types policy (utils/trustedTypes) at module load. Svelte creates its
+            own `svelte-trusted-html` policy at module load too, unconditionally
+            and with no opt-out. This page loads two bundles that each embed
+            Svelte — the element IIFE and the plugin IIFE — so that name is
+            created twice, which is why the directive below permits both names
+            and `'allow-duplicates'`. Drop any one of the three and
+            `createPolicy` throws.
         -->
         <meta
             http-equiv="Content-Security-Policy"
-            content="require-trusted-types-for 'script'; trusted-types default; default-src 'self'; script-src 'self' 'nonce-tri-csp-tt'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
+            content="require-trusted-types-for 'script'; trusted-types default svelte-trusted-html 'allow-duplicates'; default-src 'self'; script-src 'self' 'nonce-tri-csp-tt'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
         />
         <meta property="csp-nonce" content="tri-csp-tt" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />

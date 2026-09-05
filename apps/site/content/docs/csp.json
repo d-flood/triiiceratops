@@ -1,0 +1,2032 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Triiiceratops runs under a strict Content Security Policy. It does "
+				},
+				{
+					"type": "text",
+					"text": "not",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " require "
+				},
+				{
+					"type": "text",
+					"text": "unsafe-eval",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and it does not require "
+				},
+				{
+					"type": "text",
+					"text": "unsafe-inline",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for scripts. Runtime styles (the plugin/global style service) prefer constructable stylesheets ("
+				},
+				{
+					"type": "text",
+					"text": "adoptedStyleSheets",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "), which need no inline "
+				},
+				{
+					"type": "text",
+					"text": "<style>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and are CSP-friendly by default. The service falls back to a "
+				},
+				{
+					"type": "text",
+					"text": "<style>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " element — carrying your CSP "
+				},
+				{
+					"type": "text",
+					"text": "nonce",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — whenever constructable stylesheets are unavailable, "
+				},
+				{
+					"type": "text",
+					"text": "or",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " whenever the host advertises a nonce at all (nonces cannot attach to constructable stylesheets, so advertising one always opts back into the "
+				},
+				{
+					"type": "text",
+					"text": "<style>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " path)."
+				}
+			],
+			"attrs": {
+				"id": "e4da9952-b5a3-4107-944e-943bc43466ed"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The viewer itself also uses inline "
+				},
+				{
+					"type": "text",
+					"text": "style=\"…\"",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " attributes for dynamic layout (panel widths, positioning, and similar). A nonce does not cover style "
+				},
+				{
+					"type": "text",
+					"text": "attributes",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — only "
+				},
+				{
+					"type": "text",
+					"text": "'unsafe-inline'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " does — so every policy below allows those explicitly via "
+				},
+				{
+					"type": "text",
+					"text": "style-src-attr",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "7b944fc3-7d03-4d38-935b-7946d5035c6a"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The two distributions need slightly different policies, because only the light-DOM Svelte package's component styles are nonce-addressable."
+				}
+			],
+			"attrs": {
+				"id": "474a67a4-e315-4ffb-a9a3-1f5c219b169c"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Which recipe applies to you?",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				}
+			],
+			"attrs": {
+				"id": "55882b1d-0f20-4993-a6cc-80f2146ca2b8"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Your integration"
+										}
+									],
+									"attrs": {
+										"id": "ee467c07-6420-4e98-ad38-c4b73dcf669a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d51fee9a-0c15-4236-9dfd-d02724f03427"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Recipe"
+										}
+									],
+									"attrs": {
+										"id": "79e2b8b1-ae30-4766-ade4-f0f95c2df606"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fd632ee2-703d-4306-9de3-0f23c6083a81"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e71441f0-afc9-4296-b208-4d768ca88f50"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Svelte",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/svelte/"
+													}
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " — "
+										},
+										{
+											"type": "text",
+											"text": "triiiceratops/svelte",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "bcd42925-398d-4434-83c4-fbc51d843efc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "bdc90ba7-dbd6-45c5-aafe-f9d485badd4d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Light DOM",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "#light-dom-svelte-component"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "265ab655-be6a-486c-8aa6-5f34b545cb03"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f3d26016-458e-4f2e-a99f-b434878e2f6f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2a685dbf-cb97-426e-9b83-c86983132ed9"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "React",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/react/"
+													}
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " — "
+										},
+										{
+											"type": "text",
+											"text": "triiiceratops/react",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ba5830be-7cd0-44ed-ad84-0b12909fb0a0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "20836361-ae92-4ffc-87f5-c07dcd7d8979"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Shadow DOM",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "#shadow-dom-custom-element"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4624146a-bacc-48b9-9eeb-ba5f5eb58473"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2498b315-da9e-4fb3-b498-ffca672806b8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e370de29-b716-4142-8224-e41aacaf12e9"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Vue",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/vue/"
+													}
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " — "
+										},
+										{
+											"type": "text",
+											"text": "triiiceratops/vue",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d6ab7bda-e272-461f-ad2a-3500b5e72465"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8800f7d4-7eb5-4fba-9463-cd7a4a1718ae"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Shadow DOM",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "#shadow-dom-custom-element"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ba983b7e-da6d-4838-b6ea-28ac0a9031f0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "444284a9-47f5-4579-a777-bbbaf19d3119"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8001cb02-59b7-4a6d-8484-cd7bf51a0f0a"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Any framework",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/integration/"
+													}
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " — the custom element"
+										}
+									],
+									"attrs": {
+										"id": "83c92de6-6829-4a79-85c6-7af0052344b2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e308997a-0a74-4ed1-a5c8-15ce1279ba01"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Shadow DOM",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "#shadow-dom-custom-element"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "80339c8e-ab09-4eb7-aea1-76b82db71204"
+									}
+								}
+							],
+							"attrs": {
+								"id": "08511e28-9c88-41f0-9259-0974c4e73df4"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7e8b48e3-83b7-49a5-b0e9-ec9651029381"
+					}
+				}
+			],
+			"attrs": {
+				"id": "baae92cc-6b9d-4902-b0a1-be37056a7ad5"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The React and Vue wrappers host the same "
+				},
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " custom element every other non-Svelte integration uses, so its shadow root has the same style requirements — they follow the shadow-DOM recipe, not the Svelte one, and there is no nonce for them to advertise."
+				}
+			],
+			"attrs": {
+				"id": "63915196-1196-4e9b-99f4-842bbf6c0dca"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "recommended-policy",
+				"id": "bcb3c288-48f5-45b7-910e-dace56b83c1e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Recommended policy"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "light-dom-svelte-component",
+				"id": "f53f79de-5654-4fee-b26d-6d63869a075b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Light DOM (Svelte component)"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Component styles are extracted to a same-origin stylesheet at build time, so "
+				},
+				{
+					"type": "text",
+					"text": "<style>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " "
+				},
+				{
+					"type": "text",
+					"text": "elements",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " can be locked to "
+				},
+				{
+					"type": "text",
+					"text": "'self'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " plus a nonce:"
+				}
+			],
+			"attrs": {
+				"id": "699b97a3-754d-483f-b191-546d418e1f40"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "plaintext",
+				"id": "c49f0549-fb3a-414d-a97a-1077b176cf06"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Content-Security-Policy:\n    default-src 'self';\n    script-src 'self';\n    style-src 'self' 'nonce-<RANDOM>';\n    style-src-attr 'unsafe-inline';\n    img-src 'self' data: blob: https:;\n    media-src 'self' blob: https:;\n    connect-src 'self' https:;\n    worker-src 'self' blob:;\n    object-src 'none';\n    base-uri 'self'"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "shadow-dom-custom-element",
+				"id": "b2cc43d7-b5c9-4a7e-8d3a-d429c576d653"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Shadow DOM (custom element)"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Used by the custom element directly "
+				},
+				{
+					"type": "text",
+					"text": "and",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " by the React and Vue wrappers."
+				}
+			],
+			"attrs": {
+				"id": "9eb78986-8a39-4d82-8482-fe70fb6fb15f"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The custom element injects each Svelte component's scoped CSS into its shadow root as a "
+				},
+				{
+					"type": "text",
+					"text": "<style>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " element at runtime — there is no per-element style nonce hook in Svelte for this path — so the shadow root needs "
+				},
+				{
+					"type": "text",
+					"text": "'unsafe-inline'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " in "
+				},
+				{
+					"type": "text",
+					"text": "style-src",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " itself, not just a nonce:"
+				}
+			],
+			"attrs": {
+				"id": "adcdbf36-b3d7-4f44-a565-099f6fb5969b"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "plaintext",
+				"id": "192abd20-76da-430c-8fe8-a2603bbb1e2b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Content-Security-Policy:\n    default-src 'self';\n    script-src 'self';\n    style-src 'self' 'unsafe-inline';\n    style-src-attr 'unsafe-inline';\n    img-src 'self' data: blob: https:;\n    media-src 'self' blob: https:;\n    connect-src 'self' https:;\n    worker-src 'self' blob:;\n    object-src 'none';\n    base-uri 'self'"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Notes (both distributions):"
+				}
+			],
+			"attrs": {
+				"id": "bfaaaa3f-fbe8-40df-abfa-5006867aac37"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "script-src 'self'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — no "
+								},
+								{
+									"type": "text",
+									"text": "unsafe-eval",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", no "
+								},
+								{
+									"type": "text",
+									"text": "unsafe-inline",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". Serve the viewer and plugin scripts from your own origin (or add the CDN origin you load them from)."
+								}
+							],
+							"attrs": {
+								"id": "085b0106-4ed8-4999-b550-957e7464b0eb"
+							}
+						}
+					],
+					"attrs": {
+						"id": "67f44d6c-74cf-4d4d-8302-fbc1b085cab0"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "style-src-attr 'unsafe-inline'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — covers the viewer's inline layout style attributes. These cannot execute script under the strict "
+								},
+								{
+									"type": "text",
+									"text": "script-src",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " above, so allowing them is the recommended posture rather than a risk trade-off."
+								}
+							],
+							"attrs": {
+								"id": "fd48dd2f-f7b8-448a-a0db-36bd5bf8ab67"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a8460b25-0a7a-42b1-9290-f2c38044fd0c"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "img-src",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " includes "
+								},
+								{
+									"type": "text",
+									"text": "data:",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " for canvas/thumbnail data URIs, "
+								},
+								{
+									"type": "text",
+									"text": "blob:",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " for generated image exports, and "
+								},
+								{
+									"type": "text",
+									"text": "https:",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " for remote IIIF image tiles; tighten to the specific IIIF hosts you use."
+								}
+							],
+							"attrs": {
+								"id": "1a2c06db-bc97-4353-9b5f-a00b0e66a4ec"
+							}
+						}
+					],
+					"attrs": {
+						"id": "5baad224-08f7-48dc-b5c0-7e4d2c710e3e"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "media-src",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " governs "
+								},
+								{
+									"type": "text",
+									"text": "<audio>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "<video>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "<track>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", so it matters only when "
+								},
+								{
+									"type": "text",
+									"text": "the AV plugin",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-av/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is loaded — see "
+								},
+								{
+									"type": "text",
+									"text": "audio and video",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "#audio-and-video"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " below. Drop the directive entirely if you never play time-based media."
+								}
+							],
+							"attrs": {
+								"id": "f0b6519b-bf27-4c08-86bd-638e54472ed5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7021e89c-c622-4042-9634-7de20ff46e5c"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "worker-src 'self' blob:",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — a plugin may run work off the main thread through a blob-URL "
+								},
+								{
+									"type": "text",
+									"text": "Worker",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "; hls.js, behind the AV plugin, is the first-party case."
+								}
+							],
+							"attrs": {
+								"id": "7c268058-408f-4d9a-a0a3-bee02d5939b1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "878da77a-7381-4384-9ce7-ddd45e7d2725"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "connect-src",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " must allow the IIIF hosts your manifests and image services live on — and, if you pass content states, the hosts those live on too; see "
+								},
+								{
+									"type": "text",
+									"text": "content states",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "#content-states"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " below."
+								}
+							],
+							"attrs": {
+								"id": "e8a3906b-eee5-4126-a5d9-45e7e240ec0b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7683c6ff-15f0-47a6-8048-e0480bb3c5d9"
+					}
+				}
+			],
+			"attrs": {
+				"id": "e3bd3f5f-1887-47ee-85a2-08b5deb6d5fa"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "content-states",
+				"id": "5784f23f-bcac-4b67-ad16-b3f63fa5ab82"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Content states"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A "
+				},
+				{
+					"type": "text",
+					"text": "content state",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/content-state/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " delivered as a "
+				},
+				{
+					"type": "text",
+					"text": "bare IIIF URI",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is dereferenced: the viewer fetches the document at that URI before it can know which manifest to open. The request goes through the same fetch path a "
+				},
+				{
+					"type": "text",
+					"text": "manifest-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " uses, so it is governed by "
+				},
+				{
+					"type": "text",
+					"text": "connect-src",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — and it is easy to miss, because the URI is often not on the host your manifests come from."
+				}
+			],
+			"attrs": {
+				"id": "a4a125f2-6480-49bb-a7d0-a9a41e930260"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A policy locked down to your own manifest host, like"
+				}
+			],
+			"attrs": {
+				"id": "59fca8d3-4823-4a32-994c-810aa32eecc8"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "plaintext",
+				"id": "b4e2f566-aede-4090-aa7a-65f0ae193bf0"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "connect-src 'self' https://iiif.example.edu;"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "opens every manifest you publish and refuses a content state someone links to you from anywhere else. The failure is quiet by design: ingestion never throws, so the browser blocks the request and the viewer reports it as a "
+				},
+				{
+					"type": "text",
+					"text": "content-state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " scoped "
+				},
+				{
+					"type": "text",
+					"text": "viewererror",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/integration/#attributes-properties-and-events"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " with the code "
+				},
+				{
+					"type": "text",
+					"text": "content-state-dereference-failed",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". It then "
+				},
+				{
+					"type": "text",
+					"text": "falls back to loading the URI as a manifest",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — a second request to the same blocked host, which the same policy refuses, so nothing opens. Allow the hosts you accept content states from, or accept content states only as JSON on the "
+				},
+				{
+					"type": "text",
+					"text": "content-state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " input, which fetches nothing."
+				}
+			],
+			"attrs": {
+				"id": "5693174e-4eaf-4cf6-a611-0cc747987c1e"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "This adds no trust boundary: a content-state URI is exactly as trusted as a manifest URI, and this policy is the control on both."
+				}
+			],
+			"attrs": {
+				"id": "fef2e6d1-4f03-49ee-a035-3dfaaa504741"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "audio-and-video",
+				"id": "dfdd541f-6491-4653-9ad8-d885841a5f2a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Audio and video"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Core is an image viewer and needs no "
+				},
+				{
+					"type": "text",
+					"text": "media-src",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " at all. The directive is in the recipes above because "
+				},
+				{
+					"type": "text",
+					"text": "the AV plugin",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-av/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is opt-in and common enough to plan for; three things about it are worth stating explicitly."
+				}
+			],
+			"attrs": {
+				"id": "d32a20ae-50b2-4bbc-b86a-47ba818fc0b2"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "media-src",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " covers the caption track too.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " CSP treats "
+								},
+								{
+									"type": "text",
+									"text": "<track>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " as a media request, so a policy that allows the video host but not the VTT host loads the media and silently offers no captions."
+								}
+							],
+							"attrs": {
+								"id": "51e18806-1930-4fce-a082-8ec8f47d75cc"
+							}
+						}
+					],
+					"attrs": {
+						"id": "45c5deb2-5f9e-4ae0-9d5a-e7324dd36e85"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "blob:",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is required for HLS.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " Where a browser has no native HLS the plugin falls back to hls.js, which drives the media element through Media Source Extensions — the element's "
+								},
+								{
+									"type": "text",
+									"text": "src",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " becomes a blob URL. Without "
+								},
+								{
+									"type": "text",
+									"text": "blob:",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " in "
+								},
+								{
+									"type": "text",
+									"text": "media-src",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", progressive files play and HLS streams do not."
+								}
+							],
+							"attrs": {
+								"id": "930ed2a5-2f81-4aa7-bbc4-96a7fbe7fa21"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b0604ea1-a722-429d-b07d-6a3f2a13d1a8"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "The lazy chunks are scripts.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " The plugin fetches hls.js, the waveform parsers, the segment sequencer and the transcript panel as separate ES modules at the moment a manifest needs them, so they are governed by "
+								},
+								{
+									"type": "text",
+									"text": "script-src",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and must be served from an origin it allows. Under the IIFE distribution that means the whole "
+								},
+								{
+									"type": "text",
+									"text": "dist/",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " directory, not one file out of it."
+								}
+							],
+							"attrs": {
+								"id": "a2eb8a25-7724-421c-9277-c77b471d6849"
+							}
+						}
+					],
+					"attrs": {
+						"id": "766b9ca6-e3b4-4dcc-a20b-8650532ee96a"
+					}
+				}
+			],
+			"attrs": {
+				"id": "d0c35578-3799-495a-872f-f1aab22532e2"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Media also has to be "
+				},
+				{
+					"type": "text",
+					"text": "CORS-readable",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — a requirement of the plugin, not of your CSP, and the usual reason a file that plays in a plain "
+				},
+				{
+					"type": "text",
+					"text": "<video>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tag will not play here. See "
+				},
+				{
+					"type": "text",
+					"text": "the AV plugin's page",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-av/#cors"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for that side of it."
+				}
+			],
+			"attrs": {
+				"id": "a883d9ce-59b6-44d9-a42c-43c86ef58829"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "advertising-the-style-nonce",
+				"id": "c763865b-0520-4ffd-9841-533cc686d40a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Advertising the style nonce"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Relevant to the "
+				},
+				{
+					"type": "text",
+					"text": "light-DOM",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#light-dom-svelte-component"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " recipe only — the "
+				},
+				{
+					"type": "text",
+					"text": "shadow-DOM",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#shadow-dom-custom-element"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " recipe already allows "
+				},
+				{
+					"type": "text",
+					"text": "'unsafe-inline'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " in "
+				},
+				{
+					"type": "text",
+					"text": "style-src",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for its shadow-root styles, so it has no nonce to advertise."
+				}
+			],
+			"attrs": {
+				"id": "04db6e9f-e9a6-4963-be7a-034395c04e88"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The style service discovers a nonce automatically. Advertise yours with a meta tag (substitute the same random value used in the CSP header), or on any nonced "
+				},
+				{
+					"type": "text",
+					"text": "<style>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "<script>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "<link>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " element already on the page:"
+				}
+			],
+			"attrs": {
+				"id": "b19c9b42-ce55-4afc-805d-cac4c77e4513"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "fb25d054-e38f-4e57-a486-9d58a7d33a37"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<meta property=\"csp-nonce\" content=\"<RANDOM>\" />"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The service reads the "
+				},
+				{
+					"type": "text",
+					"text": ".nonce",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " IDL property in preference to the "
+				},
+				{
+					"type": "text",
+					"text": "nonce",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " attribute, matching how browsers hide the attribute after parsing. When the host supplies no nonce and constructable stylesheets are available, no inline style is emitted at all."
+				}
+			],
+			"attrs": {
+				"id": "324d898a-9a73-42ad-8a5c-07f8e4a348e1"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "trusted-types",
+				"id": "e7e5ba73-e795-4708-9f97-5928a4fd588a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Trusted Types"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The viewer and plugins operate under a Trusted Types policy ("
+				},
+				{
+					"type": "text",
+					"text": "require-trusted-types-for 'script'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") in Chromium: DOM-sink usage in core and the SDK goes through a policy or safe APIs. Core installs a pass-through "
+				},
+				{
+					"type": "text",
+					"text": "default",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Trusted Types policy (untrusted HTML is sanitized upstream before it reaches any DOM sink) — if your app already installs its own "
+				},
+				{
+					"type": "text",
+					"text": "default",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " policy, core defers to it. Svelte creates its own "
+				},
+				{
+					"type": "text",
+					"marks": [
+						{
+							"type": "code"
+						}
+					],
+					"text": "svelte-trusted-html"
+				},
+				{
+					"type": "text",
+					"text": " policy at module load, so that name has to be allowed too or the viewer never mounts. Every bundle that embeds Svelte creates it again — the element IIFE and a plugin IIFE are two — and a repeated policy name throws without 'allow-duplicates'. If you enforce Trusted Types, include it alongside the policy above:"
+				}
+			],
+			"attrs": {
+				"id": "cd147c00-df45-4650-b269-48b8a0685be0"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "plaintext",
+				"id": "486860cf-1d72-4d1c-9449-9e7e843a912f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Content-Security-Policy: require-trusted-types-for 'script'; trusted-types default svelte-trusted-html 'allow-duplicates';"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "verified-against-the-packed-packages",
+				"id": "f36d1e03-758f-4cef-9a60-fefdff0af5f1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Verified against the packed packages"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "CI runs CSP packed-consumer fixtures under a realistic strict policy (no "
+				},
+				{
+					"type": "text",
+					"text": "unsafe-eval",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", no script "
+				},
+				{
+					"type": "text",
+					"text": "unsafe-inline",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") across Chromium, Firefox, and WebKit: a light-DOM Svelte consumer and a Web Component IIFE page render and theme correctly, a plugin installs styles via the nonce fallback path, and the page records zero "
+				},
+				{
+					"type": "text",
+					"text": "securitypolicyviolation",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " events. A Trusted Types page is verified on Chromium."
+				}
+			],
+			"attrs": {
+				"id": "9c4f4051-2268-45fa-8731-4665aff5c623"
+			}
+		}
+	],
+	"meta": {
+		"title": "Content Security Policy",
+		"shortTitle": "Content Security Policy",
+		"intro": "Triiiceratops under a strict Content Security Policy: no unsafe-eval, no unsafe-inline for scripts, and what your policy does need to allow."
+	}
+}
