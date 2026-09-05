@@ -1,8 +1,7 @@
 // docs-examples: compiles every fenced `ts` / `tsx` / `js` example that imports
 // package code (extracted from `docs/**/*.md` into `generated/` by
-// `scripts/docs-examples.mjs`) against the PACKED tarballs of all six packages the
-// driver packs — the five published ones plus the paused annotation-editor plugin,
-// whose docs still type-check. `buildScript: 'check'` runs `tsc --noEmit`; a
+// `scripts/docs-examples.mjs`) against the PACKED tarballs of every package the
+// documentation imports from. `buildScript: 'check'` runs `tsc --noEmit`; a
 // non-zero exit (a broken import path or a wrong public-API/plugin-config shape in
 // the docs) fails the fixture. No browser step — this is a pure type-check seam
 // that proves published guidance matches what users can install.
@@ -11,10 +10,10 @@ export default {
     tarballs: [
         'triiiceratops',
         '@triiiceratops/plugin-sdk',
+        '@triiiceratops/plugin-av',
         '@triiiceratops/plugin-image-manipulation',
         '@triiiceratops/plugin-image-export',
         '@triiiceratops/plugin-pdf-export',
-        '@triiiceratops/plugin-annotation-editor',
     ],
     buildScript: 'check',
     browser: false,

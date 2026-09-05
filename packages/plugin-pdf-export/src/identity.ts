@@ -6,5 +6,5 @@
  */
 export const PLUGIN_META = {
     name: '@triiiceratops/plugin-pdf-export',
-    version: '1.0.0-rc.0',
+    version: '1.0.0-rc.6',
 } as const;

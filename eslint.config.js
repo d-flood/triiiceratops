@@ -4,7 +4,7 @@ import svelte from 'eslint-plugin-svelte';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
-import demoBoundary from './eslint.boundaries.js';
+import workspaceBoundaries from './eslint.boundaries.js';
 
 export default ts.config(
     js.configs.recommended,
@@ -81,9 +81,15 @@ export default ts.config(
             'svelte/prefer-svelte-reactivity': 'warn',
         },
     },
-    // `scripts/pre-commit.sh` lints staged paths from the repo root, where this
-    // config — not `packages/core/eslint.config.js` — is the one ESLint loads,
-    // so core's boundary rules have to be reachable from here too, anchored to
-    // the package's path instead of to its own directory.
-    ...demoBoundary('packages/core/'),
+    // The workspace boundary lives here so that every package inherits it: a
+    // package's own config is `export default base`, and `**/src/**` matches its
+    // `src` tree whether ESLint runs from the repo root (`scripts/pre-commit.sh`
+    // lints staged paths from here) or from the package directory. `apps/**`
+    // only matches from the root, so `apps/demo` calls the factory again for its
+    // own anchor. `**/src/**` also matches `apps/demo/src/**`; see the ordering
+    // invariant in eslint.boundaries.js for why that is harmless.
+    ...workspaceBoundaries({
+        apps: ['apps/**'],
+        packageSources: ['**/src/**'],
+    }),
 );

@@ -21,7 +21,13 @@ import {
 describe('prop tiers', () => {
     it('classifies every viewer input into exactly one tier', () => {
         const attributeProps = Object.keys(VIEWER_ATTRIBUTE_PROPS);
-        expect(attributeProps).toEqual(['manifestId', 'canvasId', 'theme']);
+        expect(attributeProps).toEqual([
+            'manifestId',
+            'canvasId',
+            'theme',
+            'contentState',
+            'readContentStateFromUrl',
+        ]);
         expect([...VIEWER_PROPERTY_PROPS]).toEqual([
             'manifestJson',
             'themeConfig',
@@ -89,6 +95,18 @@ describe('viewerElementAttributes', () => {
         expect(viewerElementAttributes({ theme: 'teal' })).toEqual({
             theme: 'teal',
         });
+    });
+
+    it('renders a boolean input the way HTML does: present or absent', () => {
+        // Stringifying `false` would emit `read-content-state-from-url="false"`,
+        // which the element reads as present — turning a flag the consumer
+        // explicitly disabled back on.
+        expect(
+            viewerElementAttributes({ readContentStateFromUrl: true }),
+        ).toEqual({ 'read-content-state-from-url': '' });
+        expect(
+            viewerElementAttributes({ readContentStateFromUrl: false }),
+        ).toEqual({});
     });
 
     it('is pure, so the server and the client first render agree', () => {

@@ -1,0 +1,17 @@
+/*
+ * The playground's page-level stylesheet: the page shell only. The page chrome's
+ * own appearance lives in each component's scoped <style> block, and the viewer's
+ * appearance comes from `triiiceratops/style.css` and the viewer's own inputs —
+ * the page never styles the viewer's internals and never reads its tokens.
+ */
+html,
+body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background-color: #ececec;
+    color: #1a1a1a;
+    font-family: system-ui, sans-serif;
+}

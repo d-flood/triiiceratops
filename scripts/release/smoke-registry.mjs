@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Registry smoke test (post-publish, pre-release gate).
 //
-// After the promote job publishes the release manifest's tarballs (five today),
+// After the promote job publishes the release manifest's tarballs,
 // this installs the EXACT published versions from the real npm registry into a
 // throwaway minimal consumer and asserts the published packages actually resolve
 // and load. It gates GitHub release creation: the release job only runs if this
@@ -18,7 +18,9 @@
 //   · Web Component entries      (resolve 'triiiceratops/element' + '/element/register')
 //   · core framework subpaths    (resolve 'triiiceratops/react' + '/vue' + '/selectors' + '/testing')
 //   · SDK + every framework subpath (import '@triiiceratops/plugin-sdk' + /react …)
-//   · each plugin ESM entry      (import '@triiiceratops/plugin-*')
+//   · each plugin ESM entry      (import '@triiiceratops/plugin-*', except the
+//                                 ones that re-export core's root entry — see
+//                                 BUNDLER_ONLY_PLUGINS below)
 //   · no-bundler asset fetch     (HTTP GET the published element IIFE + CSS from a CDN)
 //
 // A second stage adds one THROWAWAY CONSUMER PER FRAMEWORK, each installing published core plus exactly one optional peer
@@ -62,6 +64,23 @@ function versionOf(pkgs, name) {
     if (!found) throw new Error(`package not in manifest: ${name}`);
     return found.version;
 }
+
+/**
+ * Published plugins whose ESM entry cannot be `import()`ed by plain Node, and are
+ * therefore asserted by RESOLUTION here rather than by load.
+ *
+ * The cause is one static import: these entries import `triiiceratops` — the
+ * root, Svelte library entry, whose modules a consumer's bundler compiles and
+ * Node cannot. That is the same reason core's own root entry is resolve-only in
+ * the smoke below, so the treatment matches; it is a property of the entry, not
+ * a gap in the package. Their real load path is covered by the bundler
+ * packed-consumer fixtures in `test-consumers/`.
+ *
+ * A plugin belongs here ONLY if its ESM entry reaches core's root. One that
+ * imports a compiled subpath (`triiiceratops/image-export`) loads in Node fine
+ * and must stay out, so the loop below keeps asserting the stronger thing for it.
+ */
+const BUNDLER_ONLY_PLUGINS = new Set(['@triiiceratops/plugin-av']);
 
 /**
  * Core's framework wrapper subpaths, and the named exports each must deliver.
@@ -198,6 +217,15 @@ async function main() {
     const { manifest, registry, cdn } = parseArgs(process.argv.slice(2));
     const { packages } = JSON.parse(readFileSync(manifest, 'utf8'));
     const v = (name) => versionOf(packages, name);
+    // Every published plugin but the SDK, which the loop above asserts on its own
+    // terms (it has framework adapter subpaths none of these carry).
+    const publishedPlugins = packages
+        .map((p) => p.name)
+        .filter(
+            (n) =>
+                n.startsWith('@triiiceratops/plugin-') &&
+                n !== '@triiiceratops/plugin-sdk',
+        );
 
     const dir = mkdtempSync(join(tmpdir(), 'tri-smoke-'));
     console.log(`[smoke] consumer dir: ${dir}`);
@@ -289,16 +317,22 @@ for (const sub of ['react', 'vue', 'svelte', 'lit']) {
     });
 }
 for (const p of ${JSON.stringify(
-        packages
-            .map((p) => p.name)
-            .filter(
-                (n) =>
-                    n.startsWith('@triiiceratops/plugin-') &&
-                    n !== '@triiiceratops/plugin-sdk',
-            ),
+        publishedPlugins.filter((n) => !BUNDLER_ONLY_PLUGINS.has(n)),
     )}) {
     await check(\`plugin: import \${p}\`, async () => {
         assert.ok(await import(p));
+    });
+}
+// Resolve-only, for the same reason core's own root entry is resolve-only above:
+// these entries import \`triiiceratops\` (the Svelte library entry), which only a
+// consumer's bundler compiles. Resolution still proves the export map, the
+// tarball and the dependency tree; the IMPORT is proven by the packed-consumer
+// bundler fixtures in test-consumers/.
+for (const p of ${JSON.stringify(
+        publishedPlugins.filter((n) => BUNDLER_ONLY_PLUGINS.has(n)),
+    )}) {
+    await check(\`plugin: resolve \${p} (bundler-only entry)\`, () => {
+        import.meta.resolve(p);
     });
 }
 let ok = true;

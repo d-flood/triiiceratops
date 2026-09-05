@@ -1,5 +1,8 @@
 packages:
     - 'packages/*'
+    # The site's applications: private, never published, and allowed to import a
+    # package only through its published entrypoints. See eslint.boundaries.js.
+    - 'apps/*'
     # The packed-consumer harness driver is a workspace tool (so `pnpm install`
     # provisions its devDeps, e.g. Playwright). Only the driver directory itself
     # is a workspace member — the fixtures under `test-consumers/fixtures/*` are

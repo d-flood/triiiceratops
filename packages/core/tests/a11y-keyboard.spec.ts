@@ -27,7 +27,7 @@ const MANIFEST = '/demo-manifests/a11y/manifest.json';
 async function loadViewer(page: Page, query = ''): Promise<void> {
     // Generous timeout: the first load after a cold dev-server start compiles
     // the whole app before the toolbar appears.
-    await page.goto(`/?manifest=${MANIFEST}${query}`, {
+    await page.goto(`/e2e/harness.html?manifest=${MANIFEST}${query}`, {
         waitUntil: 'domcontentloaded',
         timeout: 60000,
     });
@@ -126,14 +126,14 @@ test('panel close button returns focus to its toolbar toggle', async ({
 
 /*
  * Parity rule: a PLUGIN's docked panel gets the same close affordance the two
- * core-panel journeys above assert. Exercised through the demo's real SDK
+ * core-panel journeys above assert. Exercised through a real SDK
  * plugin (`@triiiceratops/plugin-pdf-export`, a `target: 'panel'` plugin), so
  * this is the shipped chrome and not a double.
  *
  * Two of them dock the plugin RIGHT, matching the right-docked Information
  * panel the core journeys use: the toggle is never rebuilt, so focus return is
  * the simple case. The third exercises the DEFAULT plugin configuration —
- * docked LEFT, on the same side as the demo's toolbar rail, where opening the
+ * docked LEFT, on the same side as the viewer's toolbar rail, where opening the
  * panel re-lays-out the rail and recreates the toggle element. A panel there
  * finds its toggle again by identity (`data-panel-toggle`) rather than by the
  * node it saw at mount.
@@ -141,7 +141,7 @@ test('panel close button returns focus to its toolbar toggle', async ({
 const PLUGIN_TOGGLE = '[aria-label="PDF Export"]';
 const PLUGIN_PANEL = '[data-panel-id="pdf-export:panel"]';
 
-/** Load the demo, dock the PDF-export plugin right, and open it from its toggle. */
+/** Load the harness, dock the PDF-export plugin right, and open it from its toggle. */
 async function openPluginPanel(page: Page) {
     await loadViewer(page);
     await page.evaluate(() => {
@@ -355,43 +355,6 @@ test('structures panel closes on Escape and returns focus to its toolbar toggle'
     expect((await activeElementInfo(page)).label).toBe(
         'Toggle Table of Contents',
     );
-});
-
-test('core Select (listbox) operates with keyboard and exposes aria-activedescendant', async ({
-    page,
-}) => {
-    await loadViewer(page);
-
-    // The core ui/Select renders in the demo settings sidebar (visible at
-    // desktop width). Expand the Nav group and drive its combobox. Scope to the
-    // desktop sidebar so the mobile-only duplicate menu is not matched.
-    const sidebar = page.locator('.settings-sidebar');
-    // Expand the <details> group that holds the select (programmatically, to
-    // avoid flaky summary-click stability with the group's expand animation).
-    await page.evaluate(() => {
-        const sb = document.querySelector('.settings-sidebar');
-        const sel = sb?.querySelector('#controls-select');
-        const details = sel?.closest('details');
-        if (details) (details as HTMLDetailsElement).open = true;
-    });
-    const combobox = sidebar.locator('#controls-select ~ [role="combobox"]');
-    await combobox.scrollIntoViewIfNeeded();
-    await combobox.focus();
-    expect(await combobox.getAttribute('aria-expanded')).toBe('false');
-
-    // Open with ArrowDown; listbox becomes visible and activedescendant is set.
-    await page.keyboard.press('ArrowDown');
-    await expect(combobox).toHaveAttribute('aria-expanded', 'true');
-    const ad1 = await combobox.getAttribute('aria-activedescendant');
-    expect(ad1).toBeTruthy();
-
-    // Arrow moves the active option (activedescendant tracks the highlight).
-    await page.keyboard.press('ArrowDown');
-    await expect(combobox).toHaveAttribute('aria-activedescendant', /.+/);
-
-    // Enter selects and closes.
-    await page.keyboard.press('Enter');
-    await expect(combobox).toHaveAttribute('aria-expanded', 'false');
 });
 
 /*

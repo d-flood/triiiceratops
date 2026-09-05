@@ -125,8 +125,8 @@ async function projectedHeight(page: Page): Promise<number> {
 
 /**
  * The two coordinate helpers a canvas-anchored consumer works in, read off the
- * viewer element itself rather than the fixture's `#v` so they serve the demo
- * application too. Both share `.viewer-area`'s origin.
+ * viewer element itself rather than the fixture's `#v` so they serve the
+ * harness page too. Both share `.viewer-area`'s origin.
  */
 async function screenToCanvas(page: Page, point: Point): Promise<Point | null> {
     return page.evaluate((p) => {
@@ -398,20 +398,20 @@ test('a host resize moments after a panel toggle still preserves scale', async (
  * Everything above runs against `/e2e/canvas-renderer-wc.html` — a bare custom
  * element with no host around it. That fixture reported the compensation
  * working for a whole epic while the shipped application threw a zoomed reader
- * back to the home view on every panel toggle, because the trigger is a host
- * that mirrors viewer state into its own configuration object and re-hands it
- * to the viewer. The demo application does exactly that, as any host with a
- * settings UI reasonably might, and it is the only seam in this repository
- * where the symptom was reproducible.
+ * back to the home view on every panel toggle, because the trigger is the whole
+ * application shell: a viewer handed a `config` object that carries the chrome's
+ * open state, with the docked panels and the unified bar really present around
+ * the surface.
  *
- * So these cases navigate to `/`, reach the reader's view by real wheel and drag
- * input, and press the toolbar's own buttons. What they assert is what the
- * reader sees: the scale and centre they chose, before and after.
+ * So these cases navigate to `/e2e/harness.html`, which mounts exactly that and
+ * nothing else, reach the reader's view by real wheel and drag input, and press
+ * the toolbar's own buttons. What they assert is what the reader sees: the scale
+ * and centre they chose, before and after.
  *
  * The whole class is covered here, not just the reported panel: every piece of
- * chrome the demo mirrors into its configuration, on both axes, and on a claimed
- * time-based-media canvas. The structures panel is deliberately absent — the demo
- * does not mirror it, so it is the control rather than a gap.
+ * chrome the `config` object carries, on both axes, and on a claimed
+ * time-based-media canvas. The structures panel is deliberately absent — none of
+ * these cases toggles it, so it is the control rather than a gap.
  *
  * They are the reader-facing statement, not a unit test of any one mechanism.
  * Two independent defects produced the reset — an unconditional world-refit and
@@ -428,18 +428,19 @@ test.describe('the real application — a reader keeps their place', () => {
      * change of world with a visibly different spread, and no manifest
      * behaviour has already chosen the mode for us.
      */
-    const APP = '/?manifest=/demo-manifests/a11y/manifest.json';
+    const APP = '/e2e/harness.html?manifest=/demo-manifests/a11y/manifest.json';
 
     /**
-     * A claimed time-based-media canvas in the same application: one Video
-     * canvas, the AV plugin bundled into the demo like any other first-party
-     * plugin, and the transport it registers rendered in the control bar.
+     * A claimed time-based-media canvas on the same page: one Video canvas, the
+     * AV plugin registered on the harness like any other first-party plugin,
+     * and the transport it registers rendered in the control bar.
      *
-     * The demo resolves `@triiiceratops/plugin-av` to the plugin's BUILT dist
-     * (`vite.config.ts`), so this needs `pnpm build:all` like the AV describe
-     * below — without it the transport never appears and the wait times out.
+     * The dev server resolves `@triiiceratops/plugin-av` to the plugin's BUILT
+     * dist (`vite.config.ts`), so this needs `pnpm build:all` like the AV
+     * describe below — without it the transport never appears and the wait
+     * times out.
      */
-    const AV_APP = `/?manifest=${AV_MANIFESTS.video}`;
+    const AV_APP = `/e2e/harness.html?manifest=${AV_MANIFESTS.video}`;
 
     /** The toolbar's "n / total" canvas indicator. */
     const NAV_INDEX = '.nav-index';
@@ -980,7 +981,8 @@ test.describe('the real application — a reader keeps their place', () => {
      * are the same measurement there. The numbered grid has structure at every
      * scale, and a canvas that is not painted collapses its spread to zero.
      */
-    const TILED_APP = '/?manifest=/demo-manifests/tiled/manifest.json';
+    const TILED_APP =
+        '/e2e/harness.html?manifest=/demo-manifests/tiled/manifest.json';
 
     /**
      * Measure the surface's painted content once per frame, at the END of the

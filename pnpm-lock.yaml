@@ -57,6 +57,152 @@ importers:
         specifier: ^8.53.1
         version: 8.53.1(eslint@9.39.2(jiti@2.6.1)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3)
 
+  apps/demo:
+    dependencies:
+      '@triiiceratops/cookbook':
+        specifier: workspace:*
+        version: link:../../packages/cookbook
+      '@triiiceratops/plugin-annotation-editor':
+        specifier: workspace:*
+        version: link:../../packages/plugin-annotation-editor
+      '@triiiceratops/plugin-av':
+        specifier: workspace:*
+        version: link:../../packages/plugin-av
+      '@triiiceratops/plugin-image-export':
+        specifier: workspace:*
+        version: link:../../packages/plugin-image-export
+      '@triiiceratops/plugin-image-manipulation':
+        specifier: workspace:*
+        version: link:../../packages/plugin-image-manipulation
+      '@triiiceratops/plugin-pdf-export':
+        specifier: workspace:*
+        version: link:../../packages/plugin-pdf-export
+      triiiceratops:
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^6.2.1
+        version: 6.2.1(supports-color@8.1.1)(svelte@5.45.5)(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2))
+      '@tsconfig/svelte':
+        specifier: ^5.0.6
+        version: 5.0.6
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.10.1
+      '@vitest/coverage-v8':
+        specifier: 4.0.15
+        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2))
+      eslint:
+        specifier: ^9.39.2
+        version: 9.39.2(jiti@2.6.1)(supports-color@8.1.1)
+      jsdom:
+        specifier: ^27.3.0
+        version: 27.3.0(postcss@8.5.19)(supports-color@8.1.1)
+      svelte:
+        specifier: ^5.43.8
+        version: 5.45.5
+      svelte-check:
+        specifier: ^4.3.4
+        version: 4.3.4(picomatch@4.0.3)(svelte@5.45.5)(typescript@5.9.3)
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2)
+      vitest:
+        specifier: ^4.0.15
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.19)(supports-color@8.1.1))(terser@5.49.2)
+
+  apps/examples:
+    dependencies:
+      '@triiiceratops/plugin-av':
+        specifier: workspace:*
+        version: link:../../packages/plugin-av
+      triiiceratops:
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^6.2.1
+        version: 6.2.1(supports-color@8.1.1)(svelte@5.45.5)(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2))
+      '@tsconfig/svelte':
+        specifier: ^5.0.6
+        version: 5.0.6
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.10.1
+      eslint:
+        specifier: ^9.39.2
+        version: 9.39.2(jiti@2.6.1)(supports-color@8.1.1)
+      svelte:
+        specifier: ^5.43.8
+        version: 5.45.5
+      svelte-check:
+        specifier: ^4.3.4
+        version: 4.3.4(picomatch@4.0.3)(svelte@5.45.5)(typescript@5.9.3)
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2)
+
+  apps/landing: {}
+
+  apps/viewer:
+    dependencies:
+      '@triiiceratops/plugin-av':
+        specifier: workspace:*
+        version: link:../../packages/plugin-av
+      '@triiiceratops/plugin-image-manipulation':
+        specifier: workspace:*
+        version: link:../../packages/plugin-image-manipulation
+      triiiceratops:
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.57.0
+        version: 1.57.0
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^6.2.1
+        version: 6.2.1(supports-color@8.1.1)(svelte@5.45.5)(vite@6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2))
+      '@tsconfig/svelte':
+        specifier: ^5.0.6
+        version: 5.0.6
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.10.1
+      eslint:
+        specifier: ^9.39.2
+        version: 9.39.2(jiti@2.6.1)(supports-color@8.1.1)
+      svelte:
+        specifier: ^5.43.8
+        version: 5.45.5
+      svelte-check:
+        specifier: ^4.3.4
+        version: 4.3.4(picomatch@4.0.3)(svelte@5.45.5)(typescript@5.9.3)
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@24.10.1)(jiti@2.6.1)(terser@5.49.2)
+
+  packages/cookbook:
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: 4.0.15
+        version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2))
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.15
+        version: 4.0.15(@types/node@24.10.1)(happy-dom@20.0.11)(jiti@2.6.1)(jsdom@27.3.0(postcss@8.5.6)(supports-color@8.1.1))(terser@5.49.2)
+
   packages/core:
     devDependencies:
       '@axe-core/playwright':
@@ -1835,6 +1981,7 @@ packages:
   eslint@9.39.2:
     resolution: {integrity: sha512-LEyamqS7W5HB3ujJyvi0HQK/dtVINZvd5mAAp9eT5S/ujByGjiZLCzPcHVzuXbpJDJF/cxwHlfceVUDZ2lnSTw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -5180,9 +5327,9 @@ snapshots:
     dependencies:
       postcss: 8.5.6
 
-  postcss-scss@4.0.9(postcss@8.5.6):
+  postcss-scss@4.0.9(postcss@8.5.19):
     dependencies:
-      postcss: 8.5.6
+      postcss: 8.5.19
 
   postcss-selector-parser@7.1.1:
     dependencies:
@@ -5421,8 +5568,8 @@ snapshots:
       eslint-scope: 8.4.0
       eslint-visitor-keys: 4.2.1
       espree: 10.4.0
-      postcss: 8.5.6
-      postcss-scss: 4.0.9(postcss@8.5.6)
+      postcss: 8.5.19
+      postcss-scss: 4.0.9(postcss@8.5.19)
       postcss-selector-parser: 7.1.1
     optionalDependencies:
       svelte: 5.45.5
@@ -5575,7 +5722,7 @@ snapshots:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
-      postcss: 8.5.6
+      postcss: 8.5.19
       rollup: 4.53.3
       tinyglobby: 0.2.15
     optionalDependencies:

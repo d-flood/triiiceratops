@@ -20,12 +20,12 @@ the supported integration path — see the [React](react.md), [Vue](vue.md), and
 
 ## Configuration Object
 
-<!-- Absolute URL, not a relative `./viewer/` link: the demo is published at a
-stable, unversioned path (see docs-publish.mjs) because IIIF cookbook recipes
-link to it directly. -->
+<!-- Absolute URL, not a relative link: the playground is published at a stable,
+unversioned path (see docs-publish.mjs), outside the per-version documentation
+directory this page is served from. -->
 !!! tip "Interactive Configuration"
 
-    You can experiment with these settings in the [Live Demo](https://d-flood.github.io/triiiceratops/viewer/){target=_blank}.
+    You can experiment with these settings in the [Live Demo](https://triiiceratops.org/demo/){target=_blank}.
     Open the settings menu (gear icon), tweak the configuration, then click
     **"Copy Config"** to get the JSON for your project.
 
@@ -80,7 +80,8 @@ interface ViewerConfig {
             open?: boolean; // Default: false (Plugin panel open)
             showCloseButton?: boolean; // Default: true
             target?: 'panel' | 'flyout'; // Override where the plugin renders
-            position?: 'left' | 'right'; // Override docked panel side; ignored when target is 'flyout'
+            // Override the docked panel's position; ignored when target is 'flyout'
+            position?: 'left' | 'right' | 'bottom' | 'overlay';
         };
     };
 
@@ -150,8 +151,7 @@ interface ViewerConfig {
         boxThreshold?: number;
     };
 
-    // Marker styling for point annotations, shared by the read-only overlay
-    // and the annotation editor
+    // Marker styling for point annotations in the read-only overlay
     pointStyle?: {
         radius?: number; // Screen pixels; Default: 5
         fill?: string;
@@ -170,9 +170,10 @@ interface ViewerConfig {
 ### Nav Alignment and Playback Controls
 
 `nav.align` is **inert while a plugin has registered transport chrome** — the seam a
-claimant of timed media (the AV plugin, for one) uses to put playback controls in the
-control bar. The bar then spans its full available width, because the seek bar's width
-is the precision a reader can aim with, and a full-width bar has nowhere to align.
+claimant of timed media uses to put playback controls in the control bar, which is
+how [the AV plugin](plugin-av.md) gets its transport. The bar then spans its full
+available width, because the seek bar's width is the precision a reader can aim
+with, and a full-width bar has nowhere to align.
 
 The setting is not deprecated and nothing is warned about: it resumes meaning the moment
 the chrome deregisters. `nav.style`, `nav.edge`, the nav inset, and `controls` all go on
@@ -186,7 +187,7 @@ When multiple panels are open on the same side, they stack vertically. `search`,
 
 ### Plugin UI Control
 
-Plugin UI can be controlled from the same `config` object used for built-in panes. Use each plugin's stable id as the key — the SDK `uiId` a `definePlugin` plugin declares (first-party plugins use `pdf-export`, `image-download`, `image-manipulation`, `annotation-editor`):
+Plugin UI can be controlled from the same `config` object used for built-in panes. Use each plugin's stable id as the key — the SDK `uiId` a `definePlugin` plugin declares (first-party plugins use `av`, `pdf-export`, `image-download`, `image-manipulation`):
 
 ```typescript
 const config = {
@@ -200,14 +201,14 @@ const config = {
             open: false,
             target: 'flyout',
         },
-        'annotation-editor': {
+        av: {
             position: 'right',
         },
     },
 };
 ```
 
-`visible` controls whether the plugin's toolbar button is rendered, `open` controls whether the plugin surface is expanded, `target` overrides where the plugin renders (`'panel'` or `'flyout'`), and `position` overrides which side a docked panel opens on (`'left' | 'right'`; ignored while the plugin's effective `target` is `'flyout'`, since a flyout anchors to its toolbar button rather than docking to a side). All four apply reactively after mount, so a host can, for example, switch a plugin to a flyout on narrow viewports. See [controlling plugin UI at runtime](plugins.md#controlling-plugin-ui-at-runtime) for the per-framework code and a responsive example.
+`visible` controls whether the plugin's toolbar button is rendered, `open` controls whether the plugin surface is expanded, `target` overrides where the plugin renders (`'panel'` or `'flyout'`), and `position` overrides where a docked panel opens (`'left' | 'right'` in that sidebar stack, `'bottom'` as a full-width band below the image, `'overlay'` floated over the image; ignored while the plugin's effective `target` is `'flyout'`, since a flyout anchors to its toolbar button rather than docking). All four apply reactively after mount, so a host can, for example, switch a plugin to a flyout on narrow viewports. See [controlling plugin UI at runtime](plugins.md#controlling-plugin-ui-at-runtime) for the per-framework code and a responsive example.
 
 ## Usage
 
@@ -450,7 +451,7 @@ interface ViewerStateSnapshot {
     ```
 
     You can use these events to sync your application's UI with the viewer, as
-    demonstrated in `src/demo/Demo.svelte`.
+    demonstrated in `apps/demo/src/Demo.svelte`.
 
 === "React"
 
@@ -1416,25 +1417,74 @@ Triiiceratops supports the IIIF [`start`](https://iiif.io/api/presentation/3.0/#
 
 This is automatic — no configuration is needed. The `start` property is read from both v2 and v3 manifests. If a `canvasId` prop is explicitly provided, it takes priority over the manifest's `start` property.
 
-## Content State API
+## Opening at a canvas, a region, or a media time
 
-Triiiceratops supports the [IIIF Content State](https://iiif.io/api/content-state/) specification via the `iiif-content` URL parameter. This allows links that open the viewer at a specific manifest, canvas, and optional spatial region.
+Where the viewer opens is set by its inputs, and the viewer forms no opinion about
+your URLs. Three inputs place it:
 
-The `iiif-content` value can be:
+| Input | Effect |
+| :-- | :-- |
+| `manifestId` (or `manifestJson`) | which manifest to open |
+| `canvasId` | which canvas to show, overriding the manifest's own `start` |
+| `initialCanvasRegion` | a `CanvasRegion` — `{ x, y, width, height }` in canvas coordinates — to frame |
 
-- A plain HTTPS URL (used directly as the manifest ID)
-- A base64url-encoded JSON object following the Content State specification
+`canvasId` and `manifestId` are **uncontrolled** — one-way instructions, not
+enforced bindings — so re-asserting the current value after the reader has
+navigated writes nothing. `initialCanvasRegion` applies to the canvas the viewer
+opens at; a `canvasId` explicitly supplied takes priority over the manifest's
+`start` property.
 
+### IIIF Content State
+
+A [content state](content-state.md) is a portable IIIF description of a view. The
+viewer takes one as an explicit input, and reads the `iiif-content` URL parameter
+only when the host opts in
+([ADR 0006](adr/0006-content-state-is-an-explicit-component-input.md)):
+
+| Input | Attribute | Default |
+| :-- | :-- | :-- |
+| `contentState` | `content-state` | none |
+| `readContentStateFromUrl` | `read-content-state-from-url` | off |
+
+With the flag off — the default — the viewer never touches `window.location`, so a
+component embedded in your application cannot consume an `iiif-content` parameter
+meant for the page around it. Turning it on delegates that one channel to the
+viewer; every other delivery channel (paste, drop, `FileReader`, a `data-*`
+attribute) stays the host's.
+
+The discrete inputs above win over `contentState`, which wins over the URL
+parameter. A content state's region is honoured when the canvas it names opens, so
+supply it with the content state rather than assigning `initialCanvasRegion` to a
+viewer that is already showing something.
+
+Hosts that want a view target without handing the viewer a content state can call
+`parseContentState`, which is public API and resolves every form
+[the conformance table lists](content-state.md#supported-forms).
+
+The [bare viewer](https://triiiceratops.org/viewer/){target=_blank} sets
+`read-content-state-from-url`, which is why IIIF Cookbook recipes can link
+straight into it.
+
+### Media time
+
+A `#t=` fragment is the temporal peer of `#xywh=`, and it is not a region: it is
+carried as a **temporal offset** on the navigation rather than applied to the
+image. Pass it as the second argument to `setCanvas`:
+
+```ts
+viewer.viewerState?.setCanvas(canvasId, { seconds: 157 });
 ```
-https://your-site.com/demo?iiif-content=<base64url-encoded-content-state>
-```
 
-The viewer extracts the manifest URL, canvas ID, and `xywh` region from the decoded value and opens the viewer at that location. If a `manifest` query parameter is also present, it takes priority over `iiif-content`.
+Core parses and carries the offset — `viewerState.temporalOffset` holds the last
+one, replaced whole by each navigation — but never acts on it. Only a plugin that
+has claimed that canvas interprets it, always as a **seek** and never as autoplay;
+with [the AV plugin](plugin-av.md) active, that positions the playhead. A range's
+end (`#t=157,203`) is carried and deliberately not enforced: nothing in core stops
+playback at it.
 
-Reading `iiif-content` is **opt-in** and never takes over your routing:
-precedence is discrete props/properties (`manifestId`/`canvasId`) win over
-`initialCanvasRegion` (Svelte prop, or the custom element's property of the
-same name), which wins over the URL parameter.
+The same offset is produced by the manifest's own `start` property and by a
+structure item whose target carries `#t=`, so a table-of-contents entry pointing
+into the middle of a recording works with no host code at all.
 
 ## Multiple Sequences / Alternative Page Sequences
 

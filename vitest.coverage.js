@@ -32,9 +32,7 @@ export const coverage = {
         'src/lib/paraglide/**',
         'src/paraglide/**',
         'src/lib/generated/**',
-        // Demo / dev-server only sources (never shipped).
-        'src/demo/**',
-        'src/demo-consumer/**',
-        'src/demo-webcomponent/**',
+        // Dev-server / example-page only sources (never shipped).
+        'src/e2e/**',
     ],
 };

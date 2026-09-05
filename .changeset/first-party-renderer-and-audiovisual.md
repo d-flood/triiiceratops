@@ -2,7 +2,6 @@
 'triiiceratops': major
 '@triiiceratops/plugin-sdk': major
 '@triiiceratops/plugin-av': minor
-'@triiiceratops/plugin-annotation-editor': minor
 '@triiiceratops/plugin-image-export': minor
 '@triiiceratops/plugin-image-manipulation': minor
 '@triiiceratops/plugin-pdf-export': minor
@@ -15,9 +14,13 @@
 - Playback controls live in the viewer's control bar via the media-agnostic `transport-chrome` seam, and the whole bar idle-hides over a claimed canvas (`IDLE_CHROME_DELAY_MS`, `canIdleHide`).
 - A canvas with a duration and no picture is laid out as a timeline rather than as a page: with nothing to declare a rect — no dimensions, no image to reflow from, no companion Canvas — a bare audio canvas takes a wide, short box instead of the square that stands in for an unknown shape, so its stage reads as a waveform band rather than as a block. `PlannerCanvas` carries the Canvas's declared `duration` for that one decision.
 - New core seams for non-image content: `claimCanvas`/`isCanvasClaimed`/`claimedCanvases`, `canvasSize`, and a shared painting-body classifier (`isUnsupportedCanvasFor`, `isImageBody`, `paintingBodyAlternatives`, `companionPaintable`) so audiovisual canvases degrade honestly instead of hitting the image pipeline.
-- `window.Triiiceratops` publishes core's Svelte runtime and a curated `core` utility set for first-party IIFEs. Plugin API 1.0.0 → 1.4.0 across five declared capabilities.
+- `window.Triiiceratops` publishes core's Svelte runtime and a curated `core` utility set for first-party IIFEs. Plugin API 1.0.0 → 1.6.0 across five declared capabilities.
 - The floating thumbnail gallery and the drag-a-URL drop are removed; the gallery is always docked and gets a toolbar placement picker. `gallery.draggable`/`width`/`height`/`x`/`y`, `dockPosition: 'none'` and `enableDragDrop` are gone, along with the state members behind them.
 - **SDK narrowing (breaking):** `satisfies` accepts only exact, caret and `>=` ranges and throws on the rest; `PluginCompatibilityReason` and `collectIncompatibilities` are removed; `PluginHost` requires all five services and the `createStub*` factories move to `@triiiceratops/plugin-sdk/testing`. New `@triiiceratops/plugin-sdk/register-shared` subpath.
 - The export and manipulation plugins are migrated onto core's first-party APIs and declare no `requiredCapabilities`; `MULTI_CANVAS_GAP` is replaced by a `gap` option on `getCanvasDisplayLayouts`. Alert text in the image-export download panel is legible under the dark themes.
 - **`@triiiceratops/plugin-annotation-editor` is not published this release.** It is paused pending the phase-2 drawing layer and still declares `osd@5`, so registering it fails activation with a structured error.
+- The AV plugin lists a claimed canvas's timed manifest annotations beside the transcript, as a Notes section: each note's time span and text in time order, the notes covering the playhead marked as the recording moves, and a click seeking to a note's start without starting playback. A note is listed only when its target parses to a temporal media fragment and its body is a `TextualBody` with no `format` or `text/plain`; HTML, external and image bodies and whole-canvas comments are skipped rather than guessed at. The rows share the transcript's lazy chunk, marking, formatting and keyboard handling. Core exports `parseIiifTime` publicly and on the `window.Triiiceratops.core` namespace so a claimant reads media-fragment times through core's parser.
+- The transport's panel control is named for what the current canvas actually offers, so a button labelled "Transcript" never opens a panel holding only notes; a canvas offering neither leaves the control out and never fetches the panel's chunk. The transport's buttons carry the toolbar's own hover tooltips, and the annotations action is left out of the toolbar on a claimed canvas.
+- The AV panel opens at the viewer's full height, and the two gallery toolbar buttons collapse into one.
+- Closing a panel docked on the same side as a side-positioned toolbar animates in one step rather than two.
 - Docs: AV support, published plugin state, and the bundle-size comparison are brought up to date.

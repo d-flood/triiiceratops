@@ -435,9 +435,12 @@ test.describe('Canvas2D renderer — per-canvas tile-source errors', () => {
         const config = encodeURIComponent(
             JSON.stringify({ viewingMode: 'individuals' }),
         );
-        await page.goto(`/?manifest=${TILED_MANIFEST}&config=${config}`, {
-            waitUntil: 'domcontentloaded',
-        });
+        await page.goto(
+            `/e2e/harness.html?manifest=${TILED_MANIFEST}&config=${config}`,
+            {
+                waitUntil: 'domcontentloaded',
+            },
+        );
 
         const alert = page.locator('[role="alert"]');
         await expect(alert).toBeVisible({ timeout: OPEN_TIMEOUT });

@@ -56,7 +56,9 @@ export default defineConfig({
     ],
     webServer: {
         command: `pnpm dev --port ${E2E_PORT} --host 127.0.0.1`,
-        url: E2E_ORIGIN,
+        // The harness page, not `/`: the package ships no root document, so a
+        // readiness probe against the origin gets a 404 and never resolves.
+        url: `${E2E_ORIGIN}/e2e/harness.html`,
         reuseExistingServer: !process.env.CI,
     },
 });
