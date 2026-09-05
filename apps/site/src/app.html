@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <!-- Inline and blocking so the stored scheme is applied before first
+             paint; see src/lib/theme.ts for why, and for the shared key. -->
+        <script>
+            try {
+                var chosen = localStorage.getItem('triiiceratops.theme');
+                if (chosen === 'light' || chosen === 'dark') {
+                    document.documentElement.setAttribute('data-theme', chosen);
+                }
+            } catch (error) {
+                /* A blocked store means the machine preference wins. */
+            }
+        </script>
+        <!-- Only the roman's `latin` slice is preloaded, though all three
+             faces are self-hosted and each is declared three times in
+             src/app.css — the full file, and its `latin-ext` and `latin`
+             slices. Preloading here rather than leaving it to be discovered
+             inside the stylesheet saves a round trip; `crossorigin` is required
+             even same-origin, because a font request is made in CORS mode and a
+             preload fetched under a different credentials mode is not the one
+             the face reuses.
+
+             One file and not more. First paint uses the roman and nothing else,
+             and preloading faces it does not use competes with this one for the
+             throttled link — measured under ticket 06, where preloading the
+             italic and the mono as well pushed largest-contentful-paint to
+             1.2 s and the score to 97. The slice rather than the full face is
+             ticket 07's measurement: 192 KB against 419 KB for exactly the same
+             visible text, because English prose paints nothing outside that
+             range. The full face is still declared and is still fetched on
+             demand by any page painting a glyph the slice does not carry, so no
+             coverage is lost — see the note above the `@font-face` rules. -->
+        <link
+            rel="preload"
+            href="/fonts/SourceSerif4Variable-Roman-Latin.woff2"
+            as="font"
+            type="font/woff2"
+            crossorigin
+        />
+        %sveltekit.head%
+    </head>
+    <body data-sveltekit-preload-data="hover">
+        <div style="display: contents">%sveltekit.body%</div>
+    </body>
+</html>

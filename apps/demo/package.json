@@ -22,6 +22,7 @@
         "lint:fix": "eslint . --fix --max-warnings 0"
     },
     "dependencies": {
+        "@triiiceratops/config": "workspace:*",
         "@triiiceratops/cookbook": "workspace:*",
         "@triiiceratops/plugin-annotation-editor": "workspace:*",
         "@triiiceratops/plugin-av": "workspace:*",

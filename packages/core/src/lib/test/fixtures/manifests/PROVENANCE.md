@@ -127,8 +127,8 @@ trailing newline the other vendored files carry.
 
 ### How the list was derived
 
-The methodology is the one `docs/bundle-size-comparison.md` documents for its
-recipe counts: read the Cookbook
+The methodology is the one the published comparison documents for its recipe
+counts: read the Cookbook
 [support matrix](https://iiif.io/api/cookbook/recipe/matrix/), which renders 80
 rows across eight categories, and deduplicate by recipe to 67 distinct ones.
 The audiovisual set is the matrix's own **Audio/Visual Recipes** category (13
@@ -142,10 +142,9 @@ than trusted: all 67 recipe manifests were fetched and searched for `Sound` or
 `0489-multimedia-canvas` (filed under Annotation Recipes). All 15 are vendored
 here.
 
-This list of 15 — and the 52 image recipes it leaves — is what
-`docs/bundle-size-comparison.md` counts with. That page previously said 14 and
-53, having read the split off the matrix's categories rather than off the
-manifests; it was corrected to agree with the derivation above.
+This list of 15 — and the 52 image recipes it leaves — is what the recipe
+catalog (`packages/cookbook/src/recipes.ts`) groups as audiovisual, and so what
+the site's capability axis counts with.
 
 **The audiovisual recipe ids** — the list tickets 16 (comparison doc) and 17
 (demo picker) consume:

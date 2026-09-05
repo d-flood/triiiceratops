@@ -246,7 +246,7 @@ lazy chunks are outside that figure:
 
 Figures are gzip at level 9, rounded — they move by tens of bytes build to build.
 For byte-exact numbers, the full method, and the per-recipe Cookbook results, see
-the [bundle-size comparison](https://d-flood.github.io/triiiceratops/bundle-size-comparison/).
+the [size and capability comparison](https://triiiceratops.org/size/).
 
 ## License
 

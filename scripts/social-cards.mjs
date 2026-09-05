@@ -19,9 +19,10 @@
 // card is effectively immutable once shared. To change a card, bump the
 // filename to `-v2` here AND at every reference listed in scripts/social-cards.README.md.
 //
-// Requires Playwright's Chromium (a devDependency of packages/core) and network
-// access for the Inter webfont — the same font the docs site loads. Without the
-// network it falls back to a system sans and the cards render slightly off.
+// Requires Playwright's Chromium (a devDependency of packages/core) and nothing
+// else: the two faces are the repository's own self-hosted ones, embedded as data
+// URIs, so a render is hermetic and reproducible rather than dependent on a font
+// host being up.
 
 import {
     existsSync,
@@ -92,15 +93,43 @@ function dataUri(relPath) {
     return `data:${mime};base64,${buf.toString('base64')}`;
 }
 
+/** One of the repository's self-hosted faces, as a data URI. */
+function fontUri(name) {
+    const buf = readFileSync(
+        join(REPO_ROOT, 'apps', 'site', 'static', 'fonts', name),
+    );
+    return `data:font/woff2;base64,${buf.toString('base64')}`;
+}
+
+/**
+ * The faces a card is set in, embedded.
+ *
+ * A card is a committed PNG, so the render has to be reproducible: a webfont
+ * fetched from a third party makes the output depend on a host being up and on
+ * whatever that host is serving today. These are the same files the marketing
+ * site and the documentation serve, so a card reads as part of the same product.
+ */
+const FONT_FACES = `
+  @font-face {
+    font-family: 'Source Serif 4';
+    src: url(${fontUri('SourceSerif4Variable-Roman.woff2')}) format('woff2');
+    font-weight: 200 900;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Source Code Pro';
+    src: url(${fontUri('SourceCodeVariable-Roman.woff2')}) format('woff2');
+    font-weight: 200 900;
+    font-style: normal;
+  }`;
+
 /** Shared page chrome: 1200x630 exactly, no scrollbars, brand tokens in scope. */
 function shell(body) {
     return `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=block">
-<style>
+<style>${FONT_FACES}
   :root {
     --navy: ${NAVY}; --deep: ${DEEP}; --amber: ${AMBER};
     --amber-ink: ${AMBER_INK}; --paper: ${PAPER};
@@ -108,14 +137,14 @@ function shell(body) {
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1200px; height: 630px; overflow: hidden; }
   body {
-    font-family: Inter, system-ui, sans-serif;
+    font-family: 'Source Serif 4', Georgia, serif;
     background: var(--navy);
     color: var(--paper);
     position: relative;
     background-image:
       radial-gradient(75% 70% at 0% 100%, var(--deep) 0%, transparent 72%);
   }
-  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .mono { font-family: 'Source Code Pro', ui-monospace, monospace; }
   /* A card is read at thumbnail size; the eyebrow has to survive that. */
   .eyebrow {
     font-size: 22px; font-weight: 700; letter-spacing: 0.2em;

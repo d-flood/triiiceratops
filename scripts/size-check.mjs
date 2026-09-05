@@ -4,8 +4,8 @@
 // Measures the two published Web Component artifacts — the self-contained IIFE
 // (`./element`) and the ESM registration entry (`./element/register`) — as raw
 // bytes, gzip level 9, and Brotli quality 11. Those are the same compression
-// settings `docs/bundle-size-comparison.md` quotes; if one moves, move the
-// other, or the advertised numbers and the gate drift apart.
+// settings the published comparison quotes — `packages/comparison` — so if one
+// moves, move the other, or the advertised numbers and the gate drift apart.
 //
 // Two modes, mirroring `scripts/coverage-check.mjs`:
 //   - default: compares every artifact against `size-baseline.json` and exits
@@ -57,8 +57,8 @@ const ARTIFACTS = ['triiiceratops-element.iife.js', 'triiiceratops-element.js'];
  * is a CI failure rather than something discovered when the comparison document
  * is rewritten.
  *
- * `gzip` because that is what `docs/bundle-size-comparison.md` quotes and what
- * a CDN serves. The figure is TIFY's measured size under the same settings this
+ * `gzip` because that is what the published comparison quotes and what a CDN
+ * serves. The figure is TIFY's measured size under the same settings this
  * script uses; re-measure it there, not here, if it is ever refreshed.
  */
 const COMPETITIVE_BUDGET = {

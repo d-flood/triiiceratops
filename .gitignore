@@ -116,7 +116,8 @@ storybook-static/
 # docs
 .venv/
 __pycache__
-site/
+# Anchored: the generator emits the repo root's site/, and apps/site is tracked.
+/site/
 # Generated effective zensical config (docs-build.mjs); never committed.
 .zensical.effective.toml
 # Assembly root for the published site (docs-publish.mjs --dest).

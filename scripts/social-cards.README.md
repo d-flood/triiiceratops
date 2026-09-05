@@ -13,7 +13,7 @@ The images social platforms show when a link to this site is shared. All are
 
 | File                                   | Used by                                                                                                                                                 |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `og-landing-v1.png`                    | the site root landing page (`apps/landing/index.html`)                                                                                                  |
+| `og-landing-v1.png`                    | the site root page (`apps/site/index.html`)                                                                                                             |
 | `og-docs-v1.png`                       | every documentation page, plus the generated `/latest/` and `/versions/` pages                                                                          |
 | `og-viewer-v1.png`                     | the `/viewer/` live demo only                                                                                                                           |
 | `scripts/social-cards/viewer-dark.jpg` | build input: the viewer screenshot `og-viewer-v1.png` is composed from. Kept out of `docs/` so it is not copied into every published version directory. |
@@ -53,7 +53,7 @@ So changing a card means publishing it under a _new_ filename. Bump `-v1` to
   card's content changed)
 - `apps/demo/index.html` — `og:image`, `og:image:secure_url` and
   `twitter:image` (viewer card)
-- `apps/landing/index.html` — `og:image`, `og:image:secure_url` and
+- `apps/site/index.html` — `og:image`, `og:image:secure_url` and
   `twitter:image` (landing card)
 - `scripts/docs-publish.mjs` — the `OG_IMAGE` constant (docs card)
 - `site-urls.json` — the `/social/` entry for that card; the URL contract gate

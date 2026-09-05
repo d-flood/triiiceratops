@@ -1,4 +1,7 @@
-{% extends "base.html" %} {% block extrahead %}
+{% extends "base.html" %} {# Typefaces. Replaces the theme's own block, which
+fetches a text and a code family from Google Fonts on every page; the same three
+self-hosted faces serve the marketing site. See partials/fonts.html. #} {% block
+fonts %}{% include "partials/fonts.html" %}{% endblock %} {% block extrahead %}
 <script
     defer
     src="https://stats.dflood.org/script.js"

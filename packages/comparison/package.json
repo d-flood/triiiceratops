@@ -1,0 +1,36 @@
+{
+    "name": "@triiiceratops/comparison",
+    "version": "0.0.0",
+    "type": "module",
+    "description": "Internal, unpublished data for the bundle-size comparison: the pinned competitor list, the browser-driven measure script, and its committed measured output. Consumed as TypeScript source by the marketing site; never shipped to a consumer.",
+    "license": "MIT",
+    "author": "David Flood",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/d-flood/triiiceratops.git",
+        "directory": "packages/comparison"
+    },
+    "private": true,
+    "sideEffects": false,
+    "types": "./src/index.ts",
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "default": "./src/index.ts"
+        }
+    },
+    "scripts": {
+        "measure": "node scripts/measure.mjs",
+        "check": "tsc -p tsconfig.json --noEmit",
+        "test": "vitest run",
+        "test:coverage": "vitest run --coverage",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.57.0",
+        "@vitest/coverage-v8": "4.0.15",
+        "typescript": "~5.9.3",
+        "vitest": "^4.0.15"
+    }
+}

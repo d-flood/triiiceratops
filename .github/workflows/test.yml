@@ -209,6 +209,67 @@ jobs:
             - name: Run E2E Tests
               run: pnpm --filter triiiceratops exec playwright test --project=${{ matrix.project }}
 
+    # Ticket 06: the marketing site's browser suite, including the score gate.
+    #
+    # The suite serves TWO origins: the development server for the screens that
+    # ask what the application renders, and the assembled `published/` tree for
+    # the score gate. That is why this job assembles the whole tree — and why it
+    # installs zensical, since assembly builds the documentation subtree. A gate
+    # run against the application's own output could be green while the published
+    # site is broken, because the SEO category reads the publish-owned crawl
+    # files at the tree's root.
+    #
+    # Same trigger as the site's other checks. Required.
+    site:
+        name: Site (browser suite + score gate)
+        if: github.head_ref != 'changeset-release/main'
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: pnpm/action-setup@v6
+              with:
+                  version: 11.15.1
+
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            - uses: actions/setup-python@v7
+              with:
+                  python-version: 3.x
+
+            # Assembly builds the documentation subtree with this generator; see
+            # docs.yml, which installs it the same way.
+            - name: Install zensical
+              run: pip install zensical
+
+            - name: Install Playwright Browser
+              run: pnpm --filter @triiiceratops/app-site exec playwright install --with-deps chromium
+
+            # Build every workspace application and assemble the published tree,
+            # which is what the score gate measures.
+            - name: Build and assemble the published tree
+              run: pnpm site:build
+
+            - name: Run the site's browser suite (includes the score gate)
+              run: pnpm --filter @triiiceratops/app-site test:e2e
+
+            - name: Upload Playwright report
+              if: failure()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: site-playwright-report
+                  path: apps/site/test-results/
+                  if-no-files-found: ignore
+                  retention-days: 7
+
     accessibility:
         name: Accessibility (WCAG 2.2 AA)
         if: github.head_ref != 'changeset-release/main'

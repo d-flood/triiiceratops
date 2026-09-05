@@ -182,9 +182,10 @@ you can keep everything consistent or fine-tune one region.
 ### Complete public token reference
 
 Every token below is part of the **semver-governed public customization surface**.
-Variables outside the `--tri-*` namespace (for example `--ui-*` layout plumbing or
-component-local `--btn-*` / `--range-*` variables) are internal implementation
-details with no stability guarantee. Set a token either by its `themeConfig` key
+Variables outside the `--tri-*` namespace are internal implementation details with
+no stability guarantee — `--ui-*` layout plumbing and component-local `--btn-*` /
+`--range-*` variables among them — with two exceptions, the typeface properties
+documented in [Typefaces](#typefaces) below. Set a token either by its `themeConfig` key
 or by writing the raw CSS variable; tokens marked `— (raw only)` have no typed key
 and must be set through [`cssVars`](#raw-css-variables) or plain CSS.
 
@@ -276,6 +277,37 @@ and must be set through [`cssVars`](#raw-css-variables) or plain CSS.
 | `--tri-depth` | `depth` |
 
 <!-- END GENERATED PUBLIC TOKEN TABLE -->
+
+#### Typefaces
+
+The viewer **ships no font files and downloads none**. It names two custom
+properties and falls back to the reader's system faces, so out of the box it is
+set in whatever your platform's UI sans and mono are. These two are public API
+alongside the `--tri-*` tokens above, despite being outside that namespace: they
+are the whole mechanism for matching the viewer to your own site's type.
+
+| CSS variable | Applies to | Fallback when unset |
+| :----------- | :--------- | :------------------ |
+| `--default-font-family` | all text in the viewer | `ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'` |
+| `--default-mono-font-family` | `code`, `kbd`, `samp`, `pre` | `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace` |
+
+Neither has a `themeConfig` key: a typeface is a property of the page the viewer
+sits in rather than of a theme, and the viewer is meant to inherit it. Set them
+wherever they will reach the viewer — on `:root` for a whole page, or on the
+viewer's own element to give it its own type:
+
+```css
+:root {
+    --default-font-family: 'Source Serif 4', Georgia, serif;
+    --default-mono-font-family: 'Source Code Pro', ui-monospace, monospace;
+}
+```
+
+Both take a full font stack, not a single family, and it is worth writing the
+fallbacks out: the viewer cannot load a face for you, so a stack naming only a
+webfont your page has not fetched renders in the browser's last-resort default.
+Loading the face — an `@font-face` rule, a `<link>`, whatever your site already
+does — remains yours.
 
 ### Example Usage
 

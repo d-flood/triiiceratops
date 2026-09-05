@@ -169,11 +169,18 @@ The web component can also load manifest JSON directly via the `manifestJson` pr
 
 ## Development
 
+The documentation is built by [Zensical](https://zensical.org/), a globally
+installed Python tool. Install it once, alongside the workspace dependencies:
+
 ```bash
 pnpm install
+pip install zensical   # global tool; needed by `pnpm site` and `pnpm docs:build`
+```
 
+```bash
 pnpm build:all     # Build the packages, the playground, and the example pages
 pnpm dev           # Serve the playground (consumes the built packages)
+pnpm site          # Build, assemble and serve the whole published site on one origin
 pnpm test          # Run unit tests
 pnpm test:e2e      # Run end-to-end tests
 ```

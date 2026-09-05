@@ -28,7 +28,10 @@
         resolveInitialView,
         writeStoredConfig,
         type SparseConfig,
-    } from './playgroundState';
+    } from '@triiiceratops/config';
+
+    /** Where this surface keeps its light/dark choice. See the note below. */
+    const THEME_STORAGE_KEY = 'triiiceratops.playground.theme';
 
     const urlParams = new URLSearchParams(window.location.search);
 
@@ -135,6 +138,12 @@
 
     // The demo page theme is split from the viewer theme.
     //
+    // The storage key is namespaced by surface. The marketing site at the domain
+    // root stores its own scheme choice on this origin, and the two are
+    // deliberately independent — a palette that suits a warm-paper marketing
+    // page is not necessarily the one a reader wants here. A bare `theme` key
+    // would have made the choice travel between them by accident.
+    //
     // `demoTheme` (light/dark only) governs the demo chrome — it is written to
     // <html data-theme> and persisted. `viewerTheme` is what we hand to the
     // viewer component: it follows `demoTheme` until the user explicitly picks
@@ -142,7 +151,7 @@
     // that happens (`viewerThemeUserSet`), the demo's light/dark toggle no longer
     // steers the viewer.
     const initialDemoTheme = ((): 'light' | 'dark' => {
-        const stored = localStorage.getItem('theme');
+        const stored = localStorage.getItem(THEME_STORAGE_KEY);
         if (stored === 'light' || stored === 'dark') {
             return stored;
         }
@@ -159,7 +168,7 @@
     );
 
     $effect(() => {
-        localStorage.setItem('theme', demoTheme);
+        localStorage.setItem(THEME_STORAGE_KEY, demoTheme);
     });
 
     // Called by the config pane when the user picks a viewer theme or a preset.

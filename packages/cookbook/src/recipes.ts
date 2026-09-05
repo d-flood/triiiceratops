@@ -1,9 +1,8 @@
 /**
  * The IIIF Cookbook recipe catalog: the single source for what Triiiceratops
- * supports, and the only place a support claim is recorded. Every recipe number
- * in `docs/bundle-size-comparison.md` is generated from here by
- * `scripts/docs-recipes.mjs`, whose `--check` gate fails the documentation build
- * when the two disagree.
+ * supports, and the only place a support claim is recorded. The marketing site's
+ * capability axis is computed from here at build time, so a support claim moves
+ * on this file and nowhere else.
  */
 
 /** The Cookbook's own categories, with its audiovisual recipes gathered into one group. */

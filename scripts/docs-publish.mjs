@@ -9,20 +9,24 @@
 //                                (its `examples/` and `dist/` subtrees)
 //   <dest>/viewer/               apps/viewer/dist/
 //   <dest>/demo/                 apps/demo/dist/
-//   <dest>/{index.html,404.html} apps/landing/ verbatim — the site root is a
-//                                real page, not a redirect
+//   <dest>/                      apps/site/build/ — the marketing site's
+//                                prerendered tree, placed INTO a root that
+//                                already holds the sibling subtrees above. See
+//                                the collision guard at the copy itself.
 //   <dest>/{latest/,versions/,versions.json,social/}  generated below
-//   <dest>/{sitemap.xml,robots.txt,CNAME}             generated below
+//   <dest>/{sitemap.xml,robots.txt}                generated below
+//   <dest>/CNAME                 generated only when PUBLISH_CNAME=1
 //
 // Each subtree has exactly one owner and is written only by the job that owns
-// it. `--only <names>` selects which of `docs,examples,viewer,demo,landing` this
+// it. `--only <names>` selects which of `docs,examples,viewer,demo,site` this
 // run rebuilds; unselected subtrees are left exactly as the assembly root
 // already holds them, which is how a documentation typo fix leaves the viewer
 // bytes untouched. The publish-job-owned pieces — `versions.json`,
-// `/versions/`, `/latest/`, `/social/`, `sitemap.xml`, `robots.txt` and `CNAME`
-// — are regenerated on every run: they are cheap, and none of them needs a
-// build. Most are derived from the version directories present in the tree;
-// `robots.txt` and `CNAME` are constants of the site itself.
+// `/versions/`, `/latest/`, `/social/`, `sitemap.xml` and `robots.txt` — are
+// regenerated on every run: they are cheap, and none of them needs a build. Most
+// are derived from the version directories present in the tree; `robots.txt` is a
+// constant of the site itself. `CNAME` describes the domain and is written only
+// when PUBLISH_CNAME=1 — see writeCname.
 //
 // CI assembles into `published/` (restored from the durable `docs-site` branch
 // first, so untouched version directories and unselected subtrees survive); a
@@ -42,7 +46,7 @@
 //
 // Usage:
 //   node scripts/docs-publish.mjs --dest <assemblyRoot> [--version X.Y] [--site <dir>]
-//                                 [--no-build] [--only docs,viewer,demo,landing]
+//                                 [--no-build] [--only docs,viewer,demo,site]
 //
 // By default it builds the versioned site itself (docs-build.mjs --version)
 // into `site/` and copies that in. Pass `--no-build` to publish an
@@ -64,13 +68,21 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { REPO_ROOT, docsVersion, packageVersion } from './docs-version.mjs';
+import { collisionMessage, collisions } from './reserved-paths.mjs';
 
 const VERSION_DIR = /^(\d+)\.(\d+)$/;
 
 // `examples` is accepted as a name of its own because the ownership table names
 // it, but it and `docs` co-own one version directory: the examples build merges
 // into the Zensical output, so neither can be placed without the other.
-const SUBTREES = ['docs', 'examples', 'viewer', 'demo', 'landing'];
+const SUBTREES = ['docs', 'examples', 'viewer', 'demo', 'site'];
+
+// The one committed copy of the self-hosted typefaces. The marketing site owns
+// them because it serves them straight out of its own `static/` with no build
+// glue and its dev server needs them; every other surface takes a copy from
+// here. Both surfaces name the same three files, so an install command renders
+// identically on the site and in the documentation.
+const FONTS_SRC = join(REPO_ROOT, 'apps', 'site', 'static', 'fonts');
 
 function parseArgs(argv) {
     const args = { site: join(REPO_ROOT, 'site'), build: true, only: null };
@@ -145,8 +157,8 @@ function publishedVersions(dest) {
 // never sees the versioned page it forwards to. Without the tags below it would
 // preview as a bare title and no image.
 //
-// The site root needs nothing from here: it is the landing page, a real document
-// carrying its own tags (see apps/landing/index.html).
+// The site root needs nothing from here: it is a real document of its own,
+// carrying its own tags (see apps/site/src/routes/+layout.svelte).
 // ---------------------------------------------------------------------------
 const SITE_ROOT = 'https://triiiceratops.org/';
 const SITE_NAME = 'Triiiceratops IIIF Viewer';
@@ -299,7 +311,7 @@ function xmlEscape(text) {
  * from its sitemap and a walk would publish them into the site-wide one.
  *
  * The host in those `<loc>` values is not trusted. A publish that rebuilds only
- * the landing page carries the previous deploy's version directory forward
+ * the site root carries the previous deploy's version directory forward
  * verbatim, so its locs can still name the host that deploy was built for. Only
  * the `docs/<version>/` segment onwards is kept, and re-rooted at SITE_ROOT.
  *
@@ -339,27 +351,86 @@ function documentationLocs(dest, latest) {
 }
 
 /**
- * One site-wide sitemap: the landing page, the playground, the bare viewer and
- * the CURRENT documentation version. Archived versions are excluded here and
+ * The marketing site's crawlable paths, as absolute URLs on this site.
+ *
+ * Derived from the sitemap the site application emits, which is the
+ * authoritative set: its appendix route and any route whose prose has not landed
+ * are deliberately absent from it, and a filesystem walk could not tell them
+ * from a real page. Adding a marketing page is therefore one edit in that
+ * application.
+ *
+ * Read from the TREE rather than from `apps/site/build`, for the same reason
+ * documentationLocs reads the placed version directory: a publish narrowed with
+ * `--only docs` does not build the site, and the routes an earlier deploy placed
+ * are still being served. At this point in the run `<dest>/sitemap.xml` is
+ * either the sitemap the site build just placed, or the previous deploy's
+ * site-wide one — and in both cases the locs outside the sibling subtrees are
+ * exactly the marketing routes.
+ *
+ * The host in those `<loc>` values is not trusted, for the reason
+ * documentationLocs gives. Only the path is kept, and it is re-rooted here.
+ *
+ * Absent is a warning rather than a failure, and falls back to the site root:
+ * the root is a contract constant that always resolves, and a first assembly
+ * into an empty directory with `--only docs` is a legitimate local check.
+ */
+function siteLocs(dest) {
+    const source = join(dest, 'sitemap.xml');
+    const siblings = new Set(['docs', 'demo', 'viewer']);
+    if (!existsSync(source)) {
+        console.warn(
+            `docs-publish: WARNING no sitemap at ${source} — the site-wide ` +
+                'sitemap names only the site root. Publish the site subtree to ' +
+                'restore the marketing routes.',
+        );
+        return [xmlEscape(SITE_ROOT)];
+    }
+    const locs = [];
+    for (const m of readFileSync(source, 'utf8').matchAll(
+        /<loc>\s*([^<]+?)\s*<\/loc>/g,
+    )) {
+        let path;
+        try {
+            path = new URL(m[1]).pathname.replace(/^\/+/, '');
+        } catch {
+            throw new Error(
+                `${source}: <loc> ${m[1]} is not an absolute URL, so it cannot ` +
+                    'be re-rooted at this site. Refusing to guess.',
+            );
+        }
+        if (siblings.has(path.split('/')[0])) continue;
+        locs.push(`${SITE_ROOT}${path}`);
+    }
+    if (locs.length === 0) {
+        throw new Error(
+            `${source} named no marketing routes — the site-wide sitemap would ` +
+                'not even name the site root',
+        );
+    }
+    return locs;
+}
+
+/**
+ * One site-wide sitemap: the marketing routes, the playground, the bare viewer
+ * and the CURRENT documentation version. Archived versions are excluded here and
  * carry `noindex` in the directory itself, so the two halves agree.
  *
- * The first three are emitted unconditionally rather than guarded on the
- * directory existing: they are the site's contract constants, and
+ * The playground and the bare viewer are emitted unconditionally rather than
+ * guarded on the directory existing: they are the site's contract constants, and
  * scripts/url-contract.mjs check 1 is what asserts they resolve. A guard would
  * be actively worse — a publish narrowed with `--only` leaves the other
  * subtrees to the assembly root it was handed, so a guard would silently drop a
  * path that IS being served, and a short sitemap is invisible in a green build.
  *
- * Escaping is deliberately asymmetric. The three URLs above are constructed
- * here from raw text, so they are escaped here. The documentation locs come out
- * of Zensical's sitemap ALREADY XML-escaped and are re-rooted, not rebuilt, so
- * escaping them again would turn a source `&amp;` into `&amp;amp;`.
+ * Escaping is deliberately asymmetric. The two URLs above are constructed here
+ * from raw text, so they are escaped here. The marketing and documentation locs
+ * come out of their own sitemaps ALREADY XML-escaped and are re-rooted, not
+ * rebuilt, so escaping them again would turn a source `&amp;` into `&amp;amp;`.
  */
 function writeSitemap(dest, latest) {
     const urls = [
-        ...[SITE_ROOT, `${SITE_ROOT}demo/`, `${SITE_ROOT}viewer/`].map(
-            xmlEscape,
-        ),
+        ...siteLocs(dest),
+        ...[`${SITE_ROOT}demo/`, `${SITE_ROOT}viewer/`].map(xmlEscape),
         ...documentationLocs(dest, latest),
     ];
     const body = urls
@@ -403,8 +474,20 @@ function writeRobots(dest, { sitemap }) {
  * The custom-domain file, written into the ARTIFACT rather than committed at the
  * repository root: Pages serves an uploaded artifact, so a repository-root file
  * would never reach the served tree.
+ *
+ * Gated on PUBLISH_CNAME=1, and off by default, because a custom-domain file can
+ * make the default `*.github.io` host redirect to the custom domain. Until that
+ * domain resolves and is bound in the repository's Pages settings, publishing one
+ * can leave the site unreachable at both hosts — including the `/viewer/` URL that
+ * published IIIF Cookbook recipes link directly. Enable it once DNS resolves.
  */
 function writeCname(dest) {
+    if (process.env.PUBLISH_CNAME !== '1') {
+        console.log(
+            'docs-publish: CNAME not written (set PUBLISH_CNAME=1 once the domain resolves)',
+        );
+        return;
+    }
     writeFileSync(join(dest, 'CNAME'), `${new URL(SITE_ROOT).host}\n`, 'utf8');
 }
 
@@ -476,15 +559,6 @@ function requireBuildOutput(dir, command) {
     }
 }
 
-/** Like requireBuildOutput, for sources checked in rather than built. */
-function requireCommittedSource(path, what) {
-    if (!existsSync(path)) {
-        throw new Error(
-            `missing ${what} at ${path} — it is committed, not built`,
-        );
-    }
-}
-
 function main() {
     const args = parseArgs(process.argv.slice(2));
     const fullVersion = packageVersion();
@@ -528,6 +602,15 @@ function main() {
         const examplesSrc = join(REPO_ROOT, 'apps', 'examples', 'dist');
         requireBuildOutput(examplesSrc, 'pnpm build:examples');
         cpSync(examplesSrc, versionDest, { recursive: true });
+
+        // The typefaces, copied INTO this version directory rather than served
+        // from one shared path. The duplication is the point, and it is the same
+        // reasoning as the element bundle in `dist/` above: a published version
+        // directory is immutable and must never be breakable from outside it. A
+        // frozen 1.0 whose `@font-face` pointed at a path another subtree owns
+        // would lose its type, silently and forever, the day that path moved.
+        // `overrides/partials/fonts.html` names them relative to the page.
+        cpSync(FONTS_SRC, join(versionDest, 'fonts'), { recursive: true });
     }
 
     // 2. The bare viewer and the playground are unversioned. Cookbook recipes
@@ -543,15 +626,39 @@ function main() {
         cpSync(src, dest, { recursive: true });
     }
 
-    // 3. The landing page and the not-found page: static HTML with no build
-    // step, so they are copied straight from the workspace. The root is a real
-    // page rather than a redirect, and it owns its own canonical and og:url.
-    if (selected.has('landing')) {
-        const landingSrc = join(REPO_ROOT, 'apps', 'landing');
-        for (const file of ['index.html', '404.html']) {
-            const src = join(landingSrc, file);
-            requireCommittedSource(src, `landing ${file}`);
-            cpSync(src, join(args.dest, file));
+    // 3. The marketing site: a prerendered tree placed into the publish root.
+    //
+    // Guard 2 of the collision guard. Unlike every other subtree, this one is
+    // copied INTO a directory that already holds its siblings, so a marketing
+    // route named after one of them overwrites it — silently, and
+    // unrecoverably once a bookmark exists. Check 4 of the URL contract cannot
+    // see it: the top-level name a route like `docs` produces IS accounted for,
+    // by the documentation subtree. So the assertion happens here, immediately
+    // before anything is written, and it compares through the same module as
+    // the guard in the site's own build. See scripts/reserved-paths.mjs.
+    //
+    // The tree is merged rather than replacing the root, and it is copied
+    // entry by entry so that a failure leaves the root untouched rather than
+    // half-written.
+    if (selected.has('site')) {
+        const siteSrc = join(REPO_ROOT, 'apps', 'site', 'build');
+        requireBuildOutput(siteSrc, 'pnpm build:site');
+        mkdirSync(args.dest, { recursive: true });
+        // The site's own `sitemap.xml` IS placed, even though `/sitemap.xml` is
+        // publish-owned: step 5 reads it back as the marketing half of the
+        // site-wide sitemap and then overwrites it. That is why `sitemap.xml` is
+        // absent from the reserved set — see scripts/reserved-paths.mjs.
+        const entries = readdirSync(siteSrc);
+        const colliding = collisions(entries);
+        if (colliding.length > 0) {
+            throw new Error(
+                collisionMessage(`the site tree at ${siteSrc}`, colliding),
+            );
+        }
+        for (const name of entries) {
+            const dest = join(args.dest, name);
+            rmSync(dest, { recursive: true, force: true });
+            cpSync(join(siteSrc, name), dest, { recursive: true });
         }
     }
 
@@ -606,8 +713,8 @@ function main() {
         }
     }
 
-    // 5b. Crawl policy and the domain file, both written whether or not the tree
-    //     holds a version. `CNAME` describes the domain, never a version. The
+    // 5b. Crawl policy and the domain file, both independent of whether the tree
+    //     holds a version: `CNAME` describes the domain, never a version. The
     //     crawl policy is version-independent too, but its `Sitemap:` line is
     //     not: it may only be emitted when a sitemap was actually written above.
     writeRobots(args.dest, { sitemap: sitemapUrls > 0 });
@@ -617,12 +724,13 @@ function main() {
     //    live inside a version directory: scrapers cache preview images by URL for
     //    days-to-weeks, so a per-release path would mean a fresh cache miss (and a
     //    briefly imageless card) on every publish. Every page's og:image points
-    //    here — see overrides/partials/social-meta.html and the landing page,
-    //    which hardcodes /social/og-landing-v1.png.
+    //    here — see overrides/partials/social-meta.html and the marketing site,
+    //    whose every route points at /social/og-landing-v1.png
+    //    (apps/site/src/lib/site.ts).
     //
     //    Sourced from the committed `docs/media/social/`, not from Zensical's
     //    output: `/social/` is publish-job-owned on any publish, so a run that
-    //    rebuilds only the landing page or only the viewer must still be able to
+    //    rebuilds only the site root or only the viewer must still be able to
     //    populate it without a documentation build having happened.
     const socialSrc = join(REPO_ROOT, 'docs', 'media', 'social');
     if (existsSync(socialSrc)) {
