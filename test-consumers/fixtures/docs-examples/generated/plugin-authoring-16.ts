@@ -1,10 +1,22 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import { whenRendererReady } from '@triiiceratops/plugin-sdk';
 import type { PluginContext } from 'triiiceratops';
 
-async function markCentre(context: PluginContext) {
-    await whenRendererReady(context.viewerState);
-    // The surface is sized, so this answers in real screen pixels.
-    return context.viewerState.canvasToScreen({ x: 100, y: 200 });
+function surfaceAware(context: PluginContext) {
+    const { surface } = context;
+
+    // `isOpen` and `target` are live getters — never snapshot them.
+    const open = context.selectors.select(() => surface.isOpen);
+
+    const render = (isOpen: boolean) => {
+        if (isOpen) {
+            // Start polling, attach an expensive frame handler, resume an
+            // animation — whatever is wasted while nobody can see it.
+        } else {
+            // Pause it. Keep your state: the plugin is still activated.
+        }
+    };
+
+    render(open.get()); // may already be open (config.plugins[uiId].open)
+    return open.subscribe(render);
 }

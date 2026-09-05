@@ -32,6 +32,39 @@
 #     Ticket 07's totality contract: a Collection has members, not sequences, so
 #     it has no canvases — which is an answer, not a TypeError.
 #
+# THE AUDIOVISUAL SET — `plugin-av` ticket 02, the second re-pin of this file.
+#   Sixteen `av/` manifests (the fifteen audiovisual IIIF Cookbook recipes and
+#   one waveform-linked Avalon manifest) joined the corpus in the same commit as
+#   the painting-body classifier that reads them. They were vendored a ticket
+#   earlier and held out by name, precisely so that this file would never have
+#   frozen the answer a viewer gave them BEFORE it could tell an MP4 from a JPEG.
+#
+#   Measured through this file's own seam immediately before the classifier
+#   landed, ELEVEN of the sixteen read `withPainting >= 1` — 0003, 0013, 0017,
+#   0026, 0064, 0065 (both canvases), 0074, 0219, 0229, 0489, and the Avalon
+#   file. That was the bug, not the baseline: a plain `Video`/`Sound` body has
+#   an id like any other resource, so canvas→source resolution handed the media
+#   URL to the image pipeline and the viewer fetched an MP4 with `new Image()`.
+#   The other five (0002, 0014, 0015, 0103, 0434) read 0 already, and for an
+#   unrelated reason: they declare `duration` and no `width`/`height`, so they
+#   fell out on geometry before anything looked at what they painted.
+#
+#   Fifteen of the sixteen now read `withPainting=0`, and the fall from eleven
+#   to one IS the evidence the classifier works. A `withPainting >= 1` on any
+#   manifest but 0489 is a non-image body that got through.
+#
+#   `av/0489-multimedia-canvas` is the one exception and reads `withPainting=1`,
+#   which is correct rather than a miss. Its single canvas carries an Image body
+#   (with an Image API service) alongside a Video body and three `TextualBody`
+#   ones, and the classifier's rule for that shape is to paint the images and
+#   ignore the rest silently. The record says the viewer resolved the JPEG,
+#   which it did and should.
+#
+#   `av/0434-choice-av` keeps `withChoice=1`. Its Choice of six audio
+#   alternatives is still enumerated as a Choice — the classifier decides what
+#   gets PAINTED, and offering the reader alternatives is a different question
+#   that `getCanvasChoices` still answers.
+#
 # HOW TO READ A DIFF
 #   Each manifest gets one six-field record. The dominant failure mode of this
 #   epic is the silent empty result, and it reads here as `withPainting=154`
@@ -114,10 +147,49 @@
 #     lunchroom-manners enumerates 1, audio enumerates 0 (an IxIF `element` is
 #     a `dctypes:Sound` resource — the media IS the element, reached through
 #     `rendering`, so there is no painting annotation to find).
+#   - every `av/` manifest except `0489-multimedia-canvas`, for the reason the
+#     audiovisual section above gives. `withPainting=0` there does NOT mean the
+#     canvas vanished: it keeps its layout rect, its place in navigation and its
+#     place in the thumbnail strip, and the viewer paints an honest
+#     unsupported-content treatment over it. That is the intended answer for a
+#     plugin-less viewer rather than a degraded one — and this tier cannot see
+#     the difference, which is why it is written down here.
 
 
 ## Manifests
 
+av/0002-mvm-audio.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+av/0003-mvm-video.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+av/0013-placeholderCanvas.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+av/0014-accompanyingcanvas.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+av/0015-start.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+av/0017-transcription-av.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+av/0026-toc-opera.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=1
+av/0064-opera-one-canvas.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=1
+av/0065-opera-multiple-canvases.json
+    canvases=2 withPainting=0 withoutPainting=2 withChoice=0 sequences=1 structureNodes=1
+av/0074-multiple-language-captions.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+av/0103-poetry-reading-annotations.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+av/0219-using-caption-file.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
+av/0229-behavior-ranges.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=1
+av/0434-choice-av.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=1 sequences=1 structureNodes=0
+av/0489-multimedia-canvas.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+av/avalon-9g54xh933-skip-transcoding-mp3.json
+    canvases=1 withPainting=0 withoutPainting=1 withChoice=0 sequences=1 structureNodes=1
 cookbook/0001-mvm-image.json
     canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
 cookbook/0004-canvas-size.json

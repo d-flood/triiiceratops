@@ -4,9 +4,9 @@
  * The base entry has zero runtime framework dependencies: everything imported
  * from `triiiceratops` here is type-only (erased at build), and the runtime code
  * (`definePlugin`, activation, selectors, compatibility) is self-contained.
- * Framework adapters (Svelte/React/Vue/Lit), the test kit, and real style/
- * locale/icon services arrive as separate subpaths in later tickets (08, 13,
- * 14).
+ * Framework adapters (Svelte/React/Vue/Lit) and the test kit — which carries the
+ * stub host services — are separate subpaths, so nothing a shipped plugin cannot
+ * reach is bundled into it.
  */
 
 // Authoring entry.
@@ -39,25 +39,19 @@ export type { SelectorRuntime } from './selectors.js';
 // Compatibility negotiation.
 export {
     satisfies,
-    collectIncompatibilities,
     negotiateCompatibility,
     PluginCompatibilityError,
 } from './compatibility.js';
-export type { PluginCompatibilityReason } from './compatibility.js';
-
-// Stub services; core supplies the real, host-owned implementations.
-export {
-    createStubStyleService,
-    createStubLocaleService,
-    createStubUiService,
-    createStubSurfaceService,
-} from './services.js';
 
 // Re-export the core-owned seam types so plugin authors import them from one
 // place. `export type` is erased at build, so this adds no runtime coupling.
 export type {
     PluginView,
     PluginContext,
+    PublishedState,
+    PublishedStateClassification,
+    SelectorSource,
+    SourceSelectors,
     ViewerSelectors,
     Selector,
     PluginStyleService,

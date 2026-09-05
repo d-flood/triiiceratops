@@ -3,12 +3,7 @@ export interface GalleryConfig {
      * Where the gallery should be docked by default if shown.
      * @default 'bottom'
      */
-    dockPosition?: 'left' | 'right' | 'top' | 'bottom' | 'none';
-    /**
-     * Whether the gallery can be dragged/moved by the user.
-     * @default true
-     */
-    draggable?: boolean;
+    dockPosition?: 'left' | 'right' | 'top' | 'bottom';
     /**
      * Whether the gallery is currently open/visible.
      * @default false
@@ -23,8 +18,7 @@ export interface GalleryConfig {
      * How much of the viewer the gallery takes, in pixels, and the only knob that
      * changes a thumbnail's size. It applies to whichever axis the gallery's
      * position commits to: the strip's HEIGHT when docked to the top or bottom, and
-     * the rail's WIDTH when docked to the left or right. A floating window sizes
-     * itself (see `width` / `height`), so there it sets the thumbnail row's height.
+     * the rail's WIDTH when docked to the left or right.
      *
      * Thumbnails are derived from it rather than the reverse. A thumbnail is fixed
      * on the axis its gallery committed to and takes its own image's shape on the
@@ -44,25 +38,9 @@ export interface GalleryConfig {
     size?: number;
     /**
      * Whether the gallery starts expanded — filling the viewer's center column
-     * as a full grid of thumbnails instead of a docked strip or floating window.
+     * as a full grid of thumbnails instead of a docked strip or rail.
      * Implies `open`, since an expanded gallery is necessarily visible.
      * @default false
      */
     expanded?: boolean;
-    /**
-     * Width of the gallery window when floating (in pixels).
-     */
-    width?: number;
-    /**
-     * Height of the gallery window when floating (in pixels).
-     */
-    height?: number;
-    /**
-     * X position of the gallery window when floating (in pixels).
-     */
-    x?: number;
-    /**
-     * Y position of the gallery window when floating (in pixels).
-     */
-    y?: number;
 }

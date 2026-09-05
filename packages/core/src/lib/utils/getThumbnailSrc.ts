@@ -1,39 +1,23 @@
-import {
-    getChoiceAlternatives,
-    getPaintingAnnotations,
-    getPaintingBody,
-    isChoiceBody,
-} from './iiifParsing';
+import { isLevel0Profile } from '../renderer/sizeLadder';
+import { getPaintingAnnotations } from './iiifParsing';
+import { iiifImageRequestUrl } from './iiifImageRequest';
+import { findImageBody, unwrapSpecificResource } from './paintingBodies';
 
-function normalizeServiceId(serviceId: string): string {
-    return serviceId.endsWith('/info.json')
-        ? serviceId.slice(0, -'/info.json'.length)
-        : serviceId;
-}
-
+/**
+ * A width request against an image service, or `''` where one cannot be built.
+ *
+ * A level0 service answers only the derivatives it already holds, so a
+ * constructed width would 404; `''` is what routes the canvas to the strip's
+ * no-thumbnail treatment instead. The profile is read through
+ * `sizeLadder.complianceLevel`, which knows the three spellings a compliance
+ * level has in the wild — the bare version 3 token, the version 2 profile URI
+ * and the version 1 fragment — where a substring search for `level0` also
+ * matches it anywhere else in an id.
+ */
 function getThumbnailServiceUrl(service: any, size: number): string {
-    let profile: unknown = '';
-    try {
-        profile = (service?.profile as unknown) || '';
-        if (typeof profile === 'object' && profile) {
-            const pObj = profile as Record<string, unknown>;
-            profile =
-                (pObj.value as string | undefined) ||
-                (pObj.id as string | undefined) ||
-                (pObj['@id'] as string | undefined) ||
-                JSON.stringify(pObj);
-        }
-    } catch {
-        // ignore
-    }
-
-    const pStr = String(profile ?? '').toLowerCase();
-    const isLevel0 = pStr.includes('level0') || pStr.includes('level-0');
-    const serviceId = normalizeServiceId(service?.id || service?.['@id'] || '');
-
-    return !isLevel0 && serviceId
-        ? `${serviceId}/full/${size},/0/default.jpg`
-        : '';
+    const serviceId: string = service?.id || service?.['@id'] || '';
+    if (!serviceId || isLevel0Profile(service?.profile)) return '';
+    return iiifImageRequestUrl(serviceId, `${size},`);
 }
 
 export function resolveThumbnailResourceSrc(
@@ -68,8 +52,25 @@ export function resolveThumbnailResourceSrc(
  *   1. The canvas's own `thumbnail` property
  *   2. First image annotation → IIIF service → {serviceId}/full/{size},/0/default.jpg
  *   3. Raw resource / body ID
+ *
+ * Rungs 2 and 3 are gated by the painting-body classifier
+ * (`utils/paintingBodies`), because both of them end in an `<img src>`. Without
+ * it, an audio canvas with no declared `thumbnail` put its MP3's URL into the
+ * strip — a broken image where the reader needed to be told this is a sound
+ * recording. Returning `''` is what routes the canvas to the strip's
+ * no-thumbnail treatment instead.
+ *
+ * `selectedChoiceId` names a Choice alternative, and rungs 2 and 3 resolve the
+ * same alternative the classifier is asked about. Without it a mixed Choice
+ * resting on its video alternative classifies as unsupported and still yields
+ * the image alternative's URL — the strip would show the picture while the
+ * viewer showed "cannot display", over one canvas.
  */
-export function getThumbnailSrc(canvas: any, size = 200): string {
+export function getThumbnailSrc(
+    canvas: any,
+    size = 200,
+    selectedChoiceId?: string,
+): string {
     let src = '';
 
     // 1. The canvas's declared thumbnail.
@@ -95,17 +96,12 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
         if (images && images.length > 0) {
             const annotation = images[0];
 
-            // `getPaintingBody` reads the v2 `resource` spelling as well as
-            // the v3 `body` one; a guard checking only `resource.id` would
-            // discard valid v2 resources, which carry `@id` instead.
-            let resource: any = null;
-            let body = getPaintingBody(annotation);
-            if (body) {
-                if (isChoiceBody(body)) {
-                    body = getChoiceAlternatives(body)[0] || null;
-                }
-                resource = Array.isArray(body) ? body[0] : body;
-            }
+            // `findImageBody` reads the v2 `resource` spelling as well as the
+            // v3 `body` one, unwraps a body array before testing for a Choice,
+            // and hands back only a body that classifies as an image.
+            const resource = unwrapSpecificResource(
+                findImageBody(annotation, selectedChoiceId),
+            );
 
             if (resource) {
                 // Try IIIF image service
@@ -129,20 +125,6 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
 
                 // Fallback: raw resource ID — `id` in v3, `@id` in v2.
                 src = resource.id || resource['@id'] || '';
-
-                if (!src) {
-                    const rawBody = getPaintingBody(annotation);
-                    if (rawBody) {
-                        let bodyObj = Array.isArray(rawBody)
-                            ? rawBody[0]
-                            : rawBody;
-                        if (isChoiceBody(bodyObj)) {
-                            bodyObj =
-                                getChoiceAlternatives(bodyObj)[0] || bodyObj;
-                        }
-                        src = bodyObj.id || bodyObj['@id'] || '';
-                    }
-                }
             }
         }
     } catch {

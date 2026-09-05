@@ -2,13 +2,17 @@ import { fileURLToPath } from 'node:url';
 
 import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
+import { messageCompiler } from './src/packaging/messageCompiler';
 import { coverage } from '../../vitest.coverage.js';
 // A fake IIIF Image API service for the tiled e2e fixture. Dev-server only —
 // the plugin declares `apply: 'serve'`, so it is in no build.
 // @ts-expect-error - plain ESM fixture helper, deliberately untyped
 import { iiifFixture } from './scripts/iiifFixturePlugin.mjs';
+// The generated AV media and the manifests pointing at it, mounted at /media/.
+// Dev-server only, for the same reason.
+// @ts-expect-error - plain ESM fixture helper, deliberately untyped
+import { mediaFixture } from './scripts/mediaFixturePlugin.mjs';
 
 /**
  * The framework substrate (`src/lib/framework/registration.ts`) dynamic-imports
@@ -52,10 +56,8 @@ export default defineConfig({
     plugins: [
         elementArtifactStub(),
         iiifFixture(),
-        paraglideVitePlugin({
-            project: './project.inlang',
-            outdir: './src/lib/paraglide',
-        }),
+        mediaFixture(),
+        messageCompiler(),
         svelte({
             // Keep scoped component CSS in the JS bundle (injected at runtime via
             // Svelte's append_styles → getRootNode()) so it reaches the
@@ -119,6 +121,9 @@ export default defineConfig({
                     '../plugin-annotation-editor/dist/index.js',
                     import.meta.url,
                 ),
+            ),
+            '@triiiceratops/plugin-av': fileURLToPath(
+                new URL('../plugin-av/dist/index.js', import.meta.url),
             ),
         },
     },

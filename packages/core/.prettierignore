@@ -5,3 +5,13 @@ node_modules/
 src/lib/paraglide/
 src/paraglide/
 src/lib/generated/
+
+# Generated e2e media (tests/media/), produced by that directory's
+# `regenerate.sh`. The root .prettierignore carries this too, but that one only
+# applies to `pnpm format:check` at the root; `pnpm --filter triiiceratops
+# format` runs `prettier --write .` from here. The waveform files must stay
+# byte-identical to real `audiowaveform` output — reflowing `tone.json` would
+# make ticket 10's parsers assert our own reading of the format back at us —
+# and the HLS segments are MPEG-TS bytes in `.ts` files, which Prettier parses
+# as TypeScript and chokes on.
+tests/media/

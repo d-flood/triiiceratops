@@ -86,6 +86,11 @@
 
 import { getCanvasDisplayLayouts } from '../components/canvasLayout';
 import {
+    DURATION_ONLY_CANVAS_PLACEHOLDER,
+    UNSIZED_CANVAS_PLACEHOLDER,
+} from './rendererDefaults';
+import { viewportBox } from './viewportMath';
+import {
     boxContains,
     distanceToBox,
     nearestRect,
@@ -94,7 +99,6 @@ import {
 import {
     buildSizeLadder,
     chooseRung,
-    exceedsDecodedPixelCap,
     isLevel0Profile,
     rungFallback,
     rungUrl,
@@ -142,22 +146,20 @@ function isUsableDimension(value: unknown): value is number {
 }
 
 /**
- * Whether a canvas can be planned at all: it can be named, and it paints
- * something.
+ * Whether a canvas can be planned at all: it can be named.
  *
- * Both halves are invariants `canvasDescriptors.toPlannerCanvas` already
- * guarantees — it returns `null` rather than a nameless or pictureless canvas —
- * and they are re-checked here because the planner is a pure function with a
- * public input type, so nothing stops a caller (or a test) handing it either.
- * Re-checking is what lets the rest of this module read `canvas.images[0]`
- * without a null guard on every line.
+ * An invariant `canvasDescriptors.toPlannerCanvas` already guarantees, and
+ * re-checked here because the planner is a pure function with a public input
+ * type, so nothing stops a caller (or a test) handing it a nameless one.
+ *
+ * It used to demand a picture as well. A canvas whose painting bodies are all
+ * non-image has none and must still be laid out — it keeps its rect, its tier,
+ * and its place in navigation, and the host paints the **unsupported
+ * presentation** over it (CONTEXT.md). So every `canvas.images[0]` read below
+ * is guarded instead.
  */
 function hasUsableId(canvas: PlannerCanvas): boolean {
-    return (
-        typeof canvas.id === 'string' &&
-        canvas.id.length > 0 &&
-        canvas.images.length > 0
-    );
+    return typeof canvas.id === 'string' && canvas.id.length > 0;
 }
 
 /** A canvas with the geometry layout will actually use, in canvas space. */
@@ -191,25 +193,37 @@ function median(values: number[]): number {
         : sorted[middle];
 }
 
-/**
- * The box a canvas is laid out in when nothing at all is known about its shape:
- * no declared dimensions, no fetched service facts, and no sibling to take a
- * median from.
- *
- * Square, and its absolute size does not matter — a world of one such canvas is
- * fitted to the viewport, and a world with siblings never reaches this rung.
- * What matters is that there IS one. Dropping the canvas instead looks like a
- * safe refusal and is a dead end: an unlaid-out canvas gets no tier, therefore
- * no metadata request, therefore no reflow, so the folio that a fetch would
- * have sized is blank permanently rather than briefly (user story 32).
- */
-const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
-
 /** The aspect ratio of a box, or null when it has none. */
 function aspectOf(box: { width: number; height: number } | null) {
     return box && isUsableDimension(box.width) && isUsableDimension(box.height)
         ? box.height / box.width
         : null;
+}
+
+/**
+ * The box a canvas takes when neither the manifest, a service, nor a sibling
+ * offers one — the geometry of last resort, chosen on the only thing known about
+ * the canvas at that point: whether it has a picture at all.
+ *
+ * A canvas with a duration and no images is an audio recording (a Sound body is
+ * required to state a duration and forbidden to state dimensions), and nothing
+ * will ever paint a picture in its rect: no service to reflow from, no companion
+ * Canvas — one of those would have donated a rect before the descriptor reached
+ * this function (`companionCanvases.withCompanion`) — so a page-shaped box would
+ * be a page-shaped nothing. It gets a strip instead, which is the shape of the
+ * timeline that is the only thing an AV plugin will put there.
+ *
+ * A canvas that omits its dimensions and declares no duration is the ordinary
+ * spec violation of user story 32: a picture whose shape is unknown, and a
+ * fetch may yet report it.
+ */
+function placeholderBox(canvas: PlannerCanvas): {
+    width: number;
+    height: number;
+} {
+    return canvas.images.length === 0 && isUsableDimension(canvas.duration)
+        ? DURATION_ONLY_CANVAS_PLACEHOLDER
+        : UNSIZED_CANVAS_PLACEHOLDER;
 }
 
 /**
@@ -242,10 +256,13 @@ function aspectOf(box: { width: number; height: number } | null) {
  *    positional (see `residencyWindow`), not a smaller input, so the median a
  *    continuous world guesses from really is the manifest's — and it still
  *    needs the floor below, because an individuals-mode input is ONE canvas.
- * 4. **Failing even that, {@link UNSIZED_CANVAS_PLACEHOLDER}.** The rung that
- *    makes the drop unreachable, and it is reachable itself on the path users
- *    actually take: in individuals and continuous mode the host feeds ONE
+ * 4. **Failing even that, a placeholder** — {@link placeholderBox}. The rung
+ *    that makes the drop unreachable, and it is reachable itself on the path
+ *    users actually take: in individuals and continuous mode the host feeds ONE
  *    canvas, so an unsized canvas there has no siblings to take a median from.
+ *    It is also the whole of a bare audio manifest's geometry, which is why the
+ *    box is shaped by what the canvas turns out to be rather than being one
+ *    constant.
  *
  * Only a canvas with no usable id is dropped: it cannot be keyed, so nothing
  * downstream could name it.
@@ -319,13 +336,16 @@ function resolveGeometry(
         (canvas) =>
             isUsableDimension(canvas.width) && isUsableDimension(canvas.height),
     );
+    // `null` where no sibling declared both axes and there is nothing to take a
+    // median of. The last rung is then per canvas rather than one box for the
+    // whole world, so a duration-only canvas is not shaped like a page.
     const guess =
         declared.length > 0
             ? {
                   width: median(declared.map((canvas) => canvas.width!)),
                   height: median(declared.map((canvas) => canvas.height!)),
               }
-            : UNSIZED_CANVAS_PLACEHOLDER;
+            : null;
 
     return usable.map((canvas): SizedCanvas => {
         // The PRIMARY image's service, and only it, can reflow the canvas. The
@@ -333,14 +353,20 @@ function resolveGeometry(
         // never said, and the first painting annotation is the one that covers
         // it; a miniature painted into a corner describes its own rectangle and
         // reshaping the folio to match it would be nonsense.
-        const facts = factsFor(canvas.images[0].source, knownMetadata);
+        //
+        // A canvas with no image has nothing that could report a size, so it
+        // takes the sibling median — which is the whole of the duration-only
+        // audio canvas's geometry.
+        const facts = canvas.images.length
+            ? factsFor(canvas.images[0].source, knownMetadata)
+            : null;
         const reported =
             facts &&
             isUsableDimension(facts.width) &&
             isUsableDimension(facts.height)
                 ? { width: facts.width, height: facts.height }
                 : null;
-        const fallback = reported ?? guess;
+        const fallback = reported ?? guess ?? placeholderBox(canvas);
 
         // Whichever axes the manifest stated, kept; the rest taken from the
         // fallback box, and shaped by its aspect ratio so a canvas that stated
@@ -488,19 +514,6 @@ export function planViewportLimits(input: PlanWorldInput): {
         layout,
         bounds: worldBounds(layout),
         minZoom: deriveMinZoom(layout, input.budgets.boxThreshold),
-    };
-}
-
-/** The viewport as a canvas-space box. */
-function viewportBox(viewport: Viewport): Box {
-    const halfWidth = viewport.width / (2 * viewport.scale);
-    const halfHeight = viewport.height / (2 * viewport.scale);
-
-    return {
-        x: viewport.centre.x - halfWidth,
-        y: viewport.centre.y - halfHeight,
-        width: halfWidth * 2,
-        height: halfHeight * 2,
     };
 }
 
@@ -1140,39 +1153,97 @@ function carryBaseLevel(
 ): void {
     if (!facts || source.kind !== 'service') return;
 
-    // The base level of a pyramid and the base rung of a ladder are the same
-    // key: level 0, one tile. Probed before anything is built, because this is
-    // the test that is false for every canvas but the one or two mid-handover.
-    const key = tileKey(canvasId, source.serviceId, 0, 0, 0);
+    // Probed before anything is built, because this is the test that is false
+    // for every canvas but the one or two mid-handover.
+    const key = tileKey(canvasId, baseUri(source, facts), 0, 0, 0);
     if (!residentTiles.has(key)) return;
-
-    const pyramid = buildPyramid(source.serviceId, facts);
-    const ladder =
-        !pyramid && isSizeLadderSource(facts, source.profile)
-            ? buildSizeLadder(source.serviceId, facts)
-            : null;
-    const url = pyramid
-        ? tileUrl(pyramid, pyramid.levels[0], 0, 0)
-        : ladder
-          ? rungUrl(ladder, ladder.rungs[0])
-          : null;
-    if (!url) return;
-
-    const fallback = ladder ? rungFallback(ladder, ladder.rungs[0]) : undefined;
 
     // Required, not merely held: `tileDraws` is the required-AND-held subset, so
     // a base tile left out of the request list would be demoted to the
     // opportunistic cache and could not be painted — which is the blank frame
     // again, arriving through eviction instead of through the tier.
-    requests.push({
-        key,
+    const request = baseLevelTile(canvasId, source, facts, 0);
+    if (!request) return;
+
+    requests.push(request);
+    draws.push({ key, canvasId, level: 0, order, ...box });
+}
+
+/**
+ * The base URI for a service's image requests, which is the identity every
+ * planner keys its tiles by.
+ *
+ * `info.json` owns it and it can differ from the id the manifest advertised — a
+ * trailing slash, an http→https redirect, or an auth gateway signing access.
+ * Keying a request one way and drawing it the other produces a tile nothing
+ * ever asks for, so this is the single spelling of that choice
+ * (`tilePyramid.buildPyramid` and `sizeLadder.buildSizeLadder` make the same
+ * one).
+ */
+function baseUri(
+    source: { serviceId: string },
+    facts: ImageServiceFacts,
+): string {
+    return facts.requestBaseUri ?? source.serviceId;
+}
+
+/**
+ * One service's **base level** as a tile request: level 0, tile (0,0) — but
+ * only where that one request is the whole picture.
+ *
+ * A pyramid's coarsest level is a single tile whenever the renderer derived the
+ * scale-factor chain itself, and need not be when the service declared
+ * `scaleFactors`: factors are taken as given, so `[1,2,4]` on a 10000 px image
+ * with 512 px tiles leaves five columns at the coarsest level and tile (0,0) is
+ * a corner. A size ladder's base rung is always whole, but on a level0 master
+ * with no advertised `sizes` it is the full-resolution scan. `null` for both,
+ * and for a service with no facts, no pyramid and no ladder.
+ *
+ * `fallbackTileSize` is passed through to {@link buildPyramid} for the level 1/2
+ * service that omits `tiles`; `maxDecodedPixels` refuses a base image bigger
+ * than one decode may be.
+ */
+function baseLevelTile(
+    canvasId: string,
+    source: SourceDescriptor,
+    facts: ImageServiceFacts | undefined,
+    priority: number,
+    fallbackTileSize?: number,
+    maxDecodedPixels = Infinity,
+): TileRequest | null {
+    if (!facts || source.kind !== 'service') return null;
+
+    const pyramid = buildPyramid(source.serviceId, facts, fallbackTileSize);
+    const ladder =
+        !pyramid && isSizeLadderSource(facts, source.profile)
+            ? buildSizeLadder(source.serviceId, facts)
+            : null;
+
+    let url: string;
+    let fallback: { url: string; group: string } | null = null;
+
+    if (pyramid) {
+        const level = pyramid.levels[0];
+        if (level.columns !== 1 || level.rows !== 1) return null;
+        if (level.width * level.height > maxDecodedPixels) return null;
+        url = tileUrl(pyramid, level, 0, 0);
+    } else if (ladder) {
+        const rung = ladder.rungs[0];
+        if (rung.width * rung.height > maxDecodedPixels) return null;
+        url = rungUrl(ladder, rung);
+        fallback = rungFallback(ladder, rung);
+    } else {
+        return null;
+    }
+
+    return {
+        key: tileKey(canvasId, baseUri(source, facts), 0, 0, 0),
         canvasId,
         level: 0,
         url,
-        priority: 0,
+        priority,
         ...(fallback ? { fallback } : {}),
-    });
-    draws.push({ key, canvasId, level: 0, order, ...box });
+    };
 }
 
 /**
@@ -1236,7 +1307,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             : 'box';
 
     const tiers: Record<string, ResidencyTier> = {};
-    const overCapCanvases: string[] = [];
     const metadataRequests: string[] = [];
     const tileRequests: TileRequest[] = [];
     const thumbnailRequests: ThumbnailRequest[] = [];
@@ -1278,6 +1348,118 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         // to decide for it.
         if (tier === 'box') continue;
 
+        // Asked at most ONCE per canvas, however many services it paints from.
+        // The host fetches every service on the canvas it is handed, and the
+        // list is re-emitted every frame until the facts land — so a per-image
+        // push would put one entry per painting annotation into a list walked
+        // sixty times a second, for one answer.
+        //
+        // Gated on a stable view wherever it is called from: a flick passes over
+        // hundreds of canvases that are never dwelt on, and asking for each one
+        // as it goes by is most of the request storm on its own (spec §Tile
+        // scheduling).
+        let askedForMetadata = false;
+        function askForMetadata(): void {
+            if (!viewStable || askedForMetadata) return;
+            askedForMetadata = true;
+            metadataRequests.push(canvas.id);
+        }
+
+        // **The companion the phase is about to name** (`PlannerCanvas.warmImages`),
+        // made requestable without being painted.
+        //
+        // ONE request per warmed picture, and the cheapest one that shows the
+        // whole of it: the base level where that is a single tile covering the
+        // image, and otherwise the base rung of the thumbnail ladder. Either is
+        // a picture the handover can paint in the frame it happens — the tier
+        // that takes over draws whichever it finds resident — while the ladder
+        // above it is left to climb on demand, so a companion nobody is looking
+        // at yet never costs a reader more than a thumbnail (user stories 41 and
+        // 42). A picture with no such cheap whole view — a level0 master with no
+        // derivatives — is simply not warmed, which is the same answer the
+        // thumbnail tier gives it.
+        //
+        // Nothing is pushed to `tileDraws`: the phase decides what paints, and
+        // it has not named this companion.
+        //
+        // Services only. A **static-image** companion has no ladder to warm a
+        // rung of and reaches the host as an `<img>` it paints on sight, so the
+        // only way to make one resident is to draw it — which is the phase's
+        // decision and not this block's.
+        //
+        // Ahead of the empty-`images` guard below, because the canvas that
+        // paints nothing at all is the one whose handover has the longest way
+        // to come.
+        const warmTileMark = tileRequests.length;
+        const warmThumbnailMark = thumbnailRequests.length;
+
+        for (const image of canvas.warmImages ?? []) {
+            if (image.source.kind !== 'service') continue;
+            const facts = factsFor(image.source, knownMetadata);
+            if (!facts) {
+                askForMetadata();
+                continue;
+            }
+
+            // Last in the centre-out queue, behind every tile of the picture
+            // the reader is actually looking at. Kept in the required set even
+            // while the view moves, unlike a new thumbnail: demoting it to the
+            // opportunistic cache mid-drag would lose the one thing the
+            // handover is waiting on.
+            const priority = Number.MAX_SAFE_INTEGER;
+            const warm = baseLevelTile(
+                canvas.id,
+                image.source,
+                facts,
+                priority,
+                // The same grid the pyramid tier derives for a level 1/2
+                // service that omits `tiles`, so the warmed key is the key that
+                // tier will draw.
+                DERIVED_TILE_SIZE,
+                budgets.maxDecodedPixels,
+            );
+            if (warm) {
+                tileRequests.push(warm);
+                continue;
+            }
+
+            // The base rung, which is the one rung `planThumbnail` asks for at
+            // every projection: warming it is warming a request the reader's own
+            // thumbnail tier makes anyway, and it is keyed the way that tier
+            // keys it.
+            const resolved = resolveThumbnail({
+                source: image.source,
+                facts,
+                rung: THUMBNAIL_BASE_RUNG,
+                minPixelRatio: budgets.minPixelRatio,
+                maxDecodedPixels: budgets.maxDecodedPixels,
+                imageWidth:
+                    canvas.width === null ? null : image.width * canvas.width,
+            });
+            if (resolved.kind !== 'url') continue;
+
+            thumbnailRequests.push({
+                key: thumbnailKey(canvas.id, resolved.url),
+                canvasId: canvas.id,
+                level: 0,
+                url: resolved.url,
+                priority,
+                rung: THUMBNAIL_BASE_RUNG,
+                ...(resolved.fallback ? { fallback: resolved.fallback } : {}),
+            });
+        }
+
+        const warmTiles = tileRequests.length - warmTileMark;
+        const warmThumbnails = thumbnailRequests.length - warmThumbnailMark;
+
+        // Neither does a canvas with no image on it — the **unsupported
+        // presentation**'s canvas. There is no source to ask for tiles, a
+        // thumbnail, or `info.json`, and reporting it in `unresolvedThumbnails`
+        // would log a resolution failure for something nobody tried to resolve.
+        // It keeps its rect and its tier; the host draws the placeholder over
+        // them.
+        if (canvas.images.length === 0) continue;
+
         // **Where composition happens.** Each painting annotation paints into
         // its own box, and everything below is planned against that box rather
         // than against the canvas's: a miniature targeting `#xywh=` gets its
@@ -1308,23 +1490,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
                 order,
                 ...box,
             });
-        }
-
-        // Asked at most ONCE per canvas, however many services it paints from.
-        // The host fetches every service on the canvas it is handed, and the
-        // list is re-emitted every frame until the facts land — so a per-image
-        // push would put one entry per painting annotation into a list walked
-        // sixty times a second, for one answer.
-        //
-        // Gated on a stable view wherever it is called from: a flick passes over
-        // hundreds of canvases that are never dwelt on, and asking for each one
-        // as it goes by is most of the request storm on its own (spec §Tile
-        // scheduling).
-        let askedForMetadata = false;
-        function askForMetadata(): void {
-            if (!viewStable || askedForMetadata) return;
-            askedForMetadata = true;
-            metadataRequests.push(canvas.id);
         }
 
         // One small image instead of a pyramid — the tier that fills the grey
@@ -1428,6 +1593,12 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             if (outcome === 'unresolved') {
                 unresolvedThumbnails.push(canvas.id);
                 tiers[canvas.id] = 'box';
+                // A box-tier canvas holds no network resource, and a warmed
+                // companion is required rather than opportunistic — left in,
+                // it is a texture on a canvas that paints nothing and that the
+                // byte budget may never reclaim.
+                tileRequests.splice(warmTileMark, warmTiles);
+                thumbnailRequests.splice(warmThumbnailMark, warmThumbnails);
             }
             continue;
         }
@@ -1437,7 +1608,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         // including its base level. Applied without that gate, "the base level
         // is never evicted" would mean 800 resident base tiles on an 800-folio
         // manifest (spec §Further Notes).
-        let reportedOverCap = false;
 
         for (const { image, box, order } of placements) {
             const source = image.source;
@@ -1492,17 +1662,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             if (isSizeLadderSource(facts, source.profile)) {
                 const ladder = buildSizeLadder(source.serviceId, facts);
                 if (!ladder) continue;
-
-                if (
-                    !reportedOverCap &&
-                    exceedsDecodedPixelCap(ladder, budgets.maxDecodedPixels)
-                ) {
-                    // Once per canvas: the report names a canvas, and a
-                    // composite one with two over-cap ladders is still one
-                    // canvas drawn over the ceiling.
-                    reportedOverCap = true;
-                    overCapCanvases.push(canvas.id);
-                }
 
                 planSizeLadder(
                     canvas.id,
@@ -1584,7 +1743,6 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         ),
         metadataRequests,
         unresolvedThumbnails,
-        overCapCanvases,
         minZoom,
     };
 }

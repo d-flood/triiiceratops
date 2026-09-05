@@ -65,6 +65,7 @@
     }}
     data-panel-id={panel.id}
     class="section"
+    class:fills={panel.fills}
     role={panel.dialog ? 'dialog' : undefined}
     aria-label={panel.dialog ? panel.title : undefined}
 >
@@ -73,9 +74,9 @@
             <span class="icon">
                 <PluginIcon descriptor={panel.iconDescriptor} size={18} />
             </span>
-        {:else if panel.icon}
+        {:else if panel.iconName}
             <span class="icon">
-                <panel.icon size={18} weight="bold" />
+                <Icon name={panel.iconName} size={18} weight="bold" />
             </span>
         {/if}
         <span class="title">{panel.title}</span>
@@ -93,6 +94,12 @@
         {/if}
     </div>
     <div class="content">
+        <!--
+        No core panel declares `embedded` any more — they render one way. It is
+        still passed because plugin panels may declare it, and the annotation
+        editor's does: this is the only signal telling a plugin panel it is
+        mounted in the stack rather than standing alone.
+        -->
         <panel.component {...panel.props ?? {}} embedded={true} />
     </div>
 </section>
@@ -154,5 +161,19 @@
     .content {
         min-height: 0;
         width: 100%;
+    }
+
+    /* The content box is the scroller, so a filling panel's body needs no height
+       cap of its own and the sticky header above it stays put. */
+    .section.fills {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .section.fills .content {
+        flex: 1 1 auto;
+        overflow-y: auto;
     }
 </style>

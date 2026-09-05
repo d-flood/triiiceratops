@@ -20,7 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureLogging, type LogLevel } from '../../logging/logger';
 import { createRendererStub } from '../../testing/rendererStub';
 import { ViewerState } from '../viewer.svelte';
-import { createSelectorRuntime } from './runtime';
+import { createSelectorRuntime, type SelectorRuntime } from './runtime';
 
 vi.mock('../manifests.svelte', () => ({
     manifestsState: {
@@ -37,7 +37,7 @@ vi.mock('../manifests.svelte', () => ({
 
 describe('selector cadence', () => {
     let state: ViewerState;
-    let runtime: ReturnType<typeof createSelectorRuntime>;
+    let runtime: SelectorRuntime;
     let renderer: ReturnType<typeof createRendererStub>;
     let detach: (() => void) | null;
 
@@ -277,7 +277,7 @@ describe('selector cadence', () => {
 
 describe('state-cadence projection reading a query-only viewport value', () => {
     let state: ViewerState;
-    let runtime: ReturnType<typeof createSelectorRuntime>;
+    let runtime: SelectorRuntime;
     let warnings: string[];
 
     beforeEach(() => {

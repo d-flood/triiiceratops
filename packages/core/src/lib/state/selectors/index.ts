@@ -15,4 +15,6 @@ export type {
     SelectorProjectionOptions,
     SelectorRuntime,
     SelectorRuntimeOptions,
+    SelectorSource,
+    SourceSelectors,
 } from './runtime.js';

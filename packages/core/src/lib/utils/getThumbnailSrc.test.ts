@@ -1,9 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
     getThumbnailSrc,
     resolveThumbnailResourceSrc,
 } from './getThumbnailSrc';
+import { isUnsupportedCanvas } from './paintingBodies';
 
 describe('resolveThumbnailResourceSrc', () => {
     it('prefers a IIIF Image Service URL for manifest thumbnails', () => {
@@ -179,5 +183,72 @@ describe('getThumbnailSrc', () => {
         expect(getThumbnailSrc(canvas, 120)).toBe(
             'https://iiif.example.org/v3-image/full/120,/0/default.jpg',
         );
+    });
+});
+
+describe('a declared thumbnail on a canvas core cannot render', () => {
+    /**
+     * Rung 1 is deliberately NOT gated by the painting-body classifier, and
+     * only rungs 2 and 3 are. A `thumbnail` is an image by declaration — the
+     * publisher chose a still to stand for the film — so an unsupported canvas
+     * that carries one shows it in the strip and never falls through to the AV
+     * glyph, which `ThumbnailGallery` reaches only when `src` is empty.
+     */
+    const canvas = JSON.parse(
+        readFileSync(
+            join(
+                import.meta.dirname,
+                '../test/fixtures/manifests/av/0064-opera-one-canvas.json',
+            ),
+            'utf8',
+        ),
+    ).items[0];
+
+    it('is shown rather than replaced by the AV glyph', () => {
+        expect(isUnsupportedCanvas(canvas)).toBe(true);
+        expect(getThumbnailSrc(canvas)).toBe(
+            'https://fixtures.iiif.io/video/indiana/donizetti-elixir/act1-thumbnail.png',
+        );
+    });
+});
+
+describe('a mixed Choice, resolved over the selected alternative', () => {
+    /**
+     * The strip and the viewer answer over one body. Resolving the image
+     * alternative while the classifier reads the video one puts a picture in
+     * the strip for a canvas the viewer says it cannot display.
+     */
+    const IMAGE = { id: 'https://ex/img.jpg', type: 'Image' };
+    const VIDEO = {
+        id: 'https://ex/film.mp4',
+        type: 'Video',
+        format: 'video/mp4',
+    };
+    const canvas = {
+        id: 'https://ex/canvas/1',
+        type: 'Canvas',
+        items: [
+            {
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        target: 'https://ex/canvas/1',
+                        body: { type: 'Choice', items: [IMAGE, VIDEO] },
+                    },
+                ],
+            },
+        ],
+    };
+
+    it('resolves the image alternative by default, matching the classifier', () => {
+        expect(isUnsupportedCanvas(canvas)).toBe(false);
+        expect(getThumbnailSrc(canvas)).toBe('https://ex/img.jpg');
+    });
+
+    it('resolves nothing once the video alternative is selected', () => {
+        expect(isUnsupportedCanvas(canvas, VIDEO.id)).toBe(true);
+        expect(getThumbnailSrc(canvas, 200, VIDEO.id)).toBe('');
     });
 });

@@ -1,0 +1,135 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/media/manifests/av-structures.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Chaptered AV — structures, auto-advance and repeat"]
+    },
+    "summary": {
+        "en": [
+            "Two AV canvases with chapter ranges whose canvas references carry #t= fragments (spec, user story 14), and the two behaviors the plugin honours, both on the manifest where IIIF Presentation 3 defines them: auto-advance, so the audio canvas plays on into the video canvas when it ends (user story 18), and repeat alongside it, so reaching the end of the final canvas returns to the first (user story 19). repeat is not valid on a Canvas and is not a per-canvas loop. The video canvas also carries its captions as a canvas-level supplementing annotation — the second of the two real caption shapes; av-video.json carries the first."
+        ]
+    },
+    "behavior": ["auto-advance", "repeat"],
+    "items": [
+        {
+            "id": "/media/manifests/av-structures.json/canvas/tone",
+            "type": "Canvas",
+            "label": { "en": ["Reel 1 — tone"] },
+            "duration": 2.0,
+            "items": [
+                {
+                    "id": "/media/manifests/av-structures.json/page/tone",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-structures.json/annotation/tone",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/media/tone.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 2.0
+                            },
+                            "target": "/media/manifests/av-structures.json/canvas/tone"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/media/manifests/av-structures.json/canvas/bars",
+            "type": "Canvas",
+            "label": { "en": ["Reel 2 — colour bars"] },
+            "width": 320,
+            "height": 180,
+            "duration": 2.0,
+            "items": [
+                {
+                    "id": "/media/manifests/av-structures.json/page/bars",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-structures.json/annotation/bars",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/media/bars.mp4",
+                                "type": "Video",
+                                "format": "video/mp4",
+                                "width": 320,
+                                "height": 180,
+                                "duration": 2.0
+                            },
+                            "target": "/media/manifests/av-structures.json/canvas/bars"
+                        }
+                    ]
+                }
+            ],
+            "annotations": [
+                {
+                    "id": "/media/manifests/av-structures.json/annopage/bars-captions",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-structures.json/annotation/bars-captions",
+                            "type": "Annotation",
+                            "motivation": "supplementing",
+                            "body": {
+                                "id": "/media/captions.vtt",
+                                "type": "Text",
+                                "format": "text/vtt",
+                                "language": "en",
+                                "label": { "en": ["Captions in English"] }
+                            },
+                            "target": "/media/manifests/av-structures.json/canvas/bars"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "structures": [
+        {
+            "id": "/media/manifests/av-structures.json/range/toc",
+            "type": "Range",
+            "label": { "en": ["Contents"] },
+            "items": [
+                {
+                    "id": "/media/manifests/av-structures.json/range/tone-open",
+                    "type": "Range",
+                    "label": { "en": ["Tone — quiet opening"] },
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-structures.json/canvas/tone#t=0,1",
+                            "type": "Canvas"
+                        }
+                    ]
+                },
+                {
+                    "id": "/media/manifests/av-structures.json/range/tone-peak",
+                    "type": "Range",
+                    "label": { "en": ["Tone — peak"] },
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-structures.json/canvas/tone#t=1,2",
+                            "type": "Canvas"
+                        }
+                    ]
+                },
+                {
+                    "id": "/media/manifests/av-structures.json/range/bars-second-half",
+                    "type": "Range",
+                    "label": { "en": ["Colour bars — second half"] },
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-structures.json/canvas/bars#t=1,2",
+                            "type": "Canvas"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

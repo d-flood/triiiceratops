@@ -61,8 +61,8 @@ function testPlugin(attempt: (host: PluginHost) => void): SdkPlugin {
         name: '@example/plugin-notes',
         uiId: UI_ID,
         version: '1.0.0',
-        coreRange: '*',
-        pluginApiRange: '*',
+        coreRange: '>=1.0.0-rc.0',
+        pluginApiRange: '^1.0.0',
         requiredCapabilities: [],
         icon: ICON,
         // `flyout`, not the default `panel`: the seeded target is then observable
@@ -194,6 +194,52 @@ describe('TriiiceratopsViewer — a failed SDK plugin activation', () => {
         expect(state.pluginMenuButtons.map((button) => button.id)).toEqual([
             `${UI_ID}:toggle`,
         ]);
+    });
+
+    // ADR 0018: published state is absent whenever its activation is absent,
+    // failed, or RETRYING. Retry is a full re-activation, so the publication has
+    // to be gone by the time the retried mount runs — otherwise the second
+    // publish lands on an id the dead activation still holds and is refused,
+    // and the host reaches a plugin that no longer exists for the rest of the
+    // session. Nothing else pins that: it holds today only because
+    // `retrySdkPlugin` happens to tear down and re-activate synchronously.
+    it('leaves no published state behind when a failed plugin is retried', async () => {
+        const publications: unknown[] = [];
+        const publish = (host: PluginHost): void => {
+            const published = { subscribe: () => () => {} };
+            publications.push(published);
+            host.viewerState.publishPluginState(host.surface!.id, published);
+        };
+
+        let shouldFail = true;
+        const { state, errors, viewerErrors } = await mountViewer([
+            testPlugin((host) => {
+                publish(host);
+                if (shouldFail)
+                    throw new Error('mount blew up after publishing');
+            }),
+        ]);
+
+        expect(errors.map((error) => error.phase)).toEqual(['mount']);
+        expect(
+            state.getPluginState(UI_ID),
+            'a failed activation publishes nothing a host can reach',
+        ).toBeNull();
+
+        // Retry into a SECOND failure: still nothing published, and the second
+        // publication was not refused as a duplicate of the first.
+        errors[0].retry();
+        await tick();
+        expect(publications).toHaveLength(2);
+        expect(state.getPluginState(UI_ID)).toBeNull();
+
+        // And a retry that succeeds publishes freshly under the same id.
+        shouldFail = false;
+        errors[1].retry();
+        await tick();
+        expect(publications).toHaveLength(3);
+        expect(state.getPluginState(UI_ID)).toBe(publications[2]);
+        expect(viewerErrors, 'no publication was ever refused').toEqual([]);
     });
 
     it('delivers a refused layer id to the host’s onviewererror, not only to the debug log', async () => {

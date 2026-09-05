@@ -16,7 +16,7 @@
 // FILE: dist/browser-runtime.d.ts
 // ======================================================================
 /**
- * The `window.Triiiceratops` browser runtime namespace (ticket 10).
+ * The `window.Triiiceratops` browser runtime namespace.
  *
  * One namespace per page, bootstrapped order-independently: every core (and,
  * later, every plugin) IIFE creates it if absent via {@link ensureBrowserRuntime}
@@ -34,6 +34,10 @@
  * Registration never activates anything (CONTEXT.md **Registration**);
  * activation is explicit, per viewer, and negotiated later (CONTEXT.md
  * **Activation**).
+ *
+ * The namespace also carries core's **shared Svelte runtime** — see
+ * {@link SharedSvelteRuntime} — and its **shared core utilities** — see
+ * {@link SharedCoreUtils}.
  */
 import type { SdkPlugin } from './types/plugin';
 /** The custom-element tag both Web Component entries register. */
@@ -62,6 +66,97 @@ export interface PluginFactoryRegistry {
     list(): readonly SdkPlugin[];
 }
 /**
+ * Core's **shared Svelte runtime**: the compiler helpers a first-party plugin
+ * IIFE reads off this namespace instead of bundling a second copy of Svelte.
+ *
+ * ## Why it exists
+ *
+ * The published bundle-size comparison measures `triiiceratops-element.iife.js`
+ * against viewers that already do audio and video, and the headroom is small. A
+ * Svelte plugin that ships its own runtime spends roughly half of it on bytes no
+ * reader can see: a representative transport component measured 13.24 KB gzip
+ * bundled against 1.51 KB sharing core's. Core pays essentially nothing to share,
+ * because it already uses every helper listed here — exposing them retains
+ * nothing that was not already retained.
+ *
+ * ## Three rules, none optional
+ *
+ * 1. **The list is curated and small; never `export *`.** Re-exporting the whole
+ *    `svelte/internal/client` namespace was measured at **+8,837 gzip on core**:
+ *    it defeats tree-shaking and retains all ~200 exports. Curation IS the
+ *    mechanism, not a tidiness preference. Derive additions by compiling the
+ *    plugin's real components and reading the `$.<name>` references out of the
+ *    output — never by guessing, and never by adding "while we are here".
+ * 2. **Growth is gated by the size ratchet.** A plugin reaching for a Svelte
+ *    feature core does not already use adds a helper here, and `pnpm size:check`
+ *    fails against the recorded element baseline. That is the intended alarm: a
+ *    core-size increase on a plugin ticket means plugin bytes are moving into
+ *    core, and it must be read that way rather than re-baselined.
+ * 3. **Version skew fails closed**, and in two places, because one is not
+ *    enough. A consuming plugin declares the `shared-svelte-runtime` capability
+ *    and an EXACT `coreRange`, so activation refuses a core that shares no
+ *    runtime or is not the one the plugin was built against — `svelte/internal`
+ *    is private API with no semver guarantee, so the contract is "same repo,
+ *    same release, same Svelte version". But activation is far too late on its
+ *    own: a compiled component dereferences these helpers at MODULE scope, so a
+ *    plugin IIFE loaded against an absent or skewed core throws before it can
+ *    register, let alone negotiate. The consuming bundle therefore also carries
+ *    a gate ahead of its own body that checks this namespace and reports what is
+ *    missing (see `sharedRuntimeGate.ts` in `@triiiceratops/plugin-av`).
+ *    This is a FIRST-PARTY-ONLY privilege: a third-party plugin is released
+ *    independently of core and must keep bundling its own runtime, which is what
+ *    `docs/plugin-authoring.md` goes on telling external authors to do.
+ *
+ * A plugin consuming this reads it before it can do anything else, so its script
+ * must load AFTER core's — the one ordering constraint in an otherwise
+ * order-independent namespace.
+ */
+export interface SharedSvelteRuntime {
+    /**
+     * The public `svelte` entry points a plugin's own code calls: `mount`,
+     * `unmount`, `getContext`.
+     */
+    readonly svelte: Readonly<Record<string, unknown>>;
+    /**
+     * The `svelte/internal/client` helpers the plugin's COMPILED components
+     * reference.
+     */
+    readonly svelteInternal: Readonly<Record<string, unknown>>;
+}
+/**
+ * Core's **shared core utilities**: a curated handful of core's own functions a
+ * first-party plugin IIFE reads off this namespace instead of bundling a second
+ * copy of the modules behind them.
+ *
+ * Same privilege as {@link SharedSvelteRuntime}, granted the same way and fenced
+ * by the same three rules:
+ *
+ * 1. **The list is curated and small; never `export *`.** A name goes on it
+ *    because a first-party plugin reads it now, and the set is exactly what
+ *    `@triiiceratops/plugin-av` reads. `export *` would defeat tree-shaking and
+ *    retain core's whole utility surface, which is the thing this mechanism
+ *    exists to avoid.
+ * 2. **Growth is gated by the size ratchet.** Exposing a function whose logic
+ *    core's shipped graph already retains costs core essentially nothing, and an
+ *    ADAPTER over such logic costs only the adapter: `companionPaintable` is a
+ *    new function that moved the element baseline 175 raw / 80 gzip, and it was
+ *    re-baselined because the pair fell 42. What the alarm is for is a utility
+ *    whose LOGIC core does not already have — that really is plugin bytes moving
+ *    into core, and no plugin saving buys it. `pnpm size:check:pair` is the
+ *    arbiter, never the element figure on its own.
+ * 3. **Version skew fails closed, twice.** The `shared-core-utils` capability
+ *    refuses activation on a core that publishes no such member; and the
+ *    consuming bundle's own skew gate checks the namespace ahead of its first
+ *    module statement, because a compiled module dereferences these at load,
+ *    long before activation could refuse anything.
+ *
+ * This is a FIRST-PARTY-ONLY privilege, as the Svelte runtime is, and for the
+ * same reason: it holds only because core and plugin are built and released from
+ * one repository at one version. `docs/plugin-authoring.md` goes on telling
+ * third-party authors to bundle their own copies.
+ */
+export type SharedCoreUtils = Readonly<Record<string, unknown>>;
+/**
  * The browser runtime descriptor (SPEC.md — normative shape). `coreVersion`,
  * `pluginApiVersion`, and `capabilities` are empty until core loads and fills
  * them; the `plugins` registry exists from first bootstrap so plugins can
@@ -72,6 +167,12 @@ export interface TriiiceratopsBrowserRuntime {
     readonly pluginApiVersion: string;
     readonly capabilities: readonly string[];
     readonly plugins: PluginFactoryRegistry;
+    /** See {@link SharedSvelteRuntime}. Filled only by core. */
+    readonly svelte: SharedSvelteRuntime['svelte'];
+    /** See {@link SharedSvelteRuntime}. Filled only by core. */
+    readonly svelteInternal: SharedSvelteRuntime['svelteInternal'];
+    /** See {@link SharedCoreUtils}. Filled only by core. */
+    readonly core: SharedCoreUtils;
 }
 declare global {
     interface Window {
@@ -108,13 +209,23 @@ export interface InstallCoreOptions {
     coreVersion: string;
     /** Plugin API version core declares for activation-time negotiation. */
     pluginApiVersion: string;
-    /**
-     * Capabilities core declares. Empty in the 1.0 line — see `plugin/api.ts`
-     * for why the renderer capability was retired with no successor.
-     */
+    /** Capabilities core declares — see `plugin/api.ts` for the list and why. */
     capabilities: readonly string[];
     /** The custom-element constructor to register for {@link tag}. */
     elementCtor: CustomElementConstructor;
+    /**
+     * The {@link SharedSvelteRuntime} to publish on the namespace. Supplied by
+     * the Web Component entries from `shared-svelte-runtime.ts`; omitted by
+     * callers that have no business shipping a Svelte runtime.
+     */
+    svelteRuntime?: SharedSvelteRuntime;
+    /**
+     * The {@link SharedCoreUtils} to publish on the namespace. Supplied by the
+     * Web Component entries from `shared-core-utils.ts`, and passed in rather
+     * than imported here for the same reason the Svelte runtime is: this module
+     * is reached by the framework substrate behind `./react` and `./vue`.
+     */
+    coreUtils?: SharedCoreUtils;
     /** Tag to register. Defaults to {@link VIEWER_ELEMENT_TAG}. */
     tag?: string;
     /** Global to install onto. Defaults to `window` (injectable for tests). */
@@ -331,6 +442,51 @@ export type CanvasNavLayout = {
     leftIcon: CanvasNavIcon;
     rightIcon: CanvasNavIcon;
 };
+/**
+ * Whether to draw the divider between two adjacent groups of the control bar.
+ *
+ * One rule, applied per boundary: a divider is shown when both groups sit on
+ * the same row, because a vertical rule between groups on different rows reads
+ * as noise rather than as a separator. Rows are compared by offset top — on a
+ * shared row both groups align to the same row box, so any difference means the
+ * later group has dropped.
+ *
+ * `null` means the group is not rendered at all, and a boundary with only one
+ * side has nothing to divide.
+ */
+export declare function shouldShowGroupDivider(beforeOffsetTop: number | null, afterOffsetTop: number | null): boolean;
+/**
+ * How long the control bar waits, with nothing happening, before it hides
+ * itself over a claimed canvas.
+ *
+ * Three seconds is a feel decision, not a derived one: long enough that it does
+ * not snatch the chrome away from a reader who paused mid-reach, short enough
+ * that a reader settling in to watch is not looking at a bar over the caption
+ * cues for the first act.
+ */
+export declare const IDLE_CHROME_DELAY_MS = 3000;
+/**
+ * Whether the control bar may hide itself right now.
+ *
+ * Not four special cases but one rule stated four ways: chrome a reader is
+ * *using* is not idle. Playback stopped, a pointer resting on the bar, keyboard
+ * focus inside it, or a popover it owns left open each mean the reader's
+ * attention is on the chrome rather than through it.
+ *
+ * Two of these are absolute, and a viewer that broke either would be worse than
+ * one that never hid anything: never hide while paused, and never hide while
+ * the bar holds KEYBOARD focus — which is what the second rule protects, since
+ * its whole point is that keyboard focus must never land on something
+ * invisible. Focus a mouse reader left on the play button by clicking it is not
+ * that, and treating it as such would pin the chrome open for the whole of
+ * every recording started from the bar, which is every recording.
+ */
+export declare function canIdleHide(conditions: {
+    playing: boolean;
+    pointerInBar: boolean;
+    keyboardFocusInBar: boolean;
+    popoverOpen: boolean;
+}): boolean;
 export declare function shouldUseAbbreviatedChoiceLabels(viewingMode: ViewingMode, visibleChoiceGroups: ChoiceGroup[]): boolean;
 export declare function getCanvasNavLayout(viewingDirection: ViewingDirection): CanvasNavLayout;
 type ViewingMode = 'individuals' | 'paged' | 'continuous';
@@ -993,9 +1149,9 @@ export type { TriiiceratopsViewerElement };
  * These helpers (IIIF canvas image resolution, size-option ladders, canvas
  * compositing, blob fetching/downloading, multi-canvas layout math, OCR/
  * annotation geometry, and thumbnail fallbacks) are pure functions used by
- * core's own rendering AND by the migrated `@triiiceratops/plugin-image-export`
- * (ticket 15) and `@triiiceratops/plugin-pdf-export` (ticket 16) packages, which
- * run in the same realm as core. Because the code is genuinely shared and remains
+ * core's own rendering AND by the `@triiiceratops/plugin-image-export` and
+ * `@triiiceratops/plugin-pdf-export` packages, which run in the same realm as
+ * core. Because the code is genuinely shared and remains
  * with its owning package (core), it is exposed here as a single real public seam
  * rather than duplicated into each plugin (SPEC.md — "Shared code is placed at a
  * real public seam or remains with its owning package. No unpublished catch-all
@@ -1013,23 +1169,27 @@ export { getCanvasDisplayLayouts } from './components/canvasLayout';
 export { getVisibleCanvasEntries } from './components/viewerControls';
 export { parseAnnotation } from './utils/annotationAdapter';
 export { getThumbnailSrc } from './utils/getThumbnailSrc';
+export type { ChoiceSelection } from './utils/paintingBodies';
+export { isUnsupportedCanvas, isUnsupportedCanvasFor, } from './utils/paintingBodies';
 export { getPaintingAnnotations } from './utils/iiifParsing';
 export { resolveLanguageValue } from './utils/languageMap';
 
 // ======================================================================
 // FILE: dist/index.d.ts
 // ======================================================================
-export type { ViewerState, ViewerStateSnapshot } from './state/viewer.svelte';
+export type { CompanionPhase, ViewerState, ViewerStateSnapshot, } from './state/viewer.svelte';
 export type { SearchHit, SearchProvider, SearchProviderContext, SearchResultGroup, } from './types/config';
 export type { PluginMenuButton, PluginPanel, PluginFlyout, PluginUiTarget, } from './types/plugin';
-export type { Selector, ViewerSelectors, PluginStyleService, PluginLocaleService, LocaleCatalog, IconDescriptor, PluginIcon, PluginUiService, PluginSurface, PluginContext, PluginView, PluginHost, PluginActivation, SdkPluginMeta, SdkPlugin, PluginErrorPhase, PluginError, PluginErrorReport, } from './types/plugin';
+export type { Selector, ViewerSelectors, PluginStyleService, PluginLocaleService, LocaleCatalog, IconDescriptor, PluginIcon, PluginUiService, PluginSurface, PluginContext, PublishedState, PublishedStateClassification, PluginView, PluginHost, PluginActivation, SdkPluginMeta, SdkPlugin, PluginErrorPhase, PluginError, PluginErrorReport, } from './types/plugin';
 export { SDK_PLUGIN_KIND, isSdkPlugin, PLUGIN_ERROR_EVENT, } from './types/plugin';
+export type { SelectorSource, SourceSelectors, } from './state/selectors/runtime';
 export type { ViewerError, ViewerErrorScope, ViewerErrorSeverity, ViewerErrorReporter, } from './types/viewerError';
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
-export type { ContainerSize, ImageAdjustments, ViewportBox, ViewportInset, ViewportPoint, } from './types/viewport';
+export type { CanvasSize, ContainerSize, ImageAdjustments, ViewportBox, ViewportInset, ViewportPoint, } from './types/viewport';
 export { NEUTRAL_IMAGE_ADJUSTMENTS, ZERO_VIEWPORT_INSET, imageAdjustmentsToCssFilter, isNeutralImageAdjustments, } from './types/viewport';
 export type { PaintCanvasPlacement, PaintFrame, PaintLayer, PaintLayerDraw, PaintTransform, } from './renderer/paintLayers';
 export type { OverlayLayer } from './renderer/overlayLayers';
+export type { TransportChrome, TransportChromeIcons, TransportChromeLabels, TransportChromePort, TransportChromeView, } from './state/transportChrome';
 export type { TriiiceratopsViewerElement } from './types/viewerElement';
 export { VIEWER_STATE_AVAILABLE_EVENT } from './types/viewerElement';
 export type { Logger, LogLevel, LogSink } from './logging/logger';
@@ -1037,6 +1197,11 @@ export { logger, configureLogging, isDebugEnabled } from './logging/logger';
 export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 export { createPluginSurface } from './plugin/surface';
 export { getPaintingAnnotations } from './utils/iiifParsing';
+export { parseIiifTime } from './utils/iiifTime';
+export type { ChoiceSelection } from './utils/paintingBodies';
+export { isImageBody, isUnsupportedCanvas, isUnsupportedCanvasFor, paintingBodyAlternatives, } from './utils/paintingBodies';
+export type { CompanionProperty } from './renderer/companionCanvases';
+export { companionPaintable } from './renderer/companionCanvases';
 export type { StructureNode } from './utils/structures';
 export type { CollectionItem } from './utils/collections';
 export type { ThemeConfig, BuiltInTheme } from './theme/types';
@@ -1104,7 +1269,7 @@ export declare const logger: Logger;
 // FILE: dist/plugin/api.d.ts
 // ======================================================================
 /**
- * Core's declared plugin-compatibility surface (ticket 07).
+ * Core's declared plugin-compatibility surface.
  *
  * These values are what the SDK negotiates a plugin's declared `coreRange`,
  * `pluginApiRange`, and `requiredCapabilities` against at activation. Core
@@ -1119,33 +1284,71 @@ export declare const logger: Logger;
  */
 /**
  * The core package version, exposed for `coreRange` negotiation and the browser
- * runtime descriptor. Kept in sync with `package.json`; ticket 21 replaces the
- * literal with a generated/snapshotted value.
+ * runtime descriptor.
+ *
+ * A literal rather than an import of `package.json`, so the element bundle
+ * carries no JSON module — but it is the version a plugin's `coreRange` is
+ * matched against, so drift refuses plugins pinned to a version that was
+ * actually published, naming one that was not. `api.version.test.ts` reads
+ * `package.json` and fails on any disagreement; bump both together.
  */
-export declare const CORE_VERSION = "1.0.0-rc.25";
+export declare const CORE_VERSION = "1.0.0-rc.36";
 /**
- * The plugin API version, independent of {@link CORE_VERSION}. Starts at
- * `1.0.0` for the 1.0 line.
+ * The plugin API version, independent of {@link CORE_VERSION}. `1.6.0` for
+ * `PluginSurface.setAvailable`, over the `1.5.0` that added the transcript
+ * control to the `transport-chrome` {@link capabilities} entry below.
+ *
+ * A minor, not a major: `setAvailable` is a member core provides and plugins
+ * call, so a plugin written against 1.5 keeps working untouched — its chrome is
+ * available until it says otherwise. Adding a REQUIRED member to a contract
+ * plugins IMPLEMENT (a transport view, a port) is the case that takes a major.
  */
-export declare const pluginApiVersion = "1.0.0";
+export declare const pluginApiVersion = "1.6.0";
 /**
  * Runtime capabilities core declares. Capabilities describe compatibility, not
  * security permissions.
  *
- * **Empty, deliberately.** The one capability that ever existed here declared
- * the bundled major of the third-party renderer, because that renderer's
- * surface belonged to a
- * third party and core could only promise the pass-through field's existence and
- * timing. The renderer is now first-party and its surface is governed by core's
- * own semver, which `coreRange` already negotiates — so that capability was
- * **retired with no successor**, and no `renderer@1` replaced it. Reintroducing
- * one would recreate the versioning split this work removed.
+ * A capability names a genuinely OPTIONAL runtime feature a plugin fails closed
+ * without — not a dependency's major. The one that ever meant the latter
+ * declared the bundled major of the third-party renderer; the renderer is now
+ * first-party and governed by core's own semver, which `coreRange` already
+ * negotiates, so that capability was **retired with no successor** and a plugin
+ * still declaring the retired identifier fails activation. That is the correct
+ * outcome: it needs a renderer object that no longer exists.
  *
- * A plugin still declaring the retired identifier fails activation. That is the
- * correct outcome: it needs a renderer object that no longer exists.
- *
- * The vocabulary itself is not retired — a future capability naming a genuinely
- * optional runtime feature (rather than a dependency's major) belongs here.
+ * - `canvas-claim` — `ViewerState.claimCanvas`, the seam a plugin owning a
+ *   canvas's non-image content activates over (ADR 0017). Without it such a
+ *   plugin would activate against an older viewer and silently render over an
+ *   unsupported-content placard it could not suppress.
+ * - `published-state` — an activation may publish one state object
+ *   (`PluginContext.publishState`) that hosts reach through
+ *   `viewerState.getPluginState(pluginId)` (ADR 0018). A plugin whose whole
+ *   external control surface is its published state requires it, so an older
+ *   core refuses activation instead of mounting a plugin no host can drive.
+ * - `shared-svelte-runtime` — core publishes the curated `svelte` and
+ *   `svelte/internal/client` helpers on `window.Triiiceratops`
+ *   (`SharedSvelteRuntime` in `browser-runtime.ts`), which a FIRST-PARTY plugin
+ *   IIFE consumes instead of bundling a second copy. `svelte/internal` is
+ *   private API with no semver guarantee, so a plugin built against it must
+ *   fail closed on a core that shares no runtime — or shares a different one —
+ *   rather than throw an unnamed `TypeError` out of a compiled component. A
+ *   plugin declaring this must also pin `coreRange` exactly: the capability
+ *   says the runtime is shared, and only the exact version says it is the same
+ *   runtime.
+ * - `shared-core-utils` — core publishes a curated handful of its own utility
+ *   functions on `window.Triiiceratops.core` (`SharedCoreUtils` in
+ *   `browser-runtime.ts`), which a FIRST-PARTY plugin IIFE reads instead of
+ *   bundling a second copy of the modules behind them. A plugin whose bundle
+ *   externalizes `triiiceratops` requires it, so a core that publishes no such
+ *   member refuses activation rather than leaving the plugin dereferencing
+ *   `undefined`.
+ * - `transport-chrome` — a claimant of timed media may register a view model of
+ *   playback facts and a port of playback commands
+ *   (`ViewerState.registerTransportChrome`), which core renders as playback
+ *   controls in its own control bar. A plugin whose only playback chrome is the
+ *   one core renders requires it, so a core too old to render it refuses
+ *   activation with a named diagnostic rather than mounting a plugin whose
+ *   controls never appear.
  */
 export declare const capabilities: readonly string[];
 
@@ -1153,7 +1356,7 @@ export declare const capabilities: readonly string[];
 // FILE: dist/plugin/localeService.d.ts
 // ======================================================================
 /**
- * Per-viewer plugin locale service (ticket 08).
+ * Per-viewer plugin locale service.
  *
  * Combines the owning viewer's active-locale source (CONTEXT.md **Active
  * locale**) with the plugin's own package-owned {@link LocaleCatalog} to produce
@@ -1164,7 +1367,7 @@ export declare const capabilities: readonly string[];
  * Core builds this because it owns both the active locale (an inventoried
  * observable member) and the resolution algorithm; the catalog is plugin-owned
  * data that reaches core through `SdkPluginMeta.catalog`. The SDK's test kit
- * (ticket 14) supplies a recording double of this service instead.
+ * supplies a recording double of this service instead.
  */
 import type { LocaleCatalog, PluginLocaleService } from '../types/plugin';
 /**
@@ -1521,6 +1724,143 @@ export type TriiiceratopsViewerRef = ViewerHandle;
 export declare function TriiiceratopsViewer(props: TriiiceratopsViewerProps): ReactElement;
 
 // ======================================================================
+// FILE: dist/renderer/companionCanvases.d.ts
+// ======================================================================
+/**
+ * A claimed canvas's `placeholderCanvas` and `accompanyingCanvas`, resolved as
+ * the Canvases they are.
+ *
+ * These are ordinary Presentation 3 properties whose value is a Canvas, so they
+ * go through {@link toPlannerCanvas} exactly like every other canvas in the
+ * manifest. That is the whole design: the tile pyramid, the size ladder, Choice
+ * bodies, region-targeted placements, both id spellings, residency, and
+ * projection all apply to a companion because nothing here reimplements any of
+ * them (ADR 0017; SPEC §Rendering).
+ *
+ * Pure, like the rest of the renderer's planning modules. Degradations are
+ * returned as {@link CompanionCanvases.warnings} rather than logged, so this
+ * stays callable from a `$derived` and the host decides when to say each one
+ * once — the same division `ScenePlan.unresolvedThumbnails` already uses.
+ */
+import type { PlannerCanvas, PlannerImage } from './types';
+import type { ChoiceSelection } from '../utils/paintingBodies';
+import type { CompanionPhase } from '../state/viewer.svelte';
+type SelectedChoiceLookup = (canvasId: string) => string | undefined;
+/** The two Presentation 3 properties a companion can arrive under. */
+declare const COMPANION_PROPERTIES: {
+    readonly placeholder: "placeholderCanvas";
+    readonly accompanying: "accompanyingCanvas";
+};
+/** Either of the two property names, as a claimant spells it when asking. */
+export type CompanionProperty = (typeof COMPANION_PROPERTIES)[keyof typeof COMPANION_PROPERTIES];
+/**
+ * One claimed canvas's companions, resolved once.
+ *
+ * **The phase selects between these; it never rebuilds them.** Pressing play is
+ * a choice between two values already in hand, not a re-plan (user story 29),
+ * which is why both companions are resolved together and the phase appears
+ * nowhere in this file except in {@link withCompanion}'s signature.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export interface CompanionCanvases {
+    /**
+     * The rect the claimed canvas takes, **decided once and never by the
+     * phase**: its own declared dimensions, else its accompanying canvas's,
+     * else its placeholder's.
+     *
+     * Only a companion that resolved to something requestable donates a rect. A
+     * companion the reader will never see must not reflow the manifest around
+     * itself, so a broken one costs the canvas its picture and nothing else
+     * (user story 23).
+     *
+     * The accompanying canvas is preferred because it is the permanent
+     * companion, and the phase is excluded because a 640×360 poster giving way
+     * to a 772×998 score must not reflow the manifest the instant playback
+     * starts (user story 10).
+     *
+     * `null` where nothing declares any, which is the planner's existing signal
+     * to place the canvas from the median of its siblings.
+     */
+    width: number | null;
+    height: number | null;
+    /**
+     * Each companion's placed images, already transformed into the rect above —
+     * `null` where the canvas has no such companion, or where the one it has
+     * resolved to nothing requestable.
+     */
+    placeholder: PlannerImage[] | null;
+    accompanying: PlannerImage[] | null;
+    /**
+     * Developer-facing degradations, for the host to report once per canvas.
+     * Empty in every healthy case, including the ordinary one of a canvas that
+     * carries only one of the two companions.
+     */
+    warnings: string[];
+}
+/**
+ * A claimed canvas's companions, or `null` where it has neither and there is
+ * nothing to say about it.
+ *
+ * `base` is the descriptor {@link toPlannerCanvas} already built for the claimed
+ * canvas itself, which is what decides the two cases this refuses:
+ *
+ * - a canvas that **paints images of its own** is skipped entirely and warns. It
+ *   is a composite canvas whose own images already paint, and a companion under
+ *   them would be invisible at best;
+ * - a companion that resolves to nothing requestable — no service, no id, not an
+ *   image — paints nothing and warns. The claimed canvas keeps the treatment it
+ *   would otherwise have had, so a broken companion costs a picture rather than
+ *   the canvas (user story 23).
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function resolveCompanionCanvases(canvas: unknown, base: PlannerCanvas, getSelectedChoice?: SelectedChoiceLookup): CompanionCanvases | null;
+/**
+ * Whether core will paint the companion this canvas carries under `property`.
+ *
+ * The claimant's question, answered by the resolution that does the painting
+ * rather than by a restatement of its refusals. A claimant sets a companion
+ * phase only where core will actually put a picture in the rect: yielding it to
+ * one that never arrives leaves the reader a blank stage, where the honest
+ * fallback is the treatment the canvas would have had with no companion at all
+ * (SPEC — "Degradation and honesty"). Two implementations of that answer would
+ * drift apart silently, which is the whole reason this is exported.
+ *
+ * Asked with the reader's Choice selection, in either shape a caller already
+ * holds, because core resolves the companion with the same one.
+ */
+export declare function companionPaintable(selection: ChoiceSelection | undefined, canvas: unknown, property: CompanionProperty): boolean;
+/**
+ * The claimed canvas's descriptor with the phase's companion painted into it.
+ *
+ * A **selection** over {@link resolveCompanionCanvases}' already-built result,
+ * which is the whole of what a phase change costs.
+ *
+ * The phase that is not painting also names `PlannerCanvas.warmImages`, so that
+ * the companion about to be called for is resident before it is called for and
+ * the handover has something to paint in the frame it happens (user story 41).
+ *
+ * Note that the rect comes from the companions and not from the phase, so
+ * `'none'` keeps the geometry the painting phases had. A claimant whose canvas
+ * carries only a placeholder moves to `'none'` on first play, and reverting the
+ * rect there would reflow the page at exactly the moment user story 10 forbids
+ * it. A canvas whose claimant has set no phase at all never reaches this
+ * function: the claim on its own changes nothing about what core renders
+ * (user story 27).
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function withCompanion(base: PlannerCanvas, companions: CompanionCanvases, phase: CompanionPhase): PlannerCanvas;
+export {};
+
+// ======================================================================
 // FILE: dist/renderer/overlayLayers.d.ts
 // ======================================================================
 /**
@@ -1738,9 +2078,11 @@ import type { ViewportBox, ViewportPoint } from '../types/viewport.js';
  * for the layer that wants device pixels instead: reset the transform, and
  * `x_device = x_world * scale + offsetX`.
  *
- * `scale` has `dpr` folded in, exactly as `paintScene.applyViewportTransform`
- * folds it, which is what keeps a layer's ink on the same sub-pixel grid as the
- * tiles rather than half a device pixel off it.
+ * `scale` has `dpr` folded in. A layer is handed the very transform the tiles
+ * were drawn with — `viewportMath.viewportTransform` builds it once per frame
+ * and the painter and the host both take it from there — which is what keeps a
+ * layer's ink on the same sub-pixel grid as the tiles rather than half a device
+ * pixel off it.
  */
 export interface PaintTransform {
     /** Device pixels per world unit — the viewport scale times `dpr`. */
@@ -1784,7 +2126,7 @@ export interface PaintCanvasPlacement {
  * hook can express a canvas-anchored layer without a plugin re-deriving the
  * mapping — or, worse, going back to raw Canvas JSON for the declared
  * dimensions, which would put image-space/canvas-space arithmetic back on the
- * plugin boundary this epic's coordinate contract removes it from. They are
+ * plugin boundary this renderer's coordinate contract removes it from. They are
  * methods rather than four more numbers per placement for that reason: the rule
  * (a fraction of the rect, with a canvas whose manifest declared no dimensions
  * falling back to its laid-out extent) is one decision with one wrong answer,
@@ -1946,7 +2288,7 @@ export declare function paintCanvasSpace(layout: readonly LayoutRect[], declared
  * answer for the canvas asked about returns `null` rather than silently
  * answering for a different one.
  */
-import type { ContainerSize, ImageAdjustments, ViewportBox, ViewportPoint } from '../types/viewport.js';
+import type { CanvasSize, ContainerSize, ImageAdjustments, ViewportBox, ViewportPoint } from '../types/viewport.js';
 export interface RendererPort {
     /**
      * Multiply the zoom by `factor`, anchored at a screen-space point — the
@@ -1984,6 +2326,13 @@ export interface RendererPort {
     getVisibleCanvasIds(): string[];
     /** The canvas-space box the viewport currently shows. */
     getVisibleBounds(canvasId?: string): ViewportBox | null;
+    /**
+     * The extent of a canvas's own coordinate space — what `(0, 0)` to
+     * `(width, height)` means for this canvas, and `null` when it is not laid
+     * out. The manifest's declared size where there is one; the size layout
+     * gave it where there is not.
+     */
+    getCanvasSize(canvasId?: string): CanvasSize | null;
     /** The surface's size in CSS pixels; zeroes before it is measured. */
     getContainerSize(): ContainerSize;
     /** Canvas space → screen space. */
@@ -2027,9 +2376,14 @@ export interface RendererPort {
  * planner runnable in plain Node.
  */
 import type { ViewingDirection, ViewingMode } from '../components/canvasLayout';
+import type { ImageSource } from '../utils/resolveCanvasImage';
 export type { ViewingDirection, ViewingMode };
 /**
  * Where a canvas's pixels come from.
+ *
+ * The renderer's name for `utils/resolveCanvasImage.ImageSource`, which is where
+ * the three-branch decision that produces one is made, so the planner and the
+ * legacy tile-source path cannot disagree about which URL a canvas resolves to.
  *
  * `static` is one known URL. `service` is an image service the planner resolves
  * once its `info.json` has been fetched — into a tile pyramid when it advertises
@@ -2039,14 +2393,7 @@ export type { ViewingDirection, ViewingMode };
  * its declared profile: a profile can be missing, and a level0 service that
  * advertises tiles is an ordinary pyramid.
  */
-export type SourceDescriptor = {
-    kind: 'static';
-    url: string;
-} | {
-    kind: 'service';
-    serviceId: string;
-    profile: string | null;
-};
+export type SourceDescriptor = ImageSource;
 /**
  * One picture placed on a canvas by one painting annotation: where its pixels
  * come from, and the box it paints into.
@@ -2113,13 +2460,37 @@ export interface PlannerCanvas {
     width: number | null;
     height: number | null;
     /**
+     * The Canvas's declared `duration` in seconds, or `null` where it declares
+     * none — which is every image canvas, and so the overwhelmingly common case.
+     *
+     * Carried for one purpose: a canvas with a duration and no picture has a
+     * KNOWN shape rather than an unknown one, and `planScene.resolveGeometry`
+     * gives it a timeline-shaped rect instead of a page-shaped guess. It is
+     * consulted nowhere else, and never for a canvas that paints images — a
+     * canvas carrying both a video body and an image one is core's to paint, and
+     * its geometry is its images' (`0489-multimedia-canvas`).
+     *
+     * Not the playhead's business: the AV plugin reads the duration it plays
+     * against off the manifest itself (`plugin-av/sources.scanCanvasForAv`), and
+     * core makes no claim here about what any element will report.
+     */
+    duration?: number | null;
+    /**
      * Every picture painted on this canvas, in the manifest's own annotation
      * order — which is paint order, so a later entry paints over an earlier one.
      *
-     * Never empty: `canvasDescriptors.toPlannerCanvas` returns `null` for a
-     * canvas that paints nothing usable, so such a canvas never becomes a
-     * `PlannerCanvas` at all. The overwhelmingly common case is exactly one
-     * entry covering the whole canvas.
+     * **Empty means the unsupported presentation**, and it is the only thing it
+     * can mean. `canvasDescriptors.toPlannerCanvas` returns `null` for a canvas
+     * that paints nothing at all and for one whose image bodies resolved to
+     * nothing requestable, so the single surviving imageless case is a canvas
+     * whose painting bodies are all non-image — a film, a sound recording. Core
+     * keeps it in layout, navigation and the thumbnail strip and paints an
+     * honest placeholder over its rect (CONTEXT.md → **Unsupported
+     * presentation**; ADR 0017). Deliberately not a `CanvasErrorKind`: nothing
+     * failed, nothing was requested, and there is nothing to retry.
+     *
+     * The overwhelmingly common case is exactly one entry covering the whole
+     * canvas.
      */
     images: PlannerImage[];
     /**
@@ -2145,6 +2516,22 @@ export interface PlannerCanvas {
      * image's own box (see `planScene.planThumbnail`).
      */
     thumbnailUrl?: string | null;
+    /**
+     * Pictures this canvas does not paint but is about to — held **resident and
+     * unpainted**, so that whatever names them next has them already.
+     *
+     * The one producer is `companionCanvases.withCompanion`: a claimed canvas
+     * showing its `placeholderCanvas` carries its `accompanyingCanvas` here, so
+     * that pressing play selects between two pictures in hand rather than
+     * starting a fetch (user story 41). Absent everywhere else, including on
+     * every canvas of every manifest with no AV plugin registered.
+     *
+     * **One request each, and never a draw**: the base level where that is a
+     * single tile covering the whole image, and otherwise the base rung of the
+     * thumbnail ladder. A companion with no such cheap whole view is not warmed
+     * at all. `planScene` says why that is the bound it is.
+     */
+    warmImages?: PlannerImage[];
 }
 /** A point in canvas space. */
 export interface Point {
@@ -2235,7 +2622,7 @@ export interface PlannerBudgets {
      * next coarser one is taken instead. At 0.5, up to 2× oversampling is
      * tolerated; a *higher* value accepts a blurrier level. Carried forward from
      * the previous renderer at its value, with its semantics, so
-     * sharpness-versus-speed does not visibly shift (ticket 05 §Contract). See
+     * sharpness-versus-speed does not visibly shift. See
      * `tilePyramid.chooseLevel`.
      */
     minPixelRatio: number;
@@ -2544,18 +2931,6 @@ export interface ScenePlan {
      * be keyed on the pair and "permanently" has to come out of this sentence.
      */
     unresolvedThumbnails: string[];
-    /**
-     * Canvas ids drawn **over** `budgets.maxDecodedPixels` because every image
-     * their service offers exceeds it.
-     *
-     * The cap normally degrades to blur: a rung above it is refused and a
-     * coarser one is taken. When even the cheapest rung is over the ceiling
-     * there is no coarser one, and the choice is between a blank canvas and a
-     * decode the budget said no to. The renderer draws it — never blank wins —
-     * and reports it here rather than overriding the budget in silence. Ticket
-     * 12 owns what a host does with this.
-     */
-    overCapCanvases: string[];
     /** The derived zoom floor, in the same units as `Viewport.scale`. */
     minZoom: number;
 }
@@ -2617,7 +2992,18 @@ export declare class ManifestsState {
     private inFlightAnnotationLists;
     fetchAnnotationList(url: string): Promise<void>;
     private getStructureSequences;
-    private findCanvasInJson;
+    /**
+     * The enumerated canvases only — the same list the viewer renders, so an
+     * annotation is always read against the canvas that is on screen.
+     *
+     * A Canvas the enumerator does not reach is not looked for. That is not the
+     * same as a malformed manifest: `iiifParsing`'s enumeration reads
+     * `mediaSequences ?? sequences` as a *priority*, so a spec-valid IxIF
+     * wrapper carrying both (see the `vendored/audio.json` fixture) has the
+     * canvases of its `sequences` de-prioritized and therefore invisible here.
+     * Such a canvas is one this viewer never renders, so it has no annotations
+     * to read.
+     */
     private getCanvasJson;
     private getCanvasAnnotationListRefs;
     private matchesAnnotationSource;
@@ -2637,8 +3023,14 @@ export declare class ManifestsState {
      * clamped into range in either case.
      */
     getCanvases(manifestId: string, sequenceIndex?: number): any[];
+    /**
+     * Manifest-defined annotations only, read synchronously from whatever the
+     * cache already holds. Plugin-written display state (user annotations) is
+     * per-viewer on `ViewerState` (ADR 0007); the shared manifest cache is not
+     * plugin-facing and no longer stores it. The viewer merges its own user
+     * annotations on top of this result.
+     */
     getAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
-    manualGetAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
 }
 export declare const manifestsState: ManifestsState;
 
@@ -2655,7 +3047,7 @@ export declare const manifestsState: ManifestsState;
  * Svelte, the renderer, or the plugin SDK.
  */
 export { createSelectorRuntime } from './runtime.js';
-export type { SelectorCadence, SelectorProjection, SelectorProjectionOptions, SelectorRuntime, SelectorRuntimeOptions, } from './runtime.js';
+export type { SelectorCadence, SelectorProjection, SelectorProjectionOptions, SelectorRuntime, SelectorRuntimeOptions, SelectorSource, SourceSelectors, } from './runtime.js';
 
 // ======================================================================
 // FILE: dist/state/selectors/runtime.d.ts
@@ -2666,12 +3058,13 @@ export type { SelectorCadence, SelectorProjection, SelectorProjectionOptions, Se
  * cadence**; ADR 0008, ADR 0011).
  *
  * This module is deliberately lightweight: it imports no Svelte runtime, no
- * renderer, and nothing from the plugin SDK. Its only dependency on
- * `ViewerState` is `subscribe`/`subscribeFrame` plus synchronous property reads,
- * so it is equally usable from a plugin activation, a React wrapper, and a Vue
- * wrapper.
+ * renderer, and nothing from the plugin SDK. Its only dependency on its source
+ * is {@link SelectorSource} — `subscribe`, an optional finer-cadence subscribe,
+ * and synchronous property reads — so it is equally usable from a plugin
+ * activation, a React wrapper, and a Vue wrapper, and equally usable over a
+ * plugin's published state as over `ViewerState` (ADR 0018).
  *
- * A runtime owns exactly ONE `ViewerState.subscribe` registration and fans out
+ * A runtime owns exactly ONE `SelectorSource.subscribe` registration and fans out
  * from it to cheap per-consumer projections. Each projection is created from a
  * `(projection, equality)` pair and is never mutated in place by a caller: a
  * framework helper that needs new inputs creates a NEW projection object, so
@@ -2680,10 +3073,9 @@ export type { SelectorCadence, SelectorProjection, SelectorProjectionOptions, Se
  * Two properties make a projection directly usable as a React `getSnapshot`:
  *
  * - **Equality gates the cached value, not only the notification.** A recompute
- *   whose result satisfies `equals` returns the PREVIOUSLY returned reference.
- *   (This is an intentional, documented change to what `Selector.get()` returns
- *   for plugins, which previously returned a fresh-but-equal value after any
- *   version bump.)
+ *   whose result satisfies `equals` returns the PREVIOUSLY returned reference,
+ *   rather than a fresh-but-equal value, so `Selector.get()` is stable across a
+ *   version bump that doesn't change the selected value.
  * - **Two read entry points share that one gated cache.** {@link
  *   SelectorProjection.read} is memoized by the runtime's notification version
  *   (React's external-store contract); {@link SelectorProjection.recompute}
@@ -2696,8 +3088,47 @@ export type { SelectorCadence, SelectorProjection, SelectorProjectionOptions, Se
  * reaches the caller's own error handling instead of being served as a stale
  * selected value.
  */
-import type { ViewerSelectors } from '../../types/plugin.js';
+import type { Selector } from '../../types/plugin.js';
 import type { ViewerState } from '../viewer.svelte.js';
+/**
+ * Everything the runtime needs of the state it projects: a batched,
+ * payload-free notification and synchronous property reads, plus an optional
+ * finer-cadence notification.
+ *
+ * `ViewerState` satisfies it unchanged (`subscribe` + `subscribeFrame`), and so
+ * does a plugin's published state (ADR 0018) — which is the point: ONE runtime
+ * serves viewer state and published state across the React, Vue, Svelte, and Lit
+ * adapters rather than published state growing a second reactivity system.
+ */
+export interface SelectorSource {
+    /**
+     * Batched, payload-free notification. `onError` is optional in both
+     * directions: `ViewerState` uses it to attribute a throwing listener to its
+     * owning plugin, and a source with no such seam simply ignores it. The
+     * runtime does not depend on either behavior — it guards its own fan-out on
+     * both cadences (see {@link SelectorRuntimeOptions.onListenerError}).
+     */
+    subscribe(listener: () => void, onError?: (error: unknown) => void): () => void;
+    /**
+     * The FINER cadence, when the source has one — `ViewerState`'s per-frame
+     * renderer events, a published state's own high-frequency tick. A source
+     * without it serves `frame`-cadence projections from the batched
+     * notification alone.
+     */
+    subscribeFrame?(listener: () => void): () => void;
+}
+/**
+ * The `{ select }` factory a runtime hands out, typed to its own source. A
+ * runtime over `ViewerState` therefore satisfies core's `ViewerSelectors`, which
+ * is the shape a `PluginContext` carries.
+ */
+export interface SourceSelectors<S> {
+    /**
+     * Create a memoized selector. `equals` defaults to `Object.is`. Built only
+     * on `SelectorSource.subscribe` — never on Svelte reactivity.
+     */
+    select<T>(fn: (source: S) => T, equals?: (a: T, b: T) => boolean): Selector<T>;
+}
 /**
  * Which notification wakes a projection (CONTEXT.md **Selector cadence**).
  *
@@ -2763,34 +3194,274 @@ export interface SelectorProjection<T> {
  *   Only the plugin path routes here; framework wrappers leave the failure to be
  *   rethrown through the consumer's own read.
  * - `onListenerError`: a subscription callback threw during delivery —
- *   `pluginerror` phase `subscription`. On the `state` cadence this is handed to
- *   `ViewerState.subscribe`, which owns that attribution seam; on the `frame`
- *   cadence the runtime routes it here itself, because `subscribeFrame` has no
- *   such seam: its own guard keeps one listener's throw from aborting the fan-out
- *   and logs it, but it cannot say which plugin the listener belonged to.
+ *   `pluginerror` phase `subscription`. The runtime routes it here itself on
+ *   BOTH cadences, and keeps fanning out to the remaining projections. It cannot
+ *   delegate that to the source: a published plugin state (ADR 0018) has no
+ *   listener guard of its own, so an unguarded throw would kill this runtime's
+ *   sibling projections and then escape into the plugin's own notify loop.
+ *   Without a handler the failure is logged instead.
  */
 export interface SelectorRuntimeOptions {
     onProjectionError?: (error: unknown) => void;
     onListenerError?: (error: unknown) => void;
 }
-/** One isolated selector runtime bound to exactly one `ViewerState`. */
-export interface SelectorRuntime {
-    /** The `ViewerSelectors` factory handed to a plugin context. */
-    readonly selectors: ViewerSelectors;
+/** One isolated selector runtime bound to exactly one source. */
+export interface SelectorRuntime<S extends SelectorSource = ViewerState> {
+    /** The selector factory handed to a plugin context. */
+    readonly selectors: SourceSelectors<S>;
     /** Create a per-consumer memoized projection. */
-    createProjection<T>(projection: (state: ViewerState) => T, options?: SelectorProjectionOptions<T>): SelectorProjection<T>;
+    createProjection<T>(projection: (source: S) => T, options?: SelectorProjectionOptions<T>): SelectorProjection<T>;
     /**
-     * Remove the underlying `ViewerState` subscription, drop all fan-out, and
-     * detach any frame ticker. Idempotent.
+     * Remove the underlying source subscription, drop all fan-out, and detach
+     * any frame ticker. Idempotent.
      */
     dispose(): void;
 }
 /**
- * Create an isolated selector runtime bound to one `ViewerState`. Subscribes to
- * the viewer state immediately so version memoization stays correct even before
- * any projection is individually subscribed.
+ * Create an isolated selector runtime bound to one source. Subscribes to it
+ * immediately so version memoization stays correct even before any projection is
+ * individually subscribed.
+ *
+ * A caller holding the result types the field as {@link SelectorRuntime} —
+ * `SelectorRuntime<ViewerState>` by default, since that is the type parameter's
+ * default. Do NOT reach for `ReturnType<typeof createSelectorRuntime>`: it
+ * resolves a generic signature against the parameter's CONSTRAINT, so it names
+ * a runtime over the bare `SelectorSource` rather than over the source the call
+ * actually passed.
  */
-export declare function createSelectorRuntime(viewerState: ViewerState, options?: SelectorRuntimeOptions): SelectorRuntime;
+export declare function createSelectorRuntime<S extends SelectorSource>(source: S, options?: SelectorRuntimeOptions): SelectorRuntime<S>;
+
+// ======================================================================
+// FILE: dist/state/transportChrome.d.ts
+// ======================================================================
+/**
+ * The **transport chrome** registry: a view model of playback facts and a port
+ * of playback commands, which a claimant of timed media registers and core
+ * renders in its own control bar (CONTEXT.md **Transport chrome**).
+ *
+ * ## Deliberately not an AV seam
+ *
+ * Core learns about a thing that plays, pauses, seeks, may offer alternative
+ * text tracks, and may offer a readable text of what it contains. It does not
+ * learn about IIIF, media elements, time-based segments, or subtitle formats —
+ * that vocabulary belongs to the claimant, and keeping it out is what makes the
+ * seam serve a future medium (a 3D scene with a timeline, a synchronized
+ * multi-track tool) without new core work.
+ *
+ * `transcript` is the one control here that commands something other than
+ * playback: it asks the claimant to show its own reading surface, and where
+ * that surface lives is the claimant's business entirely — core neither knows
+ * nor asks. It earns a place beside the playback controls because a reader
+ * looking for the words of a recording looks where the recording's controls
+ * are, not in a plugin menu; and it is expressed as a two-state control rather
+ * than a one-way "open" so the same button closes what it opened.
+ *
+ * Two consequences shape the contract below. `seek` takes a fraction of the
+ * timeline rather than seconds, because core knows no clock; and every string
+ * the chrome shows arrives on the view, localized by the claimant's own
+ * catalog, because core has no words for a medium it does not model.
+ *
+ * ## What this module owns, and what it does not
+ *
+ * Only bookkeeping: which chrome is registered, and what happens when a
+ * registration is refused. It is DOM-free and therefore unit-testable. The
+ * controls, their layout and their keyboard behaviour belong to the render site
+ * (`components/Transport.svelte`, inside `components/ViewerControls.svelte`);
+ * the public registration surface belongs to
+ * `ViewerState.registerTransportChrome`.
+ *
+ * ## Deliberately not the overlay-layer registry
+ *
+ * This is structurally `renderer/overlayLayers.ts` — the same ownership rule,
+ * the same idempotent dispose, the same frozen snapshot — and that similarity
+ * is intentional: one idiom to learn for both. It is nonetheless a **separate
+ * module that does not import that one**, so a change to the DOM-container
+ * lifecycle cannot ripple into a view-model registry, and vice versa. The small
+ * overlap is duplicated on purpose; do not "de-duplicate" it by importing
+ * across.
+ *
+ * **There is no `order` field, and adding one would be a mistake**, for the
+ * reason the overlay-layer registry gives: cross-plugin ordering cannot be
+ * coordinated. Here the question barely arises — at most one claimant drives
+ * whatever the viewer is showing — so the slot holds one. If two registrations
+ * are ever live, core renders the first and the second is inert, which is the
+ * honest outcome for a slot that cannot hold two.
+ */
+import type { IconDescriptor } from '../types/plugin.js';
+/** The pictures this medium's controls wear. */
+export interface TransportChromeIcons {
+    play: IconDescriptor;
+    pause: IconDescriptor;
+    mute: IconDescriptor;
+    unmute: IconDescriptor;
+    /** The alternative-text-track control. */
+    tracks: IconDescriptor;
+    /** The readable-text control. */
+    transcript: IconDescriptor;
+}
+/**
+ * Every string the chrome shows or announces, in the claimant's locale.
+ *
+ * The two clock readings carry none, and cannot: a `<span>` maps to role
+ * `generic`, which prohibits an accessible name, so the render site hides them
+ * from assistive technology and the scrubber's `aria-valuetext` announces the
+ * whole reading instead.
+ */
+export interface TransportChromeLabels {
+    /** Names the control group itself, so it is distinguishable from the navigation. */
+    transport: string;
+    play: string;
+    pause: string;
+    seek: string;
+    mute: string;
+    unmute: string;
+    volume: string;
+    tracks: string;
+    /** The "none" option of the track list. */
+    tracksOff: string;
+    /** Names the readable-text control, in both its states. */
+    transcript: string;
+}
+/**
+ * The playback facts the chrome renders, read on core's own cadence and never
+ * held across a frame.
+ *
+ * A claimant must return a FRESH object from every `view()` read. Core holds
+ * the result in `$state.raw`, which `===`-compares on assignment, so a claimant
+ * that mutates and hands back the same instance is silently ignored and the
+ * chrome freezes with no error anywhere.
+ */
+export interface TransportChromeView {
+    /** `false` renders no controls — no current target, or none claimed. */
+    present: boolean;
+    paused: boolean;
+    duration: number | null;
+    currentTime: number;
+    /** `currentTime` as `0..1` of the duration — the scrubber's coordinate. */
+    fraction: number;
+    /** Buffered ranges as `0..1` spans of the whole timeline. */
+    buffered: readonly {
+        start: number;
+        end: number;
+    }[];
+    muted: boolean;
+    volume: number;
+    /** `false` where programmatic volume is read-only: the slider hides. */
+    volumeSettable: boolean;
+    /** The playhead as a localized clock reading, for `aria-valuetext`. */
+    positionText: string;
+    elapsedText: string;
+    durationText: string;
+    /** A picture of the whole recording behind the scrubber, or `null`. */
+    strip: string | null;
+    /** Alternative text tracks that loaded. Empty renders no control at all. */
+    tracks: readonly {
+        id: string;
+        label: string;
+    }[];
+    activeTrack: string | null;
+    /**
+     * Whether this target offers a readable text. `false` renders no control at
+     * all — the same no-dead-control rule the empty `tracks` set follows.
+     */
+    transcript: boolean;
+    /** Whether the claimant's reading surface is currently showing. */
+    transcriptOpen: boolean;
+    /** Seconds an arrow moves the playhead. The policy is the claimant's. */
+    stepSmall: number;
+    /** Seconds a page key moves the playhead. */
+    stepLarge: number;
+    labels: TransportChromeLabels;
+}
+/** Every control core renders is one of these. Core touches nothing else. */
+export interface TransportChromePort {
+    /** Play if paused, pause if playing. */
+    toggle(): void;
+    /** Seek to a fraction `0..1` of the timeline. */
+    seek(fraction: number): void;
+    setMuted(muted: boolean): void;
+    setVolume(volume: number): void;
+    /** Show one alternative text track, or `null` for none. */
+    setTrack(id: string | null): void;
+    /** Show or hide the claimant's readable text. */
+    setTranscript(open: boolean): void;
+}
+/** Playback chrome, as a claimant registers it. */
+export interface TransportChrome {
+    /**
+     * A stable identifier of the form `<pluginId>:<name>`, where the prefix must
+     * name a plugin this viewer knows or the registration is refused (see
+     * {@link createTransportChromeRegistry}'s `isKnownPlugin`). It is how a
+     * refusal is reported, and it is what makes unregistering a plugin able to
+     * release the chrome it forgot.
+     */
+    id: string;
+    /**
+     * Static for the activation. The pictures do not change with the playhead,
+     * so re-reading them on every view read would be waste.
+     */
+    icons: TransportChromeIcons;
+    /** Read on core's own cadence. Never held across a frame. */
+    view(): TransportChromeView;
+    port: TransportChromePort;
+    /**
+     * How core learns to re-read. The claimant already runs the cadences its
+     * own published state runs on; this is how it hands them over. Returns an
+     * unsubscribe.
+     */
+    subscribe(onChange: () => void): () => void;
+}
+/**
+ * Chrome the registry accepted.
+ *
+ * A separate type from {@link TransportChrome} rather than an alias: what a
+ * caller hands in and what the render site reads back are two contracts, and
+ * the second may grow a field without that being a change to the first.
+ */
+export interface RegisteredTransportChrome {
+    id: string;
+    icons: TransportChromeIcons;
+    view(): TransportChromeView;
+    port: TransportChromePort;
+    subscribe(onChange: () => void): () => void;
+}
+export interface TransportChromeRegistry {
+    /**
+     * Register chrome. Returns an idempotent dispose; a refused registration
+     * returns a no-op one, so a caller never has to branch.
+     */
+    register(chrome: TransportChrome): () => void;
+    /**
+     * Dispose every registration whose id carries the `` `${pluginId}:` ``
+     * prefix. The **backstop** for a plugin whose own teardown misses its
+     * dispose, not the normal way to release chrome. Safe to call for a plugin
+     * that registered nothing.
+     */
+    disposeOwnedBy(pluginId: string): void;
+    /** Dispose everything, whoever owns it. `destroyAllPlugins`'s half. */
+    disposeAll(): void;
+    /**
+     * The registrations, in registration order. A frozen snapshot rebuilt on
+     * change, so the render site iterates a stable array rather than a live
+     * collection it could mutate mid-render. Only the first is rendered.
+     */
+    readonly entries: readonly RegisteredTransportChrome[];
+}
+/** The registry behind `ViewerState.registerTransportChrome`. */
+export declare function createTransportChromeRegistry(options?: {
+    /** How the render site learns chrome arrived or left. */
+    onChange?: () => void;
+    /** Told why a registration was refused, for the developer's console. */
+    onRefused?: (message: string) => void;
+    /**
+     * Whether `pluginId` names a plugin of this viewer. Viewer state answers
+     * from plugin UI state, which is seeded before a plugin's `view.mount` runs
+     * and is therefore already populated when the plugin registers from inside
+     * it. Omitted, ids are not checked against any owner — the registry's own
+     * unit tests have no viewer to ask.
+     */
+    isKnownPlugin?: (pluginId: string) => boolean;
+}): TransportChromeRegistry;
 
 // ======================================================================
 // FILE: dist/state/viewer.svelte.d.ts
@@ -2799,12 +3470,33 @@ import type { ViewerErrorReporter } from '../types/viewerError';
 import type { RendererPort } from '../renderer/rendererPort.js';
 import { type PaintLayer, type RegisteredPaintLayer } from '../renderer/paintLayers.js';
 import { type OverlayLayer, type RegisteredOverlayLayer } from '../renderer/overlayLayers.js';
-import { type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportInset, type ViewportPoint } from '../types/viewport.js';
+import { type RegisteredTransportChrome, type TransportChrome } from './transportChrome.js';
+import { type CanvasSize, type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportInset, type ViewportPoint } from '../types/viewport.js';
 import type { RequestConfig, SearchProvider, SearchResultGroup, ViewerConfig } from '../types/config';
 import type { PluginMenuButton, PluginPanel, PluginFlyout, PluginMountThunk, PluginUiTarget, IconDescriptor } from '../types/plugin';
 import { type StructureNode } from '../utils/structures';
 import { type CollectionItem } from '../utils/collections';
 import type { CanvasRegion } from '../utils/contentState';
+import type { IiifTemporalFragment } from '../utils/iiifTime';
+/**
+ * The media time a navigation carried, and the canvas it belongs to.
+ *
+ * Core parses and carries it; only a claimant of that canvas interprets it, as
+ * a seek and never as autoplay. `endSeconds` — a chapter range's end — is
+ * carried but never enforced: nothing in core stops playback at it.
+ */
+export type TemporalOffset = IiifTemporalFragment & {
+    canvasId: string;
+};
+/**
+ * Which companion Canvas core paints for a claimed canvas, if either.
+ *
+ * The value names a Presentation 3 property of the claimed canvas —
+ * `placeholderCanvas` or `accompanyingCanvas` — which core resolves itself; it
+ * never carries one. `'none'` is the default, so a claimant that never sets a
+ * phase leaves the claim's suppression-only semantics exactly as they are.
+ */
+export type CompanionPhase = 'none' | 'placeholder' | 'accompanying';
 /**
  * Snapshot of viewer state for external consumers.
  * Used by web component events to expose state without Svelte reactivity.
@@ -2826,14 +3518,6 @@ export interface ViewerStateSnapshot {
     viewingDirection: 'left-to-right' | 'right-to-left' | 'top-to-bottom' | 'bottom-to-top';
     preserveCanvasScale: boolean;
     galleryExpanded: boolean;
-    galleryPosition: {
-        x: number;
-        y: number;
-    };
-    gallerySize: {
-        width: number;
-        height: number;
-    };
 }
 export declare class ViewerState {
     #private;
@@ -2849,6 +3533,14 @@ export declare class ViewerState {
     showCanvasInfo: boolean;
     showStructuresPanel: boolean;
     initialCanvasRegion: CanvasRegion | null;
+    /**
+     * The media time the last navigation carried (a structure item's `#t=`, a
+     * manifest `start`, a content-state target), or `null` when it carried
+     * none. Replaced whole by every navigation, so a subscriber reads the
+     * current value rather than consuming a queue: there is no auto-clear and
+     * no consume-once semantics.
+     */
+    temporalOffset: TemporalOffset | null;
     dockSide: string;
     /** Reactive collection declared as a plain `Set` — see the note on the `svelte/reactivity` import. */
     visibleAnnotationIds: Set<string>;
@@ -2933,13 +3625,11 @@ export declare class ViewerState {
      * this is the *default* state and not a user choice: core calls it only while
      * the reader has not touched visibility themselves.
      *
-     * Distinct from {@link showCurrentCanvasAnnotations}, which is about ONE
-     * canvas and stays as it was. In `paged` the facing page's annotations would
-     * otherwise arrive hidden — drawn nowhere, and a panel row whose eye says
-     * "hidden" for something the reader never hid.
+     * Multi-canvas by design: in `paged` a single-canvas pass would leave the
+     * facing page's annotations hidden — drawn nowhere, and a panel row whose eye
+     * says "hidden" for something the reader never hid.
      */
     showVisibleCanvasAnnotations(): void;
-    showCurrentCanvasAnnotations(): void;
     private clearAnnotationVisibility;
     private setAnnotationsPanelOpen;
     tileSourceError: {
@@ -2965,29 +3655,22 @@ export declare class ViewerState {
     manifestRequestConfig: RequestConfig | undefined;
     /**
      * This viewer's active locale (BCP-47) — its `config.locale` if set,
-     * otherwise the page default (CONTEXT.md **Active locale**, ticket 06).
+     * otherwise the page default (CONTEXT.md **Active locale**).
      * Observable state: readable and notifying, with no plugin-facing mutator.
      * Locale is *set* through `config.locale`; core (the viewer root) mirrors the
      * resolved value onto this field whenever the config or the page locale
      * changes, exactly as it mirrors other external facts (e.g. `isFullScreen`),
      * so the reactivity-driven watcher (ADR 0008) notifies subscribers. All of
-     * the viewer's chrome renders in this locale (via the i18n context) and
-     * ticket 08's `PluginLocaleService` will consume it. Defaults to the page
-     * locale at construction so a server render and a subscriber-less viewer
-     * both read a correct value before the first mirror runs.
+     * the viewer's chrome renders in this locale (via the i18n context).
+     * Defaults to the page locale at construction so a server render and a
+     * subscriber-less viewer both read a correct value before the first mirror
+     * runs.
      */
     activeLocale: string;
     get showToggle(): boolean;
     get showCanvasNav(): boolean;
     get showZoomControls(): boolean;
     get preserveCanvasScale(): boolean;
-    /**
-     * `gallery.size` — the docked band's height or the docked rail's width, and the
-     * knob every thumbnail dimension is derived from. See `galleryGeometry`.
-     *
-     * Not named `gallerySize`: that is already the floating window's width and
-     * height, which is a different thing entirely.
-     */
     get galleryExtent(): number;
     private _viewingMode;
     private _viewingModeUserConfigured;
@@ -2998,24 +3681,9 @@ export declare class ViewerState {
      * Whether the gallery is expanded to fill the viewer's center column as a
      * thumbnail grid. Orthogonal to {@link dockSide}: expanding renders the
      * gallery as an overlay layer and leaves the dock side untouched, so
-     * collapsing restores the strip/rail/window exactly where it was.
+     * collapsing restores the strip or rail exactly where it was.
      */
     galleryExpanded: boolean;
-    galleryPosition: {
-        x: number;
-        y: number;
-    };
-    gallerySize: {
-        width: number;
-        height: number;
-    };
-    isGalleryDragging: boolean;
-    galleryDragOffset: {
-        x: number;
-        y: number;
-    };
-    dragOverSide: "left" | "right" | "bottom" | "top" | null;
-    galleryCenterPanelRect: DOMRect | null;
     /**
      * Event target for dispatching CustomEvents.
      * Only set by TriiiceratopsViewerElement (web component build).
@@ -3028,7 +3696,7 @@ export declare class ViewerState {
      */
     setEventTarget(target: EventTarget): void;
     /**
-     * Host reporter for the structured `viewererror` channel (ticket 18). Set by
+     * Host reporter for the structured `viewererror` channel. Set by
      * `TriiiceratopsViewer.svelte` so state-level actionable failures (search,
      * viewport, content) surface as a typed {@link ViewerError} on the viewer
      * root's `viewererror` event and the `onviewererror` callback instead of
@@ -3043,8 +3711,6 @@ export declare class ViewerState {
     /**
      * Get current state as a plain object snapshot.
      * Safe to use outside Svelte's reactive system.
-     * NOTE: We calculate currentCanvasIndex inline to avoid triggering the canvases getter
-     * which can cause infinite loops when it auto-sets canvasId.
      */
     getSnapshot(): ViewerStateSnapshot;
     /**
@@ -3079,8 +3745,8 @@ export declare class ViewerState {
      *
      * Deliberately NOT reactive: it is set once per mount, plugins never see
      * it, and making it `$state` would put a renderer handle on the batched
-     * notification path — which is the pass-through this epic removes wearing a
-     * different hat. {@link rendererReady} is the notifying signal.
+     * notification path — a pass-through this state is meant to avoid.
+     * {@link rendererReady} is the notifying signal.
      */
     private rendererPort;
     /** Frame-cadence fan-out; see {@link subscribeFrame}. */
@@ -3118,12 +3784,24 @@ export declare class ViewerState {
     visibleCanvasIds: string[];
     /**
      * {@link visibleCanvasIds}, or the current canvas while no renderer has
-     * answered yet.
+     * answered yet, minus every canvas a plugin has claimed.
      *
      * The annotation panel and the shape overlay both read this, so they cannot
      * disagree about which canvases they are describing — and a viewer whose
      * surface is not sized yet still lists the annotations of the canvas it
      * opened on rather than nothing at all.
+     *
+     * A **canvas claim** takes the canvas out of the set: the claimant owns
+     * what is rendered there, so core has no painting of its own for a comment
+     * to be anchored against. Excluding it here excludes it from every
+     * annotation surface at once — including the annotation editor plugin,
+     * which gates its drawing layer on this list.
+     *
+     * The returned array is REFERENCE-STABLE while the ids are unchanged, which
+     * the selector runtime's stability contract requires of anything a host
+     * wires into a React `getSnapshot`: a fresh-but-equal array every read
+     * would re-render every annotation surface on every unrelated state change,
+     * for the whole session, on any manifest holding a claim.
      */
     get annotatableCanvasIds(): string[];
     /**
@@ -3355,6 +4033,185 @@ export declare class ViewerState {
      * @internal
      */
     get overlayLayers(): readonly RegisteredOverlayLayer[];
+    /**
+     * How many times the registered transport chrome has changed — the one
+     * notifying signal that registry needs, the same shape as
+     * {@link overlayLayerRevision} and for the same reason.
+     *
+     * @internal
+     */
+    transportChromeRevision: number;
+    private transportChromeRegistry;
+    /**
+     * Register **transport chrome**: a view model of playback facts and a port
+     * of playback commands, which core renders as playback controls inside its
+     * own control bar (CONTEXT.md **Transport chrome**).
+     *
+     * The seam is deliberately media-agnostic. Core learns about a thing that
+     * plays, pauses, seeks and may offer alternative text tracks; it renders the
+     * controls with its own primitives, in its own theme. The claimant supplies
+     * the pictures (as the sanitized {@link IconDescriptor}s its toolbar buttons
+     * already use) and every string, so its vocabulary and its locales stay its
+     * own.
+     *
+     * **`id` must be `` `${pluginId}:${name}` ``**, the same convention the
+     * plugin's chrome ids and overlay layers follow, so
+     * {@link unregisterPlugin} can release chrome a plugin forgot. Chrome whose
+     * id names no known plugin, or which is missing any of its members, or whose
+     * id is already taken, is refused and registers nothing; the returned
+     * dispose is a no-op, so a caller never has to branch. A refusal is reported
+     * on the structured `viewererror` channel with code
+     * `transport-chrome-refused`.
+     *
+     * `view()` is read on core's own cadence and its result is never held across
+     * a frame; `subscribe` is how the claimant tells core to re-read. A view
+     * with `present: false` renders no controls, which is the transient case
+     * (the reader navigated to something this claimant does not drive) and is
+     * why navigation does not churn the registration.
+     *
+     * **The bar renders one chrome.** With two live registrations the first
+     * wins and the second is inert — there is no `order` field, for the reason
+     * the overlay-layer registry gives.
+     *
+     * While chrome is registered the control bar spans its full available width
+     * so the scrubber can take the slack. `nav.align` has nowhere to align in
+     * that arrangement and is inert until the chrome deregisters; every other
+     * bar setting — `controls`, `nav.style`, `nav.edge`, the inset — goes on
+     * meaning what it meant.
+     */
+    registerTransportChrome(chrome: TransportChrome): () => void;
+    /**
+     * The registered chrome, in registration order. Read by the render site,
+     * which renders the first.
+     *
+     * @internal
+     */
+    get transportChrome(): readonly RegisteredTransportChrome[];
+    /**
+     * Who holds which canvas, to read — never to write.
+     *
+     * Private behind a getter for the reason the overlay-layer registry is:
+     * one claimant per canvas is an invariant {@link claimCanvas} maintains, and
+     * a writable collection on the plugin-facing state object would let any
+     * plugin holding `context.state` `set` itself over a canvas another plugin
+     * is rendering into, or `clear` the lot. `ReadonlyViewerState` freezes the
+     * property, not the collection behind it. Claim and release are the only
+     * ways in.
+     */
+    get claimedCanvases(): ReadonlyMap<string, string>;
+    /**
+     * Take ownership of one canvas's non-image content, for the plugin named by
+     * `pluginId`. Returns an idempotent release.
+     *
+     * The claim suppresses exactly the **unsupported presentation** for that
+     * canvas and its AV glyph in the thumbnail strip, leaving a clean box the
+     * claimant renders over through the overlay-layer and paint-hook
+     * substrates. It carries no payload and changes nothing else: core keeps
+     * painting the canvas's IMAGE bodies through the whole tile pipeline —
+     * which is what makes a composite image+video canvas compose — and layout,
+     * navigation, residency, and coordinate projection are untouched.
+     *
+     * **One claimant per canvas.** A second claim is refused and reported on
+     * the structured `viewererror` channel with code `canvas-claim-refused`,
+     * exactly as a refused overlay layer is; the first claimant keeps the
+     * canvas. Last-writer-wins would let a plugin silently take a canvas
+     * another one is already rendering into.
+     *
+     * A claim against a canvas id the current manifest does not carry is
+     * **inert and kept**, and applies if that id later appears: a plugin claims
+     * from inside its own `view.mount`, which may well run before the manifest
+     * it cares about is loaded.
+     *
+     * **`pluginId` must be the id this viewer knows the caller by** — the
+     * activation's `surface.id`, the same id its chrome and its overlay-layer
+     * ids are prefixed with — and a claim naming any other is refused, exactly
+     * as an overlay layer whose id names no known plugin is. It is what lets
+     * {@link unregisterPlugin} release a claim whose plugin forgot to, so a
+     * departed plugin cannot suppress a treatment for the rest of the session;
+     * a claim under a name nothing will ever unregister would outlive its
+     * activation silently, leaving a canvas with no placard and nothing
+     * rendering over it. Releasing from the plugin's own cleanup remains the
+     * primary path.
+     */
+    claimCanvas(canvasId: string, pluginId: string): () => void;
+    /** Whether a plugin owns this canvas's non-image content. */
+    isCanvasClaimed(canvasId: string): boolean;
+    /**
+     * The **companion phase** per claimed canvas: canvas id → which companion
+     * Canvas core paints for it right now.
+     *
+     * Not exposed as a collection: the phase is one claimant's instruction
+     * about one canvas, not a set hosts select over, so
+     * {@link isPaintingCompanion} is the only read and the published surface
+     * carries no getter.
+     *
+     * TS `private` rather than an ECMAScript `#` field, unlike the private
+     * fields below: an inventoried member must stay visible to the state
+     * inventory's enumerable-member reflection. So this is a compile-time
+     * privacy only — a caller willing to cast can reach the map, which
+     * `claimedCanvases` (a getter with no setter) does prevent. That is
+     * accepted here rather than worked around: reaching it needs a cast past
+     * the plugin surface's `Readonly<>`, and `setCompanionPhase` remains the
+     * only path that upholds the one-claimant rule.
+     *
+     * A `SvelteMap` so the reactive reads that select a companion descriptor
+     * re-run when the phase moves, exactly as the claim set does; the invariant
+     * is enforced by `REACTIVE_COLLECTION_MEMBERS`.
+     */
+    private companionPhases;
+    /**
+     * Say which companion Canvas core should paint for a canvas this plugin has
+     * claimed — or neither.
+     *
+     * The phase NAMES a property of the claimed canvas and never carries one:
+     * `'placeholder'` asks for its `placeholderCanvas`, `'accompanying'` for its
+     * `accompanyingCanvas`, and core resolves the vocabulary itself. A phase
+     * naming a property the canvas does not have paints nothing; there is no
+     * fallback between the two, because only the claimant knows which it means.
+     *
+     * The default is `'none'`, so painting is opt-in: a claimant that never
+     * calls this changes nothing about what core renders and the claim keeps the
+     * suppression-only semantics {@link claimCanvas} documents.
+     *
+     * **Only the canvas's claimant may set a phase.** A call naming an empty
+     * canvas or plugin id, a plugin this viewer knows nothing of, an unclaimed
+     * canvas, or a canvas held by another plugin is refused and reported on the
+     * structured `viewererror` channel exactly as a refused claim is, and leaves
+     * the stored phase untouched. An unrecognized phase is refused too rather
+     * than coerced to `'none'`, so a typo is reported instead of silently
+     * turning painting off.
+     *
+     * **Released with the claim** — by the claim's own dispose and by the
+     * {@link unregisterPlugin}/{@link destroyAllPlugins} backstops — so there is
+     * no second release for a claimant to forget, and a departed plugin cannot
+     * leave core painting a canvas nothing owns.
+     */
+    setCompanionPhase(canvasId: string, pluginId: string, phase: CompanionPhase): void;
+    /**
+     * Whether a claimed canvas is currently asking core to paint a companion —
+     * the boolean a host's own chrome needs to tell a recording with a picture
+     * from one without.
+     */
+    isPaintingCompanion(canvasId: string): boolean;
+    /**
+     * Which companion a claimed canvas is asking core to paint, or `undefined`
+     * where its claimant has never said.
+     *
+     * The renderer's read, and the reason it is not {@link isPaintingCompanion}:
+     * painting needs the phase's identity, not the boolean, and `undefined` is
+     * distinct from `'none'` — a claimant that never asked changes nothing about
+     * the canvas's descriptor, while an explicit `'none'` is a claimant that
+     * asked for the companion to stop being painted and keeps the rect it had.
+     *
+     * @internal
+     */
+    companionPhaseFor(canvasId: string): CompanionPhase | undefined;
+    /**
+     * A refused claim is an author error the developer must be told about, so
+     * it goes out on the structured channel as well as the debug log — the same
+     * shape, and for the same reason, as a refused overlay layer.
+     */
+    private refuseCanvasClaim;
     /** Zoom in one step, about the viewport centre. The toolbar's `+`. */
     zoomIn(): void;
     /** Zoom out one step, about the viewport centre. The toolbar's `−`. */
@@ -3442,6 +4299,20 @@ export declare class ViewerState {
      */
     get viewportBounds(): ViewportBox | null;
     /**
+     * The extent of a canvas's own coordinate space — the box a canvas-space
+     * point runs from `(0, 0)` to — for the current canvas unless named, or
+     * `null` when the mounted renderer does not lay that canvas out.
+     *
+     * Usually the manifest's declared size, and the reason it is asked rather
+     * than read is the case where there is none. A Canvas may declare no
+     * `width`/`height` — a duration-only audio canvas does not — and is still
+     * laid out, from its siblings' median. Its rect is then its canvas space,
+     * and this reports it, so a plugin placing DOM over such a canvas projects
+     * the box the viewer is actually drawing instead of inventing dimensions
+     * the coordinate helpers would then disagree with.
+     */
+    canvasSize(canvasId?: string): CanvasSize | null;
+    /**
      * The viewer surface's size in CSS pixels — what an export path asks in
      * order to request an image sized to what the reader is looking at. Zeroes
      * before the surface is measured.
@@ -3471,6 +4342,12 @@ export declare class ViewerState {
      * Only set once per manifest load; cleared when a new manifest is set.
      */
     startCanvasId: string | null;
+    /**
+     * The media time the manifest's `start` named, held between parsing it and
+     * the auto-selection that navigates to {@link startCanvasId}. Rewritten by
+     * every manifest load, so it never outlives the start canvas it belongs to.
+     */
+    private startTemporalOffset;
     setManifest(manifestId: string, options?: {
         requestConfig?: RequestConfig;
         canvasId?: string;
@@ -3481,7 +4358,14 @@ export declare class ViewerState {
      */
     loadCollectionManifest(manifestId: string): Promise<void>;
     /**
-     * Internal: load a manifest by ID and apply its settings.
+     * Internal: make a manifest the active one and apply its settings.
+     *
+     * `register` registers a document the caller already holds; without it the
+     * manifest is fetched through the cache. Nothing else differs between the
+     * two, which is why they are one path. The choice reads the wrapper's
+     * presence rather than the JSON's, because `setManifestData` accepts an
+     * `undefined` document and must stay a pure store — a fixture with no JSON
+     * has to register nothing, never issue a request.
      */
     private _loadManifest;
     private ensureInitialCanvasSelection;
@@ -3490,7 +4374,7 @@ export declare class ViewerState {
      * Apply manifest-level settings (start canvas, viewing direction, behavior).
      */
     private _applyManifestSettings;
-    setCanvas(canvasId: string): void;
+    setCanvas(canvasId: string, temporalOffset?: IiifTemporalFragment | null): void;
     selectChoice(canvasId: string, choiceId: string): void;
     getSelectedChoice(canvasId: string): string | undefined;
     updateConfig(newConfig: ViewerConfig): void;
@@ -3505,7 +4389,7 @@ export declare class ViewerState {
     setViewerElement(element: HTMLElement): void;
     /**
      * Resolve the viewer's style root — where a plugin's global CSS must be
-     * installed (ticket 08's `PluginStyleService`). For a light-DOM (Svelte)
+     * installed. For a light-DOM (Svelte)
      * viewer this is the owning `Document`; for the Web Component it is the
      * shadow root, so plugin styles reach the shadow-scoped tree. Derived from
      * the mount element captured by {@link setViewerElement} via `getRootNode()`;
@@ -3535,25 +4419,6 @@ export declare class ViewerState {
     showSearchPanel: boolean;
     toggleSearchPanel(): void;
     searchAnnotations: any[];
-    /**
-     * This function now accounts for two-page mode when returning current canvas search annotations offset accordingly.
-     */
-    /**
-     * Search hits on the current canvas, in canvas space.
-     *
-     * Kept for callers that ask specifically about the current canvas. Core's own
-     * annotation surfaces do NOT use it: they read {@link searchAnnotations} for
-     * every canvas on screen through `collectCanvasAnnotations`, which is what
-     * puts a hit on the facing page of a spread on that page.
-     *
-     * It used to shift a facing page's hits sideways by `canvasWidth * 1.025` and
-     * hand them back as if they belonged to the current canvas — a hand-rolled
-     * offset standing in for multi-canvas layout, and wrong by construction: the
-     * renderer's inter-canvas gap is 1.25% of a page, not 2.5%, and the guess only
-     * ever covered two pages. Coordinates here are now each hit's own, unshifted,
-     * to be projected through its own canvas.
-     */
-    get currentCanvasSearchAnnotations(): any[];
     search(query: string): Promise<void>;
     private _performSearch;
     /** Set (or clear, with null) the currently hovered annotation id. */
@@ -3592,20 +4457,10 @@ export declare class ViewerState {
     setGalleryExpanded(expanded: boolean): void;
     /** Flip the gallery between expanded and collapsed (see {@link setGalleryExpanded}). */
     toggleGalleryExpanded(): void;
-    /** Move the floating (undocked) thumbnail gallery to an absolute position. */
-    setGalleryPosition(position: {
-        x: number;
-        y: number;
-    }): void;
-    /** Resize the floating (undocked) thumbnail gallery. */
-    setGallerySize(size: {
-        width: number;
-        height: number;
-    }): void;
     /**
      * Dock the thumbnail gallery to a side ('top' | 'bottom' | 'left' |
-     * 'right') or float it ('none'), keeping the derived docked flags in sync.
-     * Maintaining that invariant is why this is a command, not a field write.
+     * 'right'), keeping the derived docked flags in sync. Maintaining that
+     * invariant is why this is a command, not a field write.
      */
     setDockSide(side: string): void;
     /** Plugin-registered menu buttons */
@@ -3683,6 +4538,28 @@ export declare class ViewerState {
      */
     setPluginPosition(pluginId: string, position: 'left' | 'right' | 'bottom' | 'overlay'): void;
     private applyPluginUiConfigToAll;
+    private isPluginAvailable;
+    /**
+     * Declare whether a plugin has anything to show on the current canvas. Its
+     * toolbar button is hidden while it has not, so a plugin whose content is a
+     * fact about the canvas — captions, timed annotations — gets the gating
+     * core's own annotations and structures buttons have, instead of a live
+     * button over an empty panel.
+     *
+     * Becoming unavailable CLOSES an open surface, rather than leaving it open
+     * and unrendered: hiding the button alone would strand a panel with nothing
+     * left to close it, and closing is a transition every render site already
+     * handles — it is what the toolbar button does. It also has to be closed
+     * rather than hidden, because a panel that stops rendering while core still
+     * holds it open orphans the plugin's content element (an open plugin's
+     * chrome is mounted once and re-parented, never re-mounted).
+     *
+     * Plugin-facing (`PluginSurface.setAvailable`) and independent of the
+     * consumer's `config.plugins[id].visible`, which stays the hard off-switch:
+     * both must agree for the button to render. No-op (and no notification) if
+     * the plugin is unknown or already in that state.
+     */
+    setPluginAvailable(pluginId: string, available: boolean): void;
     /**
      * Is a plugin's panel/flyout currently open? The read half of
      * {@link setPluginOpen}, and the state a plugin's `PluginSurface.isOpen`
@@ -3717,8 +4594,8 @@ export declare class ViewerState {
      */
     closePluginFlyouts(): void;
     /**
-     * Register the toolbar chrome for an SDK plugin on the core-owned-chrome path
-     * (epic restore-plugin-toolbar-chrome, ticket 02). Core renders the button
+     * Register the toolbar chrome for an SDK plugin on the core-owned-chrome path.
+     * Core renders the button
      * from the plugin's {@link IconDescriptor} and {@link PluginUiTarget}, and the
      * anchored flyout / docked panel container hosts the plugin content via the
      * DOM-mount `mount` thunk. `pluginMenuButtons` +
@@ -3741,6 +4618,7 @@ export declare class ViewerState {
         target: PluginUiTarget;
         dismiss: 'light' | 'explicit';
         mount: PluginMountThunk;
+        fills?: boolean;
         position?: 'left' | 'right' | 'bottom' | 'overlay';
     }): void;
     /**
@@ -3749,22 +4627,75 @@ export declare class ViewerState {
      * not run the plugin's own teardown — the plugin's `PluginActivation`
      * (`deactivate()`) owns that.
      *
-     * Its **overlay layers** are the exception, and are disposed here: they are
-     * DOM on the image, so a plugin whose cleanup misses its dispose would leave
-     * orphaned markers sitting over the picture with nothing left to remove them.
-     * A layer id names its plugin ({@link registerOverlayLayer}), which is what
-     * makes that possible. This is a backstop, not the documented path — a plugin
-     * releases its layer from its own `view.mount` cleanup, and doing both is
-     * safe because the dispose is idempotent.
+     * Its **overlay layers**, its **canvas claims** and its **published state**
+     * are the exception, and are released here: a layer is DOM on the image, so
+     * a plugin whose cleanup misses its dispose would leave orphaned markers
+     * sitting over the picture with nothing left to remove them; a claim left
+     * behind would suppress a canvas's unsupported presentation for the rest of
+     * the session with nothing rendering in its place; and a published state
+     * left behind would hand hosts a live command surface addressing a
+     * torn-down plugin. All three name their plugin
+     * ({@link registerOverlayLayer}, {@link claimCanvas},
+     * {@link publishPluginState}), which is what makes that possible.
+     *
+     * This is the backstop, not the documented path — a plugin releases its own
+     * layers, claims and publication from its `view.mount` cleanup — and it is
+     * where the claim's and the publication's "released when the activation
+     * ends" contract is honoured,
+     * because the viewer takes this path on deactivation, on retry, and on a
+     * failed setup or mount alike. Doing both is safe: every dispose is
+     * idempotent.
      */
     unregisterPlugin(pluginId: string): void;
     /**
      * Cleanup everything.
      *
-     * Including every overlay layer, for the reason {@link unregisterPlugin}
-     * gives: an undisposed layer is DOM left on the image.
+     * Including every overlay layer, every canvas claim and every published
+     * state, for the reason {@link unregisterPlugin} gives.
      */
     destroyAllPlugins(): void;
+    /**
+     * Published state by plugin id. A reactive map so publish and retire wake
+     * the batched watcher: the set of published ids is what a wrapper observes
+     * to decide whether to render a plugin's controls at all.
+     */
+    private publishedPluginStates;
+    /**
+     * Publish this activation's state object under the plugin id this viewer
+     * knows it by (the same `<pluginId>` its chrome and overlay-layer ids carry).
+     *
+     * At most one per plugin, and the id is FIRST COME: publishing over an id
+     * that already holds someone else's object is refused, registers nothing,
+     * and returns a no-op handle, so a caller never has to branch on whether it
+     * worked. Retiring is what frees the id — which is why the SDK's own
+     * `context.publishState` retires before it publishes, and so gets the
+     * documented "publishing again replaces the previous object" for free.
+     * Without the refusal a second publication would silently orphan the first:
+     * its retire handle, being identity-based, would no-op forever and its
+     * object would stay reachable under an id it no longer owns. A refusal is
+     * reported to the host on the structured `viewererror` channel with code
+     * `plugin-state-refused` and scope `plugin`, the same way a refused overlay
+     * layer is (see {@link registerOverlayLayer}) — it is an author error whose
+     * only other symptom is a host commanding the wrong object.
+     *
+     * The returned retire handle is idempotent and identity-checked, so a plugin
+     * that re-published and later runs its original cleanup does not retire its
+     * own successor. {@link unregisterPlugin} and {@link destroyAllPlugins}
+     * retire whatever is still published, the same backstop overlay layers get —
+     * but the activation's own cleanup is the documented path, because that is
+     * what makes the state absent the moment the activation is.
+     */
+    publishPluginState(pluginId: string, published: unknown): () => void;
+    /**
+     * The state a plugin has published, or `null` when it has published none —
+     * which is the answer whenever its activation is absent, failed, or
+     * retrying, since a publication lives exactly as long as its activation.
+     *
+     * Deliberately `unknown`: the concrete interface (`AVState`, say) and a
+     * typed accessor ship in the plugin package a host commanding that plugin
+     * already depends on. Core never grows a union of every plugin's state type.
+     */
+    getPluginState(pluginId: string): unknown;
     /**
      * Inventoried members whose changes wake subscribers: `command` and
      * `observable` members notify; `internal` and `query-only` members never do.
@@ -3789,7 +4720,7 @@ export declare class ViewerState {
      * effect and delivers no notifications (state reads stay synchronously
      * current everywhere).
      *
-     * `onError` (ticket 09) is called with the thrown value if this listener
+     * `onError` is called with the thrown value if this listener
      * throws during delivery; the throw never stops other listeners or core's
      * own reactions. The SDK passes one per activation so a throwing listener is
      * attributed to its owning plugin (`pluginerror` phase `subscription`).
@@ -3811,7 +4742,7 @@ export declare class ViewerState {
     private trackWatchedMembers;
     private notifySubscribers;
     /**
-     * Single guarded call site for a subscription listener (ticket 09): a
+     * Single guarded call site for a subscription listener: a
      * throwing listener is isolated so the remaining listeners and core's own
      * reactions still run. The failure is routed to the listener's own
      * `onError` when one was registered — the SDK uses this to attribute the
@@ -4110,7 +5041,7 @@ export declare function createTestViewerHandle(options?: TestViewerHandleOptions
  * does for a canvas it has not laid out.
  */
 import type { RendererPort } from '../renderer/rendererPort.js';
-import { type ContainerSize, type ImageAdjustments, type ViewportPoint } from '../types/viewport.js';
+import { type CanvasSize, type ContainerSize, type ImageAdjustments, type ViewportPoint } from '../types/viewport.js';
 /** Options for {@link createRendererStub}. */
 export interface RendererStubOptions extends Partial<StubView> {
     /**
@@ -4137,6 +5068,12 @@ export interface StubView {
     centre: ViewportPoint;
     /** Surface size in CSS pixels. */
     container: ContainerSize;
+    /**
+     * The canvas-space extent reported for every canvas this stand-in answers
+     * for. One size for all of them: the stub lays nothing out, so it has no
+     * per-canvas geometry to vary it by.
+     */
+    canvasSize: CanvasSize;
 }
 export declare const DEFAULT_STUB_VIEW: StubView;
 /** A {@link RendererPort} plus the controls a test drives it with. */
@@ -4395,12 +5332,7 @@ export interface GalleryConfig {
      * Where the gallery should be docked by default if shown.
      * @default 'bottom'
      */
-    dockPosition?: 'left' | 'right' | 'top' | 'bottom' | 'none';
-    /**
-     * Whether the gallery can be dragged/moved by the user.
-     * @default true
-     */
-    draggable?: boolean;
+    dockPosition?: 'left' | 'right' | 'top' | 'bottom';
     /**
      * Whether the gallery is currently open/visible.
      * @default false
@@ -4415,8 +5347,7 @@ export interface GalleryConfig {
      * How much of the viewer the gallery takes, in pixels, and the only knob that
      * changes a thumbnail's size. It applies to whichever axis the gallery's
      * position commits to: the strip's HEIGHT when docked to the top or bottom, and
-     * the rail's WIDTH when docked to the left or right. A floating window sizes
-     * itself (see `width` / `height`), so there it sets the thumbnail row's height.
+     * the rail's WIDTH when docked to the left or right.
      *
      * Thumbnails are derived from it rather than the reverse. A thumbnail is fixed
      * on the axis its gallery committed to and takes its own image's shape on the
@@ -4436,27 +5367,11 @@ export interface GalleryConfig {
     size?: number;
     /**
      * Whether the gallery starts expanded — filling the viewer's center column
-     * as a full grid of thumbnails instead of a docked strip or floating window.
+     * as a full grid of thumbnails instead of a docked strip or rail.
      * Implies `open`, since an expanded gallery is necessarily visible.
      * @default false
      */
     expanded?: boolean;
-    /**
-     * Width of the gallery window when floating (in pixels).
-     */
-    width?: number;
-    /**
-     * Height of the gallery window when floating (in pixels).
-     */
-    height?: number;
-    /**
-     * X position of the gallery window when floating (in pixels).
-     */
-    x?: number;
-    /**
-     * Y position of the gallery window when floating (in pixels).
-     */
-    y?: number;
 }
 
 // ======================================================================
@@ -4659,7 +5574,7 @@ export interface ToolbarConfig {
      */
     showSearch?: boolean;
     /**
-     * Whether the Gallery toggle button is shown in this menu.
+     * Whether the Gallery placement picker is shown in this menu.
      * @default true
      */
     showGallery?: boolean;
@@ -4758,6 +5673,13 @@ export interface NavConfig {
     /**
      * Where the nav bar sits along its edge. In `unified` mode this also aligns
      * the embedded toolbar buttons, since they form one bar.
+     *
+     * **Inert while a plugin has registered transport chrome**
+     * (`ViewerState.registerTransportChrome`): the bar then spans its full
+     * available width so the seek bar can take the slack, and a full-width bar
+     * has nowhere to align. The setting is not deprecated and nothing is
+     * warned about — it resumes meaning the moment the chrome deregisters.
+     * `style`, `edge` and the nav inset go on meaning what they meant.
      * @default 'center'
      */
     align?: NavAlign;
@@ -4996,13 +5918,8 @@ export interface ViewerConfig {
      */
     pointStyle?: PointStyle;
     /**
-     * Enable drag-and-drop loading of IIIF manifest URLs/content state text.
-     * @default false
-     */
-    enableDragDrop?: boolean;
-    /**
-     * Enable opt-in developer diagnostics (ticket 18). Production distributions
-     * are quiet by default: when `false`, the viewer emits no unsolicited
+     * Enable opt-in developer diagnostics. Production distributions are quiet
+     * by default: when `false`, the viewer emits no unsolicited
      * console output. When `true`, viewer diagnostics are logged through the
      * core logger (prefixed `[triiiceratops]`). Actionable failures always
      * surface through the structured `viewererror`/`pluginerror` channels
@@ -5015,6 +5932,7 @@ export interface ViewerConfig {
 // ======================================================================
 // FILE: dist/types/plugin.d.ts
 // ======================================================================
+import type { SelectorSource, SourceSelectors } from '../state/selectors/runtime';
 import type { ViewerState } from '../state/viewer.svelte';
 /**
  * Where a plugin renders its UI.
@@ -5099,6 +6017,8 @@ export interface PluginPanel {
     mount?: PluginMountThunk;
     /** Props passed to the mounted content, if any. */
     props?: Record<string, unknown>;
+    /** The panel scrolls its own content; see {@link SdkPluginMeta.fills}. */
+    fills?: boolean;
     /** Reactive getter for visibility */
     isVisible: () => boolean;
 }
@@ -5135,7 +6055,7 @@ export interface PluginFlyout {
     /** Props passed to the mounted content, if any. */
     props?: Record<string, unknown>;
     /**
-     * Flyout dismiss behavior (SDK core-owned chrome, ticket 02):
+     * Flyout dismiss behavior:
      * - `light` (default): dismiss on outside pointer-down / Escape.
      * - `explicit`: closes only via its toolbar button (a live-editing surface is
      *   not dismissed by canvas clicks). Excluded from {@link
@@ -5157,14 +6077,14 @@ export interface Selector<T> {
      */
     subscribe(callback: (value: T) => void): () => void;
 }
-/** Factory for memoized selectors over the live `ViewerState`. */
-export interface ViewerSelectors {
-    /**
-     * Create a memoized selector. `equals` defaults to `Object.is`. Built only
-     * on `ViewerState.subscribe` — never on Svelte reactivity.
-     */
-    select<T>(fn: (state: ViewerState) => T, equals?: (a: T, b: T) => boolean): Selector<T>;
-}
+/**
+ * Factory for memoized selectors over the live `ViewerState` — the shape a
+ * `PluginContext` carries. Exactly `SourceSelectors<ViewerState>`: the selector
+ * runtime generalized to any {@link SelectorSource} (ADR 0018), and the viewer
+ * is one, so this is a name for that case rather than a second contract that
+ * could drift from it.
+ */
+export type ViewerSelectors = SourceSelectors<ViewerState>;
 /**
  * Root-aware global stylesheet installer for plugin CSS (SPEC.md "Plugin SDK And
  * Browser API" — root-aware style installation).
@@ -5175,7 +6095,7 @@ export interface ViewerSelectors {
  * `<pluginName>:<id>`, deduplicated and reference-counted across every
  * activation and viewer that shares a root, and removed when the last reference
  * releases. Core prefers a constructable `adoptedStyleSheets` sheet and falls
- * back to a nonce-carrying `<style>` element under a strict CSP (ticket 08).
+ * back to a nonce-carrying `<style>` element under a strict CSP.
  */
 export interface PluginStyleService {
     /**
@@ -5243,7 +6163,7 @@ export interface IconDescriptor {
     readonly viewBox: string;
 }
 /**
- * @deprecated Pre-1.0 alias retained for ticket 07 consumers; use
+ * @deprecated Pre-1.0 alias retained for existing consumers; use
  * {@link IconDescriptor}. Both name the same finalized descriptor shape.
  */
 export type PluginIcon = IconDescriptor;
@@ -5314,6 +6234,42 @@ export interface PluginSurface {
     close(): void;
     /** Toggle this plugin's surface open state. */
     toggle(): void;
+    /**
+     * Declare whether this plugin has anything to show on the current canvas.
+     * `false` hides its toolbar button — the gating core's own annotations and
+     * structures buttons have — so a plugin whose content is a fact about the
+     * canvas never leaves a live button over an empty panel, and closes its
+     * surface if it was open. Call it whenever that fact changes.
+     */
+    setAvailable(available: boolean): void;
+}
+/**
+ * How one member of a published state behaves, transplanting the viewer-state
+ * taxonomy one level down (CONTEXT.md **Published state**, **Query-only state**):
+ * `command` maintains the plugin's invariants, `observable` notifies through
+ * {@link PublishedState.subscribe}, `queryOnly` is a high-frequency value read
+ * on demand and deliberately non-notifying.
+ */
+export type PublishedStateClassification = 'command' | 'observable' | 'queryOnly';
+/**
+ * The state object one plugin activation publishes for hosts and framework
+ * wrappers to command it through (ADR 0018). It is reached only via
+ * {@link ViewerState.getPluginState} — never imported from the plugin package —
+ * and lives exactly as long as its activation.
+ *
+ * It is a `SelectorSource`, so the ONE selector runtime that serves viewer state
+ * serves this too; and it declares its own {@link stateInventory} so the SDK
+ * conformance kit can check the classification the way core's capability-matrix
+ * test checks the viewer's.
+ */
+export interface PublishedState extends SelectorSource {
+    /**
+     * Classification for every member this state exposes, keyed by member name.
+     * The seam's own members (`subscribe`, `subscribeFrame`, `stateInventory`)
+     * are not classified — they are the contract, not the state. A published
+     * member missing from this table fails conformance.
+     */
+    readonly stateInventory: Readonly<Record<string, PublishedStateClassification>>;
 }
 /**
  * The isolated, per-activation context handed to a plugin's `mount`
@@ -5326,6 +6282,14 @@ export interface PluginContext {
     readonly styles: PluginStyleService;
     readonly locale: PluginLocaleService;
     readonly ui: PluginUiService;
+    /**
+     * Publish this activation's {@link PublishedState}, so hosts and framework
+     * wrappers can command the plugin through `viewerState.getPluginState(id)`
+     * (ADR 0018). At most one per activation — publishing again replaces the
+     * previous object — and the publication is retired automatically when the
+     * activation ends, so a host never reaches a dead plugin's state.
+     */
+    publishState(state: PublishedState): void;
 }
 /**
  * The framework-neutral mount contract (SPEC.md — normative shape). Core owns
@@ -5337,9 +6301,14 @@ export interface PluginView {
 /**
  * What the host (core, or the SDK test kit) supplies at activation. Core passes
  * its declared `coreVersion`/`pluginApiVersion`/`capabilities` so the SDK can
- * negotiate compatibility without importing core constants. Services are
- * optional in ticket 07 — the SDK fills stubs when the host omits them; ticket
- * 08 makes the host supply real, per-viewer services.
+ * negotiate compatibility without importing core constants.
+ *
+ * Every member is required, services included. Core builds the real, per-viewer
+ * ones for each activation; a test that activates without a viewer assembles the
+ * host from `@triiiceratops/plugin-sdk/testing`, whose test viewer context
+ * carries recording doubles and whose `createStub*` helpers cover the rest. The
+ * SDK filling in stubs itself would put a service implementation no reader can
+ * ever see into every shipped plugin bundle.
  */
 export interface PluginHost {
     /** Core-owned DOM container the plugin renders into. */
@@ -5356,25 +6325,21 @@ export interface PluginHost {
      * surface is governed by `coreRange` instead (`plugin/api.ts`).
      */
     readonly capabilities: readonly string[];
-    readonly styles?: PluginStyleService;
-    readonly locale?: PluginLocaleService;
-    readonly ui?: PluginUiService;
+    readonly styles: PluginStyleService;
+    readonly locale: PluginLocaleService;
+    readonly ui: PluginUiService;
     /**
-     * The plugin's own panel/flyout chrome. Supplied by core (which owns the
-     * chrome id it registered); when a host omits it — direct `runActivation` or
-     * test-kit use with no chrome — the SDK fills a stub whose `isOpen` is always
-     * `true`, so a plugin under test behaves as if its surface were visible.
+     * The plugin's own panel/flyout chrome, owned by whoever registered the
+     * chrome id. Its `id` is the only id the viewer knows the plugin by, so it is
+     * also what published state and overlay layers are keyed to.
      */
-    readonly surface?: PluginSurface;
+    readonly surface: PluginSurface;
     /**
-     * Report a plugin lifecycle failure to the host (ticket 09). When present,
-     * the SDK routes every guarded phase failure here instead of throwing, so
-     * the host can present a plugin-local error state and offer retry. When
-     * absent (direct SDK / test-kit use with no host), setup and mount failures
-     * throw as before and subscription/command/cleanup failures fall back to a
-     * console error.
+     * Report a plugin lifecycle failure to the host. The SDK routes every guarded
+     * phase failure here rather than throwing, so the host can present a
+     * plugin-local error state and offer retry.
      */
-    readonly reportError?: (report: PluginErrorReport) => void;
+    readonly reportError: (report: PluginErrorReport) => void;
 }
 /** Handle returned by a successful activation. */
 export interface PluginActivation {
@@ -5468,9 +6433,14 @@ export interface SdkPluginMeta {
     readonly uiId?: string;
     /** Plugin package version. */
     readonly version: string;
-    /** Semver range of core versions this plugin supports. */
+    /**
+     * Core versions this plugin supports, as an exact version (`1.2.3`), a caret
+     * range (`^1.2.3`), or a `>=` lower bound (`>=1.2.3`) — the whole grammar the
+     * SDK negotiates. Any other syntax fails activation with an error naming the
+     * range rather than being read as "incompatible".
+     */
     readonly coreRange: string;
-    /** Semver range of plugin API versions this plugin supports. */
+    /** Plugin API versions this plugin supports; same grammar as {@link coreRange}. */
     readonly pluginApiRange: string;
     /**
      * Capability identifiers this plugin requires. Normally empty: a plugin
@@ -5483,6 +6453,13 @@ export interface SdkPluginMeta {
     readonly icon: IconDescriptor;
     /** Where the plugin renders (`panel` or `flyout`). */
     readonly target: PluginUiTarget;
+    /**
+     * This panel scrolls its own content, so core gives it the height left over
+     * in its column rather than sizing it to its content. For a panel whose body
+     * is a long list or document; a short one would only stretch. Ignored for
+     * `flyout` targets.
+     */
+    readonly fills?: boolean;
     /**
      * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (the default)
      * dismisses on outside pointer-down / Escape; `explicit` closes only via the
@@ -5587,10 +6564,10 @@ export interface TriiiceratopsViewerElement extends HTMLElement {
 // FILE: dist/types/viewerError.d.ts
 // ======================================================================
 /**
- * The structured `viewererror` channel (ticket 18 — core distribution cleanup).
+ * The structured `viewererror` channel.
  *
- * Mirrors the `pluginerror` channel (ticket 09, {@link PluginError} in
- * `./plugin`) so hosts handle viewer-level failures exactly as they handle
+ * Mirrors the `pluginerror` channel ({@link PluginError} in `./plugin`) so
+ * hosts handle viewer-level failures exactly as they handle
  * plugin failures: actionable configuration, content, and operation problems are
  * delivered as a typed payload on BOTH a bubbling, composed `viewererror`
  * CustomEvent from the viewer root AND an `onviewererror` host callback — the
@@ -5598,7 +6575,8 @@ export interface TriiiceratopsViewerElement extends HTMLElement {
  * "Core Distribution" — "Actionable configuration, version, plugin, and
  * operation failures use structured events or callbacks"; user stories 12–13).
  *
- * The payload type is defined ONCE here so ticket 21 can snapshot it.
+ * The payload type is defined ONCE here so it can be snapshotted for the
+ * public API surface.
  *
  * Bundler-neutral and SSR-safe: pure types plus a string constant; no runtime,
  * no browser globals, no bundler-specific env replacement.
@@ -5682,6 +6660,22 @@ export interface ContainerSize {
     height: number;
 }
 /**
+ * The extent of a canvas's own coordinate space: what `(0, 0)` to
+ * `(width, height)` means for that canvas.
+ *
+ * Usually the manifest's declared `width`/`height`. It is a separate question
+ * from them because a Canvas need not declare any — a duration-only audio
+ * canvas does not — and such a canvas is still laid out, from its siblings'
+ * median or the unsized placeholder. Its rect is then the only statement of its
+ * extent anyone has, and canvas space becomes that rect. A caller placing DOM
+ * over such a canvas needs the answer this reports rather than dimensions it
+ * invented, because it is the one the coordinate helpers themselves divide by.
+ */
+export interface CanvasSize {
+    width: number;
+    height: number;
+}
+/**
  * Edges of the viewer surface reserved by plugin UI, in screen pixels.
  *
  * A **fit target**, not a box model: a fit frames its box into what is left of
@@ -5749,9 +6743,6 @@ export declare function imageAdjustmentsToCssFilter(adjustments: ImageAdjustment
 // ======================================================================
 // FILE: dist/utils/annotationAdapter.d.ts
 // ======================================================================
-/**
- * Parsed annotation interface for custom rendering
- */
 export interface ParsedAnnotation {
     id: string;
     renderId: string;
@@ -5797,9 +6788,6 @@ export interface PointGeometry {
 }
 export declare function isFullCanvasAnnotation(annotation: any): boolean;
 /**
- * Extract xywh from annotation target (multiple formats)
- */
-/**
  * The text of one annotation body or resource.
  *
  * IIIF spells it three ways — v2 `chars`, v3 `value`, and the `cnt:` prefixed
@@ -5807,22 +6795,13 @@ export declare function isFullCanvasAnnotation(annotation: any): boolean;
  * a manifest cannot render in one panel and come back empty in another.
  */
 export declare function bodyText(resource: unknown): string;
-/**
- * Extract annotation body content (text, label, etc)
- */
 export declare function extractBody(annotation: any): {
     value: string;
     isHtml: boolean;
     purpose?: string;
     format?: string;
 }[];
-/**
- * Parse a raw JSON IIIF annotation to internal format
- */
 export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean, canvasId?: string | null): ParsedAnnotation | null;
-/**
- * Batch parse annotations
- */
 export declare function parseAnnotations(annotations: any[], searchHitIds?: Set<string>, canvasId?: string | null): ParsedAnnotation[];
 
 // ======================================================================
@@ -5923,6 +6902,7 @@ export declare function sortCollectionItems(items: CollectionItem[]): Collection
 // ======================================================================
 // FILE: dist/utils/contentState.d.ts
 // ======================================================================
+import type { IiifTemporalFragment } from './iiifTime';
 export type CanvasRegion = {
     x: number;
     y: number;
@@ -5933,6 +6913,8 @@ export type ContentStateTarget = {
     manifestId: string;
     canvasId?: string;
     region?: CanvasRegion;
+    /** Media time the target selected (`#t=`), the temporal peer of `region`. */
+    time?: IiifTemporalFragment;
 };
 export declare function parseContentState(value: string): ContentStateTarget | null;
 
@@ -5947,8 +6929,21 @@ export declare function resolveThumbnailResourceSrc(thumbnail: any, size?: numbe
  *   1. The canvas's own `thumbnail` property
  *   2. First image annotation → IIIF service → {serviceId}/full/{size},/0/default.jpg
  *   3. Raw resource / body ID
+ *
+ * Rungs 2 and 3 are gated by the painting-body classifier
+ * (`utils/paintingBodies`), because both of them end in an `<img src>`. Without
+ * it, an audio canvas with no declared `thumbnail` put its MP3's URL into the
+ * strip — a broken image where the reader needed to be told this is a sound
+ * recording. Returning `''` is what routes the canvas to the strip's
+ * no-thumbnail treatment instead.
+ *
+ * `selectedChoiceId` names a Choice alternative, and rungs 2 and 3 resolve the
+ * same alternative the classifier is asked about. Without it a mixed Choice
+ * resting on its video alternative classifies as unsupported and still yields
+ * the image alternative's URL — the strip would show the picture while the
+ * viewer showed "cannot display", over one canvas.
  */
-export declare function getThumbnailSrc(canvas: any, size?: number): string;
+export declare function getThumbnailSrc(canvas: any, size?: number, selectedChoiceId?: string): string;
 
 // ======================================================================
 // FILE: dist/utils/iiifIds.d.ts
@@ -5956,12 +6951,17 @@ export declare function getThumbnailSrc(canvas: any, size?: number): string;
 export declare function getResourceId(resource: any): string | null;
 /**
  * A IIIF reference may be a bare id string (common in Presentation 2.x, e.g. a
- * sequence's `startCanvas`) or an object carrying `id`/`@id`. Returns the id
- * either way.
+ * sequence's `startCanvas`), an object carrying `id`/`@id`, or a
+ * `SpecificResource` naming its referent through `source`. Returns the id of
+ * the resource referred to in every case.
  */
 export declare function getReferenceId(reference: unknown): string | null;
 export declare function getCanvasId(canvas: any): string;
-export declare function getAnnotationId(annotation: any): string;
+/**
+ * {@link getCanvasId} under the name its annotation callers read it by: the
+ * `id`/`@id` read is the same one, and `''` means "no id" for both.
+ */
+export declare const getAnnotationId: typeof getCanvasId;
 export declare function findCanvasIndexById(canvases: any[], canvasId: string | null): number;
 export declare function findCanvasById(canvases: any[], canvasId: string | null): any;
 
@@ -5969,22 +6969,28 @@ export declare function findCanvasById(canvases: any[], canvasId: string | null)
 // FILE: dist/utils/iiifParsing.d.ts
 // ======================================================================
 /**
- * First-party IIIF Presentation parsing.
+ * First-party IIIF Presentation parsing over raw manifest JSON: how many
+ * sequences a manifest has ({@link getSequenceCount}), which canvases are in
+ * a given sequence ({@link getCanvasesForSequence}), and which painting
+ * annotations are on a given canvas ({@link getPaintingAnnotations}). Both
+ * the IIIF v2 and v3 shapes are handled directly.
  *
- * This module is the parsing surface the `remove-manifesto` epic replaces
- * `manifesto.js` with: how many sequences a manifest has
- * ({@link getSequenceCount}), which canvases are in a given sequence
- * ({@link getCanvasesForSequence}), and which painting annotations are on a
- * given canvas ({@link getPaintingAnnotations}). Three total functions over raw
- * JSON; both the IIIF v2 and the IIIF v3 branch of each are first-party and
- * nothing here calls `manifesto.js`.
- *
- * There is deliberately **no `Sequence` type** and no intermediate object model
- * of any kind. A canvas is the Canvas JSON as the manifest authored it. The
- * Manifest → Sequence → Canvas hierarchy exists in the library only to hide the
- * version difference, and recreating it is the shortest path back to the object
- * model this epic removes (SPEC → "The parsing surface").
+ * There is deliberately **no `Sequence` type** and no intermediate object
+ * model. A canvas is the Canvas JSON as the manifest authored it.
  */
+/**
+ * Coerce a field that should be an array into one.
+ *
+ * IIIF fields that the spec declares as arrays turn up in real manifests as
+ * bare objects. Every array access over raw manifest JSON goes through here so
+ * that a bare object degrades to a one-element list rather than throwing or
+ * silently enumerating nothing, and an empty value degrades to no list at all.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function asArray(value: unknown): any[];
 /**
  * How many sequences a manifest has.
  *
@@ -6007,8 +7013,7 @@ export declare function getSequenceCount(manifest: any): number;
  * existing behavior of the manifest cache: a viewer holding a stale
  * `selectedSequenceIndex` shows the last sequence, not a blank page.
  *
- * A `null` entry in the canvas list is dropped. `manifesto.js` threw on one in
- * its `Canvas` constructor; a total function cannot.
+ * A `null` entry in the canvas list is dropped.
  *
  * **Total.** Never throws, always returns an array.
  *
@@ -6025,12 +7030,10 @@ export declare function getCanvasesForSequence(manifest: any, index: number): an
  * These are *not* the commentary annotations returned by
  * `ensureCanvasAnnotations`; see CONTEXT.md → **Painting annotation**.
  *
- * Both branches are first-party and return **raw JSON** annotations. IIIF v2
- * reads `canvas.images[]` directly rather than through `manifesto.js`'s
- * `getImages()`. IIIF v3 flattens *every* AnnotationPage in the canvas, in
- * document order; `manifesto.js`'s `getContent()` read only the first page and
- * silently discarded the rest, which is a data-loss bug on canvases that split
- * their painting annotations across pages.
+ * Both branches return **raw JSON** annotations. IIIF v2 reads
+ * `canvas.images[]` directly. IIIF v3 flattens *every* AnnotationPage in the
+ * canvas, in document order — reading only the first page silently drops
+ * the rest on canvases that split their painting annotations across pages.
  *
  * A v2 annotation carries its image under `resource`, a v3 one under `body`.
  * Consumers must read **both** spellings — see `getPaintingBody`.
@@ -6044,20 +7047,14 @@ export declare function getCanvasesForSequence(manifest: any, index: number): an
  * manifests as a bare object — `images`, `items` and `content` all degrade to a
  * one-element list rather than throwing or enumerating nothing.
  *
- * A `null` entry inside `images` or an AnnotationPage is skipped, so such a
- * canvas enumerates fewer annotations than the library reported. The library
- * produced an `Annotation` wrapping nothing, which resolved to no resource
- * downstream; the rendered result is the same, the count is not.
+ * A `null` entry inside `images` or an AnnotationPage is skipped.
  *
- * Expects a Canvas. Handed a Manifest or Collection it will happily return that
- * resource's `items` — no caller can currently do so, but it is not defended
- * against.
+ * Expects a Canvas. Handed a Manifest or Collection it will happily return
+ * that resource's `items` — no caller can currently do so, but it is not
+ * defended against.
  *
- * **Public API**, from `triiiceratops` and `triiiceratops/image-export`. It is
- * the supported way to enumerate a canvas's images: without it an integrator
- * has no route to them and reimplements the removed `canvas.getContent()` /
- * `canvas.getImages()` idiom, which now returns nothing at all, silently
- * (SPEC → "The parsing surface").
+ * **Public API**, from `triiiceratops` and `triiiceratops/image-export`. It
+ * is the supported way to enumerate a canvas's images.
  *
  * The annotations it returns are raw JSON. **A v2 annotation carries its image
  * under `resource` and a v3 one under `body`** — read both spellings, or use
@@ -6070,9 +7067,8 @@ export declare function getPaintingAnnotations(canvas: any): any[];
  * canvas.
  *
  * **IIIF v2 spells this `resource`; IIIF v3 spells it `body`.** Reading only
- * `body` is the epic's named silent-failure mode: a v2 annotation then yields
- * nothing, and the viewer renders a blank canvas with a `logger.debug` line and
- * no other signal (SPEC → "The governing rule for the whole epic").
+ * `body` leaves a v2 annotation yielding nothing, so the viewer renders a
+ * blank canvas with only a `logger.debug` line and no other signal.
  *
  * Takes a **raw JSON** annotation, as `getPaintingAnnotations` returns.
  *
@@ -6088,7 +7084,7 @@ export declare function getPaintingBody(annotation: any): any;
  * the user rather than a single image?
  *
  * Both spellings are recognized: IIIF v3's `"type": "Choice"` and IIIF v2's
- * `"@type": "oa:Choice"`. The v2 one had no reader at all before this.
+ * `"@type": "oa:Choice"`.
  *
  * @internal Not exported from any package entry point. It appears in
  * `api-reports/core.api.md` because that report is a file-level rollup and a
@@ -6099,9 +7095,9 @@ export declare function isChoiceBody(body: any): boolean;
  * The alternatives a Choice body offers, in the order the viewer should offer
  * them — the default first.
  *
- * IIIF v3 puts them all in `items` (`item` is accepted as an alias, as it was
- * before). IIIF v2 splits them: `default` holds the one to render initially and
- * `item` holds the rest, so the two are concatenated.
+ * IIIF v3 puts them all in `items` (`item` is accepted as an alias). IIIF v2
+ * splits them: `default` holds the one to render initially and `item` holds
+ * the rest, so the two are concatenated.
  *
  * Guarded against a bare object in place of the array, per the spec's failure
  * contract — an unguarded `items.find(...)` on one throws all the way out
@@ -6122,11 +7118,57 @@ export declare function getChoiceAlternatives(body: any): any[];
  */
 export declare function getCanvasChoices(canvas: any): any[];
 /**
+ * A `behavior`/`viewingHint` field as a list of bare terms.
+ *
+ * Either spelling may be a single string or an array of them, and a term may
+ * arrive fully qualified (`http://iiif.io/api/presentation/3#paged`) or
+ * prefixed, so each is reduced to its last path/fragment segment, trimmed and
+ * lowercased. Absent reads as no behaviors at all.
+ *
+ * The one reader of both spellings, everywhere: canvas hints
+ * ({@link getCanvasBehaviors}), a range's `sequence` marker, and the
+ * manifest-level viewing mode all resolve terms the same way.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function toBehaviorList(value: unknown): string[];
+/**
  * @internal Not exported from any package entry point. It appears in
  * `api-reports/core.api.md` because that report is a file-level rollup and a
  * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function getCanvasBehaviors(canvas: any): string[];
+
+// ======================================================================
+// FILE: dist/utils/iiifTime.d.ts
+// ======================================================================
+/**
+ * A `#t=` media fragment's span, in seconds. `endSeconds` is absent when the
+ * fragment names only a start.
+ *
+ * This rides on `ViewerState.setCanvas` and `ContentStateTarget`, so it is a
+ * public type. `parseIiifTime` is public because a first-party claimant needs
+ * it; the rest of `iiifTargets` remains internal because publishing it would
+ * drag target normalization, selectors, and `xywh=` into the API contract.
+ */
+export type IiifTemporalFragment = {
+    seconds: number;
+    endSeconds?: number;
+};
+/**
+ * Parse the temporal dimension of a media fragment (`#t=157`, `#t=157,203`,
+ * `#t=,203`), the time counterpart of an IIIF `xywh` fragment.
+ *
+ * Only Normal Play Time in plain seconds is read — the form every IIIF
+ * Cookbook recipe uses — with an explicit `npt:` prefix accepted and ignored
+ * on either bound. NPT's `hh:mm:ss` spelling is valid Media Fragments but is
+ * not parsed: it yields `null` rather than a wrong number of seconds. Only the
+ * fragment component is inspected, so a `t=` in a query string (`?t=157`,
+ * `?foo=1&t=157`) is never mistaken for a media fragment.
+ */
+export declare function parseIiifTime(value: string): IiifTemporalFragment | null;
 
 // ======================================================================
 // FILE: dist/utils/imageExport.d.ts
@@ -6281,13 +7323,11 @@ export declare function resolveExportSizeOptions(resolved: ResolvedCanvasImage):
 // FILE: dist/utils/languageMap.d.ts
 // ======================================================================
 /**
- * Shared utility for resolving IIIF language map values.
+ * Resolves IIIF language-mapped values to display strings.
  *
- * IIIF v3 uses language maps: `{ "en": ["Hello"], "fr": ["Bonjour"] }`
- * Manifesto returns arrays of `{ value, locale/language }` objects.
- * IIIF v2 may use plain strings.
- *
- * This module provides a single resolution strategy used across the viewer.
+ * IIIF v3 uses language maps: `{ "en": ["Hello"], "fr": ["Bonjour"] }`.
+ * IIIF v2 may use plain strings, a JSON-LD value object, or an array of
+ * `{ "@value", "@language" }` objects.
  */
 /**
  * Resolve a IIIF language-mapped value to a single display string.
@@ -6305,6 +7345,170 @@ export declare function resolveLanguageValue(value: unknown, preferredLocale?: s
  * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function resolveAllLanguageValues(value: unknown, preferredLocale?: string): string[];
+
+// ======================================================================
+// FILE: dist/utils/paintingBodies.d.ts
+// ======================================================================
+/**
+ * Whether a painting annotation places something core can render, and therefore
+ * whether its canvas gets the **unsupported presentation** (CONTEXT.md; ADR
+ * 0017).
+ *
+ * Core is an image viewer. Without this, a `Video` or `Sound` body is
+ * indistinguishable from an image resource with an unusual id: the media URL is
+ * handed to the tile pipeline, fetched with `new Image()`, and recorded in the
+ * negative cache when it fails to decode. The distinction is drawn here and
+ * nowhere else — canvas→source resolution, the planner's descriptors, and the
+ * thumbnail fallback all ask this module rather than re-deriving it.
+ */
+/**
+ * The Image API service on a resource, or `null`.
+ *
+ * Lives here rather than beside its consumer in `resolveCanvasImage` because
+ * carrying one is one of the three ways a body qualifies as an image, and the
+ * classifier must not be able to disagree with the resolver about what an image
+ * service is.
+ *
+ * @internal Not exported from any package entry point.
+ */
+export declare function getImageService(resource: any): any | null;
+/** A `SpecificResource` wrapper's `source`, or the value unchanged. */
+export declare function unwrapSpecificResource(resource: any): any;
+/**
+ * Whether one painting body is an **image body** — something core's tile
+ * pyramid, size ladder, or static `<img>` can paint. Everything else is a
+ * non-image body: time-based media, a text body, a 3D model, whatever a future
+ * medium turns out to be.
+ *
+ * **The rule, and it is deliberately generous.** A body is an image if its type
+ * says so (`Image` in v3, `dctypes:Image` in v2), *or* its `format` is an image
+ * media type, *or* it carries an Image API service — any one of the three. Real
+ * manifests omit any given one of them: a v2 resource may carry only `@type`, a
+ * pre-release-v3 body only `format`, and a bare `{id, service}` neither.
+ * Requiring agreement would stop painting images the viewer paints today, which
+ * is a far worse failure than the one this function exists to prevent.
+ *
+ * It really is an OR and not a vote: a body declaring a non-image type and an
+ * image `format` is painted. That combination is nonsense no manifest writes,
+ * and the alternative is a list of the types that are *not* images — which is
+ * core learning what "AV" is, the AV-typed seam ADR 0017 rejects.
+ * `0014-accompanyingcanvas` is the real disagreement in the corpus, and it needs
+ * no tie-break: it types its body `Sound` and formats it `video/mp4`, and
+ * neither of those is an image whichever one you believe.
+ *
+ * **A body declaring neither a type nor a format is an image**, and that last
+ * rung is a deliberate widening of the rule as stated. Being wrong about a body
+ * that says nothing about itself is a choice between two failures, and they are
+ * not symmetrical: calling it non-image shows an unsupported placeholder over a
+ * manifest whose pictures would have loaded, while calling it an image is the
+ * assumption this viewer has always made and the only reason
+ * `resolveCanvasImage`'s service-id heuristic has anything to run on. Every body
+ * this rung is reached for is untyped and unformatted — there is nothing in it
+ * that says "video", because a body that says so is caught two lines above.
+ *
+ * A service the rungs above did not recognise is deliberately not held against
+ * it. An auth service, a `physdim` annex, or an Image API 1.1 service whose
+ * `profile` is a compliance URL rather than a `iiif.io/api/image/` one all fail
+ * {@link getImageService} while saying nothing whatever about the medium, and a
+ * v2 body carrying one and no `@type` is an ordinary shape that painted before
+ * this classifier existed.
+ *
+ * A `Choice` is not classified — it is a set of alternatives, and each is
+ * classified on its own after unwrapping (see {@link paintingBodyAlternatives}).
+ * Handed one anyway it answers `false`: it declares a type, and that type is not
+ * an image.
+ */
+export declare function isImageBody(body: unknown): boolean;
+/**
+ * Every resource one painting annotation could place, flattened.
+ *
+ * **The body array is unwrapped BEFORE the Choice test**, and that ordering is
+ * the whole of it. A v3 painting annotation may carry several bodies — the real
+ * shape is `body: [Choice(videos), Text(vtt)]`, which
+ * `vendored/lunchroom-manners` has carried since the corpus was vendored — and
+ * testing for a Choice first sees an array, answers "not a Choice", and then
+ * takes `body[0]`: the Choice object itself, which has no id and no service and
+ * so silently resolves to nothing. Fixing that ordering without classification
+ * would be worse than the bug, because the alternative it then resolves is an
+ * MP4 (user story 40).
+ *
+ * A Choice contributes ALL its alternatives here, not the selected one: this
+ * answers "what could this annotation place", which is the question the
+ * unsupported presentation is decided on. Selection is `resolveCanvasImage`'s,
+ * and it is a different question.
+ */
+export declare function paintingBodyAlternatives(annotation: unknown): unknown[];
+/**
+ * Whether this canvas gets the **unsupported presentation**: it paints
+ * something, and core can render none of it (CONTEXT.md).
+ *
+ * The rule in one place — the descriptor builder and the thumbnail strip both
+ * ask it, and they must never disagree about which canvases are honest about
+ * being undisplayable.
+ *
+ * Three answers collapse into two, and the collapse is the point. A canvas that
+ * paints nothing at all (Cookbook recipe 0283, an IxIF element) is `false`: it
+ * has nothing to be unsupported about, and the viewer has always dropped it. A
+ * canvas with even one image body is `false` too, however much non-image
+ * content sits beside it — that canvas paints its images and ignores the rest
+ * silently (`0489-multimedia-canvas` is the corpus's example, an Image body
+ * beside a Video one and three text ones).
+ *
+ * Decided over the canvas's painting bodies **as selected**, which for a Choice
+ * is one alternative and not the set. Asking about the set instead deletes a
+ * canvas outright: {@link findImageBody} takes only the selected alternative,
+ * so a mixed Choice resting on its non-image alternative resolves to no image,
+ * while a classifier that saw the image alternative beside it answered `false`
+ * — no images and not unsupported either, which is the descriptor builder's
+ * signal for a broken annotation to drop. The reader lost the canvas, its rect,
+ * its place in navigation and any way back to the image alternative. Selection
+ * and classification have to be made over the same body.
+ *
+ * `selectedChoiceId` names a Choice alternative; anything else, including
+ * nothing, means the first one — the IIIF default, and the same default
+ * resolution follows.
+ *
+ * Nothing here reads a target: whether core can display a canvas is a property
+ * of the canvas.
+ */
+export declare function isUnsupportedCanvas(canvas: unknown, selectedChoiceId?: string): boolean;
+/**
+ * A reader's Choice selections, in either shape callers already hold: the
+ * viewer state object itself, or the bare lookup a plugin entry point is handed.
+ */
+export type ChoiceSelection = {
+    getSelectedChoice(canvasId: string): string | undefined;
+} | ((canvasId: string) => string | undefined);
+/**
+ * {@link isUnsupportedCanvas} against a whole canvas's selection state, which is
+ * how every caller in the tree actually asks it.
+ *
+ * The classification rule and the selection lookup belong together. Written out
+ * per site, the two drift apart the moment one site learns about selection and
+ * another does not — and a viewer showing the unsupported presentation beside a
+ * strip showing the image alternative is exactly that drift.
+ */
+export declare function isUnsupportedCanvasFor(selection: ChoiceSelection | undefined, canvas: unknown): boolean;
+/**
+ * The first image body this annotation would place, or `null` if it places
+ * none.
+ *
+ * The image pipeline's entry point: everything past it — the heuristic service
+ * id, the source descriptors, the static loader, the negative cache, the
+ * thumbnail fallback — is reached only through a body this function returned, so
+ * a non-image body cannot get there.
+ *
+ * Returns the body **as authored**, `SpecificResource` wrapper and all, because
+ * the wrapper carries the Image API selector its caller still has to read.
+ *
+ * `selectedChoiceId` names a Choice alternative; anything else, including
+ * nothing, takes the first, which is the IIIF default. Where the chosen
+ * alternative is not an image the annotation places no image, and the *other*
+ * alternatives are deliberately not searched: a Choice is the reader's pick
+ * between equivalents, not a fallback chain to hunt through for something
+ * paintable.
+ */
+export declare function findImageBody(annotation: unknown, selectedChoiceId?: string): unknown | null;
 
 // ======================================================================
 // FILE: dist/utils/pointMarker.d.ts
@@ -6346,6 +7550,27 @@ export type TileSource = string | {
     type: 'image';
     url: string;
 };
+/**
+ * Where a canvas's pixels come from.
+ *
+ * `static` is one known URL. `service` is an image service the consumer resolves
+ * once its `info.json` has been fetched — into a tile pyramid when it advertises
+ * tiles, and otherwise into a fixed-size ladder. Which of the two a service is
+ * comes from what it advertises, not from its declared `profile`, which is
+ * carried here only for the consumers that report it.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export type ImageSource = {
+    kind: 'static';
+    url: string;
+} | {
+    kind: 'service';
+    serviceId: string;
+    profile: string | null;
+};
 export type RegionRect = {
     x: number;
     y: number;
@@ -6378,7 +7603,7 @@ type ResolveCanvasImageOptions = {
      * canvas dropped, because it has no geometry to place an image or an
      * annotation in. The Canvas2D renderer is the exception — it must still lay
      * such a canvas out, from a median of its siblings, and reflow it if an
-     * image service later reports real dimensions (user story 32). It reads the
+     * image service later reports real dimensions. It reads the
      * declared dimensions separately, through
      * {@link getDeclaredCanvasDimensions}, so what it gets back here is only
      * ever the source descriptor; the placeholder never reaches layout.
@@ -6441,6 +7666,23 @@ export { getCanvasLabel, getCanvasId };
 export declare function getDeclaredCanvasDimensions(canvas: unknown): CanvasDimensions | null;
 export declare function resolveCanvasImage(canvas: any, options?: ResolveCanvasImageOptions): ResolvedCanvasImage | null;
 export declare function resolveAllCanvasImages(canvas: any, options?: ResolveCanvasImageOptions): ResolvedCanvasImage[];
+/**
+ * Where one resolved painting image's pixels come from — the three-branch source
+ * decision, made in one place for every consumer:
+ *
+ * 1. a service **plus** an Image API region is a prebuilt image request — a
+ *    single static image of the cropped region;
+ * 2. a service alone is a service to resolve against a tile pyramid or size
+ *    ladder;
+ * 3. otherwise the painting resource's own id is a plain static image.
+ *
+ * `null` where the image names no source at all.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export declare function toImageSource(resolved: ResolvedCanvasImage): ImageSource | null;
 export declare function getCanvasTileSource(canvas: any, options?: ResolveCanvasImageOptions): TileSource | null;
 export declare function getCanvasTileSources(canvas: any, options?: ResolveCanvasImageOptions): PositionedTileSource[];
 export declare function buildIiifImageRequestUrl(serviceId: string, options?: {
@@ -6451,21 +7693,28 @@ export declare function buildIiifImageRequestUrl(serviceId: string, options?: {
     quality?: string;
     format?: string;
 }): string;
+/**
+ * The canvases a frame of the viewer shows: the current one, its spread mate in
+ * paged mode, or all of them in continuous mode.
+ *
+ * Exists so that "which canvases resolved an image" and "which canvases core
+ * cannot render" are answered over the same set. `getViewerTileSources`
+ * flattens across all of them, so a null answer means *nothing visible*
+ * resolved — and anything gating on that null has to ask about the same
+ * canvases or it will disagree with it on a spread.
+ */
+export declare function getVisibleViewerCanvases({ canvases, currentCanvasIndex, currentCanvasId, viewingMode, pagedOffset, }: Omit<GetViewerTileSourcesParams, 'getSelectedChoice'>): any[];
 export declare function getViewerTileSources({ canvases, currentCanvasIndex, currentCanvasId, viewingMode, pagedOffset, getSelectedChoice, }: GetViewerTileSourcesParams): PositionedTileSource[] | null;
 
 // ======================================================================
 // FILE: dist/utils/structures.d.ts
 // ======================================================================
 /**
- * Utility for parsing IIIF Presentation 3.0 `structures` (Ranges)
- * into a flat tree suitable for rendering a table of contents.
- *
- * IIIF v3 structures are an array of Range objects at the manifest root.
- * Each Range has `items` which may be Canvases or nested Ranges.
- *
- * IIIF v2 structures use `structures` with `@type: "sc:Range"` and
- * `canvases` / `ranges` arrays.
+ * Parses a manifest's `structures` (Ranges) into a flat tree for a table of
+ * contents. IIIF v3 Ranges nest via `items`; IIIF v2 Ranges use `@type:
+ * "sc:Range"` with `canvases` / `ranges` arrays.
  */
+import type { IiifTemporalFragment } from './iiifTime';
 export interface StructureNode {
     /** Range id */
     id: string;
@@ -6477,6 +7726,13 @@ export interface StructureNode {
     depth: number;
     /** Canvas IDs directly referenced by this range (not children) */
     canvasIds: string[];
+    /**
+     * The `#t=` media time each entry of {@link canvasIds} was targeted at,
+     * index-aligned with it and `null` where the target carried no time. A
+     * range that targets the same canvas twice at different times — the shape
+     * chapters of a single recording take — appears twice in both arrays.
+     */
+    canvasTimes: (IiifTemporalFragment | null)[];
     /** Nested child ranges */
     children: StructureNode[];
 }
@@ -6487,18 +7743,8 @@ export interface StructureNode {
  * are handled below. Returns an array of top-level StructureNodes.
  */
 export declare function parseStructures(manifest: any): StructureNode[];
-/**
- * Given a canvas ID and a list of structure nodes, find the first
- * range node that directly contains the given canvas.
- */
 export declare function findRangeForCanvas(canvasId: string, nodes: StructureNode[]): StructureNode | null;
-/**
- * Whether a structure node directly contains the given canvas.
- */
 export declare function isStructureNodeActive(node: StructureNode, canvasId: string | null): boolean;
-/**
- * Get the top-level sequence node index for a structure node id.
- */
 export declare function getSequenceNodeIndexById(nodes: StructureNode[], nodeId: string): number | undefined;
 
 // ======================================================================

@@ -16,8 +16,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *
  * The UI is Svelte, but Svelte is BUNDLED IN (not externalized to a global) in
  * BOTH formats so the plugin shares neither a Svelte runtime nor `svelte/internal`
- * with core (SPEC.md — "Core and browser plugins do not share a Svelte runtime
- * or import private `svelte/internal` modules"). `emitCss: false` keeps any
+ * with core. `svelte/internal` is private, unversioned API, and this plugin is
+ * released independently of core, so a consumer can pair any plugin version with any
+ * core version — a shared runtime would break on the first version skew. `emitCss: false` keeps any
  * component CSS in the JS; this plugin installs its styles through the SDK style
  * service, so the built output ships no stylesheet.
  *
@@ -30,7 +31,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *   core's graph) is installed alongside the plugin and resolved the same way, so
  *   a core-only install never pays for it.
  * - IIFE (`iife.js`): everything is bundled so the `<script>`-loadable file is
- *   fully self-contained (SPEC.md — "self-contained no-bundler IIFE"). The
+ *   fully self-contained: a script-tag consumer has no bundler to resolve peers
+ *   with, so nothing may be left external. The
  *   `triiiceratops/image-export` seam is framework-neutral (no `svelte/internal`),
  *   so bundling it keeps the IIFE runtime-sharing clean; `pdf-lib` is bundled too.
  */

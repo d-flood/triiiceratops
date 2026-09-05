@@ -237,6 +237,10 @@ export function createExamplePlugin() {
         // There is no `position` field here — a panel's dock side is chosen
         // by the consuming app, not the plugin. See "Panel position" below.
         dismiss: 'light', // flyout dismiss: 'light' (default) or 'explicit'; ignored for panels
+        fills: false, // true gives the panel the height left over in its column
+        // and scrolls it there, instead of sizing it to its content. For a body
+        // that runs long (a list or a document); a short panel would only
+        // stretch. Ignored for flyouts.
         catalog: { en: { example_title: 'Example' } }, // package-owned localization
         view: {
             mount(container, context) {
@@ -316,19 +320,34 @@ example wired up in each supported framework:
 
 In module builds you can also activate a plugin explicitly against a live
 `ViewerState`, without going through the viewer component — this is what the
-[test kit](plugin-testing.md) uses, and what you'd reach for to activate a
-plugin outside of `TriiiceratopsViewer` (a custom host, a manual test, a
-one-off script):
+[test kit](plugin-testing.md) uses, and what you'd reach for in a test or a
+manual harness (a scratch page, a one-off script):
 
 The constructible `ViewerState` class comes from `triiiceratops/svelte` and needs
 the `svelte` peer installed — it is the same class the viewer component itself
 uses. For **tests**, prefer `createHeadlessViewerState()` from the
 [test kit](plugin-testing.md), which needs no Svelte.
 
+You supply the whole host, services included: `styles`, `locale`, `ui`,
+`surface`, and the `reportError` channel every guarded phase failure is routed
+to. Core builds real, per-viewer ones for each activation it runs, and a real
+custom host does the same — it implements the four services against its own
+chrome. The snippet below is a test/harness example instead: it fills them with
+the test kit's `createStub*` helpers, which are inert placeholders from
+`@triiiceratops/plugin-sdk/testing` — a dev dependency that does not belong in
+shipped code. In a test, `createTestViewerContext()` hands you recording doubles
+worth asserting against.
+
 ```ts
 import { CORE_VERSION, pluginApiVersion, capabilities } from 'triiiceratops';
 import { ViewerState } from 'triiiceratops/svelte';
 import { activatePlugin } from '@triiiceratops/plugin-sdk';
+import {
+    createStubLocaleService,
+    createStubStyleService,
+    createStubSurfaceService,
+    createStubUiService,
+} from '@triiiceratops/plugin-sdk/testing';
 import { createExamplePlugin } from './my-plugin';
 
 const state = new ViewerState();
@@ -338,6 +357,14 @@ const activation = activatePlugin(createExamplePlugin(), {
     coreVersion: CORE_VERSION,
     pluginApiVersion,
     capabilities,
+    styles: createStubStyleService(),
+    locale: createStubLocaleService(),
+    ui: createStubUiService(),
+    // No chrome to hide the plugin, so the stub surface reports itself open.
+    surface: createStubSurfaceService('example'),
+    reportError: (report) => {
+        console.error(report.phase, report.error);
+    },
 });
 
 // Later:
@@ -371,6 +398,56 @@ side-effect-free and does not activate anything; the host's core build
 discovers and activates registered plugins by name. If two scripts register
 the same plugin name with different versions, the first registration wins and
 the second logs a console warning.
+
+**Bundle your own Svelte runtime** (or whichever framework you build the UI in).
+Core does publish a curated set of `svelte/internal/client` helpers on
+`window.Triiiceratops`, and the first-party `@triiiceratops/plugin-av` consumes
+them instead of shipping a second copy — but `svelte/internal` is private,
+unversioned API, and that plugin can only rely on it because it is built and
+released from core's own repository at core's own Svelte version, and pins
+`coreRange` to an exact core version to say so. A plugin released on its own
+schedule has no such guarantee and would break on the first skew, so bundling is
+the right answer for everybody outside this repository. Your IIFE then loads in
+any order relative to core's.
+
+**Bundle your own copies of core's utilities too.** The same first-party
+exception covers a second curated namespace member, `window.Triiiceratops.core`,
+carrying a handful of core's own functions — `getPaintingAnnotations`,
+`isImageBody`, `paintingBodyAlternatives`, `isUnsupportedCanvasFor` — which
+`@triiiceratops/plugin-av`'s IIFE reads instead of bundling the painting
+classifier and the IIIF parsing helpers behind them a second time. The privilege
+is the same one and it holds for the same single reason: core and that plugin are
+built and released together, at one version, from one repository, so the list can
+change with core's own release rather than being a public contract. It is not one
+for a plugin on its own release schedule. Import what you need from
+`triiiceratops` and let your bundler include it, and do not declare
+`shared-core-utils`.
+
+What makes the arrangement safe on the inside is a build gate, and it is worth
+knowing why it has to exist. The list core publishes is **curated** — 11
+`svelte/internal/client` helpers under `svelteInternal`, alongside `mount`,
+`unmount` and `getContext`, for 14 names in all — never `export *`, because
+re-exporting the namespace wholesale defeats tree-shaking and was measured at
++8,837 gzip on core. A plugin that compiles to a
+helper outside that list does not fail to build and does not fail its unit tests
+(those mount against the real `svelte/internal`); it throws at mount in a real
+browser. One bare text child of a component — `<Button>CC</Button>`, which
+compiles to `next()` — did exactly that once, and killed a whole transport while
+every gate stayed green. So `check-shared-runtime.mjs` now reads the helpers the
+*built* bundle references back out of the minified output and fails the build if
+any of them is unpublished.
+
+Know its limits before you lean on it. It is a **regex scan over minified
+text**, not a parse, and that cuts both ways. It reported a clean pass on every
+helper it was ever given until a fix to how it escapes minified locals: a local
+the minifier had spelled with a `$` matched nothing, and a gate that resolves no
+locals resolves no helpers — which has exactly the shape of a pass. In the other
+direction it cannot tell code from data, so a literal `.svelteInternal.<name>`
+inside a string will be reported as a reference that is not one. If you are
+considering the same trick in your own monorepo: the gate is not optional
+decoration, and it is what makes a private-API dependency reviewable at all —
+but it is a heuristic backed by a real browser mount, not a proof, and it is
+worth mounting the thing before you believe it.
 
 ## Reading and controlling state
 
@@ -469,6 +546,128 @@ Notifications are **batched** and carry no payload — a notification means "sta
 changed, read what you need," not a transition log. Subscribers read the current
 value rather than reconstructing intermediate states.
 
+### Publishing state for hosts to command you through
+
+Selectors let *you* read the viewer. **Published state** is the other direction:
+one object your activation exposes so the host application, a framework wrapper,
+or another plugin can command your plugin — the parity rule, one level down. A
+plugin that renders a panel and nothing else needs none of this. A plugin whose
+behavior a host would reasonably want to drive from its own chrome does: the
+first-party `@triiiceratops/plugin-av` publishes playback (`play`, `pause`,
+`seek`, the playhead) so an application's own transport can control the viewer's
+media.
+
+`context.publishState(state)` publishes it. An activation publishes **at most
+one** object — publishing again supersedes the previous one — and the publication
+lives exactly as long as the activation: core retires it on deactivation, on a
+failure, and while a retry is in flight, so a host asking during any of those
+gets `null` rather than a stale object. Do not export the state from your package
+for a host to import; the viewer is the only way in.
+
+```ts
+import type { PluginContext, PublishedState } from 'triiiceratops';
+
+interface CounterState extends PublishedState {
+    increment(): void;
+    readonly count: number;
+}
+
+function publish(context: PluginContext) {
+    let count = 0;
+    const listeners = new Set<() => void>();
+
+    const state: CounterState = {
+        // Commands maintain the invariants; nothing outside writes `count`.
+        increment() {
+            count += 1;
+            for (const listener of listeners) listener();
+        },
+        get count() {
+            return count;
+        },
+        subscribe(listener: () => void) {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        },
+        // Every member above, classified. The seam's own members are not.
+        stateInventory: { increment: 'command', count: 'observable' },
+    };
+
+    context.publishState(state);
+}
+```
+
+**Every member is classified**, in a `stateInventory` table keyed by member name,
+using the same taxonomy the viewer's own state follows:
+
+- `command` — a method that maintains your invariants. Anything a host can
+  change is a command; there is no writable property on a published state.
+- `observable` — a value that notifies through `subscribe`. Notifications are
+  **batched and payload-free**, exactly as the viewer's are: a notification means
+  "something changed, read what you need."
+- `queryOnly` — a high-frequency value that deliberately does *not* notify,
+  because notifying per change would be a storm. A playhead is the archetype: it
+  moves sixty times a second, and a host reads it on the finer
+  `subscribeFrame` cadence or on its own schedule.
+
+`subscribe`, the optional `subscribeFrame`, and `stateInventory` itself are the
+seam, not state, so they are not classified. Any *other* member missing from the
+table fails conformance — including inherited accessors and methods, if your
+state is a class instance.
+
+A published state is a `SelectorSource`. The selector runtime's only
+requirements on its source are `subscribe`, an optional finer-cadence
+`subscribeFrame`, and synchronous reads — so the **same** runtime that backs
+viewer-state selectors works over a published state unchanged, and a host can
+build one with `createSelectorRuntime(published)` from the
+`triiiceratops/selectors` entry point. There is no second reactivity system to
+learn, and a `frame`-cadence projection over a `queryOnly` member is served from
+`subscribeFrame` when you supply one.
+
+What is generalized is the runtime, not the ready-made bindings: `context.selectors`
+is typed `ViewerSelectors` and projects viewer state only, and React's and Vue's
+`useViewerSelector` take a viewer handle with no published-state overload.
+(Svelte needs no selector API at all — see [the Svelte guide](svelte.md).) So a
+host selecting over a published state instantiates the runtime itself rather
+than reaching for a wrapper hook.
+
+Hosts reach it with `viewerState.getPluginState(pluginId)`, which returns
+`unknown` — core cannot know your type — so ship a small typed accessor beside
+your plugin that narrows it, and export only the *type* of the state:
+
+```ts
+import type { PublishedState } from 'triiiceratops';
+
+interface CounterState extends PublishedState {
+    increment(): void;
+    readonly count: number;
+}
+
+export function getCounterState(viewerState: {
+    getPluginState(pluginId: string): unknown;
+}): CounterState | null {
+    const published = viewerState.getPluginState('counter');
+    // Structural, not `instanceof`: the object crossed a package boundary.
+    return published !== null &&
+        typeof published === 'object' &&
+        typeof (published as CounterState).increment === 'function'
+        ? (published as CounterState)
+        : null;
+}
+```
+
+Declare `published-state` in `requiredCapabilities` if you call `publishState`.
+`runPluginConformance` then verifies that whatever your plugin publishes declares
+a `stateInventory`, that the table classifies every member and names only real
+ones, and — as a spot check — that *some* subscriber is woken when an observable
+member's value changes across a flush. Read that last one narrowly: it proves
+only that a notification arrived, not which member it was for, and the kit does
+not check that you declared the capability at all, since its own harness
+activates with `requiredCapabilities: []`. A plugin that publishes nothing passes
+these checks vacuously. Hosts that want to render controls only
+while a plugin is live can watch the set of published states, which is itself a
+notifying member of the viewer's inventory.
+
 ### Knowing whether your panel or flyout is open
 
 Core mounts your plugin **once per viewer**, into a content element it moves in
@@ -530,10 +729,20 @@ function surfaceControls(context: PluginContext) {
 }
 ```
 
+If your panel's content is a fact about the current canvas — captions, timed
+annotations, a transcript — declare it with `surface.setAvailable(false)` when
+there is none, and `true` when there is. That hides your toolbar button, so a
+canvas with nothing to show grows no control that opens an empty panel; it is the
+gating core's own annotations and structures buttons have. An open surface is
+closed as it goes, so nothing is left on screen with no way to dismiss it. Call
+it whenever the fact changes — a canvas change, a track that settles on the
+network — from wherever you already compute what the panel renders, so the button
+and the body cannot disagree.
+
 When a plugin is activated with no chrome at all — a bare `runActivation` into a
-container you placed yourself — `surface.isOpen` is `true` and the movers are
-no-ops: there is nothing that could be hiding your UI, so surface-gated work
-runs.
+container you placed yourself, with the test kit's `createStubSurfaceService()`
+for a surface — `isOpen` is `true` and the movers are no-ops: there is nothing
+that could be hiding your UI, so surface-gated work runs.
 
 ### The viewport
 
@@ -685,7 +894,11 @@ in layout order — one canvas in `individuals`, the **whole spread** in `paged`
 and the folios the viewport meets in `continuous`. It is observable state that
 core writes and republishes when the set *changes*, not per frame, so it is safe
 to subscribe to. Read `annotatableCanvasIds` for the same list with a fallback to
-the current canvas before a renderer has answered.
+the current canvas before a renderer has answered, and with every canvas under a
+**canvas claim** removed — the claimant owns what is rendered there, so core has
+no painting of its own for a comment to be anchored against. Its array identity
+is stable while the ids are unchanged, so it is safe to hand straight to a React
+`getSnapshot`.
 
 Prefer it to `canvasId` for anything drawn over the image. `canvasId` is the
 canvas last **navigated** to, which in continuous mode is not what is on screen
@@ -796,6 +1009,14 @@ contract, not a coincidence: a projected point is already the container's own
 coordinates, so no rect correction, no `getBoundingClientRect`, no offset
 arithmetic.
 
+**The container itself is `display: contents`, so it has no box of its own**: its
+`clientWidth`/`clientHeight` and its `getBoundingClientRect()` are all zero, and
+it is the wrapper core puts it in that is the positioning box your absolutely
+positioned children resolve against. Position children against
+`canvasToScreen` output as above; if you need the visible extent (to clip a
+backing store, say), walk up from the container to the first ancestor that has a
+box rather than measuring the container.
+
 ```ts
 import type { PluginContext } from 'triiiceratops';
 
@@ -876,11 +1097,181 @@ thousand tick marks no one clicks. Both hooks exist because the substrates diffe
 not because one is on its way out ([ADR
 0016](adr/0016-overlay-layers-are-dom-and-the-paint-hook-stays.md)).
 
+**"Decoration" does not always mean "the paint hook", though.** The paint hook
+draws into the *renderer's* canvas, and every overlay layer stacks above it — so
+if your decoration belongs on top of opaque DOM you put there yourself, painting
+it through the hook draws it correctly and leaves it invisible behind your own
+box. `@triiiceratops/plugin-av`'s waveform is that case: it sits over an opaque
+media stage, so it is a `<canvas>` nested inside the overlay layer's timeline
+lane rather than a paint layer. ADR 0016's rule is about the DOM/pixels split,
+not about which API the pixels come from; the operable geometry is still DOM
+(a real slider and the lane's own tap handling), and the pixels are still
+decoration over it.
+
+### Taking over a canvas: the canvas claim
+
+Some canvases describe content core cannot display — a film, a sound recording, a
+3D model. Core is honest about them: it paints no pixels, asks for nothing over
+the network, and shows a labelled "this viewer cannot display this" box over the
+canvas's rect, with a glyph rather than a broken picture in the thumbnail strip.
+That is the **unsupported presentation**.
+
+`viewerState.claimCanvas(canvasId, pluginId)` takes that canvas's non-image
+content over. It returns an idempotent release, and its effect is to suppress the
+unsupported presentation and its strip glyph for that canvas, leaving a clean box
+for you to render into through an overlay layer, the paint hook, or both. It
+carries no payload: no render callback, no options. Core goes on painting the
+canvas's *image* bodies through the tile pipeline (which is what makes a
+composite image+video canvas compose), and layout, navigation, residency, and
+`canvasToScreen` never learn a claim exists.
+
+The one thing beyond the placard that a claim moves is the annotation scope: a
+claimed canvas leaves `annotatableCanvasIds`, because core is no longer painting
+anything there for a comment to be anchored against. Every annotation surface
+reads that list — the panel, the overlays, and the annotation editor's drawing
+layer — so the reader is not offered a rectangle tool over your video.
+
+**Pass `context.surface.id` as `pluginId` — never a literal, and never your
+package name.** It is the id the viewer knows you by, the same value your overlay
+layer ids are prefixed with, and it is checked: a claim naming an id no plugin of
+this viewer answers to is **refused**, on the `viewererror` channel with
+`scope: 'plugin'` and `code: 'canvas-claim-refused'`. The check is there because
+that id is what releases your claim if your plugin goes away without releasing it
+itself; a claim under a name nothing will ever unregister would outlive your
+activation silently, leaving a canvas with no placard and nothing rendering over
+it for the rest of the session.
+
+**One claimant per canvas.** A second claim on a canvas somebody already holds is
+refused through the same channel and the first claimant keeps it — claiming is
+not last-writer-wins, so a plugin cannot take a canvas another one is already
+rendering into. A refused call still hands back a dispose, so you never have to
+branch on whether your claim was accepted; it is simply a no-op.
+
+**Release from your own `view.mount` cleanup.** Core releases whatever you left
+behind when your plugin is deactivated, retried, or fails to mount — the same
+backstop your overlay layers get — and doing both is safe.
+
+A claim against a canvas id the current manifest does not carry is **inert and
+kept**, and applies if that id appears later: you claim from inside your mount,
+which may well run before the manifest you care about is loaded.
+
+To decide *which* canvases are yours, ask core's own classifier rather than
+typing bodies yourself — `isUnsupportedCanvas(canvas)` is exactly the question
+core answers when it decides to show the placard, so the two cannot drift apart.
+`isImageBody` and `paintingBodyAlternatives` are exported beside it for when you
+need the individual bodies (which medium, which Choice alternative).
+
+```ts
+import { isUnsupportedCanvas, type PluginContext } from 'triiiceratops';
+
+function claimMine(context: PluginContext) {
+    const releases = context.viewerState.canvases
+        .filter((canvas) => isUnsupportedCanvas(canvas))
+        .map((canvas) =>
+            context.viewerState.claimCanvas(
+                canvas.id ?? canvas['@id'],
+                // The id the viewer knows this plugin by — never a literal.
+                context.surface.id,
+            ),
+        );
+
+    return () => releases.forEach((release) => release());
+}
+```
+
+Declare `canvas-claim` in `requiredCapabilities` if you call this, so your plugin
+fails closed on a core that predates the seam instead of activating and rendering
+over a placard it cannot suppress.
+
+### The second half of a claim: the companion phase
+
+A claim on its own paints nothing, but a claimed canvas often *has* a picture to
+show — IIIF gives a canvas two ordinary Presentation 3 properties for it,
+`placeholderCanvas` (what to show before the content starts) and
+`accompanyingCanvas` (what to show alongside it). Both are **Canvases**, and core
+paints them for you.
+
+`viewerState.setCompanionPhase(canvasId, pluginId, phase)` says which one core
+should paint into that canvas's rect right now:
+
+| Phase | What core paints |
+| --- | --- |
+| `'placeholder'` | the canvas's `placeholderCanvas` |
+| `'accompanying'` | its `accompanyingCanvas` |
+| `'none'` | nothing — but the rect the companion established is kept |
+| *never called* | nothing, and the canvas's descriptor is untouched |
+
+The phase **names** a property; it never carries one. Core reads the vocabulary
+itself and resolves the companion through the same descriptor builder every other
+canvas goes through, so a companion deep-zooms to whatever its image service
+serves, pans with the viewer's own gestures, and honours Choice bodies, region
+placements and both id spellings for free. Nothing crosses the seam but the enum —
+there is no way to hand core a Canvas, deliberately.
+
+Your only contribution is **timing**, because that is the one thing core cannot
+know. A media plugin's schedule is the obvious shape: `'placeholder'` when it
+claims, `'accompanying'` (or an explicit `'none'`) the moment playback really
+starts.
+
+Four rules worth knowing before you wire it up:
+
+- **Only the canvas's claimant may set a phase.** An unclaimed canvas, a canvas
+  another plugin holds, an id no plugin of this viewer answers to, or an
+  unrecognized phase string is refused on the `viewererror` channel with
+  `code: 'canvas-claim-refused'`, exactly as a refused claim is, and leaves the
+  stored phase alone. A typo is reported rather than quietly turning painting off.
+- **A phase is released with the claim** — by the claim's own dispose and by the
+  same deactivation backstops. There is no second release to forget.
+- **Never called is not `'none'`.** Never calling leaves the canvas's descriptor
+  exactly as it would be with no claimant at all. An explicit `'none'` keeps the
+  rect the companion established and paints nothing into it — which is what stops a
+  phase change from reflowing the page mid-playback. Geometry is decided once, from
+  whichever companion resolved to something requestable, and never by the phase.
+- **There is no fallback between the two.** A phase naming a property the canvas
+  does not have paints nothing, because only you know which one you meant.
+
+```ts
+// In the claimant, once playback has a frame to show.
+context.viewerState.setCompanionPhase(
+    canvasId,
+    context.surface.id, // the same id you claimed with
+    'accompanying',
+);
+```
+
+`viewerState.isPaintingCompanion(canvasId)` is the read for your own chrome — a
+recording with a picture in its rect needs different lanes from one without. It is
+reactive inside a Svelte host (the storage is a `SvelteMap`), but it is classified
+`internal` and therefore **never notifies**, so a host watching through
+`subscribe()` has to poll it.
+
+This is part of the `canvas-claim` capability; there is nothing extra to declare.
+
 ### Capabilities
 
 `requiredCapabilities` is normally `[]`. Capability negotiation exists for
-genuinely optional runtime features, and core's 1.0 line declares none: a plugin
-states which *core* it works with through `coreRange`. A plugin requiring a
+genuinely optional runtime features, not for versions: a plugin states which
+*core* it works with through `coreRange`. Core declares five capabilities today:
+
+- `canvas-claim` — `ViewerState.claimCanvas`, the seam a plugin owning a
+  canvas's non-image content builds on, and with it `setCompanionPhase` and
+  `isPaintingCompanion`.
+- `published-state` — `PluginContext.publishState`, which a host reads back
+  through `viewerState.getPluginState(pluginId)`.
+- `shared-svelte-runtime` — the curated Svelte helpers core publishes on
+  `window.Triiiceratops`. A third-party plugin bundles its own runtime and must
+  not declare this.
+- `shared-core-utils` — the curated core utilities core publishes on
+  `window.Triiiceratops.core`. Also first-party only: a third-party plugin
+  bundles its own copies and must not declare this.
+- `transport-chrome` — `ViewerState.registerTransportChrome`, which takes a view
+  model of playback facts and a port of playback commands and renders them as
+  playback controls in core's own control bar. Declare it if the only playback
+  chrome your plugin has is the one core renders, so a core too old to render it
+  refuses activation instead of mounting a plugin whose controls never appear.
+
+Declare one only if your plugin calls that seam, so it fails closed on a viewer
+that predates it instead of silently doing nothing. A plugin requiring a
 capability the host does not declare fails activation — which is what happens to
 anything still asking for the retired `osd@5`.
 

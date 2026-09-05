@@ -12,7 +12,10 @@
  * `vite.config.element.ts` and `vite.config.element-esm.ts`. The
  * `svelte-package` path (`svelte.config.js`) deliberately does NOT get it:
  * Svelte consumers keep receiving commented, readable CSS and minify it with
- * their own bundler.
+ * their own bundler. It is also imported directly, outside the preprocessor
+ * shape, by `packages/plugin-av/vite.config.ts`, which runs it over the plain
+ * `.css` files that package pulls into its IIFE as `?raw` strings — a bundle
+ * with the same gap and the same reason to close it.
  *
  * The transformation is deliberately narrow, because the output is never
  * re-parsed by anything that would catch a mistake:

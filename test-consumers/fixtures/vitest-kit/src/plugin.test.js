@@ -36,6 +36,10 @@ describe('demo plugin against the real compiled headless viewer state', () => {
             styles: tc.styles,
             locale: tc.locale,
             ui: tc.ui,
+            surface: tc.surface,
+            reportError: (report) => {
+                throw report.error;
+            },
         });
 
         const label = container.querySelector('[data-testid="state"]');

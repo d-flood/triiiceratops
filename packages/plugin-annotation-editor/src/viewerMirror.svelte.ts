@@ -5,7 +5,8 @@
  * OWN Svelte runtime) reads `viewerState.canvasId` inside an `$effect`, no
  * dependency is registered because the two reactivity graphs don't cross. The
  * plugin therefore mirrors the handful of fields its UI reacts to
- * (`manifestId`, `canvasId`) into plugin-runtime `$state`, kept in
+ * (`manifestId`, `canvasId`, `annotatableCanvasIds`) into plugin-runtime
+ * `$state`, kept in
  * sync through the framework-neutral `ViewerState.subscribe` fan-out. Every other
  * member/method (queries, display sync, the annotation-edit bus, the style root)
  * delegates straight to the real state, so a mirror is a drop-in `ViewerState`
@@ -19,11 +20,19 @@ export class ViewerStateMirror {
 
     manifestId = $state<string | null>(null);
     canvasId = $state<string | null>(null);
+    /**
+     * Raw rather than deeply reactive: core replaces the array wholesale, and a
+     * `$state` proxy would never compare equal to the source's own reference,
+     * so the gate below could not tell an unchanged list from a new one. Core
+     * keeps that reference stable while the ids are unchanged.
+     */
+    annotatableCanvasIds = $state.raw<string[]>([]);
 
     constructor(real: ViewerState) {
         this.#real = real;
         this.manifestId = real.manifestId;
         this.canvasId = real.canvasId;
+        this.annotatableCanvasIds = real.annotatableCanvasIds;
         // Batched notifications carry no payload; re-read and gate each mirror
         // field so an unrelated change doesn't churn plugin reactivity.
         this.#unsubscribe = real.subscribe(() => {
@@ -32,6 +41,9 @@ export class ViewerStateMirror {
             }
             if (this.canvasId !== real.canvasId) {
                 this.canvasId = real.canvasId;
+            }
+            if (this.annotatableCanvasIds !== real.annotatableCanvasIds) {
+                this.annotatableCanvasIds = real.annotatableCanvasIds;
             }
         });
     }

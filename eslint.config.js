@@ -4,6 +4,7 @@ import svelte from 'eslint-plugin-svelte';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
+import demoBoundary from './eslint.boundaries.js';
 
 export default ts.config(
     js.configs.recommended,
@@ -47,6 +48,13 @@ export default ts.config(
             // renumbers every later file, re-staging them and surfacing warnings
             // that had nothing to do with the change.
             'test-consumers/fixtures/docs-examples/generated/',
+            // Generated e2e media (packages/core/tests/media/). The HLS
+            // segments are MPEG-TS bytes in `.ts` files, which every TypeScript
+            // tool in the chain tries to parse. The leading `**/` is
+            // load-bearing: ESLint resolves ignore patterns against the cwd,
+            // and this config is used both from `packages/core` and from the
+            // repo root, where `scripts/pre-commit.sh` lints staged paths.
+            '**/tests/media/',
         ],
     },
     {
@@ -73,4 +81,9 @@ export default ts.config(
             'svelte/prefer-svelte-reactivity': 'warn',
         },
     },
+    // `scripts/pre-commit.sh` lints staged paths from the repo root, where this
+    // config — not `packages/core/eslint.config.js` — is the one ESLint loads,
+    // so core's boundary rules have to be reachable from here too, anchored to
+    // the package's path instead of to its own directory.
+    ...demoBoundary('packages/core/'),
 );

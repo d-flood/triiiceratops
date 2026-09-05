@@ -6,13 +6,24 @@ export function getResourceId(resource: any): string | null {
 
 /**
  * A IIIF reference may be a bare id string (common in Presentation 2.x, e.g. a
- * sequence's `startCanvas`) or an object carrying `id`/`@id`. Returns the id
- * either way.
+ * sequence's `startCanvas`), an object carrying `id`/`@id`, or a
+ * `SpecificResource` naming its referent through `source`. Returns the id of
+ * the resource referred to in every case.
  */
 export function getReferenceId(reference: unknown): string | null {
     if (typeof reference === 'string') {
         return reference || null;
     }
+
+    // A SpecificResource's own `id` names the selection, not the resource it
+    // selects from, so `source` wins wherever both are present. (Cookbook
+    // 0015's `start` is exactly this shape.)
+    const source = (reference as { source?: unknown } | null | undefined)
+        ?.source;
+    if (source) {
+        return getReferenceId(source);
+    }
+
     return getResourceId(reference);
 }
 
@@ -20,9 +31,11 @@ export function getCanvasId(canvas: any): string {
     return getResourceId(canvas) || '';
 }
 
-export function getAnnotationId(annotation: any): string {
-    return annotation?.id || annotation?.['@id'] || '';
-}
+/**
+ * {@link getCanvasId} under the name its annotation callers read it by: the
+ * `id`/`@id` read is the same one, and `''` means "no id" for both.
+ */
+export const getAnnotationId = getCanvasId;
 
 export function findCanvasIndexById(
     canvases: any[],

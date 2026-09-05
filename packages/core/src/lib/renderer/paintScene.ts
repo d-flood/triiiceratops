@@ -25,7 +25,9 @@
  * config for free.
  */
 
+import type { PaintTransform } from './paintLayers';
 import type { ScenePlan, StaticImageDraw, TileKey, Viewport } from './types';
+import { viewportTransform } from './viewportMath';
 
 /** What the host has decoded and can hand the painter. */
 export interface PaintSources {
@@ -49,32 +51,19 @@ export interface PaintSources {
 }
 
 /**
- * Apply the viewport transform, so subsequent draw calls are in **canvas
- * space**.
+ * Put the context in **canvas space**, so subsequent draw calls are in the
+ * renderer's world.
  *
- * `dpr` is the backing-store ratio: the context is sized in device pixels while
- * the viewport is measured in CSS pixels, and folding the ratio into the
- * transform is what keeps every other coordinate in this file CSS-pixel-based.
- *
- * Exported because the **paint hook** must receive exactly the transform the
- * tiles were drawn with — a plugin overlay can then never desync from the
- * image.
+ * Takes the transform rather than deriving one, so that the matrix the tiles are
+ * drawn with and the matrix the **paint hook** is handed are the same value and
+ * not merely the same arithmetic — see `viewportMath.viewportTransform`.
  */
-export function applyViewportTransform(
+function applyViewportTransform(
     ctx: CanvasRenderingContext2D,
-    viewport: Viewport,
-    dpr: number,
+    transform: PaintTransform,
 ): void {
-    const scale = viewport.scale * dpr;
-
-    ctx.setTransform(
-        scale,
-        0,
-        0,
-        scale,
-        (viewport.width / 2) * dpr - viewport.centre.x * scale,
-        (viewport.height / 2) * dpr - viewport.centre.y * scale,
-    );
+    const { scale, offsetX, offsetY } = transform;
+    ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
 }
 
 function drawCanvasImage(
@@ -143,19 +132,16 @@ function drawCanvasImage(
 function drawTile(
     ctx: CanvasRenderingContext2D,
     box: { x: number; y: number; width: number; height: number },
-    viewport: Viewport,
-    dpr: number,
+    transform: PaintTransform,
     image: CanvasImageSource,
     snap: boolean,
 ): void {
-    const scale = viewport.scale * dpr;
-    const originX = (viewport.width / 2) * dpr - viewport.centre.x * scale;
-    const originY = (viewport.height / 2) * dpr - viewport.centre.y * scale;
+    const { scale, offsetX, offsetY } = transform;
 
-    const left = box.x * scale + originX;
-    const top = box.y * scale + originY;
-    const right = (box.x + box.width) * scale + originX;
-    const bottom = (box.y + box.height) * scale + originY;
+    const left = box.x * scale + offsetX;
+    const top = box.y * scale + offsetY;
+    const right = (box.x + box.width) * scale + offsetX;
+    const bottom = (box.y + box.height) * scale + offsetY;
 
     if (snap) {
         const l = Math.round(left);
@@ -197,7 +183,8 @@ export function paintScene(
     // theme switching work with no JS involvement.
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    applyViewportTransform(ctx, viewport, dpr);
+    const transform = viewportTransform(viewport, dpr);
+    applyViewportTransform(ctx, transform);
 
     // **One pass, in the plan's paint order, over both lists at once.**
     //
@@ -233,7 +220,7 @@ export function paintScene(
             const image = sources.images[placement.key];
             if (!image) continue;
             if (inDeviceSpace) {
-                applyViewportTransform(ctx, viewport, dpr);
+                applyViewportTransform(ctx, transform);
                 inDeviceSpace = false;
             }
             drawCanvasImage(ctx, placement, image);
@@ -247,10 +234,10 @@ export function paintScene(
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             inDeviceSpace = true;
         }
-        drawTile(ctx, draw, viewport, dpr, tile, viewStable);
+        drawTile(ctx, draw, transform, tile, viewStable);
     }
 
     // Left in the viewport transform whatever was painted: the **paint hook**
     // must receive exactly the transform the tiles were drawn with.
-    applyViewportTransform(ctx, viewport, dpr);
+    applyViewportTransform(ctx, transform);
 }

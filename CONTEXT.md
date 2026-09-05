@@ -160,10 +160,11 @@ isolated selector runtime for their viewer state.
 
 **Selector cadence**:
 Which notification wakes a selector: `state` (the default — the batched, inventoried
-member watcher) or `frame` (the renderer's own animation events). Projection,
-memoization, equality gating, and disposal are identical in both; only the wake-up
-differs. Frame cadence is how continuous viewport values are read reactively without
-mirroring them into viewer state.
+member watcher) or `frame` (the source's own finer-grained notification — the
+renderer's animation events for viewer state, the plugin's own tick for published
+state). Projection, memoization, equality gating, and disposal are identical in both;
+only the wake-up differs. Frame cadence is how continuous values are read reactively
+without mirroring them into the notifying state they would otherwise flood.
 _Avoid_: unbatched notification, polling (frame cadence is event-driven, not a loop)
 
 **Query-only state**:
@@ -262,6 +263,106 @@ unsupported: past that the reader's zoom floor and the pan constraint cut into t
 the inset is honoured in direction but not in full.
 _Avoid_: margin, padding (both suggest a box model rather than a fit target)
 
+**Docked chrome**:
+Chrome core has docked beside the viewer that takes width or height from it: a side
+panel column, the toolbar docked as a rail, a top or bottom gallery band. A plugin
+flyout and an expanded gallery are not docked chrome — they float over the viewer and
+take no extent from it — and neither is a window resize, which core did not cause. The
+distinction is _why_ the surface changed, not that it did, and it is what selects
+between **surface compensation** and the preserve-scale response to a resize.
+_Avoid_: sidebar, panel (either names one member and misses the rail and the band),
+overlay chrome (that is the floating kind, which is the opposite)
+
+**Surface compensation**:
+What the renderer does when **docked chrome** takes surface away or gives it back: it
+preserves the canvas-space extent visible on the axis that changed, bounded by the whole
+canvas, and leaves the centre alone. One new scale, `scale * min(next / previous)` over the
+changed axes only, floored at the smaller of the reader's scale and the fit of the
+arriving surface, and — for a reader at or under the fit of the DEPARTING surface —
+capped at the fit of the arriving one. The floor is a lower bound on the result, not a
+promise about where a reader ends up: narrowing a surface leaves a reader who was already
+below the arriving fit exactly where they were. The two fits are named separately because
+gating on the wrong one is the easy mistake, and the reason this rule takes both as
+arguments: gating the cap on the ARRIVING fit would drag a genuinely zoomed-in reader
+down to it whenever the surface widens. The centre needs no adjustment
+because it is a canvas-space point; it goes through the usual pan constraint and nothing
+more. The ratio is relative, so it composes exactly across a slide's frames: twelve
+intermediate widths land where one jump to the final width lands, which is what makes a
+full animation, a coalesced observer callback and reduced motion's single step all agree.
+Two invariants hold, and are tested as properties rather than spot-checked: **no overhang
+is introduced** — a reader at or under the fit of the departing surface is at or under the
+fit of the arriving one, which is the guarantee the old absolute re-fit existed to provide
+— and **a single-axis change is exactly invertible** while the floor is inactive, so
+opening a panel and closing it returns the reader's scale and repeated toggling does not
+drift them outward.
+_Avoid_: re-fit, refit (the rule it replaced, and the thing it exists not to do),
+`compensateForReflow` (reflow compensation, a different operation: it holds a reader's
+place across a change to the world's LAYOUT, and it does move the centre)
+_Note_: five residuals are accepted rather than fixed. A simultaneous change on BOTH axes
+is not exactly invertible, because `min` over two ratios need not pick the same axis as
+`min` over their reciprocals; nothing crops either way and the round trip can only end at
+or below where it started. The centre's constraint is lossy on a widening surface, so the
+round trip is exact in scale but not always in centre for a reader parked hard against a
+pan limit. A reader parked at the zoom floor is still moved by the floor, which is derived
+from the live fit scale and so moves when the surface does. A reader BELOW the fit is
+ratcheted up to it by repeated toggling: the floor pins each narrowing to a no-op while the
+cap lets each widening apply the whole ratio, so from half the fit a portrait canvas walks
+0.5, 0.5, 0.8, 1.0 of the fit and stays there — bounded, terminating at the fit, and
+inward at every step, so neither invariant is touched. And the backing store is still
+reallocated on every frame of a slide, because the surface CSS box genuinely changes size.
+
+**World refit**:
+The renderer framing its world afresh: it resolves a fit target and writes an absolute
+scale and centre, discarding whatever view the reader had. It is a response to a change of
+**world** — a different manifest, viewing mode, reading direction, scale policy, current
+canvas, or a layout whose rects moved — and to nothing else. What it costs is why that
+list is short: a refit overwrites the reader's scale and centre, so anything that can
+trigger one is a thing that can move the reader. A change of _state_ is not a change of
+world. Opening a panel, docking a band, toggling the toolbar, or a host replacing its
+configuration object leave the framed world exactly where it was; the surface some of them
+take is answered by **surface compensation** instead. The renderer remembers what it last
+fitted — not one key but three reads, since the current canvas reaches it as the tile
+sources' identity rather than as a member — and returns without fitting when none of them
+moved, so a stray dependency on the effect that calls it costs a wasted call rather than
+the reader's place — that guard is the backstop, and member-level notification (ADR 0008)
+is what keeps such runs rare in the first place.
+_Avoid_: reset, snap back (the symptom of an unwanted refit, not the operation), refresh
+(suggests repainting, which a refit is not)
+
+**Unsupported presentation**:
+The first-class rendering of a canvas that has painting bodies core cannot display
+(non-image bodies) and nothing renderable: the canvas keeps its layout rect and its
+place in navigation and the thumbnail strip, and paints an honest "unsupported
+content" treatment. Not an error — no retry, no negative-cache entry, no error
+channel. A canvas with both image and non-image bodies paints its images and ignores
+the rest silently; the unsupported presentation appears only when nothing is renderable.
+_Avoid_: error placeholder (that is `CanvasErrorKind`, a load failure), broken canvas
+
+**Canvas claim**:
+A plugin taking ownership of the non-image content of one canvas in one viewer
+instance. Claiming suppresses the unsupported presentation (and its thumbnail noise)
+for that canvas; on its own it changes nothing else core does — image painting bodies
+still render through the normal pipeline, and layout, navigation, and coordinate
+projection are untouched. What a claim adds is eligibility: only a claimed canvas can
+be given a **companion phase**, and only its claimant can set one. One claimant per
+canvas; a second claim is refused. Claims are keyed to the activation and released when
+it ends.
+_Avoid_: canvas takeover, render veto (a claim does not stop core's image painting)
+
+**Companion phase**:
+Which companion Canvas — `placeholderCanvas` or `accompanyingCanvas` — core paints for a
+claimed canvas right now: `'none' | 'placeholder' | 'accompanying'`. Set only by that
+canvas's claimant, and released with the claim. Core reads both companions itself and
+paints the chosen one through the ordinary image pipeline, so a companion deep-zooms and
+pans like any other canvas; the claimant's only contribution is _timing_, because knowing
+that playback has started is the one thing core cannot know. An **absent** phase is not
+`'none'`: absent passes the descriptor through untouched, while an explicit `'none'` keeps
+the adopted companion rect and paints nothing into it — so no phase transition ever
+reflows the page. Geometry is decided once, from the companion that resolved to something
+requestable, and never by the phase.
+_Avoid_: painted companion (nothing is handed over — core resolves the Canvas itself),
+companion payload (the seam deliberately carries no resource, only an enum)
+
 **Input claim**:
 A consumer temporarily owning pointer input, suppressing pan and zoom gestures for its
 duration. The gesture recogniser is built with a single arbitration point that decides
@@ -316,6 +417,108 @@ A plugin render target: a popover anchored to its toolbar button, auto-placed to
 the canvas. The compact alternative to a panel.
 _Avoid_: popup, popover (as the term of art)
 
+## AV domain
+
+**Published state**:
+A state object one plugin activation exposes to hosts and wrappers, reached only
+through viewer state (never imported from the plugin), living exactly as long as its
+activation. It follows the viewer-state taxonomy — commands, observable members,
+query-only members with a cadence — and the parity rule one level down: anything the
+plugin's own UI can do, a host can do through the published commands. The set of
+published states is itself an inventoried, notifying member of viewer state, classified
+`command` because publishing and retiring go through a supported mutator — the same
+classification the other plugin-registration members carry.
+_Avoid_: plugin store, second state surface (it hangs off viewer state, not beside it)
+
+**AVState**:
+The AV plugin's published state: playback commands (play, pause, seek, volume),
+notifying playback facts (paused, duration, buffering), and query-only continuous
+time with its own cadence. All times are canvas time on the canvas timeline, never a
+media element's own clock. Commands address the current canvas's media; a command
+against a non-AV canvas is refused, and a browser-refused `play()` surfaces as state,
+never as a thrown error.
+
+**Canvas timeline**:
+The single clock of a claimed canvas: the mapping between canvas time (0 to the
+canvas's duration) and the media segment plus element-time offset that plays it. For a
+canvas painted by one AV body it is the identity mapping; for a temporally composed
+canvas (multiple AV bodies tiling the duration via `#t=` targets) it is the segment
+map. Everything time-facing — AVState, the transport, the timeline projection,
+temporal offsets, `ended` — speaks canvas time; only the sequencer knows segments.
+_Avoid_: media time, element time (those are the segment's own clock, an
+implementation input)
+
+**Segment seam**:
+The moment playback crosses from one segment of a composed canvas to the next: the
+next element is preloaded as the boundary nears and swapped in at it, with a brief
+audible/visible gap accepted and documented. Gapless (MSE-stitched) playback is
+deliberately not the contract.
+_Avoid_: gapless transition (it is not), track change (segments are one composition,
+not alternatives)
+
+**Temporal offset**:
+The media time carried by navigation — a `#t=` fragment on a structure item, a `start`
+property, or a content-state target. Core parses and carries it exactly as it carries a
+spatial region; only the claimant interprets it, as a seek, never as autoplay. A range's
+end time is carried but not enforced.
+_Avoid_: start time (that is one source of it), timestamp
+
+**Transport**:
+The playback control UI for a claimed AV canvas — play/pause, scrubber, time display,
+volume, alternative text tracks. Rendered in the viewer's control bar beside the canvas
+navigation, driven by the claimant's published playback contract, and never drawn over
+the canvas it controls. The accessible path to every playback action; canvas-surface
+gestures and waveform taps are enhancements over it, never the only way.
+_Avoid_: player chrome, native controls (the transport deliberately replaces them)
+
+**Transport chrome**:
+The media-agnostic seam a claimant of timed media registers with core: a view model of
+playback facts (paused, position, buffered, tracks) and a port of playback commands
+(toggle, seek, set muted/volume/track), plus the icons and strings the claimant owns.
+Core renders it with its own primitives in the control bar; core learns only about a
+thing that plays, pauses, seeks and may offer alternative text tracks. Distinct from
+**Transport**, which is the reader-facing result, and from **Published state**, which is
+the host-facing contract the view model is derived from.
+_Avoid_: AV seam (it names no medium), player API
+
+**Idle chrome**:
+The control bar hiding itself while a claimed canvas plays and nothing is happening, and
+returning on any interaction — a pointer move, a key, focus arriving, or a pause. Scoped
+to manifests with claimed time-based media: with no transport chrome registered there is
+no timer and no listeners. Never in effect while playback is paused or while the bar
+holds keyboard focus, and hidden means transparent and non-interactive rather than absent
+from the accessibility tree.
+_Avoid_: autohide (accurate but says nothing about the two rules that bound it),
+fullscreen chrome (a different feature this viewer does not have)
+
+**Stage layout**:
+The claimant's allocation of its claimed canvas rect into vertical lanes, all in canvas
+space so the stack pans and zooms coherently. Chosen by **what core paints in the rect**,
+never by which element decodes the body: `video` — the picture is the media element, so
+the visual lane fills the rect; `audio-with-image` — core paints a companion Canvas there,
+so the plugin draws no lanes at all and contributes only a tap target, the play-state
+glyph and the "can't play" notice; `audio` — nothing to look at either way, so the
+timeline lane fills the rect and carries the waveform. A stage's layout can change once,
+at first play: a duration-only canvas whose only companion is a `placeholderCanvas` takes
+`audio-with-image` before play and falls to `audio` on the handover, keeping the
+companion's aspect throughout so the rect does not move.
+_Avoid_: media layout (ambiguous with the viewer's canvas layout)
+
+**Timeline projection**:
+The linear mapping between a claimed canvas's x-axis in canvas space and media time
+(canvas width ↔ duration). What makes the viewer's own pan/zoom double as temporal
+zoom, and a surface tap resolvable to a seek.
+_Avoid_: time scale, temporal zoom (that is the interaction, not the mapping)
+
+**Peaks model**:
+The single normalized in-memory representation of waveform data (min/max sample
+pairs, sample rate, samples-per-pixel, channels) that rendering consumes. Parsers for
+the on-disk formats (audiowaveform binary `.dat`, `waveform.json`) are detected by
+content, not by declared format, and normalize into it; nothing downstream knows which
+format arrived. Temporal zoom sharpens only to the data's resolution — the waveform
+never fabricates detail the file doesn't contain.
+_Avoid_: waveform file (that is the input, not the model)
+
 ## Content state domain
 
 **Content state**:
@@ -351,5 +554,7 @@ _Avoid_: content state (that is the spec artifact, not the parsed result)
 - **Host ↔ Plugin**: the host customizes via the extension (behavior), the body editor
   (body UI), and the adapter (storage).
 - **Content state → delivery → View target**: a content state (the payload) arrives
-  through a delivery channel (the `iiif-content` parameter, drag-and-drop, etc.), is
-  parsed into a view target, and the viewer loads its manifest and frames its canvas/region.
+  through a delivery channel, which the host owns — the viewer ships none. The host
+  reads the channel (the `iiif-content` parameter, a drop handler, a paste), parses the
+  payload into a view target with `parseContentState`, and drives the viewer through
+  `manifestId`/`canvasId`/`initialCanvasRegion`.

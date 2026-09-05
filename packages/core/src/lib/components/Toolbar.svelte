@@ -3,6 +3,7 @@
     import PluginIcon from './PluginIcon.svelte';
     import PluginMountHost from './PluginMountHost.svelte';
     import { getContext, onMount } from 'svelte';
+    import type { IconName } from '../generated/icons';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages, language } from '../state/i18n.svelte';
     import {
@@ -204,23 +205,23 @@
     const tooltipPlacement = $derived(
         inline
             ? navOnTop
-                ? 'bottom'
-                : 'top'
+                ? 'place-bottom'
+                : 'place-top'
             : isTop
-              ? 'bottom'
+              ? 'place-bottom'
               : position === 'left'
-                ? 'right'
-                : 'left',
+                ? 'place-right'
+                : 'place-left',
     );
 
     const openButtonTooltipPlacement = $derived(
         position === 'top-left'
-            ? 'right'
+            ? 'place-right'
             : position === 'top-right'
-              ? 'left'
+              ? 'place-left'
               : position === 'left'
-                ? 'right'
-                : 'left',
+                ? 'place-right'
+                : 'place-left',
     );
 
     // --- Standard Viewer Actions ---
@@ -230,6 +231,14 @@
     const showFullscreen = $derived(toolbarConfig.showFullscreen !== false);
     const annotationCount = $derived.by(() => {
         if (!viewerState.manifestId || !viewerState.canvasId) {
+            return 0;
+        }
+
+        // A claimed canvas has no annotation surface of core's: the panel this
+        // button opens and the overlay behind it both filter by
+        // `annotatableCanvasIds`. Counting annotations core cannot render would
+        // put a live button over an empty panel. The claimant surfaces its own.
+        if (!viewerState.annotatableCanvasIds.includes(viewerState.canvasId)) {
             return 0;
         }
 
@@ -286,6 +295,168 @@
         return annotationCount > 0 ? `${base} (${annotationCount})` : base;
     });
 
+    /**
+     * One row per built-in toolbar entry. A row naming a `flyout` has its own
+     * hand-written markup in the list below, because each menu is bespoke;
+     * every other row is rendered by the one shared button template.
+     */
+    type ToolbarEntry =
+        | {
+              key: string;
+              show: boolean;
+              flyout: 'viewing-mode' | 'gallery' | 'sequence';
+          }
+        | {
+              key: string;
+              show: boolean;
+              flyout?: undefined;
+              icon: IconName;
+              /** Hover tooltip; often shorter than the accessible name. */
+              tip: string;
+              /** Accessible name. */
+              label: string;
+              pressed: boolean;
+              /** Id of the panel this toggles, for focus return on close. */
+              panel?: string;
+              indicator?: boolean;
+              onclick: () => void;
+          };
+
+    // The built-in toolbar entries in render order. A new flyout entry belongs in
+    // this list, with its menu markup in the matching `{:else if}` branch of the
+    // `{#each}` below.
+    const toolbarEntries: ToolbarEntry[] = $derived([
+        {
+            key: 'collection',
+            show: showCollection,
+            icon: 'Folder',
+            tip: m.collection_title(),
+            label: m.toggle_collection(),
+            pressed: viewerState.showCollectionPanel,
+            panel: 'collection',
+            indicator: true,
+            onclick: () => viewerState.toggleCollectionPanel(),
+        },
+        {
+            key: 'search',
+            show: showSearch,
+            icon: 'MagnifyingGlass',
+            tip: m.search(),
+            label: m.toggle_search(),
+            pressed: viewerState.showSearchPanel,
+            panel: 'search',
+            onclick: () => viewerState.toggleSearchPanel(),
+        },
+        {
+            key: 'gallery',
+            show: showGallery,
+            flyout: 'gallery',
+        },
+        {
+            key: 'structures',
+            show: showStructures,
+            icon: 'ListBullets',
+            tip: m.structures_title(),
+            label: m.toggle_structures(),
+            pressed: viewerState.showStructuresPanel,
+            panel: 'structures',
+            onclick: () => viewerState.toggleStructuresPanel(),
+        },
+        {
+            key: 'viewing-mode',
+            show: showViewingMode,
+            flyout: 'viewing-mode',
+        },
+        {
+            key: 'sequence-picker',
+            show: showSequencePicker,
+            flyout: 'sequence',
+        },
+        {
+            key: 'fullscreen',
+            show: showFullscreen,
+            icon: viewerState.isFullScreen ? 'CornersIn' : 'CornersOut',
+            tip: viewerState.isFullScreen
+                ? m.exit_full_screen()
+                : m.enter_full_screen(),
+            label: viewerState.isFullScreen
+                ? m.exit_full_screen()
+                : m.enter_full_screen(),
+            pressed: viewerState.isFullScreen,
+            onclick: () => viewerState.toggleFullScreen(),
+        },
+        {
+            key: 'annotations',
+            show: showAnnotations,
+            icon: 'ChatCenteredText',
+            tip: annotationsTooltip,
+            label: annotationsTooltip,
+            pressed: viewerState.showAnnotations,
+            panel: 'annotations',
+            onclick: () => viewerState.toggleAnnotations(),
+        },
+        {
+            key: 'metadata',
+            show: showInfo,
+            icon: 'Info',
+            tip: m.metadata(),
+            label: m.toggle_metadata(),
+            pressed: viewerState.showMetadataPanel,
+            panel: 'metadata',
+            onclick: () => viewerState.toggleMetadataPanel(),
+        },
+    ]);
+
+    const visibleEntries = $derived(
+        toolbarEntries.filter((entry) => entry.show),
+    );
+
+    // Whether any of the configurable built-in actions is on screen — the left
+    // half of the plugin separator's condition. The sequence picker is not among
+    // them: it is manifest-driven rather than configured. Keyed off the `flyout`
+    // discriminant rather than the row's `key`, so the exclusion is checked
+    // against the union at compile time.
+    const hasBuiltInActions = $derived(
+        visibleEntries.some((entry) => entry.flyout !== 'sequence'),
+    );
+
+    // [mode, glyph, label] for the viewing-mode menu's radio items.
+    const viewingModeItems = $derived([
+        ['individuals', 'File', m.viewing_mode_individuals()],
+        ['paged', 'BookOpen', m.viewing_mode_paged()],
+        ['continuous', 'Scroll', m.viewing_mode_continuous()],
+    ] as const);
+
+    // [side, glyph, label] for the gallery menu's radio items — the four dock
+    // sides, each glyph pointing at the edge it docks to, plus the off state.
+    // 'off' is a placement in the menu's terms, not a dock side, so choosing a
+    // side implies showing the gallery and choosing 'off' hides it.
+    const galleryPlacementItems = $derived([
+        ['top', 'CaretUp', m.gallery_placement_top()],
+        ['bottom', 'CaretDown', m.gallery_placement_bottom()],
+        ['left', 'CaretLeft', m.gallery_placement_left()],
+        ['right', 'CaretRight', m.gallery_placement_right()],
+        ['off', 'EyeSlash', m.gallery_placement_off()],
+    ] as const);
+
+    /** The menu item currently checked: the dock side, or 'off' when hidden. */
+    const galleryPlacement = $derived(
+        viewerState.showThumbnailGallery ? viewerState.dockSide : 'off',
+    );
+
+    function setGalleryPlacement(placement: string) {
+        if (placement === 'off') {
+            if (viewerState.showThumbnailGallery) {
+                viewerState.toggleThumbnailGallery();
+            }
+            return;
+        }
+        viewerState.setDockSide(placement);
+        if (!viewerState.showThumbnailGallery) {
+            viewerState.toggleThumbnailGallery();
+        }
+    }
+
     let sortedPluginButtons = $derived.by(() => {
         void language.current;
         return viewerState.pluginMenuButtons
@@ -325,9 +496,9 @@
         return viewerState.pluginFlyouts.find((f) => f.domId === domId);
     }
 
-    // Built-in toolbar dropdowns (viewing mode, sequence picker) use the same
-    // non-top-layer flyout pattern as plugin flyouts, so tooltips paint above
-    // them too. Only one is open at a time.
+    // Built-in toolbar dropdowns (viewing mode, gallery, sequence
+    // picker) use the same non-top-layer flyout pattern as plugin flyouts, so
+    // tooltips paint above them too. Only one is open at a time.
     let openMenu = $state<string | null>(null);
     let toolbarRootEl: HTMLElement | undefined = $state();
 
@@ -493,7 +664,6 @@
         class:closed-top={!inline && !isOpen && isTop}
         class:closed-left={!inline && !isOpen && position === 'left'}
         class:closed-right={!inline && !isOpen && position === 'right'}
-        class:inline-open={inline && isOpen}
         class:inline-closed={inline && !isOpen}
         class:settled={inline && settled}
     >
@@ -525,304 +695,226 @@
                 </li>
             {/if}
 
-            <!-- --- Standard Actions --- -->
-
-            {#if showCollection}
-                <li>
-                    <button
-                        class="menu-item tooltip indicator {tooltipPlacement}"
-                        class:menu-active={viewerState.showCollectionPanel}
-                        data-tip={m.collection_title()}
-                        aria-label={m.toggle_collection()}
-                        aria-pressed={viewerState.showCollectionPanel}
-                        data-panel-toggle="collection"
-                        onclick={() => viewerState.toggleCollectionPanel()}
-                    >
-                        <Icon name="Folder" size={24} />
-                    </button>
-                </li>
-            {/if}
-
-            {#if showSearch}
-                <li>
-                    <button
-                        class="menu-item tooltip {tooltipPlacement}"
-                        class:menu-active={viewerState.showSearchPanel}
-                        data-tip={m.search()}
-                        aria-label={m.toggle_search()}
-                        aria-pressed={viewerState.showSearchPanel}
-                        data-panel-toggle="search"
-                        onclick={() => viewerState.toggleSearchPanel()}
-                    >
-                        <Icon name="MagnifyingGlass" size={24} />
-                    </button>
-                </li>
-            {/if}
-
-            {#if showGallery}
-                <li>
-                    <button
-                        class="menu-item tooltip {tooltipPlacement}"
-                        class:menu-active={viewerState.showThumbnailGallery}
-                        data-tip={viewerState.showThumbnailGallery
-                            ? m.hide_gallery()
-                            : m.show_gallery()}
-                        aria-label={viewerState.showThumbnailGallery
-                            ? m.hide_gallery()
-                            : m.show_gallery()}
-                        aria-pressed={viewerState.showThumbnailGallery}
-                        onclick={() => viewerState.toggleThumbnailGallery()}
-                    >
-                        <Icon name="Slideshow" size={24} />
-                    </button>
-                </li>
-            {/if}
-
-            {#if showStructures}
-                <li>
-                    <button
-                        class="menu-item tooltip {tooltipPlacement}"
-                        class:menu-active={viewerState.showStructuresPanel}
-                        data-tip={m.structures_title()}
-                        aria-label={m.toggle_structures()}
-                        aria-pressed={viewerState.showStructuresPanel}
-                        data-panel-toggle="structures"
-                        onclick={() => viewerState.toggleStructuresPanel()}
-                    >
-                        <Icon name="ListBullets" size={24} />
-                    </button>
-                </li>
-            {/if}
-
-            {#if showViewingMode}
-                <li>
-                    <button
-                        class="menu-item tooltip {tooltipPlacement}"
-                        class:menu-active={openMenu === 'viewing-mode'}
-                        data-tip={m.viewing_mode_label()}
-                        data-flyout-toggle
-                        aria-label={m.viewing_mode_label()}
-                        aria-haspopup="menu"
-                        aria-controls="tri-flyout-viewing-mode"
-                        aria-expanded={openMenu === 'viewing-mode'}
-                        style="anchor-name:--anchor-viewing-mode"
-                        onclick={() => toggleMenu('viewing-mode')}
-                    >
-                        {#if viewerState.viewingMode === 'paged'}
-                            <Icon name="BookOpen" size={24} />
-                        {:else if viewerState.viewingMode === 'continuous'}
-                            <Icon name="Scroll" size={24} />
-                        {:else}
-                            <Icon name="File" size={24} />
-                        {/if}
-                    </button>
-                    <ul
-                        id="tri-flyout-viewing-mode"
-                        data-flyout-panel
-                        role="menu"
-                        tabindex="-1"
-                        aria-label={m.viewing_mode_label()}
-                        class="menu popover-menu menu-flyout {flyoutPlacement}"
-                        class:open={openMenu === 'viewing-mode'}
-                        style="position-anchor: --anchor-viewing-mode;"
-                        onkeydown={onFlyoutMenuKeydown}
-                    >
-                        <li role="none">
-                            <button
-                                class="menu-item"
-                                role="menuitemradio"
-                                aria-checked={viewerState.viewingMode ===
-                                    'individuals'}
-                                class:menu-active={viewerState.viewingMode ===
-                                    'individuals'}
-                                onclick={() =>
-                                    viewerState.setViewingMode('individuals')}
-                            >
-                                <Icon name="File" size={16} />
-                                <span>{m.viewing_mode_individuals()}</span>
-                                {#if viewerState.viewingMode === 'individuals'}
-                                    <Icon name="Check" size={16} />
-                                {/if}
-                            </button>
-                        </li>
-                        <li role="none">
-                            <button
-                                class="menu-item"
-                                role="menuitemradio"
-                                aria-checked={viewerState.viewingMode ===
-                                    'paged'}
-                                class:menu-active={viewerState.viewingMode ===
-                                    'paged'}
-                                onclick={() =>
-                                    viewerState.setViewingMode('paged')}
-                            >
-                                <Icon name="BookOpen" size={16} />
-                                <span>{m.viewing_mode_paged()}</span>
-                                {#if viewerState.viewingMode === 'paged'}
-                                    <Icon name="Check" size={16} />
-                                {/if}
-                            </button>
-                        </li>
-                        <li role="none">
-                            <button
-                                class="menu-item"
-                                role="menuitemradio"
-                                aria-checked={viewerState.viewingMode ===
-                                    'continuous'}
-                                class:menu-active={viewerState.viewingMode ===
-                                    'continuous'}
-                                onclick={() =>
-                                    viewerState.setViewingMode('continuous')}
-                            >
-                                <Icon name="Scroll" size={16} />
-                                <span>{m.viewing_mode_continuous()}</span>
-                                {#if viewerState.viewingMode === 'continuous'}
-                                    <Icon name="Check" size={16} />
-                                {/if}
-                            </button>
-                        </li>
-                        {#if viewerState.viewingMode === 'paged'}
-                            <li role="none">
-                                <button
-                                    class="menu-item text-start"
-                                    role="menuitemcheckbox"
-                                    aria-checked={viewerState.pagedOffset === 1}
-                                    class:menu-active={viewerState.pagedOffset ===
-                                        1}
-                                    onclick={() =>
-                                        viewerState.togglePagedOffset()}
-                                >
-                                    <Icon name="ArrowsLeftRight" size={16} />
-                                    <span>{m.viewing_mode_shift_pairing()}</span
+            <!-- --- Standard Actions ---
+                 One shared button per `toolbarEntries` row. A row naming a
+                 flyout takes a branch of its own instead, because each menu is
+                 bespoke: a further flyout adds a row to the descriptor and one
+                 more `else if` branch here. -->
+            {#each visibleEntries as entry (entry.key)}
+                {#if !entry.flyout}
+                    <!-- The glyph name goes through a local binding because
+                         `check-icon-coverage` only resolves a dynamic
+                         `<Icon name={…}>` from a bare identifier; given a member
+                         expression it fails the build rather than guess which
+                         glyphs this file renders. -->
+                    {@const glyph = entry.icon}
+                    <li>
+                        <button
+                            class="menu-item tooltip {tooltipPlacement}"
+                            class:indicator={entry.indicator}
+                            class:menu-active={entry.pressed}
+                            data-tip={entry.tip}
+                            aria-label={entry.label}
+                            aria-pressed={entry.pressed}
+                            data-panel-toggle={entry.panel}
+                            onclick={entry.onclick}
+                        >
+                            <Icon name={glyph} size={24} />
+                        </button>
+                    </li>
+                {:else if entry.flyout === 'viewing-mode'}
+                    <li>
+                        <button
+                            class="menu-item tooltip {tooltipPlacement}"
+                            class:menu-active={openMenu === 'viewing-mode'}
+                            data-tip={m.viewing_mode_label()}
+                            data-flyout-toggle
+                            aria-label={m.viewing_mode_label()}
+                            aria-haspopup="menu"
+                            aria-controls="tri-flyout-viewing-mode"
+                            aria-expanded={openMenu === 'viewing-mode'}
+                            style="anchor-name:--anchor-viewing-mode"
+                            onclick={() => toggleMenu('viewing-mode')}
+                        >
+                            {#if viewerState.viewingMode === 'paged'}
+                                <Icon name="BookOpen" size={24} />
+                            {:else if viewerState.viewingMode === 'continuous'}
+                                <Icon name="Scroll" size={24} />
+                            {:else}
+                                <Icon name="File" size={24} />
+                            {/if}
+                        </button>
+                        <ul
+                            id="tri-flyout-viewing-mode"
+                            data-flyout-panel
+                            role="menu"
+                            tabindex="-1"
+                            aria-label={m.viewing_mode_label()}
+                            class="menu popover-menu menu-flyout {flyoutPlacement}"
+                            class:open={openMenu === 'viewing-mode'}
+                            style="position-anchor: --anchor-viewing-mode;"
+                            onkeydown={onFlyoutMenuKeydown}
+                        >
+                            {#each viewingModeItems as [mode, icon, label] (mode)}
+                                <li role="none">
+                                    <button
+                                        class="menu-item"
+                                        role="menuitemradio"
+                                        aria-checked={viewerState.viewingMode ===
+                                            mode}
+                                        class:menu-active={viewerState.viewingMode ===
+                                            mode}
+                                        onclick={() =>
+                                            viewerState.setViewingMode(mode)}
                                     >
-                                    {#if viewerState.pagedOffset === 1}
-                                        <Icon name="Check" size={16} />
-                                    {/if}
-                                </button>
-                            </li>
-                        {/if}
-                    </ul>
-                </li>
-            {/if}
-
-            {#if showSequencePicker}
-                <li>
-                    <button
-                        class="menu-item tooltip indicator {tooltipPlacement}"
-                        class:menu-active={openMenu === 'sequence-picker'}
-                        data-tip={m.sequence_label()}
-                        data-flyout-toggle
-                        aria-label={m.sequence_label()}
-                        aria-haspopup="menu"
-                        aria-controls="tri-flyout-sequence-picker"
-                        aria-expanded={openMenu === 'sequence-picker'}
-                        style="anchor-name:--anchor-sequence-picker"
-                        onclick={() => toggleMenu('sequence-picker')}
-                    >
-                        <span class="indicator-item count-badge">
-                            {viewerState.sequenceCount > 99
-                                ? '99+'
-                                : viewerState.sequenceCount}
-                        </span>
-                        <Icon name="Stack" size={24} />
-                    </button>
-                    <ul
-                        id="tri-flyout-sequence-picker"
-                        data-flyout-panel
-                        role="menu"
-                        tabindex="-1"
-                        aria-label={m.sequence_label()}
-                        class="menu popover-menu wide menu-flyout {flyoutPlacement}"
-                        class:open={openMenu === 'sequence-picker'}
-                        style="position-anchor: --anchor-sequence-picker;"
-                        onkeydown={onFlyoutMenuKeydown}
-                    >
-                        {#each sequenceOptions as option (option.index)}
-                            <li role="none">
-                                <button
-                                    class="menu-item"
-                                    role="menuitemradio"
-                                    aria-checked={viewerState.selectedSequenceIndex ===
-                                        option.index}
-                                    class:menu-active={viewerState.selectedSequenceIndex ===
-                                        option.index}
-                                    onclick={() =>
-                                        viewerState.setSequenceIndex(
-                                            option.index,
-                                        )}
-                                >
-                                    <Icon name="Stack" size={16} />
-                                    <span>{option.label}</span>
-                                    {#if viewerState.selectedSequenceIndex === option.index}
-                                        <Icon name="Check" size={16} />
-                                    {/if}
-                                </button>
-                            </li>
-                        {/each}
-                    </ul>
-                </li>
-            {/if}
-
-            {#if showFullscreen}
-                <li>
-                    <button
-                        class="menu-item tooltip {tooltipPlacement}"
-                        class:menu-active={viewerState.isFullScreen}
-                        data-tip={viewerState.isFullScreen
-                            ? m.exit_full_screen()
-                            : m.enter_full_screen()}
-                        aria-label={viewerState.isFullScreen
-                            ? m.exit_full_screen()
-                            : m.enter_full_screen()}
-                        aria-pressed={viewerState.isFullScreen}
-                        onclick={() => viewerState.toggleFullScreen()}
-                    >
-                        {#if viewerState.isFullScreen}
-                            <Icon name="CornersIn" size={24} />
-                        {:else}
-                            <Icon name="CornersOut" size={24} />
-                        {/if}
-                    </button>
-                </li>
-            {/if}
-
-            {#if showAnnotations}
-                <li>
-                    <button
-                        class="menu-item tooltip {tooltipPlacement}"
-                        class:menu-active={viewerState.showAnnotations}
-                        data-tip={annotationsTooltip}
-                        aria-label={annotationsTooltip}
-                        aria-pressed={viewerState.showAnnotations}
-                        data-panel-toggle="annotations"
-                        onclick={() => viewerState.toggleAnnotations()}
-                    >
-                        <Icon name="ChatCenteredText" size={24} />
-                    </button>
-                </li>
-            {/if}
-
-            {#if showInfo}
-                <li>
-                    <button
-                        class="menu-item tooltip {tooltipPlacement}"
-                        class:menu-active={viewerState.showMetadataPanel}
-                        data-tip={m.metadata()}
-                        aria-label={m.toggle_metadata()}
-                        aria-pressed={viewerState.showMetadataPanel}
-                        data-panel-toggle="metadata"
-                        onclick={() => viewerState.toggleMetadataPanel()}
-                    >
-                        <Icon name="Info" size={24} />
-                    </button>
-                </li>
-            {/if}
+                                        <Icon name={icon} size={16} />
+                                        <span>{label}</span>
+                                        {#if viewerState.viewingMode === mode}
+                                            <Icon name="Check" size={16} />
+                                        {/if}
+                                    </button>
+                                </li>
+                            {/each}
+                            {#if viewerState.viewingMode === 'paged'}
+                                <li role="none">
+                                    <button
+                                        class="menu-item text-start"
+                                        role="menuitemcheckbox"
+                                        aria-checked={viewerState.pagedOffset ===
+                                            1}
+                                        class:menu-active={viewerState.pagedOffset ===
+                                            1}
+                                        onclick={() =>
+                                            viewerState.togglePagedOffset()}
+                                    >
+                                        <Icon
+                                            name="ArrowsLeftRight"
+                                            size={16}
+                                        />
+                                        <span
+                                            >{m.viewing_mode_shift_pairing()}</span
+                                        >
+                                        {#if viewerState.pagedOffset === 1}
+                                            <Icon name="Check" size={16} />
+                                        {/if}
+                                    </button>
+                                </li>
+                            {/if}
+                        </ul>
+                    </li>
+                {:else if entry.flyout === 'gallery'}
+                    <li>
+                        <button
+                            class="menu-item tooltip {tooltipPlacement}"
+                            class:menu-active={openMenu === 'gallery'}
+                            data-tip={m.gallery_label()}
+                            data-flyout-toggle
+                            aria-label={m.gallery_label()}
+                            aria-haspopup="menu"
+                            aria-controls="tri-flyout-gallery"
+                            aria-expanded={openMenu === 'gallery'}
+                            style="anchor-name:--anchor-gallery"
+                            onclick={() => toggleMenu('gallery')}
+                        >
+                            <Icon name="Slideshow" size={24} />
+                        </button>
+                        <ul
+                            id="tri-flyout-gallery"
+                            data-flyout-panel
+                            role="menu"
+                            tabindex="-1"
+                            aria-label={m.gallery_label()}
+                            class="menu popover-menu menu-flyout {flyoutPlacement}"
+                            class:open={openMenu === 'gallery'}
+                            style="position-anchor: --anchor-gallery;"
+                            onkeydown={onFlyoutMenuKeydown}
+                        >
+                            {#each galleryPlacementItems as [placement, icon, label] (placement)}
+                                <li role="none">
+                                    <button
+                                        class="menu-item"
+                                        role="menuitemradio"
+                                        aria-checked={galleryPlacement ===
+                                            placement}
+                                        class:menu-active={galleryPlacement ===
+                                            placement}
+                                        onclick={() =>
+                                            setGalleryPlacement(placement)}
+                                    >
+                                        <Icon name={icon} size={16} />
+                                        <span>{label}</span>
+                                        {#if galleryPlacement === placement}
+                                            <Icon name="Check" size={16} />
+                                        {/if}
+                                    </button>
+                                </li>
+                            {/each}
+                        </ul>
+                    </li>
+                {:else if entry.flyout === 'sequence'}
+                    <li>
+                        <button
+                            class="menu-item tooltip indicator {tooltipPlacement}"
+                            class:menu-active={openMenu === 'sequence-picker'}
+                            data-tip={m.sequence_label()}
+                            data-flyout-toggle
+                            aria-label={m.sequence_label()}
+                            aria-haspopup="menu"
+                            aria-controls="tri-flyout-sequence-picker"
+                            aria-expanded={openMenu === 'sequence-picker'}
+                            style="anchor-name:--anchor-sequence-picker"
+                            onclick={() => toggleMenu('sequence-picker')}
+                        >
+                            <span class="indicator-item count-badge">
+                                {viewerState.sequenceCount > 99
+                                    ? '99+'
+                                    : viewerState.sequenceCount}
+                            </span>
+                            <Icon name="Stack" size={24} />
+                        </button>
+                        <ul
+                            id="tri-flyout-sequence-picker"
+                            data-flyout-panel
+                            role="menu"
+                            tabindex="-1"
+                            aria-label={m.sequence_label()}
+                            class="menu popover-menu wide menu-flyout {flyoutPlacement}"
+                            class:open={openMenu === 'sequence-picker'}
+                            style="position-anchor: --anchor-sequence-picker;"
+                            onkeydown={onFlyoutMenuKeydown}
+                        >
+                            {#each sequenceOptions as option (option.index)}
+                                <li role="none">
+                                    <button
+                                        class="menu-item"
+                                        role="menuitemradio"
+                                        aria-checked={viewerState.selectedSequenceIndex ===
+                                            option.index}
+                                        class:menu-active={viewerState.selectedSequenceIndex ===
+                                            option.index}
+                                        onclick={() =>
+                                            viewerState.setSequenceIndex(
+                                                option.index,
+                                            )}
+                                    >
+                                        <Icon name="Stack" size={16} />
+                                        <span>{option.label}</span>
+                                        {#if viewerState.selectedSequenceIndex === option.index}
+                                            <Icon name="Check" size={16} />
+                                        {/if}
+                                    </button>
+                                </li>
+                            {/each}
+                        </ul>
+                    </li>
+                {/if}
+            {/each}
 
             <!-- Separator if both groups exist. An <li role="separator"> (not a
                  bare <div>) so the actions <ul> only ever directly contains <li>
                  — a bare <div> child trips the axe "list" rule once a plugin adds
                  a toolbar button (epic restore-plugin-toolbar-chrome). -->
-            {#if (showSearch || showGallery || showFullscreen || showAnnotations || showInfo || showViewingMode || showStructures || showCollection) && sortedPluginButtons.length > 0}
+            {#if hasBuiltInActions && sortedPluginButtons.length > 0}
                 <li
                     class="divider"
                     class:horizontal={isTop || inline}
@@ -1380,7 +1472,7 @@
         display: inline-flex;
     }
 
-    /* ===== Dropdown menu chrome (viewing mode, sequence picker) =====
+    /* ===== Dropdown menu chrome (built-in flyout menus) =====
        Same glass treatment as the plugin flyout's base bar. The blur/fill live
        on a ::before layer, not directly on .popover-menu (which also carries
        `border`) — see the matching comment on ImageManipulationFlyout's .base
@@ -1507,8 +1599,8 @@
 
     /* ===== Toggle handle (btn-sm look + custom overrides) ===== */
     /* the handle also carries .tooltip; keep its absolute positioning winning
-       over .tooltip's position:relative (the tooltip pseudo-elements work from
-       any positioned element). */
+       over the position:relative the shared tooltip layer sets (the tooltip
+       pseudo-elements work from any positioned element). */
     .handle.tooltip {
         position: absolute;
     }
@@ -1602,97 +1694,20 @@
         height: var(--ui-icon, 20px);
     }
 
-    /* ===== Tooltip scaffolding (sm sizing) ===== */
-    .tooltip {
-        --tt-bg: var(--tri-color-neutral);
-        --tt-fg: var(--tri-color-neutral-content);
-        --tt-off: calc(100% + 0.5rem);
-        --tt-tail: calc(100% + 1px + 0.25rem);
-        position: relative;
-    }
-    .tooltip[data-tip]:not([data-tip=''])::before {
-        border-radius: var(--tri-radius-buttons);
-        text-align: center;
-        white-space: normal;
-        max-width: 20rem;
-        color: var(--tt-fg);
-        opacity: 0;
-        background-color: var(--tt-bg);
-        pointer-events: none;
-        z-index: 2;
-        content: attr(data-tip);
-        width: max-content;
-        padding-block: 0.25rem;
-        padding-inline: 0.5rem;
-        font-size: 0.875rem;
-        line-height: 1.25;
-        position: absolute;
-    }
-    .tooltip[data-tip]:not([data-tip=''])::after {
-        opacity: 0;
-        background-color: var(--tt-bg);
-        content: '';
-        pointer-events: none;
-        --mask-tooltip: url("data:image/svg+xml,%3Csvg width='10' height='4' viewBox='0 0 8 4' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0.500009 1C3.5 1 3.00001 4 5.00001 4C7 4 6.5 1 9.5 1C10 1 10 0.499897 10 0H0C-1.99338e-08 0.5 0 1 0.500009 1Z' fill='black'/%3E%3C/svg%3E%0A");
-        width: 0.625rem;
-        height: 0.25rem;
-        mask-position: -1px 0;
-        mask-repeat: no-repeat;
-        mask-image: var(--mask-tooltip);
-        display: block;
-        position: absolute;
-    }
-    @media (prefers-reduced-motion: no-preference) {
-        .tooltip[data-tip]::before,
-        .tooltip[data-tip]::after {
-            transition:
-                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) 75ms,
-                transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) 75ms;
-        }
-    }
-    .tooltip[data-tip]:not([data-tip='']):hover::before,
-    .tooltip[data-tip]:not([data-tip='']):hover::after,
-    .tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::before,
-    .tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::after {
-        opacity: 1;
-        --tt-pos: 0rem;
-    }
-    @media (prefers-reduced-motion: no-preference) {
-        .tooltip[data-tip]:not([data-tip='']):hover::before,
-        .tooltip[data-tip]:not([data-tip='']):hover::after,
-        .tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::before,
-        .tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::after {
-            transition:
-                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-    }
-    .tooltip.top::before {
-        transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
-        inset: auto auto var(--tt-off) 50%;
-    }
-    .tooltip.top::after {
-        transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
-        inset: auto auto var(--tt-tail) 50%;
-    }
-    .tooltip.bottom::before {
-        transform: translateX(-50%) translateY(var(--tt-pos, -0.25rem));
-        inset: var(--tt-off) auto auto 50%;
-    }
-    .tooltip.bottom::after {
-        transform: translateX(-50%) translateY(var(--tt-pos, -0.25rem))
-            rotate(180deg);
-        inset: var(--tt-tail) auto auto 50%;
-    }
-    /* Edge correction: the outermost button of a top-anchored toolbar sits in
-       the viewer corner, so its centered bottom-tooltip bubble would overflow
-       the viewer border. Anchor just that bubble to the button's outer edge
-       (the tail keeps pointing at the button center). */
-    .actions.top-left > li:first-child .tooltip.bottom::before {
+    /* ===== Tooltip edge corrections =====
+       The bubble, tail, reveal and placements come from `src/styles/tooltip.css`;
+       only the corrections below are specific to where this toolbar puts its
+       buttons. */
+
+    /* The outermost button of a top-anchored toolbar sits in the viewer corner,
+       so its centered bottom-tooltip bubble would overflow the viewer border.
+       Anchor just that bubble to the button's outer edge (the tail keeps
+       pointing at the button center). */
+    .actions.top-left > li:first-child .tooltip.place-bottom::before {
         transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
         inset: var(--tt-off) auto auto 0;
     }
-    .actions.top-right > li:first-child .tooltip.bottom::before {
+    .actions.top-right > li:first-child .tooltip.place-bottom::before {
         transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
         inset: var(--tt-off) 0 auto auto;
     }
@@ -1703,14 +1718,14 @@
     :global([data-nav-align='start'])
         .actions.inline
         > li:first-child
-        .tooltip.top::before {
+        .tooltip.place-top::before {
         transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
         inset: auto auto var(--tt-off) 0;
     }
     :global([data-nav-align='start'])
         .actions.inline
         > li:first-child
-        .tooltip.bottom::before {
+        .tooltip.place-bottom::before {
         transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
         inset: var(--tt-off) auto auto 0;
     }
@@ -1720,36 +1735,16 @@
     :global([data-nav-align='start'])
         .actions.inline
         > li:first-child
-        .tooltip.top::after {
+        .tooltip.place-top::after {
         transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
         inset: auto auto var(--tt-tail) 0.5rem;
     }
     :global([data-nav-align='start'])
         .actions.inline
         > li:first-child
-        .tooltip.bottom::after {
+        .tooltip.place-bottom::after {
         transform: translateX(0) translateY(var(--tt-pos, -0.25rem))
             rotate(180deg);
         inset: var(--tt-tail) auto auto 0.5rem;
-    }
-    .tooltip.left::before {
-        transform: translateX(calc(var(--tt-pos, 0.25rem) - 0.25rem))
-            translateY(-50%);
-        inset: 50% var(--tt-off) auto auto;
-    }
-    .tooltip.left::after {
-        transform: translateX(var(--tt-pos, 0.25rem)) translateY(-50%)
-            rotate(-90deg);
-        inset: 50% calc(var(--tt-tail) + 1px) auto auto;
-    }
-    .tooltip.right::before {
-        transform: translateX(calc(var(--tt-pos, -0.25rem) + 0.25rem))
-            translateY(-50%);
-        inset: 50% auto auto var(--tt-off);
-    }
-    .tooltip.right::after {
-        transform: translateX(var(--tt-pos, -0.25rem)) translateY(-50%)
-            rotate(90deg);
-        inset: 50% auto auto calc(var(--tt-tail) + 1px);
     }
 </style>

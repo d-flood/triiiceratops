@@ -3,14 +3,20 @@
  *
  * A plugin declares `coreRange`, `pluginApiRange`, and `requiredCapabilities`.
  * At activation the SDK checks them against the host's declared `coreVersion`,
- * `pluginApiVersion`, and `capabilities` and, on any mismatch, throws a
- * structured, actionable {@link PluginCompatibilityError}.
+ * `pluginApiVersion`, and `capabilities` and, on any mismatch, throws an
+ * actionable {@link PluginCompatibilityError} naming every failed check.
  *
  * A small self-contained semver implementation is used deliberately: the base
- * SDK is dependency-light and framework-neutral, so it takes on no runtime
- * dependency (not even `semver`). It supports the range styles plugin authors
- * actually declare: exact versions, `*`/`x`, caret (`^`), tilde (`~`),
- * comparators (`>=`, `>`, `<=`, `<`, `=`), space-joined AND, and `||` OR.
+ * SDK is dependency-light and framework-neutral, and every byte here ships in
+ * every plugin bundle, so it takes on no runtime dependency (not even `semver`)
+ * and implements only the three range styles a plugin declares in practice —
+ * an exact version, a caret range, and a `>=` lower bound. Anything else
+ * (`~`, `*`, `=`, `>`, `<`, `<=`, a space-joined AND, a `||` OR set) is REFUSED
+ * with a thrown error rather than answered, because the alternative to a narrow
+ * implementation is not a broad one but a silently wrong one: a range style the
+ * SDK does not understand would otherwise read as "incompatible" and take a
+ * working plugin off the page with no explanation.
+ *
  * Prereleases compare per semver ordering (a prerelease is lower than its
  * release), so `1.0.0-rc.25` satisfies `>=1.0.0-rc.0` but not `^1.0.0`.
  */
@@ -22,13 +28,6 @@ interface SemVer {
     minor: number;
     patch: number;
     prerelease: Array<string | number>;
-}
-
-type Op = '<' | '<=' | '>' | '>=' | '=';
-
-interface Comparator {
-    op: Op;
-    ver: SemVer;
 }
 
 const VERSION_RE =
@@ -47,10 +46,6 @@ function parseVersion(raw: string): SemVer | null {
         patch: Number(patch),
         prerelease,
     };
-}
-
-function compareMain(a: SemVer, b: SemVer): number {
-    return a.major - b.major || a.minor - b.minor || a.patch - b.patch;
 }
 
 function comparePrerelease(a: SemVer, b: SemVer): number {
@@ -78,7 +73,12 @@ function comparePrerelease(a: SemVer, b: SemVer): number {
 }
 
 function compareVersions(a: SemVer, b: SemVer): number {
-    return compareMain(a, b) || comparePrerelease(a, b);
+    return (
+        a.major - b.major ||
+        a.minor - b.minor ||
+        a.patch - b.patch ||
+        comparePrerelease(a, b)
+    );
 }
 
 function caretUpperBound(v: SemVer): SemVer {
@@ -89,186 +89,66 @@ function caretUpperBound(v: SemVer): SemVer {
     return { major: 0, minor: 0, patch: v.patch + 1, prerelease: [] };
 }
 
-function expandComparator(token: string): Comparator[] | null {
-    if (token === '' || token === '*' || token === 'x' || token === 'X') {
-        return []; // matches anything
-    }
-
-    let m: RegExpExecArray | null;
-
-    if ((m = /^\^\s*(.+)$/.exec(token))) {
-        const v = parseVersion(m[1] ?? '');
-        if (!v) return null;
-        return [
-            { op: '>=', ver: v },
-            { op: '<', ver: caretUpperBound(v) },
-        ];
-    }
-
-    if ((m = /^~\s*(.+)$/.exec(token))) {
-        const v = parseVersion(m[1] ?? '');
-        if (!v) return null;
-        return [
-            { op: '>=', ver: v },
-            {
-                op: '<',
-                ver: {
-                    major: v.major,
-                    minor: v.minor + 1,
-                    patch: 0,
-                    prerelease: [],
-                },
-            },
-        ];
-    }
-
-    if ((m = /^(>=|<=|>|<|=)?\s*(.+)$/.exec(token))) {
-        const v = parseVersion(m[2] ?? '');
-        if (!v) return null;
-        return [{ op: (m[1] ?? '=') as Op, ver: v }];
-    }
-
-    return null;
-}
-
-function testComparator(v: SemVer, c: Comparator): boolean {
-    const cmp = compareVersions(v, c.ver);
-    switch (c.op) {
-        case '<':
-            return cmp < 0;
-        case '<=':
-            return cmp <= 0;
-        case '>':
-            return cmp > 0;
-        case '>=':
-            return cmp >= 0;
-        case '=':
-            return cmp === 0;
-    }
-}
-
-function satisfiesSet(v: SemVer, set: string): boolean {
-    const trimmed = set.trim();
-    if (trimmed === '' || trimmed === '*' || trimmed === 'x') return true;
-
-    const tokens = trimmed.split(/\s+/).filter(Boolean);
-    for (const token of tokens) {
-        const comparators = expandComparator(token);
-        if (comparators === null) return false; // unparseable comparator
-        if (!comparators.every((c) => testComparator(v, c))) return false;
-    }
-    return true;
-}
-
 /**
- * Does `version` satisfy the npm-style `range`? Returns `false` for an
- * unparseable version. An empty range matches any version.
+ * Does `version` satisfy `range`? Returns `false` for an unparseable version.
+ *
+ * `range` is one of exactly three styles — `1.2.3`, `^1.2.3`, `>=1.2.3`. Any
+ * other syntax throws, and the throw is the point: see the module note. A range
+ * that is not a string at all — a plain-JS plugin that omits or typos
+ * `coreRange` — takes the same refusal rather than a `TypeError`.
  */
 export function satisfies(version: string, range: string): boolean {
+    const trimmed = typeof range === 'string' ? range.trim() : '';
+    const caret = trimmed.startsWith('^');
+    const lowerBound = trimmed.startsWith('>=');
+    const bound = parseVersion(
+        caret ? trimmed.slice(1) : lowerBound ? trimmed.slice(2) : trimmed,
+    );
+    if (!bound) {
+        throw new Error(
+            `Unsupported version range "${range}". A plugin declares an exact ` +
+                `version ("1.2.3"), a caret range ("^1.2.3"), or a ">=" lower ` +
+                `bound (">=1.2.3"); no other range syntax is supported.`,
+        );
+    }
+
     const v = parseVersion(version);
     if (!v) return false;
 
-    const orSets = range
-        .split('||')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-    if (orSets.length === 0) return true;
-
-    return orSets.some((set) => satisfiesSet(v, set));
-}
-
-/** A single failed compatibility check. */
-export interface PluginCompatibilityReason {
-    kind: 'core' | 'pluginApi' | 'capability';
-    /** The plugin's declared requirement (range or capability id). */
-    required: string;
-    /** What the host actually provides. */
-    actual: string;
-    /** Human-readable, actionable explanation. */
-    message: string;
+    const cmp = compareVersions(v, bound);
+    if (lowerBound) return cmp >= 0;
+    if (!caret) return cmp === 0;
+    return cmp >= 0 && compareVersions(v, caretUpperBound(bound)) < 0;
 }
 
 /**
- * Structured, actionable error thrown when a plugin cannot activate against the
- * host. Carries every failed check so a host/UI can render precise guidance,
- * routed through the `pluginerror` channel.
+ * Actionable error thrown when a plugin cannot activate against the host. The
+ * message names every failed check; core surfaces it verbatim on the
+ * `pluginerror` channel.
  */
 export class PluginCompatibilityError extends Error {
     readonly code = 'PLUGIN_INCOMPATIBLE' as const;
     readonly pluginName: string;
     readonly pluginVersion: string;
-    readonly reasons: readonly PluginCompatibilityReason[];
 
     constructor(
         pluginName: string,
         pluginVersion: string,
-        reasons: readonly PluginCompatibilityReason[],
+        failures: readonly string[],
     ) {
-        super(formatMessage(pluginName, pluginVersion, reasons));
+        super(
+            `Plugin "${pluginName}"@${pluginVersion} cannot activate — ` +
+                `incompatible with this viewer:\n` +
+                failures.map((failure) => `  - ${failure}`).join('\n') +
+                `\nUpdate the plugin or the core viewer so their declared ` +
+                `ranges and capabilities overlap.`,
+        );
         this.name = 'PluginCompatibilityError';
         this.pluginName = pluginName;
         this.pluginVersion = pluginVersion;
-        this.reasons = reasons;
         // Restore prototype chain for instanceof across transpilation targets.
         Object.setPrototypeOf(this, PluginCompatibilityError.prototype);
     }
-}
-
-function formatMessage(
-    name: string,
-    version: string,
-    reasons: readonly PluginCompatibilityReason[],
-): string {
-    const details = reasons.map((r) => `  - ${r.message}`).join('\n');
-    return (
-        `Plugin "${name}"@${version} cannot activate — incompatible with this ` +
-        `viewer:\n${details}\n` +
-        `Update the plugin or the core viewer so their declared ranges and ` +
-        `capabilities overlap.`
-    );
-}
-
-/**
- * Check a plugin's declared requirements against the host. Returns the list of
- * failed checks (empty when fully compatible).
- */
-export function collectIncompatibilities(
-    plugin: SdkPluginMeta,
-    host: PluginHost,
-): PluginCompatibilityReason[] {
-    const reasons: PluginCompatibilityReason[] = [];
-
-    if (!satisfies(host.coreVersion, plugin.coreRange)) {
-        reasons.push({
-            kind: 'core',
-            required: plugin.coreRange,
-            actual: host.coreVersion,
-            message: `requires core ${plugin.coreRange} but this viewer is core ${host.coreVersion}`,
-        });
-    }
-
-    if (!satisfies(host.pluginApiVersion, plugin.pluginApiRange)) {
-        reasons.push({
-            kind: 'pluginApi',
-            required: plugin.pluginApiRange,
-            actual: host.pluginApiVersion,
-            message: `requires plugin API ${plugin.pluginApiRange} but this viewer provides plugin API ${host.pluginApiVersion}`,
-        });
-    }
-
-    const hostCapabilities = new Set(host.capabilities);
-    for (const capability of plugin.requiredCapabilities) {
-        if (!hostCapabilities.has(capability)) {
-            reasons.push({
-                kind: 'capability',
-                required: capability,
-                actual: host.capabilities.join(', ') || '(none)',
-                message: `requires capability "${capability}" which this viewer does not provide (has: ${host.capabilities.join(', ') || 'none'})`,
-            });
-        }
-    }
-
-    return reasons;
 }
 
 /**
@@ -279,12 +159,34 @@ export function negotiateCompatibility(
     plugin: SdkPluginMeta,
     host: PluginHost,
 ): void {
-    const reasons = collectIncompatibilities(plugin, host);
-    if (reasons.length > 0) {
+    const failures: string[] = [];
+
+    if (!satisfies(host.coreVersion, plugin.coreRange)) {
+        failures.push(
+            `requires core ${plugin.coreRange} but this viewer is core ${host.coreVersion}`,
+        );
+    }
+
+    if (!satisfies(host.pluginApiVersion, plugin.pluginApiRange)) {
+        failures.push(
+            `requires plugin API ${plugin.pluginApiRange} but this viewer provides plugin API ${host.pluginApiVersion}`,
+        );
+    }
+
+    const hostCapabilities = new Set(host.capabilities);
+    for (const capability of plugin.requiredCapabilities) {
+        if (!hostCapabilities.has(capability)) {
+            failures.push(
+                `requires capability "${capability}" which this viewer does not provide (has: ${host.capabilities.join(', ') || 'none'})`,
+            );
+        }
+    }
+
+    if (failures.length > 0) {
         throw new PluginCompatibilityError(
             plugin.name,
             plugin.version,
-            reasons,
+            failures,
         );
     }
 }

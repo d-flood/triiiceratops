@@ -7,8 +7,15 @@
  * plugin surface deliberately. The instrumentation itself lives in
  * `src/devtools/`, which the element build never reaches: the dev entry
  * (`src/main.ts`) registers an installer here, and the renderer calls it if
- * one is present. With no installer registered — every production build —
- * this is a null check and the instrumentation is not in the graph at all.
+ * one is present. With no installer registered — every production build — the
+ * renderer's thunk is never called and the instrumentation is not in the graph
+ * at all.
+ *
+ * {@link RendererInternals} is deliberately raw: live handles and one-line
+ * accessors for state the renderer holds in closure variables, and nothing
+ * that could be derived from them. Every shaped value the handle publishes —
+ * the stats record, the residency split, a settled-paint promise — is composed
+ * in `src/devtools/`, so none of that shaping ships.
  *
  * A bundler-provided DEV flag would have been the obvious gate and is not
  * available: `distribution-cleanup.guard.test.ts` bans build-time environment
@@ -17,6 +24,7 @@
  */
 import type { CanvasErrorKind } from './canvasErrors';
 import type { RendererPort } from './rendererPort';
+import type { TileScheduler } from './tileScheduler';
 import type { Point, ResidencyTier, Viewport } from './types';
 
 /** The renderer internals the instrumentation is built from. */
@@ -33,20 +41,26 @@ export interface RendererInternals {
      */
     fitWorld(animated: boolean): void;
     port: RendererPort;
+    /**
+     * Ask for a frame from outside the frame loop. Paired with
+     * `port.onFrame` to build the settled-paint promise the e2e suite awaits.
+     */
+    requestFrame(): void;
+    /**
+     * Run `fn` when the renderer detaches, before its frame listeners are
+     * dropped. A promise waiting on a frame must settle here: after detach no
+     * further frame is emitted, so anything still awaiting one would never
+     * resolve. Returns an unregister function.
+     */
+    onDetach(fn: () => void): () => void;
     setByteBudget(bytes: number): void;
-    getStats(): {
-        residentTileCount: number;
-        cachedTileCount: number;
-        decodedBytes: number;
-        requiredBytes: number;
-        byteBudget: number;
-        tileRequestCount: number;
-        scenePlanCount: number;
-    };
+    /** The tile scheduler itself, which carries every residency counter. */
+    tiles: TileScheduler;
+    getScenePlanCount(): number;
     getTiers(): Record<string, ResidencyTier>;
-    getCanvasErrors(): Record<string, CanvasErrorKind>;
+    /** Live and reactive; the handle copies it before publishing. */
+    canvasErrors: Record<string, CanvasErrorKind>;
     registerPaintLayer: (layer: never) => () => void;
-    nextPaint(): Promise<void>;
 }
 
 export type RendererDevtoolsInstaller = (
@@ -61,10 +75,13 @@ export function setRendererDevtools(fn: RendererDevtoolsInstaller): void {
     installer = fn;
 }
 
-/** Called by the renderer on attach. A no-op unless a dev entry registered one. */
+/**
+ * Called by the renderer on attach. A no-op unless a dev entry registered an
+ * installer, in which case the renderer's thunk is called for its internals.
+ */
 export function installRendererDevtools(
     surface: HTMLCanvasElement,
-    internals: RendererInternals,
+    getInternals: () => RendererInternals,
 ): void {
-    installer?.(surface, internals);
+    if (installer) installer(surface, getInternals());
 }

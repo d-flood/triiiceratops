@@ -8,7 +8,6 @@
     import { Button } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
-    let { embedded = false }: { embedded?: boolean } = $props();
     const m = getMessages();
 
     let structures = $derived(
@@ -33,13 +32,49 @@
         }
     }
 
+    /**
+     * True when ranges are chapters of a recording rather than groups of
+     * canvases. Their targets all carry `#t=`, and typically all name the same
+     * canvas, so canvas identity cannot tell them apart.
+     */
+    let isTemporal = $derived(anyTimed(structures));
+
+    function anyTimed(nodes: StructureNode[]): boolean {
+        return nodes.some(
+            (node) =>
+                node.canvasTimes.some((time) => time !== null) ||
+                anyTimed(node.children),
+        );
+    }
+
+    let selectedId = $state<string | null>(null);
+
     function navigateToRange(node: StructureNode) {
+        selectedId = node.id;
         if (node.canvasIds.length > 0) {
-            viewerState.setCanvas(node.canvasIds[0]);
+            viewerState.setCanvas(node.canvasIds[0], node.canvasTimes[0]);
         }
     }
 
+    function formatTime(seconds: number): string {
+        const whole = Math.floor(seconds);
+        const secondsPart = String(whole % 60).padStart(2, '0');
+        const minutes = Math.floor(whole / 60);
+        return `${minutes}:${secondsPart}`;
+    }
+
+    /** The range's own `#t=` span, or null where it targets no time. */
+    function formatSpan(node: StructureNode): string | null {
+        const time = node.canvasTimes.find((entry) => entry !== null);
+        if (!time) return null;
+        const start = formatTime(time.seconds);
+        return time.endSeconds === undefined || time.endSeconds <= time.seconds
+            ? start
+            : `${start} – ${formatTime(time.endSeconds)}`;
+    }
+
     function isActive(node: StructureNode): boolean {
+        if (isTemporal) return node.id === selectedId;
         return viewerState.canvasId
             ? node.canvasIds.includes(viewerState.canvasId)
             : false;
@@ -52,6 +87,7 @@
             autoExpandedId === node.id || expandedIds.has(node.id)}
         {@const active = isActive(node)}
         {@const hasChildren = node.children.length > 0}
+        {@const span = formatSpan(node)}
         <div>
             <div
                 class="row"
@@ -87,6 +123,10 @@
                 >
                     {node.label || node.id}
                 </button>
+
+                {#if span}
+                    <span class="span">{span}</span>
+                {/if}
             </div>
 
             {#if hasChildren && expanded}
@@ -100,28 +140,16 @@
     <div
         data-panel-id="structures"
         class="panel"
-        class:standalone={!embedded}
         role="dialog"
         aria-label={m.structures_title()}
     >
-        {#if !embedded}
-            <div class="panel-header">
-                <div class="panel-header-title">
-                    <Icon name="ListBullets" size={20} weight="bold" />
-                    <h2 class="panel-h2">
-                        {m.structures_title()}
-                    </h2>
-                </div>
-            </div>
-        {/if}
-
         <!-- Tree Content -->
         {#if hasStructures}
-            <div class="tree" class:standalone={!embedded}>
+            <div class="tree">
                 {@render rangeTree(structures)}
             </div>
         {:else}
-            <div class="empty" class:standalone={!embedded}>
+            <div class="empty">
                 <p class="empty-text">{m.structures_empty()}</p>
             </div>
         {/if}
@@ -179,55 +207,29 @@
         font-weight: 600;
     }
 
+    .span {
+        flex-shrink: 0;
+        padding-right: 0.75rem;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.6;
+    }
+
     .panel {
         min-height: 0;
         display: flex;
         flex-direction: column;
     }
-    .panel.standalone {
-        height: 100%;
-        background-color: var(--panel-surface);
-        box-shadow: 0 25px 50px -12px #00000040;
-        z-index: 100;
-        transition: width 200ms;
-        border-left: 1px solid var(--tri-surface-border);
-    }
-
-    .panel-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem;
-        border-bottom: 1px solid var(--tri-surface-border);
-    }
-    .panel-header-title {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .panel-h2 {
-        font-weight: 700;
-        font-size: 1.125rem;
-        line-height: 1.75rem;
-    }
-
     .tree {
         display: flex;
         flex-direction: column;
     }
-    .tree.standalone {
-        flex: 1 1 0%;
-        overflow-y: auto;
-    }
-
     .empty {
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 2rem;
-    }
-    .empty.standalone {
-        flex: 1 1 0%;
     }
     .empty-text {
         font-size: 0.875rem;

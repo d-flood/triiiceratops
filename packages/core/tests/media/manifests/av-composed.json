@@ -1,0 +1,57 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/media/manifests/av-composed.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Temporally composed canvas — two clips, one timeline"]
+    },
+    "summary": {
+        "en": [
+            "One canvas whose four seconds are tiled by two painting annotations targeting #t=0,2 and #t=2,4 — the opera-on-one-canvas shape of Cookbook recipe 0064, which must play through as a single work under one transport and one canvas timeline (spec, user stories 48 and 49). The two segments are deliberately DIFFERENT media: the colour-bars video first, the tone second, so which segment the sequencer has loaded is observable from the element's source rather than having to be inferred from the clock."
+        ]
+    },
+    "items": [
+        {
+            "id": "/media/manifests/av-composed.json/canvas/composed",
+            "type": "Canvas",
+            "label": { "en": ["Bars, then tone"] },
+            "width": 320,
+            "height": 180,
+            "duration": 4.0,
+            "items": [
+                {
+                    "id": "/media/manifests/av-composed.json/page/composed",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-composed.json/annotation/segment-1",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/media/bars.mp4",
+                                "type": "Video",
+                                "format": "video/mp4",
+                                "width": 320,
+                                "height": 180,
+                                "duration": 2.0
+                            },
+                            "target": "/media/manifests/av-composed.json/canvas/composed#t=0,2"
+                        },
+                        {
+                            "id": "/media/manifests/av-composed.json/annotation/segment-2",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/media/tone.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 2.0
+                            },
+                            "target": "/media/manifests/av-composed.json/canvas/composed#t=2,4"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

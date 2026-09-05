@@ -50,6 +50,52 @@ describe('isLevel0Profile', () => {
         ).toBe(true);
     });
 
+    it('reads the profile out of an object, however it is keyed', () => {
+        expect(
+            isLevel0Profile({
+                '@id': 'http://iiif.io/api/image/2/level0.json',
+            }),
+        ).toBe(true);
+        expect(
+            isLevel0Profile({ id: 'http://iiif.io/api/image/2/level0.json' }),
+        ).toBe(true);
+        expect(isLevel0Profile({ value: 'level0' })).toBe(true);
+        expect(
+            isLevel0Profile({
+                '@id': 'http://iiif.io/api/image/2/level2.json',
+            }),
+        ).toBe(false);
+        expect(isLevel0Profile({ formats: ['jpg'] })).toBe(false);
+    });
+
+    it('finds the compliance URI at any position in an array', () => {
+        expect(
+            isLevel0Profile([
+                { formats: ['jpg'] },
+                'http://iiif.io/api/image/2/level0.json',
+            ]),
+        ).toBe(true);
+        expect(
+            isLevel0Profile([
+                { formats: ['jpg'] },
+                'http://iiif.io/api/image/2/level2.json',
+            ]),
+        ).toBe(false);
+    });
+
+    it('ignores case and a trailing fragment or query on the URI', () => {
+        expect(isLevel0Profile('LEVEL0')).toBe(true);
+        expect(isLevel0Profile('http://iiif.io/api/image/2/LEVEL0.json')).toBe(
+            true,
+        );
+        expect(
+            isLevel0Profile('http://iiif.io/api/image/2/level0.json#frag'),
+        ).toBe(true);
+        expect(
+            isLevel0Profile('http://iiif.io/api/image/2/level0.json?v=2'),
+        ).toBe(true);
+    });
+
     it('does not mistake a higher compliance level for level0', () => {
         expect(isLevel0Profile('level2')).toBe(false);
         expect(isLevel0Profile('http://iiif.io/api/image/2/level1.json')).toBe(
@@ -57,6 +103,21 @@ describe('isLevel0Profile', () => {
         );
         expect(isLevel0Profile(undefined)).toBe(false);
         expect(isLevel0Profile(null)).toBe(false);
+    });
+
+    it('reads level0 only where it is the declared level, not anywhere in the path', () => {
+        // The bug the shared classifier exists to fix: a substring test read
+        // this level2 service as level0 because of its path segment.
+        expect(
+            isLevel0Profile(
+                'https://example.org/level0-compat/api/image/2/level2.json',
+            ),
+        ).toBe(false);
+    });
+
+    it('treats `level-0` as undeclared rather than level0', () => {
+        // Not a spelling any Image API version defines; no server emits it.
+        expect(isLevel0Profile('level-0')).toBe(false);
     });
 });
 

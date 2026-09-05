@@ -36,6 +36,14 @@ api-reports/
 # formatted.
 packages/core/src/lib/test/fixtures/manifests/
 
+# Generated e2e media (packages/core/tests/media/*): a tone, colour bars, an HLS
+# rendition and real `audiowaveform` output, produced by that directory's
+# `regenerate.sh`. Same generated-output rule. Beyond diff noise there is a hard
+# reason: HLS segments are `.ts` files, which Prettier parses as TypeScript and
+# chokes on. The local AV manifests beside them are hand-written fixtures, kept
+# in the same house style as the vendored ones above.
+packages/core/tests/media/
+
 # Vendored theme partials: overrides/partials/* are verbatim copies of
 # Zensical's own templates carrying one local hunk each, so they fall under the
 # vendored-output rule above — reflowing them destroys the diff against

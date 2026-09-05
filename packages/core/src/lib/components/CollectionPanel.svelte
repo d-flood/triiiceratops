@@ -8,7 +8,6 @@
     const viewerState = getContext<
         ViewerState & { collectionThumbnail: string }
     >(VIEWER_STATE_KEY);
-    let { embedded = false }: { embedded?: boolean } = $props();
     const m = getMessages();
 
     let items = $derived(sortCollectionItems(viewerState.collectionItems));
@@ -37,29 +36,10 @@
     <div
         data-panel-id="collection"
         class="panel"
-        class:standalone={!embedded}
         role="dialog"
         aria-label={m.collection_title()}
     >
-        {#if !embedded}
-            <div class="panel-header">
-                <div class="panel-header-title">
-                    {#if collectionThumbnail}
-                        <img src={collectionThumbnail} alt="" class="thumb" />
-                    {:else}
-                        <Icon
-                            name="Folder"
-                            size={20}
-                            weight="bold"
-                            class="icon-lead"
-                        />
-                    {/if}
-                    <h2 class="panel-h2">
-                        {collectionLabel || m.collection_title()}
-                    </h2>
-                </div>
-            </div>
-        {:else if collectionLabel || collectionThumbnail}
+        {#if collectionLabel || collectionThumbnail}
             <div class="panel-header-embedded">
                 <div class="embedded-row">
                     {#if collectionThumbnail}
@@ -91,7 +71,7 @@
         </div>
 
         <!-- Items List -->
-        <div class="items" class:standalone={!embedded}>
+        <div class="items">
             {#each items as item, i (item.id)}
                 {@const isActive = item.id === currentManifestId}
                 <button
@@ -155,36 +135,6 @@
         display: flex;
         flex-direction: column;
     }
-    .panel.standalone {
-        height: 100%;
-        background-color: var(--panel-surface);
-        box-shadow: 0 25px 50px -12px #00000040;
-        z-index: 100;
-        transition: width 200ms;
-        border-left: 1px solid var(--tri-surface-border);
-    }
-
-    .panel-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem;
-        border-bottom: 1px solid var(--tri-surface-border);
-    }
-    .panel-header-title {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.5rem;
-        min-width: 0;
-    }
-    .panel-h2 {
-        font-weight: 700;
-        font-size: 1.125rem;
-        line-height: 1.75rem;
-        min-width: 0;
-        overflow-wrap: break-word;
-    }
-
     .panel-header-embedded {
         padding: 1rem;
         border-bottom: 1px solid var(--tri-surface-border);
@@ -208,15 +158,6 @@
         overflow-wrap: break-word;
     }
 
-    .thumb {
-        width: 2rem;
-        height: 2rem;
-        object-fit: cover;
-        border-radius: 0.375rem;
-        flex-shrink: 0;
-        border: 1px solid var(--tri-surface-border);
-        background-color: var(--tri-input-bg);
-    }
     .thumb-lg {
         width: 2.5rem;
         height: 2.5rem;
@@ -227,7 +168,6 @@
         background-color: var(--tri-input-bg);
     }
 
-    .panel-header :global(.icon-lead),
     .panel-header-embedded :global(.icon-lead) {
         flex-shrink: 0;
         margin-top: 0.25rem;
@@ -259,11 +199,6 @@
     .items > * + * {
         border-top: 1px solid var(--tri-surface-border);
     }
-    .items.standalone {
-        flex: 1 1 0%;
-        overflow-y: auto;
-    }
-
     .item {
         width: 100%;
         text-align: left;

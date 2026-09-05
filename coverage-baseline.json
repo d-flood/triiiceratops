@@ -3,6 +3,10 @@
         "lines": 62.66,
         "branches": 41.86
     },
+    "@triiiceratops/plugin-av": {
+        "lines": 94.09,
+        "branches": 81.3
+    },
     "@triiiceratops/plugin-image-export": {
         "lines": 51.54,
         "branches": 32.06

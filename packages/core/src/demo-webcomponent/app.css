@@ -2,13 +2,18 @@ html,
 body {
     margin: 0;
     width: 100%;
-    height: 100%;
-    overflow: hidden;
+    font-family: system-ui, sans-serif;
 }
 
+/* Two stacked viewers, so the page scrolls rather than clipping the second. */
 triiiceratops-viewer {
     display: block;
     width: 100%;
     height: 100vh;
     overflow: hidden;
+}
+
+h2,
+p {
+    margin: 1rem;
 }

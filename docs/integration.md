@@ -330,5 +330,8 @@ assignments, and the manual listeners.
 CI runs packed-consumer fixtures across Chromium, Firefox, and WebKit for both
 element forms on this page: `wc-esm` (bundler ESM registration) and
 `plain-html-iife` plus `plugin-image-manip-iife` (script tags, core and a plugin
-IIFE loaded in **both** script orders). Every code sample on this site is also
-type-checked against those same tarballs.
+IIFE loaded in **both** script orders — which `@triiiceratops/plugin-image-manipulation`
+supports because it bundles its own Svelte runtime; `@triiiceratops/plugin-av`
+does not, and must load after core, see
+[script order](plugins.md#script-order-triiiceratopsplugin-av-loads-after-core)).
+Every code sample on this site is also type-checked against those same tarballs.

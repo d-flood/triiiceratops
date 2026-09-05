@@ -36,6 +36,7 @@ import {
     exportCompositeCanvas,
     exportCurrentWorld,
     exportSingleImage,
+    getCanvasImageChoices,
     getImageHost,
     getVisibleCanvasesForDownload,
     isCrossOriginImageFailure,
@@ -121,6 +122,45 @@ function createSingleImageCanvas(id: string) {
                     type: 'ImageService2',
                     profile: 'http://iiif.io/api/image/2/level1.json',
                 },
+            },
+        }),
+    };
+}
+
+/**
+ * A COMPOSITE of two traits no single vendored fixture carries together, so one
+ * canvas exercises both at once. Core gets the **unsupported presentation** for
+ * it either way.
+ *
+ * - A lone `Video` painting body, from `av/0003-mvm-video` — whose canvas has no
+ *   `thumbnail` at all.
+ * - A poster `thumbnail`, from the opera fixtures (`av/0064-opera-one-canvas`),
+ *   whose entry is `{id, type: 'Image'}`. The `format` here is added, not
+ *   vendored: a poster frame is the nearest thing to an image such a canvas
+ *   offers, and an export that reached for it would be putting an accompanying
+ *   image in as a stand-in.
+ */
+function createVideoCanvas(id: string) {
+    return {
+        id,
+        width: 640,
+        height: 360,
+        duration: 12,
+        thumbnail: [
+            {
+                id: `https://example.org/poster/${id}.jpg`,
+                type: 'Image',
+                format: 'image/jpeg',
+            },
+        ],
+        items: annotationPages({
+            body: {
+                id: `https://example.org/media/${id}.mp4`,
+                type: 'Video',
+                format: 'video/mp4',
+                width: 640,
+                height: 360,
+                duration: 12,
             },
         }),
     };
@@ -389,6 +429,91 @@ describe('current world (paged mode)', () => {
                 label: 'Original',
             }),
         ).rejects.toThrow('Nothing is currently displayed in the viewer.');
+    });
+});
+
+/**
+ * The **unsupported presentation** edge, as an export sees it: a canvas whose
+ * **painting annotations** place nothing core can render contributes nothing to
+ * an image export, silently. No error, and no reaching past the missing image
+ * for the canvas's poster thumbnail — an accompanying image is not a stand-in
+ * for content this export cannot represent.
+ *
+ * A **canvas claim** does not enter into it. A claim is about what is rendered
+ * on screen; whether an export can produce a raster is decided by the canvas's
+ * bodies, so the answer is the same claimed or not.
+ */
+describe('audiovisual canvases', () => {
+    it('offers no image to download from an AV canvas', () => {
+        // Nothing for the single-image picker to list, and no resolution
+        // ladder for the composite mode to offer.
+        expect(getCanvasImageChoices(createVideoCanvas('film'))).toEqual([]);
+        expect(
+            resolveCompositeCanvasSizeOptions(createVideoCanvas('film')),
+        ).toEqual([]);
+    });
+
+    it('composites only the image canvases of a mixed spread', async () => {
+        const viewerState = createViewerState({
+            canvases: [
+                createSingleImageCanvas('left'),
+                createVideoCanvas('film'),
+            ],
+            canvasId: 'left',
+            currentCanvasIndex: 0,
+            viewingMode: 'paged',
+            pagedOffset: 0,
+        });
+
+        const original = resolveWorldSizeOptions(viewerState)[0]!;
+        await exportCurrentWorld(viewerState, original);
+
+        // One image fetched, and it is the image canvas's — neither the MP4
+        // nor the poster frame was asked for.
+        expect(requestedImages().map((request) => request.source)).toEqual([
+            'https://example.org/iiif/left',
+        ]);
+        const [entries] = vi.mocked(composeImages).mock.calls[0]!;
+        expect(entries).toHaveLength(1);
+
+        // And the world is the surviving canvas's own shape, so the AV canvas
+        // left no empty column behind either.
+        expect(original.width / original.height).toBeCloseTo(1000 / 1200, 5);
+    });
+
+    it('reports nothing displayable rather than an error entry for an AV-only view', async () => {
+        const viewerState = createViewerState({
+            canvases: [createVideoCanvas('film')],
+            canvasId: 'film',
+            currentCanvasIndex: 0,
+            viewingMode: 'individuals',
+        });
+
+        expect(resolveWorldSizeOptions(viewerState)).toEqual([]);
+        await expect(
+            exportCurrentWorld(viewerState, {
+                width: 640,
+                height: 360,
+                label: 'Original',
+            }),
+        ).rejects.toThrow('Nothing is currently displayed in the viewer.');
+    });
+
+    it('keeps an AV canvas out of the single-image picker', () => {
+        const page = createSingleImageCanvas('left');
+        const viewerState = createViewerState({
+            canvases: [page, createVideoCanvas('film')],
+            canvasId: 'left',
+            currentCanvasIndex: 0,
+            viewingMode: 'paged',
+            pagedOffset: 0,
+        });
+
+        // The dropdown is built from this list. Offering the video would let
+        // the reader pick it and find an empty resolution ladder and a disabled
+        // button behind it — a visible dead end where the contract promises a
+        // silent exclusion.
+        expect(getVisibleCanvasesForDownload(viewerState)).toEqual([page]);
     });
 });
 

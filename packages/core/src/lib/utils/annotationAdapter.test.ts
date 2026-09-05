@@ -72,6 +72,30 @@ describe('annotationAdapter', () => {
             }
         });
 
+        it('reads a `<rect>` in an SVG selector as its four corners', () => {
+            const annotation = {
+                '@id': 'http://example.org/anno-rect',
+                on: {
+                    selector: {
+                        type: 'SvgSelector',
+                        value: '<svg><rect x="10" y="20" width="30" height="40" /></svg>',
+                    },
+                },
+            };
+
+            const result = parseAnnotation(annotation, 1);
+
+            expect(result?.geometry).toEqual({
+                type: 'POLYGON',
+                points: [
+                    [10, 20],
+                    [40, 20],
+                    [40, 60],
+                    [10, 60],
+                ],
+            });
+        });
+
         it('should return null for invalid annotations with no geometry', () => {
             const invalidAnno = {
                 '@id': 'bad-anno',

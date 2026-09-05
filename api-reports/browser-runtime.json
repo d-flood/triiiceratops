@@ -6,7 +6,10 @@
             "readonly coreVersion: string",
             "readonly pluginApiVersion: string",
             "readonly capabilities: readonly string[]",
-            "readonly plugins: PluginFactoryRegistry"
+            "readonly plugins: PluginFactoryRegistry",
+            "readonly svelte: SharedSvelteRuntime['svelte']",
+            "readonly svelteInternal: SharedSvelteRuntime['svelteInternal']",
+            "readonly core: SharedCoreUtils"
         ],
         "PluginFactoryRegistry": [
             "register(factory: SdkPlugin): void",
@@ -15,6 +18,12 @@
             "list(): readonly SdkPlugin[]"
         ]
     },
-    "capabilities": [],
-    "pluginApiVersion": "1.0.0"
+    "capabilities": [
+        "canvas-claim",
+        "published-state",
+        "shared-core-utils",
+        "shared-svelte-runtime",
+        "transport-chrome"
+    ],
+    "pluginApiVersion": "1.6.0"
 }

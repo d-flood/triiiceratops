@@ -54,10 +54,17 @@ export declare function resolveCompositeCanvasSizeOptions(canvas: any, getSelect
 export declare function exportSingleImage(resolvedImage: ResolvedCanvasImage, sizeOption: ExportSizeOption): Promise<Blob>;
 export declare function exportCompositeCanvas(canvas: any, sizeOption: ExportSizeOption, options?: ExportOptions): Promise<Blob>;
 /**
- * Every canvas currently laid out together in the viewer (e.g. both pages of
- * a spread in `paged` mode). Used both to build the "current view" composite
- * and to let "single image" mode target one of several visible canvases
- * instead of only ever the active one.
+ * Every canvas currently laid out together in the viewer that this plugin can
+ * actually produce an image from (e.g. both pages of a spread in `paged` mode).
+ * Used both to build the "current view" composite and to let "single image"
+ * mode target one of several visible canvases instead of only ever the active
+ * one.
+ *
+ * A canvas whose painting bodies are all non-image — the **unsupported
+ * presentation**, a video or a sound recording sharing the spread — is left out
+ * here rather than downstream. It is the difference between an export the
+ * reader is never offered and one offered, chosen, and then refused for want of
+ * a resolution to pick.
  */
 export declare function getVisibleCanvasesForDownload(viewerState: ViewerState): any[];
 /**

@@ -1,0 +1,161 @@
+/*
+    The plugin's package-owned global CSS.
+
+    These rules style the **stage**: DOM the plugin builds imperatively inside
+    its overlay layer, which is therefore not Svelte-scoped and is namespaced
+    `tri-av-*` instead. Geometry (`left`/`top`/`width`/`height`) is written per
+    frame by the stage itself and deliberately absent here.
+
+    The layer is transparent to pointer events; the lanes and the tap target opt
+    back in, so a tap can toggle playback or seek. A drag over one still pans,
+    because it hands the gesture down to the renderer's surface and acts only on
+    a pointer that barely moved (see `onLaneTap`). No descendant of one may
+    declare `pointer-events` of its own: the hand-down works by making the
+    target transparent for one hit test, which an `auto` further down would
+    defeat.
+
+    Every `[hidden]` rule here restates what the UA sheet already says, and none
+    is redundant. Per the HTML spec's suggested rendering
+    `[hidden] { display: none }` is an ordinary rule, which a `display`
+    declaration in this sheet would outrank — leaving a hidden stage laid out,
+    or a failed stream's black box on screen beside its "can't play" notice.
+    Every current engine ships it `!important`, so the hazard is theoretical
+    there and real in one that follows the spec as written.
+
+    Comments and indentation here cost nothing: `vite.config.ts` runs core's
+    `minifyCss` over this file at build time, so the bundle carries the rules
+    alone.
+*/
+
+.tri-av-stage {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #000;
+}
+.tri-av-stage[hidden] {
+    display: none;
+}
+
+/*
+    Where core paints a companion Canvas into the rect — permanently
+    (`tri-av-painted`), or as the placeholder a canvas shows until playback
+    begins (`tri-av-unplayed`) — everything of this plugin's that could cover it
+    has to get out of the way: the overlay layer is ABOVE the renderer's canvas
+    at `z-index: 40`, so an opaque stage renders the companion correctly and
+    shows a black rect over it — the ADR 0016 visibility hazard
+    `waveform/surface.ts` documents, met from the other side.
+
+    The element decoding the sound is the same hazard and goes with it, hidden by
+    `visibility` rather than by `display` so it stays laid out and is never taken
+    out of the document before it has been asked to decode anything. What remains
+    over the picture is `tri-av-tap`: a transparent, empty, whole-rect tap target
+    that hands a drag down to the renderer exactly as a lane does.
+*/
+.tri-av-painted,
+.tri-av-unplayed {
+    background: transparent;
+}
+.tri-av-painted .tri-av-media,
+.tri-av-unplayed .tri-av-media {
+    visibility: hidden;
+}
+.tri-av-tap {
+    inset: 0;
+}
+
+/*
+    The stage layout's lanes: a vertical division of the stage in canvas space,
+    so the stack pans and zooms with the canvas. Geometry is written per frame
+    by the stage, as it is for the stage box itself.
+*/
+.tri-av-lane-visual,
+.tri-av-lane-timeline,
+.tri-av-tap {
+    position: absolute;
+    overflow: hidden;
+    pointer-events: auto;
+    cursor: pointer;
+}
+.tri-av-lane-visual[hidden],
+.tri-av-lane-timeline[hidden],
+.tri-av-tap[hidden] {
+    display: none;
+}
+
+/*
+    The timeline lane: a styled region, the tap target for seeking, and the box
+    the waveform's drawing surface hangs inside.
+*/
+.tri-av-lane-timeline {
+    background: var(--tri-panel-bg, #1c1c1c);
+    border-top: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.12));
+}
+
+/*
+    The waveform. Decorative pixels over a lane that already carries the seek
+    (ADR 0016), and clipped to the visible area rather than sized to the whole
+    projected lane — see waveform/surface.ts. Its geometry is written per frame.
+
+    Deliberately no pointer-events declaration: the lane hands a drag down to
+    the renderer by going transparent for one hit test, and an "auto" here would
+    defeat it.
+*/
+.tri-av-waveform {
+    position: absolute;
+    display: block;
+}
+.tri-av-waveform[hidden] {
+    display: none;
+}
+
+.tri-av-media {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    background: #000;
+}
+.tri-av-media[hidden] {
+    display: none;
+}
+
+/*
+    The play-state glyph: what a canvas projected too narrow for the transport
+    shows instead (user story 26). Decorative and inert — it announces nothing
+    and takes no pointer, because everything it depicts stays reachable through
+    the stage's own tap-to-toggle and through AVState.
+*/
+.tri-av-glyph {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(1rem, 40%, 3rem);
+    color: #fff;
+    text-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+    pointer-events: none;
+}
+.tri-av-glyph[hidden] {
+    display: none;
+}
+
+.tri-av-unplayable {
+    /* The lanes are absolutely positioned and opaque, so they paint over an
+       in-flow sibling however late it appears in the DOM. Positioning the
+       notice puts it in the same layer and above them. */
+    position: relative;
+    z-index: 1;
+    padding: 0.75rem 1rem;
+    max-width: 100%;
+    text-align: center;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: var(--tri-color-error, #dc2626);
+    background: var(--tri-surface-bg, #fff);
+    border: 1px solid var(--tri-surface-border, rgb(0 0 0 / 0.12));
+    border-radius: var(--tri-radius-panels, 0.5rem);
+}

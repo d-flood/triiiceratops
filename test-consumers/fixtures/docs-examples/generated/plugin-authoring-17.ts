@@ -2,17 +2,14 @@
 // Regenerate with: node scripts/docs-examples.mjs
 import type { PluginContext } from 'triiiceratops';
 
-function filmstrip(context: PluginContext, height: number) {
-    const { viewerState } = context;
+function surfaceControls(context: PluginContext) {
+    const { surface } = context;
 
-    viewerState.setViewportInset({ bottom: height });
-    // Setting it does not move the image. Ask for the re-frame yourself, if you
-    // want one — most of the time you do not, because the reader may have zoomed
-    // in deliberately and being yanked back to the whole page is a surprise.
-    viewerState.fitCanvas();
+    void surface.id; // your chrome id — the `config.plugins` key
+    void surface.target; // 'panel' | 'flyout', follows a runtime override
 
-    return () => {
-        viewerState.resetViewportInset();
-        viewerState.fitCanvas();
-    };
+    const done = document.createElement('button');
+    done.textContent = 'Done';
+    done.onclick = () => surface.close(); // also: open(), toggle()
+    return done;
 }

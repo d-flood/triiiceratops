@@ -40,13 +40,12 @@ export type ExtraIconWeight = Exclude<IconWeight, 'regular'>;
  * NON-regular weights each is rendered at. Every listed glyph is generated at
  * `regular`; an empty array means regular only.
  *
- * The `bold` entries are the panel-header glyphs — five of them reach
- * `PanelStackSection` as single-glyph components (`src/lib/components/icons/`)
- * rendered as `<panel.icon weight="bold">`, and `ListDashes` is bold inline in
- * `AnnotationPanel`. The `fill` entries are the theme controls.
+ * The `bold` entries are the panel-header glyphs, which `PanelStackSection`
+ * renders as `<Icon name={panel.iconName} weight="bold">`. Every other glyph
+ * here renders at `regular` only, so `bold` is currently the sole extra weight
+ * any of them declares.
  */
 export const CORE_ICONS = {
-    ArrowCounterClockwise: [],
     ArrowsLeftRight: [],
     BookOpen: [],
     CaretDown: [],
@@ -55,30 +54,22 @@ export const CORE_ICONS = {
     CaretUp: [],
     ChatCenteredText: ['bold'],
     Check: [],
-    Copy: [],
     CornersIn: [],
     CornersOut: [],
     Eye: [],
     EyeSlash: [],
     File: [],
     Folder: ['bold'],
-    Gear: [],
-    GithubLogo: [],
     ImageBroken: [],
     Info: ['bold'],
     List: [],
     ListBullets: ['bold'],
-    ListDashes: ['bold'],
     MagnifyingGlass: ['bold'],
     MagnifyingGlassMinus: [],
     MagnifyingGlassPlus: [],
-    Moon: ['fill'],
-    Palette: ['fill'],
     Scroll: [],
-    ShareNetwork: [],
     Slideshow: [],
     Stack: [],
-    Sun: ['fill'],
     X: [],
 } as const satisfies Record<string, readonly ExtraIconWeight[]>;
 

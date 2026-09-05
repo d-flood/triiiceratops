@@ -83,6 +83,41 @@ export const DEFAULT_BUDGETS: PlannerBudgets = {
 };
 
 /**
+ * The box a canvas gets when nothing at all is known about its shape: no
+ * declared dimensions, no fetched service facts, and no sibling to take a
+ * median from.
+ *
+ * Square, and its absolute size does not matter — a world of one such canvas is
+ * fitted to the viewport, and a world with siblings never reaches this rung. It
+ * is a plausible page size so that nothing downstream which stumbles on it
+ * divides by something absurd. What matters is that there IS one: dropping the
+ * canvas instead looks like a safe refusal and is a dead end, because an
+ * unlaid-out canvas gets no tier, therefore no metadata request, therefore no
+ * reflow, so the folio a fetch would have sized is blank permanently rather
+ * than briefly (user story 32).
+ */
+export const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
+
+/**
+ * The box a **duration-only** canvas gets when nothing else declares one: a
+ * canvas with a duration, no dimensions, no picture core can paint, and no
+ * companion Canvas to take a rect from — an audio recording, in other words.
+ *
+ * A strip rather than {@link UNSIZED_CANVAS_PLACEHOLDER}'s square, because the
+ * two placeholders answer different questions. That one stands in for a shape
+ * nobody stated and something may yet report; this canvas's shape is not
+ * unknown — there is no picture, so the only thing that will ever occupy the
+ * rect is a timeline, and an AV plugin's audio stage fills it with exactly that
+ * (`plugin-av/stageLayout.stageLayoutKind`, the `audio` layout). A square asks
+ * the reader to accept a waveform lane as tall as a page.
+ *
+ * Only the ratio matters, for the same reason it does there: a world of one such
+ * canvas is fitted to the viewport, so this decides that an audio canvas is
+ * fitted as a band across it rather than as a block down it.
+ */
+export const DURATION_ONLY_CANVAS_PLACEHOLDER = { width: 1000, height: 160 };
+
+/**
  * The gutter between adjacent canvases, as a fraction of the median laid-out
  * canvas extent along the axis the world flows in.
  *

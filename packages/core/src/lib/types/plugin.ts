@@ -1,3 +1,7 @@
+import type {
+    SelectorSource,
+    SourceSelectors,
+} from '../state/selectors/runtime';
 import type { ViewerState } from '../state/viewer.svelte';
 
 /**
@@ -103,6 +107,9 @@ export interface PluginPanel {
     /** Props passed to the mounted content, if any. */
     props?: Record<string, unknown>;
 
+    /** The panel scrolls its own content; see {@link SdkPluginMeta.fills}. */
+    fills?: boolean;
+
     /** Reactive getter for visibility */
     isVisible: () => boolean;
 }
@@ -190,17 +197,14 @@ export interface Selector<T> {
     subscribe(callback: (value: T) => void): () => void;
 }
 
-/** Factory for memoized selectors over the live `ViewerState`. */
-export interface ViewerSelectors {
-    /**
-     * Create a memoized selector. `equals` defaults to `Object.is`. Built only
-     * on `ViewerState.subscribe` — never on Svelte reactivity.
-     */
-    select<T>(
-        fn: (state: ViewerState) => T,
-        equals?: (a: T, b: T) => boolean,
-    ): Selector<T>;
-}
+/**
+ * Factory for memoized selectors over the live `ViewerState` — the shape a
+ * `PluginContext` carries. Exactly `SourceSelectors<ViewerState>`: the selector
+ * runtime generalized to any {@link SelectorSource} (ADR 0018), and the viewer
+ * is one, so this is a name for that case rather than a second contract that
+ * could drift from it.
+ */
+export type ViewerSelectors = SourceSelectors<ViewerState>;
 
 /**
  * Root-aware global stylesheet installer for plugin CSS (SPEC.md "Plugin SDK And
@@ -357,6 +361,49 @@ export interface PluginSurface {
     close(): void;
     /** Toggle this plugin's surface open state. */
     toggle(): void;
+    /**
+     * Declare whether this plugin has anything to show on the current canvas.
+     * `false` hides its toolbar button — the gating core's own annotations and
+     * structures buttons have — so a plugin whose content is a fact about the
+     * canvas never leaves a live button over an empty panel, and closes its
+     * surface if it was open. Call it whenever that fact changes.
+     */
+    setAvailable(available: boolean): void;
+}
+
+/**
+ * How one member of a published state behaves, transplanting the viewer-state
+ * taxonomy one level down (CONTEXT.md **Published state**, **Query-only state**):
+ * `command` maintains the plugin's invariants, `observable` notifies through
+ * {@link PublishedState.subscribe}, `queryOnly` is a high-frequency value read
+ * on demand and deliberately non-notifying.
+ */
+export type PublishedStateClassification =
+    | 'command'
+    | 'observable'
+    | 'queryOnly';
+
+/**
+ * The state object one plugin activation publishes for hosts and framework
+ * wrappers to command it through (ADR 0018). It is reached only via
+ * {@link ViewerState.getPluginState} — never imported from the plugin package —
+ * and lives exactly as long as its activation.
+ *
+ * It is a `SelectorSource`, so the ONE selector runtime that serves viewer state
+ * serves this too; and it declares its own {@link stateInventory} so the SDK
+ * conformance kit can check the classification the way core's capability-matrix
+ * test checks the viewer's.
+ */
+export interface PublishedState extends SelectorSource {
+    /**
+     * Classification for every member this state exposes, keyed by member name.
+     * The seam's own members (`subscribe`, `subscribeFrame`, `stateInventory`)
+     * are not classified — they are the contract, not the state. A published
+     * member missing from this table fails conformance.
+     */
+    readonly stateInventory: Readonly<
+        Record<string, PublishedStateClassification>
+    >;
 }
 
 /**
@@ -370,6 +417,14 @@ export interface PluginContext {
     readonly styles: PluginStyleService;
     readonly locale: PluginLocaleService;
     readonly ui: PluginUiService;
+    /**
+     * Publish this activation's {@link PublishedState}, so hosts and framework
+     * wrappers can command the plugin through `viewerState.getPluginState(id)`
+     * (ADR 0018). At most one per activation — publishing again replaces the
+     * previous object — and the publication is retired automatically when the
+     * activation ends, so a host never reaches a dead plugin's state.
+     */
+    publishState(state: PublishedState): void;
 }
 
 /**
@@ -383,9 +438,14 @@ export interface PluginView {
 /**
  * What the host (core, or the SDK test kit) supplies at activation. Core passes
  * its declared `coreVersion`/`pluginApiVersion`/`capabilities` so the SDK can
- * negotiate compatibility without importing core constants. Services are
- * optional — the SDK fills stubs when the host omits them; a host may instead
- * supply real, per-viewer services.
+ * negotiate compatibility without importing core constants.
+ *
+ * Every member is required, services included. Core builds the real, per-viewer
+ * ones for each activation; a test that activates without a viewer assembles the
+ * host from `@triiiceratops/plugin-sdk/testing`, whose test viewer context
+ * carries recording doubles and whose `createStub*` helpers cover the rest. The
+ * SDK filling in stubs itself would put a service implementation no reader can
+ * ever see into every shipped plugin bundle.
  */
 export interface PluginHost {
     /** Core-owned DOM container the plugin renders into. */
@@ -402,25 +462,21 @@ export interface PluginHost {
      * surface is governed by `coreRange` instead (`plugin/api.ts`).
      */
     readonly capabilities: readonly string[];
-    readonly styles?: PluginStyleService;
-    readonly locale?: PluginLocaleService;
-    readonly ui?: PluginUiService;
+    readonly styles: PluginStyleService;
+    readonly locale: PluginLocaleService;
+    readonly ui: PluginUiService;
     /**
-     * The plugin's own panel/flyout chrome. Supplied by core (which owns the
-     * chrome id it registered); when a host omits it — direct `runActivation` or
-     * test-kit use with no chrome — the SDK fills a stub whose `isOpen` is always
-     * `true`, so a plugin under test behaves as if its surface were visible.
+     * The plugin's own panel/flyout chrome, owned by whoever registered the
+     * chrome id. Its `id` is the only id the viewer knows the plugin by, so it is
+     * also what published state and overlay layers are keyed to.
      */
-    readonly surface?: PluginSurface;
+    readonly surface: PluginSurface;
     /**
-     * Report a plugin lifecycle failure to the host. When present, the SDK
-     * routes every guarded phase failure here instead of throwing, so the host
-     * can present a plugin-local error state and offer retry. When absent
-     * (direct SDK / test-kit use with no host), setup and mount failures throw
-     * synchronously and subscription/command/cleanup failures fall back to a
-     * console error.
+     * Report a plugin lifecycle failure to the host. The SDK routes every guarded
+     * phase failure here rather than throwing, so the host can present a
+     * plugin-local error state and offer retry.
      */
-    readonly reportError?: (report: PluginErrorReport) => void;
+    readonly reportError: (report: PluginErrorReport) => void;
 }
 
 /** Handle returned by a successful activation. */
@@ -538,9 +594,14 @@ export interface SdkPluginMeta {
     readonly uiId?: string;
     /** Plugin package version. */
     readonly version: string;
-    /** Semver range of core versions this plugin supports. */
+    /**
+     * Core versions this plugin supports, as an exact version (`1.2.3`), a caret
+     * range (`^1.2.3`), or a `>=` lower bound (`>=1.2.3`) — the whole grammar the
+     * SDK negotiates. Any other syntax fails activation with an error naming the
+     * range rather than being read as "incompatible".
+     */
     readonly coreRange: string;
-    /** Semver range of plugin API versions this plugin supports. */
+    /** Plugin API versions this plugin supports; same grammar as {@link coreRange}. */
     readonly pluginApiRange: string;
     /**
      * Capability identifiers this plugin requires. Normally empty: a plugin
@@ -553,6 +614,13 @@ export interface SdkPluginMeta {
     readonly icon: IconDescriptor;
     /** Where the plugin renders (`panel` or `flyout`). */
     readonly target: PluginUiTarget;
+    /**
+     * This panel scrolls its own content, so core gives it the height left over
+     * in its column rather than sizing it to its content. For a panel whose body
+     * is a long list or document; a short one would only stretch. Ignored for
+     * `flyout` targets.
+     */
+    readonly fills?: boolean;
     /**
      * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (the default)
      * dismisses on outside pointer-down / Escape; `explicit` closes only via the

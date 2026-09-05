@@ -19,7 +19,61 @@
  */
 
 import type { ViewportInset } from '../types/viewport';
+import type { PaintTransform } from './paintLayers';
+import type { Box } from './tilePyramid';
 import type { Point, Viewport } from './types';
+
+/**
+ * The viewport as a canvas-space box.
+ *
+ * What "on screen" means to anything reasoning in the world rather than about
+ * pixels: the residency window is this box inflated, the visible-canvas set is
+ * what intersects it, and `ViewerState.getVisibleBounds` is it converted into
+ * one canvas's space.
+ *
+ * Undefined for a `scale` of zero — an unmeasured surface shows nothing, and
+ * every caller has already answered that question its own way (an empty set, a
+ * null box) before asking this one.
+ */
+export function viewportBox(viewport: Viewport): Box {
+    const halfWidth = viewport.width / (2 * viewport.scale);
+    const halfHeight = viewport.height / (2 * viewport.scale);
+
+    return {
+        x: viewport.centre.x - halfWidth,
+        y: viewport.centre.y - halfHeight,
+        width: halfWidth * 2,
+        height: halfHeight * 2,
+    };
+}
+
+/**
+ * World space → device pixels: the matrix the tiles are drawn with.
+ *
+ * `dpr` is the backing-store ratio, folded into `scale` rather than applied
+ * separately — the context is sized in device pixels while the viewport is
+ * measured in CSS pixels, and folding it here is what keeps every other
+ * coordinate in the painter CSS-pixel-based.
+ *
+ * One function because there is one matrix: `paintScene` sets it on the context,
+ * its tile path applies it by hand to snap edges to whole device pixels, and the
+ * host hands the same numbers to every paint layer. Those are three readers of
+ * one fact, and a layer whose ink is half a device pixel off the tiles is what a
+ * second spelling of it looks like.
+ */
+export function viewportTransform(
+    viewport: Viewport,
+    dpr: number,
+): PaintTransform {
+    const scale = viewport.scale * dpr;
+
+    return {
+        scale,
+        offsetX: (viewport.width / 2) * dpr - viewport.centre.x * scale,
+        offsetY: (viewport.height / 2) * dpr - viewport.centre.y * scale,
+        dpr,
+    };
+}
 
 /** Canvas space → screen space. */
 export function canvasToScreen(point: Point, viewport: Viewport): Point {
@@ -64,15 +118,15 @@ export function fitBounds(
 }
 
 /**
- * {@link fitBounds}, framing into the part of the surface a plugin has left
- * visible.
+ * {@link fitBounds}'s scale, framing into the part of the surface a plugin has
+ * left visible.
  *
  * A **viewport inset** reserves edges of the surface — the space under a
  * plugin's own floating UI — so a fit lands the box in the rectangle the reader
- * can actually see rather than behind that UI. The scale comes from the inset
- * extents, and the centre is shifted by half the asymmetry: reserving 200px at
- * the bottom moves the framed box up by 100 screen pixels, and reserving the
- * same at top and bottom moves it not at all.
+ * can actually see rather than behind that UI. This is the scale half of that
+ * fit; {@link insetFitCentre} is the other, and is deliberately separate
+ * because every caller clamps this answer before composing the centre against
+ * it.
  *
  * **Only fits consult the inset.** `canvasToScreen`/`screenToCanvas`,
  * `constrainCentre`, `zoomRange`, and every pan and zoom are about the whole
@@ -83,26 +137,22 @@ export function fitBounds(
  * A zero inset is `fitBounds` exactly, which is why the fit path has one
  * branch rather than two.
  */
-export function fitBoundsInset(
+export function insetFitScale(
     bounds: { x: number; y: number; width: number; height: number },
     size: { width: number; height: number },
     inset: ViewportInset,
-): { centre: Point; scale: number } {
-    const fit = fitBounds(bounds, {
+): number {
+    return fitBounds(bounds, {
         width: insetAxis(size.width, inset.left, inset.right).extent,
         height: insetAxis(size.height, inset.top, inset.bottom).extent,
-    });
-    return {
-        centre: insetFitCentre(bounds, size, inset, fit.scale),
-        scale: fit.scale,
-    };
+    }).scale;
 }
 
 /**
  * The centre that frames `bounds` into `inset` **at a scale the caller has
  * already settled on**.
  *
- * The other half of {@link fitBoundsInset}, split out because a fit does not
+ * The other half of {@link insetFitScale}, split out because a fit does not
  * always get the scale it asked for. The inset's centre shift is a distance in
  * SCREEN pixels and a viewport stores its centre in canvas units, so converting
  * one to the other needs the scale the viewport will actually adopt — and
@@ -142,7 +192,7 @@ export function insetFitCentre(
 }
 
 /**
- * One axis of {@link fitBoundsInset}: the extent a fit frames into, and how far
+ * One axis of {@link insetFitScale}: the extent a fit frames into, and how far
  * the middle of that extent sits from the middle of the surface, both in screen
  * pixels.
  *
@@ -228,6 +278,107 @@ export function zoomRange(
     const min = Math.min(Math.max(derived, readable), wholeCanvas);
 
     return { min, max: Math.max(fitScale, min) * maxFactor };
+}
+
+/**
+ * The scale that keeps the reader looking at the same part of the canvas when
+ * **core itself** takes surface away or gives it back — a side panel, the
+ * toolbar docked as a rail, a top or bottom thumbnail band.
+ *
+ * ```
+ * ratio     = min over the axes whose extent CHANGED of (next / previous)
+ * floor     = min(scale, fitScale)
+ * ceiling   = scale <= previousFitScale ? fitScale : Infinity
+ * result    = clamp(scale * ratio, floor, ceiling)
+ * ```
+ *
+ * `scale * ratio` is the region-preserving term. The viewport shows
+ * `size / scale` canvas units around its centre, so multiplying the scale by
+ * the surviving fraction of the changed axis holds that number constant. The
+ * centre is a canvas-space point and needs no adjustment at all: the visible
+ * rect is unchanged on the changed axis and grows on the other. Taking `min`
+ * over the changed axes rather than a product or an average is what makes that
+ * true of the *constraining* axis while every other axis reveals strictly more,
+ * so nothing on screen is cropped.
+ *
+ * Both fit scales are the fit of the same target, measured in the two surfaces:
+ * `fitScale` in the one arriving, `previousFitScale` in the one leaving.
+ *
+ * ## The floor and the ceiling, which are what make the rule safe
+ *
+ * **No overhang is introduced**: if `scale <= previousFitScale` then the result
+ * is at most `fitScale`. A projection larger than the fit hangs off the edges of
+ * its own surface, and the overhanging part is clipped away — taking
+ * canvas-anchored chrome out of both the picture and the hit test — so a reader
+ * who had the whole canvas must still have it afterwards. Each bound covers one
+ * direction:
+ *
+ * - Narrowing (`ratio < 1`) is the floor's side, and there the inequality holds
+ *   of the ratio term by itself: `fitScale` is a `min` over the axes of
+ *   `next / canvasExtent`, so it falls by at most the largest axis ratio, while
+ *   `scale` falls by the smallest. The floor then stops the compensation zooming
+ *   out *past* the whole canvas, where there is nothing left to preserve — which
+ *   is also why a viewer that opens with a panel already docked does not open a
+ *   height-constrained canvas needlessly small.
+ * - Widening (`ratio > 1`) is the ceiling's side, and it is not optional. Where
+ *   the fit is constrained by an axis the chrome did not change, `ratio` and
+ *   `fitScale` are independent: a portrait folio in a landscape viewer is
+ *   height-constrained at every width, so returning a panel's 300 px multiplies
+ *   the scale by 1.6 while the fit does not move at all, leaving a reader who had
+ *   the whole folio with 62% of one. The floor cannot catch that, being a lower
+ *   bound.
+ *
+ * The ceiling gates on the **previous** fit, never the arriving one. A reader who
+ * was genuinely zoomed in is already overhanging by choice and must be allowed
+ * to stay there; gating on the arriving fit reads their compensated scale as
+ * "at the fit" and drags them down to it, which would make a widening surface
+ * lose the zoom a narrowing one preserved. Ungated, the ceiling never binds while
+ * narrowing anyway, since `scale * ratio < scale` there.
+ *
+ * ## Composition
+ *
+ * `ratio` is relative, so the product of the ratios over a run of intermediate
+ * sizes equals the ratio of the endpoints: stepping a panel's slide through
+ * twelve widths lands exactly where one step to the final width lands, and a
+ * single-axis change is exactly invertible while neither bound is active. That
+ * is what frees the caller from having to observe every frame of a resize.
+ *
+ * Two kinds of input return `scale` untouched: a previous extent that is
+ * unmeasured or non-finite (or a non-finite next one), because there is no ratio
+ * to take against it, and a `scale` that is non-positive or non-finite, because
+ * there is no region to preserve. A *zero* next extent is not among them — it
+ * yields a ratio of 0 and lands on the floor — and callers never present one,
+ * since a surface with no width has nothing to compensate for.
+ */
+export function compensatedScale(
+    scale: number,
+    previous: { width: number; height: number },
+    next: { width: number; height: number },
+    fitScale: number,
+    previousFitScale: number,
+): number {
+    if (!(scale > 0) || !Number.isFinite(scale)) return scale;
+
+    let ratio = Infinity;
+    for (const axis of ['width', 'height'] as const) {
+        const was = previous[axis];
+        const now = next[axis];
+        if (now === was) continue;
+        if (!(was > 0) || !Number.isFinite(was) || !Number.isFinite(now)) {
+            return scale;
+        }
+        ratio = Math.min(ratio, now / was);
+    }
+    if (ratio === Infinity) return scale;
+
+    const usable = fitScale > 0 && Number.isFinite(fitScale);
+    const floor = usable ? Math.min(scale, fitScale) : 0;
+    const ceiling =
+        usable && previousFitScale > 0 && scale <= previousFitScale
+            ? fitScale
+            : Infinity;
+
+    return clamp(scale * ratio, floor, ceiling);
 }
 
 /**

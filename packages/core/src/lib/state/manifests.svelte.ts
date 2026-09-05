@@ -3,8 +3,10 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { RequestConfig } from '../types/config';
 import { fetchJson } from '../utils/fetchJson';
 import {
+    asArray,
     getCanvasesForSequence,
     getSequenceCount as countSequences,
+    toBehaviorList,
 } from '../utils/iiifParsing';
 import { logger } from '../logging/logger';
 
@@ -144,19 +146,9 @@ export class ManifestsState {
             return [];
         }
 
-        const sequenceRanges = structures.filter((range: any) => {
-            const rawBehavior = range?.behavior;
-            const behaviors = Array.isArray(rawBehavior)
-                ? rawBehavior
-                : rawBehavior
-                  ? [rawBehavior]
-                  : [];
-
-            return behaviors.some(
-                (value: unknown) =>
-                    String(value).trim().toLowerCase() === 'sequence',
-            );
-        });
+        const sequenceRanges = structures.filter((range: any) =>
+            toBehaviorList(range?.behavior).includes('sequence'),
+        );
 
         if (!sequenceRanges.length) {
             return [];
@@ -198,49 +190,21 @@ export class ManifestsState {
             .filter((sequence) => sequence.length > 0);
     }
 
-    private findCanvasInJson(resource: any, canvasId: string): any | null {
-        if (!resource || typeof resource !== 'object') {
-            return null;
-        }
-
-        const resourceId = resource.id || resource['@id'];
-        const resourceType = resource.type || resource['@type'];
-
-        if (
-            resourceId === canvasId &&
-            (resourceType === 'Canvas' || resourceType === 'sc:Canvas')
-        ) {
-            return resource;
-        }
-
-        const childCollections = [
-            resource.items,
-            resource.canvases,
-            resource.sequences,
-            resource.members,
-        ];
-
-        for (const collection of childCollections) {
-            if (!Array.isArray(collection)) {
-                continue;
-            }
-
-            for (const item of collection) {
-                const match = this.findCanvasInJson(item, canvasId);
-                if (match) {
-                    return match;
-                }
-            }
-        }
-
-        return null;
-    }
-
+    /**
+     * The enumerated canvases only — the same list the viewer renders, so an
+     * annotation is always read against the canvas that is on screen.
+     *
+     * A Canvas the enumerator does not reach is not looked for. That is not the
+     * same as a malformed manifest: `iiifParsing`'s enumeration reads
+     * `mediaSequences ?? sequences` as a *priority*, so a spec-valid IxIF
+     * wrapper carrying both (see the `vendored/audio.json` fixture) has the
+     * canvases of its `sequences` de-prioritized and therefore invisible here.
+     * Such a canvas is one this viewer never renders, so it has no annotations
+     * to read.
+     */
     private getCanvasJson(manifestId: string, canvasId: string): any | null {
         const manifestJson = this.getManifestEntry(manifestId)?.json;
 
-        // The enumerated canvases first — the same list the viewer renders, so
-        // an annotation is always read against the canvas that is on screen.
         const sequenceCount = countSequences(manifestJson);
         for (let index = 0; index < sequenceCount; index++) {
             const canvas = getCanvasesForSequence(manifestJson, index).find(
@@ -252,9 +216,7 @@ export class ManifestsState {
             }
         }
 
-        // A canvas that is in the manifest but in no sequence — inside a range,
-        // a collection member, or an otherwise unenumerated branch.
-        return this.findCanvasInJson(manifestJson, canvasId);
+        return null;
     }
 
     private getCanvasAnnotationListRefs(canvasJson: any): string[] {
@@ -348,19 +310,14 @@ export class ManifestsState {
         );
     }
 
+    /**
+     * Manifest-defined annotations only, read synchronously from whatever the
+     * cache already holds. Plugin-written display state (user annotations) is
+     * per-viewer on `ViewerState` (ADR 0007); the shared manifest cache is not
+     * plugin-facing and no longer stores it. The viewer merges its own user
+     * annotations on top of this result.
+     */
     getAnnotations(manifestId: string, canvasId: string, sourceId?: string) {
-        // Manifest-defined annotations only. Plugin-written display state (user
-        // annotations) is per-viewer on `ViewerState` now (ADR 0007); the shared
-        // manifest cache is not plugin-facing and no longer stores it. The viewer
-        // merges its own user annotations on top of this result.
-        return this.manualGetAnnotations(manifestId, canvasId, sourceId);
-    }
-
-    manualGetAnnotations(
-        manifestId: string,
-        canvasId: string,
-        sourceId?: string,
-    ) {
         const canvasJson = this.getCanvasJson(manifestId, canvasId);
         if (!canvasJson) return [];
 
@@ -383,8 +340,7 @@ export class ManifestsState {
         };
 
         const appendItems = (value: any) => {
-            const items = Array.isArray(value) ? value : value ? [value] : [];
-            for (const item of items) {
+            for (const item of asArray(value)) {
                 annotations.push(attachCanvasContext(item));
             }
         };

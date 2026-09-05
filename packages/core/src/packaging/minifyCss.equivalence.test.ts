@@ -2,11 +2,14 @@
  * Proves `minifyCss` semantics-preserving over the whole repository rather than
  * over hand-picked samples.
  *
- * Every `<style>` block in every `.svelte` file under `packages/<pkg>/src` is
- * parsed twice — as authored and as minified — through a REAL CSS parser, and
- * the two ASTs are compared. The parser is Svelte's own (`svelte/compiler`),
- * which is both a genuine parser and the exact one that consumes this CSS in the
- * build, so an equivalence it reports is the equivalence that matters.
+ * Every `<style>` block in every `.svelte` file under `packages/<pkg>/src`, and
+ * every standalone `.css` file there, is parsed twice — as authored and as
+ * minified — through a REAL CSS parser, and the two ASTs are compared. The
+ * parser is Svelte's own (`svelte/compiler`), which is both a genuine parser and
+ * the exact one that consumes the component CSS in the build, so an equivalence
+ * it reports is the equivalence that matters. The standalone sheets are in scope
+ * because `packages/plugin-av/vite.config.ts` runs the same minifier over the
+ * `?raw` strings it imports them as.
  *
  * Normalisation before comparison is limited to the things the minifier is
  * allowed to change: source positions, the raw stylesheet text the parser
@@ -47,14 +50,17 @@ interface StyleBlock {
     css: string;
 }
 
-function svelteFilesUnder(dir: string): string[] {
+function stylesheetSourcesUnder(dir: string): string[] {
     const found: string[] = [];
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const path = join(dir, entry.name);
         if (entry.isDirectory()) {
             if (entry.name === 'node_modules') continue;
-            found.push(...svelteFilesUnder(path));
-        } else if (entry.name.endsWith('.svelte')) {
+            found.push(...stylesheetSourcesUnder(path));
+        } else if (
+            entry.name.endsWith('.svelte') ||
+            entry.name.endsWith('.css')
+        ) {
             found.push(path);
         }
     }
@@ -74,13 +80,15 @@ function collectStyleBlocks(): { blocks: StyleBlock[]; skipped: StyleBlock[] } {
     const blocks: StyleBlock[] = [];
     const skipped: StyleBlock[] = [];
     for (const dir of packageSourceDirs()) {
-        for (const file of svelteFilesUnder(dir)) {
+        for (const file of stylesheetSourcesUnder(dir)) {
             const source = readFileSync(file, 'utf8');
+            const name = file.slice(PACKAGES_DIR.length);
+            if (file.endsWith('.css')) {
+                blocks.push({ file: name, css: source });
+                continue;
+            }
             for (const match of source.matchAll(STYLE_BLOCK)) {
-                const block = {
-                    file: file.slice(PACKAGES_DIR.length),
-                    css: match[1],
-                };
+                const block = { file: name, css: match[1] };
                 if (block.css.includes(INTERPOLATION)) skipped.push(block);
                 else blocks.push(block);
             }
@@ -208,12 +216,12 @@ const { blocks, skipped } = collectStyleBlocks();
 /*
  * An exact count, not a floor: a floor cannot tell "a package's stylesheets were
  * deleted" from "the check still runs". Update the number when a `<style>` block
- * is added or removed — a failure here is a prompt to confirm the new block is
- * covered, not a problem with the minifier.
+ * or a `.css` file is added or removed — a failure here is a prompt to confirm
+ * the new stylesheet is covered, not a problem with the minifier.
  */
-const EXPECTED_BLOCK_COUNT = 36;
+const EXPECTED_BLOCK_COUNT = 48;
 
-describe('minifyCss preserves every component stylesheet in the repository', () => {
+describe('minifyCss preserves every stylesheet in the repository', () => {
     it('found the stylesheets to check', () => {
         expect(blocks).toHaveLength(EXPECTED_BLOCK_COUNT);
     });

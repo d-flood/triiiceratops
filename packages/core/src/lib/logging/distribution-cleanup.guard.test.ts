@@ -31,17 +31,9 @@ const LIB_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
  *   packages, cleaned there);
  * - `browser-runtime.ts` is ticket 10's page-level namespace, which reports a
  *   structured first-wins conflict before any viewer/config exists;
- * - test and demo-only files are not shipped production source.
+ * - test files are not shipped production source.
  */
-const CONSOLE_EXCLUDED = [
-    'logging/logger.ts',
-    'browser-runtime.ts',
-    'components/DemoHeader.svelte',
-];
-
-// `import.meta.env` is banned everywhere in shipped source; only demo-only files
-// (pruned from the tarball) may use it.
-const IMPORT_META_ENV_EXCLUDED = ['components/DemoHeader.svelte'];
+const CONSOLE_EXCLUDED = ['logging/logger.ts', 'browser-runtime.ts'];
 
 // A narrow, documented allow marker for a bare console call that must remain
 // (e.g. a last-resort isolation fallback with no structured channel). The marker
@@ -98,11 +90,12 @@ describe('core distribution cleanup guard (ticket 18)', () => {
         expect(files.length).toBeGreaterThan(20);
     });
 
+    // No exclusions: `import.meta.env` is banned throughout `src/lib`. The demo
+    // chrome that used to need it lives in `src/demo`, outside this scan.
     it('has no `import.meta.env` in shipped lib source', () => {
         const offenders: string[] = [];
         for (const full of files) {
             const rel = relPath(full);
-            if (IMPORT_META_ENV_EXCLUDED.includes(rel)) continue;
             const lines = readFileSync(full, 'utf8').split('\n');
             lines.forEach((line, i) => {
                 if (IMPORT_META_ENV.test(line)) {

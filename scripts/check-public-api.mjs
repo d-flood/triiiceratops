@@ -4,10 +4,10 @@
  *   1. No `any` in PUBLIC `.d.ts` output. Scans every package's reachable public
  *      declaration graph (see `api-report/dts.mjs`) for the `any` type token.
  *      Pre-existing, structural exceptions live in
- *      `api-reports/dts-any-allowlist.txt` (each with the untyped-IIIF /
- *      manifesto.js boundary rationale in the file header). A NEW, non-allowlisted
- *      `any` on any public declaration fails the build. These entries should
- *      migrate into `lint-allowlist.md` when it lands.
+ *      `api-reports/dts-any-allowlist.txt`, whose header carries the raw-JSON
+ *      IIIF boundary rationale; `lint-allowlist.md` entry 4 carries the
+ *      human-facing owner and review date. A NEW, non-allowlisted `any` on any
+ *      public declaration fails the build.
  *
  * Usage:
  *   node scripts/check-public-api.mjs                 # enforce (CI)
@@ -42,6 +42,7 @@ const PACKAGES = [
         name: '@triiiceratops/plugin-annotation-editor',
         dir: 'plugin-annotation-editor',
     },
+    { name: '@triiiceratops/plugin-av', dir: 'plugin-av' },
 ];
 
 /** Normalized, stable key for one `any` occurrence. */
@@ -63,15 +64,16 @@ const HEADER = `# Public-declaration \`any\` allowlist
 # Each line is a normalized \`any\`-bearing declaration line reachable from a
 # package's public export entry points. These are PRE-EXISTING, STRUCTURAL
 # exceptions: the viewer models fetched IIIF resources (manifest / canvas /
-# annotation) as \`any\` because its \`manifesto.js\` boundary is untyped. They are
-# a single documented boundary, not accidental leakage, so they are accounted for
-# here rather than refactored — "snapshots record what exists". The SDK ABI
-# itself is \`any\`-clean.
+# annotation) as \`any\` because they arrive as raw JSON, and one declared type
+# cannot describe both Presentation versions. They are a single documented
+# boundary, not accidental leakage, so they are accounted for here rather than
+# refactored — "snapshots record what exists". The SDK ABI itself is
+# \`any\`-clean.
 #
 # The gate (\`scripts/check-public-api.mjs\`) FAILS on any NEW public \`any\` not
 # listed here, so a planted \`any\` on a public type is caught. This boundary is
 # registered as a single sanctioned exception in \`lint-allowlist.md\` (section
-# "IIIF resources crossing the manifesto.js boundary are \`any\`"): that entry
+# "IIIF resources crossing the raw-JSON boundary"): that entry
 # carries the human-facing rationale / owner / review-date, and THIS file is the
 # machine-readable line list the gate actually reads.
 #

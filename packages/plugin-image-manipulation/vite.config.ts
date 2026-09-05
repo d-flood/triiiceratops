@@ -16,8 +16,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *
  * The UI is Svelte, but Svelte is BUNDLED IN (not externalized to a global) in
  * BOTH formats so the plugin shares neither a Svelte runtime nor `svelte/internal`
- * with core (SPEC.md — "Core and browser plugins do not share a Svelte runtime
- * or import private `svelte/internal` modules"). `emitCss: true` + `bundledCss()`
+ * with core. `svelte/internal` is private, unversioned API, and this plugin is
+ * released independently of core, so a consumer can pair any plugin version with any
+ * core version — a shared runtime would break on the first version skew. `emitCss: true` + `bundledCss()`
  * EXTRACT each component's (Svelte-scoped) CSS through Vite's CSS pipeline instead
  * of Svelte's runtime `append_styles` injection (which would append an un-nonced
  * `<style>` to the document head, blocked under a strict `style-src` CSP).
@@ -34,7 +35,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *   SDK is framework-neutral and carries no `svelte/internal`, so this keeps the
  *   grep clean while honoring the peer contract.
  * - IIFE (`iife.js`): everything is bundled so the `<script>`-loadable file is
- *   fully self-contained (SPEC.md — "self-contained no-bundler IIFE").
+ *   fully self-contained: a script-tag consumer has no bundler to resolve peers
+ *   with, so nothing may be left external.
  */
 const format = process.env.BUILD_FORMAT === 'iife' ? 'iife' : 'es';
 

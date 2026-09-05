@@ -15,6 +15,7 @@ import { bodyText } from './annotationAdapter';
 import { getCanvasLabel } from './canvasLabels';
 import { segmentHighlights } from './highlightSegments';
 import { getCanvasId } from './iiifIds';
+import { asArray } from './iiifParsing';
 import { normalizeIiifTargets } from './iiifTargets';
 
 /** IIIF Content Search API profiles, as declared on a search service. */
@@ -32,10 +33,6 @@ type CanvasGroup = {
     hits: SearchHit[];
 };
 
-function toArray(value: any): any[] {
-    return Array.isArray(value) ? value : value ? [value] : [];
-}
-
 /**
  * Discover a IIIF Content Search service from raw manifest JSON.
  *
@@ -43,14 +40,19 @@ function toArray(value: any): any[] {
  * array — and matches search v0, v1 and v2 on `profile` or `type`/`@type`. v2 is
  * preferred when several are present.
  *
+ * `SearchService1` is how a Presentation 3 manifest references a Content Search
+ * 1.0 service. The published pattern carries it alongside the v1 `profile`, so
+ * profile-matching catches most real manifests, but a manifest declaring only
+ * the type still has a search service and must not be reported as having none.
+ *
  * Total: every access is guarded, so no manifest shape makes this throw.
  */
 export function discoverSearchService(
     manifestJson: any,
 ): SearchServiceRef | null {
     const services = [
-        ...toArray(manifestJson?.service),
-        ...toArray(manifestJson?.services),
+        ...asArray(manifestJson?.service),
+        ...asArray(manifestJson?.services),
     ];
 
     let v2Service: any = null;
@@ -254,14 +256,14 @@ function parseV2(
         { before: string; match: string; after: string }
     >();
 
-    for (const page of toArray(data?.annotations)) {
+    for (const page of asArray(data?.annotations)) {
         for (const anno of page.items || []) {
-            for (const target of toArray(anno.target)) {
+            for (const target of asArray(anno.target)) {
                 if (!target || typeof target === 'string') continue;
                 const sourceId = target.source;
                 if (!sourceId) continue;
 
-                for (const sel of toArray(target.selector)) {
+                for (const sel of asArray(target.selector)) {
                     // Prefer the first contextualizing entry for a source.
                     if (
                         sel.type === 'TextQuoteSelector' &&

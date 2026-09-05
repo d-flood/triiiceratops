@@ -11,11 +11,6 @@
 
 <script lang="ts">
     import Icon from './Icon.svelte';
-    import MagnifyingGlassIcon from './icons/MagnifyingGlassIcon.svelte';
-    import ChatCenteredTextIcon from './icons/ChatCenteredTextIcon.svelte';
-    import InfoIcon from './icons/InfoIcon.svelte';
-    import ListBulletsIcon from './icons/ListBulletsIcon.svelte';
-    import FolderIcon from './icons/FolderIcon.svelte';
     import { onDestroy, setContext, untrack } from 'svelte';
     import { cubicOut } from 'svelte/easing';
     import {
@@ -73,8 +68,11 @@
     import type { CanvasRegion } from '../utils/contentState';
     import { sdkPluginChromeId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
-    import { getViewerTileSources } from '../utils/resolveCanvasImage';
-    import { parseContentState } from '../utils/contentState';
+    import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
+    import {
+        getViewerTileSources,
+        getVisibleViewerCanvases,
+    } from '../utils/resolveCanvasImage';
     import { getCanvasId } from './viewerControls';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationShapeOverlay from './AnnotationShapeOverlay.svelte';
@@ -119,25 +117,16 @@
      *
      * Animates `clip-path`, not `height`: clip-path is composited, so the grid
      * lays out once and is uncovered, where an animated height would reflow every
-     * thumbnail on every frame. A floating gallery has no edge to slide from, so
-     * it just fades up.
+     * thumbnail on every frame.
      */
     function expandGallery(
         node: HTMLElement,
         {
             edge,
             from,
-        }: { edge: 'top' | 'bottom' | 'left' | 'right' | 'none'; from: number },
+        }: { edge: 'top' | 'bottom' | 'left' | 'right'; from: number },
     ) {
         const duration = prefersReducedMotion ? 0 : 260;
-        if (edge === 'none') {
-            return {
-                duration,
-                easing: cubicOut,
-                css: (t: number) =>
-                    `opacity: ${t}; transform: scale(${0.98 + 0.02 * t});`,
-            };
-        }
         // `u` is the un-revealed fraction: at u=1 only the docked footprint shows.
         const closed = (u: number) => `calc(${u} * (100% - ${from}px))`;
         const inset = (u: number) => {
@@ -160,18 +149,29 @@
     }
 
     /**
-     * Animate a side panel column's width (0 → full) so the center viewer
-     * resizes smoothly as the panel opens/closes, instead of the layout snapping
-     * to the panel's width in a single frame. Paired with the panel's own
-     * slide-in transition in PanelStack.
+     * Animate a side column's width (0 → full) so the center viewer resizes
+     * smoothly as the column opens/closes, instead of the layout snapping to its
+     * width in a single frame. Paired with the panel's own slide-in transition
+     * in PanelStack.
+     *
+     * `clip` hides the contents behind the animated edge, which is what a panel
+     * wants — its body is laid out at the full width and would otherwise reflow
+     * every frame. The docked toolbar rail passes `false`: it pins its buttons
+     * to the screen edge at full size and lets them overhang the shrinking
+     * column, so the toolbar stays exactly where it is while the surface it sat
+     * beside grows back (see `.rail-pin`).
      */
-    function slideWidth(node: HTMLElement, { duration = 200 } = {}) {
+    function slideWidth(
+        node: HTMLElement,
+        { duration = 200, clip = true } = {},
+    ) {
         const width = node.getBoundingClientRect().width;
         return {
             duration: prefersReducedMotion ? 0 : duration,
             easing: cubicOut,
             css: (t: number) =>
-                `width: ${t * width}px; min-width: 0; overflow: hidden;`,
+                `width: ${t * width}px; min-width: 0;` +
+                (clip ? ' overflow: hidden;' : ''),
         };
     }
 
@@ -230,7 +230,6 @@
     let allPlugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
     // The SDK path (ticket 07) is the one plugin path.
     let sdkPlugins = $derived(allPlugins.filter(isSdkPlugin));
-    let isDragOver = $state(false);
     // Active locale (CONTEXT.md **Active locale**, ticket 06): the viewer's typed
     // `config.locale` if set, otherwise the page default. Published to chrome via
     // Svelte context (below) so every `m.*()` call renders in it; also mirrored
@@ -330,58 +329,10 @@
         internalViewerState.setInitialCanvasRegion(initialCanvasRegion);
     });
 
-    function clearDragState() {
-        isDragOver = false;
-    }
-
     function hasCanvas(canvasId: string) {
         return internalViewerState.canvases.some(
             (canvas: any) => getCanvasId(canvas) === canvasId,
         );
-    }
-
-    function handleDragOver(event: DragEvent) {
-        if (!internalViewerState.config.enableDragDrop) return;
-        event.preventDefault();
-        isDragOver = true;
-    }
-
-    function handleDragLeave(event: DragEvent) {
-        if (!internalViewerState.config.enableDragDrop) return;
-        if (event.currentTarget === event.target) {
-            isDragOver = false;
-        }
-    }
-
-    async function handleDrop(event: DragEvent) {
-        if (!internalViewerState.config.enableDragDrop) return;
-        event.preventDefault();
-        clearDragState();
-
-        const text = event.dataTransfer?.getData('text/plain')?.trim();
-        if (!text) return;
-
-        const parsed = parseContentState(text);
-        if (parsed?.manifestId) {
-            internalViewerState.setInitialCanvasRegion(parsed.region ?? null);
-            if (parsed.canvasId) {
-                internalViewerState.setCanvas(parsed.canvasId);
-            }
-            await internalViewerState.setManifest(parsed.manifestId, {
-                requestConfig: config?.requests,
-            });
-            if (parsed.canvasId) {
-                internalViewerState.setCanvas(parsed.canvasId);
-            }
-            return;
-        }
-
-        if (/^https?:\/\//i.test(text)) {
-            internalViewerState.setInitialCanvasRegion(null);
-            await internalViewerState.setManifest(text, {
-                requestConfig: config?.requests,
-            });
-        }
     }
 
     $effect(() => {
@@ -725,6 +676,7 @@
             target: plugin.target,
             dismiss: plugin.dismiss ?? 'light',
             mount: mountThunk,
+            fills: plugin.fills,
         });
     }
 
@@ -952,6 +904,7 @@
             iconDescriptor: panel.iconDescriptor,
             component: PluginMountHost,
             props: { mount: panel.mount },
+            fills: panel.fills,
             // A plugin author cannot reach the section element, so core names
             // the panel here — the same `dialog` role a core panel component
             // renders for itself.
@@ -965,54 +918,99 @@
         };
     }
 
-    let visiblePanelsLeft = $derived.by<PanelStackItem[]>(() => {
+    /**
+     * One core panel. Every field is a thunk so the table below is built once
+     * and still reads live state: `open` is the panel's own visibility flag,
+     * `position` the column it asks for, `showClose` its close-button config,
+     * `toggle` how it closes.
+     *
+     * `position` is absent on the panels that have no left-hand position at all
+     * (structures, collection) — like an unset or unrecognized `position`, that
+     * resolves to the right column.
+     */
+    type CorePanel = {
+        id: string;
+        title: () => string;
+        iconName: PanelStackItem['iconName'];
+        component: PanelStackItem['component'];
+        open: () => boolean;
+        position?: () => 'left' | 'right' | undefined;
+        showClose: () => boolean | undefined;
+        toggle: () => void;
+    };
+
+    /** The core panels, in the order they stack within a column. */
+    const corePanels: CorePanel[] = [
+        {
+            id: 'search',
+            title: () => m.search(),
+            iconName: 'MagnifyingGlass',
+            component: SearchPanel,
+            open: () => internalViewerState.showSearchPanel,
+            position: () => internalViewerState.config.search?.position,
+            showClose: () => internalViewerState.config.search?.showCloseButton,
+            toggle: () => internalViewerState.toggleSearchPanel(),
+        },
+        {
+            id: 'annotations',
+            title: () => m.settings_submenu_annotations(),
+            iconName: 'ChatCenteredText',
+            component: AnnotationPanel,
+            open: () => internalViewerState.showAnnotations,
+            position: () => internalViewerState.config.annotations?.position,
+            showClose: () =>
+                internalViewerState.config.annotations?.showCloseButton,
+            toggle: () => internalViewerState.toggleAnnotations(),
+        },
+        {
+            id: 'metadata',
+            title: () => m.metadata(),
+            iconName: 'Info',
+            component: MetadataPanel,
+            open: () => internalViewerState.showMetadataPanel,
+            position: () => internalViewerState.config.information?.position,
+            showClose: () =>
+                internalViewerState.config.information?.showCloseButton,
+            toggle: () => internalViewerState.toggleMetadataPanel(),
+        },
+        {
+            id: 'structures',
+            title: () => m.structures_title(),
+            iconName: 'ListBullets',
+            component: StructuresPanel,
+            open: () => internalViewerState.showStructuresPanel,
+            showClose: () =>
+                internalViewerState.config.structures?.showCloseButton,
+            toggle: () => internalViewerState.toggleStructuresPanel(),
+        },
+        {
+            id: 'collection',
+            title: () => m.collection_title(),
+            iconName: 'Folder',
+            component: CollectionPanel,
+            open: () => showCollectionSidebar,
+            showClose: () =>
+                internalViewerState.config.collection?.showCloseButton,
+            toggle: () => internalViewerState.toggleCollectionPanel(),
+        },
+    ];
+
+    /** The panels docked to one column: core's first, then the plugins'. */
+    function buildPanels(column: 'left' | 'right'): PanelStackItem[] {
         const panels: PanelStackItem[] = [];
 
-        if (
-            internalViewerState.showSearchPanel &&
-            internalViewerState.config.search?.position === 'left'
-        ) {
+        for (const panel of corePanels) {
+            if (!panel.open()) continue;
+            if ((panel.position?.() === 'left' ? 'left' : 'right') !== column) {
+                continue;
+            }
             panels.push({
-                id: 'search',
-                title: m.search(),
-                icon: MagnifyingGlassIcon,
-                component: SearchPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.search?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleSearchPanel()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showAnnotations &&
-            internalViewerState.config.annotations?.position === 'left'
-        ) {
-            panels.push({
-                id: 'annotations',
-                title: m.settings_submenu_annotations(),
-                icon: ChatCenteredTextIcon,
-                component: AnnotationPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.annotations?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleAnnotations()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showMetadataPanel &&
-            internalViewerState.config.information?.position === 'left'
-        ) {
-            panels.push({
-                id: 'metadata',
-                title: m.metadata(),
-                icon: InfoIcon,
-                component: MetadataPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.information?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleMetadataPanel()
+                id: panel.id,
+                title: panel.title(),
+                iconName: panel.iconName,
+                component: panel.component,
+                close: showPanelCloseButton(panel.showClose())
+                    ? panel.toggle
                     : undefined,
             });
         }
@@ -1020,112 +1018,23 @@
         for (const panel of internalViewerState.pluginPanels) {
             if (
                 panel.isVisible() &&
-                internalViewerState.getPluginPosition(panel.pluginId) === 'left'
+                internalViewerState.getPluginPosition(panel.pluginId) === column
             ) {
                 panels.push(toPluginPanelItem(panel));
             }
         }
 
         return panels;
-    });
+    }
 
-    let visiblePanelsRight = $derived.by<PanelStackItem[]>(() => {
-        const panels: PanelStackItem[] = [];
-
-        if (
-            internalViewerState.showSearchPanel &&
-            internalViewerState.config.search?.position !== 'left'
-        ) {
-            panels.push({
-                id: 'search',
-                title: m.search(),
-                icon: MagnifyingGlassIcon,
-                component: SearchPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.search?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleSearchPanel()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showAnnotations &&
-            internalViewerState.config.annotations?.position !== 'left'
-        ) {
-            panels.push({
-                id: 'annotations',
-                title: m.settings_submenu_annotations(),
-                icon: ChatCenteredTextIcon,
-                component: AnnotationPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.annotations?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleAnnotations()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showMetadataPanel &&
-            internalViewerState.config.information?.position !== 'left'
-        ) {
-            panels.push({
-                id: 'metadata',
-                title: m.metadata(),
-                icon: InfoIcon,
-                component: MetadataPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.information?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleMetadataPanel()
-                    : undefined,
-            });
-        }
-        if (internalViewerState.showStructuresPanel) {
-            panels.push({
-                id: 'structures',
-                title: m.structures_title(),
-                icon: ListBulletsIcon,
-                component: StructuresPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.structures?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleStructuresPanel()
-                    : undefined,
-            });
-        }
-        if (showCollectionSidebar) {
-            panels.push({
-                id: 'collection',
-                title: m.collection_title(),
-                icon: FolderIcon,
-                component: CollectionPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.collection?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleCollectionPanel()
-                    : undefined,
-            });
-        }
-
-        for (const panel of internalViewerState.pluginPanels) {
-            if (
-                panel.isVisible() &&
-                internalViewerState.getPluginPosition(panel.pluginId) ===
-                    'right'
-            ) {
-                panels.push(toPluginPanelItem(panel));
-            }
-        }
-
-        return panels;
-    });
+    let visiblePanelsLeft = $derived.by(() => buildPanels('left'));
+    let visiblePanelsRight = $derived.by(() => buildPanels('right'));
 
     /**
      * The gallery, expanded to fill the center column as a thumbnail grid. It
      * renders in exactly one place — the `.gallery-expanded` overlay — so the
-     * docked/floating render sites below all stand down while it is up. Two
-     * mounted `ThumbnailGallery` instances would both run the dockSide sync
-     * effects and fight over them.
+     * docked render sites below all stand down while it is up. Two mounted
+     * `ThumbnailGallery` instances would put two galleries on screen at once.
      */
     let galleryExpanded = $derived(
         internalViewerState.showThumbnailGallery &&
@@ -1161,8 +1070,7 @@
             | 'top'
             | 'bottom'
             | 'left'
-            | 'right'
-            | 'none',
+            | 'right',
         // The band's height or the rail's width, whichever edge it slides out of —
         // one number either way, since that is what `gallery.size` is.
         from: galleryExtent,
@@ -1178,68 +1086,79 @@
             visiblePanelsRight.length > 0,
     );
 
-    // Latch the "sidebar present" signal so it trails the column's close
-    // animation. When the last same-side panel closes, `isLeftSidebarVisible`
-    // flips false instantly, but the panel column keeps sliding shut for ~200ms
-    // (slideWidth outro). Holding this signal true across that window lets the
-    // docked rail stay put — full size, not collapsing — until the column is
-    // actually gone, then hand off to the floating toolbar in one atomic swap.
-    // `$derived`, because `prefersReducedMotion` is now watched rather than
-    // sampled at init: a latch sized to an animation that no longer runs would
-    // hold the rail for 200ms of nothing after the preference is turned on.
-    const SIDEBAR_ANIM_MS = $derived(prefersReducedMotion ? 0 : 200);
-
-    let leftSidebarPresent = $state(false);
-    $effect(() => {
-        if (isLeftSidebarVisible) {
-            leftSidebarPresent = true;
-            return;
-        }
-        const id = setTimeout(
-            () => (leftSidebarPresent = false),
-            SIDEBAR_ANIM_MS,
-        );
-        return () => clearTimeout(id);
-    });
-
-    let rightSidebarPresent = $state(false);
-    $effect(() => {
-        if (isRightSidebarVisible) {
-            rightSidebarPresent = true;
-            return;
-        }
-        const id = setTimeout(
-            () => (rightSidebarPresent = false),
-            SIDEBAR_ANIM_MS,
-        );
-        return () => clearTimeout(id);
-    });
-
     // The toolbar docks as the screen-edge rail of a side bar when it shares that
     // side with an open panel/gallery. Only `split` controls use a side toolbar;
     // `unified` embeds the tools in the nav bar.
     //
-    // The rail is rendered as its OWN screen-edge column (a sibling of the panel
-    // column, not a child of it — see the markup), so it is not caught in the
-    // panel's slideWidth outro. That, plus the latched `…SidebarPresent` tail,
-    // means the rail stays mounted at full size through the close and then
-    // unmounts reactively the instant this flips false — in the SAME flush that
-    // mounts the floating toolbar. The result is an atomic hand-off: never two
-    // toolbars, never zero. `toolbarOpen` gates it directly (not via the latch)
-    // so collapsing the toolbar itself removes the rail immediately.
+    // The rail is its OWN screen-edge column (a sibling of the panel column, not
+    // a child of it — see the markup), and it slides open and shut on the same
+    // clock as the panel beside it. That is what makes the close one continuous
+    // motion: panel width and rail width come off the surface together over the
+    // one 200ms curve, where a rail that held full size and then vanished handed
+    // the center column its last ~37px in a single frame — a visible lurch at
+    // the very end of an otherwise smooth animation.
     let dockRailLeft = $derived(
         resolvedControls === 'split' &&
             toolbarSide === 'left' &&
             internalViewerState.toolbarOpen &&
-            (isLeftSidebarVisible || leftSidebarPresent),
+            isLeftSidebarVisible,
     );
     let dockRailRight = $derived(
         resolvedControls === 'split' &&
             toolbarSide === 'right' &&
             internalViewerState.toolbarOpen &&
-            (isRightSidebarVisible || rightSidebarPresent),
+            isRightSidebarVisible,
     );
     let toolbarDockedAsRail = $derived(dockRailLeft || dockRailRight);
+
+    /**
+     * True while an un-docking rail's outro is still on screen.
+     *
+     * The rail's buttons stay full size and pinned to the screen edge for the
+     * whole slide, so the floating toolbar must not mount into the same spot
+     * until they are gone — hence a signal taken from the transition itself
+     * rather than a timer sized to guess at it. Reset on `introstart` too,
+     * because reopening the panel mid-close reverses the outro and no
+     * `outroend` ever arrives.
+     */
+    let railLeaving = $state(false);
+
+    /**
+     * Which chrome core has docked beside the viewer, as one token each.
+     *
+     * Handed to `CanvasHost` purely as a CHANGE signal: the surface is about to
+     * change size because CORE took some of it, which is a different event from
+     * the window changing size — the first compensates the reader's whole view
+     * for the change, the second preserves their scale. Nothing downstream reads
+     * the tokens; they are here because a named string is far easier to reason
+     * about in a debugger than a bare counter would be.
+     *
+     * Both axes count. A gallery docked to the top or bottom edge takes a band
+     * of HEIGHT rather than a column of width, but it is docked chrome all the
+     * same, and the axis it takes from is the very one canvas-anchored transport
+     * chrome sits on. `dockSide` defaults to `'bottom'`, so leaving the
+     * horizontal edges out made the default configuration the broken one.
+     * A left/right gallery needs no token of its own — it already shows up
+     * through `isLeftSidebarVisible` / `isRightSidebarVisible`.
+     *
+     * A flyout contributes nothing: it floats over the viewer and takes no
+     * width or height from it.
+     */
+    let dockedChromeColumns = $derived(
+        [
+            isLeftSidebarVisible ? 'left' : '',
+            isRightSidebarVisible ? 'right' : '',
+            toolbarDockedAsRail ? 'rail' : '',
+            galleryDocked && internalViewerState.dockSide === 'top'
+                ? 'gallery-top'
+                : '',
+            galleryDocked && internalViewerState.dockSide === 'bottom'
+                ? 'gallery-bottom'
+                : '',
+        ]
+            .filter(Boolean)
+            .join(' '),
+    );
 
     /**
      * Which edge of the center column a floating toolbar occupies, or null when
@@ -1254,7 +1173,7 @@
      * centered), so one side's worth of inset covers every preset.
      */
     let floatingToolbarSide = $derived(
-        !toolbarDockedAsRail && resolvedControls !== 'unified'
+        !toolbarDockedAsRail && !railLeaving && resolvedControls !== 'unified'
             ? (internalViewerState.config.toolbar?.side ?? 'left')
             : null,
     );
@@ -1305,7 +1224,16 @@
             !canvases[currentCanvasIndex]
         )
             return null;
-        return getThumbnailSrc(canvases[currentCanvasIndex]) || null;
+        const canvas = canvases[currentCanvasIndex];
+        return (
+            getThumbnailSrc(
+                canvas,
+                200,
+                internalViewerState.getSelectedChoice(
+                    getCanvasId(canvas) ?? '',
+                ),
+            ) || null
+        );
     });
 
     let tileSources = $derived.by(() => {
@@ -1341,6 +1269,34 @@
         return tileSourcesArray;
     });
 
+    /**
+     * Whether any canvas on screen paints something core cannot render — a
+     * film, a sound recording.
+     *
+     * Such a canvas resolves NO tile source, which used to mean the viewer
+     * covered the whole surface with "no image found" and never mounted the
+     * renderer at all. It has to: the canvas keeps its layout rect and gets the
+     * **unsupported presentation** painted over it by the renderer, which is a
+     * per-canvas treatment and not a viewer-wide cover (CONTEXT.md; ADR 0017).
+     *
+     * Asked of the whole visible set rather than of the current canvas, because
+     * that is the set `tileSources` was flattened over: in a spread or in
+     * continuous mode the current canvas may paint nothing at all while a
+     * sibling on screen is the audio one, and asking only about the current
+     * canvas would take the viewer-wide cover and lose the sibling's treatment.
+     */
+    let visibleCanvasUnsupported = $derived.by(() =>
+        getVisibleViewerCanvases({
+            canvases: canvases ?? [],
+            currentCanvasIndex,
+            currentCanvasId: internalViewerState.canvasId,
+            viewingMode: internalViewerState.viewingMode,
+            pagedOffset: internalViewerState.pagedOffset,
+        }).some((canvas) =>
+            isUnsupportedCanvasFor(internalViewerState, canvas),
+        ),
+    );
+
     let tileSourceError = $derived(
         internalViewerState.tileSourceError as ViewerTileSourceError,
     );
@@ -1364,13 +1320,113 @@
      * registry's list is a plain frozen array rebuilt on change, not reactive
      * state, exactly as the paint hook's is — the two registries are
      * deliberately structurally identical, so this is one idiom rather than two.
-     * The `void` read is therefore load-bearing and not a leftover to tidy away.
+     *
+     * The read must be part of the returned EXPRESSION. It was once a bare
+     * `void internalViewerState.overlayLayerRevision;` statement, which the
+     * element build's terser pass deleted as side-effect-free — so in the
+     * shipped web component the registry accepted layers, the counter
+     * incremented, and no container was ever created. Every test stayed green
+     * because they all load the element from source. The guard is always true;
+     * it exists so the read cannot be dropped. `distributions.test.ts` asserts
+     * the read survives minification.
      */
-    let overlayLayers = $derived.by(() => {
-        void internalViewerState.overlayLayerRevision;
-        return internalViewerState.overlayLayers;
-    });
+    let overlayLayers = $derived.by(() =>
+        internalViewerState.overlayLayerRevision >= 0
+            ? internalViewerState.overlayLayers
+            : [],
+    );
 </script>
+
+<!-- The docked gallery in a side column's rail. -->
+{#snippet galleryRail()}
+    <div
+        class="gallery-host"
+        style="--ui-gallery-rail: {galleryExtent}px"
+        transition:slideWidth|global
+    >
+        <ThumbnailGallery />
+    </div>
+{/snippet}
+
+<!-- The docked gallery in a band across the top or bottom of the center column. -->
+{#snippet galleryBand()}
+    <div class="gallery-band" style="--ui-gallery-band: {galleryExtent}px">
+        <ThumbnailGallery />
+    </div>
+{/snippet}
+
+<!--
+    The plugin panels docked at one position. `overlay` floats over the image
+    inside `.viewer-area`, `bottom` is a band below it in the center column —
+    different DOM parents, which is why this is rendered twice rather than
+    looped once.
+-->
+{#snippet pluginPanelsAt(position: 'overlay' | 'bottom')}
+    {#each internalViewerState.pluginPanels as panel (panel.id)}
+        {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === position}
+            <div
+                class:plugin-overlay={position === 'overlay'}
+                class:plugin-bottom={position === 'bottom'}
+            >
+                {#if panel.mount}
+                    <PluginMountHost mount={panel.mount} />
+                {/if}
+            </div>
+        {/if}
+    {/each}
+{/snippet}
+
+<!--
+    The viewer-wide cover over the image surface: a blurred thumbnail of the
+    canvas it could not show, and a card naming the reason. `role="alert"` for a
+    failure the reader's action caused (an auth challenge, a tile that would not
+    load), `role="status"` for a canvas that simply paints nothing.
+-->
+{#snippet cover(
+    role: 'alert' | 'status',
+    locked: boolean,
+    message: string | null,
+    details: string | null,
+)}
+    <div class="overlay-cover" {role}>
+        {#if currentCanvasThumbnail}
+            <img src={currentCanvasThumbnail} alt="" class="blur-bg" />
+            <div class="dim-50"></div>
+        {/if}
+        <div class="error-card">
+            {#if locked}
+                <!-- Inline rather than a manifest glyph: the padlock is drawn
+                     here and nowhere else in the library, so enrolling it in the
+                     per-artifact icon tables would ship the lookup as well as
+                     the shape. -->
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="warn-icon"
+                >
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <p class="msg">{message}</p>
+            {:else}
+                <Icon
+                    name="ImageBroken"
+                    size={48}
+                    color="var(--tri-color-warning)"
+                />
+                <p class="msg msg-strong">{message}</p>
+                {#if details}
+                    <p class="msg-details">{details}</p>
+                {/if}
+            {/if}
+        </div>
+    </div>
+{/snippet}
 
 <div
     bind:this={rootElement}
@@ -1383,15 +1439,21 @@
     data-nav-align={resolvedNavAlign}
 >
     <!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
-         OUTSIDE the panel column's slideWidth outro, so it stays full size
-         through the close and then swaps atomically with the floating toolbar
-         (see dockRailLeft) — no collapsing icons, no duplicate, no empty gap. -->
+         sliding on the same clock as the panel beside it; `.rail-pin` holds the
+         buttons at full size against the screen edge so they neither collapse
+         nor move while it does. See dockRailLeft. -->
     {#if dockRailLeft}
         <div
-            class="toolbar-rail-host rail-col"
+            class="toolbar-rail-host rail-col rail-left"
             class:opaque={!internalViewerState.config.transparentBackground}
+            transition:slideWidth|global={{ clip: false }}
+            onintrostart={() => (railLeaving = false)}
+            onoutrostart={() => (railLeaving = true)}
+            onoutroend={() => (railLeaving = false)}
         >
-            <Toolbar docked />
+            <div class="rail-pin">
+                <Toolbar docked />
+            </div>
         </div>
     {/if}
 
@@ -1415,36 +1477,19 @@
             {/if}
 
             {#if galleryDocked && internalViewerState.dockSide === 'left'}
-                <div
-                    class="gallery-host"
-                    style="--ui-gallery-rail: {galleryExtent}px"
-                    transition:slideWidth|global
-                >
-                    <ThumbnailGallery {canvases} />
-                </div>
+                {@render galleryRail()}
             {/if}
         </div>
     {/if}
 
-    <div id="triiiceratops-center-panel" class="center-col">
+    <div class="center-col">
         {#if galleryDocked && internalViewerState.dockSide === 'top'}
-            <div
-                class="gallery-band"
-                style="--ui-gallery-band: {galleryExtent}px"
-            >
-                <ThumbnailGallery {canvases} />
-            </div>
+            {@render galleryBand()}
         {/if}
 
         <div
             class="viewer-area"
             class:opaque={!internalViewerState.config.transparentBackground}
-            role={internalViewerState.config.enableDragDrop
-                ? 'region'
-                : undefined}
-            ondragover={handleDragOver}
-            ondragleave={handleDragLeave}
-            ondrop={handleDrop}
         >
             {#if manifestData?.isFetching}
                 <div class="centered">
@@ -1458,59 +1503,15 @@
                     {m.error_prefix()}
                     {manifestData.error}
                 </div>
-            {:else if tileSources}
+            {:else if tileSources || visibleCanvasUnsupported}
                 {#if tileSourceError}
-                    <div class="overlay-cover" role="alert">
-                        {#if currentCanvasThumbnail}
-                            <img
-                                src={currentCanvasThumbnail}
-                                alt=""
-                                class="blur-bg"
-                            />
-                            <div class="dim-50"></div>
-                        {/if}
-                        <div class="error-card">
-                            {#if tileSourceError.type === 'auth'}
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    class="warn-icon"
-                                >
-                                    <rect
-                                        x="3"
-                                        y="11"
-                                        width="18"
-                                        height="11"
-                                        rx="2"
-                                        ry="2"
-                                    />
-                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                </svg>
-                                <p class="msg">
-                                    {m.error_auth_required()}
-                                </p>
-                            {:else}
-                                <Icon
-                                    name="ImageBroken"
-                                    size={48}
-                                    color="var(--tri-color-warning)"
-                                />
-                                <p class="msg msg-strong">
-                                    {tileSourceErrorMessage}
-                                </p>
-                                {#if tileSourceErrorDetails}
-                                    <p class="msg-details">
-                                        {tileSourceErrorDetails}
-                                    </p>
-                                {/if}
-                            {/if}
-                        </div>
-                    </div>
+                    {@const auth = tileSourceError.type === 'auth'}
+                    {@render cover(
+                        'alert',
+                        auth,
+                        auth ? m.error_auth_required() : tileSourceErrorMessage,
+                        auth ? null : tileSourceErrorDetails,
+                    )}
                 {:else}
                     <!--
                         The one renderer. There is no renderer selection: the
@@ -1521,29 +1522,18 @@
                     <CanvasHost
                         {tileSources}
                         viewerState={internalViewerState}
+                        dockedChrome={dockedChromeColumns}
                     />
                 {/if}
-            {:else if manifestData && !manifestData.isFetching && !tileSources}
-                <div class="overlay-cover" role="status">
-                    {#if currentCanvasThumbnail}
-                        <img
-                            src={currentCanvasThumbnail}
-                            alt=""
-                            class="blur-bg"
-                        />
-                        <div class="dim-50"></div>
-                    {/if}
-                    <div class="error-card">
-                        <Icon
-                            name="ImageBroken"
-                            size={48}
-                            color="var(--tri-color-warning)"
-                        />
-                        <p class="msg msg-strong">
-                            {m.no_image_found()}
-                        </p>
-                    </div>
-                </div>
+            {:else if manifestData && !manifestData.isFetching}
+                <!--
+                    Nothing resolved AND nothing to be honest about: a canvas
+                    with no painting annotation at all (Cookbook recipe 0283, an
+                    IxIF element). A canvas whose content is merely
+                    undisplayable took the renderer branch above and gets the
+                    unsupported presentation over its own rect instead.
+                -->
+                {@render cover('status', false, m.no_image_found(), null)}
             {/if}
 
             <!--
@@ -1595,58 +1585,25 @@
             {/each}
 
             <!-- Floating Toolbar (suppressed while the docked rail occupies its
-                 side — including the tail of the un-dock animation, since
-                 toolbarDockedAsRail is latched — or in `unified` controls where
-                 the buttons live in the nav). The hand-off is atomic: this mounts
-                 in the same flush the rail column unmounts. -->
-            {#if !toolbarDockedAsRail && resolvedControls !== 'unified'}
+                 side — including the tail of the un-dock animation, which is
+                 what `railLeaving` covers — or in `unified` controls where the
+                 buttons live in the nav). The rail's pinned buttons end the
+                 slide at this toolbar's own position, so the hand-off at
+                 `outroend` moves nothing on screen. -->
+            {#if !toolbarDockedAsRail && !railLeaving && resolvedControls !== 'unified'}
                 <Toolbar />
             {/if}
 
-            {#each internalViewerState.pluginPanels as panel (panel.id)}
-                {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'overlay'}
-                    <div class="plugin-overlay">
-                        {#if panel.mount}
-                            <PluginMountHost mount={panel.mount} />
-                        {/if}
-                    </div>
-                {/if}
-            {/each}
+            {@render pluginPanelsAt('overlay')}
 
             <ViewerControls />
-
-            {#if internalViewerState.config.enableDragDrop && isDragOver}
-                <div class="drag-overlay">
-                    <div class="drag-hint">
-                        {m.drop_manifest_hint()}
-                    </div>
-                </div>
-            {/if}
-
-            <!-- Float-mode Gallery -->
-            {#if galleryDocked && internalViewerState.dockSide === 'none'}
-                <ThumbnailGallery {canvases} />
-            {/if}
         </div>
 
         {#if galleryDocked && internalViewerState.dockSide === 'bottom'}
-            <div
-                class="gallery-band"
-                style="--ui-gallery-band: {galleryExtent}px"
-            >
-                <ThumbnailGallery {canvases} />
-            </div>
+            {@render galleryBand()}
         {/if}
 
-        {#each internalViewerState.pluginPanels as panel (panel.id)}
-            {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'bottom'}
-                <div class="plugin-bottom">
-                    {#if panel.mount}
-                        <PluginMountHost mount={panel.mount} />
-                    {/if}
-                </div>
-            {/if}
-        {/each}
+        {@render pluginPanelsAt('bottom')}
 
         <!-- Expanded Gallery. An overlay layer covering the center column, so
              the renderer keeps its size underneath (no re-layout or re-fit when it
@@ -1660,7 +1617,7 @@
                 class:inset-right={floatingToolbarSide === 'right'}
                 transition:expandGallery|global={galleryExpandFrom}
             >
-                <ThumbnailGallery {canvases} />
+                <ThumbnailGallery />
             </div>
         {/if}
     </div>
@@ -1685,27 +1642,27 @@
             {/if}
 
             {#if galleryDocked && internalViewerState.dockSide === 'right'}
-                <div
-                    class="gallery-host"
-                    style="--ui-gallery-rail: {galleryExtent}px"
-                    transition:slideWidth|global
-                >
-                    <ThumbnailGallery {canvases} />
-                </div>
+                {@render galleryRail()}
             {/if}
         </div>
     {/if}
 
     <!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
-         OUTSIDE the panel column's slideWidth outro, so it stays full size
-         through the close and then swaps atomically with the floating toolbar
-         (see dockRailRight) — no collapsing icons, no duplicate, no empty gap. -->
+         sliding on the same clock as the panel beside it; `.rail-pin` holds the
+         buttons at full size against the screen edge so they neither collapse
+         nor move while it does. See dockRailRight. -->
     {#if dockRailRight}
         <div
-            class="toolbar-rail-host rail-col"
+            class="toolbar-rail-host rail-col rail-right"
             class:opaque={!internalViewerState.config.transparentBackground}
+            transition:slideWidth|global={{ clip: false }}
+            onintrostart={() => (railLeaving = false)}
+            onoutrostart={() => (railLeaving = true)}
+            onoutroend={() => (railLeaving = false)}
         >
-            <Toolbar docked />
+            <div class="rail-pin">
+                <Toolbar docked />
+            </div>
         </div>
     {/if}
 </div>
@@ -1755,9 +1712,28 @@
        the panel region — win regardless of DOM order. */
     .toolbar-rail-host.rail-col {
         z-index: 21;
+        display: flex;
     }
     .toolbar-rail-host.rail-col.opaque {
         background-color: var(--tri-viewer-bg);
+    }
+    /* Anchor the buttons to the SCREEN edge while the column's width animates,
+       so the toolbar holds still and full size through the slide and the column
+       opens (or closes) behind it. Each rail aligns to the edge it is docked
+       against, which is what puts the overhang on the inboard side;
+       `flex-shrink: 0` on the pin is what makes it an overhang rather than a
+       squeeze. */
+    .toolbar-rail-host.rail-left {
+        justify-content: flex-start;
+    }
+    .toolbar-rail-host.rail-right {
+        justify-content: flex-end;
+    }
+    .rail-pin {
+        display: flex;
+        flex: 0 0 auto;
+        height: 100%;
+        min-height: 0;
     }
 
     .panel-host {
@@ -1853,7 +1829,6 @@
         align-items: center;
         justify-content: center;
         pointer-events: none;
-        overflow: hidden;
     }
     .blur-bg {
         position: absolute;
@@ -1915,10 +1890,21 @@
         max-width: 20rem;
     }
 
+    /*
+     * A plugin panel positioned `overlay`. Above `.control-bar` (41), which is
+     * itself above the plugin overlay LAYERS at 40. The two cases differ in
+     * what they contain: a layer spans the viewer area and its opted-in child
+     * is usually the content itself (a claimed AV canvas's media element), so
+     * the bar must paint over it or lose every control; a panel is discrete
+     * chrome the reader operates, and only its own content takes pointer
+     * events, so where a panel and the bar overlap the panel is the thing being
+     * used and has to win. Below the drag overlay (45) and core's annotation
+     * shapes (50).
+     */
     .plugin-overlay {
         position: absolute;
         inset: 0;
-        z-index: 40;
+        z-index: 42;
         pointer-events: none;
     }
     /*
@@ -1932,52 +1918,26 @@
      * accessible names, and a plugin layer painted over them would break that
      * silently. Transparent to pointer events, so adding a layer cannot cost the
      * reader panning; plugin children opt in with `pointer-events: auto`.
+     *
+     * `overflow: hidden` because a layer's children are positioned from
+     * projected canvas points, which routinely fall outside this box — a canvas
+     * fitted to the viewer's height overhangs it sideways, any zoom overhangs it
+     * in both axes. Without the clip a plugin child that opted into pointer
+     * events extends over the side columns and, at this z-index, takes the taps
+     * aimed at the toolbar and the panels docked there.
      */
     .plugin-overlay-layer {
         position: absolute;
         inset: 0;
         z-index: 40;
         pointer-events: none;
+        overflow: hidden;
     }
     .plugin-bottom {
         position: relative;
         width: 100%;
         z-index: 40;
         pointer-events: auto;
-    }
-
-    .drag-overlay {
-        position: absolute;
-        inset: 0;
-        z-index: 45;
-        pointer-events: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: color-mix(
-            in oklab,
-            var(--tri-viewer-bg) 70%,
-            transparent
-        );
-        backdrop-filter: blur(4px);
-    }
-    .drag-hint {
-        border-radius: var(--tri-radius-box);
-        border: 2px dashed var(--tri-color-primary);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-viewer-bg) 90%,
-            transparent
-        );
-        padding-inline: 1.5rem;
-        padding-block: 1rem;
-        font-size: 0.875rem;
-        line-height: 1.25rem;
-        font-weight: 500;
-        color: var(--tri-content);
-        box-shadow:
-            0 10px 15px -3px #0000001a,
-            0 4px 6px -4px #0000001a;
     }
 
     /* Scoped scrollbar styles for the viewer */

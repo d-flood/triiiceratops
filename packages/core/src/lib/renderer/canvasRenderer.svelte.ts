@@ -61,23 +61,39 @@ import { untrack } from 'svelte';
 import { installRendererDevtools } from './rendererDevtools';
 
 import { getVisibleCanvasEntries } from '../components/viewerControls';
-import { toPlannerCanvases } from './canvasDescriptors';
+import {
+    toPlannerCanvases,
+    unsupportedPresentationIds,
+} from './canvasDescriptors';
+import {
+    resolveCompanionCanvases,
+    withCompanion,
+    type CompanionCanvases,
+} from './companionCanvases';
 import { GestureRecogniser } from './gestureArbiter';
 import { PAN_KEYS, keyPanVelocity } from './keyboardPan';
 import {
     createTileSourceErrorMirror,
     errorPlacements,
-    samePlacements,
     viewerLevelErrorKind,
     type CanvasErrorKind,
     type CanvasErrorPlacement,
 } from './canvasErrors';
+import {
+    canvasPlacements,
+    samePlacements,
+    // Aliased: `layoutQueries` exports an unrelated `CanvasPlacement` (a canvas
+    // rect plus its declared size, for coordinate conversion) that this module
+    // also imports. This one is a treatment's on-screen box.
+    type CanvasPlacement as TreatmentPlacement,
+} from './canvasPlacements';
 import { imageServiceCache } from './imageService';
 import { createStaticImages } from './staticImages';
 import { staticImageFailures } from './staticImageFailures';
 import {
     boxContains,
     canvasBoxToWorld,
+    canvasExtent,
     canvasPointToWorld,
     canvasScaleFactor,
     fitTargetBounds,
@@ -92,6 +108,7 @@ import type { RendererPort } from './rendererPort';
 import { markRendererPort } from './rendererPortBrand';
 import {
     imageAdjustmentsToCssFilter,
+    type CanvasSize,
     type ContainerSize,
     type ImageAdjustments,
     type ViewportBox,
@@ -124,6 +141,7 @@ import {
     MIN_FLICK_SPEED,
     MIN_VELOCITY_SPAN_MS,
     MIN_ZOOM_FRACTION,
+    MOBILE_BUDGET_QUERY,
     MOMENTUM_MIN_SPEED,
     MOMENTUM_TIME_CONSTANT,
     MULTI_CANVAS_GAP_FRACTION,
@@ -156,12 +174,15 @@ import {
     approachScale,
     canvasToScreen as canvasToScreenPoint,
     clamp,
+    compensatedScale,
     constrainCentre,
     fitBounds,
-    fitBoundsInset,
     insetFitCentre,
+    insetFitScale,
     normalizeWheelDelta,
     screenToCanvas as screenToCanvasPoint,
+    viewportBox,
+    viewportTransform,
     wheelZoomRate,
     zoomRange,
 } from './viewportMath';
@@ -252,8 +273,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     let reducedMotion = false;
     let frameHandle: number | null = null;
     let lastFrameTime = 0;
-    /** Resolved once the next painted frame has landed (e2e determinism). */
-    let paintWaiters: Array<() => void> = [];
 
     /**
      * The decoded whole images this renderer holds, and their request
@@ -278,6 +297,44 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     let loadedGeneration = $state(0);
 
     /**
+     * `ViewerConfig.renderer`'s numeric knobs, validated once per config change.
+     *
+     * Every member is optional, and a config carrying `undefined`, `null`, or a
+     * stray `NaN` from a JSON round-trip must take core's default rather than
+     * poison the planner with a threshold nothing compares true against. The
+     * check belongs at this edge and nowhere else: the frame loop, the input
+     * handlers and `applyByteBudget` all read numbers that are already known
+     * good, instead of each re-deciding whether the same value is usable.
+     */
+    const knobs = $derived.by(() => {
+        const config = viewerState.config?.renderer;
+        const usable = (value: number | undefined): value is number =>
+            typeof value === 'number' && Number.isFinite(value) && value > 0;
+        // Overrides only, so a knob nobody set leaves core's default — and so
+        // `maxDecodedPixels`, which is not a knob, can never be reached at all.
+        const budgets: Partial<PlannerBudgets> = {};
+        const carry = (member: keyof PlannerBudgets, value?: number) => {
+            if (usable(value)) budgets[member] = value;
+        };
+        carry('byteBudget', config?.byteBudget);
+        carry('marginFactor', config?.residencyMargin);
+        carry('pyramidThreshold', config?.pyramidThreshold);
+        carry('boxThreshold', config?.boxThreshold);
+        carry('minPixelRatio', config?.minPixelRatio);
+        const animation = config?.animationTimeConstant;
+        return {
+            budgets,
+            /**
+             * The time constant every programmatic and discrete animation runs
+             * at.
+             */
+            animationTime: usable(animation)
+                ? animation
+                : ANIMATION_TIME_CONSTANT,
+        };
+    });
+
+    /**
      * The planner's policy inputs — thresholds, the residency margin, and the
      * decoded-byte ceiling.
      *
@@ -288,69 +345,22 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * `applyByteBudget`). Nothing else in here varies at runtime.
      *
      * The consumer's `ViewerConfig.renderer` overrides land here too, through
-     * {@link configuredBudgets} — a **closed** set of named knobs, not an open
-     * options object. A configured `byteBudget` wins over the device ceiling,
-     * because a consumer who states a number has more context than a media
-     * query does.
+     * {@link knobs} — a **closed** set of named knobs, not an open options
+     * object. A configured `byteBudget` wins over the device ceiling, because a
+     * consumer who states a number has more context than a media query does.
      *
      * Deliberately not `$state`: read by the frame loop, never by the reactive
      * graph.
      */
-    let budgets = configuredBudgets(DEFAULT_BUDGETS);
-
-    /**
-     * Apply `ViewerConfig.renderer` over a set of budgets.
-     *
-     * Every member is optional and each is checked for being a usable number,
-     * so a config carrying `undefined`, `null`, or a stray `NaN` from a JSON
-     * round-trip takes core's default rather than poisoning the planner with a
-     * threshold nothing compares true against.
-     */
-    function configuredBudgets(base: PlannerBudgets): PlannerBudgets {
-        const config = viewerState.config?.renderer;
-        if (!config) return base;
-        const usable = (value: number | undefined): value is number =>
-            typeof value === 'number' && Number.isFinite(value) && value > 0;
-        return {
-            byteBudget: usable(config.byteBudget)
-                ? config.byteBudget
-                : base.byteBudget,
-            marginFactor: usable(config.residencyMargin)
-                ? config.residencyMargin
-                : base.marginFactor,
-            pyramidThreshold: usable(config.pyramidThreshold)
-                ? config.pyramidThreshold
-                : base.pyramidThreshold,
-            boxThreshold: usable(config.boxThreshold)
-                ? config.boxThreshold
-                : base.boxThreshold,
-            minPixelRatio: usable(config.minPixelRatio)
-                ? config.minPixelRatio
-                : base.minPixelRatio,
-            maxDecodedPixels: base.maxDecodedPixels,
-        };
-    }
-
-    /**
-     * The time constant every programmatic and discrete animation runs at, from
-     * `ViewerConfig.renderer.animationTimeConstant`.
-     */
-    function animationTime(): number {
-        const configured = viewerState.config?.renderer?.animationTimeConstant;
-        return typeof configured === 'number' &&
-            Number.isFinite(configured) &&
-            configured > 0
-            ? configured
-            : ANIMATION_TIME_CONSTANT;
-    }
+    let budgets: PlannerBudgets = { ...DEFAULT_BUDGETS, ...knobs.budgets };
 
     /**
      * The log-scale zoom per pixel of wheel travel, from
      * `ViewerConfig.renderer.zoomPerWheelNotch`.
      *
-     * Read per event rather than cached, like `animationTime()`: config is
-     * reactive, and a wheel handler is nowhere near hot enough for one property
-     * read and a `Math.log` to matter.
+     * Read per event rather than resolved with the other knobs: this one has a
+     * floor of its own (below) and a `Math.log` to convert, and a wheel handler
+     * is nowhere near hot enough for either to matter.
      *
      * A factor of 1 or less is rejected rather than honoured — it would freeze
      * the wheel or invert its direction, neither of which is a thing to
@@ -469,6 +479,20 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     /**
+     * The **unsupported presentation**'s placements, in surface-local CSS
+     * pixels — the canvases whose painting bodies core cannot render at all
+     * (CONTEXT.md; ADR 0017).
+     *
+     * Beside {@link errorLayer} rather than folded into it, because the two say
+     * opposite things about the manifest. An error means a source the viewer
+     * asked for came back with nothing, and carries a retry, a negative-cache
+     * entry and an error-channel event with it. This means the viewer never
+     * asked: the canvas holds a sound recording or a film, which is not a
+     * failure and has nothing to retry.
+     */
+    let unsupportedLayer: TreatmentPlacement<'unsupported'>[] = $state([]);
+
+    /**
      * The canvases this renderer is showing, in **canvas space**.
      *
      * **Continuous mode is the whole manifest**, all 800 folios of it. That is
@@ -546,6 +570,100 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     });
 
     /**
+     * canvasId → its resolved companions, for the **claimed** canvases that
+     * have any.
+     *
+     * Beside {@link plannerCanvases} rather than inside it, and that separation
+     * is the point: the descriptor derivation above stays claim-free and
+     * phase-free, so a claim arriving does not re-plan every canvas in an
+     * 800-folio manifest (user story 28). This one reads the claim set and
+     * **not** the phase, so pressing play selects between values already in hand
+     * instead of rebuilding them (user story 29).
+     *
+     * Empty for every manifest with no claimed canvas, which is all of them
+     * until an AV plugin is registered.
+     */
+    // Plain `Map`s throughout, like `canvasesById` below and for its reason.
+    const companionsByCanvasId: Map<string, CompanionCanvases> = $derived.by(
+        () => {
+            // eslint-disable-next-line svelte/prefer-svelte-reactivity
+            const companions = new Map<string, CompanionCanvases>();
+            if (plannerCanvases.length === 0) return companions;
+            // The claim COUNT next, and it is the whole cost on an image
+            // manifest: asking `isCanvasClaimed` per canvas would subscribe to
+            // a signal per folio for an answer that is `false` 800 times.
+            if (viewerState.claimedCanvases.size === 0) return companions;
+
+            const claimed = plannerCanvases.filter((canvas) =>
+                viewerState.isCanvasClaimed(canvas.id),
+            );
+            if (claimed.length === 0) return companions;
+
+            // Untracked for `plannerCanvases`' reason: `viewerState.canvases` is
+            // raw manifest JSON behind a deep `$state` proxy, and walking a
+            // companion Canvas tracked would make every property of it a
+            // dependency of this derivation.
+            return untrack(() => {
+                // eslint-disable-next-line svelte/prefer-svelte-reactivity
+                const rawById = new Map<string, unknown>();
+                for (const canvas of viewerState.canvases) {
+                    const canvasId = getCanvasId(canvas);
+                    if (canvasId) rawById.set(canvasId, canvas);
+                }
+
+                for (const canvas of claimed) {
+                    const resolved = resolveCompanionCanvases(
+                        rawById.get(canvas.id),
+                        canvas,
+                        (canvasId) => viewerState.getSelectedChoice(canvasId),
+                    );
+                    if (resolved) companions.set(canvas.id, resolved);
+                }
+                return companions;
+            });
+        },
+    );
+
+    /**
+     * The canvases as they are painted — {@link plannerCanvases} with each
+     * claimed canvas's companion selected by its **companion phase**.
+     *
+     * A canvas whose claimant has set no phase at all is passed through
+     * untouched, so the claim on its own still changes nothing about what core
+     * renders (user story 27).
+     */
+    const paintedCanvases: PlannerCanvas[] = $derived(
+        companionsByCanvasId.size === 0
+            ? plannerCanvases
+            : plannerCanvases.map((canvas) => {
+                  const companions = companionsByCanvasId.get(canvas.id);
+                  if (!companions) return canvas;
+                  const phase = viewerState.companionPhaseFor(canvas.id);
+                  return phase === undefined
+                      ? canvas
+                      : withCompanion(canvas, companions, phase);
+              }),
+    );
+
+    /**
+     * The change signal the host's refit effect watches: every painted canvas's
+     * id and rect, joined.
+     *
+     * Deliberately a key over the geometry rather than the painted list itself.
+     * A refit overwrites the reader's centre and scale, and `paintedCanvases`
+     * reallocates whenever a claim or a companion phase arrives — while the rect
+     * is identical across every phase of the same canvas by construction. Keying
+     * on the array would throw the page back to a fit on every play and pause
+     * (user story 14) and would move a canvas the moment a plugin claimed it
+     * (user story 27).
+     */
+    const paintedGeometry: string = $derived(
+        paintedCanvases
+            .map((canvas) => `${canvas.id}:${canvas.width}×${canvas.height}`)
+            .join('|'),
+    );
+
+    /**
      * The same canvases, by id.
      *
      * Built once per change rather than searched per lookup: on an 800-folio
@@ -557,7 +675,22 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     // reactive collection would add per-entry signals nothing reads.
     const canvasesById: Map<string, PlannerCanvas> = $derived(
         // eslint-disable-next-line svelte/prefer-svelte-reactivity
-        new Map(plannerCanvases.map((canvas) => [canvas.id, canvas])),
+        new Map(paintedCanvases.map((canvas) => [canvas.id, canvas])),
+    );
+
+    /**
+     * The canvases getting the **unsupported presentation**, by id — the ones
+     * with no image on them and no plugin claiming them.
+     *
+     * A manifest fact plus a claim, not a frame one: it is settled when the
+     * descriptors are built or a claim comes and goes, so the frame loop only
+     * has to ask where those canvases are this frame. Empty for every image
+     * manifest, which is what keeps the check on the frame path free.
+     */
+    const unsupportedCanvasIds: Set<string> = $derived(
+        unsupportedPresentationIds(plannerCanvases, (canvasId) =>
+            viewerState.isCanvasClaimed(canvasId),
+        ),
     );
 
     /**
@@ -589,7 +722,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      */
     function worldInput() {
         return {
-            canvases: plannerCanvases,
+            canvases: paintedCanvases,
             mode: viewerState.viewingMode,
             direction: viewerState.viewingDirection,
             preserveCanvasScale: viewerState.preserveCanvasScale,
@@ -673,6 +806,35 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     /**
+     * Companion warnings already announced, keyed on the canvas they belong to.
+     *
+     * A plain Set, deliberately not a `SvelteSet`: read from the frame loop,
+     * never by the reactive graph.
+     */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const reportedCompanionWarnings = new Set<string>();
+
+    /**
+     * Say once, for developers, that a claimed canvas's companion could not be
+     * painted.
+     *
+     * Never a user-facing error and never the unsupported presentation: the
+     * canvas is one a plugin is rendering into, so the reader is being told
+     * about the recording by its claimant either way, and a broken companion
+     * costs a picture rather than the canvas (user story 23). Debug-gated
+     * `logger` for {@link reportUnresolvedThumbnails}' reason — a published
+     * distribution is quiet by default.
+     */
+    function reportCompanionWarnings(): void {
+        for (const [canvasId, companions] of companionsByCanvasId) {
+            if (companions.warnings.length === 0) continue;
+            if (reportedCompanionWarnings.has(canvasId)) continue;
+            reportedCompanionWarnings.add(canvasId);
+            for (const warning of companions.warnings) logger.warn(warning);
+        }
+    }
+
+    /**
      * Fetch the `info.json` of every canvas the planner says needs one.
      *
      * Called once per frame with the planner's list, which is safe because the
@@ -706,6 +868,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 if (image.source.kind !== 'service') continue;
                 ensureImageService(canvasId, image.source.serviceId);
             }
+
+            // Warmed companions too: a picture with no facts has no ladder and
+            // no pyramid, so the handover they exist for would never be ready.
+            // Asked for as WARM, because this canvas does not paint from them.
+            for (const image of canvas.warmImages ?? []) {
+                if (image.source.kind !== 'service') continue;
+                ensureImageService(canvasId, image.source.serviceId, true);
+            }
         }
     }
 
@@ -715,10 +885,25 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      *
      * Split out of {@link requestMetadata} only because a canvas can now ask for
      * several; the body is unchanged and its reasoning is per-request.
+     *
+     * `warm` marks a service this canvas does NOT paint from — a warmed
+     * companion, fetched so the handover has something in hand. Such a service
+     * may neither raise nor clear `canvasErrors`, which is a statement about
+     * what the reader can SEE on this canvas: a score behind auth beside a
+     * public placeholder would otherwise raise viewer-wide error chrome over a
+     * canvas that is painting perfectly (`canvasErrors.viewerLevelErrorKind` is
+     * not painting-gated), and a successful warm would clear the message a
+     * genuinely broken painting service had earned. Warming is best-effort and
+     * invisible: it costs the reader nothing and says nothing.
      */
-    function ensureImageService(canvasId: string, serviceId: string): void {
+    function ensureImageService(
+        canvasId: string,
+        serviceId: string,
+        warm = false,
+    ): void {
         void imageServiceCache.ensure(serviceId).then((facts) => {
             if (!facts) {
+                if (warm) return;
                 // A canvas that will never have pixels. Recorded against
                 // THIS canvas rather than swallowed or raised viewer-wide:
                 // painting nothing and saying nothing is indistinguishable
@@ -766,7 +951,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             // Guarded rather than deleted unconditionally: this resolves once
             // per frame until the facts land in `knownMetadata`, and a
             // `delete` of an absent key still touches the reactive proxy.
-            if (canvasErrors[canvasId]) delete canvasErrors[canvasId];
+            if (!warm && canvasErrors[canvasId]) delete canvasErrors[canvasId];
             if (knownMetadata[serviceId] === facts) return;
             // Captured BEFORE the write below, which is what re-lays the
             // world out. See `compensateForReflow`.
@@ -879,17 +1064,33 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     let fitTargetMemo: { layout: LayoutRect[]; rect: Box } | null = null;
 
     /**
-     * The world the scene effect last refitted in — manifest, mode, reading
-     * direction, and scale policy. What tells canvas navigation (a move within
-     * one laid-out world, which eases) apart from a change of world (which does
-     * not); see the scene effect. `null` until the first refit, so a fresh mount
-     * is a change of world too.
+     * Everything the last refit was justified by, and the renderer's only
+     * record of it. `null` until the first refit, so a fresh mount is a change
+     * of world too.
      *
-     * Deliberately not the layout's identity, which would look like the obvious
-     * key and is useless here: `plannerCanvases` re-derives on every canvas
-     * change, so a new layout object is exactly what navigation produces.
+     * - `world` — manifest, mode, reading direction, and scale policy. What
+     *   tells canvas navigation (a move within one laid-out world, which eases)
+     *   apart from a change of world (which does not); see the scene effect.
+     *   Deliberately not the layout's identity, which would look like the
+     *   obvious key and is useless here: `plannerCanvases` re-derives on every
+     *   canvas change, so a new layout object is exactly what navigation
+     *   produces.
+     * - `sources` — the viewer's tile sources by IDENTITY. This is how
+     *   navigation reaches the refit: another canvas re-derives them.
+     * - `geometry` — the painted canvases' ids and their INTRINSIC sizes, not
+     *   their laid-out rects: a canvas resolving its real dimensions refits,
+     *   while a phase change under unchanged dimensions does not. The
+     *   arrangement of those canvases reaches this record through `world` and
+     *   `sources` instead, which is why the rects themselves are absent here.
+     *
+     * One record rather than two on purpose: the eased-travel decision and the
+     * guard are asking about the same fact, and two memories of it could drift.
      */
-    let fittedWorld: string | null = null;
+    let lastFit: {
+        world: string;
+        sources: unknown;
+        geometry: string;
+    } | null = null;
 
     /**
      * The bounds a fit is measured against, and the zoom ceiling's reference:
@@ -1118,14 +1319,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         if (!bounds || viewport.width === 0 || viewport.height === 0) return;
 
         const inset = currentInset();
-        const scale = clampScale(fitBoundsInset(bounds, viewport, inset).scale);
+        const scale = clampScale(insetFitScale(bounds, viewport, inset));
         // The centre is composed at the scale actually ADOPTED, not the one the
         // fit asked for: the inset shift is a screen distance, so a clamped fit
         // whose shift was divided by the un-clamped scale lands off-centre by
         // `adopted / wanted` — see `insetFitCentre`.
         const centre = insetFitCentre(bounds, viewport, inset, scale);
         if (animated) {
-            setViewAnimated(centre, scale, animationTime());
+            setViewAnimated(centre, scale, knobs.animationTime);
             return;
         }
 
@@ -1236,14 +1437,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
         if (viewport.scale <= 0) return [];
 
-        const width = viewport.width / viewport.scale;
-        const height = viewport.height / viewport.scale;
-        const view = {
-            x: viewport.centre.x - width / 2,
-            y: viewport.centre.y - height / 2,
-            width,
-            height,
-        };
+        const view = viewportBox(viewport);
         const nearest = nearestRect(layout, viewport.centre);
 
         return layout
@@ -1301,7 +1495,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             setViewAnimated(
                 viewport.centre,
                 clampScale(scale / currentCanvasScaleFactor()),
-                animationTime(),
+                knobs.animationTime,
             );
         },
 
@@ -1311,7 +1505,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             setViewAnimated(
                 canvasPointToWorld(centre, placement),
                 viewport.scale,
-                animationTime(),
+                knobs.animationTime,
             );
         },
 
@@ -1348,17 +1542,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         getVisibleBounds(canvasId?: string): ViewportBox | null {
             const placement = placementOf(canvasId);
             if (!placement || viewport.scale <= 0) return null;
-            const width = viewport.width / viewport.scale;
-            const height = viewport.height / viewport.scale;
-            return worldBoxToCanvas(
-                {
-                    x: viewport.centre.x - width / 2,
-                    y: viewport.centre.y - height / 2,
-                    width,
-                    height,
-                },
-                placement,
-            );
+            return worldBoxToCanvas(viewportBox(viewport), placement);
+        },
+
+        getCanvasSize(canvasId?: string): CanvasSize | null {
+            const placement = placementOf(canvasId);
+            return placement ? canvasExtent(placement) : null;
         },
 
         getContainerSize(): ContainerSize {
@@ -1412,6 +1601,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      */
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const frameListeners = new Set<() => void>();
+    // Allocated only if devtools registers a waiter, so production pays nothing.
+    let detachWaiters: (() => void)[] | null = null;
 
     /**
      * Surface-tap listeners. A plain `Set` for the same reason the frame ones
@@ -1474,12 +1665,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     function scheduleFrame() {
         if (frameHandle !== null) return;
         frameHandle = requestAnimationFrame(runFrame);
-    }
-
-    function settlePaintWaiters() {
-        const waiters = paintWaiters;
-        paintWaiters = [];
-        for (const resolve of waiters) resolve();
     }
 
     function runFrame(now: number) {
@@ -1550,11 +1735,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // on a change (see `publishVisibleCanvasIds`).
         publishVisibleCanvasIds();
 
-        if (animating || momentum || keyPan) {
-            scheduleFrame();
-        } else {
-            settlePaintWaiters();
-        }
+        if (animating || momentum || keyPan) scheduleFrame();
     }
 
     /**
@@ -1642,6 +1823,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         tiles.update([...plan.tileRequests, ...plan.thumbnailRequests]);
         requestMetadata(plan.metadataRequests);
         reportUnresolvedThumbnails(plan.unresolvedThumbnails);
+        reportCompanionWarnings();
         // Before painting, so a canvas that left the window stops painting in
         // the frame it left rather than the one after.
         //
@@ -1653,6 +1835,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // released by the same distance rule the tiles are.
         loadStaticImages(plan.staticImages);
         updateCanvasErrors(plan);
+        updateUnsupportedCanvases(plan);
 
         // The view-stable gate again, this time as the painter's edge rule:
         // whole device pixels at rest, a one-pixel overlap while moving. Read
@@ -1681,11 +1864,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     /**
      * What a paint layer is told about this frame.
      *
-     * The transform is spelled out again rather than read back off the context
-     * (`getTransform` allocates a `DOMMatrix` per frame) and is the same
-     * arithmetic `paintScene.applyViewportTransform` performs — asserted by the
-     * geometric e2e assertion, which locates a layer's own ink and compares it
-     * with the coordinate model, exactly as it does for the tiles.
+     * The transform is built rather than read back off the context
+     * (`getTransform` allocates a `DOMMatrix` per frame), from the same
+     * `viewportMath.viewportTransform` the painter sets on it — so a layer's ink
+     * and the tiles are on one matrix by construction, not by two spellings
+     * agreeing. The geometric e2e assertion locates a layer's own ink and
+     * compares it with the coordinate model, exactly as it does for the tiles.
      *
      * The canvas half comes from `paintCanvasSpace`, which carries this frame's
      * rects AND the canvas-space → world conversion over them. The declared
@@ -1695,15 +1879,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * canvas-space point is.
      */
     function paintFrame(plan: ScenePlan): PaintFrame {
-        const scale = viewport.scale * dpr;
         return {
-            transform: {
-                scale,
-                offsetX: (viewport.width / 2) * dpr - viewport.centre.x * scale,
-                offsetY:
-                    (viewport.height / 2) * dpr - viewport.centre.y * scale,
-                dpr,
-            },
+            transform: viewportTransform(viewport, dpr),
             width: viewport.width,
             height: viewport.height,
             ...paintCanvasSpace(plan.layout, declaredCanvasSize),
@@ -1862,6 +2039,37 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     /**
+     * Position this frame's unsupported presentations.
+     *
+     * Which canvases those are is a property of the manifest and of the claim
+     * set, decided once per descriptor build or claim change
+     * (`canvasDescriptors.unsupportedPresentationIds`) and not per frame; what
+     * this recomputes is only where they are on screen.
+     *
+     * Gated on the tier alone, and deliberately not on what is painting: an
+     * unsupported canvas has nothing that could paint — the planner issues no
+     * tile, thumbnail, or metadata request for it — so the "would this cover
+     * working pixels?" test the error layer needs has no work to do here. Box
+     * tier is excluded for the reason it is there: below that projection a
+     * labelled box is unreadable noise rather than information.
+     */
+    function updateUnsupportedCanvases(plan: ScenePlan) {
+        const next = unsupportedCanvasIds.size
+            ? canvasPlacements(
+                  plan.layout,
+                  (canvasId) =>
+                      unsupportedCanvasIds.has(canvasId) &&
+                      plan.tiers[canvasId] !== 'box'
+                          ? ('unsupported' as const)
+                          : null,
+                  viewport,
+              )
+            : [];
+
+        if (!samePlacements(unsupportedLayer, next)) unsupportedLayer = next;
+    }
+
+    /**
      * Mirror the derived condition onto the viewer-level `tileSourceError`,
      * writing only when it changes.
      *
@@ -1916,15 +2124,27 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
         const backingWidth = Math.max(1, Math.round(width * dpr));
         const backingHeight = Math.max(1, Math.round(height * dpr));
-        if (
-            surface.width !== backingWidth ||
-            surface.height !== backingHeight
-        ) {
+        // Assigning either dimension CLEARS the canvas, so this is the moment
+        // the surface goes empty; `resized` carries that to the repaint at the
+        // end of this function.
+        const resized =
+            surface.width !== backingWidth || surface.height !== backingHeight;
+        if (resized) {
             surface.width = backingWidth;
             surface.height = backingHeight;
         }
 
         const hadSize = viewport.width > 0 && viewport.height > 0;
+        // Both surfaces, captured before `viewport` takes the new size: the
+        // docked-chrome branch is a function of the one leaving as well as the
+        // one arriving — the ratio of their extents, and the fit measured in
+        // each. The fit is only measured when that branch will run, because it
+        // scans for the fit target.
+        const previousSize = { width: viewport.width, height: viewport.height };
+        const previousFitScale =
+            hadSize && chromeCompensationInFlight
+                ? homeScale(viewportLimits())
+                : 0;
         viewport = { ...viewport, width, height };
 
         // The first time the container has a size there is no view to preserve,
@@ -1933,6 +2153,48 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // viewport centre happens to sit on.
         if (!hadSize && width > 0 && height > 0) {
             fitCurrentCanvas();
+        } else if (width > 0 && height > 0 && chromeCompensationInFlight) {
+            // Core itself took part of the surface away, or gave it back. The
+            // reader asked for none of it, so they are not moved: the part of
+            // the canvas they were looking at stays the part they are looking
+            // at, shifted and scaled by exactly as much as the surface changed.
+            // `compensatedScale` is the rule and carries its own proof; the
+            // centre is a canvas-space point, so it needs no adjustment beyond
+            // the constraint every centre goes through.
+            //
+            // The fit scale is measured, because it is the compensation's floor
+            // and its ceiling, but no fit is ever *applied* and no canvas is
+            // travelled to. That is why continuous mode needs no answer to
+            // which canvas would be framed: docking a panel is not navigation,
+            // so moving the reader to another folio was never right.
+            const fitScale = homeScale(viewportLimits());
+            const scale = clampScale(
+                compensatedScale(
+                    viewport.scale,
+                    previousSize,
+                    { width, height },
+                    fitScale,
+                    previousFitScale,
+                ),
+            );
+            viewport = {
+                ...viewport,
+                scale,
+                centre: constrained(viewport.centre, scale),
+            };
+            // The target through the same rule, so a wheel zoom or a fit still
+            // easing lands at the compensated view rather than dragging the
+            // reader back to the one the surface had before.
+            targetScale = clampScale(
+                compensatedScale(
+                    targetScale,
+                    previousSize,
+                    { width, height },
+                    fitScale,
+                    previousFitScale,
+                ),
+            );
+            targetCentre = constrained(targetCentre, targetScale);
         } else if (width > 0 && height > 0) {
             // The constraint is a function of the VIEWPORT as well as the world,
             // so a resize can leave a legal centre illegal — widening the window
@@ -1950,7 +2212,155 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             targetCentre = constrained(targetCentre, targetScale);
         }
 
+        // Repainted SYNCHRONOUSLY when the backing store was resized, rather
+        // than only scheduled. Resizing cleared the canvas, and this runs from
+        // a ResizeObserver — after the frame's animation-frame callbacks, so
+        // after the frame loop has already painted, but before the browser
+        // composites. Leaving the repaint to the next frame therefore composites
+        // the cleared canvas: the image vanishes for that frame, and for every
+        // frame of a chrome slide, which is a resize per frame.
+        if (resized) paint();
         requestFrame();
+    }
+
+    /**
+     * Whether the surface change now in flight is attributable to docked
+     * chrome. True from the moment core reports a docked-chrome change until
+     * the surface stops changing size — see {@link watchChromeSettle}.
+     */
+    let chromeCompensationInFlight = false;
+    let chromeSettleFrame: number | null = null;
+    let chromeSettleWidth = -1;
+    let chromeSettleHeight = -1;
+    let chromeStableFrames = 0;
+
+    /**
+     * Consecutive frames of an unchanged box that count as "the surface has
+     * stopped resizing".
+     *
+     * More than one, because a single repeat is not evidence of anything at the
+     * START of a transition: measured on a panel open, the box reads the same
+     * for about two frames before `slideWidth` begins moving it, so a one-frame
+     * test declares the slide over before it has begun and hands every
+     * intermediate width to the preserve-scale branch, which is the wrong rule
+     * for a change core caused. Three frames clears that plateau while still
+     * closing ~50ms after motion actually stops.
+     *
+     * Note what this is NOT: a duration. It measures stillness, so it cannot
+     * expire while the surface is still moving, and it cannot go on standing
+     * once the surface is still. A fixed window did both.
+     */
+    const CHROME_SETTLE_FRAMES = 3;
+
+    /**
+     * Hold the compensation open until the surface has actually STOPPED
+     * resizing, and not one frame longer.
+     *
+     * The column does not arrive at its final width: `TriiiceratopsViewer`'s
+     * `slideWidth` animates it, so the surface passes through a run of
+     * intermediate widths. Two things need this, and neither is correctness of
+     * the endpoint — `compensatedScale`'s ratios compose exactly, so catching
+     * only the last width would land the reader in the same place. What is
+     * needed is that the flag stay up for every measurement the slide causes, so
+     * none of them is mistaken for a reader resizing the window, and that the
+     * intermediate widths be measured at all, so the image moves WITH the column
+     * instead of jumping when it arrives.
+     *
+     * Ending it on a CLOCK instead was wrong, and provably so: for as long as
+     * the window stood, a plain host resize arriving inside it was compensated
+     * too, collapsing the two cases the contract requires be held apart
+     * (dragging a window edge, or a phone rotating, while a panel animates).
+     * So the terminator is the geometry itself — {@link CHROME_SETTLE_FRAMES}
+     * consecutive frames of an unchanged box — which is also why this samples
+     * per frame rather than leaning on the ResizeObserver: an observer fires
+     * only when the size CHANGES, so "the size stopped changing" is precisely
+     * the event it never delivers. Ending the window is ALL this does — the
+     * observer compensates the intermediate widths, and duplicating that here
+     * bought nothing but a second fit measurement per frame. That matters most in the case with no
+     * animation at all: under `prefers-reduced-motion` `slideWidth` has
+     * duration 0, the column snaps in one step, and the observer's last
+     * callback is indistinguishable from a mid-slide one.
+     *
+     * Residual, accepted: a reader dragging the window edge continuously while
+     * a panel animates keeps the surface changing, so the compensation persists
+     * until the drag stops. The two cases are genuinely indistinguishable while they
+     * overlap; what matters is that this ends a few frames after the overlap
+     * does rather than on a fixed timeout.
+     */
+    function watchChromeSettle() {
+        if (chromeSettleFrame !== null) return;
+        const step = () => {
+            chromeSettleFrame = null;
+            if (!chromeCompensationInFlight || !root) return;
+            const rect = root.getBoundingClientRect();
+            if (
+                rect.width === chromeSettleWidth &&
+                rect.height === chromeSettleHeight
+            ) {
+                chromeStableFrames += 1;
+                if (chromeStableFrames >= CHROME_SETTLE_FRAMES) {
+                    chromeCompensationInFlight = false;
+                    return;
+                }
+            } else {
+                chromeStableFrames = 0;
+                chromeSettleWidth = rect.width;
+                chromeSettleHeight = rect.height;
+            }
+            chromeSettleFrame = requestAnimationFrame(step);
+        };
+        chromeSettleFrame = requestAnimationFrame(step);
+    }
+
+    /**
+     * Core has docked or undocked chrome, so the viewer area is about to change
+     * size: compensate the reader's view for it rather than preserving their
+     * scale.
+     *
+     * The distinction this draws is *why* the surface changed, not that it did.
+     * A window resize preserves scale, because the reader chose that view and
+     * nothing was taken from them. A panel column is core removing ~320px of the
+     * surface the reader's view was composed in, and the honest answer to that
+     * is to keep the content of the view rather than either of its numbers:
+     * `compensatedScale` holds the canvas-space extent visible on the axis that
+     * changed, so the passage they were reading is still the passage on screen,
+     * and the centre needs no adjustment because it is a canvas-space point.
+     *
+     * Nothing new can overhang the narrowed surface, which is the guarantee
+     * worth having: a projection larger than the fit hangs off the edges and the
+     * overhanging part is clipped away, taking canvas-anchored chrome out of
+     * both the picture and the hit test. `compensatedScale`'s floor and ceiling
+     * are what bound it — a reader who had the whole canvas still has it, at
+     * very nearly the size they had — and they do so without discarding a
+     * zoomed-in reader's view, which an absolute fit cannot.
+     *
+     * It stays open across several measurements rather than acting once, because
+     * the column slides and the image is to move with it; {@link
+     * watchChromeSettle} is what closes it, and why it is closed on a signal
+     * rather than a timeout. The first measurement is deliberately left to that
+     * watcher's first frame rather than taken here: at the moment this is
+     * called the column has been laid out at its FINAL width and the slide's
+     * from-state has not been applied yet, so a measurement taken now
+     * compensates the whole delta in one step and the next frame — reading the
+     * box back at its full width — undoes it. That is a visible flash of the
+     * end-state view before the slide begins. A `requestAnimationFrame`
+     * callback runs before paint, so deferring costs no stale frame even when
+     * the column arrives in a single step under `prefers-reduced-motion`.
+     *
+     * Deliberately not the viewport INSET: an inset states which edges are
+     * reserved and, by contract, never moves the current view — only the next
+     * fit. That is right for a plugin's floating UI and wrong here, where the
+     * surface the current view lives on is itself changing size.
+     */
+    function compensateForDockedChrome() {
+        chromeCompensationInFlight = true;
+        // Below any real box, so the first sampled frame always counts as a
+        // change and the watch cannot mistake the pre-animation box for a
+        // settled one.
+        chromeSettleWidth = -1;
+        chromeSettleHeight = -1;
+        chromeStableFrames = 0;
+        watchChromeSettle();
     }
 
     /**
@@ -1992,7 +2402,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     /**
-     * The media queries the byte ceiling is resolved from, kept live.
+     * The media query the byte ceiling is resolved from, kept live.
      *
      * `(pointer: coarse) and (hover: none)` is a LIVE question, not a
      * device-identity one, and the two watchers either side of this one already
@@ -2002,33 +2412,26 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * cache on a machine the browser will kill a tab on for far less, which is
      * the case the two ceilings exist to separate.
      *
-     * Keyed by the query text this component passed in rather than by
-     * `MediaQueryList.media`, which the platform is free to re-serialize.
-     *
-     * A plain Map, deliberately not a `SvelteMap`: it is read by
-     * `resolveByteBudget` and by the change listener, never by the reactive
-     * graph.
+     * One held query rather than a map of them, because `resolveByteBudget`
+     * asks exactly one: it takes the matcher rather than reaching for
+     * `matchMedia`, so that the choice between the two ceilings is a pure
+     * function with an ordinary unit test.
      */
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity
-    const byteBudgetQueries = new Map<string, MediaQueryList>();
+    let byteBudgetQuery: MediaQueryList | null = null;
 
-    function byteBudgetMatches(query: string): boolean {
-        let held = byteBudgetQueries.get(query);
-        if (!held) {
-            held = window.matchMedia(query);
-            held.addEventListener?.('change', applyByteBudget);
-            byteBudgetQueries.set(query, held);
+    function byteBudgetMatches(): boolean {
+        if (!byteBudgetQuery) {
+            byteBudgetQuery = window.matchMedia(MOBILE_BUDGET_QUERY);
+            byteBudgetQuery.addEventListener?.('change', applyByteBudget);
         }
-        return held.matches;
+        return byteBudgetQuery.matches;
     }
 
     function applyByteBudget() {
         // A consumer who named a ceiling knows more than the media query does,
         // so the device answer is only consulted when none was configured.
-        const byteBudget = configuredBudgets({
-            ...budgets,
-            byteBudget: resolveByteBudget(byteBudgetMatches),
-        }).byteBudget;
+        const byteBudget =
+            knobs.budgets.byteBudget ?? resolveByteBudget(byteBudgetMatches);
         if (byteBudget === budgets.byteBudget) return;
 
         budgets = { ...budgets, byteBudget };
@@ -2038,10 +2441,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     function unwatchByteBudget() {
-        for (const query of byteBudgetQueries.values()) {
-            query.removeEventListener?.('change', applyByteBudget);
-        }
-        byteBudgetQueries.clear();
+        byteBudgetQuery?.removeEventListener?.('change', applyByteBudget);
+        byteBudgetQuery = null;
     }
 
     /**
@@ -2308,7 +2709,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         setViewAnimated(
             anchoredZoomCentre(viewport, anchor, scale),
             scale,
-            animationTime(),
+            knobs.animationTime,
         );
     }
 
@@ -2373,6 +2774,82 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             nextScale,
             WHEEL_TIME_CONSTANT,
         );
+    }
+
+    // ── The stage ────────────────────────────────────────────────────────
+    //
+    // A plugin's overlay layer is a SIBLING of this renderer's root, not a
+    // descendant (see `TriiiceratopsViewer.svelte`, which mounts both into the
+    // same `.viewer-area` box). Nothing a claimant renders can therefore reach
+    // the surface by bubbling, which is why the wheel is bound on the box the
+    // two share rather than on the `<canvas>`: one binding serves every
+    // claimant, present and future, and a claimant hands down nothing.
+    //
+    // The coordinate space is unaffected — `handleWheel` resolves its anchor
+    // from `clientX`/`clientY` against the surface's own bounding rect, never
+    // from the event's `offsetX`/`offsetY`, which is what would have made the
+    // binding element part of the answer.
+
+    /** Anything focus or the wheel must be left to, inside a claimant's layer. */
+    const CLAIMANT_CONTROL =
+        'a[href],button,input,select,textarea,summary,[tabindex],[contenteditable],audio[controls],video[controls]';
+
+    /**
+     * The two subtrees of the stage that ARE the image: this renderer's own
+     * root, and any plugin overlay layer.
+     *
+     * An allowlist rather than a denylist, because the stage also holds chrome
+     * that owns its own wheel — the floating toolbar, the control bar, a
+     * float-mode thumbnail gallery, an `overlay`-positioned plugin panel — and
+     * a rule that named those instead would silently start zooming the next
+     * one somebody adds.
+     */
+    function overStage(from: Element): boolean {
+        return (
+            root?.contains(from) === true ||
+            from.closest('.plugin-overlay-layer') !== null
+        );
+    }
+
+    /**
+     * The wheel, as heard on the stage.
+     *
+     * A claimant that wants the wheel for itself — a transcript, a track list —
+     * opts out by CONSUMING the event (`preventDefault()`), which costs it
+     * nothing it would not already be doing to stop the page scrolling. No
+     * layer that exists today needs it: the only overlay layer the AV plugin
+     * registers holds the stage lanes, and they scroll nothing.
+     */
+    function handleStageWheel(event: WheelEvent) {
+        if (event.defaultPrevented) return;
+        const from = event.target as Element | null;
+        if (!from || !overStage(from)) return;
+        handleWheel(event);
+    }
+
+    /**
+     * Keep the zoom keys reachable after a tap on a claimant's layer.
+     *
+     * The keys are bound on the renderer root, and a claimant's layer has no
+     * focusable ancestor — so a press on a bare stage would otherwise move
+     * focus to the body and fire the root's `onblur`, leaving a reader who
+     * tapped a score to start it playing with no way to magnify it.
+     *
+     * The default is CANCELLED as well as replaced: the browser resolves focus
+     * from the compatibility `mousedown`, which is dispatched after this, so
+     * focusing here without cancelling would simply be overwritten.
+     *
+     * Only for a target that offers no control of its own. A claimant's own
+     * button, its track list, its transcript controls all keep the focus the
+     * reader deliberately moved to them.
+     */
+    function handleStagePointerDown(event: PointerEvent) {
+        if (event.defaultPrevented || event.button !== 0 || !root) return;
+        const from = event.target as Element | null;
+        if (!from?.closest('.plugin-overlay-layer')) return;
+        if (from.closest(CLAIMANT_CONTROL)) return;
+        event.preventDefault();
+        root.focus({ preventScroll: true });
     }
 
     // ── Keyboard ─────────────────────────────────────────────────────────
@@ -2491,7 +2968,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         setViewAnimated(
             { ...targetCentre },
             clampScale(targetScale * factor),
-            animationTime(),
+            knobs.animationTime,
         );
     }
 
@@ -2516,7 +2993,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * While Meta (Cmd) is down, macOS delivers no `keyup` for other keys. Hold
      * an arrow, press Cmd, release the arrow, release Cmd, and `handleKeyUp`
      * never sees the arrow at all: it stays in `heldPanKeys`, the surface pans
-     * forever, the frame loop never settles, and every `nextPaint` waiter
+     * forever, the frame loop never settles, and every awaited `nextPaint`
      * hangs with it. Treat the modifier arriving — on either a key-down or a
      * key-up — as the end of any hold, which is the same thing losing focus
      * means.
@@ -2610,7 +3087,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * from the window-level listeners below. Every one of those is the same
      * failure — a key-up that will never arrive — and a stranded `keyPan` is
      * not merely a visual bug: the frame loop never settles, `isMoving()`
-     * stays true, and `nextPaint` waiters never resolve.
+     * stays true, and no awaited `nextPaint` ever resolves.
      */
     function handleBlur() {
         clearHeldKeys();
@@ -2707,9 +3184,22 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
         // The only document/window-level listeners this component installs, and
         // they bind nothing: they end a hold, they never start one. The
-        // bindings themselves stay on the surface element (spec §Keyboard).
+        // bindings themselves stay on the surface element, or at the widest on
+        // the stage box below (spec §Keyboard).
         window.addEventListener('blur', handleWindowBlur);
         document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // The stage: the box this renderer's root and every plugin overlay
+        // layer are laid into as siblings, and so the nearest element an event
+        // from either can be heard on. It is `.viewer-area`, the same box whose
+        // origin `ViewerState.canvasToScreen` reports — the renderer root is
+        // mounted straight into it, so its parent IS the stage.
+        //
+        // `passive: false` because the wheel handler cancels the event; a
+        // passive listener may not, and the page would scroll as well as zoom.
+        const stage = root.parentElement;
+        stage?.addEventListener('wheel', handleStageWheel, { passive: false });
+        stage?.addEventListener('pointerdown', handleStagePointerDown);
 
         // The renderer has a sized surface and accepts commands. Attached after
         // the first `measure()` above for exactly that reason: `rendererReady`
@@ -2729,11 +3219,13 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         /*
          * Development-only instrumentation. `src/devtools/` registers an
          * installer through `rendererDevtools`; with none registered — every
-         * production build — this is a null check and the handle's shaping code
-         * is not in the bundle graph at all. See `rendererDevtools.ts` for why
-         * this is a registry rather than a build-time DEV conditional.
+         * production build — the thunk below is never called and the handle's
+         * shaping code is not in the bundle graph at all. See
+         * `rendererDevtools.ts` for why this is a registry rather than a
+         * build-time DEV conditional, and why the internals are raw handles:
+         * everything that can be shaped from them is shaped in `src/devtools/`.
          */
-        installRendererDevtools(surface, {
+        installRendererDevtools(surface, () => ({
             getViewport: () => viewport,
             setView: (view) => {
                 viewport = {
@@ -2750,26 +3242,33 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             isMoving: () => animating || momentum !== null || keyPan !== null,
             fitWorld,
             port: canvasPort,
+            requestFrame,
+            onDetach: (fn) => {
+                (detachWaiters ??= []).push(fn);
+                return () => {
+                    detachWaiters =
+                        detachWaiters?.filter((f) => f !== fn) ?? null;
+                };
+            },
             setByteBudget: (bytes) => {
                 budgets = { ...budgets, byteBudget: bytes };
                 tiles.setByteBudget(bytes);
             },
-            getStats: () => ({
-                residentTileCount: tiles.residentTileCount,
-                cachedTileCount: tiles.cachedTileCount,
-                decodedBytes: tiles.decodedBytes,
-                requiredBytes: tiles.requiredBytes,
-                byteBudget: tiles.byteBudget,
-                tileRequestCount: tiles.requestCount,
-                scenePlanCount,
-            }),
+            tiles,
+            getScenePlanCount: () => scenePlanCount,
             getTiers: () => lastTiers,
-            getCanvasErrors: () => ({ ...canvasErrors }),
+            canvasErrors,
             registerPaintLayer:
                 viewerState.registerPaintLayer.bind(viewerState),
-            nextPaint,
-        });
+        }));
         return () => {
+            // Before frameListeners.clear(): a settled-paint promise resolves
+            // out of a frame listener, and no frame follows detach.
+            if (detachWaiters) {
+                const waiters = detachWaiters;
+                detachWaiters = null;
+                for (const fn of waiters) fn();
+            }
             detachRenderer();
             releasePageLayer();
             frameListeners.clear();
@@ -2782,13 +3281,18 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 'visibilitychange',
                 handleVisibilityChange,
             );
+            stage?.removeEventListener('wheel', handleStageWheel);
+            stage?.removeEventListener('pointerdown', handleStagePointerDown);
             if (frameHandle !== null) cancelAnimationFrame(frameHandle);
             frameHandle = null;
+            if (chromeSettleFrame !== null)
+                cancelAnimationFrame(chromeSettleFrame);
+            chromeSettleFrame = null;
+            chromeCompensationInFlight = false;
             animating = false;
             momentum = null;
             clearHeldKeys();
             keyPan = null;
-            settlePaintWaiters();
             staticImages.clear();
             // Aborts every outstanding tile request and closes every decoded
             // tile. The METADATA cache is deliberately left alone: it is
@@ -2798,18 +3302,29 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         };
     }
 
-    function nextPaint(): Promise<void> {
-        return new Promise<void>((resolve) => {
-            paintWaiters.push(resolve);
-            requestFrame();
-        });
-    }
-
     /**
      * The body of the component's refit effect. It lives here because
-     * `fittedWorld` does: whether a refit is a TRAVEL within a laid-out world
+     * `lastFit` does: whether a refit is a TRAVEL within a laid-out world
      * or a jump into a new one is the renderer's own memory, not the
      * component's. The component supplies only the change signals.
+     *
+     * The world key below is read TRACKED — those four are change signals in
+     * their own right — while the fit itself is untracked. A fit reads the whole
+     * laid-out world, and every one of those reads would otherwise become a
+     * dependency of the effect, so a refit would follow anything that produced a
+     * fresh descriptor list: a companion phase, a claim, a Choice. A refit
+     * overwrites the reader's centre and scale, so it fires on the signals the
+     * component names and on nothing else. `currentInset`'s own `untrack` is the
+     * same rule applied one read at a time, and stays for its browser spec.
+     *
+     * Idempotent, which is the point of `lastFit`: a run that can justify
+     * nothing fits nothing. The effect above is free to re-run for a reason
+     * that turns out not to be one — a host replacing its configuration object,
+     * a dependency someone adds later — and the reader keeps their place
+     * through it. The tile sources and the geometry are read UNTRACKED because
+     * they are a memo check rather than a subscription; the four world members
+     * stay tracked because they are how a mode or direction change arrives here
+     * at all.
      */
     function refitForCurrentWorld() {
         const world = [
@@ -2818,11 +3333,26 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             viewerState.viewingDirection,
             viewerState.preserveCanvasScale,
         ].join('|');
-        const travelling =
-            viewerState.viewingMode === 'continuous' && fittedWorld === world;
-        fittedWorld = world;
+        const sources = untrack(() => options.getTileSources());
+        const geometry = untrack(() => paintedGeometry);
 
-        fitCurrentCanvas(travelling);
+        if (
+            lastFit !== null &&
+            lastFit.world === world &&
+            lastFit.sources === sources &&
+            lastFit.geometry === geometry
+        ) {
+            // Before `requestFrame`, not after: a run that fits nothing needs
+            // no frame, and that saving is the other half of this guard.
+            return;
+        }
+
+        const travelling =
+            viewerState.viewingMode === 'continuous' &&
+            lastFit?.world === world;
+        lastFit = { world, sources, geometry };
+
+        untrack(() => fitCurrentCanvas(travelling));
         requestFrame();
     }
 
@@ -2833,7 +3363,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             surface = surfaceEl;
             return attach();
         },
-        /** The surface's DOM event handlers, wired by the component's markup. */
+        /**
+         * The surface's DOM event handlers, wired by the component's markup.
+         * The wheel is not among them: it is bound on the stage instead, so
+         * that a claimant's overlay layer — a sibling of the surface — zooms
+         * too. See `handleStageWheel`.
+         */
         handlers: {
             keydown: handleKeyDown,
             keyup: handleKeyUp,
@@ -2842,19 +3377,32 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             pointermove: handlePointerMove,
             pointerup: handlePointerUp,
             pointercancel: handlePointerCancel,
-            wheel: handleWheel,
         },
         /** Per-canvas error placeholders for the DOM error layer. */
         get errorLayer() {
             return errorLayer;
         },
         errorLabel,
-        /** Read by the component's refit effect purely as a change signal. */
-        get plannerCanvases() {
-            return plannerCanvases;
+        /**
+         * Per-canvas unsupported presentations for the DOM layer beside the
+         * error one — a canvas core cannot render, not a canvas that failed.
+         */
+        get unsupportedLayer() {
+            return unsupportedLayer;
+        },
+        unsupportedLabel: () => m.canvas_unsupported(),
+        /**
+         * Read by the component's refit effect purely as a change signal — the
+         * painted canvases' ids and rects, so a companion arriving with a rect
+         * of its own refits like any other change of geometry while a phase
+         * changing under an unchanged rect does not.
+         */
+        get paintedGeometry() {
+            return paintedGeometry;
         },
         requestFrame,
         refitForCurrentWorld,
+        compensateForDockedChrome,
         /** Bumped when a decoded image, tile, or `info.json` lands. */
         get loadedGeneration() {
             return loadedGeneration;

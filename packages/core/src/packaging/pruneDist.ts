@@ -1,9 +1,9 @@
 /*
  * Post-package pruning of dist/ (build-time tooling — lives in src/packaging,
  * never published). svelte-package copies EVERYTHING under src/lib, including test
- * files and demo-only chrome components that are not part of the public API and
- * that no shipped module imports. `@sveltejs/package` v2 has no exclude option,
- * so `build:lib` runs this to trim the npm tarball.
+ * files and test-host components that are not part of the public API and that no
+ * shipped module imports. `@sveltejs/package` v2 has no exclude option, so
+ * `build:lib` runs this to trim the npm tarball.
  *
  * Run directly: `node ./src/build/pruneDist.ts` (Node strips the types).
  */
@@ -12,31 +12,22 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /*
- * Demo-only and test-host components. They live in src/lib/components (so the
- * demo and component tests can import them) but are never re-exported from the
- * package and nothing shipped imports them — verified: their only importers are
- * src/demo/* , *.test.* , and each other. Matched by basename against
- * `<name>.svelte` and its `.svelte.d.ts`.
- */
-export const DEMO_ONLY_COMPONENTS = [
-    'DemoHeader',
-    'SettingsMenu',
-    'LightDarkToggle',
-] as const;
-
-/*
  * Test-host components are matched by SUFFIX, not enumerated. An explicit list
  * drifted: `assert-tarball-contents.mjs` forbids anything matching `TestHost`,
  * this list named only the one that existed when it was written, and the next
  * `…TestHost.svelte` therefore reached the tarball and failed that assertion
  * instead of being pruned. One rule, spelled the same way on both sides.
+ *
+ * There is no companion list for demo-only chrome: the demo lives in `src/demo`,
+ * which svelte-package never copies, and `eslint.config.js` keeps `src/lib` from
+ * importing it.
  */
 const TEST_HOST_SUFFIX = 'TestHost';
 
 /*
  * Directories (relative to dist/) holding internal test fixtures and mock
  * utilities. svelte-package copies src/lib/test/** verbatim, but nothing shipped
- * imports it — those helpers back only *.test.* files, which are pruned above.
+ * imports it — those helpers back only *.test.* files, which are pruned below.
  */
 export const EXCLUDED_DIRS = ['test'] as const;
 
@@ -48,10 +39,6 @@ export const EXCLUDED_DIRS = ['test'] as const;
  */
 export const EXCLUDED_DIR_NAMES = ['__golden__'] as const;
 
-const DEMO_ONLY_RE = new RegExp(
-    `^(${DEMO_ONLY_COMPONENTS.join('|')})\\.svelte(\\.d\\.ts)?$`,
-);
-
 const TEST_HOST_RE = new RegExp(
     `^\\w*${TEST_HOST_SUFFIX}\\.svelte(\\.d\\.ts)?$`,
 );
@@ -60,8 +47,7 @@ const TEST_HOST_RE = new RegExp(
 export function isPackageExcluded(filename: string): boolean {
     // Test/spec files: *.test.js, *.test.d.ts, *.spec.ts, …
     if (/\.(test|spec)\./.test(filename)) return true;
-    // Demo-only chrome and test-host components.
-    if (DEMO_ONLY_RE.test(filename)) return true;
+    // Test-host components.
     if (TEST_HOST_RE.test(filename)) return true;
     return false;
 }

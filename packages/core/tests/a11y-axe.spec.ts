@@ -110,6 +110,15 @@ test('axe: viewing-mode flyout open × all themes', async ({ page }) => {
     await scanAllThemes(page, 'flyout-open');
 });
 
+test('axe: gallery flyout open × all themes', async ({ page }) => {
+    test.slow();
+    await loadViewer(page);
+    const toggle = page.locator('[aria-controls="tri-flyout-gallery"]');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await scanAllThemes(page, 'gallery-open');
+});
+
 /*
  * The renderer's image surface is a focusable, labelled tab stop. The scans
  * above wait for the chrome, so they can race the surface's own mount; this

@@ -25,17 +25,17 @@ import {
  *
  * - The gallery renders in exactly ONE place at a time. Expanding moves it from
  *   its docked band/rail into the `.gallery-expanded` overlay; two mounted
- *   instances would both run the dockSide sync effects and fight over them.
+ *   instances would put two galleries on screen at once.
  * - Expanding leaves `dockSide` alone, so collapsing puts the gallery back
  *   exactly where it was without any saved-state bookkeeping.
  * - The caret keeps its edge across the transition — a bottom dock's caret is on
  *   its top edge and stays there as that edge travels to the top of the column —
  *   so the control never jumps out from under the cursor. Only the glyph flips,
  *   to keep pointing the way the gallery will travel next.
- * - The expanded view is the floating window's track at viewer size, not a third
- *   layout with its own density. Thumbnails are laid out at whatever width their
- *   image turns out to be — the same way the docked strip lays them out — so no
- *   view reserves space a thumbnail does not fill.
+ * - The expanded view is not a third layout with its own density. Thumbnails are
+ *   laid out at whatever width their image turns out to be — the same way the
+ *   docked strip lays them out — so no view reserves space a thumbnail does not
+ *   fill.
  * - The overlay covers the center column only: side panels stay usable.
  */
 
@@ -200,7 +200,7 @@ describe('expanded thumbnail gallery', () => {
         const props = await mountViewer({ dockPosition: 'bottom' });
 
         expect(caretAnchor()?.getAttribute('data-tip')).toBe('Expand Gallery');
-        expect(caretAnchor()?.classList.contains('top')).toBe(true);
+        expect(caretAnchor()?.classList.contains('place-top')).toBe(true);
 
         props.viewerState?.setGalleryExpanded(true);
         await settle();
@@ -208,7 +208,7 @@ describe('expanded thumbnail gallery', () => {
         expect(caretAnchor()?.getAttribute('data-tip')).toBe(
             'Collapse Gallery',
         );
-        expect(caretAnchor()?.classList.contains('bottom')).toBe(true);
+        expect(caretAnchor()?.classList.contains('place-bottom')).toBe(true);
     });
 
     /**
@@ -374,11 +374,9 @@ describe('expanded thumbnail gallery', () => {
     /**
      * Unlike the top/bottom band, the side rail animates shut with
      * `transition:slideWidth`, so it stays in the DOM for the ~200ms outro after
-     * expanding — briefly two mounted galleries. That is benign: both instances
-     * mirror `viewerState.dockSide` into their local proxy and write back only
-     * on a difference, so they converge on the same value instead of fighting.
-     * This test pins that convergence, since it is the thing that would break if
-     * the dockSide sync ever became order-dependent.
+     * expanding — briefly two mounted galleries. Neither writes `dockSide` (both
+     * only read it), so the overlap cannot disturb it; this test pins that, since
+     * a gallery that moved the dock side on its own would break it here.
      */
     it('keeps dockSide stable while the side rail animates shut', async () => {
         const props = await mountViewer({ dockPosition: 'right' });
@@ -408,33 +406,34 @@ describe('expanded thumbnail gallery', () => {
     });
 
     /**
-     * The expanded view is the floating window's track at viewer size, not a third
-     * layout: same track classes, same (absent) inline sizing. Asserted by comparing
-     * the two directly, so a future density tweak to one that skips the other fails
-     * here.
+     * The expanded view is the docked gallery at viewer size, not a second layout
+     * with its own density: both state the same thumbnail sizing on the root, and
+     * neither track reserves a cell — items wrap at whatever width their thumbnail
+     * turns out to be. Asserted by comparing the two directly, so a future density
+     * tweak to one that skips the other fails here.
      */
-    it('uses the same track geometry as the floating window', async () => {
+    it('sizes thumbnails exactly as the docked track does', async () => {
+        const rootStyle = (root: HTMLElement) =>
+            root.querySelector('.gallery-root')?.getAttribute('style')?.trim();
         const trackStyle = (root: HTMLElement) =>
             root.querySelector('.gallery-track')?.getAttribute('style')?.trim();
-        const trackClass = (root: HTMLElement) =>
-            root.querySelector('.gallery-track')?.className;
 
         await mountViewer({ dockPosition: 'bottom', expanded: true });
-        const expandedStyle = trackStyle(target);
-        const expandedClass = trackClass(target);
+        const expandedRootStyle = rootStyle(target);
+        const expandedTrackStyle = trackStyle(target);
 
-        // A floating window tall enough to take the grid branch.
+        // The same gallery collapsed into its bottom dock.
         for (const app of apps.splice(0)) await unmount(app);
         target.remove();
         target = document.createElement('div');
         document.body.appendChild(target);
-        await mountViewer({ dockPosition: 'none', height: 500, width: 400 });
+        await mountViewer({ dockPosition: 'bottom' });
 
-        expect(expandedStyle).toBe(trackStyle(target));
-        expect(expandedClass).toBe(trackClass(target));
+        expect(expandedRootStyle).toBe(rootStyle(target));
+        expect(expandedTrackStyle).toBe(trackStyle(target));
         // Neither carries an inline cell size: the track wraps items at whatever
         // width their thumbnail turns out to be, so there is no cell to size.
-        expect(expandedStyle ?? '').not.toContain('grid-template-columns');
+        expect(expandedTrackStyle ?? '').not.toContain('grid-template-columns');
     });
 
     /**
@@ -560,22 +559,6 @@ describe('expanded thumbnail gallery', () => {
         expect(props.viewerState?.canvasId).toBe(CANVAS('page-3'));
         expect(props.viewerState?.galleryExpanded).toBe(false);
         expect(overlay()).toBeNull();
-    });
-
-    it('offers maximize/restore instead of a caret when floating', async () => {
-        const props = await mountViewer({ dockPosition: 'none' });
-
-        // No dock edge to travel from, so no edge caret.
-        expect(roots()[0].className).not.toContain('caret-');
-        const toggle = caret();
-        expect(toggle?.classList.contains('toggle-inline')).toBe(true);
-
-        toggle?.click();
-        await settle();
-
-        expect(props.viewerState?.galleryExpanded).toBe(true);
-        expect(overlay()).not.toBeNull();
-        expect(roots()).toHaveLength(1);
     });
 
     it('drops the expanded state when the gallery is closed', async () => {

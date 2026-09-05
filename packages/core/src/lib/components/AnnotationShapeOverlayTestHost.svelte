@@ -123,7 +123,6 @@
                 );
             };
         },
-        currentCanvasSearchAnnotations: [] as any[],
         get visibleAnnotationIds() {
             return new Set(
                 Object.values(byCanvas)

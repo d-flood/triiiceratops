@@ -1,0 +1,75 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/media/manifests/av-composed-captions.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Temporally composed canvas — a captioned segment each"]
+    },
+    "summary": {
+        "en": [
+            "The av-composed.json shape, but each painting annotation carries its OWN WebVTT in its body array: English over the colour-bars segment at #t=0,2 and Italian over the tone segment at #t=2,4. Because the tracks are authored on the painting annotations rather than on the canvas, ticket 18's per-annotation windowing applies — only the playing segment's track is eligible, and the eligible set changes AT the seam. That makes this the only fixture in the corpus where the transcript panel's source changes underneath it while it is mounted: the track, the canvas-time shift of its cues, and the track's name all move at once, which is exactly the seam the panel has to re-sync across. The second segment is a Sound body, so its half of the transcript is also the audio case that has no captions toggle to select with."
+        ]
+    },
+    "items": [
+        {
+            "id": "/media/manifests/av-composed-captions.json/canvas/composed",
+            "type": "Canvas",
+            "label": { "en": ["Bars, then tone, each with its own words"] },
+            "width": 320,
+            "height": 180,
+            "duration": 4.0,
+            "items": [
+                {
+                    "id": "/media/manifests/av-composed-captions.json/page/composed",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-composed-captions.json/annotation/segment-1",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": [
+                                {
+                                    "id": "/media/bars.mp4",
+                                    "type": "Video",
+                                    "format": "video/mp4",
+                                    "width": 320,
+                                    "height": 180,
+                                    "duration": 2.0
+                                },
+                                {
+                                    "id": "/media/captions.vtt",
+                                    "type": "Text",
+                                    "format": "text/vtt",
+                                    "language": "en",
+                                    "label": { "en": ["Captions in English"] }
+                                }
+                            ],
+                            "target": "/media/manifests/av-composed-captions.json/canvas/composed#t=0,2"
+                        },
+                        {
+                            "id": "/media/manifests/av-composed-captions.json/annotation/segment-2",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": [
+                                {
+                                    "id": "/media/tone.mp3",
+                                    "type": "Sound",
+                                    "format": "audio/mpeg",
+                                    "duration": 2.0
+                                },
+                                {
+                                    "id": "/media/captions-it.vtt",
+                                    "type": "Text",
+                                    "format": "text/vtt",
+                                    "language": "it",
+                                    "label": { "it": ["Sottotitoli in italiano"] }
+                                }
+                            ],
+                            "target": "/media/manifests/av-composed-captions.json/canvas/composed#t=2,4"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
