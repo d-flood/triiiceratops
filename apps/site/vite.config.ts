@@ -241,6 +241,15 @@ export default defineConfig({
         __SITE_VERSION__: JSON.stringify(stamp.version),
         __SITE_VERSION_DATE__: JSON.stringify(stamp.date),
     },
+    server: {
+        /*
+         * The prerendered tree is output, not source, and the landing page's
+         * material alone puts thousands of tiles in it — enough that watching
+         * them exhausts the platform's inotify budget and the server dies on
+         * ENOSPC before it serves anything.
+         */
+        watch: { ignored: ['**/build/**'] },
+    },
     esbuild: {
         pure: ['console.log', 'console.debug'],
         drop: ['debugger'],

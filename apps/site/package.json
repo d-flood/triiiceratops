@@ -13,6 +13,7 @@
     },
     "scripts": {
         "predev": "node scripts/predev.mjs",
+        "material:landing": "node scripts/generate-landing-material.mjs",
         "dev": "vite dev",
         "build": "vite build && node scripts/finish-build.mjs && node scripts/place-examples.mjs && node scripts/assert-no-editor-code.mjs",
         "preview": "vite preview",

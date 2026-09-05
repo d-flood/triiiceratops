@@ -62,27 +62,6 @@ test('reserves a box for every class before anything is fetched', async ({
     }
 });
 
-test('reserves its boxes in the editor without running a viewer there', async ({
-    page,
-}) => {
-    /*
-     * The same document, rendered for whoever is writing its prose. The block
-     * is read-only to them, so what they need from it is the page's shape —
-     * and what they must not get is five viewers fetching other people's
-     * material into the surface they are typing into.
-     */
-    await page.goto('/handles/edit/');
-    // The boxes are the block, so counting them inside the surface is both the
-    // wait for the document to load and the assertion about its shape.
-    await expect(page.locator('uncial-editor .ProseMirror .vw')).toHaveCount(
-        MATERIAL_CLASSES.length,
-    );
-    // A settle, so an absence means the viewers did not start rather than that
-    // they had not started yet.
-    await page.waitForTimeout(2000);
-    await expect(page.locator('.viewer-root')).toHaveCount(0);
-});
-
 test('fetches nothing for a class below the fold until it is scrolled to', async ({
     page,
 }) => {

@@ -109,21 +109,19 @@ code {
    Every full-bleed strip of the main column — the hero, a page's heading, a
    band, the next-page link, the footer — paints its ground, its top rule and
    its tint across the whole column, and stops the content it lays out at
-   --content-max. The stop is trailing padding rather than a max-width on an
-   inner wrapper: no strip needs a wrapper element, and block margins between a
+   --content-max. The stop is padding rather than a max-width on an inner
+   wrapper: no strip needs a wrapper element, and block margins between a
    band's children still collapse the way they do at narrow widths.
 
-   Percentages inside a custom property resolve where the property is used, so
-   --frame-end measures against the strip it pads, not against the root. Below
-   --content-max it collapses to --frame-pad and the strip is padded as it
-   always was.
+   The slack above --content-max is split evenly between the two sides, so the
+   content sits centred in the column instead of banking its whole surplus
+   against the rail. Percentages inside a custom property resolve where the
+   property is used, so --frame-inline measures against the strip it pads, not
+   against the root; below --content-max it collapses to --frame-pad.
    -------------------------------------------------------------------- */
 :root {
     --frame-pad: clamp(var(--s5), 4vw, var(--s8));
-    --frame-end: max(
-        var(--frame-pad),
-        100% - var(--frame-pad) - var(--content-max)
-    );
+    --frame-inline: max(var(--frame-pad), (100% - var(--content-max)) / 2);
 }
 
 /* ---- Shell ---------------------------------------------------------- */
@@ -166,7 +164,7 @@ code {
 }
 .rail__brand svg {
     width: 25px;
-    height: 25px;
+    height: auto;
     flex: none;
 }
 .rail__brand b {
@@ -376,7 +374,7 @@ code {
 }
 .mbar b svg {
     width: 20px;
-    height: 20px;
+    height: auto;
 }
 .mbar .where {
     margin-left: auto;
@@ -422,7 +420,7 @@ code {
 }
 .sheet__top b svg {
     width: 20px;
-    height: 20px;
+    height: auto;
 }
 /* The sheet is the rail at phone size, so it carries the rail's brand row —
    including the scheme toggle, which is otherwise unreachable there. */
@@ -440,7 +438,7 @@ code {
 
 /* ---- Page frame ----------------------------------------------------- */
 .pagehead {
-    padding: var(--s7) var(--frame-end) var(--s6) var(--frame-pad);
+    padding: var(--s7) var(--frame-inline) var(--s6);
 }
 .pagehead h1 {
     max-width: 24ch;
@@ -452,7 +450,7 @@ code {
     font-size: 1.08rem;
 }
 .band {
-    padding: var(--s7) var(--frame-end) var(--s7) var(--frame-pad);
+    padding: var(--s7) var(--frame-inline);
     border-top: 1px solid var(--rule);
 }
 .band--paper {
@@ -460,6 +458,7 @@ code {
 }
 .prose {
     max-width: var(--measure);
+    margin-inline: auto;
 }
 .prose h2 {
     margin: var(--s6) 0 var(--s3);
@@ -515,6 +514,14 @@ code {
 :is(.uncial-rich-content, .uncial-rich-content > .ProseMirror)
     > :is(p, h2, h3, h4, ul, ol, blockquote) {
     max-width: var(--measure);
+}
+/* A band is as wide as the widest derived block in it, which is wider than
+   anything set at the measure. Prose is centred in that width and a heading
+   stays flush with the frame, so a document's headings line up with the ruled
+   headings a derived block draws for itself. */
+:is(.uncial-rich-content, .uncial-rich-content > .ProseMirror)
+    > :is(p, ul, ol, blockquote) {
+    margin-inline: auto;
 }
 /* Each derived block is a section of the page, so what separates it from what
    precedes it is the band's vertical step rather than a paragraph's. The two
@@ -771,7 +778,7 @@ code {
    rule's colour alone: a tinted panel at this measure reads as a different
    page, and the documentation has sixteen of these. */
 .callout {
-    margin: 0 0 var(--s4);
+    margin: 0 auto var(--s4);
     padding: var(--s3) 0 var(--s3) var(--s4);
     border-left: 3px solid var(--rule-2);
     max-width: var(--measure);
@@ -803,7 +810,7 @@ code {
     justify-content: space-between;
     align-items: baseline;
     gap: var(--s4);
-    padding: var(--s6) var(--frame-end) var(--s6) var(--frame-pad);
+    padding: var(--s6) var(--frame-inline);
     border-top: 1px solid var(--rule-2);
     text-decoration: none;
 }
@@ -829,7 +836,7 @@ code {
 }
 
 .sitefoot {
-    padding: var(--s6) var(--frame-end) var(--s6) var(--frame-pad);
+    padding: var(--s6) var(--frame-inline);
     border-top: 1px solid var(--rule);
     display: flex;
     flex-wrap: wrap;
@@ -966,13 +973,12 @@ code {
    separate slice that first paint otherwise has no use for. */
 .explain {
     max-width: var(--measure);
-    margin: var(--s4) 0 0;
+    margin: var(--s4) auto 0;
     color: var(--ink-2);
-    font-size: var(--t-small);
 }
 .figcap {
     max-width: var(--measure);
-    margin: var(--s3) 0 0;
+    margin: var(--s3) auto 0;
     color: var(--ink-2);
     font-size: var(--t-tiny);
 }
@@ -1038,6 +1044,7 @@ code {
        that. Keep this figure in step with `SCATTER.width`. */
     max-width: 860px;
     height: auto;
+    margin-inline: auto;
 }
 .scatter__axis {
     stroke: var(--rule-2);
@@ -1131,6 +1138,7 @@ code {
 .counted .explain {
     display: block;
     margin-top: var(--s1);
+    font-size: var(--t-small);
 }
 .counted ul {
     margin: var(--s2) 0 0;
@@ -1200,9 +1208,25 @@ code {
     }
 }
 
-/* ---- The front page: hero ------------------------------------------- */
+/* ---- The front page: heading, band, code -----------------------------
+   Three strips. The heading keeps the frame's padding; the band deliberately
+   does not, so the viewer and its settings run the whole width of the column —
+   that break is the page's one full-bleed moment, and it is what buys the
+   viewer the size its argument needs.
+
+   The band declares its height, and must clear the tallest state the panel can
+   reach — every knob present, every inert reason showing. Letting the row size
+   itself to the panel was the other way, and it is wrong here for a reason worth
+   recording: the panel's own height moves as knobs go inert, the cycle makes
+   that happen every turn, and a band that resized with it would move the whole
+   page below it. This page's layout stability is measured, so the band is fixed
+   and the panel is laid out to fit inside it.
+
+   That the viewer ends up nearly square is the point. It is what lets a portrait
+   folio fill the frame instead of letterboxing inside a landscape one.
+   -------------------------------------------------------------------- */
 .hero {
-    padding: var(--frame-pad) var(--frame-end) var(--frame-pad) var(--frame-pad);
+    padding: var(--frame-pad) var(--frame-inline);
     background: radial-gradient(
         120% 90% at 12% 0%,
         var(--paper) 0%,
@@ -1210,48 +1234,372 @@ code {
         var(--bench) 100%
     );
 }
-.hero__grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-    gap: clamp(var(--s5), 3.4vw, var(--s7));
-    align-items: center;
-}
 .hero h1 {
     font-size: var(--t-display);
     line-height: 0.96;
-    max-width: 15ch;
+    /* Wide enough that the headline sets in three lines rather than five. */
+    max-width: 26ch;
 }
 .hero__lede {
     margin-top: var(--s5);
-    max-width: 44ch;
+    max-width: 52ch;
     color: var(--ink-soft);
     font-size: clamp(1.05rem, 0.95rem + 0.4vw, 1.26rem);
 }
-/* Not italic, and not `.aside`: these labels sit above the fold on the one
-   route that must score full marks, and the italic face is 347 KB that first
-   paint otherwise has no use for. */
-.hero__pick {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s3) var(--s5);
-    margin-top: var(--s3);
+
+.heroband {
+    display: grid;
+    /* Wide enough for the longest configuration path beside its control, and a
+       different width from the rail it sits next to, so the two do not read as
+       one sidebar. */
+    grid-template-columns: minmax(0, 1fr) 486px;
+    height: 840px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bench);
 }
-.hero__pick button {
-    padding: 0;
+
+/* The viewer is inset in the band rather than flush to its edges, so the band's
+   ground reads as a mount around a framed object. Flush on three sides and
+   running into the window on the fourth, it read as the band itself. */
+.heroband__stage {
+    display: grid;
+    /* The band's height is fixed and this cell is a grid item stretching to it;
+       without this the padded box floors at its content's height instead. */
+    min-height: 0;
+    padding: var(--s5);
+}
+
+.herocode {
+    padding: var(--s6) var(--frame-inline) var(--frame-pad);
+    background: var(--bone);
+}
+.hero__note {
+    margin-top: var(--s3);
+    max-width: 74ch;
     color: var(--ink-2);
     font-size: var(--t-small);
-    opacity: 0.55;
+}
+
+/* ---- The front page: the configuration panel -------------------------
+   Two labelled groups in one column under a transport row, neither scrolling
+    and neither behind a tab. What makes that fit is the shown set — five theme
+    knobs and seven layout ones — with each group's heading stating the count
+   behind them.
+
+   Native radios do the work: the input is taken out of the flow and its label
+   is the segment, so the label is the hit target, arrow keys move within a
+   group, and the focus ring lands on what a reader can see.
+   -------------------------------------------------------------------- */
+.hp {
+    /* The label column: wide enough for the longest configuration path this
+       panel shows, `themeConfig.radiusButtons`, set in the mono at 12.5px. A
+       column narrower than its longest label is not a column — the two paths
+       that overflowed it pushed their own controls right, and the panel read as
+       three ragged edges. */
+    --hp-label: 202px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: var(--s5) var(--s5) var(--s5) var(--s4);
+    border-left: 1px solid var(--rule);
+    /* A guard on the band's height, not a scroller: the panel is laid out to fit
+       and the height above carries slack. If this ever clips, the height is
+       wrong. */
+    overflow: hidden;
+}
+.hp__group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+/* ---- The panel's transport -------------------------------------------
+   What is moving the panel, and the controls over it. The timeline is the
+   reason the three buttons are worth having: a change a reader did not see
+   coming is one they cannot go back to on purpose.
+
+   A dot per example, in runs. Groups are separated by a wider gap and each
+   takes width in proportion to how many examples it holds, so the pitch stays
+   even across the row and the separation reads as grouping rather than as a
+   gap. Played dots stay filled, so the row is also how far through a lap the
+   sequence is.
+
+   The current dot fills rather than a bar sweeping: the two signals are
+   position and time remaining, and one element carrying both cannot come apart
+   from itself. Its duration is `--hp-dwell`, set on the panel from the same
+   value that arms the timer — and steps do not all hold for the same length —
+   so it cannot finish early or late.
+   -------------------------------------------------------------------- */
+/* Named, because three transport buttons and a bar say what they do to
+   whatever they are attached to but not what that is. In the row rather than
+   above it: the panel is laid out to fit its band with no scroller, and a line
+   of its own would push the last knob out through the clip. */
+.hp__what {
+    flex: none;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    font-weight: 600;
+}
+.hp__transport {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+}
+.hp__tbtn {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--rule-2);
+    color: var(--ink-2);
+}
+.hp__tbtn svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+.hp__tbtn:hover {
+    background: var(--paper);
+    color: var(--ink);
+}
+.hp__tbtn:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+}
+.hp__line {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    min-width: 0;
+}
+.hp__grp {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+}
+.hp__dot {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 7px;
+    height: 7px;
+    border: 1px solid var(--rule-2);
+    border-radius: 50%;
+}
+.hp__dot--done {
+    background: var(--rule-2);
+}
+.hp__dot--now {
+    border-color: var(--cta);
+}
+.hp__fill {
+    width: 5px;
+    height: 5px;
+    background: var(--cta);
+    border-radius: 50%;
+}
+.hp__fill--running {
+    animation: hp-count var(--hp-dwell) linear forwards;
+}
+@keyframes hp-count {
+    from {
+        transform: scale(0);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+/* Sized as a group label rather than as a page heading. The level is a
+   structural claim — these are the first headings under the page's h1 — and the
+   size is a separate question from it. */
+.hp__group h2 {
+    font-size: var(--t-h3);
+    font-weight: 600;
+}
+.hp__say {
+    margin-top: -8px;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.hp__rule {
+    height: 1px;
+    background: var(--rule);
+}
+.hp__knob {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+/* The wash that says which row just moved.
+   The selection itself animates — a segment's fill crosses from the old chip to
+   the new, a swatch grows into its ring — but a reader watching the viewer is
+   not watching the panel, and needs telling where to look.
+
+   Present from the first render and transparent until something changes; the
+   class is put on by `use:pulse` on update only, so hydrating the panel does
+   not flash every row at once. */
+.hp__pulse {
+    position: absolute;
+    inset: -3px -6px;
+    pointer-events: none;
+    opacity: 0;
+    background: color-mix(in srgb, var(--cta) 24%, transparent);
+}
+.hp__pulse--on {
+    animation: hp-pulse 620ms ease-out forwards;
+}
+@keyframes hp-pulse {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+/* The label beside its control rather than above it. Stacked labels cost a line
+   per knob, which across eleven knobs is the difference between a panel that
+   fits the band and one that scrolls. */
+.hp__row {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+}
+.hp__path {
+    flex: 0 0 var(--hp-label);
+    color: var(--ink-2);
+    font-family: var(--mono);
+    font-size: 12.5px;
+}
+.hp__seg {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    border: 1px solid var(--rule-2);
+    overflow: hidden;
+}
+/* An inert knob is marked by its border and by the reason under it, not by
+   fading: text at reduced opacity is text below the contrast floor, and the one
+   page on this site that must score full marks is this one. */
+.hp__knob--inert .hp__seg {
+    border-style: dashed;
+}
+.hp__why {
+    /* One of these under every knob, holding its line whether or not there is a
+       reason to show: a knob going inert cannot move the ones below it, and
+       every row is the same height as every other. Indented to sit under the
+       control it is about rather than under the label. */
+    min-height: 1lh;
+    padding-left: calc(var(--hp-label) + var(--s3));
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    font-style: italic;
+}
+.hp__opt {
+    position: relative;
+    /* Sized to its own value rather than to an equal share, and padded tightly:
+       the theme group sets `dracula` beside `dark`, and equal shares clip the
+       long one to fit the short one. */
+    flex: 1 1 auto;
+    min-width: 0;
+    display: grid;
+    place-items: center;
+    height: 30px;
+    padding: 0 5px;
+    color: var(--ink-2);
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    /* The selection is a state, so it crosses between chips rather than
+       cutting: the fill leaves the old one as it arrives on the new, which is
+       what makes a step something a reader sees happen rather than something
+       they notice has happened. */
     transition:
-        opacity 0.3s,
-        color 0.3s;
+        background-color 260ms ease,
+        color 260ms ease,
+        box-shadow 260ms ease,
+        transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1.25);
 }
-.hero__pick button:hover {
-    opacity: 1;
-    text-decoration: underline;
+.hp__opt + .hp__opt {
+    border-left: 1px solid var(--rule-2);
 }
-.hero__pick button.on {
-    opacity: 1;
-    color: var(--link);
+.hp__opt:hover {
+    color: var(--ink);
+}
+/* Filled, not tinted. The panel is read at a glance while the eye is on the
+   viewer, and a chip that differs from its neighbours only by a background a
+   shade lighter is not readable at that glance. The pair is the measured one:
+   pale ink on orange. */
+.hp__opt.on {
+    background: var(--cta);
+    color: var(--cta-ink);
+    font-weight: 600;
+}
+.hp__knob--inert .hp__opt.on {
+    color: var(--ink-2);
+    background: none;
+}
+/* Out of the flow rather than `display: none`, which takes a radio out of its
+   group's keyboard navigation as well as out of the layout. It stays clickable:
+   the label is the hit target either way, and an input that refuses a pointer
+   is one nothing can drive but the keyboard. */
+.hp__opt input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.hp__opt:has(input:focus-visible) {
+    outline: 2px solid var(--link);
+    outline-offset: -2px;
+}
+/* Orange on orange is not a focus ring. */
+.hp__opt.on:has(input:focus-visible) {
+    outline-color: var(--cta-ink);
+}
+/* A swatch's colour is what it sets, so the value names it for a screen reader
+   and paints it for everybody else. */
+.hp__seg--swatch {
+    gap: 6px;
+    border: 0;
+    /* The selected swatch rings and lifts outside its own box, and a colour is
+       the one thing here that cannot be shown by covering it. */
+    overflow: visible;
+}
+.hp__seg--swatch .hp__opt {
+    background: var(--swatch);
+    box-shadow: inset 0 0 0 1px var(--rule-2);
+}
+.hp__seg--swatch .hp__opt + .hp__opt {
+    border-left: 0;
+}
+/* Lifted and ringed from outside rather than ringed from within: an inset ring
+   eats the colour the swatch exists to show, and on a 44px chip it left too
+   little of it to read. Growing is also the change a reader catches in
+   peripheral vision, which an inset line is not. */
+.hp__seg--swatch .hp__opt.on {
+    z-index: 1;
+    transform: scale(1.16);
+    box-shadow:
+        0 0 0 2px var(--paper),
+        0 0 0 4px var(--cta),
+        0 3px 10px rgb(0 0 0 / 0.3);
+}
+.hp__seg--swatch .hp__opt__t {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
 }
 
 /* ---- Embedded viewers ------------------------------------------------
@@ -1271,9 +1619,17 @@ code {
 .vw {
     position: relative;
     overflow: hidden;
-    border: 1px solid var(--rule-2);
-    background: var(--bench);
-    box-shadow: 0 14px 34px -24px rgba(60, 40, 10, 0.55);
+    /* A mount, not a hairline. The frame is the one part of an embed that is
+       neither the page nor the viewer, so it is the dark field in both schemes
+       rather than a rule that re-steps with the ground it sits on — a frame
+       that followed the scheme was a shade of the band at every width. */
+    border: 2px solid var(--ink-block);
+    /* The same ground `viewerBg` paints, so the box a reader is served and the
+       running viewer that replaces its contents are one colour: the stage is
+       transparent while the first-canvas image stands in, and a box that did
+       not match would pop when the manifest arrived. */
+    background: var(--stage);
+    box-shadow: var(--lift);
 
     /* The viewer's two public type properties. It ships no font files and names
        no family, so an embed set in the site's own face is a matter of letting
@@ -1293,10 +1649,26 @@ code {
 .vw__first {
     object-fit: contain;
 }
-/* The live viewer covers the placeholder rather than the placeholder being
-   removed: a removal needs a readiness signal, and covering needs none. */
+/* Above the placeholder, which is still in the box until the manifest is ready:
+   the stage is transparent, so the two are visible at once for that moment. */
 .vw__live {
     z-index: 1;
+}
+/* An embed that takes its size from the row it is in rather than from the shape
+   it declares. The shape is still on the box, and still sizes it wherever the
+   parent stops giving it a row — see the narrow-width rules.
+
+   Both dimensions are explicit, and both have to be: a declared aspect ratio
+   drives whichever of the two is left as `auto`, so a box given only a height
+   sizes its own width and stops short of its column, and one given neither
+   grows straight through the band's bottom edge.
+
+   Size is all this changes. The border and the shadow stay, because they are
+   what say the viewer is an object on the page rather than part of it, and the
+   embed that most needs to say so is the one in the band. */
+.vw--fill {
+    width: 100%;
+    height: 100%;
 }
 
 /* ---- The chrome skeleton --------------------------------------------
@@ -1324,13 +1696,21 @@ code {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 3.75px;
     background: color-mix(in srgb, var(--paper) 70%, transparent);
     border-radius: 0 0 2px 0;
 }
+/* Phosphor `List` at 20px, which is the icon the real handle draws: its three
+   bars are 16 units thick on a 256 viewBox, spanning x 40-216, centred 64 units
+   apart — 1.25px, 13.75px and a 5px pitch once scaled.
+
+   The pitch matters as much as the weight. A fractional bar height only
+   rasterises evenly when every bar shares a subpixel phase, and an integer
+   pitch is what guarantees that; at the earlier 1.5px/4px the outer two landed
+   on .75 and the middle on .25, so the middle one antialiased lighter. */
 .vwc__handle span {
-    width: 15px;
-    height: 1.5px;
+    width: 13.75px;
+    height: 1.25px;
     background: currentColor;
 }
 .vwc__bar {
@@ -1345,7 +1725,12 @@ code {
     gap: 8px;
     height: 33px;
     padding: 1px 9px 0;
-    border-radius: 2px 2px 0 0;
+    /* The real cluster's ground is a scrim over the material rather than a
+       solid: `.control-bar::before`, the same 70% paper the handle uses, over
+       an 8px backdrop blur. */
+    border-radius: 4px 4px 0 0;
+    background: color-mix(in srgb, var(--paper) 70%, transparent);
+    backdrop-filter: blur(8px);
 }
 .vwc__row {
     display: flex;
@@ -1360,7 +1745,10 @@ code {
     height: 32px;
 }
 .vwc__at {
-    width: 50px;
+    /* The real counter sizes to its label, so this one has to as well or the
+       cluster changes width on mount: 41.6px of chrome either side of the
+       digits, and 8.4px a digit, measured off the live control bar. */
+    width: calc(41.6px + var(--digits) * 8.4px);
     text-align: center;
     font-size: 15px;
     line-height: 20px;
@@ -1464,7 +1852,7 @@ code {
 }
 .cmd {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--s4);
     padding: var(--s4);
     background: var(--code-bg);
@@ -1518,8 +1906,8 @@ code {
     font-size: var(--t-small);
 }
 
-/* ---- Deployments, as ruled rows --------------------------------------- */
-.prod__say {
+/* ---- Link rows: a ruled list of links ---------------------------------- */
+.linkrows__say {
     /*
      * The site's aside style, less its italic. Two sentences are not worth
      * making the italic serif a first-paint dependency of `/`, which loads it
@@ -1530,11 +1918,11 @@ code {
     color: var(--ink-2);
     font-size: var(--t-small);
 }
-.prod {
+.linkrows {
     margin-top: var(--s5);
     border-top: 1px solid var(--rule-2);
 }
-.prod__row {
+.linkrows__row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--s4);
@@ -1542,33 +1930,106 @@ code {
     padding: var(--s4) 0;
     border-bottom: 1px solid var(--rule);
 }
-.prod .who {
+.linkrows__label {
     font-size: 1.2rem;
     text-decoration: none;
 }
-.prod .who:hover {
+.linkrows__label:hover {
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 3px;
 }
-.prod .what {
+.linkrows__note {
     display: block;
     margin-top: 2px;
     color: var(--ink-2);
     font-size: var(--t-small);
 }
-.prod .go {
+.linkrows__go {
     color: var(--link);
     font-size: var(--t-small);
     white-space: nowrap;
 }
 
 @media (max-width: 900px) {
-    .hero__grid {
-        grid-template-columns: 1fr;
-    }
     .hero h1 {
         font-size: clamp(2.2rem, 9vw, 3rem);
+    }
+    /* The band stops being a band: the viewer takes a shape from the material
+       again, and the panel follows it down the page. The panel is the one
+       control here that needs no second design at this width — the same column
+       of groups, just wider — which is why it is a column and not a tab strip.
+       Its height stops being fixed with the band's, so nothing scrolls inside
+       it here either. */
+    /* A finger, not a pointer. */
+    .hp__opt {
+        height: 44px;
+    }
+}
+
+/* ---- The front page's band, at narrower widths -----------------------
+   Its own breakpoint, not the shell's. The rail leaves at 900px, but the band
+   is untenable long before that: with the rail still taking 290px and the panel
+   440px, a 1024px window leaves the viewer 294px — narrower than the two-column
+   hero this layout replaced. So the band stacks while the column it sits in is
+   too narrow to divide, which is a question about the band's own content.
+   -------------------------------------------------------------------- */
+@media (max-width: 1280px) {
+    .heroband {
+        display: block;
+        height: auto;
+    }
+    /* The declared shape sizes the box again, as it does on every other embed:
+       there is no row height to take now. */
+    .heroband .vw--fill {
+        width: auto;
+        height: auto;
+    }
+    .hp {
+        border-left: 0;
+        border-top: 1px solid var(--rule);
+        overflow: visible;
+    }
+}
+
+/* Room for a label beside its control is the one thing a phone has none of, so
+   the label goes back above it. */
+@media (max-width: 700px) {
+    .hp__row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--s1);
+    }
+    .hp__path {
+        flex: none;
+    }
+    .hp__why {
+        padding-left: 0;
+    }
+}
+
+/* The panel's motion is what makes a step legible, so what is left when it is
+   refused is the state itself: the selection still lands, the swatch still
+   lifts, and the countdown reads full rather than sweeping. */
+@media (prefers-reduced-motion: reduce) {
+    .hp__opt {
+        transition: none;
+    }
+    .hp__pulse--on {
+        animation: none;
+    }
+    .hp__count--running::after {
+        animation: none;
+        transform: scaleX(1);
+    }
+}
+
+/* A finger's target rather than a pointer's, asked of the input device rather
+   than inferred from the width: a 1024px tablet needs this and a 1024px window
+   on a laptop does not. */
+@media (pointer: coarse) {
+    .hp__opt {
+        min-height: 44px;
     }
 }
 

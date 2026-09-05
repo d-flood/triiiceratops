@@ -130,6 +130,19 @@ export interface RendererConfig {
     zoomPerClick?: number;
 
     /**
+     * How far past a whole-canvas fit the reader may zoom in, as a multiple of
+     * the fit scale: `8` stops eight times closer than the scale at which the
+     * canvas fits the viewport. Must be greater than 1.
+     *
+     * The fit is measured against the live viewport, so the ceiling follows a
+     * window resize and a phone rotation. Because the fit falls as the source
+     * grows, the same factor gives a large scan more magnification past 1:1
+     * than a small one — raise it for images with more pixels than their fit
+     * suggests, lower it to stop the reader short of visible blur.
+     */
+    maxZoomFactor?: number;
+
+    /**
      * Multiplicative zoom factor for one **wheel notch** — the detent of a
      * classic mouse wheel, which the wheel event reports as about 100 pixels of
      * `deltaY`. `1.15` takes roughly five notches to double the zoom. Must be

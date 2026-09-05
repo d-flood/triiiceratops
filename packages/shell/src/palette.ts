@@ -56,6 +56,12 @@ export const COLOURS: readonly ColourToken[] = [
         role: 'Recessed ground',
     },
     {
+        name: '--stage',
+        light: '#e6dfd0',
+        dark: '#1e1915',
+        role: 'Viewer stage',
+    },
+    {
         name: '--rail-bg',
         light: '#efe7d9',
         dark: '#201b16',
@@ -218,6 +224,7 @@ export const PAIRINGS: readonly Pairing[] = [
     { ink: '--ink', ground: '--bone', role: 'Body text on the page' },
     { ink: '--ink', ground: '--paper', role: 'Body text on a raised ground' },
     { ink: '--ink', ground: '--bench', role: 'Body text on a recessed ground' },
+    { ink: '--ink', ground: '--stage', role: 'Viewer text on its stage' },
     { ink: '--ink-soft', ground: '--bone', role: 'Lede and prose' },
     { ink: '--ink-soft', ground: '--paper', role: 'Prose on a raised ground' },
     { ink: '--ink-2', ground: '--bone', role: 'Asides and numerals' },

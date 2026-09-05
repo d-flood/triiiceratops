@@ -1,0 +1,15 @@
+{
+    "@context": "http://iiif.io/api/image/3/context.json",
+    "id": "/material/landing/images/milkmaid",
+    "type": "ImageService3",
+    "profile": "level0",
+    "protocol": "http://iiif.io/api/image",
+    "tiles": [
+        {
+            "scaleFactors": [1, 2, 4, 8],
+            "width": 512
+        }
+    ],
+    "width": 4649,
+    "height": 5177
+}

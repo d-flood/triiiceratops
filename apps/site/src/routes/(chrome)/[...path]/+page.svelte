@@ -30,7 +30,7 @@
             </div>
         </div>
     </div>
-{:else}
+{:else if data.document.content?.length}
     <div class="band">
         <div class="doc">
             <Renderer content={data.document} {blocks} {schema} />

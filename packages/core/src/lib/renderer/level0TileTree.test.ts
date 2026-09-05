@@ -3,14 +3,20 @@
  * A **static level0 tile tree** whose whole-image derivative is spelled with the
  * canonical `full` region.
  *
- * Two such trees exist in the corpus and they disagree about that one URL. A
- * CSNTM service answers `0,0,6132,8176/192,256` and 404s `full/192,256`; a tree
- * written by `vips dzsave --layout iiif3` — which is what `atomotic/iiif`'s
- * `mkiiif` generates, and what the vendored fixture here came from — answers
- * `full/362,501` and 404s the numeric region. Neither spelling can be the only
- * one asked for, so the whole-image tile carries the other as its
+ * The corpus disagrees about that one URL, so neither spelling can be the only
+ * one asked for: the whole-image tile carries the other as its
  * `TileRequest.fallback` and the scheduler learns which one the service holds
  * (see `tilePyramid.tileFallback`).
+ *
+ * The canonical `full` region is asked first, per Image API 3.0 §4.8. A tree
+ * written by `vips dzsave --layout iiif3` — which is what `atomotic/iiif`'s
+ * `mkiiif` generates, and what the vendored fixture here came from — answers
+ * `full/362,501` and 404s the numeric region, so it is served without a wasted
+ * request, as it is by every OpenSeadragon-based viewer. CSNTM is split against
+ * itself and supplies the fallback's reason for existing: its 𝔓3 tree answers
+ * both spellings, while its 𝔓40 tree answers `0,0,6132,8176/192,256` and 404s
+ * `full/192,256` — despite declaring those dimensions in `sizes[]`, which §5.3
+ * requires be requestable as `full/w,h`.
  *
  * Node environment, as `planScene.test.ts` is and for its reason: the planner's
  * whole import graph must load with no DOM globals.
@@ -119,14 +125,14 @@ describe('a level0 tile tree that declares tiles and no sizes', () => {
         );
     });
 
-    it('offers the canonical `full` region as the whole-image tile fallback', () => {
+    it('asks the canonical `full` region first and offers the explicit region as the whole-image tile fallback', () => {
         const pyramid = buildPyramid(SERVICE, facts())!;
 
         expect(tileUrl(pyramid, pyramid.levels[0], 0, 0)).toBe(
-            `${SERVICE}/0,0,1446,2004/362,501/0/default.jpg`,
+            `${SERVICE}/full/362,501/0/default.jpg`,
         );
         expect(tileFallback(pyramid, pyramid.levels[0], 0, 0)).toEqual({
-            url: `${SERVICE}/full/362,501/0/default.jpg`,
+            url: `${SERVICE}/0,0,1446,2004/362,501/0/default.jpg`,
             // The SERVICE, so one 404 answers for every whole-image request it
             // will ever be sent — the base level and the thumbnail tier's rungs.
             group: SERVICE,
@@ -213,20 +219,21 @@ describe('the mkiiif manifest, whose painting body does not resolve', () => {
         });
 
         expect(plan.tiers[canvases[0].id]).toBe('pyramid');
-        // Every level of the tree, base to full resolution, and every request a
-        // file the tree holds: an explicit region and a two-dimensional size.
+        // Every level of the tree, base to full resolution. Each request names a
+        // two-dimensional size; the region is `full` for the one tile that
+        // covers the image and an explicit region for every partial tile.
         expect([
             ...new Set(plan.tileRequests.map((request) => request.level)),
         ]).toEqual([0, 1, 2]);
         for (const request of plan.tileRequests) {
             expect(request.url).toMatch(
                 new RegExp(
-                    `^${SERVICE}/\\d+,\\d+,\\d+,\\d+/\\d+,\\d+/0/default\\.jpg$`,
+                    `^${SERVICE}/(full|\\d+,\\d+,\\d+,\\d+)/\\d+,\\d+/0/default\\.jpg$`,
                 ),
             );
         }
         expect(plan.tileRequests[0].url).toBe(
-            `${SERVICE}/0,0,1446,2004/362,501/0/default.jpg`,
+            `${SERVICE}/full/362,501/0/default.jpg`,
         );
         expect(plan.tileRequests.map((request) => request.url)).toContain(
             `${SERVICE}/1024,1536,422,468/422,468/0/default.jpg`,
@@ -245,7 +252,7 @@ describe('the mkiiif manifest, whose painting body does not resolve', () => {
 
         const base = plan.tileRequests.find((request) => request.level === 0)!;
         expect(base.fallback).toEqual({
-            url: `${SERVICE}/full/362,501/0/default.jpg`,
+            url: `${SERVICE}/0,0,1446,2004/362,501/0/default.jpg`,
             group: SERVICE,
         });
         expect(

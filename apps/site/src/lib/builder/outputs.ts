@@ -28,6 +28,13 @@ export type Framework = {
     readonly href: string;
     /** The import specifier or tag the guide and the snippet must agree on. */
     readonly entry: string;
+    /**
+     * The grammar the snippet is highlighted by, named from the same
+     * vocabulary the content documents declare — `tests/unit/docs-content.test.ts`
+     * lists it. A Svelte component is `html` there because that vocabulary has
+     * one spelling per language and Svelte and HTML highlight identically.
+     */
+    readonly language: string;
 };
 
 /**
@@ -41,6 +48,7 @@ export const FRAMEWORKS: readonly Framework[] = [
         doc: 'integration',
         href: '/docs/integration/',
         entry: '<triiiceratops-viewer',
+        language: 'html',
     },
     {
         id: 'react',
@@ -48,6 +56,7 @@ export const FRAMEWORKS: readonly Framework[] = [
         doc: 'react',
         href: '/docs/react/',
         entry: `${PACKAGE_NAME}/react`,
+        language: 'jsx',
     },
     {
         id: 'vue',
@@ -55,6 +64,7 @@ export const FRAMEWORKS: readonly Framework[] = [
         doc: 'vue',
         href: '/docs/vue/',
         entry: `${PACKAGE_NAME}/vue`,
+        language: 'vue',
     },
     {
         id: 'svelte',
@@ -62,6 +72,7 @@ export const FRAMEWORKS: readonly Framework[] = [
         doc: 'svelte',
         href: '/docs/svelte/',
         entry: `${PACKAGE_NAME}/svelte`,
+        language: 'html',
     },
 ];
 

@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const DOCUMENT = fileURLToPath(
-    new URL('../content/handles.json', import.meta.url),
+    new URL('../content/access.json', import.meta.url),
 );
 
 /** The autosave debounce plus room for the write, which is what "~1s" means. */
@@ -57,9 +57,13 @@ async function caretAtEndOf(page: Page, block: Locator): Promise<void> {
  *
  * The wait is on the document's own first line of prose, read from the file, so
  * it stays a wait for the load however the page's copy is rewritten.
+ *
+ * Named from the page the route renders rather than from a custom element: the
+ * editor is a component in this application's own tree, which is what puts it in
+ * the site's cascade and gives it the measure and the ground a reader sees.
  */
 async function editor(page: Page): Promise<Locator> {
-    const surface = page.locator('uncial-editor .ProseMirror');
+    const surface = page.locator('.uncial-cms-editor-page .ProseMirror');
     await expect(surface).toContainText(firstProse());
     return surface;
 }
@@ -90,7 +94,7 @@ test.afterEach(async ({ page }) => {
 
 test.describe('a content route', () => {
     test('renders its document', async ({ page }) => {
-        await page.goto('/handles/');
+        await page.goto('/access/');
 
         const body = page.locator('main .doc');
         for (const heading of document().content.filter(
@@ -110,7 +114,7 @@ test.describe('a content route', () => {
 
 test.describe('the edit variant', () => {
     test('writes a keystroke to the backing document', async ({ page }) => {
-        await page.goto('/handles/edit/');
+        await page.goto('/access/edit/');
         const surface = await editor(page);
 
         await surface.locator('> p').first().click();
@@ -127,7 +131,7 @@ test.describe('the edit variant', () => {
     test('reflects a reorder of two blocks in the document’s block order', async ({
         page,
     }) => {
-        await page.goto('/handles/edit/');
+        await page.goto('/access/edit/');
         const surface = await editor(page);
         const [heading, first, second, ...rest] = blockOrder();
 
@@ -156,13 +160,16 @@ test.describe('the edit variant', () => {
     test('renders the site’s own layout around the editor', async ({
         page,
     }) => {
-        await page.goto('/handles/edit/');
+        await page.goto('/access/edit/');
         await editor(page);
 
         // The head, the rail, the next-page link and the footer: the measure and
         // rule weights a reader sees, which is the point of editing in place.
         await expect(
-            page.getByRole('heading', { name: 'What it handles', level: 1 }),
+            page.getByRole('heading', {
+                name: 'Accessibility and standards',
+                level: 1,
+            }),
         ).toHaveCount(1);
         await expect(page.locator('nav.rail')).toBeVisible();
         await expect(page.locator('footer.sitefoot')).toBeVisible();
@@ -177,34 +184,64 @@ test.describe('the edit variant', () => {
                 const style = getComputedStyle(node);
                 return {
                     width: Math.round(node.getBoundingClientRect().width),
-                    font: style.font,
+                    // The longhands rather than the `font` shorthand: the
+                    // shorthand serialises to an empty string whenever any font
+                    // longhand is non-initial, and ProseMirror's own stylesheet
+                    // sets `font-variant-ligatures: none` on every editing
+                    // surface. That is deliberate upstream and correct — a
+                    // ligature is one glyph standing for two characters, which
+                    // puts the caret in the wrong place — so it is the one
+                    // difference between the two surfaces that must not be
+                    // asserted away, and the one thing the shorthand hides.
+                    fontFamily: style.fontFamily,
+                    fontSize: style.fontSize,
+                    fontWeight: style.fontWeight,
+                    fontStyle: style.fontStyle,
+                    lineHeight: style.lineHeight,
                     color: style.color,
-                    margin: style.margin,
+                    // Centred within whatever surface holds it, rather than the
+                    // offset itself: see below.
+                    centred:
+                        Math.abs(
+                            parseFloat(style.marginLeft) -
+                                parseFloat(style.marginRight),
+                        ) < 1,
+                    blockMargin: `${style.marginTop} ${style.marginBottom}`,
                 };
             });
 
-        await page.goto('/handles/');
+        await page.goto('/access/');
         const read = await typography(
             page.locator('main .doc .uncial-content > p'),
         );
 
-        await page.goto('/handles/edit/');
+        await page.goto('/access/edit/');
         await editor(page);
         const editing = await typography(
-            page.locator('uncial-editor .ProseMirror > p'),
+            page.locator('.uncial-cms-editor-page .ProseMirror > p'),
         );
 
         // The editing surface is a shadow root, so the site's prose rules reach
         // it only by naming the content root the renderer and the editor share.
         // A rule naming the wrapper around it instead leaves an author judging
         // copy at a spacing and a colour no reader is ever shown.
+        //
+        // The measure is the paragraph's own width, and it is asserted exactly.
+        // The horizontal offset that centres it is not: the editor reserves a
+        // gutter for block labels that the read view has no use for, so the two
+        // surfaces are not the same width and the offsets cannot match. Pinning
+        // them would be asserting that the gutter does not exist. What the
+        // reader's experience actually depends on — the measure, the face, the
+        // colour, the rhythm between paragraphs, and that the column is centred
+        // in the surface rather than banked against one edge — is all here.
         expect(editing).toEqual(read);
+        expect(editing.centred).toBe(true);
     });
 
     test('leaves the rail navigable, so one page’s editor leads to the next', async ({
         page,
     }) => {
-        await page.goto('/handles/edit/');
+        await page.goto('/access/edit/');
         await editor(page);
 
         await page.locator('nav.rail a[href="/configure/"]').click();

@@ -1761,6 +1761,22 @@ describe('planScene — the thumbnail tier', () => {
         const BASE = tileKey('c1', serviceIdOf('c1'), 0, 0, 0);
         const CANVAS = serviceCanvas('c1', 1000, 1000);
 
+        /**
+         * A service whose declared `scaleFactors` stop before the image fits in
+         * one tile: 4096 square over factors up to 4 leaves a 2x2 base level.
+         *
+         * Ordinary rather than exotic: a level0 tile tree stopping at 4 and the
+         * Cookbook's own level1 example stopping at 8 on a 4613px page both
+         * land here.
+         */
+        const COARSE_FACTS: ImageServiceFacts = {
+            width: 4096,
+            height: 4096,
+            tileSize: 512,
+            scaleFactors: [1, 2, 4],
+            version: 3,
+        };
+
         /** In the thumbnail tier, holding `resident` and nothing else. */
         function handover(resident: TileKey[]) {
             return thumbnailPlan([CANVAS], {
@@ -1822,6 +1838,72 @@ describe('planScene — the thumbnail tier', () => {
 
             expect(result.tileDraws).toEqual([]);
             expect(result.tileRequests).toEqual([]);
+        });
+
+        it('carries EVERY tile of a base level the service left larger than one', () => {
+            // `scaleFactors` are taken as the service declared them, so a
+            // coarsest level need not be one tile. Carrying only tile (0,0)
+            // would paint a quarter of the folio into the whole box; carrying
+            // nothing at all is the blank frame this handover exists to
+            // prevent, and on a level0 tree whose whole-image derivative does
+            // not exist that blank is permanent, because the thumbnail that
+            // would replace it never arrives.
+            const tiles = [
+                tileKey('c1', serviceIdOf('c1'), 0, 0, 0),
+                tileKey('c1', serviceIdOf('c1'), 0, 1, 0),
+                tileKey('c1', serviceIdOf('c1'), 0, 0, 1),
+                tileKey('c1', serviceIdOf('c1'), 0, 1, 1),
+            ];
+            const result = thumbnailPlan([CANVAS], {
+                knownMetadata: byService({ c1: COARSE_FACTS }),
+                residentTiles: new Set(tiles),
+            });
+
+            expect(result.tiers.c1).toBe('thumbnail');
+            expect(new Set(result.tileDraws.map((draw) => draw.key))).toEqual(
+                new Set(tiles),
+            );
+            // Each into its own quarter of the canvas, so the four together are
+            // the picture the pyramid tier was drawing a frame ago.
+            expect(result.tileDraws).toContainEqual(
+                expect.objectContaining({
+                    x: 0,
+                    y: 0,
+                    width: 500,
+                    height: 500,
+                }),
+            );
+            expect(result.tileDraws).toContainEqual(
+                expect.objectContaining({
+                    x: 500,
+                    y: 500,
+                    width: 500,
+                    height: 500,
+                }),
+            );
+            // Required, not merely held: anything left out is demoted to the
+            // opportunistic cache and cannot be painted.
+            expect(new Set(result.tileRequests.map((r) => r.key))).toEqual(
+                new Set(tiles),
+            );
+        });
+
+        it('carries the tiles of a coarse base level it actually holds', () => {
+            // A partial carry is blur-up, not a defect: three quarters of the
+            // folio beats none of it, and the missing tile is already on its way
+            // through the ordinary required set.
+            const held = [
+                tileKey('c1', serviceIdOf('c1'), 0, 0, 0),
+                tileKey('c1', serviceIdOf('c1'), 0, 1, 0),
+            ];
+            const result = thumbnailPlan([CANVAS], {
+                knownMetadata: byService({ c1: COARSE_FACTS }),
+                residentTiles: new Set(held),
+            });
+
+            expect(new Set(result.tileDraws.map((draw) => draw.key))).toEqual(
+                new Set(held),
+            );
         });
 
         it('carries nothing while the canvas has no service facts', () => {

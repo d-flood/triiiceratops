@@ -112,7 +112,24 @@
            instead of overflowing, so the stack's overflow-y:auto never scrolls. */
         flex-shrink: 0;
         background-color: var(--panel-surface);
-        border-radius: var(--tri-radius-panels);
+        /* Rounded as a card, except on an edge the stack holds flush against the
+           viewer frame — the column sets the two block-axis overrides. */
+        border-start-start-radius: var(
+            --panel-radius-block-start,
+            var(--tri-radius-panels)
+        );
+        border-start-end-radius: var(
+            --panel-radius-block-start,
+            var(--tri-radius-panels)
+        );
+        border-end-end-radius: var(
+            --panel-radius-block-end,
+            var(--tri-radius-panels)
+        );
+        border-end-start-radius: var(
+            --panel-radius-block-end,
+            var(--tri-radius-panels)
+        );
         overflow: hidden;
     }
 

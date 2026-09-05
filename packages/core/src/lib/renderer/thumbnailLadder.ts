@@ -23,8 +23,10 @@
  *    when the view is stable, and only through the same concurrency cap as the
  *    thumbnails themselves. That bound is the whole difference between this and
  *    a fetch storm that fetches all N regardless of tier.
- * 4. **The advertised-scale-factor whole images** for a level0 service that
- *    tiles, through the same rung selection.
+ * 4. **The whole-image tiles of a level0 tile tree** — the levels whose grid is
+ *    1x1, which are files the tile tier is already painting the canvas from —
+ *    and otherwise the whole images the service advertises in `sizes[]`. Both
+ *    through the same rung selection.
  * 5. **Failing all of that, nothing.** The canvas stays in the **box tier**,
  *    permanently, and is reported once so a developer can see why. It is never
  *    retried: a retry loop across hundreds of canvases against one
@@ -32,14 +34,16 @@
  *    remotely, and "no usable thumbnail" is a fact about the manifest that no
  *    number of requests will change.
  *
- *    Two shapes reach it: a service with no usable dimensions at all, and one
+ *    Three shapes reach it: a service with no usable dimensions at all; one
  *    whose CHEAPEST advertised image is over `budgets.maxDecodedPixels` — a
  *    level0 master with no derivatives, where the only legal request is a
- *    hundred-megapixel decode to fill a thirty-pixel box. Both are properties
- *    of the manifest and the service's facts and of nothing else, which is what
- *    keeps "permanently" honest: the answer does not move with the zoom, so a
- *    canvas cannot flip between a thumbnail and a box as the reader scrolls
- *    across a rung boundary. See {@link fromLadder}.
+ *    hundred-megapixel decode to fill a thirty-pixel box; and a level0 tile
+ *    tree that advertises no whole image at all (see step 4 at
+ *    {@link resolveThumbnail}). All three are properties of the manifest and
+ *    the service's facts and of nothing else, which is what keeps
+ *    "permanently" honest: the answer does not move with the zoom, so a canvas
+ *    cannot flip between a thumbnail and a box as the reader scrolls across a
+ *    rung boundary. See {@link fromLadder}.
  *
  * ## Which rung, and why the URL set is small
  *
@@ -460,19 +464,29 @@ export function resolveThumbnail(
     //    (`rungFallback`), and the canvas sat on its error placeholder while the
     //    tile tier beside it drew the same picture perfectly.
     //
-    //    Everything else is unchanged, and deliberately: a service with no
-    //    single-tile level (its coarsest grid is already 2x2 or wider) still gets
-    //    the advertised sizes if it has any, and the pyramid's scale-factor whole
-    //    images if it does not. Those requests are the ones that may or may not
-    //    be held depending on how the tree was generated — but they were what
-    //    shipped, and a soft URL is worth more than the box tier this tier
-    //    degrades to when the ladder's cheapest image is over the decode cap.
+    //    Then `sizes[]`, which is the other list of files the service has
+    //    stated it holds.
+    //
+    //    And nothing else. A tree whose grid is never 1x1 — a 3300px page over
+    //    512px tiles stopping at scale factor 4 — has advertised no whole image
+    //    at all, and neither key gives grounds to name one. Its scale-factor
+    //    widths are not whole-image derivatives: a multi-tile level exists only
+    //    as its tiles, so `full/{levelWidth},` is a file such a tree does not
+    //    write. Nor is the master a fallback, though level0 compliance does
+    //    guarantee it: at this tier it would be several megabytes fetched to
+    //    fill a box a few hundred pixels across, of a picture the viewer
+    //    already holds as tiles — the same trade the decoded-pixel cap refuses
+    //    one order of magnitude further up. A tile-LESS level0 keeps that rung
+    //    (`buildSizeLadder`) because there the master is the only thing the
+    //    canvas can be drawn from at any tier, so the thumbnail costs nothing
+    //    the pyramid tier was not fetching anyway.
     const pyramid = buildPyramid(serviceId, facts);
     const tiled = pyramid ? ladderFromSingleTileLevels(pyramid) : null;
+    const advertisesSizes = (facts.sizes?.length ?? 0) > 0;
     const ladder =
         tiled ??
-        ((facts.sizes?.length ?? 0) === 0 && pyramid
-            ? ladderFromPyramid(pyramid)
+        (pyramid && !advertisesSizes
+            ? null
             : buildSizeLadder(serviceId, facts));
 
     // 5. Nothing usable. Box tier, permanently.

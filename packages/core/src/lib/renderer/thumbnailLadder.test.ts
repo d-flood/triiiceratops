@@ -331,13 +331,14 @@ describe('resolveThumbnail', () => {
             // 1200/8 = 150, the coarsest level this pyramid describes and the
             // only one whose grid is 1x1 (at scale factor 4 the image is 300px
             // over 256px tiles, so two columns). It is requested as the TILE it
-            // is — the same file the tile tier draws this canvas from — and not
-            // as `full/150,`, which a static version 3 tree need not hold and
-            // which the trees in the wild do not.
+            // is — the same file the tile tier draws this canvas from — in the
+            // canonical whole-image spelling, with the two-dimensional size a
+            // static version 3 tree holds rather than the `full/150,` a level 1
+            // service would be asked for.
             expect(
                 resolve({ source: service('level0'), facts, rung: 128 }),
             ).toMatchObject({
-                url: `${SERVICE}/0,0,1200,900/150,113/0/default.jpg`,
+                url: `${SERVICE}/full/150,113/0/default.jpg`,
             });
         });
 
@@ -369,13 +370,13 @@ describe('resolveThumbnail', () => {
             // its tile. The 1533 level is 2x2 and is not offered: this tier
             // paints one image and does not composite.
             for (const [rung, expected] of [
-                [64, '0,0,6132,8176/192,256'],
-                [256, '0,0,6132,8176/384,511'],
-                [512, '0,0,6132,8176/767,1022'],
+                [64, 'full/192,256'],
+                [256, 'full/384,511'],
+                [512, 'full/767,1022'],
                 // Past the largest single-tile level the ladder tops out rather
                 // than reaching for a size it cannot fetch. Softness here, and
                 // promotion to the tile tier just above it.
-                [2048, '0,0,6132,8176/767,1022'],
+                [2048, 'full/767,1022'],
             ] as const) {
                 expect(
                     resolve({ source: service('level0'), facts, rung }),
@@ -413,8 +414,9 @@ describe('resolveThumbnail', () => {
 
         it('falls back to the advertised sizes when no level is a single tile', () => {
             // The coarsest level of a 12000px image over 256px tiles is still
-            // three columns wide, so there is no whole-image tile to ask for and
-            // this tier keeps the behaviour it shipped with.
+            // three columns wide, so there is no whole-image tile to ask for.
+            // `sizes[]` is the other list of files the service states it holds,
+            // and it is the one this falls back to.
             const facts: ImageServiceFacts = {
                 width: 12_000,
                 height: 9000,
@@ -478,9 +480,33 @@ describe('resolveThumbnail', () => {
             });
         });
 
-        it('accepts a scale-factor ladder off a large master at the smallest rung', () => {
-            // The same shape reached through `ladderFromPyramid`: rungs 3 and 4
-            // are the two that exist FOR level0, and both have to resolve.
+        it('refuses a tile tree that advertises no whole image at all', () => {
+            // 3323px over 512px tiles stopping at scale factor 4 leaves a 2x2
+            // coarsest level, so no level is a whole-image tile, and the service
+            // lists no `sizes`. Its scale-factor widths are not derivatives — a
+            // multi-tile level exists only as its tiles — so `full/831,` is a
+            // guess, and a static tree answers a guess with a 404: a canvas that
+            // was rendering from tiles a frame earlier, blank for as long as the
+            // reader stays zoomed out.
+            const facts: ImageServiceFacts = {
+                width: 3323,
+                height: 3981,
+                level0: true,
+                version: 3,
+                tileSize: 512,
+                scaleFactors: [1, 2, 4],
+            };
+
+            expect(
+                resolve({ source: service('level0'), facts, rung: 256 }),
+            ).toEqual({ kind: 'none' });
+        });
+
+        it('refuses it on the tiling rather than on the decode cap', () => {
+            // The same shape one order of magnitude up, so the refusal cannot be
+            // read as the decoded-pixel cap doing the work: the 13-megapixel
+            // master above is well under the ceiling and is refused for the same
+            // reason this one is.
             const facts: ImageServiceFacts = {
                 width: 12_000,
                 height: 9000,
@@ -490,12 +516,11 @@ describe('resolveThumbnail', () => {
                 scaleFactors: [1, 2, 4, 8, 16],
             };
 
-            expect(
-                resolve({ source: service('level0'), facts, rung: 32 }),
-            ).toMatchObject({
-                kind: 'url',
-                url: `${SERVICE}/full/750,/0/default.jpg`,
-            });
+            for (const rung of THUMBNAIL_RUNGS) {
+                expect(
+                    resolve({ source: service('level0'), facts, rung }),
+                ).toEqual({ kind: 'none' });
+            }
         });
 
         it('is refused identically at every rung, so the tier cannot flip with zoom', () => {

@@ -52,7 +52,7 @@
         "docs:build": "node scripts/docs-examples.mjs --check && node scripts/docs-content-state.mjs --check",
         "urls:check": "node scripts/url-contract.mjs",
         "links:check": "pnpm --filter @triiiceratops/app-site links:check",
-        "prepare": "simple-git-hooks",
+        "prepare": "simple-git-hooks && node scripts/setup-submodule.mjs && pnpm build:uncial",
         "lint": "pnpm -r --filter './packages/*' --filter './apps/*' lint",
         "lint:fix": "pnpm -r --filter './packages/*' --filter './apps/*' lint:fix",
         "format": "prettier --write .",

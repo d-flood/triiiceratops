@@ -1,0 +1,797 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/landing/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Public-domain visual study set"]
+    },
+    "summary": {
+        "en": [
+            "Eleven locally served IIIF Image API tile pyramids selected to demonstrate colour, line, material texture, and deep zoom. The Urbano Monte composite is the sole exception to the public-domain/CC0 set and is made available under CC BY-NC-SA 3.0."
+        ]
+    },
+    "metadata": [
+        {
+            "label": {
+                "en": ["Image services"]
+            },
+            "value": {
+                "en": ["Generated with libvips dzsave --layout iiif3."]
+            }
+        }
+    ],
+    "items": [
+        {
+            "id": "/material/landing/canvas/haeckel",
+            "type": "Canvas",
+            "label": {
+                "en": ["Ernst Haeckel, Discomedusae (Plate 8), 1904"]
+            },
+            "width": 3645,
+            "height": 5267,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Ernst Haeckel, Kunstformen der Natur, Plate 8; Smithsonian Libraries and Archives / Biodiversity Heritage Library."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Smithsonian Libraries and Archives / Biodiversity Heritage Library, item 18431"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": ["https://www.biodiversitylibrary.org/item/18431"]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/landing/page/haeckel",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/landing/annotation/haeckel",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/haeckel/0,0,3645,5267/228,330/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 3645,
+                                "height": 5267,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/haeckel",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/landing/canvas/haeckel"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/landing/canvas/cellarius",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Andreas Cellarius, Scenographia Systematis Copernicani (Plate 5), 1661"
+                ]
+            },
+            "width": 2928,
+            "height": 2469,
+            "rights": "https://creativecommons.org/publicdomain/mark/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Andreas Cellarius, Harmonia Macrocosmica, Plate 5. Public-domain scan via Wikimedia Commons."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Wikimedia Commons, Cellarius Harmonia Macrocosmica - Scenographia Systematis Copernicani"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://commons.wikimedia.org/wiki/File:Cellarius_Harmonia_Macrocosmica_-_Scenographia_Systematis_Copernicani.jpg"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/landing/page/cellarius",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/landing/annotation/cellarius",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/cellarius/0,0,2928,2469/366,309/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 2928,
+                                "height": 2469,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/cellarius",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/landing/canvas/cellarius"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/landing/canvas/hiroshige",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Utagawa Hiroshige, Sudden Shower over Shin-Ohashi Bridge and Atake, 1857"
+                ]
+            },
+            "width": 1335,
+            "height": 1908,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Utagawa Hiroshige, Sudden Shower over Shin-Ohashi Bridge and Atake, 1857, The Metropolitan Museum of Art, JP643."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["The Metropolitan Museum of Art, object 36461"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.metmuseum.org/art/collection/search/36461"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/landing/page/hiroshige",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/landing/annotation/hiroshige",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/hiroshige/0,0,1335,1908/334,477/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 1335,
+                                "height": 1908,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/hiroshige",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/landing/canvas/hiroshige"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/landing/canvas/atkins",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Anna Atkins, Dictyota dichotoma, in the young state and in fruit, 1843-53"
+                ]
+            },
+            "width": 3266,
+            "height": 4000,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Anna Atkins, Dictyota dichotoma, in the young state and in fruit, 1843-53, The Metropolitan Museum of Art, 2005.100.557 (18)."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["The Metropolitan Museum of Art, object 291515"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.metmuseum.org/art/collection/search/291515"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/landing/page/atkins",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/landing/annotation/atkins",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/atkins/0,0,3266,4000/409,500/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 3266,
+                                "height": 4000,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/atkins",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/landing/canvas/atkins"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/landing/canvas/shahnama",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "The Feast of Sada, folio 22v from the Shahnama of Shah Tahmasp, ca. 1525"
+                ]
+            },
+            "width": 2802,
+            "height": 4000,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "The Feast of Sada, folio 22v from the Shahnama of Shah Tahmasp, ca. 1525, The Metropolitan Museum of Art, 1970.301.2."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["The Metropolitan Museum of Art, object 452111"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.metmuseum.org/art/collection/search/452111"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/landing/page/shahnama",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/landing/annotation/shahnama",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/shahnama/0,0,2802,4000/351,500/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 2802,
+                                "height": 4000,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/shahnama",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/landing/canvas/shahnama"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/landing/canvas/audubon",
+            "type": "Canvas",
+            "label": {
+                "en": ["John James Audubon, Snowy Owl (Plate 121), 1831"]
+            },
+            "width": 5230,
+            "height": 7884,
+            "rights": "http://rightsstatements.org/vocab/NoC-US/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "John James Audubon, Snowy Owl, Plate 121, 1831. Boston Public Library / Digital Commonwealth."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Boston Public Library / Digital Commonwealth, 9s16d0015"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://ark.digitalcommonwealth.org/ark:/50959/9s16d0015"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/landing/page/audubon",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/landing/annotation/audubon",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/audubon/0,0,5230,7884/327,493/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 5230,
+                                "height": 7884,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/audubon",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/landing/canvas/audubon"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/landing/canvas/spinola-hours",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "The Annunciation, The Spinola Hours, folio 92v, ca. 1510-20"
+                ]
+            },
+            "width": 4262,
+            "height": 6422,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "The Annunciation, The Spinola Hours, folio 92v, ca. 1510-20, J. Paul Getty Museum, Ms. Ludwig IX 18, 83.ML.114.92v."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "J. Paul Getty Museum, Ms. Ludwig IX 18, 83.ML.114.92v"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.getty.edu/art/collection/object/105VWB"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/landing/page/spinola-hours",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/landing/annotation/spinola-hours",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/spinola-hours/0,0,4262,6422/267,402/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 4262,
+                                "height": 6422,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/spinola-hours",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/landing/canvas/spinola-hours"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/landing/canvas/milkmaid",
+            "type": "Canvas",
+            "label": {
+                "en": ["Johannes Vermeer, The Milkmaid, ca. 1660"]
+            },
+            "width": 4649,
+            "height": 5177,
+            "rights": "https://creativecommons.org/publicdomain/mark/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Johannes Vermeer, The Milkmaid, ca. 1660, Rijksmuseum, SK-A-2344."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["Rijksmuseum, SK-A-2344"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.rijksmuseum.nl/en/collection/SK-A-2344"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/landing/page/milkmaid",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/landing/annotation/milkmaid",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/milkmaid/0,0,4649,5177/291,324/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 4649,
+                                "height": 5177,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/milkmaid",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/landing/canvas/milkmaid"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/landing/canvas/merian",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Maria Sibylla Merian, Plate 1: Pineapple with Insects, 1705"
+                ]
+            },
+            "width": 4167,
+            "height": 6049,
+            "rights": "http://rightsstatements.org/vocab/NoC-US/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Maria Sibylla Merian, Metamorphosis insectorum Surinamensium, Plate 1, 1705. Biodiversity Heritage Library."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Biodiversity Heritage Library, item 129308, page 41398750"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.biodiversitylibrary.org/page/41398750"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/landing/page/merian",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/landing/annotation/merian",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/merian/0,0,4167,6049/261,379/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 4167,
+                                "height": 6049,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/merian",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/landing/canvas/merian"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/landing/canvas/monte",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Urbano Monte, Composite: Tavola 1-60 (Map of the World), 1587"
+                ]
+            },
+            "width": 62079,
+            "height": 62160,
+            "rights": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Urbano Monte, Composite: Tavola 1-60 (Map of the World), 1587. David Rumsey Map Collection, list 10130.087. CC BY-NC-SA 3.0."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["David Rumsey Map Collection, list 10130.087"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.davidrumsey.com/luna/servlet/detail/RUMSEY~8~1~303661~90074314"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/landing/page/monte",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/landing/annotation/monte",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/monte/0,0,62079,62160/485,486/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 62079,
+                                "height": 62160,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/monte",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/landing/canvas/monte"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/landing/canvas/aleppo",
+            "type": "Canvas",
+            "label": {
+                "en": ["Aleppo Codex, Deuteronomy page P. 2-5-v, 10th century"]
+            },
+            "width": 3377,
+            "height": 3963,
+            "rights": "https://creativecommons.org/publicdomain/mark/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Aleppo Codex, Deuteronomy page P. 2-5-v, 10th century. Photograph: Ardon Bar Hama, 2007, Yad Yitzhak Ben-Zvi Institute. Via Wikimedia Commons."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "National Library of Israel / Yad Yitzhak Ben-Zvi Institute"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://commons.wikimedia.org/wiki/File:Aleppo_Codex_(Deut).jpg"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/landing/page/aleppo",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/landing/annotation/aleppo",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/aleppo/0,0,3377,3963/423,496/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 3377,
+                                "height": 3963,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/aleppo",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/landing/canvas/aleppo"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

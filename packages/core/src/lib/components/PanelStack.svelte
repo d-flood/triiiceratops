@@ -125,6 +125,19 @@
         flex-shrink: 0;
     }
 
+    /* The column is flush with the top of the viewer, so the leading panel's top
+       edge is a frame edge, not a card edge. Panels below it float in the column
+       and stay fully rounded. */
+    .panel-slot:first-child {
+        --panel-radius-block-start: 0;
+    }
+
+    /* Same rule at the other end: only a filling panel reaches the bottom edge
+       (it is what drops the column's bottom padding). */
+    .panel-stack:has(.panel-slot.fills) .panel-slot:last-child {
+        --panel-radius-block-end: 0;
+    }
+
     /* Takes the height the content-sized panels leave, so the column itself
        needs no scroll. The floor is for when they already fill it — the one case
        where this stack's own overflow still does the work. */

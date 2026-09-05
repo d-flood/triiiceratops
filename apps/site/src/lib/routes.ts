@@ -38,10 +38,12 @@ export type ContentRoute = RoutePosition & { readonly source: 'content' };
 /**
  * A route rendered from code, which therefore carries its own words here.
  *
- * Every figure on these pages is computed from committed data. A page whose
- * credibility rests on being generated must not gain an edit button, so they are
- * deliberately not content documents and their prose lives with the code that
- * derives the rest of them.
+ * Two kinds of page qualify. Most are pages whose figures are computed from
+ * committed data: a page whose credibility rests on being generated must not
+ * gain an edit button. The front page and `/handles/` are the other kind — their
+ * bodies are running viewers rather than prose, so a document would hold nothing
+ * but the heading and the lede and the edit variant would open on an empty
+ * editor.
  */
 export type CodeRoute = RoutePosition & {
     readonly source: 'code';
@@ -62,7 +64,16 @@ export type SiteRoute = ContentRoute | CodeRoute;
 export type SitePage = RoutePosition & PageMeta & { readonly indexed: boolean };
 
 export const ROUTES: readonly SiteRoute[] = [
-    { path: '/', group: 1, source: 'content' },
+    {
+        path: '/',
+        group: 1,
+        source: 'code',
+        meta: {
+            title: 'A modern, lightweight, framework-agnostic IIIF viewer',
+            shortTitle: 'Overview',
+            intro: 'Triiiceratops renders IIIF manifests in React, Vue, Svelte, or plain HTML, and it is the smallest viewer in its field.',
+        },
+    },
     {
         path: '/size/',
         group: 1,
@@ -73,7 +84,16 @@ export const ROUTES: readonly SiteRoute[] = [
             intro: 'Every viewer in this field is measured here at three compression levels against how much of IIIF it implements, so the size claim reads as analysis rather than marketing.',
         },
     },
-    { path: '/handles/', group: 1, source: 'content' },
+    {
+        path: '/handles/',
+        group: 1,
+        source: 'code',
+        meta: {
+            title: 'What it handles',
+            shortTitle: 'What it handles',
+            intro: 'Bound codices with structures, single large sheets, photographic series, annotated material and right-to-left material, each shown running.',
+        },
+    },
     {
         path: '/configure/',
         group: 2,
@@ -184,8 +204,8 @@ export function nextDoc(path: string): DocRoute | undefined {
 
 /**
  * Whether the site navigates to a route, and equally whether it offers the route
- * to a crawler: the rail's items, the next-page link's chain, the front page's
- * onward list, the sitemap's entries, and the absence of `noindex`.
+ * to a crawler: the rail's items, the next-page link's chain, an onward list,
+ * the sitemap's entries, and the absence of `noindex`.
  *
  * Group membership alone decides all of it, so it takes anything carrying a
  * group — a route declaration, or a resolved page. The branch merges only when

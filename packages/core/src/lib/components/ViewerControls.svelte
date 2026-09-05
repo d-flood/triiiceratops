@@ -12,6 +12,7 @@
         getCanvasNavLayout,
         getVisibleChoiceGroups,
         IDLE_CHROME_DELAY_MS,
+        SAME_ROW_EPSILON_PX,
         shouldShowGroupDivider,
         shouldUseAbbreviatedChoiceLabels,
         type ChoiceGroup,
@@ -136,28 +137,31 @@
     let tracksOpenDown = $derived(viewerState.config.nav?.edge === 'top');
 
     // Which of the bar's groups share a row. CSS can't detect a flex-wrap
-    // break, so we watch the bar's size and compare the groups' offset tops: on
-    // a shared row they align to the same row box, so any difference means a
-    // later group has dropped to its own. `null` is a group this configuration
-    // does not render at all.
+    // break, so we watch the bar's size and measure where each group sits. The
+    // measure is the group's vertical CENTRE, not its top: the bar centres its
+    // items, so groups of unequal height (the toolbar buttons are shorter than
+    // the nav buttons) share a row centre while their tops differ. `null` is a
+    // group this configuration does not render at all.
     let barEl: HTMLDivElement | undefined = $state();
     let toolbarEl: HTMLDivElement | undefined = $state();
     let transportEl = $state<HTMLDivElement | null>(null);
     let navEl: HTMLDivElement | undefined = $state();
-    let toolbarTop = $state<number | null>(null);
-    let transportTop = $state<number | null>(null);
-    let navTop = $state<number | null>(null);
+    let toolbarCentre = $state<number | null>(null);
+    let transportCentre = $state<number | null>(null);
+    let navCentre = $state<number | null>(null);
 
     $effect(() => {
         const bar = barEl;
         // Read so the effect re-runs — and re-measures — as groups come and go.
         const groups = [toolbarEl, transportEl, navEl];
         if (!bar) return;
+        const centre = (el: HTMLElement | null | undefined) =>
+            el ? el.offsetTop + el.offsetHeight / 2 : null;
         const update = () => {
             const [toolbar, transport, nav] = groups;
-            toolbarTop = toolbar?.offsetTop ?? null;
-            transportTop = transport?.offsetTop ?? null;
-            navTop = nav?.offsetTop ?? null;
+            toolbarCentre = centre(toolbar);
+            transportCentre = centre(transport);
+            navCentre = centre(nav);
         };
         const ro = new ResizeObserver(update);
         ro.observe(bar);
@@ -168,18 +172,21 @@
     // One rule, two boundaries. `??` picks the next group actually rendered, so
     // the toolbar divides against the navigation when no chrome is registered.
     let dividerAfterToolbar = $derived(
-        shouldShowGroupDivider(toolbarTop, transportTop ?? navTop),
+        shouldShowGroupDivider(toolbarCentre, transportCentre ?? navCentre),
     );
     let dividerAfterTransport = $derived(
-        shouldShowGroupDivider(transportTop, navTop),
+        shouldShowGroupDivider(transportCentre, navCentre),
     );
     // Stacked rows get equal breathing room top and bottom; on a single row the
     // pill hugs its controls.
     let barWrapped = $derived.by(() => {
-        const tops = [toolbarTop, transportTop, navTop].filter(
-            (top): top is number => top !== null,
+        const centres = [toolbarCentre, transportCentre, navCentre].filter(
+            (c): c is number => c !== null,
         );
-        return tops.length > 1 && Math.max(...tops) !== Math.min(...tops);
+        return (
+            centres.length > 1 &&
+            Math.max(...centres) - Math.min(...centres) > SAME_ROW_EPSILON_PX
+        );
     });
 
     // --- Idle chrome -------------------------------------------------------

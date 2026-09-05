@@ -60,7 +60,9 @@ test.describe('a documentation page', () => {
     test('wears the same type and palette as a marketing page', async ({
         page,
     }) => {
-        await page.goto('/handles/');
+        // A marketing route whose body is ordinary prose: `/handles/` renders
+        // from code now, and its embeds set their captions in their own face.
+        await page.goto('/access/');
         const marketing = await typography(page, 'main .doc p');
 
         await page.goto('/docs/');
@@ -137,9 +139,9 @@ test.describe('a documentation page’s edit variant', () => {
     }) => {
         await page.goto('/docs/react/edit/');
 
-        await expect(page.locator('uncial-editor .ProseMirror')).toContainText(
-            'Your first viewer',
-        );
+        await expect(
+            page.locator('.uncial-cms-editor-page .ProseMirror'),
+        ).toContainText('Your first viewer');
         await expect(sidebar(page)).toBeVisible();
         await expect(page.locator('nav.rail')).toBeVisible();
         // The edit variant IS the page it edits, so the sidebar marks the same
@@ -156,10 +158,10 @@ test.describe('a documentation page’s edit variant', () => {
  * A reader's two choices, which are sticky per group and shared site-wide.
  *
  * Only a browser can answer this: the selection lives in storage under the
- * group's key, and what makes it worth gating is that the front page's install
- * block and a documentation page's package-manager tabs are two different
- * components reading one group. The framework group is the control — picking a
- * package manager must leave it alone, and the other way round.
+ * group's key, and what makes it worth gating is that a group is shared by
+ * every page carrying it rather than owned by one of them. The framework group
+ * is the control — picking a package manager must leave it alone, and the other
+ * way round.
  */
 test.describe('a reader’s tab choices', () => {
     // A page may carry more than one group on the same key — the reader's
@@ -174,8 +176,7 @@ test.describe('a reader’s tab choices', () => {
 
     /**
      * Retried, because a click that lands before the page has hydrated changes
-     * nothing and reports success — the same reason the front page's own
-     * install-tab screens retry theirs.
+     * nothing and reports success.
      */
     async function choose(page: Page, group: string, label: string) {
         const tab = panels(page, group).getByRole('tab', {
@@ -188,10 +189,10 @@ test.describe('a reader’s tab choices', () => {
         }).toPass();
     }
 
-    test('carries a package manager chosen on the front page into the documentation', async ({
+    test('carries a package manager chosen on one page into the next', async ({
         page,
     }) => {
-        await page.goto('/');
+        await page.goto('/docs/vue/');
         await choose(page, 'package-manager', 'bun');
 
         await page.goto('/docs/react/');

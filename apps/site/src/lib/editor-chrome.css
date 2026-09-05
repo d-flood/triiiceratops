@@ -1,0 +1,130 @@
+/* Uncial's own editor chrome — tokens, shell layout, controls — imported here
+   rather than by the route, so that every correction in this file is simply
+   later in the cascade than the rule it corrects. Nothing else loads it. */
+@import 'uncial/styles/chrome';
+
+/*
+ * The editing surface's own chrome: the editor's status line, its shell, its
+ * block gutter and its attributes panel.
+ *
+ * A separate stylesheet, imported only from inside the edit route's
+ * `import.meta.env.DEV` guard, for the same reason the editor's own modules are:
+ * Uncial's chrome class names all begin `uncial-editor-`, and
+ * `scripts/assert-no-editor-code.mjs` reads that string in a published file as
+ * the editor stack having reached a production build. Vite replaces the guard
+ * with a literal, so this file is unreachable in a production build and never
+ * enters one.
+ *
+ * The editor renders in the page's own tree, so it inherits this site's type,
+ * colour and ground from `body` like everything else. What it does not inherit
+ * is Uncial's own palette, which it sets from its own tokens and swaps on the
+ * operating system's preference. Aliasing those tokens to this site's is the
+ * documented way to theme it, and it is all that is needed here.
+ */
+
+/* ---- The editor's own status line ----------------------------------------
+   `uncial-cms` writes the document's deploy state above the toolbar — "Live on
+   the local checkout · commit 149ae19", or what it is doing about it. It is
+   about the file, not about the page, but it inherited the page's serif at the
+   page's own size and so read as the document's opening sentence.
+
+   Set in the interface's monospace at the smallest step and boxed, with a lead
+   marker: the three together say "tooling" before the sentence is read at all.
+   It is chrome the reader never sees, so it owes the page's type nothing. */
+.uncial-cms-chrome {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    margin-bottom: var(--s3);
+}
+.uncial-cms-status {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.6ch;
+    border: 1px solid var(--rule-2);
+    border-radius: 999px;
+    background: var(--paper);
+    padding: 3px var(--s3);
+    color: var(--ink-2);
+    font-family: var(--mono);
+    font-size: var(--t-tiny);
+    line-height: 1.5;
+    letter-spacing: 0.01em;
+}
+.uncial-cms-status::before {
+    content: '●';
+    color: var(--link);
+    font-size: 0.7em;
+}
+
+/* ---- The editing surface's own chrome -------------------------------------
+   Uncial draws the editor's shell — the toolbar, the block gutter and the
+   attributes panel — from its own token set. That set carries a light palette
+   and swaps to a dark one on `prefers-color-scheme` alone, so the shell would
+   follow the operating system while the page around it follows this site's own
+   toggle, and an editor could sit in one scheme inside a page sitting in the
+   other. Aliasing Uncial's tokens to this site's resolves both from whatever the
+   page already resolved, so the toggle moves them together and neither knows
+   about the other's rules.
+
+   `.uncial-renderer` is deliberately absent. It is the read view's wrapper, it
+   exists on every content page, and no page loads Uncial's stylesheets — so
+   aliasing tokens onto it would define custom properties nothing reads. */
+.uncial-editor-shell,
+.uncial-attrs-panel,
+.uncial-link-panel,
+.uncial-richtext-wrapper,
+.uncial-block-menu {
+    --uncial-color-bg: var(--bone);
+    --uncial-color-surface: var(--bone);
+    --uncial-color-surface-elevated: var(--paper);
+    --uncial-color-border: var(--rule);
+    --uncial-color-text: var(--ink);
+    --uncial-color-text-inverted: var(--bone);
+    --uncial-color-primary: var(--link);
+    --uncial-color-primary-contrast: var(--bone);
+    --uncial-color-accent: var(--link);
+    --uncial-font-body: var(--face);
+    --uncial-font-size-base: var(--t-body);
+    --uncial-line-height: 1.6;
+}
+
+/* The container is the editing surface's wrapper, not the shell: a container
+   query resolves against an element's ancestors, so a shell that declared itself
+   one could not ask about its own width. The wrapper is the same width. */
+.band--editing .doc {
+    container-type: inline-size;
+}
+@container (max-width: 1007px) {
+    .uncial-editor-shell:has(> .uncial-editor-sidebar) {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: 'toolbar' 'body';
+    }
+    /* Placed in the document's own cell rather than positioned out of the flow:
+       two grid items may share one area, so the panel still spans the document
+       row and the sticky panel inside it goes on working. */
+    .uncial-editor-sidebar {
+        grid-area: body;
+        justify-self: end;
+        width: var(--uncial-panel-width);
+        z-index: 2;
+        background: var(--uncial-color-surface);
+        box-shadow: -8px 0 24px color-mix(in srgb, var(--bone) 55%, transparent);
+    }
+    /* With nothing selected the panel's whole content is a sentence saying so,
+       and covering the document to say it would be worse than saying nothing.
+       The help text is a child of the panel only in that idle state. */
+    .uncial-editor-sidebar:has(> .uncial-attrs-panel > .uncial-help-text) {
+        display: none;
+    }
+}
+
+/* An edit variant carries the attributes panel, and the panel's width comes out
+   of the document's: at the frame's usual stop, every full-bleed block would be
+   laid out narrower than the one the reader is shown. The edit variant is given
+   the frame's slack instead, so the surface keeps the reader's width and the
+   panel sits in what the read view leaves empty. Prose is unaffected either way
+   — it is capped at the measure and centred in both. */
+.band--editing {
+    padding-inline: var(--frame-pad);
+}

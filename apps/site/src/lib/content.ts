@@ -4,7 +4,7 @@
  *
  * A content route's body is one whole Uncial document, stored as normalized
  * JSON under `content/`, mirroring the site's paths through Uncial's default
- * mapping: `/handles/` is `content/handles.json`. `contentDir` is what the
+ * mapping: `/production/` is `content/production.json`. `contentDir` is what the
  * storage backend addresses files by; `localContentDir` is the same directory as
  * a filesystem path from where Vite runs, which is this application's root.
  */
@@ -22,8 +22,9 @@ import type { UncialCmsSiteConfig } from 'uncial-cms';
 import Callout from './Callout.svelte';
 import ContentStateFixtureTable from './ContentStateFixtureTable.svelte';
 import CssTokenTable from './CssTokenTable.svelte';
-import DeploymentsList from './DeploymentsList.svelte';
 import InstallBlock from './InstallBlock.svelte';
+import LinkRow from './LinkRow.svelte';
+import LinkRows from './LinkRows.svelte';
 import MaterialClasses from './MaterialClasses.svelte';
 import OnwardList from './OnwardList.svelte';
 
@@ -63,8 +64,8 @@ function isFilledString(value: unknown): value is string {
  * A tab group's key is explicit, never inferred from its labels: inferring is
  * how a stray label silently forms a group of its own. The framework key and the
  * package-manager key are independent, so choosing Vue does not disturb somebody's
- * pnpm, and the package-manager key is the front page's install block's, so the
- * manager a reader picks there is the one the documentation shows them.
+ * pnpm, and every page carrying package-manager tabs reads one key, so the
+ * manager a reader picks on one of them is the one the next shows them.
  *
  * `plugin-ui` is deliberately its own key rather than part of `framework`. Its
  * panel set is which framework you write a plugin's own UI in — Vanilla
@@ -102,8 +103,10 @@ export const CALLOUT_KINDS = [
  * Derived blocks: placed in a document, rendered from code, with nothing
  * editable inside them.
  *
- * The five that carry no attributes at all each import the data module they
+ * The four that carry no attributes at all each import the data module they
  * render, so there is no copy of that data in the document to drift from it.
+ * Only data a script or a module computes belongs in one: a hand-kept list has
+ * no derivation to protect, so it is composed from editable blocks instead.
  *
  * `contentStateFixtures` is the other kind: its attributes are written by
  * `scripts/docs-content-state.mjs`, because the fixture index it derives from is
@@ -111,10 +114,11 @@ export const CALLOUT_KINDS = [
  * lets that script's `--check` compare the committed document against a
  * regeneration byte for byte.
  *
- * Tabs, tab and callout are containers rather than derived blocks: they hold
- * ordinary editable content and exist because the documentation's prose needs
- * them. They are registered here rather than imported from Uncial's root, which
- * re-exports the editor.
+ * The rest are containers rather than derived blocks: they hold ordinary
+ * editable content, and each is named for the shape it draws rather than for
+ * what any one page puts in it, so a page can compose them without inheriting
+ * another page's subject. Tabs, tab and callout are registered here rather than
+ * imported from Uncial's root, which re-exports the editor.
  *
  * Each component is cast to the registry's general component type — the one the
  * renderer calls, with attributes, content and children. A component that
@@ -221,13 +225,47 @@ export const blocks = createBlockRegistry([
         content: false,
     }),
     defineSvelteBlock({
-        id: 'deployments',
-        label: 'Deployments',
+        id: 'linkRows',
+        label: 'Link rows',
+        description: 'A ruled list of links, each with a supporting line.',
+        attributes: {
+            note: {
+                default: '',
+                input: 'textarea',
+                placeholder:
+                    'One line introducing what this group of links is.',
+            },
+        },
+        component: LinkRows as SvelteBlockComponent,
+        content: { kind: 'flow', allowedBlocks: ['linkRow'] },
+    }),
+    defineSvelteBlock({
+        id: 'linkRow',
+        label: 'Link row',
         description:
-            'Every real deployment of the viewer, as links a reader can open.',
-        readOnly: true,
-        attributes: {},
-        component: DeploymentsList as SvelteBlockComponent,
+            'One row: a link, what it is, and an optional second link.',
+        attributes: {
+            label: {
+                default: '',
+                required: true,
+                validate: isFilledString,
+                placeholder: 'What the link is called',
+            },
+            href: {
+                default: '',
+                required: true,
+                validate: isFilledString,
+                placeholder: 'https://',
+            },
+            note: {
+                default: '',
+                input: 'textarea',
+                placeholder: 'One clause saying what it is.',
+            },
+            actionLabel: { default: '', placeholder: 'Open an example' },
+            actionHref: { default: '', placeholder: 'https://' },
+        },
+        component: LinkRow as SvelteBlockComponent,
         content: false,
     }),
     defineSvelteBlock({

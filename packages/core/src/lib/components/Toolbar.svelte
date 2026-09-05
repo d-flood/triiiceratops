@@ -1211,21 +1211,18 @@
         align-items: stretch;
         justify-content: flex-start;
     }
-    /* Round only the outer (screen-edge) corners so the rail reads as one piece
-       with the panel inboard of it; the inner edge is square against the panel. */
+    /* Square on every corner: the rail spans the column's full height flush
+       against the viewer frame, so its outer corners are frame edges, and its
+       inner edge butts the panel it reads as one piece with. The explicit zero
+       is needed to outrank the floating `.actions.left` / `.actions.right`
+       rules further down, which round the canvas-side corner. */
     .actions.docked.left {
-        border-top-left-radius: var(--tri-radius-toolbar);
-        border-bottom-left-radius: var(--tri-radius-toolbar);
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
+        border-radius: 0;
         border-right: var(--tri-border) solid var(--tri-surface-border);
         padding-right: 0;
     }
     .actions.docked.right {
-        border-top-right-radius: var(--tri-radius-toolbar);
-        border-bottom-right-radius: var(--tri-radius-toolbar);
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
+        border-radius: 0;
         border-left: var(--tri-border) solid var(--tri-surface-border);
         padding-left: 0;
     }

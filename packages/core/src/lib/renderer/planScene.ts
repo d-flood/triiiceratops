@@ -1118,11 +1118,24 @@ function planThumbnail(
  *
  * ## Why the base level is the right thing to keep
  *
- * It is one tile covering the whole image by construction, it is already decoded
- * — the canvas held it a frame ago, because the base level is required at every
- * pyramid level — and it is the same picture a thumbnail is, at a comparable
- * resolution. So the handover costs no network at all and the reader sees the
- * page soften rather than disappear.
+ * It covers the whole image, it is already decoded — the canvas held it a frame
+ * ago, because the base level is required WHOLE at every pyramid level — and it
+ * is the same picture a thumbnail is, at a comparable resolution. So the
+ * handover costs no network at all and the reader sees the page soften rather
+ * than disappear.
+ *
+ * **The whole level, not tile (0,0).** A pyramid's coarsest level is a single
+ * tile only where the renderer derived the scale-factor chain itself. A
+ * service's declared `scaleFactors` are taken as given, and a chain that stops
+ * short — `[1,2,4]` on a 4000px scan, `[1,2,4,8]` on a 4613px one — leaves a
+ * base level two tiles across, which is ordinary on real endpoints rather than
+ * an edge case. Tile (0,0) alone would paint a quarter of the folio into the
+ * whole box, so the level is carried whole.
+ *
+ * Where the thumbnail never arrives at all this is the difference between a
+ * softer picture and no picture: a level0 tile tree that holds no whole-image
+ * derivative answers the ladder's request with a 404, so a canvas of that shape
+ * has nothing but the carried level for as long as the reader stays zoomed out.
  *
  * ## Why this is not "the base level is never evicted"
  *
@@ -1130,19 +1143,23 @@ function planThumbnail(
  * is what the tier gate exists to prevent. Two conditions keep this bounded to
  * the handover it is named for:
  *
- * - **Only a base tile the canvas ALREADY HOLDS.** A canvas arriving from the box
+ * - **Only base tiles the canvas ALREADY HOLDS.** A canvas arriving from the box
  *   tier holds nothing, so it carries nothing and costs nothing — it shows its
  *   placeholder and then its thumbnail, exactly as before. Only a canvas on its
  *   way DOWN from the pyramid tier can satisfy this, and there are never more of
- *   those than were in the pyramid tier a moment ago.
+ *   those than were in the pyramid tier a moment ago. A canvas holding part of
+ *   its base level carries that part and fetches nothing for the rest: three
+ *   quarters of a folio is blur-up, and the whole point is that it costs no
+ *   network.
  * - **Only while the thumbnail is missing.** The caller asks only when
  *   `planThumbnail` produced no draw. The frame the thumbnail lands, this stops
  *   being reached, the base tile leaves the required set, and it is released
  *   through the ordinary opportunistic cache.
  *
  * The residency probe is a bare `Set` lookup on a key built without the pyramid,
- * so the pyramid is only built for a canvas that genuinely holds its base tile:
- * on an 800-folio manifest at the zoom floor, none of them.
+ * so the pyramid is only built for a canvas that genuinely holds its base level:
+ * on an 800-folio manifest at the zoom floor, none of them. Tile (0,0) is the
+ * one probed because it is present at every base level whatever its extent.
  */
 function carryBaseLevel(
     canvasId: string,
@@ -1158,18 +1175,59 @@ function carryBaseLevel(
 
     // Probed before anything is built, because this is the test that is false
     // for every canvas but the one or two mid-handover.
-    const key = tileKey(canvasId, baseUri(source, facts), 0, 0, 0);
-    if (!residentTiles.has(key)) return;
+    if (
+        !residentTiles.has(tileKey(canvasId, baseUri(source, facts), 0, 0, 0))
+    ) {
+        return;
+    }
 
-    // Required, not merely held: `tileDraws` is the required-AND-held subset, so
-    // a base tile left out of the request list would be demoted to the
-    // opportunistic cache and could not be painted — which is the blank frame
-    // again, arriving through eviction instead of through the tier.
-    const request = baseLevelTile(canvasId, source, facts, 0);
-    if (!request) return;
+    // Everything below pushes to `requests` as well as to `draws`, because
+    // `tileDraws` is the required-AND-held subset: a carried tile left out of the
+    // request list would be demoted to the opportunistic cache and could not be
+    // painted — the blank frame again, arriving through eviction instead of
+    // through the tier.
+    const pyramid = buildPyramid(source.serviceId, facts);
+    if (!pyramid) {
+        // A size-ladder source, whose base rung is one whole image by
+        // construction — there is no grid to walk.
+        const request = baseLevelTile(canvasId, source, facts, 0);
+        if (!request) return;
 
-    requests.push(request);
-    draws.push({ key, canvasId, level: 0, order, ...box });
+        requests.push(request);
+        draws.push({ key: request.key, canvasId, level: 0, order, ...box });
+        return;
+    }
+
+    const level = pyramid.levels[0];
+    // `null` for the whole level, exactly as `planPyramid` asks for it: the
+    // canvas held the level whole a frame ago, and half of it is a half-drawn
+    // folio.
+    for (const { column, row } of tilesIntersecting(
+        pyramid,
+        level,
+        box,
+        null,
+    )) {
+        const key = tileKey(canvasId, pyramid.serviceId, 0, column, row);
+        if (!residentTiles.has(key)) continue;
+
+        const fallback = tileFallback(pyramid, level, column, row);
+        requests.push({
+            key,
+            canvasId,
+            level: 0,
+            url: tileUrl(pyramid, level, column, row),
+            priority: 0,
+            ...(fallback ? { fallback } : {}),
+        });
+        draws.push({
+            key,
+            canvasId,
+            level: 0,
+            order,
+            ...tileCanvasRect(pyramid, level, column, row, box),
+        });
+    }
 }
 
 /**

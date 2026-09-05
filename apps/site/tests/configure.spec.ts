@@ -22,8 +22,14 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-/** The site's own material, so a screen depends on no one else's IIIF server. */
-const PLATE = '/material/plate/manifest.json';
+/**
+ * What the builder opens on, and a second manifest to paste over it.
+ *
+ * The first is the front page's own local tile tree. The second is the site's
+ * other static material, so the assertion about a pasted manifest arriving
+ * depends on nobody's image server.
+ */
+const EXAMPLE = '/material/landing/manifest.json';
 const OTHER = '/material/multi-target-array/manifest.json';
 
 function preview(page: Page) {
@@ -35,20 +41,20 @@ async function running(page: Page) {
     await expect(preview(page)).toBeVisible({ timeout: 20_000 });
 }
 
-test('opens on the reference plate, and loads a manifest the reader pastes', async ({
+test('opens on the example manifest, and loads a manifest the reader pastes', async ({
     page,
 }) => {
     await page.goto('/configure/');
     await running(page);
 
     const field = page.getByLabel('Your IIIF manifest');
-    await expect(field).toHaveValue(PLATE);
+    await expect(field).toHaveValue(EXAMPLE);
 
     // Open the information panel first, so what the pasted manifest resolves to
     // is readable from the manifest alone — the assertion is about the material
     // arriving, not about somebody else's image server answering.
     await page.getByLabel('Information open').check();
-    await expect(preview(page)).toContainText('Reference plate');
+    await expect(preview(page)).toContainText('Public-domain visual study set');
 
     const asked = page.waitForRequest((request) =>
         request.url().endsWith(OTHER),
@@ -177,7 +183,7 @@ test.describe('what a reader leaves with', () => {
         );
         // The manifest travels as a content state, which is the encoding the
         // playground reads too.
-        expect(shared.searchParams.get('iiif-content')).toContain(PLATE);
+        expect(shared.searchParams.get('iiif-content')).toContain(EXAMPLE);
     });
 
     /*
@@ -218,7 +224,7 @@ test.describe('what a reader leaves with', () => {
         await expect(page.getByLabel('Gallery open')).toBeChecked();
         await expect(page.getByLabel('Canvas nav edge')).toHaveValue('top');
         await expect(page.getByLabel('Your IIIF manifest')).toHaveValue(
-            new RegExp(`${PLATE}$`),
+            new RegExp(`${EXAMPLE}$`),
         );
     });
 
@@ -259,7 +265,7 @@ test.describe('what a reader leaves with', () => {
         const html = await pasted(page);
         expect(html).toContain('<triiiceratops-viewer');
         expect(html).toContain(`config='${JSON.stringify(TWO)}'`);
-        expect(html).toContain(PLATE);
+        expect(html).toContain(EXAMPLE);
 
         await page.getByRole('tab', { name: 'React' }).click();
         await page
@@ -333,7 +339,7 @@ test.describe('what a reader leaves with', () => {
         );
         await expect(viewer).toHaveAttribute(
             'manifest-id',
-            new RegExp(`${PLATE}$`),
+            new RegExp(`${EXAMPLE}$`),
         );
     });
 });

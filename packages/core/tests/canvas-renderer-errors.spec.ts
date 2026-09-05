@@ -455,7 +455,7 @@ test.describe('Canvas2D renderer — per-canvas tile-source errors', () => {
     });
 
     /*
-     * The zoom ceiling is 128x home, so a failed canvas whose rect is many times
+     * The zoom ceiling is several times home, so a failed canvas whose rect is many times
      * the viewport is ordinary. Then its border is off screen on every side and a
      * label centred in the RECT is centred on a point nobody can see: the
      * accessible name goes on being correct while a sighted reader is left with a

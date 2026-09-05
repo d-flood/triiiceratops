@@ -462,19 +462,22 @@ export type CanvasNavLayout = {
     leftIcon: CanvasNavIcon;
     rightIcon: CanvasNavIcon;
 };
+/** Row-centre difference still read as one row, absorbing subpixel layout noise. */
+export declare const SAME_ROW_EPSILON_PX = 1;
 /**
  * Whether to draw the divider between two adjacent groups of the control bar.
  *
  * One rule, applied per boundary: a divider is shown when both groups sit on
  * the same row, because a vertical rule between groups on different rows reads
- * as noise rather than as a separator. Rows are compared by offset top — on a
- * shared row both groups align to the same row box, so any difference means the
- * later group has dropped.
+ * as noise rather than as a separator. Rows are compared by the groups' vertical
+ * CENTRES, not their tops: the bar centres its items, so groups of unequal
+ * height (the toolbar buttons are shorter than the nav buttons) share a row
+ * centre while their tops differ.
  *
  * `null` means the group is not rendered at all, and a boundary with only one
  * side has nothing to divide.
  */
-export declare function shouldShowGroupDivider(beforeOffsetTop: number | null, afterOffsetTop: number | null): boolean;
+export declare function shouldShowGroupDivider(beforeCentre: number | null, afterCentre: number | null): boolean;
 /**
  * How long the control bar waits, with nothing happening, before it hides
  * itself over a claimed canvas.
@@ -5834,6 +5837,18 @@ export interface RendererConfig {
      */
     zoomPerClick?: number;
     /**
+     * How far past a whole-canvas fit the reader may zoom in, as a multiple of
+     * the fit scale: `8` stops eight times closer than the scale at which the
+     * canvas fits the viewport. Must be greater than 1.
+     *
+     * The fit is measured against the live viewport, so the ceiling follows a
+     * window resize and a phone rotation. Because the fit falls as the source
+     * grows, the same factor gives a large scan more magnification past 1:1
+     * than a small one — raise it for images with more pixels than their fit
+     * suggests, lower it to stop the reader short of visible blur.
+     */
+    maxZoomFactor?: number;
+    /**
      * Multiplicative zoom factor for one **wheel notch** — the detent of a
      * classic mouse wheel, which the wheel event reports as about 100 pixels of
      * `deltaY`. `1.15` takes roughly five notches to double the zoom. Must be
@@ -7037,6 +7052,24 @@ export type ContentStateTarget = {
     /** Media time the target selected (`#t=`), the temporal peer of `region`. */
     time?: IiifTemporalFragment;
 };
+/**
+ * Whether a dereferenced document **is** the Manifest a target names, rather
+ * than a resource that merely points at one.
+ *
+ * Asked by `contentStateIngestion` of a document it has just fetched, to decide
+ * whether the manifest is already in hand. Deliberately not "its declared id
+ * equals the URL it came from": a Manifest served at `…/manifest.json` and
+ * declaring `…/` as its `id` is legal and common in generated trees, and the
+ * declared id is frequently not a manifest URL at all — for a `mkiiif` page it
+ * is the directory, which serves the embedding HTML.
+ *
+ * A Collection is not one: only the fetching manifest path expands a Collection
+ * into its members (ADR 0006). Nor is an Annotation or a Canvas, whose
+ * Manifest is a different resource named in `partOf` and genuinely has to be
+ * fetched. An untyped document with an http id is one, matching the branch
+ * {@link parseContentState} resolves it through.
+ */
+export declare function isManifestDocument(value: unknown): boolean;
 export declare function parseContentState(value: string): ContentStateTarget | null;
 
 // ======================================================================

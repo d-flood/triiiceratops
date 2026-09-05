@@ -59,6 +59,7 @@
                     <CopyLine
                         text={manager.command}
                         label="{manager.id} install command"
+                        language="bash"
                     />
                 </Tab>
             {/each}
@@ -73,7 +74,11 @@
 
     <section>
         <h2>Or drop it into a page</h2>
-        <CopyLine text={CDN_SNIPPET} label="CDN script and element" />
+        <CopyLine
+            text={CDN_SNIPPET}
+            label="CDN script and element"
+            language="html"
+        />
         <p class="install__note">
             No build step and no framework, so it works inside a template a
             content system renders.

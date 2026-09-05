@@ -94,6 +94,14 @@ test('searching reaches nothing but this origin', async ({ page }) => {
     // The index, its WebAssembly and its fragments are all assets of the site.
     // A search that reached a third party would make a reader's query somebody
     // else's data, and would stop working the moment that host did.
+    //
+    // A route with no embedded viewer, because the rail is the same on every
+    // one of them and an embed's material is legitimately off-origin: watching
+    // every request on the front page would record the hero fetching its
+    // manifest and call it a search reaching a third party.
+    await page.goto(`${PUBLISHED_ORIGIN}/install/`);
+    await expect(page.locator('.vw')).toHaveCount(0);
+
     const foreign: string[] = [];
     page.on('request', (request) => {
         if (!request.url().startsWith(PUBLISHED_ORIGIN))

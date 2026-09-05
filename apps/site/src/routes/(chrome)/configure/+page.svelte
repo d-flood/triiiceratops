@@ -254,7 +254,7 @@
         currentManifest = manifestUrl.trim();
     }
 
-    function usePlate() {
+    function useExample() {
         manifestUrl = HERO_EXAMPLE.manifest;
         currentManifest = HERO_EXAMPLE.manifest;
     }
@@ -264,7 +264,7 @@
         themeOverlay = {};
         tracker.reset();
         clearStoredConfig();
-        usePlate();
+        useExample();
     }
 
     const controlId = (control: BuilderControl) =>
@@ -301,8 +301,11 @@
                     anywhere: the viewer fetches it from your server, in this
                     browser.
                     {#if currentManifest !== HERO_EXAMPLE.manifest}
-                        <button class="linkish" type="button" onclick={usePlate}
-                            >Back to the reference plate</button
+                        <button
+                            class="linkish"
+                            type="button"
+                            onclick={useExample}
+                            >Back to the example manifest</button
                         >
                     {/if}
                 </p>
@@ -499,14 +502,22 @@
                 The viewer's <code>config</code> input, for storing in a content system
                 and handing to whoever builds the page.
             </p>
-            <CopyLine text={configText} label="configuration object" />
+            <CopyLine
+                text={configText}
+                label="configuration object"
+                language="js"
+            />
             {#if themeSet}
                 <p class="note">
                     The colours and corners you changed travel separately,
                     because the viewer takes them as a separate input:
                     <code>themeConfig</code>.
                 </p>
-                <CopyLine text={themeText} label="theme configuration object" />
+                <CopyLine
+                    text={themeText}
+                    label="theme configuration object"
+                    language="js"
+                />
             {/if}
         </section>
 
@@ -527,6 +538,7 @@
                         <CopyLine
                             text={code.get(entry.id) ?? ''}
                             label="{entry.label} snippet"
+                            language={entry.language}
                         />
                         <p class="note">
                             <a class="link" href={entry.href}>
