@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { gpuChromium } from '../../scripts/playwright-gpu';
+
 import { ORIGIN, PORT } from './tests/helpers/origin';
 
 /*
@@ -26,7 +28,12 @@ export default defineConfig({
          */
         locale: 'en-US',
     },
-    projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+    projects: [
+        {
+            name: 'chromium',
+            use: { ...devices['Desktop Chrome'], ...gpuChromium },
+        },
+    ],
     webServer: {
         command: `pnpm dev --port ${PORT} --host 127.0.0.1`,
         url: ORIGIN,

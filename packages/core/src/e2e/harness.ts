@@ -81,13 +81,37 @@ if (configParam) {
 // import of core's plugin types resolves to core's *published* `dist/types`:
 // structurally identical to core's own `src/lib/types` but nominally distinct.
 // Same in-repo boundary cast the demo makes; runtime is unaffected.
-const plugins = [
-    ImageManipulationPlugin,
-    ImageDownloadPlugin,
-    PdfExportPlugin,
-    AnnotationEditorPlugin,
-    AvPlugin,
-] as unknown as SdkPlugin[];
+const available = {
+    'image-manipulation': ImageManipulationPlugin,
+    'image-download': ImageDownloadPlugin,
+    'pdf-export': PdfExportPlugin,
+    'annotation-editor': AnnotationEditorPlugin,
+    av: AvPlugin,
+} as unknown as Record<string, SdkPlugin>;
+
+/**
+ * Which plugins to mount, as a comma-separated list of the keys above; every
+ * one of them when the parameter is absent. Each key is the plugin's own
+ * `uiId`, so a spec names a plugin here the way the rest of the repo does.
+ *
+ * A spec asserting what CORE alone does with a canvas needs this: with a plugin
+ * loaded that claims the canvas, the claimant renders it and core's own
+ * treatment — the unsupported placard in particular — never appears. `?plugins=`
+ * with an empty value mounts none.
+ */
+const pluginParam = params.get('plugins');
+const plugins =
+    pluginParam === null
+        ? Object.values(available)
+        : pluginParam
+              .split(',')
+              .map((name) => name.trim())
+              .filter((name) => name.length > 0)
+              .map((name) => {
+                  const plugin = available[name];
+                  if (!plugin) throw new Error(`Unknown plugin: ${name}`);
+                  return plugin;
+              });
 
 const viewer = document.createElement('triiiceratops-viewer') as HTMLElement & {
     plugins: SdkPlugin[];

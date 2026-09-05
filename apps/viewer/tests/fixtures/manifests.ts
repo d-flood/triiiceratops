@@ -94,3 +94,59 @@ export function audioManifest(url: string, mediaUrl: string): unknown {
         ],
     };
 }
+
+/*
+ * Two 8x8 canvases, each painted a single flat colour carried as a data URL. The
+ * colour is how a screen names the canvas the viewer landed on: the DOM does not
+ * publish the active canvas id, so a drop that claims to have opened canvas 2 is
+ * only believed once the surface reads blue.
+ */
+const SOLID_RED_8 =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEklEQVR42mP4z8DwHx9mGBkKAMLXf4HVAzL9AAAAAElFTkSuQmCC';
+const SOLID_BLUE_8 =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEUlEQVR42mNgYPj/Hz8eEQoAQ1d/gea06iUAAAAASUVORK5CYII=';
+
+/** The colours `twoCanvasManifest`'s canvases are painted, as `[r, g, b]`. */
+export const CANVAS_COLORS = {
+    1: [255, 0, 0],
+    2: [0, 0, 255],
+} as const;
+
+export function twoCanvasManifest(url: string): unknown {
+    const canvas = (index: 1 | 2, body: string) => ({
+        id: `${url}/canvas/${index}`,
+        type: 'Canvas',
+        label: { en: [`Canvas ${index}`] },
+        width: 8,
+        height: 8,
+        items: [
+            {
+                id: `${url}/page/${index}`,
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        id: `${url}/annotation/${index}`,
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        body: {
+                            id: body,
+                            type: 'Image',
+                            format: 'image/png',
+                            width: 8,
+                            height: 8,
+                        },
+                        target: `${url}/canvas/${index}`,
+                    },
+                ],
+            },
+        ],
+    });
+
+    return {
+        '@context': 'http://iiif.io/api/presentation/3/context.json',
+        id: url,
+        type: 'Manifest',
+        label: { en: ['Smoke-screen two-canvas book'] },
+        items: [canvas(1, SOLID_RED_8), canvas(2, SOLID_BLUE_8)],
+    };
+}

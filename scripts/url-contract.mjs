@@ -17,13 +17,22 @@
 //      the tree. These are hand-written or generated at a depth their source
 //      does not show, which is exactly how a link that reads correctly in the
 //      editor emits broken.
-//   3. Every relative `href`/`src` in the assembled documentation version
+//   3. The two application paths serve the application their `owner` builds.
+//      `/viewer/` and `/demo/` both resolve to a non-empty index.html whichever
+//      way round they are assembled, so check 1 is blind to the swap — and the
+//      swap breaks roughly thirty-four IIIF Cookbook recipes, which link
+//      `/viewer/` directly through the cookbook's own `_includes/viewer_link.html`.
+//      That path was preserved rather than moved for those links; see the
+//      `/viewer/` entry's note in the manifest. It has gone wrong on the
+//      deployed host once already.
+//
+//   4. Every relative `href`/`src` in the assembled documentation version
 //      directory that RESOLVES OUTSIDE that directory points at something real
 //      within the publish root. Links that stay inside the version directory
 //      are not checked here: `zensical build --strict` already fails on those,
 //      and re-checking them would be theatre.
 //
-//      Check 3 exists because this class of break has escaped three times in
+//      Check 4 exists because this class of break has escaped three times in
 //      one epic. Five example links shipped resolving outside the version
 //      directory; separately, `overrides/main.html` emitted the versions-switcher
 //      href as a verbatim `../../versions/` on pages at every depth, resolving to
@@ -35,7 +44,7 @@
 //
 // ADVISORY check (warning, exit 0):
 //
-//   4. Top-level entries the manifest and the ownership table do not account
+//   5. Top-level entries the manifest and the ownership table do not account
 //      for are REPORTED, never removed. The storage branch accumulates: the
 //      first deploy under this layout leaves the previously published top-level
 //      `/1.0/` documentation directory orphaned there — still served, absent
@@ -55,7 +64,7 @@
 //
 // `--tree` defaults to `published/`, the directory CI assembles into. `--version`
 // substitutes the `{version}` token in manifest URLs and names the version
-// directory check 3 crawls; it defaults to the current docs version.
+// directory check 4 crawls; it defaults to the current docs version.
 
 import {
     existsSync,
@@ -86,7 +95,7 @@ const OWNER_HINTS = {
 /**
  * Served out of the publish root but not public URLs, and so not manifest
  * entries. A manifest entry is a promise about a URL somebody can link; nothing
- * here is linkable, which is the same category as the dotfiles check 4 skips.
+ * here is linkable, which is the same category as the dotfiles check 5 skips.
  *
  *   CNAME  host configuration, describing the domain rather than a path on it.
  *   _app   the static adapter's asset directory for the marketing site: hashed
@@ -107,6 +116,27 @@ const OWNER_HINTS = {
  *          `docs` owner already accounts for.
  */
 const HOST_CONTROL_FILES = new Set(['CNAME', '_app', 'fonts', 'material']);
+
+/**
+ * The meta name every application page carries, whose content is the `owner`
+ * that built it.
+ *
+ * A marker tag rather than a title or a body string, because the two titles are
+ * not distinguishable in both directions: the playground's
+ * `Live demo — Triiiceratops IIIF Viewer` contains the bare viewer's
+ * `Triiiceratops IIIF Viewer` verbatim, so a substring test passes on a swapped
+ * tree in one direction. This is exact-matched, and it is not copy — no reader
+ * sees it, so no rewording of a heading or a social card can quietly change what
+ * it says.
+ */
+export const APP_MARKER = 'triiiceratops:app';
+
+/**
+ * The manifest owners whose subtree is a single-page application competing for
+ * the same shape of URL, and so the entries check 3 asserts identity for. Any
+ * other owner's page is not confusable with another owner's and is left alone.
+ */
+export const APPLICATION_OWNERS = Object.freeze(['viewer', 'demo']);
 
 /** The publish job's own hand-written and generated pages, relative to the tree. */
 const OWNED_PAGES = [
@@ -212,6 +242,61 @@ function linkTarget(tree, pagePath, target) {
     return normalize(join(tree, dirname(pagePath), target));
 }
 
+/**
+ * Which application `html` declares itself to be, or `null` if it declares
+ * nothing.
+ *
+ * Attributes are read off each `<meta>` tag rather than matched in one pass, so
+ * the order they are written in does not matter. Comments are stripped first,
+ * for the same reason `relativeTargets` strips them: a commented-out tag is not
+ * a tag.
+ */
+export function appMarker(html) {
+    const withoutComments = html.replaceAll(/<!--[\s\S]*?-->/g, '');
+    const value = (attrs, attribute) => {
+        const re = new RegExp(
+            `(?<![-\\w:])${attribute}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'=<>\`]+))`,
+            'i',
+        );
+        const m = re.exec(attrs);
+        return m ? (m[1] ?? m[2] ?? m[3]).trim() : null;
+    };
+    for (const tag of withoutComments.matchAll(/<meta\b[^>]*>/gi)) {
+        if (value(tag[0], 'name') !== APP_MARKER) continue;
+        return value(tag[0], 'content');
+    }
+    return null;
+}
+
+/**
+ * Application paths in `tree` serving somebody else's application, as
+ * `{ url, path, owner, found }`. Empty means each application path serves the
+ * application its owner builds.
+ *
+ * A path that is absent is not reported here: check 1 already names it as a
+ * missing promise, and saying it twice buries the identity failures this exists
+ * to surface.
+ */
+export function applicationMismatches(tree, manifest, version) {
+    const mismatches = [];
+    for (const entry of manifest.urls) {
+        if (!APPLICATION_OWNERS.includes(entry.owner)) continue;
+        const path = resolveUrl(entry.url, version);
+        const absolute = join(tree, path);
+        if (!isInside(tree, absolute) || !isNonEmptyFile(absolute)) continue;
+        const found = appMarker(readFileSync(absolute, 'utf8'));
+        if (found !== entry.owner) {
+            mismatches.push({
+                url: entry.url,
+                path,
+                owner: entry.owner,
+                found,
+            });
+        }
+    }
+    return mismatches;
+}
+
 /** Every `.html` file under `dir`, as paths relative to `tree`. */
 function htmlPages(tree, dir) {
     const found = [];
@@ -276,7 +361,10 @@ function main() {
         }
     }
 
-    // ---- 3. Links escaping the documentation version directory ----------
+    // ---- 3. The application paths serve their own application ----------
+    const wrongApplication = applicationMismatches(tree, manifest, version);
+
+    // ---- 4. Links escaping the documentation version directory ----------
     const versionDir = join(tree, 'docs', version);
     const escapingLinks = [];
     if (existsSync(versionDir)) {
@@ -296,6 +384,7 @@ function main() {
     const fatal =
         missing.length +
         escapingUrls.length +
+        wrongApplication.length +
         brokenLinks.length +
         escapingLinks.length;
     if (fatal > 0) {
@@ -319,6 +408,27 @@ function main() {
                 console.error(`  ${m.url}  (${m.path})`);
                 console.error(`    owner: ${m.owner} — ${hint}`);
             }
+        }
+        if (wrongApplication.length > 0) {
+            console.error(
+                `\nurl-contract: ${wrongApplication.length} path(s) serve the wrong application:`,
+            );
+            for (const w of wrongApplication) {
+                const found = w.found ?? 'no application marker';
+                console.error(
+                    `  ${w.url}  (${w.path}) promises ${w.owner}, found ${found}`,
+                );
+                console.error(
+                    `    owner: ${w.owner} — ${OWNER_HINTS[w.owner] ?? `owned by ${w.owner}`}`,
+                );
+            }
+            console.error(
+                '    Both applications publish an index.html, so every other check ' +
+                    'passes on a tree with them exchanged. /viewer/ is linked directly ' +
+                    'by the IIIF Cookbook from roughly thirty-four recipes; serving the ' +
+                    'playground there breaks all of them. Check which build was copied ' +
+                    'to which path in scripts/docs-publish.mjs.',
+            );
         }
         if (brokenLinks.length > 0) {
             console.error(
@@ -360,7 +470,7 @@ function main() {
         process.exit(1);
     }
 
-    // ---- 4. Unowned top-level entries: report, never remove --------------
+    // ---- 5. Unowned top-level entries: report, never remove --------------
     // Dotfiles are skipped for the same reason as HOST_CONTROL_FILES: they are
     // host and tooling control files (`.nojekyll` and the like), never public URLs.
     const owned = ownedTopLevel(manifest, version);

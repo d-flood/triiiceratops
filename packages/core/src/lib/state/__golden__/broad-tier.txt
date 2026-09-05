@@ -218,6 +218,8 @@ cookbook/0021-tagging.json
     canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
 cookbook/0024-book-4-toc.json
     canvases=6 withPainting=6 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
+cookbook/0025-newspaper-article-index.json
+    canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
 cookbook/0027-alternative-page-order.json
     canvases=8 withPainting=8 withoutPainting=0 withChoice=0 sequences=2 structureNodes=2
 cookbook/0029-metadata-anywhere.json
@@ -246,6 +248,8 @@ cookbook/0202-start-canvas.json
     canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
 cookbook/0234-provider.json
     canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0258-tagging-external-resource.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
 cookbook/0261-non-rectangular-commenting.json
     canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
 cookbook/0266-full-canvas-annotation.json
@@ -255,6 +259,8 @@ cookbook/0269-embedded-or-referenced-annotations.json
 cookbook/0283-missing-image.json
     canvases=4 withPainting=3 withoutPainting=1 withChoice=0 sequences=1 structureNodes=0
 cookbook/0299-region.json
+    canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+cookbook/0346-multilingual-annotation-body.json
     canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
 cookbook/collection-members/0030-multi-volume-manifest_v1.json
     canvases=5 withPainting=5 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0

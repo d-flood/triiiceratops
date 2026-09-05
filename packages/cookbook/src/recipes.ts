@@ -271,10 +271,9 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0025-newspaper-article-index/manifest.json',
         group: 'structures',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
     {
         id: '0026-toc-opera',
@@ -577,10 +576,9 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0258-tagging-external-resource/manifest.json',
         group: 'annotations',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
     {
         id: '0261-non-rectangular-commenting',
@@ -682,10 +680,9 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0346-multilingual-annotation-body/manifest.json',
         group: 'annotations',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
     {
         id: '0377-image-in-annotation',
@@ -714,10 +711,9 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0466-link-for-loading-manifest/manifest.json',
         group: 'content-state',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
     {
         id: '0485-contentstate-canvas-region',
@@ -725,10 +721,9 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0485-contentstate-canvas-region/manifest.json',
         group: 'content-state',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
     {
         id: '0489-multimedia-canvas',
@@ -758,9 +753,8 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0599-drag-and-drop/manifest.json',
         group: 'content-state',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
 ];

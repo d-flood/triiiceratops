@@ -296,9 +296,11 @@ test.describe('Canvas2D renderer — static image', () => {
             },
         });
 
+        const reached: number[] = [];
         for (const step of [-240, -240, -240, 240, 240, 240, 240]) {
             await page.mouse.wheel(0, step);
             await settle(page);
+            reached.push((await getView(page)).scale);
 
             const found = await findFeature(page, 'alpha');
             expect(
@@ -310,7 +312,12 @@ test.describe('Canvas2D renderer — static image', () => {
         }
 
         // The range actually exercised was a real one, not a rounding error.
-        expect((await getView(page)).scale).not.toBeCloseTo(scale, 2);
+        //
+        // Against the WIDEST scale the sweep reached, never the one it ends on:
+        // `scale` here is the zoom floor for this fixture at this viewport
+        // (`MIN_ZOOM_FRACTION` of the fit), so the closing notches clamp back
+        // onto it and the final scale is the starting scale by design.
+        expect(Math.max(...reached)).toBeGreaterThan(scale * 2);
     });
 
     test('wheel zoom is eased over several frames, never snapped in one', async ({

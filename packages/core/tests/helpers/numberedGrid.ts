@@ -378,17 +378,19 @@ export async function getResidency(page: Page): Promise<RendererResidency> {
  * against it would pass without the cache being bounded at all.
  */
 export async function setByteBudget(page: Page, bytes: number): Promise<void> {
-    await page.locator(SURFACE).evaluate((element, budget: number) => {
-        const handle = (
-            element as HTMLCanvasElement & {
-                __triiiceratopsRenderer?: {
-                    setBudget(bytes: number): Promise<void>;
-                };
-            }
-        ).__triiiceratopsRenderer;
-        if (!handle) throw new Error('renderer test handle not installed');
-        return handle.setBudget(budget);
-    }, bytes);
+    await afterSettledPaint(page, () =>
+        page.locator(SURFACE).evaluate((element, budget: number) => {
+            const handle = (
+                element as HTMLCanvasElement & {
+                    __triiiceratopsRenderer?: {
+                        setBudget(bytes: number): Promise<void>;
+                    };
+                }
+            ).__triiiceratopsRenderer;
+            if (!handle) throw new Error('renderer test handle not installed');
+            void handle.setBudget(budget);
+        }, bytes),
+    );
 }
 
 /** Animated zoom about a surface-local point, through the real zoom clamp. */
@@ -397,22 +399,25 @@ export async function zoomAt(
     anchor: { x: number; y: number },
     factor: number,
 ): Promise<void> {
-    await page.locator(SURFACE).evaluate(
-        (element, args: { anchor: typeof anchor; factor: number }) => {
-            const handle = (
-                element as HTMLCanvasElement & {
-                    __triiiceratopsRenderer?: {
-                        zoomAt(
-                            anchor: typeof args.anchor,
-                            factor: number,
-                        ): Promise<void>;
-                    };
-                }
-            ).__triiiceratopsRenderer;
-            if (!handle) throw new Error('renderer test handle not installed');
-            return handle.zoomAt(args.anchor, args.factor);
-        },
-        { anchor, factor },
+    await afterSettledPaint(page, () =>
+        page.locator(SURFACE).evaluate(
+            (element, args: { anchor: typeof anchor; factor: number }) => {
+                const handle = (
+                    element as HTMLCanvasElement & {
+                        __triiiceratopsRenderer?: {
+                            zoomAt(
+                                anchor: typeof args.anchor,
+                                factor: number,
+                            ): Promise<void>;
+                        };
+                    }
+                ).__triiiceratopsRenderer;
+                if (!handle)
+                    throw new Error('renderer test handle not installed');
+                void handle.zoomAt(args.anchor, args.factor);
+            },
+            { anchor, factor },
+        ),
     );
 }
 
@@ -428,6 +433,51 @@ export async function getView(page: Page): Promise<RendererView> {
     }) as Promise<RendererView>;
 }
 
+/** How many paints the renderer has settled on since the page loaded. */
+async function settledPaintCount(page: Page): Promise<number> {
+    return page.locator(SURFACE).evaluate((element) => {
+        const handle = (
+            element as HTMLCanvasElement & {
+                __triiiceratopsRenderer?: { settledPaintCount(): number };
+            }
+        ).__triiiceratopsRenderer;
+        if (!handle) throw new Error('renderer test handle not installed');
+        return handle.settledPaintCount();
+    });
+}
+
+/**
+ * Issue a renderer command and wait for the paint it settles on.
+ *
+ * Every command below goes through this rather than returning its own promise
+ * out of the `evaluate`, and the difference is not style. Playwright awaits a
+ * returned promise through CDP's `awaitPromise`, which holds Playwright's own
+ * wrapper around the call weakly — nothing in the page names it, so a garbage
+ * collection landing while the renderer is mid-command can collect it, and the
+ * call then fails with "Execution context was destroyed, most likely because of
+ * a navigation" for a page that never navigated. The renderer's biggest
+ * commands are exactly the ones that make that collection likely. Counting
+ * settled paints across two short round trips instead transports no promise and
+ * cannot be told that story. See `src/devtools/canvasRendererHandle.ts`.
+ */
+async function afterSettledPaint(
+    page: Page,
+    issue: () => Promise<unknown>,
+): Promise<void> {
+    const before = await settledPaintCount(page);
+    await issue();
+    await expect
+        .poll(() => settledPaintCount(page), {
+            // Tighter than the 100ms default, and every caller feels it: these
+            // commands are the suite's unit of work, so a default-paced poll
+            // adds a tenth of a second to each of several hundred of them and
+            // moves the state later assertions are taken against.
+            intervals: [5, 5, 10, 20, 50, 100],
+            timeout: 30_000,
+        })
+        .toBeGreaterThan(before);
+}
+
 /**
  * Put the viewport in an exact, known state and wait for the frame that paints
  * it.
@@ -440,17 +490,19 @@ export async function setView(
     page: Page,
     view: { centre: { x: number; y: number }; scale: number },
 ): Promise<void> {
-    await page.locator(SURFACE).evaluate((element, next) => {
-        const handle = (
-            element as HTMLCanvasElement & {
-                __triiiceratopsRenderer?: {
-                    setView(v: typeof next): Promise<void>;
-                };
-            }
-        ).__triiiceratopsRenderer;
-        if (!handle) throw new Error('renderer test handle not installed');
-        return handle.setView(next);
-    }, view);
+    await afterSettledPaint(page, () =>
+        page.locator(SURFACE).evaluate((element, next) => {
+            const handle = (
+                element as HTMLCanvasElement & {
+                    __triiiceratopsRenderer?: {
+                        setView(v: typeof next): Promise<void>;
+                    };
+                }
+            ).__triiiceratopsRenderer;
+            if (!handle) throw new Error('renderer test handle not installed');
+            void handle.setView(next);
+        }, view),
+    );
 }
 
 /**
@@ -466,36 +518,41 @@ export async function fitCanvasBounds(
     bounds: { x: number; y: number; width: number; height: number },
     canvasId?: string,
 ): Promise<void> {
-    await page.locator(SURFACE).evaluate(
-        (element, args) => {
-            const handle = (
-                element as HTMLCanvasElement & {
-                    __triiiceratopsRenderer?: {
-                        fitCanvasBounds(
-                            bounds: typeof args.bounds,
-                            canvasId?: string,
-                        ): Promise<void>;
-                    };
-                }
-            ).__triiiceratopsRenderer;
-            if (!handle) throw new Error('renderer test handle not installed');
-            return handle.fitCanvasBounds(args.bounds, args.canvasId);
-        },
-        { bounds, canvasId },
+    await afterSettledPaint(page, () =>
+        page.locator(SURFACE).evaluate(
+            (element, args) => {
+                const handle = (
+                    element as HTMLCanvasElement & {
+                        __triiiceratopsRenderer?: {
+                            fitCanvasBounds(
+                                bounds: typeof args.bounds,
+                                canvasId?: string,
+                            ): Promise<void>;
+                        };
+                    }
+                ).__triiiceratopsRenderer;
+                if (!handle)
+                    throw new Error('renderer test handle not installed');
+                void handle.fitCanvasBounds(args.bounds, args.canvasId);
+            },
+            { bounds, canvasId },
+        ),
     );
 }
 
 /** Wait for the next painted frame. */
 export async function nextPaint(page: Page): Promise<void> {
-    await page.locator(SURFACE).evaluate((element) => {
-        const handle = (
-            element as HTMLCanvasElement & {
-                __triiiceratopsRenderer?: { nextPaint(): Promise<void> };
-            }
-        ).__triiiceratopsRenderer;
-        if (!handle) throw new Error('renderer test handle not installed');
-        return handle.nextPaint();
-    });
+    await afterSettledPaint(page, () =>
+        page.locator(SURFACE).evaluate((element) => {
+            const handle = (
+                element as HTMLCanvasElement & {
+                    __triiiceratopsRenderer?: { nextPaint(): Promise<void> };
+                }
+            ).__triiiceratopsRenderer;
+            if (!handle) throw new Error('renderer test handle not installed');
+            void handle.nextPaint();
+        }),
+    );
 }
 
 /**

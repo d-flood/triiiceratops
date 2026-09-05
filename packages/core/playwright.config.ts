@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 import { E2E_ORIGIN, E2E_PORT } from './tests/helpers/origin';
+import { gpuChromium } from '../../scripts/playwright-gpu';
 
 // Desktop projects (chromium, firefox, webkit) run the core journeys; mobile
 // projects (android-chrome, mobile-webkit) run only the mobile journey set,
@@ -32,7 +33,7 @@ export default defineConfig({
         // ── Desktop projects: run the core journeys ────────────────────────
         {
             name: 'chromium',
-            use: { ...devices['Desktop Chrome'] },
+            use: { ...devices['Desktop Chrome'], ...gpuChromium },
         },
         {
             name: 'firefox',
@@ -45,7 +46,7 @@ export default defineConfig({
         // ── Mobile projects: run only the `@mobile` journey set ─────────────
         {
             name: 'android-chrome',
-            use: { ...devices['Pixel 7'] },
+            use: { ...devices['Pixel 7'], ...gpuChromium },
             grep: /@mobile/,
         },
         {

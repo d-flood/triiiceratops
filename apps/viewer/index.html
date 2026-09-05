@@ -5,6 +5,15 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="./favicon.ico" />
         <title>Triiiceratops IIIF Viewer</title>
+        <!--
+          Which application this page is, read by scripts/url-contract.mjs. The
+          bare viewer and the playground both publish an index.html and both
+          resolve, so existence cannot tell /viewer/ from /demo/ and a swapped
+          tree would break every IIIF Cookbook link into the playground's chrome.
+          This is not copy — nothing a reader sees — so no rewording of a title
+          or a card can silently defeat it.
+        -->
+        <meta name="triiiceratops:app" content="viewer" />
         <meta
             name="description"
             content="A bare IIIF viewer. Open the view named by an iiif-content parameter, or paste a manifest URL or content state."

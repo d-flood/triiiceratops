@@ -203,6 +203,9 @@ importers:
 
   apps/viewer:
     dependencies:
+      '@triiiceratops/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@triiiceratops/plugin-av':
         specifier: workspace:*
         version: link:../../packages/plugin-av

@@ -37,7 +37,10 @@
         if (!annotations.length) return [];
 
         return annotations.map((anno: any) => {
-            const bodies = extractBody(anno);
+            // Derived, not an effect: a body is a pure function of the
+            // annotation and the viewer's active locale, so a `Choice` body
+            // re-picks its item when the reader switches language.
+            const bodies = extractBody(anno, viewerState.activeLocale);
 
             return {
                 id: getAnnotationId(anno),
@@ -141,6 +144,36 @@
     }
 </script>
 
+<!--
+    An outward link from an annotation body. Opened in a new context so the
+    reader does not lose the viewer's place, and `rel="noopener noreferrer"`
+    because the destination is named by an untrusted manifest. The click is
+    stopped from reaching the row, which would otherwise also select the
+    annotation.
+-->
+{#snippet bodyLink(href: string, text: string)}
+    <a
+        {href}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="link"
+        onclick={(e) => e.stopPropagation()}
+    >
+        <!-- Link Icon -->
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="12"
+            height="12"
+            fill="currentColor"
+            viewBox="0 0 256 256"
+            ><path
+                d="M136.37,187.53a12,12,0,0,1,0,17l-5.94,5.94a60,60,0,0,1-84.88-84.88l24.12-24.12A60,60,0,0,1,152.06,99,12,12,0,1,1,135,116a36,36,0,0,0-50.93,1.57L60,141.66a36,36,0,0,0,50.93,50.93l5.94-5.94A12,12,0,0,1,136.37,187.53Zm81.51-149.41a60,60,0,0,0-84.88,0l-5.94,5.94a12,12,0,0,0,17,17l5.94-5.94a36,36,0,0,1,50.93,50.93l-24.11,24.12A36,36,0,0,1,121,140a12,12,0,1,0-17.08,17,60,60,0,0,0,82.39,2.46l24.12-24.12A60,60,0,0,0,217.88,38.12Z"
+            ></path></svg
+        >
+        <span class="link-text">{text}</span>
+    </a>
+{/snippet}
+
 <!-- Drawer / Panel -->
 {#if viewerState.showAnnotations}
     <div
@@ -236,7 +269,25 @@
                         <div class="viewer-html bodies">
                             {#each anno.bodies as body, i (i)}
                                 <div class="body-row">
-                                    {#if body.purpose === 'tagging'}
+                                    <!--
+                                        A body that names an external resource
+                                        is rendered as a link whatever its
+                                        `purpose`, ahead of the purpose
+                                        branches below: the URI is often the
+                                        only thing such a body carries (IIIF
+                                        Cookbook 0258 tags a region with a
+                                        Wikidata record and nothing else), so
+                                        any presentation that drops it leaves
+                                        the row empty. `href` is already
+                                        constrained to `http`/`https` by
+                                        `extractBody`.
+                                    -->
+                                    {#if body.href}
+                                        {@render bodyLink(
+                                            body.href,
+                                            body.value || body.href,
+                                        )}
+                                    {:else if body.purpose === 'tagging'}
                                         <Badge
                                             variant="primary"
                                             outline
@@ -259,29 +310,10 @@
                                             there.
                                         -->
                                         {#if isSafeUrl(body.value)}
-                                            <a
-                                                href={body.value}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                class="link"
-                                                onclick={(e) =>
-                                                    e.stopPropagation()}
-                                            >
-                                                <!-- Link Icon -->
-                                                <svg
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    width="12"
-                                                    height="12"
-                                                    fill="currentColor"
-                                                    viewBox="0 0 256 256"
-                                                    ><path
-                                                        d="M136.37,187.53a12,12,0,0,1,0,17l-5.94,5.94a60,60,0,0,1-84.88-84.88l24.12-24.12A60,60,0,0,1,152.06,99,12,12,0,1,1,135,116a36,36,0,0,0-50.93,1.57L60,141.66a36,36,0,0,0,50.93,50.93l5.94-5.94A12,12,0,0,1,136.37,187.53Zm81.51-149.41a60,60,0,0,0-84.88,0l-5.94,5.94a12,12,0,0,0,17,17l5.94-5.94a36,36,0,0,1,50.93,50.93l-24.11,24.12A36,36,0,0,1,121,140a12,12,0,1,0-17.08,17,60,60,0,0,0,82.39,2.46l24.12-24.12A60,60,0,0,0,217.88,38.12Z"
-                                                    ></path></svg
-                                                >
-                                                <span class="link-text"
-                                                    >{body.value}</span
-                                                >
-                                            </a>
+                                            {@render bodyLink(
+                                                body.value,
+                                                body.value,
+                                            )}
                                         {:else}
                                             <span class="link-text"
                                                 >{body.value}</span

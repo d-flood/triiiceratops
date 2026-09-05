@@ -1433,14 +1433,15 @@
      * state, exactly as the paint hook's is — the two registries are
      * deliberately structurally identical, so this is one idiom rather than two.
      *
-     * The read must be part of the returned EXPRESSION. It was once a bare
-     * `void internalViewerState.overlayLayerRevision;` statement, which the
-     * element build's terser pass deleted as side-effect-free — so in the
-     * shipped web component the registry accepted layers, the counter
-     * incremented, and no container was ever created. Every test stayed green
-     * because they all load the element from source. The guard is always true;
-     * it exists so the read cannot be dropped. `distributions.test.ts` asserts
-     * the read survives minification.
+     * The read must be part of the returned EXPRESSION. A bare
+     * `void internalViewerState.overlayLayerRevision;` statement is deletable by
+     * any minifier that treats a property read as pure, and what that costs is
+     * invisible from source: the registry accepts layers, the counter
+     * increments, and no container is ever created — in the shipped web
+     * component only, because every test loads the element from source.
+     * `pure_getters` is off for that reason (`src/packaging/terserElement.ts`),
+     * and `distributions.test.ts` asserts the read survives minification. The
+     * guard is always true; it exists so the read cannot be dropped.
      */
     let overlayLayers = $derived.by(() =>
         internalViewerState.overlayLayerRevision >= 0

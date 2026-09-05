@@ -3,8 +3,31 @@ import {
     getIiifCanvasId,
     normalizeIiifTargets,
 } from './iiifTargets';
-import { getAnnotationId } from './iiifIds';
+import { getAnnotationId, getReferenceId } from './iiifIds';
+import { resolveLanguageValue } from './languageMap';
+import { isHttpUrl } from './sanitizeHtml';
+import { getChoiceAlternatives, isChoiceBody } from './iiifParsing';
 import { logger } from '../logging/logger';
+
+/**
+ * One rendered annotation body.
+ *
+ * `href` is a dereferenceable `http`/`https` identity the body stands for — a
+ * `SpecificResource`'s `source`, or the body's own `id` — and is present only
+ * where the body has one. It is kept apart from `value` because a URI is not
+ * prose: every consumer that renders `value` would otherwise print a bare URL
+ * as text, and only the panel knows how to make a followable link out of it. A
+ * body may carry both (an external resource with a label) or a URI alone, in
+ * which case `value` is empty and the link's own text is the reader's only
+ * handle on it.
+ */
+export interface AnnotationBody {
+    value: string;
+    isHtml: boolean;
+    purpose?: string;
+    format?: string;
+    href?: string;
+}
 
 export interface ParsedAnnotation {
     id: string;
@@ -25,12 +48,7 @@ export interface ParsedAnnotation {
     geometry: RectangleGeometry | PolygonGeometry | PointGeometry;
     coordinateSpace: 'canvas' | 'image';
     isFullCanvasTarget: boolean;
-    body: {
-        value: string;
-        isHtml: boolean;
-        purpose?: string;
-        format?: string;
-    }[];
+    body: AnnotationBody[];
     isSearchHit: boolean;
 }
 
@@ -402,22 +420,76 @@ export function bodyText(resource: unknown): string {
     return typeof text === 'string' ? text : '';
 }
 
-export function extractBody(annotation: any): {
-    value: string;
-    isHtml: boolean;
-    purpose?: string;
-    format?: string;
-}[] {
-    const bodies: {
-        value: string;
-        isHtml: boolean;
-        purpose?: string;
-        format?: string;
-    }[] = [];
+/**
+ * The one item of a `Choice` body to render, or the resource unchanged when it
+ * is not a Choice.
+ *
+ * Selection order: an item whose `language` matches the active locale exactly,
+ * then one matching on the primary subtag, then the first item — because the
+ * recipe (IIIF Cookbook 0346) has manifest authors establish preference through
+ * item order. An item carrying no `language` is a legitimate candidate for that
+ * last rung, not an error.
+ *
+ * A Choice's items are ALTERNATIVES, so the ones not picked are dropped
+ * silently: that is the shape behaving as designed, not a degradation, and it
+ * warrants no warning. Note that annotation bodies do not use language maps —
+ * an item carries sibling `language` and `value` properties — so this resolves
+ * language itself rather than through `resolveLanguageValue`.
+ */
+function selectChoiceItem(resource: any, locale?: string): any {
+    if (!isChoiceBody(resource)) {
+        return resource;
+    }
+
+    const items = getChoiceAlternatives(resource);
+    if (!items.length) {
+        return resource;
+    }
+
+    if (locale) {
+        const exact = items.find((item) => item?.language === locale);
+        if (exact) return exact;
+
+        const primary = locale.split('-')[0];
+        const bySubtag = items.find(
+            (item) =>
+                typeof item?.language === 'string' &&
+                item.language.split('-')[0] === primary,
+        );
+        if (bySubtag) return bySubtag;
+    }
+
+    return items[0];
+}
+
+/**
+ * The web identity a textless body stands for, or `''` where it has none.
+ *
+ * IIIF Cookbook recipe 0258 tags a region with an authority record rather than
+ * a phrase: the body is a `SpecificResource` whose `source` is the record's
+ * URI and which carries no text at all. `getReferenceId` reads that, a body's
+ * own `id`, and the v2 `@id` spelling alike.
+ *
+ * Only an absolute `http`/`https` URI qualifies. The value comes from a
+ * manifest and ends up in an `href`, so a `javascript:` or `data:` identity is
+ * dropped here rather than at the point of render — nothing downstream should
+ * have to know that a body's link target might be hostile.
+ */
+function externalBodyHref(resource: any): string {
+    const uri = getReferenceId(resource);
+    return uri && isHttpUrl(uri) ? uri : '';
+}
+
+export function extractBody(
+    annotation: any,
+    locale?: string,
+): AnnotationBody[] {
+    const bodies: AnnotationBody[] = [];
 
     // Raw JSON body/resource — `resource` is the IIIF v2 spelling, `body` the
     // v3 one, and both are read.
-    const processResource = (r: any) => {
+    const processResource = (raw: any) => {
+        const r = selectChoiceItem(raw, locale);
         const val = bodyText(r);
         if (val) {
             // Only a declared format may route a body through the rich-text
@@ -430,6 +502,17 @@ export function extractBody(annotation: any): {
                 isHtml,
                 purpose: r.purpose,
                 format: r.format,
+            });
+            return;
+        }
+
+        const href = externalBodyHref(r);
+        if (href) {
+            bodies.push({
+                value: resolveLanguageValue(r.label, locale),
+                isHtml: false,
+                purpose: r.purpose,
+                href,
             });
         }
     };
@@ -479,6 +562,7 @@ function buildParsedAnnotations(
     index: number,
     isSearchHit: boolean,
     canvasId: string | null = null,
+    locale?: string,
 ): ParsedAnnotation[] {
     const id = getAnnotationId(annotation) || `anno-${index}`;
     const geometries = extractGeometries(annotation);
@@ -493,7 +577,7 @@ function buildParsedAnnotations(
         return [];
     }
 
-    const body = extractBody(annotation);
+    const body = extractBody(annotation, locale);
 
     return geometries.map((geometry, geometryIndex) => ({
         id,
@@ -514,10 +598,16 @@ export function parseAnnotation(
     index: number,
     isSearchHit: boolean = false,
     canvasId: string | null = null,
+    locale?: string,
 ): ParsedAnnotation | null {
     return (
-        buildParsedAnnotations(annotation, index, isSearchHit, canvasId)[0] ??
-        null
+        buildParsedAnnotations(
+            annotation,
+            index,
+            isSearchHit,
+            canvasId,
+            locale,
+        )[0] ?? null
     );
 }
 
@@ -525,6 +615,7 @@ export function parseAnnotations(
     annotations: any[],
     searchHitIds: Set<string> = new Set(),
     canvasId: string | null = null,
+    locale?: string,
 ): ParsedAnnotation[] {
     return annotations.flatMap((anno, idx) =>
         buildParsedAnnotations(
@@ -532,6 +623,7 @@ export function parseAnnotations(
             idx,
             searchHitIds.has(getAnnotationId(anno)),
             canvasId,
+            locale,
         ),
     );
 }

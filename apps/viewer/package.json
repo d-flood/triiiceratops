@@ -21,6 +21,7 @@
         "lint:fix": "eslint . --fix --max-warnings 0"
     },
     "dependencies": {
+        "@triiiceratops/config": "workspace:*",
         "@triiiceratops/plugin-av": "workspace:*",
         "@triiiceratops/plugin-image-manipulation": "workspace:*",
         "triiiceratops": "workspace:*"
