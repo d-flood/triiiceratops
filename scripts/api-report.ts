@@ -63,6 +63,7 @@ const PACKAGES = [
         name: '@triiiceratops/plugin-annotation-editor',
         dir: 'plugin-annotation-editor',
     },
+    { name: '@triiiceratops/plugin-av', dir: 'plugin-av' },
 ];
 
 /** Slug used for a package's declaration-report filename. */
@@ -92,6 +93,7 @@ function buildDeclarations(): void {
     run('--filter @triiiceratops/plugin-image-export build:types');
     run('--filter @triiiceratops/plugin-pdf-export build:types');
     run('--filter @triiiceratops/plugin-annotation-editor build:types');
+    run('--filter @triiiceratops/plugin-av build:types');
 }
 
 // ── Per-package declaration reports (d.ts rollup) ───────────────────────────

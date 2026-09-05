@@ -659,17 +659,9 @@ describe('ViewerState manifest behavior', () => {
         expect(state.isGalleryDockedBottom).toBe(false);
         expect(state.isGalleryDockedRight).toBe(true);
 
-        state.setDockSide('none');
+        state.setDockSide('left');
         expect(state.isGalleryDockedBottom).toBe(false);
         expect(state.isGalleryDockedRight).toBe(false);
-    });
-
-    it('setGalleryPosition and setGallerySize replace their values', () => {
-        state.setGalleryPosition({ x: 42, y: 84 });
-        expect(state.galleryPosition).toEqual({ x: 42, y: 84 });
-
-        state.setGallerySize({ width: 500, height: 600 });
-        expect(state.gallerySize).toEqual({ width: 500, height: 600 });
     });
 
     it('setDockSide keeps the derived docked flags in sync', () => {
@@ -683,7 +675,7 @@ describe('ViewerState manifest behavior', () => {
         expect(state.isGalleryDockedBottom).toBe(true);
         expect(state.isGalleryDockedRight).toBe(false);
 
-        state.setDockSide('none');
+        state.setDockSide('top');
         expect(state.isGalleryDockedBottom).toBe(false);
         expect(state.isGalleryDockedRight).toBe(false);
     });
@@ -759,5 +751,37 @@ describe('ViewerState manifest behavior', () => {
 
         expect(state.preserveCanvasScale).toBe(true);
         expect(state.getSnapshot().preserveCanvasScale).toBe(true);
+    });
+
+    it('reports the canvas index within the selected sequence', async () => {
+        const id = 'http://example.org/manifest/multi-sequence-snapshot';
+        await load({
+            '@context': 'http://iiif.io/api/presentation/2/context.json',
+            '@id': id,
+            '@type': 'sc:Manifest',
+            label: 'Multi-sequence fixture',
+            sequences: [
+                {
+                    '@id': `${id}/sequence/1`,
+                    '@type': 'sc:Sequence',
+                    canvases: [v2Canvas(CANVAS_1), v2Canvas(CANVAS_2)],
+                },
+                {
+                    '@id': `${id}/sequence/2`,
+                    '@type': 'sc:Sequence',
+                    canvases: [v2Canvas(CANVAS_3), v2Canvas(CANVAS_4)],
+                },
+            ],
+        });
+
+        expect(state.sequenceCount).toBe(2);
+        expect(state.getSnapshot().currentCanvasIndex).toBe(0);
+
+        state.setSequenceIndex(1);
+        state.setCanvas(CANVAS_4);
+
+        // Read against the SELECTED sequence, not sequence 0, where CANVAS_4
+        // does not appear at all.
+        expect(state.getSnapshot().currentCanvasIndex).toBe(1);
     });
 });

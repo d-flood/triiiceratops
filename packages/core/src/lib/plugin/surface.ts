@@ -62,5 +62,8 @@ export function createPluginSurface(
         toggle(): void {
             state.togglePluginOpen(chromeId);
         },
+        setAvailable(available: boolean): void {
+            state.setPluginAvailable(chromeId, available);
+        },
     };
 }

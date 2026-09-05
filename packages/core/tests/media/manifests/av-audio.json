@@ -1,0 +1,41 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/media/manifests/av-audio.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Audio canvas — local tone"]
+    },
+    "summary": {
+        "en": [
+            "One canvas painted by a Sound body, with a duration and NO width or height. This is the shape that vanishes from layout in a viewer that requires spatial dimensions (spec, user story 2), and the shape the timeline lane fills on its own because there is no accompanying image (user story 3)."
+        ]
+    },
+    "items": [
+        {
+            "id": "/media/manifests/av-audio.json/canvas/tone",
+            "type": "Canvas",
+            "label": { "en": ["440 Hz tone"] },
+            "duration": 2.0,
+            "items": [
+                {
+                    "id": "/media/manifests/av-audio.json/page/tone",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-audio.json/annotation/tone",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/media/tone.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 2.0
+                            },
+                            "target": "/media/manifests/av-audio.json/canvas/tone"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

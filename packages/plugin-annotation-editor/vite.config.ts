@@ -17,7 +17,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *
  * The UI is Svelte, but Svelte is BUNDLED IN (not externalized to a global) in
  * BOTH formats so the plugin shares neither a Svelte runtime nor `svelte/internal`
- * with core (SPEC.md — "Core and browser plugins do not share a Svelte runtime").
+ * with core. `svelte/internal` is private, unversioned API, and this plugin is
+ * released independently of core, so a consumer can pair any plugin version with any
+ * core version — a shared runtime would break on the first version skew.
  * `emitCss: false` keeps component CSS in the JS; the Annotorious stylesheet and
  * the plugin's own CSS install through the SDK style service, so the built output
  * ships no stylesheet.
@@ -25,8 +27,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * ESM externalizes the declared peers AND the heavy runtime dependencies
  * (`@annotorious/*`, `openseadragon`) so a consumer's bundler resolves and dedupes
  * them from the plugin's own `dependencies`; the IIFE bundles everything so the
- * `<script>`-loadable file is fully self-contained (SPEC.md — "self-contained
- * no-bundler IIFE").
+ * `<script>`-loadable file is fully self-contained: a script-tag consumer has no
+ * bundler to resolve peers with, so nothing may be left external.
  */
 const format = process.env.BUILD_FORMAT === 'iife' ? 'iife' : 'es';
 

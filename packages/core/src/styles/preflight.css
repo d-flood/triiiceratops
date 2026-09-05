@@ -6,6 +6,19 @@
  *
  * Works in both the light DOM (demo) and the shadow DOM (custom element) — the
  * `:host` selectors apply when this sheet is injected into the shadow root.
+ *
+ * A `light-dom-only` comment marks a rule the element build drops: the shadow
+ * root holds only the viewer's own markup, its plugins' panels, and IIIF rich
+ * text filtered through `utils/sanitizeHtml`'s element allowlist (`a b br i img
+ * p small span sub sup` — everything else is dropped, its text kept), so the
+ * marked elements cannot appear there. See packaging/dropLightDomOnly.ts.
+ *
+ * Between them, the components in the element bundle and the first-party plugins
+ * that mount into its shadow root emit `a audio button canvas code dd dialog div
+ * dl dt form h2 h3 h4 img input label li mark ol option p section select span
+ * svg textarea track ul video`, and the only `<input>` types among them are
+ * `button checkbox range url`. Re-check that list before unmarking a rule or
+ * marking a new one; nothing in the build enforces it.
  */
 
 /*
@@ -44,12 +57,14 @@ html,
     -webkit-tap-highlight-color: transparent;
 }
 
+/* light-dom-only */
 hr {
     height: 0;
     color: inherit;
     border-top-width: 1px;
 }
 
+/* light-dom-only */
 abbr:where([title]) {
     -webkit-text-decoration: underline dotted;
     text-decoration: underline dotted;
@@ -119,6 +134,7 @@ sup {
     top: -0.5em;
 }
 
+/* light-dom-only */
 table {
     text-indent: 0;
     border-color: inherit;
@@ -129,10 +145,12 @@ table {
     outline: auto;
 }
 
+/* light-dom-only */
 progress {
     vertical-align: baseline;
 }
 
+/* light-dom-only */
 summary {
     display: list-item;
 }
@@ -176,14 +194,21 @@ textarea,
     opacity: 1;
 }
 
+/*
+ * Grouped options and a file picker's button: no viewer or plugin control is a
+ * multi-line `<select>`, groups its options, or takes a file.
+ */
+/* light-dom-only */
 :where(select:is([multiple], [size])) optgroup {
     font-weight: bolder;
 }
 
+/* light-dom-only */
 :where(select:is([multiple], [size])) optgroup option {
     padding-inline-start: 20px;
 }
 
+/* light-dom-only */
 ::file-selector-button {
     margin-inline-end: 4px;
 }
@@ -203,23 +228,33 @@ textarea {
     resize: vertical;
 }
 
+/*
+ * The remaining `::-webkit-*` blocks reset the shadow parts of the search,
+ * date/time and number input types. No viewer or plugin control uses those
+ * types, and rich text cannot introduce an <input> at all.
+ */
+/* light-dom-only */
 ::-webkit-search-decoration {
     -webkit-appearance: none;
 }
 
+/* light-dom-only */
 ::-webkit-date-and-time-value {
     min-height: 1lh;
     text-align: inherit;
 }
 
+/* light-dom-only */
 ::-webkit-datetime-edit {
     display: inline-flex;
 }
 
+/* light-dom-only */
 ::-webkit-datetime-edit-fields-wrapper {
     padding: 0;
 }
 
+/* light-dom-only */
 ::-webkit-datetime-edit,
 ::-webkit-datetime-edit-year-field,
 ::-webkit-datetime-edit-month-field,
@@ -232,6 +267,7 @@ textarea {
     padding-block: 0;
 }
 
+/* light-dom-only */
 ::-webkit-calendar-picker-indicator {
     line-height: 1;
 }
@@ -246,6 +282,7 @@ input:where([type='button'], [type='reset'], [type='submit']),
     appearance: button;
 }
 
+/* light-dom-only */
 ::-webkit-inner-spin-button,
 ::-webkit-outer-spin-button {
     height: auto;

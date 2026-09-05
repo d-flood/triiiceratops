@@ -20,6 +20,11 @@
  * - **Pointer events pass through, and children opt in.** A drag in the empty
  *   space of a layer still pans the image; a click on a `pointer-events: auto`
  *   child reaches that child.
+ * - **The wheel and the keyboard reach the renderer across the layer.** A layer
+ *   is a SIBLING of the render surface, so neither an event nor the focus can
+ *   cross to it by itself: a wheel over a claimant's own surface still zooms
+ *   unless the claimant consumes it, and a press on a claimant's bare surface
+ *   still leaves the zoom keys where they can be pressed.
  * - **Unregistering the plugin really removes the DOM.** The ownership backstop
  *   for a plugin whose own teardown misses its dispose: the container goes and the
  *   layer's cleanup runs, once, whichever order the two paths arrive in.
@@ -37,6 +42,7 @@ import {
     findFeature,
     getView,
     GRID_FEATURES,
+    nextPaint,
     predictScreenPoint,
     TILED_MANIFEST,
 } from './helpers/numberedGrid';
@@ -467,4 +473,153 @@ test('a pointer event on a child that opted in reaches that child', async ({
     const after = await getView(page);
     expect(after.centre.x).toBeCloseTo(before.centre.x, 5);
     expect(after.centre.y).toBeCloseTo(before.centre.y, 5);
+});
+
+/**
+ * Register a layer whose child is a full-bleed surface that has opted INTO
+ * pointer events — a claimant's stage, in the shape the AV plugin's is.
+ *
+ * `registerMarkerLayer`'s child is a 24px button, so a wheel or a press aimed
+ * at empty layer space lands on the renderer's own canvas and proves nothing
+ * about a claimant. This one covers the surface, so every event below really
+ * does start inside the layer.
+ */
+async function registerStageLayer(
+    page: Page,
+    spec: { id: string; consumesWheel: boolean },
+): Promise<void> {
+    await page.evaluate((layer: typeof spec) => {
+        const host = document.getElementById('v') as unknown as {
+            viewerState: {
+                ensurePluginUiState(pluginId: string): void;
+                registerOverlayLayer(input: {
+                    id: string;
+                    mount: (container: HTMLElement) => () => void;
+                }): () => void;
+            };
+        };
+        const state = host.viewerState;
+        if (!state) throw new Error('the element exposed no viewerState');
+        state.ensurePluginUiState(layer.id.split(':')[0]);
+
+        state.registerOverlayLayer({
+            id: layer.id,
+            mount: (container: HTMLElement) => {
+                const stage = document.createElement('div');
+                stage.dataset.testStage = layer.id;
+                stage.style.cssText =
+                    'position:absolute;inset:0;pointer-events:auto';
+                if (layer.consumesWheel)
+                    stage.addEventListener(
+                        'wheel',
+                        (event) => event.preventDefault(),
+                        { passive: false },
+                    );
+                container.append(stage);
+                return () => stage.remove();
+            },
+        });
+    }, spec);
+}
+
+/** Where the keyboard is, inside the element's shadow root. */
+async function activeTestId(page: Page): Promise<string | null> {
+    return page.evaluate(() => {
+        const active = document.getElementById('v')?.shadowRoot?.activeElement;
+        return active?.getAttribute('data-testid') ?? null;
+    });
+}
+
+/*
+ * User story 38. A claimant's layer is a SIBLING of the render surface, so a
+ * wheel over anything it renders cannot reach the surface by bubbling. The
+ * binding is on the box both sit in, which is what makes this true for every
+ * claimant rather than for the one that remembered to forward it.
+ */
+test('a wheel over a claimant’s surface zooms the image', async ({ page }) => {
+    await openFixture(page);
+    await registerStageLayer(page, { id: LAYER_ID, consumesWheel: false });
+
+    const box = (await page.locator(SURFACE).boundingBox())!;
+    const before = await getView(page);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, -400);
+
+    await expect
+        .poll(async () => (await getView(page)).scale)
+        .toBeGreaterThan(before.scale * 1.05);
+});
+
+/*
+ * User story 39. The opt-out, and the whole of it: a claimant that wants the
+ * wheel consumes it, which is what a scrollable surface of its own is doing
+ * anyway to stop the page scrolling behind it.
+ */
+test('a claimant that consumes the wheel keeps it', async ({ page }) => {
+    await openFixture(page);
+    await registerStageLayer(page, { id: LAYER_ID, consumesWheel: true });
+
+    const box = (await page.locator(SURFACE).boundingBox())!;
+    const before = await getView(page);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, -400);
+
+    // Three frames is well past the wheel animation's first step, so a zoom
+    // that was going to happen has visibly started by now.
+    await nextPaint(page);
+    await nextPaint(page);
+    await nextPaint(page);
+    expect((await getView(page)).scale).toBeCloseTo(before.scale, 5);
+});
+
+/*
+ * The keyboard half of the same sibling problem. A press on a claimant's bare
+ * surface has no focusable ancestor to land on, so without core putting the
+ * focus back the zoom keys would stop reaching the renderer the moment the
+ * reader first touched a claimed canvas.
+ */
+test('a press on a claimant’s bare surface leaves the zoom keys reachable', async ({
+    page,
+}) => {
+    await openFixture(page);
+    await registerStageLayer(page, { id: LAYER_ID, consumesWheel: false });
+
+    const box = (await page.locator(SURFACE).boundingBox())!;
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+
+    expect(await activeTestId(page)).toBe('canvas-renderer-root');
+});
+
+/*
+ * …and the limit of it. A control the claimant offers is a control the reader
+ * meant to operate: focus stays where the press put it, or the claimant's own
+ * chrome could never be driven from the keyboard.
+ */
+test('a press on a claimant’s own control keeps the focus there', async ({
+    page,
+}) => {
+    await openFixture(page);
+    await registerMarkerLayer(page, {
+        id: LAYER_ID,
+        at: { x: GRID_FEATURES.bravo.x, y: GRID_FEATURES.bravo.y },
+    });
+
+    const markerBox = (await page
+        .locator(`[data-test-marker="${LAYER_ID}"]`)
+        .boundingBox())!;
+    await page.mouse.click(
+        markerBox.x + markerBox.width / 2,
+        markerBox.y + markerBox.height / 2,
+    );
+
+    expect(
+        await page.evaluate(
+            () =>
+                document
+                    .getElementById('v')
+                    ?.shadowRoot?.activeElement?.getAttribute(
+                        'data-test-marker',
+                    ) ?? null,
+        ),
+    ).toBe(LAYER_ID);
 });

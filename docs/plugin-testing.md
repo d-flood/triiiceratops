@@ -15,6 +15,13 @@ test reflects production semantics.
 The kit runs in a plain vitest project — no Svelte tooling required — because the
 headless state comes from core's compiled `triiiceratops/testing` entry.
 
+It also carries the inert stub services — `createStubStyleService`,
+`createStubLocaleService`, `createStubUiService`, `createStubSurfaceService` —
+for an activation with no viewer behind it at all. A `PluginHost` requires every
+service, and these are the ones to hand it when the test is about something else.
+They live here rather than in the SDK's base entry so no shipped plugin bundle
+carries a service implementation no reader can see.
+
 === "pnpm"
 
     ```bash
@@ -93,9 +100,13 @@ describe('example plugin', () => {
             styles: tc.styles,
             locale: tc.locale,
             ui: tc.ui,
-            // Pass the real surface. Omit it and the plugin gets an always-open
-            // stub whose `id` names no plugin of this viewer — see the trap below.
+            // The REAL surface over the real state — see the trap below.
             surface: tc.surface,
+            // Every guarded phase failure lands here. Rethrowing turns a broken
+            // activation into a failing test instead of a silent one.
+            reportError: (report) => {
+                throw report.error;
+            },
         });
 
         const label = container.querySelector('span');
@@ -123,10 +134,10 @@ a layer that never mounts:
   `context.surface.id` instead — in a test that is `uiId`, in production it is your
   declared `uiId` or your sanitised package name, and in neither case is it
   guaranteed to be the string you typed.
-- **You do not pass `surface` to `activatePlugin`.** The SDK then hands your plugin
-  an always-open stub surface whose id is your `uiId ?? name`, which the viewer has
-  never heard of, so every layer is refused. Pass `surface: tc.surface`;
-  `runActivation` and `runPluginConformance` already do.
+- **You pass a stub surface instead of `tc.surface`.** `createStubSurfaceService`
+  answers with whatever id you gave it, and a viewer has never heard of an id it
+  did not register, so every layer is refused. Pass `surface: tc.surface`;
+  `runPluginConformance` already does.
 
 A refusal is reported on the host's `viewererror` channel
 (`code: 'overlay-layer-refused'`), not thrown, and `mount` is never called. If you

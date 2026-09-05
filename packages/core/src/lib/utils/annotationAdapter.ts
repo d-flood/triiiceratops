@@ -109,13 +109,12 @@ function extractGeometries(
 }
 
 function extractPointFromSelector(selector: any): PointGeometry | null {
-    const item = selector?.item || selector;
-    if (item?.type !== 'PointSelector') {
+    if (selector?.type !== 'PointSelector') {
         return null;
     }
 
-    const x = Number(item.x);
-    const y = Number(item.y);
+    const x = Number(selector.x);
+    const y = Number(selector.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
         return null;
     }
@@ -251,30 +250,30 @@ function resolveCoordinateSpace(
     return 'image';
 }
 
+/**
+ * Callers hand this one selector out of `normalizeIiifTargets`, which has
+ * already flattened selector arrays and unwrapped the v2 `item` nesting, so
+ * there is exactly one shape left to read.
+ */
 function extractSvgValue(target: any): string | null {
-    if (!target) return null;
+    const selector = target?.selector || target;
 
-    const selector = target.selector || target;
-
-    if (Array.isArray(selector)) {
-        const svgSel = selector.find((s) => s.type === 'SvgSelector');
-        if (svgSel && svgSel.value) return svgSel.value;
-
-        return null;
-    }
-
-    if (selector?.type === 'SvgSelector' && selector.value) {
-        return selector.value;
-    }
-
-    if (selector?.item?.type === 'SvgSelector' && selector.item.value) {
-        return selector.item.value;
-    }
-
-    return null;
+    return selector?.type === 'SvgSelector' && selector.value
+        ? selector.value
+        : null;
 }
 
-/** Simplified SVG-to-polygon conversion; does not handle curves. */
+/**
+ * Simplified SVG-to-polygon conversion; does not handle curves.
+ *
+ * `<polygon>`/`<path>` cover what annotation editors emit, but `<rect>` and
+ * `<circle>` also reach here: `utils/canvasImageSpace` scales both inside
+ * `SvgSelector` values for the exported `transformAnnotationTo*Space`, so
+ * first-party code already treats them as valid selector geometry. Collecting no
+ * points is not a degraded shape but a dropped annotation — the caller falls
+ * through to whole-canvas geometry, which refuses a targeted annotation, and the
+ * row disappears from the panel as well as the overlay.
+ */
 function convertSvgToPolygon(svgString: string): PolygonGeometry | null {
     try {
         const parser = new DOMParser();
@@ -311,8 +310,7 @@ function convertSvgToPolygon(svgString: string): PolygonGeometry | null {
             const cx = parseFloat(circle.getAttribute('cx') || '0');
             const cy = parseFloat(circle.getAttribute('cy') || '0');
             const r = parseFloat(circle.getAttribute('r') || '0');
-            const circlePoints = generateCirclePoints(cx, cy, r);
-            points.push(...circlePoints);
+            points.push(...generateCirclePoints(cx, cy, r));
         }
 
         const rects = doc.querySelectorAll('rect');
@@ -379,9 +377,7 @@ function generateCirclePoints(
     const points: [number, number][] = [];
     for (let i = 0; i < numPoints; i++) {
         const angle = (i / numPoints) * Math.PI * 2;
-        const x = cx + r * Math.cos(angle);
-        const y = cy + r * Math.sin(angle);
-        points.push([x, y]);
+        points.push([cx + r * Math.cos(angle), cy + r * Math.sin(angle)]);
     }
     return points;
 }
@@ -530,10 +526,12 @@ export function parseAnnotations(
     searchHitIds: Set<string> = new Set(),
     canvasId: string | null = null,
 ): ParsedAnnotation[] {
-    return annotations
-        .flatMap((anno, idx) => {
-            const isSearchHit = searchHitIds.has(getAnnotationId(anno));
-            return buildParsedAnnotations(anno, idx, isSearchHit, canvasId);
-        })
-        .filter((anno) => anno !== null) as ParsedAnnotation[];
+    return annotations.flatMap((anno, idx) =>
+        buildParsedAnnotations(
+            anno,
+            idx,
+            searchHitIds.has(getAnnotationId(anno)),
+            canvasId,
+        ),
+    );
 }

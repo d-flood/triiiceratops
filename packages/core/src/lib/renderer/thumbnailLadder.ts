@@ -73,6 +73,10 @@ import {
     type SizeLadder,
 } from './sizeLadder';
 import { buildPyramid, tileUrl, type TilePyramid } from './tilePyramid';
+import {
+    iiifImageRequestUrl,
+    iiifSizeParameter,
+} from '../utils/iiifImageRequest';
 import type { ImageServiceFacts, SourceDescriptor } from './types';
 
 /**
@@ -182,21 +186,16 @@ export interface ResolveThumbnailInput {
 }
 
 /**
- * `{serviceId}/full/{size}/0/{quality}.{format}` for a service that answers
- * arbitrary sizes.
+ * A whole-image request for a service that answers arbitrary sizes.
  *
  * The size parameter is the width-only form, EXCEPT when the rung is at or
- * above the image's own width, where it is the canonical whole-image spelling
- * (`max` in version 3, `full` in version 2). Asking a 400 px wide service for
- * `512,` is not a large picture, it is a **400**: Image API 3.0 requires the
- * `^` upscaling prefix for any size beyond the region's extent, and 2.1
- * forbids it outright. Without this a small canvas — a seal, a binding fragment
- * — burns both its attempts plus the `native` fallback and then stays blank
- * with nothing in `unresolvedThumbnails` to explain it, because the ladder
- * genuinely did resolve; it resolved to a URL the server refuses.
- *
- * This is the same rule `sizeLadder.rungUrl` applies to a ladder's top rung,
- * stated here for the branch that constructs rather than selects.
+ * above the image's own width, where it is the canonical whole-image spelling.
+ * Without that, a small canvas — a seal, a binding fragment — burns both its
+ * attempts plus the `native` fallback and then stays blank with nothing in
+ * `unresolvedThumbnails` to explain it, because the ladder genuinely did
+ * resolve; it resolved to a URL the server refuses. `iiifSizeParameter` carries
+ * the rest of the rule, and `sizeLadder.rungUrl` applies the same one to a
+ * ladder's top rung — this is the branch that constructs rather than selects.
  */
 function constructedUrl(
     serviceId: string,
@@ -211,8 +210,12 @@ function constructedUrl(
         Number.isFinite(imageWidth) &&
         imageWidth > 0 &&
         rung >= imageWidth;
-    const size = whole ? (version === 3 ? 'max' : 'full') : `${rung},`;
-    return `${serviceId}/full/${size}/0/${quality}.${format}`;
+    return iiifImageRequestUrl(
+        serviceId,
+        iiifSizeParameter(rung, whole, version),
+        quality,
+        format,
+    );
 }
 
 /**

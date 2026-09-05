@@ -69,9 +69,11 @@ import type { ViewportBox, ViewportPoint } from '../types/viewport.js';
  * for the layer that wants device pixels instead: reset the transform, and
  * `x_device = x_world * scale + offsetX`.
  *
- * `scale` has `dpr` folded in, exactly as `paintScene.applyViewportTransform`
- * folds it, which is what keeps a layer's ink on the same sub-pixel grid as the
- * tiles rather than half a device pixel off it.
+ * `scale` has `dpr` folded in. A layer is handed the very transform the tiles
+ * were drawn with — `viewportMath.viewportTransform` builds it once per frame
+ * and the painter and the host both take it from there — which is what keeps a
+ * layer's ink on the same sub-pixel grid as the tiles rather than half a device
+ * pixel off it.
  */
 export interface PaintTransform {
     /** Device pixels per world unit — the viewport scale times `dpr`. */

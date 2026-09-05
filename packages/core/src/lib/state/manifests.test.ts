@@ -262,7 +262,7 @@ describe('ManifestsState', () => {
         });
     });
 
-    describe('manualGetAnnotations', () => {
+    describe('getAnnotations', () => {
         it('should extract annotations and trigger fetch for external lists', async () => {
             await state.registerManifest(
                 MANIFEST_ID,
@@ -279,17 +279,17 @@ describe('ManifestsState', () => {
                 json: async () => ({ resources: [{ '@id': 'anno1' }] }),
             } as Response);
 
-            // First call triggers fetch. `manualGetAnnotations` is synchronous
+            // First call triggers fetch. `getAnnotations` is synchronous
             // and returns whatever is already cached, so the list arrives on a
             // later call.
-            state.manualGetAnnotations(MANIFEST_ID, CANVAS_1);
+            state.getAnnotations(MANIFEST_ID, CANVAS_1);
 
             await new Promise((resolve) => setTimeout(resolve, 0));
 
             expect(mockFetch).toHaveBeenCalledWith('http://example.org/list1');
 
             // Second call should return the annotations
-            const annos = state.manualGetAnnotations(MANIFEST_ID, CANVAS_1);
+            const annos = state.getAnnotations(MANIFEST_ID, CANVAS_1);
             expect(annos).toHaveLength(1);
             expect(annos[0]['@id']).toBe('anno1');
             expect(annos[0].__triiiceratopsCanvas).toEqual({
@@ -322,7 +322,7 @@ describe('ManifestsState', () => {
                 ]),
             };
 
-            const annos = state.manualGetAnnotations(MANIFEST_ID, CANVAS_1);
+            const annos = state.getAnnotations(MANIFEST_ID, CANVAS_1);
 
             expect(annos).toHaveLength(1);
             expect(annos[0].id).toBe('anno-inline');

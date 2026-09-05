@@ -29,4 +29,24 @@ describe('contentState', () => {
             },
         });
     });
+
+    it('parses a content state target carrying a `#t=` media time', () => {
+        const payload = {
+            id: 'annotation-2',
+            type: 'Annotation',
+            target: 'https://example.org/canvas/1#t=157,203',
+            partOf: {
+                id: 'https://example.org/manifest/1',
+            },
+        };
+        const value = Buffer.from(JSON.stringify(payload), 'utf8')
+            .toString('base64url')
+            .replace(/=+$/g, '');
+
+        expect(parseContentState(value)).toEqual({
+            manifestId: 'https://example.org/manifest/1',
+            canvasId: 'https://example.org/canvas/1',
+            time: { seconds: 157, endSeconds: 203 },
+        });
+    });
 });

@@ -489,7 +489,7 @@ test.describe('Canvas2D renderer — static image', () => {
      * The **viewport inset** — the one claim about it that needs a browser.
      *
      * The arithmetic is asserted in `renderer/viewportMath.test.ts`
-     * (`fitBoundsInset`); what only a real viewer can show is that a fit issued
+     * (`insetFitScale`); what only a real viewer can show is that a fit issued
      * through the public command actually consults it, on painted pixels. The
      * grid's centre marker (`bravo`, at 600,450 of a 1200x900 canvas) is the
      * canvas centroid, so with the bottom of the surface reserved it has to land

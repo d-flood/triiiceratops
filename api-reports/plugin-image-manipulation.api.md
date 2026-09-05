@@ -32,10 +32,10 @@ export type { ImageFilters } from './types';
  *
  * `definePlugin` returns the framework-neutral factory core activates through the
  * structural seam (it carries its own `activate(host)`); core never imports this
- * package or its Svelte runtime. Chrome is core-owned (epic
- * restore-plugin-toolbar-chrome, ticket 02): core renders the toolbar button
- * from `meta.icon`, owns the button's open/close state, and anchors + auto-places
- * the flyout toward the canvas. `view.mount(container, context)` receives a
+ * package or its Svelte runtime. Chrome is core-owned: core renders the
+ * toolbar button from `meta.icon`, owns the button's open/close state, and
+ * anchors + auto-places the flyout toward the canvas. `view.mount(container,
+ * context)` receives a
  * content-only element core has already placed, and this plugin renders ONLY the
  * flyout content into it — it draws no button and positions nothing.
  *

@@ -6,6 +6,7 @@ import {
     getPagedCanvasGroups,
     getVisibleCanvasEntries,
     getVisibleChoiceGroups,
+    shouldShowGroupDivider,
     shouldUseAbbreviatedChoiceLabels,
 } from './viewerControls';
 
@@ -795,5 +796,27 @@ describe('viewerControls helpers', () => {
                 rightIcon: 'down',
             });
         });
+    });
+});
+
+describe('shouldShowGroupDivider', () => {
+    it('shows the divider when both groups sit on the same row', () => {
+        expect(shouldShowGroupDivider(0, 0)).toBe(true);
+        // The comparison is between the two groups, not against zero: a bar
+        // whose whole content sits on a second row still divides its groups.
+        expect(shouldShowGroupDivider(40, 40)).toBe(true);
+    });
+
+    it('hides the divider once the later group has dropped to its own row', () => {
+        expect(shouldShowGroupDivider(0, 40)).toBe(false);
+    });
+
+    it('hides the divider when either side is not rendered', () => {
+        // A boundary with only one side has nothing to divide — which is what
+        // makes one rule serve both of the bar's boundaries, whichever groups
+        // this viewer's configuration actually renders.
+        expect(shouldShowGroupDivider(null, 0)).toBe(false);
+        expect(shouldShowGroupDivider(0, null)).toBe(false);
+        expect(shouldShowGroupDivider(null, null)).toBe(false);
     });
 });

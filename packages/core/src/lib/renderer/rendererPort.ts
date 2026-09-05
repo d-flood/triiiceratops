@@ -25,6 +25,7 @@
  */
 
 import type {
+    CanvasSize,
     ContainerSize,
     ImageAdjustments,
     ViewportBox,
@@ -74,6 +75,13 @@ export interface RendererPort {
     getVisibleCanvasIds(): string[];
     /** The canvas-space box the viewport currently shows. */
     getVisibleBounds(canvasId?: string): ViewportBox | null;
+    /**
+     * The extent of a canvas's own coordinate space — what `(0, 0)` to
+     * `(width, height)` means for this canvas, and `null` when it is not laid
+     * out. The manifest's declared size where there is one; the size layout
+     * gave it where there is not.
+     */
+    getCanvasSize(canvasId?: string): CanvasSize | null;
     /** The surface's size in CSS pixels; zeroes before it is measured. */
     getContainerSize(): ContainerSize;
 

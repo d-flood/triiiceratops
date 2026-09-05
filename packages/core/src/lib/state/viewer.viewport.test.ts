@@ -201,6 +201,7 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             getVisibleCanvasIds: () => ['impostor'],
             getCentre: () => ({ x: 999, y: 999 }),
             getVisibleBounds: () => null,
+            getCanvasSize: () => null,
             getContainerSize: () => ({ width: 999, height: 999 }),
             canvasToScreen: () => null,
             screenToCanvas: () => null,
@@ -232,6 +233,7 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             getVisibleCanvasIds: () => [],
             getCentre: () => null,
             getVisibleBounds: () => null,
+            getCanvasSize: () => null,
             getContainerSize: () => ({ width: 1, height: 1 }),
             canvasToScreen: () => null,
             screenToCanvas: () => null,
@@ -278,6 +280,30 @@ describe('query-only viewport state', () => {
         expect(state.containerSize).toEqual({ width: 0, height: 0 });
         expect(state.canvasToScreen({ x: 1, y: 1 })).toBeNull();
         expect(state.screenToCanvas({ x: 1, y: 1 })).toBeNull();
+        expect(state.canvasSize()).toBeNull();
+    });
+
+    /*
+        A canvas that declares no width or height is still laid out, and
+        `canvasSize` is the only way anything outside the renderer can learn
+        the box it was laid out at. Without it a claimant placing DOM over a
+        duration-only audio canvas has nothing to project but invented
+        dimensions, which `canvasToScreen` would then disagree with.
+    */
+    it('reports a canvas-space extent, and null for a canvas it does not lay out', () => {
+        const state = new ViewerState();
+        state.attachRenderer(
+            createRendererStub({
+                canvasIds: ['canvas-1'],
+                canvasSize: { width: 640, height: 360 },
+            }),
+        );
+
+        expect(state.canvasSize('canvas-1')).toEqual({
+            width: 640,
+            height: 360,
+        });
+        expect(state.canvasSize('canvas-9')).toBeNull();
     });
 });
 
@@ -397,7 +423,7 @@ describe('image adjustments', () => {
  * What is asserted here is the COMMAND: the merge, the reset, the refusal, and
  * that nothing is pushed at the renderer. That an inset changes where a fit
  * lands is arithmetic, and it is asserted where the arithmetic lives
- * (`renderer/viewportMath.test.ts` — `fitBoundsInset`) plus one browser
+ * (`renderer/viewportMath.test.ts` — `insetFitScale`) plus one browser
  * assertion in `tests/canvas-renderer.spec.ts`. Teaching the renderer stand-in
  * enough fit maths to assert against here would create a second implementation
  * that drifts from the real one.

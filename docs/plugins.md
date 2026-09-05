@@ -22,16 +22,44 @@ Each first-party plugin is its own independently versioned npm package under the
 - **ES Modules** — for bundler projects (React, Vue, Svelte, Lit, or any other
   framework — Vite, webpack, Rollup, …), import the plugin's factory from its
   scoped package and pass it to the viewer. Plugins run in the page's realm
-  and receive the live `ViewerState` directly — they do **not** share core's
-  Svelte runtime.
+  and receive the live `ViewerState` directly. Every plugin's ESM build leaves
+  `svelte` external as an ordinary peer, so your bundler dedupes it against
+  core's copy the way it dedupes any other shared dependency.
 - **IIFE** — each plugin's IIFE (`@triiiceratops/plugin-*/dist/iife.js`)
   registers a factory into the shared, order-independent
   `window.Triiiceratops.plugins` registry. Loading a script does **not** activate
   the plugin; activation is explicit and per-viewer. Scripts may load in any
-  order.
+  order, **except `@triiiceratops/plugin-av`** — see below.
 
-The RC's `window.TriiiceratopsPlugins` globals and the
-`window.__TriiiceratopsSvelteRuntime` runtime-sharing bridge have been removed.
+The RC's `window.TriiiceratopsPlugins` globals have been removed.
+
+### Script order: `@triiiceratops/plugin-av` loads after core
+
+Every plugin IIFE but one bundles its own Svelte runtime, and may therefore load
+before or after the core script. `@triiiceratops/plugin-av` is the exception: it
+reads core's Svelte runtime off `window.Triiiceratops` instead of shipping a
+second copy of it, which keeps roughly 12 KB gzip off every page that loads it.
+So core's script must run first:
+
+```html
+<script src="triiiceratops-element.iife.js"></script>
+<script src="triiiceratops-plugin-av.iife.js"></script>
+```
+
+Getting it wrong is a named diagnostic, not a broken page: the plugin's bundle
+checks the namespace before it evaluates anything, logs one `console.error`
+saying which half is missing, and does not register — so
+`window.Triiiceratops.plugins.get('@triiiceratops/plugin-av')` returns
+`undefined`. A core too old to share a runtime is refused the same way, and a
+core that shares a runtime but does not declare the `shared-svelte-runtime`
+capability is refused at activation with a `PluginCompatibilityError`.
+
+This is a **first-party-only** arrangement. `svelte/internal` is private,
+unversioned API, and the guarantee behind sharing it is that core and the plugin
+are built and released from one repository at one Svelte version — which is why
+the plugin pins `coreRange` to an exact core version. A third-party plugin is
+released on its own schedule, so it must **bundle its own Svelte runtime**, as
+[the plugin authoring guide](plugin-authoring.md) describes.
 
 ---
 
@@ -227,7 +255,10 @@ package name by replacing every run of unsafe characters with `-` (e.g.
 Every field is a sparse override applied on top of the plugin's authored
 defaults; omitting a field leaves the current live value untouched:
 
-- `visible: false` hides only the plugin's toolbar button.
+- `visible: false` hides only the plugin's toolbar button. A plugin can also
+  hide its own button on a canvas it has nothing for (`surface.setAvailable`,
+  which closes an open surface as it goes); both must agree for the button to
+  render.
 - `open: true` opens the plugin's surface if it is registered.
 - `showCloseButton: false` removes the close button from the plugin's docked
   panel header, and with it the Escape-to-close path — one flag, not two. The
@@ -445,6 +476,7 @@ reference.
 | `triiiceratops/element/register`                     | Web Component ESM registration           |
 | `@triiiceratops/plugin-sdk`                          | Plugin SDK (base)                        |
 | `@triiiceratops/plugin-sdk/register`                 | Browser/IIFE registration (`registerBrowserPlugin`) |
+| `@triiiceratops/plugin-sdk/register-shared`          | Browser/IIFE registration for a plugin that cannot load before core — without a shared-runtime load-order gate it silently no-ops with no diagnostic, so third-party plugins should keep using `/register` |
 | `@triiiceratops/plugin-sdk/{svelte,react,vue,lit}`   | SDK framework adapters                   |
 | `@triiiceratops/plugin-sdk/testing`                  | SDK plugin test kit                      |
 | `@triiiceratops/plugin-image-manipulation`           | Image manipulation plugin (ES module)    |

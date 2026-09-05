@@ -39,7 +39,14 @@ This project is actively developed. The following IIIF features are not yet supp
 
 ### Content
 
-- **Audio/Video**: Time-based media (canvases with `duration`) not supported
+- **Audio/Video**: Core is an image viewer and paints no time-based media. It is
+  honest about it rather than broken: a canvas whose painting bodies are `Sound`
+  or `Video` keeps its place in layout, navigation and the thumbnail strip and
+  shows an unsupported-content placard, and no media URL is ever handed to the
+  image pipeline. Audio, video and HLS playback are the optional
+  `@triiiceratops/plugin-av` plugin, which claims those canvases and renders a
+  media stage with a transport, waveforms, captions and a transcript panel over
+  them. See `packages/plugin-av/README.md` and `docs/plugins.md`.
 
 ### Navigation
 
@@ -56,9 +63,13 @@ There is also an optional `pdf-export` plugin for downloading a selected flat ra
 
 For downloading raster images instead of a PDF, the optional `image-download` plugin handles composite canvases (canvases painted with more than one image) correctly, offering composite-canvas, single-image, and current-view (e.g. a paged two-canvas spread) download modes, each with a resolution picker that respects IIIF `level0` services' fixed size lists. See `docs/plugins.md`.
 
+For audio and video there is the optional `plugin-av` plugin: it plays `Sound` and `Video` painting bodies (including HLS, via a chunk fetched only where the browser has no native support), lays a claimed canvas out into a visual lane and a timeline lane, draws linked audiowaveform data, honours `start`, `#t=` chapters, `auto-advance` and format Choices, and publishes an `AVState` object a host application can command playback through. See `packages/plugin-av/README.md`.
+
 ### Other
 
-- **`placeholderCanvas`/`accompanyingCanvas`**: Not supported
+- **`placeholderCanvas`/`accompanyingCanvas`**: Not supported by core. Both are
+  rendered on audiovisual canvases by the `plugin-av` plugin — a poster before
+  playback, and an accompanying image above the waveform strip.
 
 The goal is to support all IIIF client mandatory features with pluggable optional features. The footprint of Triiiceratops, despite the name, is intended to remain considerably smaller than other fully featured viewers while attaining feature parity.
 

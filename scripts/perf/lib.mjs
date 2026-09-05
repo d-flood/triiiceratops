@@ -333,8 +333,9 @@ export function esmEntryGraphSize(entryFile) {
 
 /**
  * Per-artifact byte sizes for a built repo root. Matches the SPEC list: core
- * ESM entry graph, style.css, element IIFE, each plugin ESM + IIFE, and the SDK
- * ESM entry graph. These are exactly the published artifacts a consumer loads.
+ * ESM entry graph, style.css, element IIFE, each plugin ESM + IIFE, the SDK
+ * ESM entry graph, and the AV plugin's entry file plus each of its lazy chunks.
+ * These are exactly the published artifacts a consumer loads.
  */
 export function collectSizes(root) {
     const coreDist = join(root, 'packages/core/dist');
@@ -354,6 +355,40 @@ export function collectSizes(root) {
         );
         sizes[`${p.key}:iife`] = fileSize(join(root, p.dir, 'dist/iife.js'));
     }
+
+    /*
+        The AV plugin is sized here rather than through PLUGINS above because
+        it is the one plugin whose dist is a DIRECTORY: `iife.js` fetches
+        `av-hls.js`, `av-waveform.js`, `av-sequencer.js` and
+        `av-transcript.js` from beside itself
+        on demand, and the
+        whole point of that arrangement is that the entry stays small while the
+        chunks are large. One `:iife` row would report the entry and say
+        nothing about what a reader who opens an HLS canvas actually pays, so
+        each artifact gets a row.
+
+        These are FILE sizes, including `av:esm-entry`, where every other
+        plugin's `:esm` row is an entry-graph total. `esmEntryGraphSize` follows
+        `import('./chunk')` as readily as a static import — which is right for a
+        package whose dist is one file, and wrong here: it would fold hls.js
+        back into the very row that exists to show it is not there. What proves
+        static unreachability is `lazy-chunks.guard.test.ts`, which greps both
+        built entries for markers only the chunks can carry; these rows record
+        the shape it protects. The ESM build's own hashed chunks are the same
+        code as the two IIFE chunks below and are not sized twice.
+    */
+    const avDist = join(root, 'packages/plugin-av/dist');
+    sizes['av:esm-entry'] = fileSize(join(avDist, 'index.js'));
+    sizes['av:iife'] = fileSize(join(avDist, 'iife.js'));
+    sizes['av:iife-chunk-hls'] = fileSize(join(avDist, 'av-hls.js'));
+    sizes['av:iife-chunk-waveform'] = fileSize(join(avDist, 'av-waveform.js'));
+    sizes['av:iife-chunk-sequencer'] = fileSize(
+        join(avDist, 'av-sequencer.js'),
+    );
+    sizes['av:iife-chunk-transcript'] = fileSize(
+        join(avDist, 'av-transcript.js'),
+    );
+
     return sizes;
 }
 

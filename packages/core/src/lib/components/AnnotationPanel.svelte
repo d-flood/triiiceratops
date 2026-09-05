@@ -12,12 +12,7 @@
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
-    let { embedded = false }: { embedded?: boolean } = $props();
     const m = getMessages();
-
-    let position = $derived(
-        viewerState.config.annotations?.position ?? 'right',
-    );
     /**
      * Every annotation on every canvas the reader is looking at, in layout order:
      * one canvas in `individuals`, the whole spread in `paged`, the folios the
@@ -151,29 +146,9 @@
     <div
         data-panel-id="annotations"
         class="panel"
-        class:floating={!embedded}
-        class:transparent={!embedded &&
-            viewerState.config.transparentBackground}
-        class:border-left={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position !== 'left'}
-        class:border-right={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position === 'left'}
         role="dialog"
         aria-label={m.settings_submenu_annotations()}
     >
-        {#if !embedded}
-            <div class="header">
-                <div class="header-title">
-                    <Icon name="ListDashes" size={20} weight="bold" />
-                    <h2>
-                        {m.settings_submenu_annotations()}
-                    </h2>
-                </div>
-            </div>
-        {/if}
-
         <!-- Toolbar / Stats -->
         <div class="toolbar">
             <div class="count">
@@ -197,7 +172,7 @@
         </div>
 
         <!-- List -->
-        <div bind:this={listEl} class="list" class:scrollable={!embedded}>
+        <div bind:this={listEl} class="list">
             {#each renderedAnnotations as anno, i (anno.id)}
                 {@const isVisible =
                     anno.isSearchHit ||
@@ -206,7 +181,6 @@
                 <!-- List Item Row -->
                 <div
                     class="row"
-                    class:search-hit={anno.isSearchHit}
                     class:dimmed={!isVisible}
                     class:active={isActive}
                     role="button"
@@ -343,50 +317,6 @@
         min-height: 0;
     }
 
-    .panel.floating {
-        height: 100%;
-        background-color: var(--panel-surface);
-        box-shadow: 0 25px 50px -12px #00000040;
-        z-index: 100;
-        transition-property: width;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.2s;
-    }
-
-    .panel.border-left {
-        border-left-width: 1px;
-        border-left-style: solid;
-        border-left-color: var(--tri-surface-border);
-    }
-
-    .panel.border-right {
-        border-right-width: 1px;
-        border-right-style: solid;
-        border-right-color: var(--tri-surface-border);
-    }
-
-    .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem;
-        border-bottom-width: 1px;
-        border-bottom-style: solid;
-        border-bottom-color: var(--tri-surface-border);
-    }
-
-    .header-title {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .header-title h2 {
-        font-weight: 700;
-        font-size: 1.125rem;
-        line-height: 1.75rem;
-    }
-
     .toolbar {
         padding: 1rem;
         border-bottom-width: 1px;
@@ -425,11 +355,6 @@
         border-top-width: 1px;
         border-top-style: solid;
         border-top-color: var(--tri-surface-border);
-    }
-
-    .list.scrollable {
-        flex: 1 1 0%;
-        overflow-y: auto;
     }
 
     .row {

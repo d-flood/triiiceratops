@@ -117,7 +117,6 @@ const DERIVED_READS = new Set([
     'annotatableCanvasIds',
     'canvases',
     'currentCanvasIndex',
-    'currentCanvasSearchAnnotations',
     'hasCollection',
     'hasNext',
     'hasPrevious',
@@ -254,7 +253,7 @@ describe('ViewerState state inventory', () => {
         }
     });
 
-    // These four members are declared as plain `Set`/`Map` so that
+    // These members are declared as plain `Set`/`Map` so that
     // `svelte/reactivity` stays out of core's published declarations. The type
     // system therefore no longer guards them, and a plain collection would stop
     // notifying subscribers; the inventory owns the invariant instead.
@@ -521,14 +520,6 @@ const commandScenarios: CapabilityScenario[] = [
             state.setManifestRequestConfig({ headers: { 'x-test': '1' } }),
     },
     { member: 'searchQuery', act: (state) => state.search('hello') },
-    {
-        member: 'galleryPosition',
-        act: (state) => state.setGalleryPosition({ x: 1, y: 2 }),
-    },
-    {
-        member: 'gallerySize',
-        act: (state) => state.setGallerySize({ width: 1, height: 2 }),
-    },
     { member: 'dockSide', act: (state) => state.setDockSide('right') },
     {
         member: 'isGalleryDockedBottom',
@@ -558,6 +549,21 @@ const commandScenarios: CapabilityScenario[] = [
         // comparison; `plugin/surface.test.ts` asserts that those swaps notify
         // (the channel a plugin's `PluginSurface.isOpen` depends on).
         act: (state) => registerChrome(state),
+    },
+    {
+        member: 'claimedCanvases',
+        // A claim names a plugin this viewer knows, so the claimant has to
+        // exist before it can take a canvas.
+        setup: (state) => state.ensurePluginUiState('P'),
+        act: (state) => state.claimCanvas('canvas-1', 'P'),
+    },
+    {
+        member: 'publishedPluginStates',
+        // Publishing adds the plugin's entry — a size change, which is what
+        // `readValue` compares. Retiring is asserted alongside the rest of the
+        // lifecycle in `viewer.publishedState.test.ts`.
+        act: (state) =>
+            state.publishPluginState('P', { subscribe: () => () => {} }),
     },
 ];
 
@@ -651,6 +657,14 @@ const observableScenarios: CapabilityScenario[] = [
             state.activeLocale = 'de';
         },
     },
+    {
+        // No mutator writes it: navigation carrying a media fragment is the
+        // only thing that publishes a temporal offset.
+        member: 'temporalOffset',
+        act: (state) => {
+            state.setCanvas('canvas-1', { seconds: 157, endSeconds: 203 });
+        },
+    },
 ];
 
 describe('ViewerState subscription capability matrix', () => {
@@ -732,8 +746,7 @@ describe('ViewerState subscription capability matrix', () => {
 
         // Public `internal`-classified members: no plugin-facing contract.
         state.startCanvasId = 'canvas-x';
-        state.isGalleryDragging = true;
-        state.dragOverSide = 'left';
+        state.pendingSearchQuery = 'nothing';
         await tick();
 
         expect(listener).not.toHaveBeenCalled();

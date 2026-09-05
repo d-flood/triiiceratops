@@ -4,7 +4,7 @@
     "renderer": "canvas",
     "tracing": "off",
     "capturedAt": "2026-08-08T18:23:18.772Z",
-    "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median; byte ceilings are proportional (x1.75) so a small scenario is not swallowed by an additive floor sized for a large one. baselineRef names the commit that was MEASURED, which for a working-tree capture is not a released tag. Reproduce a capture with an ordinary build of that commit: the first-party Canvas2D renderer is the only renderer, so no environment variable selects it.",
+    "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median; byte ceilings are proportional (x1.75) so a small scenario is not swallowed by an additive floor sized for a large one. baselineRef names the commit that was MEASURED, which for a working-tree capture is not a released tag. Reproduce a capture with an ordinary build of that commit: the first-party Canvas2D renderer is the only renderer, so no environment variable selects it. core:style.css was re-recorded from 12,995 when the shared tooltip sheet moved into the global layer: those rules previously shipped twice over, inside Toolbar's and AnnotationShapeOverlay's scoped blocks, which svelte-package hands to a component consumer as part of each component rather than as part of this file. The sheet grew; what a consumer transfers fell.",
     "thresholds": {
         "sizeRegressionPct": 0.05,
         "runtimePct": 0.1,
@@ -20,8 +20,8 @@
             "ceilingBytes": 50281
         },
         "core:style.css": {
-            "bytes": 12995,
-            "ceilingBytes": 13645
+            "bytes": 16504,
+            "ceilingBytes": 17330
         },
         "core:element-iife": {
             "bytes": 534162,
@@ -62,6 +62,56 @@
         "annotation-editor:iife": {
             "bytes": 117702,
             "ceilingBytes": 123588
+        },
+        "av:esm-entry": {
+            "bytes": 50280,
+            "ceilingBytes": 52794
+        },
+        "av:iife": {
+            "bytes": 51511,
+            "ceilingBytes": 54086
+        },
+        "av:iife-chunk-hls": {
+            "bytes": 856581,
+            "ceilingBytes": 899410
+        },
+        "av:iife-chunk-waveform": {
+            "bytes": 6569,
+            "ceilingBytes": 6897
+        },
+        "av:iife-chunk-sequencer": {
+            "bytes": 5036,
+            "ceilingBytes": 5288
+        },
+        "av:iife-chunk-transcript": {
+            "bytes": 4495,
+            "ceilingBytes": 4720
+        }
+    },
+    "acceptedSizeIncreases": {
+        "av:esm-entry": {
+            "headBytes": 52794,
+            "reason": "New artifact family: the base ref predates @triiiceratops/plugin-av, so there is nothing to diff its entry against."
+        },
+        "av:iife": {
+            "headBytes": 54086,
+            "reason": "New artifact family: the base ref predates @triiiceratops/plugin-av. This is the artifact the competitive pair budget in scripts/size-check.mjs actually gates; the ratchet on its gzip lives in the plugin's own check-shared-runtime.mjs."
+        },
+        "av:iife-chunk-hls": {
+            "headBytes": 899410,
+            "reason": "New artifact family, and deliberately large: hls.js is fetched only when an HLS body must play on a browser with no native HLS. These bytes are never in the entry and never in the pair budget."
+        },
+        "av:iife-chunk-waveform": {
+            "headBytes": 6897,
+            "reason": "New artifact family: fetched only when a canvas links waveform data."
+        },
+        "av:iife-chunk-sequencer": {
+            "headBytes": 5288,
+            "reason": "New artifact family: fetched only when a canvas is painted by several time-based bodies tiling its duration. These bytes are never in the entry and never in the pair budget."
+        },
+        "av:iife-chunk-transcript": {
+            "headBytes": 4720,
+            "reason": "New artifact family: the transcript panel, fetched only when the current canvas carries a VTT track that loaded with cues in it. These bytes are never in the entry and never in the pair budget."
         }
     },
     "runtime": {

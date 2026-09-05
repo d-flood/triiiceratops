@@ -103,6 +103,40 @@ describe('createPluginSurface', () => {
 
         state.destroy();
     });
+
+    it('setAvailable hides the plugin button and closes an open panel', () => {
+        const state = new ViewerState();
+        const surface = createPluginSurface(state, 'gated', 'panel');
+        state.registerSdkChrome({
+            id: 'gated',
+            name: 'Gated',
+            icon: { kind: 'svg', inner: '', viewBox: '0 0 1 1' },
+            target: 'panel',
+            dismiss: 'light',
+            mount: () => () => {},
+        });
+        surface.open();
+
+        const button = () => state.pluginMenuButtons[0];
+        const panel = () => state.pluginPanels[0];
+        expect(button()?.isVisible?.()).toBe(true);
+        expect(panel()?.isVisible()).toBe(true);
+
+        surface.setAvailable(false);
+        expect(button()?.isVisible?.()).toBe(false);
+        // Closed, not merely unrendered: hiding the button alone would strand
+        // an open panel with nothing left to close it.
+        expect(surface.isOpen).toBe(false);
+        expect(panel()?.isVisible()).toBe(false);
+
+        // Availability returning brings the button back; the panel is the
+        // reader's to reopen.
+        surface.setAvailable(true);
+        expect(button()?.isVisible?.()).toBe(true);
+        expect(surface.isOpen).toBe(false);
+
+        state.destroy();
+    });
 });
 
 describe('plugin open state notifies subscribers', () => {

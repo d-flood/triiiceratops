@@ -1,4 +1,5 @@
 import { getResourceId } from './iiifIds';
+import { asArray } from './iiifParsing';
 import { resolveAllLanguageValues, resolveLanguageValue } from './languageMap';
 
 export type NormalizedLink = {
@@ -73,10 +74,6 @@ export type DescriptiveMetadata = {
     seeAlso: NormalizedLink[];
 };
 
-function toList(value: unknown): any[] {
-    return Array.isArray(value) ? value : value ? [value] : [];
-}
-
 /**
  * Read a manifest's or canvas's descriptive metadata out of raw IIIF JSON.
  *
@@ -127,13 +124,13 @@ export function normalizeDescriptiveMetadata(
             ? resolveHtmlValues(statement.value, locale)
             : resolveHtmlValues(json.attribution, locale),
         license: typeof license === 'string' ? license : '',
-        providers: toList(json.provider).map((p: any) => ({
+        providers: asArray(json.provider).map((p: any) => ({
             label: resolveLanguageValue(p.label, locale) || '',
             links: [
                 ...normalizeIiifLinks(p.homepage, locale),
                 ...normalizeIiifLinks(p.seeAlso, locale),
             ],
-            logos: toList(p.logo)
+            logos: asArray(p.logo)
                 .map((logo: any) =>
                     typeof logo === 'string' ? logo : getResourceId(logo),
                 )

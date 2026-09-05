@@ -198,13 +198,6 @@ export interface ImageServiceCache {
      */
     ensure(serviceId: string): Promise<ImageServiceFacts | null>;
     /**
-     * Forget one service entirely — facts and failure alike — so the next
-     * `ensure` refetches.
-     */
-    invalidate(serviceId: string): void;
-    /** Forget every service. */
-    clear(): void;
-    /**
      * Forget every failure that was **not** deterministic, keeping the facts.
      *
      * Called by the host on mount. A dropped connection, a captive portal, or a
@@ -215,8 +208,6 @@ export interface ImageServiceCache {
      * are answers, and repeating the question cannot change them.
      */
     retryTransientFailures(): void;
-    /** How many network requests this cache has issued. Test/diagnostic only. */
-    readonly requestCount: number;
 }
 
 export interface ImageServiceCacheOptions {
@@ -297,7 +288,6 @@ export function createImageServiceCache(
         settle: (facts: ImageServiceFacts | null) => void;
     }> = [];
     let active = 0;
-    let requestCount = 0;
 
     /** Insertion-ordered, so the oldest key is simply the first one. */
     function bound<Value>(map: Map<string, Value>): void {
@@ -320,7 +310,6 @@ export function createImageServiceCache(
     }
 
     async function load(serviceId: string): Promise<ImageServiceFacts | null> {
-        requestCount += 1;
         try {
             const { status, json } = await fetchJson(`${serviceId}/info.json`);
             // The authentication/load distinction is preserved from the
@@ -410,21 +399,10 @@ export function createImageServiceCache(
             pump();
             return queued;
         },
-        invalidate(serviceId) {
-            facts.delete(serviceId);
-            failures.delete(serviceId);
-        },
-        clear() {
-            facts.clear();
-            failures.clear();
-        },
         retryTransientFailures() {
             for (const [serviceId, entry] of [...failures]) {
                 if (!entry.permanent) failures.delete(serviceId);
             }
-        },
-        get requestCount() {
-            return requestCount;
         },
     };
 }

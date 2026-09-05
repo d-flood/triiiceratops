@@ -12,29 +12,18 @@
  * (spec §Coordinate model and layout).
  */
 
+import { getCanvasId } from '../utils/iiifIds';
+import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
 import {
-    buildIiifImageRequestUrl,
     getDeclaredCanvasDimensions,
-    getRegionString,
     resolveAllCanvasImages,
+    toImageSource,
 } from '../utils/resolveCanvasImage';
 
-import type { PlannerCanvas, PlannerImage, SourceDescriptor } from './types';
+import { UNSIZED_CANVAS_PLACEHOLDER } from './rendererDefaults';
+import type { PlannerCanvas, PlannerImage } from './types';
 
 type SelectedChoiceLookup = (canvasId: string) => string | undefined;
-
-/**
- * Stand-in dimensions for a Canvas that declares none.
- *
- * Their value is irrelevant and they never reach layout: this module reports
- * such a canvas's geometry as `null` and the planner supplies the real guess (a
- * median of the canvas's siblings, then a reflow from the image service). They
- * exist only so `resolveCanvasImage` — whose every other caller wants an
- * unsized canvas dropped — still hands back the source descriptor rather than
- * refusing outright. Square, and a plausible page size, so nothing downstream
- * that stumbles on them divides by something absurd.
- */
-const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
 
 /**
  * The Canvas's own declared `thumbnail`, as a fixed URL — the first rung of the
@@ -66,44 +55,21 @@ export function getDeclaredThumbnailUrl(canvas: unknown): string | null {
 }
 
 /**
- * One canvas's source descriptor.
+ * The Canvas's declared `duration` in seconds, or `null`.
  *
- * The ordering mirrors `getCanvasTileSource`, so which URL a canvas resolves to
- * does not change with the renderer:
- *
- * 1. a service **plus** an Image API region is a prebuilt image request — a
- *    single static image of the cropped region (spec, user story 30);
- * 2. a service alone is a `service` source, resolved against the tile pyramid
- *    or size ladder;
- * 3. otherwise the painting resource's own id is a plain static image
- *    (user story 29).
+ * Raw JSON, like {@link getDeclaredThumbnailUrl} above it and for the same
+ * reason: this module is the renderer's only contact with manifest shape.
+ * `duration` is Presentation 3 only — a v2 Canvas has no such property — and
+ * must be a positive number to mean anything, so anything else is `null` rather
+ * than passed on for arithmetic downstream to trip over.
  */
-function toSourceDescriptor(
-    resolved: ReturnType<typeof resolveAllCanvasImages>[number],
-): SourceDescriptor | null {
-    if (resolved.serviceId && resolved.imageApiRegion) {
-        return {
-            kind: 'static',
-            url: buildIiifImageRequestUrl(resolved.serviceId, {
-                region: getRegionString(resolved.imageApiRegion),
-                size: 'max',
-            }),
-        };
-    }
-
-    if (resolved.serviceId) {
-        return {
-            kind: 'service',
-            serviceId: resolved.serviceId,
-            profile: resolved.serviceProfile,
-        };
-    }
-
-    if (resolved.resourceId) {
-        return { kind: 'static', url: resolved.resourceId };
-    }
-
-    return null;
+export function getDeclaredDuration(canvas: unknown): number | null {
+    const declared = (canvas as { duration?: unknown } | null)?.duration;
+    return typeof declared === 'number' &&
+        Number.isFinite(declared) &&
+        declared > 0
+        ? declared
+        : null;
 }
 
 /**
@@ -122,7 +88,7 @@ function toSourceDescriptor(
  *
  * The Image API region selector on a body is a different mechanism and is
  * unaffected: that one is a crop of the SOURCE and is already handled by
- * {@link toSourceDescriptor} as a prebuilt static request.
+ * {@link toImageSource} as a prebuilt static request.
  *
  * A Canvas that declares no `width`/`height` is a spec violation the viewer
  * still has to render (user story 32), so it is **not** dropped here: it comes
@@ -131,6 +97,15 @@ function toSourceDescriptor(
  * service later reports real dimensions. Guessing here instead would put the
  * guess out of reach of the reflow, since this function sees one canvas and
  * knows nothing about what a later fetch turns up.
+ *
+ * **A canvas core cannot paint is still a canvas.** Where the painting bodies
+ * are all non-image — a video, a sound recording — the descriptor comes back
+ * with no images at all, so the canvas keeps its layout rect and its place in
+ * navigation and the thumbnail strip and gets the **unsupported presentation**
+ * rather than vanishing (CONTEXT.md; ADR 0017). That is the one case an
+ * imageless descriptor is returned for: a canvas that paints nothing at all, or
+ * whose image bodies resolved to nothing requestable, is `null` here as it has
+ * always been.
  */
 export function toPlannerCanvas(
     canvas: unknown,
@@ -139,13 +114,18 @@ export function toPlannerCanvas(
     const declared = getDeclaredCanvasDimensions(canvas);
     const resolved = resolveAllCanvasImages(canvas, {
         getSelectedChoice,
+        // Never reaches layout: this module reports such a canvas's geometry
+        // as `null` and the planner supplies the real guess (a median of the
+        // canvas's siblings, then a reflow from the image service). It is here
+        // only so `resolveCanvasImage` — whose every other caller wants an
+        // unsized canvas dropped — still hands back the source descriptor
+        // rather than refusing outright.
         fallbackCanvasDimensions: UNSIZED_CANVAS_PLACEHOLDER,
     });
-    if (!resolved.length) return null;
 
     const images: PlannerImage[] = [];
     resolved.forEach((image, index) => {
-        const source = toSourceDescriptor(image);
+        const source = toImageSource(image);
         if (!source) return;
 
         images.push({
@@ -163,18 +143,80 @@ export function toPlannerCanvas(
         });
     });
 
-    // Every annotation resolved to something unusable — no service, no resource
-    // id, nothing to request. That is the same "paints nothing usable" this
-    // function has always answered `null` to.
-    if (!images.length) return null;
+    if (images.length) {
+        return {
+            id: resolved[0].canvasId,
+            width: declared?.width ?? null,
+            height: declared?.height ?? null,
+            duration: getDeclaredDuration(canvas),
+            images,
+            thumbnailUrl: getDeclaredThumbnailUrl(canvas),
+        };
+    }
 
+    // Nothing to paint, and which of the two reasons that is decides whether
+    // the canvas survives — decided on what its painting bodies ARE rather than
+    // on what resolution managed to do with them.
+    //
+    // A canvas whose bodies are all non-image has content the manifest
+    // describes and core cannot show, which the reader is owed an honest
+    // statement about. A canvas with an image body that resolved to nothing
+    // requestable — no service, no id — is a broken image annotation, and the
+    // viewer has always dropped it; announcing that as unsupported content
+    // would be a lie about the manifest. A canvas with no painting bodies at
+    // all (Cookbook recipe 0283, an IxIF element) is dropped for the same
+    // reason.
+    // Classified over the SELECTED body, the same one resolution just took: a
+    // mixed Choice resting on its non-image alternative is a canvas core cannot
+    // paint, and asking about the alternatives as authored answers `false` and
+    // drops it (see `isUnsupportedCanvas`).
+    const canvasId = getCanvasId(canvas);
+    if (!canvasId || !isUnsupportedCanvasFor(getSelectedChoice, canvas))
+        return null;
+
+    // No `thumbnailUrl`, and its absence is deliberate rather than an omission.
+    // A declared thumbnail on this canvas is a poster frame, and painting it in
+    // the canvas rect would read as the film itself having loaded — the exact
+    // dishonesty the unsupported presentation exists to avoid. Poster and
+    // placeholder handling belongs to the AV plugin.
     return {
-        id: resolved[0].canvasId,
+        id: canvasId,
         width: declared?.width ?? null,
         height: declared?.height ?? null,
+        duration: getDeclaredDuration(canvas),
         images,
-        thumbnailUrl: getDeclaredThumbnailUrl(canvas),
     };
+}
+
+/**
+ * The canvases getting the **unsupported presentation**, by id.
+ *
+ * A canvas with no images on it is one core cannot paint — that is
+ * {@link toPlannerCanvas}' whole statement of the condition — unless a plugin
+ * has **claimed** it, in which case the claimant renders its content and an
+ * honest "core cannot show this" placard over the top of it would be a lie
+ * (CONTEXT.md **Canvas claim**; ADR 0017).
+ *
+ * That is the claim's ENTIRE effect on rendering. The descriptors are untouched
+ * by it, so a claimed composite canvas keeps painting its image bodies through
+ * the whole tile pipeline, and layout, residency, and projection never learn
+ * that a claim exists.
+ *
+ * `isClaimed` is consulted only for a canvas that would otherwise get the
+ * treatment, which is what keeps this free on the image manifests that have no
+ * such canvas at all.
+ */
+export function unsupportedPresentationIds(
+    canvases: readonly PlannerCanvas[],
+    isClaimed?: (canvasId: string) => boolean,
+): Set<string> {
+    const ids = new Set<string>();
+    for (const canvas of canvases) {
+        if (canvas.images.length === 0 && !isClaimed?.(canvas.id)) {
+            ids.add(canvas.id);
+        }
+    }
+    return ids;
 }
 
 /** Raw Canvases → planner canvases, dropping any that paint nothing usable. */

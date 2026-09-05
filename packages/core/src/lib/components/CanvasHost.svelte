@@ -8,7 +8,20 @@
     let {
         tileSources,
         viewerState,
-    }: { tileSources: unknown; viewerState: ViewerState } = $props();
+        dockedChrome = '',
+    }: {
+        tileSources: unknown;
+        viewerState: ViewerState;
+        /**
+         * An opaque identity for the chrome core currently has docked beside
+         * the viewer. Only compared for CHANGE — a different string means the
+         * size the renderer has to work with is about to change because core
+         * took some of it, and nothing here reads the tokens themselves. A
+         * flyout is not in it: it floats and takes no width or height, so it is
+         * not an event for the image.
+         */
+        dockedChrome?: string;
+    } = $props();
 
     const m = getMessages();
 
@@ -43,12 +56,36 @@
         void tileSources;
         // Read so the effect re-runs when the manifest or the mode changes and
         // the world has to be refitted; the images themselves are reconciled in
-        // the frame loop, where the tier that gates them is known.
-        void renderer.plannerCanvases;
+        // the frame loop, where the tier that gates them is known. Geometry
+        // only — a refit overwrites the reader's centre and scale, so it must
+        // not fire for a change that leaves every rect where it was.
+        void renderer.paintedGeometry;
 
         // Whether this is a TRAVEL within a laid-out world or a jump into a new
         // one is the renderer's own memory — see `refitForCurrentWorld`.
         renderer.refitForCurrentWorld();
+    });
+
+    /*
+     * What the renderer cannot see for itself: a resize caused by core taking
+     * part of the surface for docked chrome, rather than by the window changing
+     * size. The two must not be collapsed — a resize the reader asked for
+     * preserves their scale, and one core imposed compensates their whole view
+     * for it, so that the content on screen survives the narrower surface. See
+     * `compensateForDockedChrome`.
+     *
+     * The baseline is the empty string rather than the mount value on purpose.
+     * A viewer that opens with a panel already docked still mounts this
+     * component beside a column of zero width and lets it slide out, so the
+     * first measurement is taken on the FULL surface and the column's arrival
+     * is a change like any other.
+     */
+    let chromeDocked = '';
+    $effect(() => {
+        const docked = dockedChrome;
+        if (docked === chromeDocked) return;
+        chromeDocked = docked;
+        renderer.compensateForDockedChrome();
     });
 
     $effect(() => {
@@ -63,7 +100,26 @@
         // while the viewport is idle would first appear at whatever unrelated
         // repaint came next — and one that was released would go on being drawn
         // until then.
-        void viewerState.paintLayerRevision;
+        //
+        // The revision has to be CONSUMED, not merely read: as a bare `void`
+        // statement it was side-effect-free, and the element build's terser pass
+        // deleted it, leaving this effect with no dependency at all in the
+        // shipped bundle. The guard is always true. See the same fix on
+        // `overlayLayers` in `TriiiceratopsViewer.svelte`.
+        if (viewerState.paintLayerRevision >= 0) renderer.requestFrame();
+    });
+
+    $effect(() => {
+        // A canvas was claimed or released, which moves the unsupported
+        // presentation. The same rule as the layers above: the frame loop stops
+        // rescheduling once the viewport settles, so without this a claim taken
+        // on an idle viewer would leave the placard painted over the claimant's
+        // content until the reader panned — while the thumbnail strip, which
+        // reads the claim set directly, dropped its glyph immediately.
+        //
+        // `keys()` rather than `size`: a release and a fresh claim in one tick
+        // leave the size unchanged.
+        void viewerState.claimedCanvases.keys();
         renderer.requestFrame();
     });
 </script>
@@ -144,7 +200,6 @@
         onpointerup={renderer.handlers.pointerup}
         onpointercancel={renderer.handlers.pointercancel}
         onlostpointercapture={renderer.handlers.pointercancel}
-        onwheel={renderer.handlers.wheel}
     ></canvas>
 
     <!--
@@ -203,7 +258,7 @@
                     -->
                     {#if placement.labelled}
                         <span
-                            class="canvas-error-text"
+                            class="canvas-placeholder-text"
                             data-testid="canvas-error-label"
                             aria-hidden="true"
                             style:left="{placement.labelLeft -
@@ -212,6 +267,54 @@
                             style:width="{placement.labelWidth}px"
                             style:height="{placement.labelHeight}px"
                             >{renderer.errorLabel(placement.kind)}</span
+                        >
+                    {/if}
+                </div>
+            {/each}
+        </div>
+    {/if}
+
+    <!--
+        The unsupported presentation: one honest placeholder over the layout rect
+        of each canvas whose painting bodies core cannot render — a sound
+        recording, a film — and nothing at all on an image manifest.
+
+        A SEPARATE layer from the error one, because it is not an error
+        (CONTEXT.md → Unsupported presentation). Nothing failed, nothing was
+        fetched, and there is nothing to retry; the manifest simply describes
+        content this viewer does not display, and the canvas keeps its rect, its
+        place in navigation and its place in the thumbnail strip. The two layers
+        never overlap: an unsupported canvas issues no request, so it can never
+        acquire an error.
+
+        `role="document"` and `pointer-events: none` for the same two reasons the
+        error layer carries them — see the notes above it.
+    -->
+    {#if renderer.unsupportedLayer.length > 0}
+        <div class="unsupported-layer" role="document">
+            {#each renderer.unsupportedLayer as placement (placement.canvasId)}
+                <div
+                    class="canvas-unsupported"
+                    data-testid="canvas-unsupported-placeholder"
+                    data-canvas-id={placement.canvasId}
+                    role="img"
+                    aria-label={renderer.unsupportedLabel()}
+                    style:left="{placement.left}px"
+                    style:top="{placement.top}px"
+                    style:width="{placement.width}px"
+                    style:height="{placement.height}px"
+                >
+                    {#if placement.labelled}
+                        <span
+                            class="canvas-placeholder-text"
+                            data-testid="canvas-unsupported-label"
+                            aria-hidden="true"
+                            style:left="{placement.labelLeft -
+                                placement.left}px"
+                            style:top="{placement.labelTop - placement.top}px"
+                            style:width="{placement.labelWidth}px"
+                            style:height="{placement.labelHeight}px"
+                            >{renderer.unsupportedLabel()}</span
                         >
                     {/if}
                 </div>
@@ -254,7 +357,8 @@
      * still be able to pan and zoom from anywhere on the surface — including from
      * over a folio that failed.
      */
-    .error-layer {
+    .error-layer,
+    .unsupported-layer {
         position: absolute;
         inset: 0;
         pointer-events: none;
@@ -271,12 +375,23 @@
      * Theme tokens throughout, like the rest of the surface: the placeholder sits
      * among the working pages and has to belong to the same picture.
      */
-    .canvas-error {
+    .canvas-error,
+    .canvas-unsupported {
         position: absolute;
         box-sizing: border-box;
         background-color: var(--tri-panel-bg);
         border: 1px solid var(--tri-color-warning);
         color: var(--tri-panel-content);
+    }
+
+    /*
+     * Not an error, and it must not look like one: the border is the ordinary
+     * panel border rather than the warning colour, because nothing went wrong.
+     * The canvas is present, laid out and navigable — it just holds a medium
+     * this viewer does not play.
+     */
+    .canvas-unsupported {
+        border-color: var(--tri-surface-border);
     }
 
     /*
@@ -298,7 +413,7 @@
      * reader is looking" stop being the same box the moment the rect is larger
      * than the viewport — which the zoom ceiling makes ordinary.
      */
-    .canvas-error-text {
+    .canvas-placeholder-text {
         position: absolute;
         display: flex;
         align-items: center;
@@ -308,8 +423,8 @@
         font-size: 0.8125rem;
         line-height: 1.3;
         text-align: center;
-        /* The box is never below `canvasErrors.MIN_LABEL_*`, so the message fits
-           at the ordinary text size; this is the guard for the cases that
+        /* The box is never below `canvasPlacements.MIN_LABEL_*`, so the message
+           fits at the ordinary text size; this is the guard for the cases that
            bound cannot know about — a translation several times longer, or a
            reader's larger minimum font size. Clipped rather than allowed to
            spill over the pages either side of it. */

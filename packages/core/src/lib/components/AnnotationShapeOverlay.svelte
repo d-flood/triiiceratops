@@ -467,152 +467,129 @@
     activation; read-only ones are inert, unfocusable, and take no pointer events
     so a pan can start on top of them. A full-canvas annotation has no meaningful
     box, so it is drawn only while its panel row is hovered.
+
+    The a11y ignores below are for that pairing: the compiler cannot see which
+    tag `<svelte:element>` resolves to, and the handlers exist only on the
+    `<button>` arm — a read-only shape is a `div` with no handler at all.
 -->
 <div bind:this={root} class="anno-shape-layer" data-testid="annotation-shapes">
     {#each shapes as shape (shape.id)}
         {#if isShapeDrawn(shape)}
+            {@const editable = isEditableShape(shape)}
+            {@const tip = editable && shouldShowShapeTooltip(shape)}
+            {@const hovered = !editable && readonlyTooltip?.id === shape.id}
+            {@const active = isActiveShape(shape)}
             {#if shape.type === 'RECTANGLE'}
-                {#if isEditableShape(shape)}
-                    <button
-                        type="button"
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-rect"
-                        class:tooltip={shouldShowShapeTooltip(shape)}
-                        class:tooltip-primary={shouldShowShapeTooltip(shape)}
-                        class:search-hit={shape.isSearchHit}
-                        class:active={isActiveShape(shape)}
-                        data-tip={shouldShowShapeTooltip(shape)
-                            ? shape.tooltip
-                            : undefined}
-                        aria-label={shape.tooltip}
-                        style:left="{shape.rect.x}px"
-                        style:top="{shape.rect.y}px"
-                        style:width="{shape.rect.width}px"
-                        style:height="{shape.rect.height}px"
-                        onclick={(event) =>
-                            requestAnnotationEdit(shape.annotationId, event)}
-                        onkeydown={(event) =>
-                            handleShapeKeydown(shape.annotationId, event)}
-                    ></button>
-                {:else}
-                    <div
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-readonly-wrap"
-                        style:left="{shape.rect.x}px"
-                        style:top="{shape.rect.y}px"
-                        style:width="{shape.rect.width}px"
-                        style:height="{shape.rect.height}px"
-                    >
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <svelte:element
+                    this={editable ? 'button' : 'div'}
+                    type={editable ? 'button' : undefined}
+                    id="annotation-visual-{shape.id}"
+                    data-annotation-id={shape.annotationId}
+                    class={editable ? 'anno-rect' : 'anno-readonly-wrap'}
+                    class:tooltip={tip}
+                    class:tooltip-primary={tip}
+                    class:search-hit={editable && shape.isSearchHit}
+                    class:active={editable && active}
+                    data-tip={tip ? shape.tooltip : undefined}
+                    aria-label={editable ? shape.tooltip : undefined}
+                    style:left="{shape.rect.x}px"
+                    style:top="{shape.rect.y}px"
+                    style:width="{shape.rect.width}px"
+                    style:height="{shape.rect.height}px"
+                    onclick={editable
+                        ? (event: MouseEvent) =>
+                              requestAnnotationEdit(shape.annotationId, event)
+                        : undefined}
+                    onkeydown={editable
+                        ? (event: KeyboardEvent) =>
+                              handleShapeKeydown(shape.annotationId, event)
+                        : undefined}
+                >
+                    {#if !editable}
                         <div
                             class="anno-rect-fill"
                             class:search-hit={shape.isSearchHit}
-                            class:hovered={readonlyTooltip?.id === shape.id}
-                            class:active={isActiveShape(shape)}
+                            class:hovered
+                            class:active
                         ></div>
-                    </div>
-                {/if}
+                    {/if}
+                </svelte:element>
             {:else if shape.type === 'POLYGON'}
-                {#if isEditableShape(shape)}
-                    <button
-                        type="button"
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-polygon-btn"
-                        class:tooltip={shouldShowShapeTooltip(shape)}
-                        class:tooltip-primary={shouldShowShapeTooltip(shape)}
-                        data-tip={shouldShowShapeTooltip(shape)
-                            ? shape.tooltip
-                            : undefined}
-                        aria-label={shape.tooltip}
-                        style:left="{shape.bounds.x}px"
-                        style:top="{shape.bounds.y}px"
-                        style:width="{shape.bounds.width}px"
-                        style:height="{shape.bounds.height}px"
-                        onclick={(event) =>
-                            requestAnnotationEdit(shape.annotationId, event)}
-                        onkeydown={(event) =>
-                            handleShapeKeydown(shape.annotationId, event)}
-                    >
-                        <svg class="anno-polygon-svg">
-                            <polygon
-                                points={shape.points
-                                    .map((point) => point.join(','))
-                                    .join(' ')}
-                                class="anno-polygon-shape interactive"
-                                class:search-hit={shape.isSearchHit}
-                                class:active={isActiveShape(shape)}
-                                stroke-width="2"
-                            />
-                        </svg>
-                    </button>
-                {:else}
-                    <div
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-readonly-wrap"
-                        style:left="{shape.bounds.x}px"
-                        style:top="{shape.bounds.y}px"
-                        style:width="{shape.bounds.width}px"
-                        style:height="{shape.bounds.height}px"
-                    >
-                        <svg class="anno-polygon-svg readonly">
-                            <polygon
-                                points={shape.points
-                                    .map((point) => point.join(','))
-                                    .join(' ')}
-                                class="anno-polygon-shape"
-                                class:search-hit={shape.isSearchHit}
-                                class:hovered={readonlyTooltip?.id === shape.id}
-                                class:active={isActiveShape(shape)}
-                                stroke-width="2"
-                            />
-                        </svg>
-                    </div>
-                {/if}
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <svelte:element
+                    this={editable ? 'button' : 'div'}
+                    type={editable ? 'button' : undefined}
+                    id="annotation-visual-{shape.id}"
+                    data-annotation-id={shape.annotationId}
+                    class={editable ? 'anno-polygon-btn' : 'anno-readonly-wrap'}
+                    class:tooltip={tip}
+                    class:tooltip-primary={tip}
+                    data-tip={tip ? shape.tooltip : undefined}
+                    aria-label={editable ? shape.tooltip : undefined}
+                    style:left="{shape.bounds.x}px"
+                    style:top="{shape.bounds.y}px"
+                    style:width="{shape.bounds.width}px"
+                    style:height="{shape.bounds.height}px"
+                    onclick={editable
+                        ? (event: MouseEvent) =>
+                              requestAnnotationEdit(shape.annotationId, event)
+                        : undefined}
+                    onkeydown={editable
+                        ? (event: KeyboardEvent) =>
+                              handleShapeKeydown(shape.annotationId, event)
+                        : undefined}
+                >
+                    <svg class="anno-polygon-svg" class:readonly={!editable}>
+                        <polygon
+                            points={shape.points
+                                .map((point) => point.join(','))
+                                .join(' ')}
+                            class="anno-polygon-shape"
+                            class:interactive={editable}
+                            class:search-hit={shape.isSearchHit}
+                            class:hovered
+                            class:active
+                            stroke-width="2"
+                        />
+                    </svg>
+                </svelte:element>
             {:else if shape.type === 'POINT'}
-                {#if isEditableShape(shape)}
-                    <button
-                        type="button"
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-point"
-                        class:tooltip={shouldShowShapeTooltip(shape)}
-                        class:tooltip-primary={shouldShowShapeTooltip(shape)}
-                        class:search-hit={shape.isSearchHit}
-                        class:active={isActiveShape(shape)}
-                        data-tip={shouldShowShapeTooltip(shape)
-                            ? shape.tooltip
-                            : undefined}
-                        aria-label={shape.tooltip}
-                        style:left="{shape.point.x - pointMarkerSize / 2}px"
-                        style:top="{shape.point.y - pointMarkerSize / 2}px"
-                        style:width="{pointMarkerSize}px"
-                        style:height="{pointMarkerSize}px"
-                        onclick={(event) =>
-                            requestAnnotationEdit(shape.annotationId, event)}
-                        onkeydown={(event) =>
-                            handleShapeKeydown(shape.annotationId, event)}
-                    ></button>
-                {:else}
-                    <div
-                        id="annotation-visual-{shape.id}"
-                        data-annotation-id={shape.annotationId}
-                        class="anno-readonly-wrap"
-                        style:left="{shape.point.x - pointMarkerSize / 2}px"
-                        style:top="{shape.point.y - pointMarkerSize / 2}px"
-                        style:width="{pointMarkerSize}px"
-                        style:height="{pointMarkerSize}px"
-                    >
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <svelte:element
+                    this={editable ? 'button' : 'div'}
+                    type={editable ? 'button' : undefined}
+                    id="annotation-visual-{shape.id}"
+                    data-annotation-id={shape.annotationId}
+                    class={editable ? 'anno-point' : 'anno-readonly-wrap'}
+                    class:tooltip={tip}
+                    class:tooltip-primary={tip}
+                    class:search-hit={editable && shape.isSearchHit}
+                    class:active={editable && active}
+                    data-tip={tip ? shape.tooltip : undefined}
+                    aria-label={editable ? shape.tooltip : undefined}
+                    style:left="{shape.point.x - pointMarkerSize / 2}px"
+                    style:top="{shape.point.y - pointMarkerSize / 2}px"
+                    style:width="{pointMarkerSize}px"
+                    style:height="{pointMarkerSize}px"
+                    onclick={editable
+                        ? (event: MouseEvent) =>
+                              requestAnnotationEdit(shape.annotationId, event)
+                        : undefined}
+                    onkeydown={editable
+                        ? (event: KeyboardEvent) =>
+                              handleShapeKeydown(shape.annotationId, event)
+                        : undefined}
+                >
+                    {#if !editable}
                         <div
                             class="anno-point-fill"
                             class:search-hit={shape.isSearchHit}
-                            class:hovered={readonlyTooltip?.id === shape.id}
-                            class:active={isActiveShape(shape)}
+                            class:hovered
+                            class:active
                         ></div>
-                    </div>
-                {/if}
+                    {/if}
+                </svelte:element>
             {/if}
         {/if}
     {/each}
@@ -874,126 +851,22 @@
         pointer-events: none;
     }
 
-    /* Tooltip styling (matches src/lib/components/ui/Tooltip.svelte) */
-    .tooltip {
-        --tt-bg: var(--tri-color-neutral);
-        --tt-fg: var(--tri-color-neutral-content);
-        --tt-off: calc(100% + 0.5rem);
-        --tt-tail: calc(100% + 1px + 0.25rem);
-        display: inline-block;
-        position: relative;
-    }
-
+    /*
+     * The bubble, tail, reveal and placements come from `src/styles/tooltip.css`.
+     * This rule stays component-scoped because it must outrank that sheet's
+     * `--tt-bg`/`--tt-fg` on `.tooltip`, and the extra class Svelte scopes it
+     * with is the only thing that does: the two live in separate stylesheets
+     * whose injection order is not this file's to decide.
+     *
+     * Nothing here restates that sheet's `position: relative`. A drawn shape IS
+     * the tooltip — `.tooltip` goes on the shape rather than on a wrapper around
+     * it — and every such element is already placed by a rule above. A scoped
+     * `position` on `.tooltip` would outrank those by that same extra class and
+     * take the shape out of the coordinate system its inline `left`/`top` are
+     * written in.
+     */
     .tooltip-primary {
         --tt-bg: var(--tri-color-primary);
         --tt-fg: var(--tri-color-primary-content);
-    }
-
-    .tooltip[data-tip]:not([data-tip=''])::before {
-        border-radius: var(--tri-radius-buttons);
-        text-align: center;
-        white-space: normal;
-        max-width: 20rem;
-        color: var(--tt-fg);
-        opacity: 0;
-        background-color: var(--tt-bg);
-        pointer-events: none;
-        z-index: 2;
-        content: attr(data-tip);
-        width: max-content;
-        padding-block: 0.25rem;
-        padding-inline: 0.5rem;
-        font-size: 0.875rem;
-        line-height: 1.25;
-        position: absolute;
-    }
-
-    .tooltip[data-tip]:not([data-tip=''])::after {
-        opacity: 0;
-        background-color: var(--tt-bg);
-        content: '';
-        pointer-events: none;
-        --mask-tooltip: url("data:image/svg+xml,%3Csvg width='10' height='4' viewBox='0 0 8 4' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0.500009 1C3.5 1 3.00001 4 5.00001 4C7 4 6.5 1 9.5 1C10 1 10 0.499897 10 0H0C-1.99338e-08 0.5 0 1 0.500009 1Z' fill='black'/%3E%3C/svg%3E%0A");
-        width: 0.625rem;
-        height: 0.25rem;
-        mask-position: -1px 0;
-        mask-repeat: no-repeat;
-        mask-image: var(--mask-tooltip);
-        display: block;
-        position: absolute;
-    }
-
-    @media (prefers-reduced-motion: no-preference) {
-        .tooltip[data-tip]::before,
-        .tooltip[data-tip]::after {
-            transition:
-                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) 75ms,
-                transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) 75ms;
-        }
-    }
-
-    .tooltip[data-tip]:not([data-tip='']):hover::before,
-    .tooltip[data-tip]:not([data-tip='']):hover::after,
-    .tooltip[data-tip]:not([data-tip='']):has(:global(:focus-visible))::before,
-    .tooltip[data-tip]:not([data-tip='']):has(:global(:focus-visible))::after,
-    .tooltip-open[data-tip]:not([data-tip=''])::before,
-    .tooltip-open[data-tip]:not([data-tip=''])::after {
-        opacity: 1;
-        --tt-pos: 0rem;
-    }
-    @media (prefers-reduced-motion: no-preference) {
-        .tooltip[data-tip]:not([data-tip='']):hover::before,
-        .tooltip[data-tip]:not([data-tip='']):hover::after,
-        .tooltip[data-tip]:not([data-tip='']):has(
-                :global(:focus-visible)
-            )::before,
-        .tooltip[data-tip]:not([data-tip='']):has(
-                :global(:focus-visible)
-            )::after {
-            transition:
-                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-    }
-
-    /* Default placement is top (when no side specified) */
-    .tooltip::before,
-    .tooltip.place-top::before {
-        transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
-        inset: auto auto var(--tt-off) 50%;
-    }
-    .tooltip::after,
-    .tooltip.place-top::after {
-        transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
-        inset: auto auto var(--tt-tail) 50%;
-    }
-    .tooltip.place-bottom::before {
-        transform: translateX(-50%) translateY(var(--tt-pos, -0.25rem));
-        inset: var(--tt-off) auto auto 50%;
-    }
-    .tooltip.place-bottom::after {
-        transform: translateX(-50%) translateY(var(--tt-pos, -0.25rem))
-            rotate(180deg);
-        inset: var(--tt-tail) auto auto 50%;
-    }
-    .tooltip.place-left::before {
-        transform: translateX(calc(var(--tt-pos, 0.25rem) - 0.25rem))
-            translateY(-50%);
-        inset: 50% var(--tt-off) auto auto;
-    }
-    .tooltip.place-left::after {
-        transform: translateX(var(--tt-pos, 0.25rem)) translateY(-50%)
-            rotate(-90deg);
-        inset: 50% calc(var(--tt-tail) + 1px) auto auto;
-    }
-    .tooltip.place-right::before {
-        transform: translateX(calc(var(--tt-pos, -0.25rem) + 0.25rem))
-            translateY(-50%);
-        inset: 50% auto auto var(--tt-off);
-    }
-    .tooltip.place-right::after {
-        transform: translateX(var(--tt-pos, -0.25rem)) translateY(-50%)
-            rotate(90deg);
-        inset: 50% auto auto calc(var(--tt-tail) + 1px);
     }
 </style>
