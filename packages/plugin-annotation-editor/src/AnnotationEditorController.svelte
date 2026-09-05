@@ -71,11 +71,29 @@
             : null;
     });
 
-    // Create the annotation manager
     let manager = $state.raw<AnnotationManager | null>(null);
 
+    /*
+     * Annotation editing is UNAVAILABLE in this phase.
+     *
+     * Annotorious's OpenSeadragon integration requires the raw viewer instance,
+     * and the renderer pass-through that supplied it was removed with no
+     * successor and no shim (SPEC.md §Public API). There is nothing to
+     * initialise the manager with, so it is never created and this controller
+     * renders inert. Not a degradation — a stop, which is the decision already
+     * on the record; the replacement is phase-2 work built on the paint hook
+     * and the input-claim API.
+     *
+     * The manager and everything under it is kept intact rather than deleted:
+     * the package is PAUSED, and this flag is the single point that flips when
+     * the phase-2 drawing layer gives it something to initialise against. See
+     * `README.md` for the disposition and the last core version it works
+     * against.
+     */
+    const RENDERER_AVAILABLE_FOR_ANNOTORIOUS = false;
+
     $effect(() => {
-        if (manager || !viewerState?.osdViewer) {
+        if (manager || !RENDERER_AVAILABLE_FOR_ANNOTORIOUS || !viewerState) {
             return;
         }
 
@@ -100,7 +118,7 @@
             }
         };
 
-        mgr.init(viewerState.osdViewer, viewerState.canvasId);
+        mgr.init(null, viewerState.canvasId);
 
         if (isEditing && canCreateAnnotation) {
             mgr.setEditing(true);

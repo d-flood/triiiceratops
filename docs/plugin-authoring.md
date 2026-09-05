@@ -230,7 +230,7 @@ export function createExamplePlugin() {
         version: '1.0.0',
         coreRange: '>=1.0.0-rc.0', // core versions this plugin supports
         pluginApiRange: '^1.0.0', // plugin API versions supported
-        requiredCapabilities: [], // e.g. ['osd@5']
+        requiredCapabilities: [], // normally empty; see "Capabilities" below
         icon,
         target: 'panel', // default target; or 'flyout'. Host can override at
         // runtime via config.plugins[uiId].target / setPluginTarget.
@@ -491,7 +491,7 @@ function surfaceAware(context: PluginContext) {
 
     const render = (isOpen: boolean) => {
         if (isOpen) {
-            // Start polling, attach an expensive OSD handler, resume an
+            // Start polling, attach an expensive frame handler, resume an
             // animation — whatever is wasted while nobody can see it.
         } else {
             // Pause it. Keep your state: the plugin is still activated.
@@ -535,24 +535,354 @@ container you placed yourself — `surface.isOpen` is `true` and the movers are
 no-ops: there is nothing that could be hiding your UI, so surface-gated work
 runs.
 
-### The raw OpenSeadragon viewer
+### The viewport
 
-The raw OSD viewer is a documented pass-through: `viewerState.osdViewer` is
-`null` until OSD is ready. Await readiness with the SDK helper instead of
-polling:
+**No renderer object is exposed.** The viewer's image surface is reached through
+first-party commands and queries on `viewerState`, all of them governed by core's
+own semver:
+
+- **Commands** — `zoomIn()`, `zoomOut()`, `zoomTo(scale)`, `panTo(point)`,
+  `fitBounds(box)`, `fitCanvas()`, `setImageAdjustments({ ... })`, and
+  `setViewportInset({ ... })`.
+- **Query-only state** — `viewportScale`, `viewportCentre`, `viewportBounds`,
+  and `containerSize`. These change every frame and deliberately never notify;
+  read them reactively with a `frame`-cadence selector.
+- **Coordinate helpers** — `canvasToScreen(point)` and `screenToCanvas(point)`,
+  converting between **canvas space** (the IIIF Canvas's own dimensions, which is
+  already how annotation geometry is persisted) and **screen space** (the
+  surface's CSS pixels). An image's pixel dimensions never enter into it.
+
+Commands are safe to call before a renderer has mounted — they are no-ops, and
+the queries answer `0`/`null` — so most plugins need no readiness gate at all.
+When you do need one (anything positioning something over the image), await it:
 
 ```ts
-import { whenOsdReady } from '@triiiceratops/plugin-sdk';
+import { whenRendererReady } from '@triiiceratops/plugin-sdk';
 import type { PluginContext } from 'triiiceratops';
 
-async function fitToViewport(context: PluginContext) {
-    const osd = await whenOsdReady(context.viewerState);
-    osd.viewport.goHome();
+async function markCentre(context: PluginContext) {
+    await whenRendererReady(context.viewerState);
+    // The surface is sized, so this answers in real screen pixels.
+    return context.viewerState.canvasToScreen({ x: 100, y: 200 });
 }
 ```
 
-The bundled OSD major is declared as the `osd@5` capability and changes only with
-a core major release.
+`whenRendererReady` resolves `void`: there is no object to hand over. It means
+"the renderer has a sized surface and accepts commands", and it is not the old
+readiness helper renamed — that one promised a third-party viewer instance,
+which no longer exists.
+
+#### Reserving space for your own UI: the viewport inset
+
+If your plugin floats UI over the image — a filmstrip along the bottom, an
+inspector down one side — a fit will happily centre the folio *behind* it.
+`viewerState.setViewportInset({ bottom: 200 })` reserves edges of the surface, in
+screen pixels, so fits frame into what is left; `resetViewportInset()` returns
+every edge to zero, and `viewportInset` reads the current set back. Edges you
+leave out keep their value, exactly as with `setImageAdjustments`.
+
+```ts
+import type { PluginContext } from 'triiiceratops';
+
+function filmstrip(context: PluginContext, height: number) {
+    const { viewerState } = context;
+
+    viewerState.setViewportInset({ bottom: height });
+    // Setting it does not move the image. Ask for the re-frame yourself, if you
+    // want one — most of the time you do not, because the reader may have zoomed
+    // in deliberately and being yanked back to the whole page is a surprise.
+    viewerState.fitCanvas();
+
+    return () => {
+        viewerState.resetViewportInset();
+        viewerState.fitCanvas();
+    };
+}
+```
+
+Four things to know about it:
+
+- **Only fits are affected** — `fitCanvas`, `fitBounds`, and canvas navigation.
+  Pan, zoom, `canvasToScreen`/`screenToCanvas`, and the viewport queries are all
+  about the whole surface and stay that way. That is deliberate: your overlay
+  layer spans the full surface, so an inset that shifted the coordinate mapping
+  would misplace every marker on it, yours included.
+- **The zoom range is not affected either.** How far in and out a reader may zoom
+  is measured against the whole surface, so reserving space never lowers the zoom
+  ceiling under the reader's fingers and never snaps a reader who was already at
+  it back out.
+- **Setting an inset does not move the current view.** The *next* fit uses it.
+  Issue a fit yourself when you want the image re-framed, as above.
+- **One inset per viewer.** A second plugin calling `setViewportInset` replaces
+  yours; there is no per-plugin reservation and no maximum-per-edge merge. In
+  practice one plugin owns the viewer's chrome, so this is a constraint to know
+  rather than one to work around.
+
+**Do not reserve more than half of an axis.** Up to half the surface's width or
+height per axis, a fit lands exactly centred in what is left. Past that the
+viewer's own guarantees take over and the inset is honoured in direction but not
+in full: the reader's zoom floor — half the scale at which a whole canvas fits —
+stops the fit from shrinking any further, and the pan constraint stops the framed
+box from being lifted past the edge of the world, which in continuous mode shows
+up on the first and last folio of the strip. Both of those outrank a plugin's
+request for space on purpose, because the alternative is a plugin that can
+collapse the viewer's zoom range. If your UI genuinely needs more than half the
+surface, it wants to be a panel in the viewer's chrome rather than an overlay with
+an inset.
+
+A negative or non-finite edge is refused whole and logged — it is an author error
+at any window size. An edge given as `undefined` is treated as omitted, so
+`setViewportInset({ bottom: open ? 200 : undefined })` leaves the bottom edge
+alone rather than being refused. An inset too large for the *current* window is
+neither: the axis with no room left silently falls back to the full surface, so a
+reader can always zoom out far enough to see a whole canvas.
+
+`panTo` deliberately aims at the middle of the **surface**, not of the inset, so
+that it stays the exact inverse of `viewportCentre`. Aim it yourself in one line
+when you need to — half the inset's asymmetry, converted to canvas space with
+`viewportScale`:
+
+```ts
+import type { PluginContext, ViewportPoint } from 'triiiceratops';
+
+function panToVisibleCentre(context: PluginContext, target: ViewportPoint) {
+    const { viewportInset: inset, viewportScale: scale } = context.viewerState;
+    if (!scale) return; // no sized surface yet
+
+    context.viewerState.panTo({
+        x: target.x - (inset.left - inset.right) / 2 / scale,
+        y: target.y - (inset.top - inset.bottom) / 2 / scale,
+    });
+}
+```
+
+### A tap on the image
+
+A **single tap** is the one gesture the viewport does not consume — it never
+zooms — and `viewerState.subscribeSurfaceTap(listener)` is how a plugin hears it,
+with the point in screen space. It arrives already filtered by the renderer's
+single arbitration point: never for a drag, never for a pinch, and never for a
+gesture some other consumer had claimed. Deciding *what* was tapped is yours,
+from geometry you already hold, projected with `canvasToScreen` — which is
+exactly what core's own annotation overlay does to select an annotation.
+
+```ts
+import type { PluginContext } from 'triiiceratops';
+
+function watchTaps(context: PluginContext, onCanvasPoint: (point: { x: number; y: number }) => void) {
+    // Returns an idempotent unsubscribe; a listener survives a renderer remount.
+    return context.viewerState.subscribeSurfaceTap((point) => {
+        const canvasPoint = context.viewerState.screenToCanvas(point);
+        if (canvasPoint) onCanvasPoint(canvasPoint);
+    });
+}
+```
+
+### Which canvases are on screen
+
+`viewerState.visibleCanvasIds` is the canvases the reader is actually looking at,
+in layout order — one canvas in `individuals`, the **whole spread** in `paged`,
+and the folios the viewport meets in `continuous`. It is observable state that
+core writes and republishes when the set *changes*, not per frame, so it is safe
+to subscribe to. Read `annotatableCanvasIds` for the same list with a fallback to
+the current canvas before a renderer has answered.
+
+Prefer it to `canvasId` for anything drawn over the image. `canvasId` is the
+canvas last **navigated** to, which in continuous mode is not what is on screen
+after a scroll — core's own annotation surfaces read the visible set for exactly
+that reason, and geometry then goes through `canvasToScreen(point, canvasId)` per
+canvas, because two pages of a spread sit at different offsets.
+
+The annotation core selects this way is `viewerState.activeAnnotationId`
+(`setActiveAnnotationId(id | null)`, which clears when handed the id already
+selected). It is the **selection**, notifying like any command state, and it is
+distinct from `hoveredAnnotationId`: a selection persists after the pointer has
+moved on, which is why the panel keeps its row marked and the connector line
+stays drawn. Neither of them changes what is visible — that is
+`visibleAnnotationIds`.
+
+### Drawing into the image: the paint hook
+
+`viewerState.registerPaintLayer({ id, order, draw })` registers a layer the
+renderer calls **each frame, after the tiles are painted**, with the 2D context
+and the transform the tiles were drawn with. Lower `order` draws first; layers
+sharing an `order` are called in registration order. It returns an idempotent
+unregister.
+
+The context arrives already transformed, so a layer draws in the renderer's
+**laid-out world** and cannot desync from the image the way an overlay
+repositioned on an event can. That world is not canvas space: every canvas of the
+manifest has a rect in it, placed beside its neighbours, and layout may have
+resized that rect (facing pages are normalized to a shared height). So a layer
+holding geometry in canvas space — which is how IIIF annotations are persisted —
+converts it first:
+
+- `frame.canvasToWorld(point, canvasId)` and
+  `frame.canvasBoxToWorld(box, canvasId)` map canvas space into the space the
+  context is in, and answer `null` for a canvas this frame did not lay out.
+- `frame.canvases` gives each laid-out canvas's rect directly, for a layer that
+  wants to draw a whole page rather than something on one.
+- `frame.transform` carries the matrix as numbers for a layer that would rather
+  work in device pixels.
+
+```ts
+import type { PaintFrame, PluginContext } from 'triiiceratops';
+
+function markRegion(context: PluginContext, canvasId: string) {
+    return context.viewerState.registerPaintLayer({
+        id: 'my-plugin:region',
+        order: 10,
+        draw: (ctx: CanvasRenderingContext2D, frame: PaintFrame) => {
+            // The region in the Canvas's own coordinates — as an annotation
+            // stores it — mapped into the space the context is in.
+            const box = frame.canvasBoxToWorld(
+                { x: 100, y: 200, width: 300, height: 400 },
+                canvasId,
+            );
+            if (!box) return; // that canvas is not on screen this frame
+
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2 / frame.transform.scale; // 2 device px, any zoom
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+        },
+    });
+}
+```
+
+Registering before a renderer mounts is fine: the layer is kept and drawn when
+one arrives, and it survives a remount. A layer that throws is reported once and
+skipped; it never stops the renderer painting.
+
+**Painted pixels are invisible to assistive technology.** They have no focus, no
+accessible name, and no keyboard reach — and an automated scan cannot report a
+missing element. Anything a reader must perceive or operate needs a DOM element
+beside the picture: the canvas paints pixels, a parallel DOM layer carries the
+focusable, labelled targets, both projected from one geometry. Core's own
+annotation shape overlay works exactly that way.
+
+### Putting DOM on the image: overlay layers
+
+An **overlay layer** is where that parallel DOM lives.
+`viewerState.registerOverlayLayer({ id, mount })` asks core for a container over
+the image; core creates it, places it in the viewer's stage beside the renderer,
+and calls your `mount` with it — the same `(container) => cleanup` thunk your
+panels already use. It returns an idempotent dispose, so releasing it from your
+mount cleanup and from a teardown path is safe.
+
+**Id your layer `` `${context.surface.id}:<name>` ``** — the same convention your
+chrome ids follow. It is required, not advisory: an id whose prefix names no plugin
+the viewer knows is refused and registers nothing, as is a duplicate id. Naming
+your plugin is what makes ids collision-free between plugins, and it lets the
+viewer release your layers if your plugin is deactivated without them having been
+disposed. Do not rely on that: release the layer from your `view.mount` cleanup,
+alongside your styles. Doing both is safe, because the dispose is idempotent.
+
+**Derive the prefix from `context.surface.id`; do not hardcode it.** The id the
+viewer knows you by is not your package name: it is your declared `uiId` if you
+have one, and otherwise your package name with every run of characters that is not
+`[A-Za-z0-9_-]` collapsed to a single `-` (`@scope/plugin-notes` →
+`scope-plugin-notes`). `context.surface.id` is that value, verbatim, and it is the
+only string the check accepts — a literal `'my-plugin:markers'` is refused unless
+`my-plugin` happens to be your `uiId`.
+
+A refusal is not silent, but it is not a thrown error either: it arrives on the
+host's structured `viewererror` channel with `scope: 'plugin'` and
+`code: 'overlay-layer-refused'`, and in the console when the viewer runs with
+`debug: true`. Your `mount` is simply never called, so the symptom you will see
+first is a layer that renders nothing.
+
+**The container's origin is `canvasToScreen`'s origin.** That is a published
+contract, not a coincidence: a projected point is already the container's own
+coordinates, so no rect correction, no `getBoundingClientRect`, no offset
+arithmetic.
+
+```ts
+import type { PluginContext } from 'triiiceratops';
+
+function markPoint(context: PluginContext, canvasId: string) {
+    const at = { x: 600, y: 450 }; // canvas space, as an annotation stores it
+
+    return context.viewerState.registerOverlayLayer({
+        // The prefix is the id the viewer knows this plugin by — never a literal.
+        id: `${context.surface.id}:markers`,
+        mount: (container: HTMLElement) => {
+            const pin = document.createElement('button');
+            pin.type = 'button';
+            pin.textContent = 'Analysis point 1';
+            // The layer is transparent to pointer events; this child opts in.
+            pin.style.cssText =
+                'position:absolute;pointer-events:auto;transform:translate(-50%,-50%)';
+            container.append(pin);
+
+            const place = () => {
+                const point = context.viewerState.canvasToScreen(at, canvasId);
+                // `null` means that canvas is not laid out — one honest branch.
+                pin.hidden = point === null;
+                if (point) {
+                    pin.style.left = `${point.x}px`;
+                    pin.style.top = `${point.y}px`;
+                }
+            };
+
+            place();
+            // The `frame` cadence: the image moved. This write lands in the same
+            // frame the tiles are painted in, so the pin does not trail them.
+            const stop = context.viewerState.subscribeFrame(place);
+
+            return () => {
+                stop();
+                pin.remove();
+            };
+        },
+    });
+}
+```
+
+**`subscribeFrame` means "the image moved" — nothing else.** When *your own*
+state changes (a marker added, a selection moved, your data reloaded), re-place on
+your own `requestAnimationFrame`: the viewer has no reason to produce a frame for
+something that happened on your side, so waiting for one can wait forever.
+
+**Pointer events pass through by default.** The container is
+`pointer-events: none` so that adding a layer cannot cost the reader panning and
+pinching; each element you want operable opts in with `pointer-events: auto`, as
+the pin above does. The trap to know about: if you draw a **full-surface SVG** —
+connector lines between a panel row and your markers, for instance — that SVG
+covers the whole image, so leave it `pointer-events: none` and opt in only the
+individual shapes inside it. Otherwise it silently swallows every gesture on the
+image. Events on your layer never contend with the renderer: it binds its pointer
+handling inside its own root, and your layer is a sibling of that root.
+
+**The container is created once and removed once.** It is not remounted when the
+renderer remounts, so a manifest change leaves your DOM and your state intact —
+which also means clearing content that was scoped to the old manifest is yours to
+do, since core cannot know which of your DOM that is. Registering before any
+renderer has mounted is fine; the container exists regardless, and
+`canvasToScreen` answers `null` until there is a layout.
+
+Layers stack in **registration order**, and all of them below the viewer's own
+annotation shapes — those are focusable targets carrying the viewer's accessible
+names, and covering them would break that silently. If you want primacy, hide the
+viewer's shapes through the annotation visibility API and draw your own. There is
+no ordering field: two plugins cannot coordinate one, and within your own plugin
+one container with `z-index` on its children is less work than two layers.
+
+**Choosing between an overlay layer and the paint hook is the accessibility
+rule**, not a performance judgement: anything a reader must perceive or operate is
+DOM in an overlay layer, because painted pixels have no focus, no accessible name,
+and no keyboard reach. Reach for the paint hook for decoration, or for a second
+rendering of geometry your DOM already carries — a heat map under your pins, a
+thousand tick marks no one clicks. Both hooks exist because the substrates differ,
+not because one is on its way out ([ADR
+0016](adr/0016-overlay-layers-are-dom-and-the-paint-hook-stays.md)).
+
+### Capabilities
+
+`requiredCapabilities` is normally `[]`. Capability negotiation exists for
+genuinely optional runtime features, and core's 1.0 line declares none: a plugin
+states which *core* it works with through `coreRange`. A plugin requiring a
+capability the host does not declare fails activation — which is what happens to
+anything still asking for the retired `osd@5`.
 
 ## Services
 

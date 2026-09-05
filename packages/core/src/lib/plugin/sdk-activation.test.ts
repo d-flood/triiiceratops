@@ -1,4 +1,4 @@
-// SDK plugin activation integration tests (ticket 07).
+// SDK plugin activation integration tests.
 //
 // These exercise the framework-neutral seam end to end against a REAL
 // `ViewerState` (real commands, real batched `subscribe` notifications): a
@@ -72,7 +72,7 @@ function makeTestPlugin(
         version: '1.0.0',
         coreRange: overrides.coreRange ?? '>=1.0.0-rc.0',
         pluginApiRange: overrides.pluginApiRange ?? '^1.0.0',
-        requiredCapabilities: overrides.requiredCapabilities ?? ['osd@5'],
+        requiredCapabilities: overrides.requiredCapabilities ?? [],
         icon: ICON,
         target: 'panel',
         view: {
@@ -288,7 +288,7 @@ describe('compatibility negotiation at activation', () => {
 
     it('reports a missing required capability', () => {
         const plugin = makeTestPlugin(captures, {
-            requiredCapabilities: ['osd@5', 'does-not-exist@1'],
+            requiredCapabilities: ['does-not-exist@1'],
         });
 
         expect(() => plugin.activate(makeHost(container, state))).toThrow(

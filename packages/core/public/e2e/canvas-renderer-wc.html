@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops Canvas2D renderer — shadow DOM fixture</title>
+        <!--
+            Shadow-DOM fixture for the first-party Canvas2D renderer.
+
+            Unlike the wc-parity fixtures, this one loads the custom element
+            from SOURCE through the dev server rather than from a built dist/
+            artifact, so the renderer specs need no build step to run. The
+            wc-parity fixtures cover the built artifacts; what this page is for
+            is the renderer inside a shadow root.
+        -->
+        <!-- Dev-only: installs the renderer e2e handle (see src/devtools). -->
+        <script type="module" src="/src/devtools/register.ts"></script>
+        <script type="module" src="/src/lib/custom-element.ts"></script>
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            #v {
+                display: block;
+                width: 800px;
+                height: 600px;
+            }
+        </style>
+    </head>
+    <body>
+        <triiiceratops-viewer
+            id="v"
+            manifest-id="/demo-manifests/static-image/manifest.json"
+            theme="dark"
+        ></triiiceratops-viewer>
+    </body>
+</html>

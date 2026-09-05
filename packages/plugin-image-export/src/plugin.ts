@@ -8,8 +8,8 @@
  * cleanup. Styles install through the SDK style service (root-aware), strings
  * resolve through the per-viewer locale service over this package's catalog, and
  * the toolbar glyph is a `svgIcon` descriptor. Export reads canvas geometry from
- * the raw OSD-backed viewer model, so the plugin declares
- * `requiredCapabilities: ['osd@5']`.
+ * raw Canvas JSON and core's first-party layout helpers, so the plugin requires
+ * no capability.
  *
  * This plugin's validation duty (SPEC.md Plugin Migration) is asynchronous
  * operations and binary output: the panel runs async IIIF fetch/compositing and
@@ -33,6 +33,7 @@ import { catalog } from './catalog';
 import { PLUGIN_CONTEXT_KEY, type PanelContext } from './contextKey';
 import { DOWNLOAD_ICON } from './icons';
 import Panel from './Panel.svelte';
+import { PLUGIN_META } from './identity';
 import { STYLE_ID, STYLES } from './styles';
 
 const view: PluginView = {
@@ -58,13 +59,13 @@ const view: PluginView = {
 
 /** The image-download plugin factory. Activate it explicitly, per viewer. */
 export const ImageDownloadPlugin: SdkPlugin = definePlugin({
-    name: '@triiiceratops/plugin-image-export',
+    name: PLUGIN_META.name,
     title: 'image_download_title',
     uiId: 'image-download',
-    version: '1.0.0-rc.0',
+    version: PLUGIN_META.version,
     coreRange: '>=1.0.0-rc.0',
     pluginApiRange: '^1.0.0',
-    requiredCapabilities: ['osd@5'],
+    requiredCapabilities: [],
     icon: DOWNLOAD_ICON,
     target: 'panel',
     catalog,

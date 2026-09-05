@@ -78,6 +78,7 @@ interface ViewerConfig {
         [pluginId: string]: {
             visible?: boolean; // Default: true (Toolbar button visible)
             open?: boolean; // Default: false (Plugin panel open)
+            showCloseButton?: boolean; // Default: true
             target?: 'panel' | 'flyout'; // Override where the plugin renders
             position?: 'left' | 'right'; // Override docked panel side; ignored when target is 'flyout'
         };
@@ -142,8 +143,17 @@ interface ViewerConfig {
         withCredentials?: boolean; // Use cookies/credentials
     };
 
-    // OpenSeadragon overrides
-    openSeadragonConfig?: Partial<OpenSeadragon.Options>;
+    // Renderer tuning — a small, closed set (see "Renderer tuning" below)
+    renderer?: {
+        animationTimeConstant?: number;
+        zoomPerClick?: number;
+        zoomPerWheelNotch?: number;
+        minPixelRatio?: number;
+        byteBudget?: number;
+        residencyMargin?: number;
+        pyramidThreshold?: number;
+        boxThreshold?: number;
+    };
 
     // Marker styling for point annotations, shared by the read-only overlay
     // and the annotation editor
@@ -546,18 +556,18 @@ plugin SDK, and any other host.
 | Cadence | Woken by | Use it for |
 | :-- | :-- | :-- |
 | `state` (default) | the batched, payload-free viewer-state notification | everything in the [state inventory](#what-notifies) — canvas, manifest, panels, gallery, plugin UI |
-| `frame` | the live OpenSeadragon instance's own animation events, **and** state notifications | continuous viewport values: zoom, pan, rotation, bounds |
+| `frame` | the renderer's own animation events, **and** state notifications | the query-only viewport values: `viewportScale`, `viewportCentre`, `viewportBounds`, `containerSize` |
 
-Continuous viewport values live on the OpenSeadragon instance and are
-deliberately **not** mirrored into viewer state: mirroring them would make the
-batched watcher fire at animation framerate for every subscriber on the page, so
-one component's zoom readout would tax every plugin. Cadence solves that with one
-option instead ([ADR 0011](adr/0011-selectors-choose-a-notification-cadence.md)).
+Those viewport values are read from the renderer on demand and are deliberately
+**not** mirrored into viewer state: mirroring them would make the batched watcher
+fire at animation framerate for every subscriber on the page, so one component's
+zoom readout would tax every plugin. Cadence solves that with one option instead
+([ADR 0011](adr/0011-selectors-choose-a-notification-cadence.md)).
 
 `frame` is the *finer* cadence, never a coarser one: a frame-cadence projection
 also wakes on state notifications, so it never serves a stale inventoried member
-between animations. The frame ticker attaches lazily when an OpenSeadragon
-instance appears and detaches on teardown or replacement — there is no
+between animations. The frame ticker attaches lazily when a renderer surface
+appears and detaches on teardown or replacement — there is no
 `requestAnimationFrame` loop, and an idle viewer with no frame-cadence selector
 costs nothing.
 
@@ -573,13 +583,14 @@ and observable state. The checked-in
 is the authority on which members those are; every mutable member is classified
 there, and an unclassified member fails CI.
 
-Reading *through* `state.osdViewer` at `state` cadence is the one selector
-mistake that fails silently — the projection simply appears frozen, because
-OpenSeadragon's viewport never wakes the batched watcher. With
-`config: { debug: true }` the runtime warns once and names the fix
-(`cadence: 'frame'`). Reading `state.osdViewer` only to *test readiness* is
-correct at `state` cadence: `osdViewer` is itself an inventoried observable
-member.
+Reading a **query-only** member at `state` cadence is the one selector mistake
+that fails silently — the projection simply appears frozen, because the
+viewport's scale, centre, and bounds change every frame and deliberately never
+wake the batched watcher. With `config: { debug: true }` the runtime warns once,
+names the member, and names the fix (`cadence: 'frame'`). Reading
+`state.rendererReady` at `state` cadence is correct: that one is an inventoried
+observable member, and it is how you wait for the viewport to be answerable at
+all.
 
 ### Debug diagnostics
 
@@ -590,7 +601,7 @@ failure modes produce no error — just a viewer that quietly does the wrong thi
   object prop in React or Vue);
 - a handle or ref created and never passed to a viewer, so reads stay empty
   forever;
-- a `state`-cadence projection that reads through `osdViewer` (above).
+- a `state`-cadence projection that reads a query-only viewport value (above).
 
 These are gated on `ViewerConfig.debug`, **not** on `NODE_ENV` — a production
 build with `config: { debug: true }` logs them, and a development build without it
@@ -967,6 +978,26 @@ type SearchProvider = (
 >;
 ```
 
+`before`, `match` and `after` are **plain text**. The search panel renders them
+as text nodes, so any markup you return is displayed as visible characters
+rather than interpreted — a search service cannot inject elements or script into
+the host page.
+
+The one thing the viewer does interpret is the highlight delimiter. Wrap the
+matched term in `<mark>…</mark>`, literally or entity-encoded as
+`&lt;mark&gt;…&lt;/mark&gt;`, and the panel renders a real `<mark>` element
+around that run.
+
+Only the **bare, lowercase** tag is a delimiter. `<mark class="hit">`, `<MARK>`
+and any other variation are excerpt text, and now render as visible characters —
+so emit the tag exactly as spelled above.
+
+Because a service that escapes its excerpt escapes the surrounding text too, the
+five basic entities (`&amp;` `&lt;` `&gt;` `&quot;` `&#39;`) are decoded in each
+run before display, so `AT&amp;T` reads as `AT&T` rather than showing the entity.
+Exactly one level comes off, so `&amp;lt;mark&amp;gt;` displays as the literal
+text `&lt;mark&gt;` and highlights nothing.
+
 === "React"
 
     ```tsx
@@ -1224,19 +1255,60 @@ own navigation.
     />
     ```
 
-## OpenSeadragon Overrides
+## Renderer Tuning
 
-You can pass custom [OpenSeadragon options](https://openseadragon.github.io/docs/OpenSeadragon.html#.Options) via `openSeadragonConfig` to fine-tune the underlying viewer. These are merged into the default options at initialization and updated reactively.
+`config.renderer` is a **small, closed, typed set** of knobs on the image
+renderer. Every member is optional; omitting one takes the default.
 
 ```javascript
 config = {
-    openSeadragonConfig: {
-        maxZoomPixelRatio: 4,
-        zoomPerScroll: 1.5,
-        animationTime: 0.3,
+    renderer: {
+        animationTimeConstant: 0.15, // seconds; smaller settles faster
+        zoomPerClick: 1.5, // one press of the zoom buttons
+        zoomPerWheelNotch: 1.15, // one notch of the wheel (and trackpad)
+        minPixelRatio: 0.5, // sharpness vs. bytes
+        byteBudget: 64 * 1024 * 1024, // decoded-tile cache ceiling
+        residencyMargin: 1.5, // how far past the viewport stays resident
+        pyramidThreshold: 512, // px at which a canvas gets full tiles
+        boxThreshold: 32, // px below which a canvas draws as a plain box
     },
 };
 ```
+
+There is deliberately **no escape hatch into renderer internals**. An open
+options object would make the renderer's own surface part of what consumers
+depend on, and changing an undocumented internal would then be a breaking
+change. If a knob you need is missing, that is a request for core to add it.
+
+The defaults are provisional and are tuned as the renderer is measured, so do
+not assert against a shipped number.
+
+The decisions behind these knobs are recorded as ADRs, which is the place to
+look before asking for a different default:
+`byteBudget`, `residencyMargin`, `pyramidThreshold`, and `boxThreshold` are the
+tuning surface of the residency model
+([ADR 0014](adr/0014-residency-is-tiered-by-projected-size-and-budgeted-in-bytes.md)),
+while `animationTimeConstant`, `zoomPerClick`, and `zoomPerWheelNotch` govern
+only the *discrete and programmatic* input that is animated — direct
+manipulation is deliberately never smoothed
+([ADR 0015](adr/0015-direct-manipulation-is-never-animated.md)).
+
+### Wheel and trackpad zoom speed
+
+`zoomPerWheelNotch` is the multiplicative zoom applied by one **wheel notch** —
+the detent of a classic mouse wheel, which the browser reports as about 100
+pixels of `deltaY`. The default of `1.15` takes roughly five notches to double
+the zoom; raise it for a faster wheel, lower it for a slower one. Scrolling the
+other way applies the reciprocal, so a notch out undoes a notch in exactly.
+
+This one value governs the **trackpad as well**, and there is deliberately no
+separate knob for one. A trackpad never emits a notch — it emits a stream of
+much smaller deltas — but because the rate underneath is per pixel, it covers
+the same 100 pixels over several events and gets the same zoom for the same
+scroll distance. Nothing in the viewer detects which device is in use; the usual
+heuristics are unreliable and that branch is a permanent source of
+hardware-specific bugs. If the trackpad feels different from the mouse, this
+single value moves both.
 
 ## IIIF Collections
 

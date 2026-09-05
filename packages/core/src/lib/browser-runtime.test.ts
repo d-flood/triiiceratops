@@ -49,7 +49,7 @@ function uniqueTag(): string {
 const CORE = {
     coreVersion: '1.0.0',
     pluginApiVersion: '1.0.0',
-    capabilities: ['osd@5'] as const,
+    capabilities: ['example-feature@1'] as const,
 };
 
 beforeEach(() => {
@@ -105,7 +105,9 @@ describe('order-independence', () => {
 
         expect(window.Triiiceratops?.coreVersion).toBe('1.0.0');
         expect(window.Triiiceratops?.pluginApiVersion).toBe('1.0.0');
-        expect(window.Triiiceratops?.capabilities).toEqual(['osd@5']);
+        expect(window.Triiiceratops?.capabilities).toEqual([
+            'example-feature@1',
+        ]);
         // The pre-registered factory is still retrievable.
         expect(
             window.Triiiceratops?.plugins.get('@triiiceratops/plugin-x')
@@ -188,7 +190,9 @@ describe('one core per page, first wins', () => {
         // Namespace and custom element left untouched (first wins).
         expect(window.Triiiceratops?.coreVersion).toBe('1.0.0');
         expect(window.Triiiceratops?.pluginApiVersion).toBe('1.0.0');
-        expect(window.Triiiceratops?.capabilities).toEqual(['osd@5']);
+        expect(window.Triiiceratops?.capabilities).toEqual([
+            'example-feature@1',
+        ]);
         expect(customElements.get(tag)).toBe(firstCtor);
     });
 });

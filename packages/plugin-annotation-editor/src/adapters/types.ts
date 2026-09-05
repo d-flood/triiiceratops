@@ -78,7 +78,7 @@ export interface W3CAnnotation<TBody = W3CAnnotationBody> {
 /**
  * Shape an adapter's `load()`/`hydrate()` may return. Beyond a stored
  * annotation it may carry the internal skeleton markers the plugin reads exactly
- * once and strips before anything enters the cache or Annotorious (ticket 03):
+ * once and strips before anything enters the cache or Annotorious:
  * `__fullBodyLoaded: false` signals a skeleton whose body must be fetched via
  * `hydrate()`. These markers are NOT part of the stored annotation contract —
  * they never round-trip — so they live here rather than on {@link W3CAnnotation}.

@@ -11,7 +11,7 @@ import { expect } from '@playwright/test';
 async function drivePage(page, baseURL, pathname, pageErrors) {
     await page.goto(`${baseURL}/${pathname}`, { waitUntil: 'load' });
 
-    // The custom element upgrades and OSD paints inside the shadow root.
+    // The custom element upgrades and the renderer paints inside the shadow root.
     await expect(page.locator('triiiceratops-viewer')).toBeVisible({
         timeout: 30_000,
     });
@@ -37,7 +37,7 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
     });
 
     // Open the plugin panel via the core-rendered toolbar button (core-owned
-    // chrome, ticket 04) — labelled with the plugin's DISPLAY title
+    // chrome) — labelled with the plugin's DISPLAY title
     // (`image_download_title` from the plugin's own catalog, NOT its package
     // name), living in the viewer's shadow root; the Playwright locator pierces
     // it. The page opens the toolbar via the element's `config` (`toolbarOpen`)

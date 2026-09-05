@@ -1,10 +1,10 @@
 {
-    "count": 60,
+    "count": 80,
     "byClassification": {
-        "command": 34,
-        "observable": 12,
-        "internal": 14,
-        "query-only": 0
+        "command": 37,
+        "observable": 13,
+        "internal": 26,
+        "query-only": 4
     },
     "entries": [
         {
@@ -21,6 +21,13 @@
             "member": "_viewingModeUserConfigured",
             "classification": "internal",
             "commands": null
+        },
+        {
+            "member": "activeAnnotationId",
+            "classification": "command",
+            "commands": [
+                "setActiveAnnotationId"
+            ]
         },
         {
             "member": "activeLocale",
@@ -82,6 +89,11 @@
             ]
         },
         {
+            "member": "containerSize",
+            "classification": "query-only",
+            "commands": null
+        },
+        {
             "member": "dockSide",
             "classification": "command",
             "commands": [
@@ -100,6 +112,11 @@
         },
         {
             "member": "eventTarget",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "frameListeners",
             "classification": "internal",
             "commands": null
         },
@@ -140,6 +157,14 @@
             "classification": "command",
             "commands": [
                 "setHoveredAnnotationId"
+            ]
+        },
+        {
+            "member": "imageAdjustments",
+            "classification": "command",
+            "commands": [
+                "setImageAdjustments",
+                "resetImageAdjustments"
             ]
         },
         {
@@ -200,8 +225,18 @@
             ]
         },
         {
-            "member": "osdViewer",
-            "classification": "observable",
+            "member": "overlayLayerRegistry",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "overlayLayerRevision",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "overlayLayers",
+            "classification": "internal",
             "commands": null
         },
         {
@@ -210,6 +245,21 @@
             "commands": [
                 "togglePagedOffset"
             ]
+        },
+        {
+            "member": "paintLayerRegistry",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "paintLayerRevision",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "paintLayers",
+            "classification": "internal",
+            "commands": null
         },
         {
             "member": "pendingSearchQuery",
@@ -258,6 +308,16 @@
                 "unregisterPlugin",
                 "destroyAllPlugins"
             ]
+        },
+        {
+            "member": "rendererPort",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "rendererReady",
+            "classification": "observable",
+            "commands": null
         },
         {
             "member": "searchAnnotations",
@@ -352,6 +412,16 @@
             "commands": null
         },
         {
+            "member": "surfaceTapListeners",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "tickingPort",
+            "classification": "internal",
+            "commands": null
+        },
+        {
             "member": "tileSourceError",
             "classification": "observable",
             "commands": null
@@ -362,6 +432,16 @@
             "commands": [
                 "toggleToolbar"
             ]
+        },
+        {
+            "member": "unsubscribeFrame",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "unsubscribeSurfaceTap",
+            "classification": "internal",
+            "commands": null
         },
         {
             "member": "userAnnotations",
@@ -392,13 +472,57 @@
             ]
         },
         {
+            "member": "viewportBounds",
+            "classification": "query-only",
+            "commands": [
+                "panTo",
+                "zoomTo",
+                "fitBounds",
+                "fitCanvas"
+            ]
+        },
+        {
+            "member": "viewportCentre",
+            "classification": "query-only",
+            "commands": [
+                "panTo",
+                "fitBounds",
+                "fitCanvas"
+            ]
+        },
+        {
+            "member": "viewportInset",
+            "classification": "command",
+            "commands": [
+                "setViewportInset",
+                "resetViewportInset"
+            ]
+        },
+        {
+            "member": "viewportScale",
+            "classification": "query-only",
+            "commands": [
+                "zoomIn",
+                "zoomOut",
+                "zoomTo",
+                "fitBounds",
+                "fitCanvas"
+            ]
+        },
+        {
             "member": "visibleAnnotationIds",
             "classification": "command",
             "commands": [
                 "showCurrentCanvasAnnotations",
+                "showVisibleCanvasAnnotations",
                 "setAnnotationVisible",
                 "setAllAnnotationsVisible"
             ]
+        },
+        {
+            "member": "visibleCanvasIds",
+            "classification": "observable",
+            "commands": null
         }
     ]
 }

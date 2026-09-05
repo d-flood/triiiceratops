@@ -1,5 +1,5 @@
 // Core viewer × SDK-plugin CONTRACT test — the primary seam for the
-// core-owned-chrome path (epic restore-plugin-toolbar-chrome, ticket 02).
+// core-owned-chrome path.
 //
 // Mounts the REAL viewer chrome with a TEST-DOUBLE SDK plugin (`definePlugin`)
 // and asserts external behavior only:
@@ -14,7 +14,7 @@
 // Lifecycle note: core mounts the plugin's content-only element once per
 // Activation and places it into the open surface (removing it on close); the
 // mount cleanup runs on deactivation. Per-viewer Activation state therefore
-// survives close→reopen (required by the image-manipulation Flyout, ticket 03).
+// survives close→reopen (required by the image-manipulation Flyout).
 
 import { mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -25,45 +25,6 @@ import TriiiceratopsViewer from '../components/TriiiceratopsViewer.svelte';
 import type { LocaleCatalog, PluginError, SdkPlugin } from '../types/plugin';
 import type { ViewerConfig } from '../types/config';
 import type { ViewerState } from '../state/viewer.svelte';
-
-vi.mock('openseadragon', () => ({
-    default: Object.assign(
-        vi.fn(() => ({
-            addHandler: vi.fn(),
-            removeHandler: vi.fn(),
-            removeAllHandlers: vi.fn(),
-            destroy: vi.fn(),
-            open: vi.fn(),
-            close: vi.fn(),
-            forceRedraw: vi.fn(),
-            setMouseNavEnabled: vi.fn(),
-            addOverlay: vi.fn(),
-            removeOverlay: vi.fn(),
-            clearOverlays: vi.fn(),
-            viewport: {
-                getZoom: vi.fn(() => 1),
-                getMaxZoom: vi.fn(() => 10),
-                getMinZoom: vi.fn(() => 0.1),
-                zoomTo: vi.fn(),
-                zoomBy: vi.fn(),
-                panTo: vi.fn(),
-                goHome: vi.fn(),
-                fitBounds: vi.fn(),
-                getBounds: vi.fn(() => ({ x: 0, y: 0, width: 1, height: 1 })),
-            },
-            world: {
-                getItemCount: vi.fn(() => 0),
-                getItemAt: vi.fn(),
-                addHandler: vi.fn(),
-                removeHandler: vi.fn(),
-            },
-            drawer: { canvas: null },
-            container: null,
-            element: null,
-        })),
-        { Rect: vi.fn(), Point: vi.fn(), ControlAnchor: {} },
-    ),
-}));
 
 // A recognizable inner-SVG marker so we can assert the button icon is rendered
 // from `meta.icon` (core's `PluginIcon` injects the descriptor's inner markup).
@@ -101,7 +62,7 @@ function makeDouble(config: {
         version: '1.0.0',
         coreRange: '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
+        requiredCapabilities: [],
         icon: ICON,
         target: config.target,
         dismiss: config.dismiss,
@@ -397,7 +358,7 @@ describe('TriiiceratopsViewer core-owned-chrome SDK plugins', () => {
             version: '1.0.0',
             coreRange: '>=1.0.0-rc.0',
             pluginApiRange: '^1.0.0',
-            requiredCapabilities: ['osd@5'],
+            requiredCapabilities: [],
             icon: ICON,
             target: config.target,
             dismiss: 'explicit',
@@ -573,7 +534,7 @@ describe('TriiiceratopsViewer core-owned-chrome SDK plugins', () => {
     });
 });
 
-// Chrome DISPLAY COPY for SDK plugins (issue 2). `SdkPluginMeta.name` is the
+// Chrome DISPLAY COPY for SDK plugins. `SdkPluginMeta.name` is the
 // package-qualified IDENTITY (registry key, style namespace, `data-plugin-name`)
 // and must never be the label a user reads. `definePlugin({ title })` supplies
 // the label, resolved through the PLUGIN's own catalog in the viewer's active

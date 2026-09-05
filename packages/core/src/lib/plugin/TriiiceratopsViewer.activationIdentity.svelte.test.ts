@@ -1,4 +1,4 @@
-// Identity-keyed plugin activation (framework-wrappers ticket 04).
+// Identity-keyed plugin activation.
 //
 // An activation's lifetime is keyed to the plugin's identity WITHIN the viewer's
 // plugin list, not to the identity of the list itself (CONTEXT.md
@@ -27,45 +27,6 @@ import { definePlugin, type PluginContext } from '@triiiceratops/plugin-sdk';
 import TriiiceratopsViewer from '../components/TriiiceratopsViewer.svelte';
 import type { PluginError, SdkPlugin } from '../types/plugin';
 import type { ViewerState } from '../state/viewer.svelte';
-
-vi.mock('openseadragon', () => ({
-    default: Object.assign(
-        vi.fn(() => ({
-            addHandler: vi.fn(),
-            removeHandler: vi.fn(),
-            removeAllHandlers: vi.fn(),
-            destroy: vi.fn(),
-            open: vi.fn(),
-            close: vi.fn(),
-            forceRedraw: vi.fn(),
-            setMouseNavEnabled: vi.fn(),
-            addOverlay: vi.fn(),
-            removeOverlay: vi.fn(),
-            clearOverlays: vi.fn(),
-            viewport: {
-                getZoom: vi.fn(() => 1),
-                getMaxZoom: vi.fn(() => 10),
-                getMinZoom: vi.fn(() => 0.1),
-                zoomTo: vi.fn(),
-                zoomBy: vi.fn(),
-                panTo: vi.fn(),
-                goHome: vi.fn(),
-                fitBounds: vi.fn(),
-                getBounds: vi.fn(() => ({ x: 0, y: 0, width: 1, height: 1 })),
-            },
-            world: {
-                getItemCount: vi.fn(() => 0),
-                getItemAt: vi.fn(),
-                addHandler: vi.fn(),
-                removeHandler: vi.fn(),
-            },
-            drawer: { canvas: null },
-            container: null,
-            element: null,
-        })),
-        { Rect: vi.fn(), Point: vi.fn(), ControlAnchor: {} },
-    ),
-}));
 
 const ICON = {
     kind: 'svg',
@@ -125,7 +86,7 @@ function makeDouble(config: {
         version: '1.0.0',
         coreRange: '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
+        requiredCapabilities: [],
         icon: ICON,
         target: config.target ?? 'flyout',
         dismiss: 'explicit',

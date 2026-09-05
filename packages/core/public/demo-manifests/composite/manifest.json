@@ -1,0 +1,70 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/demo-manifests/composite/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Composite canvas renderer fixture"]
+    },
+    "summary": {
+        "en": [
+            "ONE canvas painted by TWO painting annotations, each targeting its own #xywh region — shaped like IIIF Cookbook recipe 0036, where a folio is painted by its full scan and a miniature over a rectangle of it. The canvas is 1200x1800 and the two regions are its top and bottom halves, so each image maps a whole numbered grid onto a known box. Non-overlapping, deliberately: a feature is located by colour, so a spec has to put exactly one of them in the viewport to know which it found — and that is itself the assertion that the second image landed in ITS OWN box rather than on top of the first. The two grids are served by DISTINCT image services, so 'was the second annotation painted at all' is answerable from the network as well as from the pixels; before the fix only the first was ever requested."
+        ]
+    },
+    "items": [
+        {
+            "id": "/demo-manifests/composite/canvas/p1",
+            "type": "Canvas",
+            "label": { "en": ["Two grids, one canvas"] },
+            "width": 1200,
+            "height": 1800,
+            "items": [
+                {
+                    "id": "/demo-manifests/composite/page/p1",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/composite/annotation/upper",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/iiif-fixture/composite-upper/full/max/0/default.png",
+                                "type": "Image",
+                                "format": "image/png",
+                                "width": 1200,
+                                "height": 900,
+                                "service": [
+                                    {
+                                        "id": "/iiif-fixture/composite-upper",
+                                        "type": "ImageService3",
+                                        "profile": "level2"
+                                    }
+                                ]
+                            },
+                            "target": "/demo-manifests/composite/canvas/p1#xywh=0,0,1200,900"
+                        },
+                        {
+                            "id": "/demo-manifests/composite/annotation/lower",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/iiif-fixture/composite-lower/full/max/0/default.png",
+                                "type": "Image",
+                                "format": "image/png",
+                                "width": 1200,
+                                "height": 900,
+                                "service": [
+                                    {
+                                        "id": "/iiif-fixture/composite-lower",
+                                        "type": "ImageService3",
+                                        "profile": "level2"
+                                    }
+                                ]
+                            },
+                            "target": "/demo-manifests/composite/canvas/p1#xywh=0,900,1200,900"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

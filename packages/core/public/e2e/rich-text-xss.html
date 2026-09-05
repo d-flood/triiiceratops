@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops IIIF rich text — XSS fixture</title>
+        <!--
+            A hostile manifest, in a real browser.
+
+            Manifest summary, metadata, required statement, canvas summary,
+            canvas metadata and annotation bodies are all publisher-supplied
+            rich text. They used to be filtered by DOMPurify running its broad
+            default policy and then handed back to `{@html}`; they are now
+            rebuilt from IIIF's allowlist as fresh nodes and inserted with
+            `replaceChildren`.
+
+            Every one of those fields here carries a `<script>`, an `img`
+            `onerror`, a `javascript:` href and a `data:` src. The spec asserts
+            the global they would push to stays empty AND that the legitimate
+            content beside each payload still rendered.
+
+            Loaded from SOURCE through the dev server (like search-xss.html) so
+            the spec needs no build step.
+        -->
+        <!-- Dev-only: installs the renderer e2e handle (see src/devtools). -->
+        <script type="module" src="/src/devtools/register.ts"></script>
+        <script type="module" src="/src/lib/custom-element.ts"></script>
+        <script>
+            // Anything the payloads manage to execute lands here. It must stay
+            // empty.
+            window.__xssFired = [];
+        </script>
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            #v {
+                display: block;
+                width: 900px;
+                height: 600px;
+            }
+        </style>
+    </head>
+    <body>
+        <triiiceratops-viewer
+            id="v"
+            manifest-id="/demo-manifests/e2e/rich-text-xss.json"
+            theme="dark"
+        ></triiiceratops-viewer>
+    </body>
+</html>

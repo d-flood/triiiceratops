@@ -68,7 +68,7 @@ export interface CollectionConfig extends ClosablePanelConfig {
     open?: boolean;
 }
 
-export interface PluginUiConfig {
+export interface PluginUiConfig extends ClosablePanelConfig {
     /**
      * Whether the plugin's toolbar button is visible.
      * @default true

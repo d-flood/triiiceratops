@@ -1,5 +1,5 @@
 /**
- * API snapshot generator (ticket 21) — `pnpm api:report`.
+ * API snapshot generator — `pnpm api:report`.
  *
  * Regenerates every machine-readable public-contract snapshot under
  * `api-reports/`, so a contract change shows up as a reviewable diff and CI can
@@ -11,11 +11,11 @@
  *   - `custom-element.json`   custom-element properties / methods / events
  *   - `browser-runtime.json`  `TriiiceratopsBrowserRuntime` shape + capabilities
  *   - `plugin-api.json`       plugin API version + capability vocabulary
- *   - `css-tokens.json`       public `--tri-*` CSS token list (ticket 19)
+ *   - `css-tokens.json`       public `--tri-*` CSS token list
  *   - `state-inventory.json`  state inventory (member + classification + commands)
  *
  * Declaration mechanism: d.ts snapshot (reachability rollup), NOT api-extractor
- * — one mechanism, per ticket 21. Non-TS surfaces are simple JSON snapshots.
+ * — one mechanism. Non-TS surfaces are simple JSON snapshots.
  *
  * Determinism: run twice → no diff. The value/shape snapshots are read from the
  * checked-in source of truth (state inventory, public tokens, plugin/api
@@ -150,7 +150,7 @@ function emitStateInventory(): void {
     );
 }
 
-// ── Public CSS tokens (ticket 19) ───────────────────────────────────────────
+// ── Public CSS tokens ────────────────────────────────────────────────────────
 function emitCssTokens(): void {
     writeFileSync(
         resolve(OUT, 'css-tokens.json'),
@@ -227,7 +227,9 @@ function emitBrowserRuntime(): void {
                     'PluginFactoryRegistry',
                 ),
             },
-            // Semver-governed capability list (must include `osd@5`).
+            // Semver-governed capability list. Empty in the 1.0 line: the
+            // renderer capability was retired with no successor, and core’s own
+            // surface is negotiated through `coreRange` (see plugin/api.ts).
             capabilities: [...capabilities].sort(),
             pluginApiVersion,
         }),

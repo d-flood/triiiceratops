@@ -40,12 +40,6 @@ import type { TriiiceratopsViewerElement } from '../framework/index.js';
 import type { TriiiceratopsViewerInstance } from './handle.js';
 import { TriiiceratopsViewer } from './viewer.js';
 
-vi.mock('openseadragon', async () => {
-    const { createOsdModuleMock } =
-        await import('../test/utils/realViewerElement.js');
-    return createOsdModuleMock();
-});
-
 const { defineRealViewerElement, installInertAnimations, settle, VIEWER_TAG } =
     await import('../test/utils/realViewerElement.js');
 
@@ -114,7 +108,7 @@ function failingPlugin(name: string): SdkPlugin {
         version: '1.0.0',
         coreRange: '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
+        requiredCapabilities: [],
         icon: { kind: 'svg', inner: '<circle />', viewBox: '0 0 1 1' },
         target: 'flyout',
         dismiss: 'explicit',
@@ -133,7 +127,7 @@ function countingPlugin(name: string, mounts: string[]): SdkPlugin {
         version: '1.0.0',
         coreRange: '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
+        requiredCapabilities: [],
         icon: { kind: 'svg', inner: '<circle />', viewBox: '0 0 1 1' },
         target: 'flyout',
         dismiss: 'explicit',

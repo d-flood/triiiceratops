@@ -2,6 +2,7 @@
     import Icon from './Icon.svelte';
     import { getMessages } from '../state/i18n.svelte';
     import { Button, Toggle, Checkbox, Select, Range } from './ui';
+    import { DEFAULT_ZOOM_PER_WHEEL_NOTCH } from '../renderer/rendererDefaults';
     import { BUILTIN_THEMES, type BuiltInTheme } from '../theme/types';
 
     let {
@@ -31,7 +32,6 @@
         typeof window !== 'undefined' &&
         new URLSearchParams(window.location.search).has('iiif-content');
 
-    // ==================== Config presets ====================
     // Each preset is a layout only — the independent chrome knobs (controls /
     // nav / toolbar). Selecting one applies that layout without touching the
     // viewer theme. The final "Custom" entry reveals the full configuration UI.
@@ -190,7 +190,6 @@
             information: { ...base.information, ...preset.config.information },
         };
         activePreset = preset.id;
-        // Applying a preset collapses the custom config back down.
         mode = 'presets';
     }
 
@@ -280,7 +279,6 @@
         </div>
     </div>
 
-    <!-- Full configuration UI: collapsed unless in custom mode. -->
     <div class="detail-collapse" class:open={mode === 'custom'}>
         <div class="detail-inner">
             <ul class="settings-menu-root">
@@ -1264,6 +1262,58 @@
                     </details>
                 </li>
 
+                <li>
+                    <details>
+                        <summary>{m.settings_submenu_renderer()}</summary>
+                        <ul>
+                            <li>
+                                <label
+                                    class="settings-label settings-label--gap2"
+                                >
+                                    <span
+                                        >{m.settings_zoom_per_wheel_notch()}</span
+                                    >
+                                    <!-- Zoom applied by one wheel notch (~100px
+                                         of deltaY), and by the same distance of
+                                         trackpad scroll — one knob moves both,
+                                         because the viewer deliberately does not
+                                         detect which device is in use. The range
+                                         spans ~14 notches to double at the low
+                                         end and under 2 at the high end, which
+                                         brackets the useful ground either side
+                                         of the default. -->
+                                    <Range
+                                        size="xs"
+                                        color="primary"
+                                        style="width:6rem"
+                                        min="1.05"
+                                        max="1.5"
+                                        step="0.01"
+                                        value={config.renderer
+                                            ?.zoomPerWheelNotch ??
+                                            DEFAULT_ZOOM_PER_WHEEL_NOTCH}
+                                        oninput={(e) => {
+                                            if (!config.renderer)
+                                                config.renderer = {};
+                                            config.renderer.zoomPerWheelNotch =
+                                                parseFloat(
+                                                    e.currentTarget.value,
+                                                );
+                                        }}
+                                    />
+                                    <span class="value-readout"
+                                        >{(
+                                            config.renderer
+                                                ?.zoomPerWheelNotch ??
+                                            DEFAULT_ZOOM_PER_WHEEL_NOTCH
+                                        ).toFixed(2)}&times;</span
+                                    >
+                                </label>
+                            </li>
+                        </ul>
+                    </details>
+                </li>
+
                 <div class="divider"></div>
                 {#if onReset}
                     <li>
@@ -1322,7 +1372,6 @@
 </div>
 
 <style>
-    /* ===== Preset / theme pane scaffolding ===== */
     .config-pane {
         display: flex;
         flex-direction: column;
@@ -1339,7 +1388,6 @@
         padding-block: 0.5rem 0.375rem;
     }
 
-    /* Viewer theme: 2-column grid of swatch chips. */
     .theme-group {
         padding-inline: 0.25rem;
     }
@@ -1384,7 +1432,6 @@
         white-space: nowrap;
     }
 
-    /* Presets: vertical button group. */
     .preset-group {
         padding-inline: 0.25rem;
     }
@@ -1430,7 +1477,6 @@
         grid-column: 1 / -1;
     }
 
-    /* Full config UI collapse: animates open in custom mode. */
     .detail-collapse {
         display: grid;
         grid-template-rows: 0fr;
@@ -1449,7 +1495,6 @@
         }
     }
 
-    /* Menu section heading. */
     .menu-title {
         color: color-mix(in oklab, var(--tri-content) 40%, transparent);
         font-weight: 600;
@@ -1458,8 +1503,6 @@
         padding-block: 0.5rem;
     }
 
-    /* Label row: inline-flex row of label text + control. The text lives in a
-       plain <span>. */
     .settings-label {
         display: inline-flex;
         align-items: center;
@@ -1468,7 +1511,6 @@
         cursor: pointer;
         padding-block: 0.25rem;
     }
-    /* Wider gap on certain labels. */
     .settings-label--gap2 {
         gap: 0.5rem;
     }
@@ -1477,7 +1519,6 @@
         cursor: default;
     }
 
-    /* Range/thumbnail value read-out. */
     .value-readout {
         font-size: 0.75rem;
         line-height: 1rem;
@@ -1486,13 +1527,11 @@
         text-align: right;
     }
 
-    /* Wrapper around the viewer-locale select. */
     .locale-block {
         padding-inline: 1rem;
         padding-block: 0.5rem;
     }
 
-    /* Divider (empty horizontal rule). */
     .divider {
         display: flex;
         flex-direction: row;
@@ -1525,7 +1564,6 @@
         font-size: 0.875rem;
     }
 
-    /* Collapse section <summary> styling: grid layout + rotating chevron marker. */
     summary {
         list-style: none;
         display: grid;
@@ -1580,7 +1618,6 @@
         overflow: hidden;
     }
 
-    /* Nested submenu list inside a collapse: indented with a faint left rule. */
     details > ul {
         position: relative;
         margin-inline-start: 1rem;

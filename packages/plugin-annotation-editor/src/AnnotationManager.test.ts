@@ -6,11 +6,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { AnnotationManager as AnnotationManagerBase } from './AnnotationManager.svelte';
 import { STYLES } from './styles';
 
-// The manager now reads canvases and display-syncs through the owning viewer's
+// The manager reads canvases and display-syncs through the owning viewer's
 // state (ADR 0007), not the page-shared manifest cache. This stub stands in for
-// it; `getCanvases` stays a controllable mock so the per-test
-// `getCanvases.mockReturnValue(...)` calls are unchanged. A wrapper subclass
-// injects the stub so the `new AnnotationManager(...)` call sites stay unchanged.
+// it; `getCanvases` is a controllable mock so per-test
+// `getCanvases.mockReturnValue(...)` calls can shape what the viewer returns.
+// A wrapper subclass injects the stub, keeping `new AnnotationManager(...)`
+// call sites uniform across tests.
 const getCanvases = vi.fn((): any[] => []);
 const setUserAnnotations = vi.fn();
 const clearUserAnnotations = vi.fn();
@@ -132,11 +133,8 @@ function parseXywh(value: string): {
  * A IIIF v3 canvas whose single painting annotation is 3x smaller than the
  * canvas, for the canvas-space/image-space scaling cases.
  *
- * This used to be a `manifesto.js`-shaped double — a `getContent()` accessor
- * over an annotation with a `getBody()` accessor. Core's v3
- * painting-annotation enumeration is first-party as of the `remove-manifesto`
- * epic (ticket 03) and reads `canvas.items[].items[]`, so it now carries the
- * JSON the accessors used to wrap.
+ * Plain JSON matching `canvas.items[].items[]`, the shape core's v3
+ * painting-annotation enumeration reads directly.
  */
 function scalingCanvas() {
     return {
@@ -209,7 +207,7 @@ describe('AnnotationManager point serialization', () => {
         };
 
         // The point tool authors PointSelector directly in canvas space, so the
-        // create path skips the image→canvas transform (issue 11).
+        // create path skips the image→canvas transform.
         const prepared = (manager as any).prepareAnnotation(annotation, {
             canvasSpace: true,
         });
@@ -456,7 +454,7 @@ describe('AnnotationManager point authoring (F17)', () => {
             source: 'http://example.org/canvas/1',
             selector: { type: 'PointSelector', x: 300, y: 150 },
         });
-        // Stamped uniformly (issue 07 / F18).
+        // Stamped uniformly (F18).
         expect(created['@context']).toBe('http://www.w3.org/ns/anno.jsonld');
         expect(created.type).toBe('Annotation');
         expect(created.creator).toEqual({ id: 'u-1', name: 'Ada' });
@@ -1482,10 +1480,9 @@ describe('AnnotationManager tool resolution (F8)', () => {
 });
 
 describe('Annotorious CSS single-source (F23)', () => {
-    // The Annotorious stylesheet no longer injects from the manager: on migration
-    // it moved to the SDK style service, installed once at activation from
-    // `styles.ts` (root-aware — reaching the shadow root too). This is the moved
-    // `distributions.test.ts` single-source rule (it travelled with the plugin).
+    // The Annotorious stylesheet is installed once at activation through the
+    // SDK style service from `styles.ts` (root-aware — reaching the shadow root
+    // too), not injected by the manager.
     it('single-sources the Annotorious stylesheet via `?inline` in styles.ts', () => {
         const source = readFileSync(
             resolve(process.cwd(), 'src/styles.ts'),

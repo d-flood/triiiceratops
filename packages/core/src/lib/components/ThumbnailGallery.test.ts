@@ -236,7 +236,6 @@ describe('ThumbnailGallery - Thumbnail extraction', () => {
                 }),
             );
 
-            // Should use direct image URL instead of constructing IIIF URL
             expect(getThumbnailSrc(canvas)).toBe(
                 'http://example.org/direct-image.jpg',
             );
@@ -282,7 +281,6 @@ describe('ThumbnailGallery - Thumbnail extraction', () => {
                 ]),
             );
 
-            // Should use first image
             expect(getThumbnailSrc(canvas)).toBe(
                 'http://example.org/iiif/first/full/200,/0/default.jpg',
             );

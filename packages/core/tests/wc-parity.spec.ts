@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * Web Component ESM/IIFE parity (ticket 10).
+ * Web Component ESM/IIFE parity.
  *
  * Two fixture pages (public/e2e/wc-iife.html and public/e2e/wc-esm.html) load
  * the two built Web Component entries — the self-contained IIFE and the
@@ -28,7 +28,7 @@ interface ElementProps {
 /**
  * The custom element's state bridge and its property-only `searchProvider`
  * input, observed through the BUILT element rather than a native Svelte
- * component (framework-wrappers ticket 02).
+ * component.
  */
 interface StateBridge {
     availabilityEvents: Array<{
@@ -79,7 +79,12 @@ async function drive(
     expect(runtime, 'window.Triiiceratops should exist').not.toBeNull();
     expect(runtime!.coreVersion).not.toBe('');
     expect(runtime!.pluginApiVersion).not.toBe('');
-    expect(runtime!.capabilities.length).toBeGreaterThan(0);
+    // Present and enumerable, NOT non-empty: core's 1.0 line declares no
+    // capabilities at all. The one that ever existed named a bundled
+    // third-party major and was retired with no successor, so what the runtime
+    // has to keep promising is that the list exists and can be read — the
+    // parity assertion below (`esm` equals `iife`) is what this really guards.
+    expect(Array.isArray(runtime!.capabilities)).toBe(true);
     expect(runtime!.hasRegistry).toBe(true);
 
     // Documented element properties are readable off the custom element.
@@ -98,7 +103,7 @@ async function drive(
     expect(props.manifestId).toBe('/demo-manifests/e2e/manifest.json');
     expect(props.theme).toBe('dark');
 
-    // Renders a manifest: an OSD canvas appears inside the (open) shadow root.
+    // Renders a manifest: the renderer's canvas appears inside the (open) shadow root.
     const canvas = page.locator('triiiceratops-viewer canvas').first();
     await expect(canvas).toBeVisible({ timeout: 20000 });
 

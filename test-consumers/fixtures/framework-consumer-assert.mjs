@@ -138,7 +138,7 @@ function assertNoSvelteAndNoSdk(fixtureDir, { absentPeer }) {
 }
 
 /**
- * The epic's headline promise, pinned as configuration.
+ * The headline promise, pinned as configuration.
  *
  * The fixture's `check` script (`tsc -p tsconfig.json`, run by the driver before
  * the build) is the automated form of "a consumer with no Svelte installed
@@ -299,11 +299,11 @@ export async function assertFrameworkFixture(ctx, options) {
         'no property-tier value may be stringified into an attribute',
     ).toEqual([]);
 
-    // 2. `frame` cadence, driven by a real OpenSeadragon zoom — and the same
-    //    projection at the default `state` cadence as the contrast, which the
-    //    batched watcher never wakes.
+    // 2. `frame` cadence, driven by a real zoom through the public viewport
+    //    command — and the same projection at the default `state` cadence as the
+    //    contrast, which the batched watcher never wakes.
     await expect
-        .poll(() => page.evaluate(() => window.__tri.osdReady()), {
+        .poll(() => page.evaluate(() => window.__tri.rendererReady()), {
             timeout: 30_000,
         })
         .toBe(true);
@@ -325,7 +325,7 @@ export async function assertFrameworkFixture(ctx, options) {
         .not.toBe(zoomBefore);
     expect(
         await v1ZoomState.textContent(),
-        'a `state`-cadence projection is NOT woken by OpenSeadragon',
+        'a `state`-cadence projection is NOT woken by a renderer frame',
     ).toBe(stateZoomBefore);
 
     // 3. Commands through the handle, at `state` cadence, per viewer.
@@ -482,7 +482,7 @@ export async function assertFrameworkFixture(ctx, options) {
     await expect(fragileError).toHaveText('ok', { timeout: 15_000 });
     await expect(fragile).toHaveText(C3);
 
-    // 12. The ticket-08 testing helper, from the same tarball: a real command on
+    // 12. The testing helper, from the same tarball: a real command on
     //     a real headless `ViewerState`, observed by a real projection.
     await expect(kitCanvas).toHaveText('none');
     await page.evaluate(() => window.__tri.driveTestHandle());
@@ -614,7 +614,6 @@ export async function assertFrameworkFixture(ctx, options) {
         'searchprovider',
         'themeconfig',
         'initialcanvasregion',
-        'openseadragon',
         'viewer-root',
         'shadowroot',
     ]) {
@@ -687,7 +686,7 @@ export async function assertFrameworkFixture(ctx, options) {
 
     // ── Development-warning route ──────────────────────────────────────────
     //
-    // EPIC-1. The wrapper-side development warnings are gated on
+    // The wrapper-side development warnings are gated on
     // `ViewerConfig.debug`, and in the published package the wrappers and the
     // element bundle hold two different copies of the logger module — so this
     // has to be measured on the ARTIFACT, from outside, on the real console.
@@ -725,7 +724,7 @@ export async function assertFrameworkFixture(ctx, options) {
         '`themeConfig`',
     );
 
-    // The selector runtime's batched-cadence OSD warning (tickets 01 and 06),
+    // The selector runtime's batched-cadence viewport warning (tickets 01 and 06),
     // once for each of the two projections that make the mistake: one over the
     // mounted viewer, one over an idle `triiiceratops/testing` state that never
     // notifies at all. Both were created and first read in phase 1, while debug
@@ -733,7 +732,7 @@ export async function assertFrameworkFixture(ctx, options) {
     // advance, so a probe decided once, too early, would never fire again.
     expect(
         loud.warnings.filter((w) => /`state`-cadence selector read/.test(w)),
-        `${framework}: a state-cadence projection reading osdViewer must warn`,
+        `${framework}: a state-cadence projection reading the viewport must warn`,
     ).toHaveLength(2);
     expect(
         loud.warnings.find((w) => /`state`-cadence selector read/.test(w)),

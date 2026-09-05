@@ -5,9 +5,9 @@
  * These helpers (IIIF canvas image resolution, size-option ladders, canvas
  * compositing, blob fetching/downloading, multi-canvas layout math, OCR/
  * annotation geometry, and thumbnail fallbacks) are pure functions used by
- * core's own rendering AND by the migrated `@triiiceratops/plugin-image-export`
- * (ticket 15) and `@triiiceratops/plugin-pdf-export` (ticket 16) packages, which
- * run in the same realm as core. Because the code is genuinely shared and remains
+ * core's own rendering AND by the `@triiiceratops/plugin-image-export` and
+ * `@triiiceratops/plugin-pdf-export` packages, which run in the same realm as
+ * core. Because the code is genuinely shared and remains
  * with its owning package (core), it is exposed here as a single real public seam
  * rather than duplicated into each plugin (SPEC.md — "Shared code is placed at a
  * real public seam or remains with its owning package. No unpublished catch-all
@@ -23,6 +23,7 @@ export {
     buildIiifImageRequestUrl,
     getCanvasId,
     getCanvasLabel,
+    getDeclaredCanvasDimensions,
     resolveAllCanvasImages,
     resolveCanvasImage,
     type ResolvedCanvasImage,
@@ -34,10 +35,15 @@ export {
     clampCompositeSize,
     composeImages,
     downloadBlob,
+    fetchExportImageBlob,
     fetchImageBlob,
     getCompositeImagePlacement,
     getResolvedImageExportUrl,
+    isCrossOriginImageFailure,
+    isLevel0ImageService,
+    loadImageElement,
     resolveExportSizeOptions,
+    sanitizeFilenamePart,
     type ComposeImageEntry,
     type ExportSizeOption,
 } from './utils/imageExport';
@@ -58,11 +64,11 @@ export {
     type PointStyle,
 } from './utils/pointMarker';
 
-// Multi-canvas layout math.
-export {
-    getCanvasDisplayLayouts,
-    MULTI_CANVAS_GAP,
-} from './components/osdLayout';
+// Multi-canvas layout math. The one layout implementation: an export that must
+// match what is on screen calls this rather than reconstructing the arrangement
+// from a shared spacing constant, which is why no gap constant is exported
+// alongside it (omitting the `gap` option gives the viewer's own spacing).
+export { getCanvasDisplayLayouts } from './components/canvasLayout';
 
 // Visible canvas entries for the current viewport.
 export { getVisibleCanvasEntries } from './components/viewerControls';

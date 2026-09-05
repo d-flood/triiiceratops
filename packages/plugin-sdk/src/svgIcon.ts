@@ -1,5 +1,5 @@
 /**
- * `svgIcon` — the SDK's validated toolbar-icon helper (ticket 08).
+ * `svgIcon` — the SDK's validated toolbar-icon helper.
  *
  * A plugin author authors a full SVG string and passes it to `svgIcon`, which
  * validates it and returns a core-owned {@link IconDescriptor}. Per SPEC.md

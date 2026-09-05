@@ -11,7 +11,7 @@ export default {
     async assert({ page, baseURL, pageErrors }) {
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // Custom element upgrades and OSD paints the first canvas. Playwright CSS
+        // Custom element upgrades and the renderer paints the first canvas. Playwright CSS
         // locators pierce the element's open shadow root.
         await expect(page.locator('triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,

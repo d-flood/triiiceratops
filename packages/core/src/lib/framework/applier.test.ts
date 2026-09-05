@@ -28,12 +28,6 @@ import type { TriiiceratopsViewerElement } from './types.js';
  * file because the custom-element registry is per test file.
  */
 
-vi.mock('openseadragon', async () => {
-    const { createOsdModuleMock } =
-        await import('../test/utils/realViewerElement.js');
-    return createOsdModuleMock();
-});
-
 const { defineRealViewerElement, installInertAnimations, settle, VIEWER_TAG } =
     await import('../test/utils/realViewerElement.js');
 
@@ -159,7 +153,7 @@ describe('property tier after the element is registered', () => {
             version: '1.0.0',
             coreRange: '>=1.0.0-rc.0',
             pluginApiRange: '^1.0.0',
-            requiredCapabilities: ['osd@5'],
+            requiredCapabilities: [],
             icon: {
                 kind: 'svg',
                 inner: '<circle />',

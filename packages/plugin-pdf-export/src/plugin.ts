@@ -17,8 +17,8 @@
  * with its own configuration. A preconfigured default (`PdfExportPlugin`) is
  * exported alongside it.
  *
- * The plugin reads the raw OSD viewer (`ViewerState.osdViewer`) to size export
- * requests, so it declares `requiredCapabilities: ['osd@5']`.
+ * The plugin sizes export requests from `ViewerState.containerSize`, a
+ * first-party query-only read, so it requires no capability.
  */
 
 import { mount, unmount } from 'svelte';
@@ -39,11 +39,11 @@ import { catalog } from './catalog';
 import { PLUGIN_CONTEXT_KEY, type PanelContext } from './contextKey';
 import { FILE_PDF_ICON } from './icons';
 import Panel from './Panel.svelte';
+import { PLUGIN_META } from './identity';
 import { STYLE_ID, STYLES } from './styles';
 import type { PdfExportConfig } from './types';
 
-const NAME = '@triiiceratops/plugin-pdf-export';
-const VERSION = '1.0.0-rc.0';
+const { name: NAME, version: VERSION } = PLUGIN_META;
 
 function createView(config: PdfExportConfig): PluginView {
     return {
@@ -88,7 +88,7 @@ export function createPdfExportPlugin(config: PdfExportConfig = {}): SdkPlugin {
         version: VERSION,
         coreRange: '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
+        requiredCapabilities: [],
         icon: FILE_PDF_ICON,
         target: 'panel',
         catalog,

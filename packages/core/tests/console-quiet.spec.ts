@@ -1,10 +1,8 @@
 import { test, expect, type ConsoleMessage } from '@playwright/test';
 
-// Ticket 18 — quiet production + opt-in debug.
-//
 // A default-config viewer must mount and operate without emitting any
-// triiiceratops console output (user story 12). Enabling `debug` opts into the
-// core logger, whose records are prefixed `[triiiceratops]`.
+// triiiceratops console output. Enabling `debug` opts into the core logger,
+// whose records are prefixed `[triiiceratops]`.
 
 const MANIFEST = '/demo-manifests/e2e/manifest.json';
 const VIEWER_PREFIX = '[triiiceratops]';
@@ -25,7 +23,9 @@ async function runJourney(page: import('@playwright/test').Page) {
     await expect(page.locator('#triiiceratops-viewer')).toBeVisible();
     await expect(page.locator('.loading')).not.toBeVisible({ timeout: 20000 });
     await expect(
-        page.locator('#triiiceratops-viewer .osd-background'),
+        page.locator(
+            '#triiiceratops-viewer [data-testid="canvas-renderer-root"]',
+        ),
     ).toBeVisible({ timeout: 10000 });
 
     // Exercise a state change (drives dispatch + derived recomputation).

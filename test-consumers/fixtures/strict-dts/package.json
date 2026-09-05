@@ -1,0 +1,16 @@
+{
+    "name": "consumer-strict-dts",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "check": "tsc -p tsconfig.json"
+    },
+    "dependencies": {
+        "triiiceratops": "file:./vendor/triiiceratops.tgz"
+    },
+    "devDependencies": {
+        "svelte": "^5.45.5",
+        "typescript": "~5.9.3"
+    }
+}

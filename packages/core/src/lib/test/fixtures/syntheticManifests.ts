@@ -2,8 +2,8 @@
  * Synthetic IIIF manifests covering parsing branches that no real manifest in
  * the vendored corpus reaches.
  *
- * Part of the `remove-manifesto` epic's corpus (see
- * `.tracker/remove-manifesto/SPEC.md`). The vendored manifests in
+ * Part of the parser corpus (see `.tracker/remove-manifesto/SPEC.md`). The
+ * vendored manifests in
  * `./manifests/` are the manifests that broke a real library over a decade;
  * these are the branches we KNOW exist and want hit deliberately, so a
  * regression reads as a named failing case rather than as an absence.
@@ -314,7 +314,7 @@ export const syntheticV2MultipleSequences = v2Manifest(
  * Level 0 means the server serves only precomputed derivatives, so the viewer
  * cannot ask for an arbitrary region or size. The fixture exists so that a
  * change to image-service handling has something to fail against; the tile
- * source itself is out of scope for this epic.
+ * source itself is out of scope here.
  */
 export const syntheticV2Level0Service = v2Manifest(
     `${BASE}/v2-level0/manifest`,
@@ -447,7 +447,7 @@ export const syntheticV3Level0Service = {
  * A IIIF v3 canvas whose painting annotations are split across TWO
  * `AnnotationPage`s in its `items`.
  *
- * This is the fixture ticket 03 is verified against: the removed library read
+ * This is the fixture the fix is verified against: the removed library read
  * only the first annotation page, silently dropping every image after it. The
  * fixture must exist before the fix, so that the fix is demonstrable rather
  * than asserted.

@@ -6,7 +6,7 @@ import { definePluginStyles } from '@triiiceratops/plugin-sdk';
  * activation installs. Class names are namespaced `tri-pdf-*` since these rules
  * are not Svelte-scoped.
  *
- * Chrome ownership (epic restore-plugin-toolbar-chrome, ticket 05): core owns
+ * Chrome ownership: core owns
  * the toolbar button and the docked panel chrome (surface, sticky header, radius,
  * open/close). These rules therefore style ONLY the panel's content body — no
  * self-positioned toggle, no `position: absolute`, no panel surface/border. The

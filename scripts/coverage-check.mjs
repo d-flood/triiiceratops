@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Coverage floor gate (ticket 22).
+// Coverage floor gate.
 //
 // Reads every package's `coverage/coverage-summary.json` (produced by
 // `pnpm test:coverage`), then either:

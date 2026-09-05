@@ -2,10 +2,9 @@ import type { LocaleCatalog } from '@triiiceratops/plugin-sdk';
 
 /**
  * The plugin's package-owned localization catalog (CONTEXT.md **Active locale**).
- * These strings previously lived in core's `messages/en.json` / `messages/de.json`;
- * migrating the plugin out of core moves them here so the catalog ships with (and
- * evolves with) the plugin, and core's catalogs carry no plugin keys. `en` is the
- * required fallback; a missing key resolves to `en` and then to the key itself.
+ * The catalog ships with (and evolves with) the plugin, so core's catalogs carry
+ * no plugin keys. `en` is the required fallback; a missing key resolves to `en`
+ * and then to the key itself.
  */
 export const catalog: LocaleCatalog = {
     en: {

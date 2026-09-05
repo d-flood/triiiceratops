@@ -271,12 +271,19 @@ describe('ViewerState - IIIF Search', () => {
             expect(state.searchResults[0].hits[0]).toMatchObject({
                 type: 'hit',
                 before: 'This is a ',
-                match: '<mark>test</mark>',
+                match: '&lt;mark&gt;test&lt;/mark&gt;',
                 after: ' result on page one',
             });
         });
 
-        it('should decode HTML entities in match text', async () => {
+        /**
+         * The excerpt fields are plain text by contract, so state carries the
+         * service's bytes through untouched. It used to un-escape
+         * `&lt;mark&gt;` on the way to four `{@html}` sinks; the panel now
+         * segments the delimiters itself and renders text nodes, so nothing
+         * here rewrites what the service said.
+         */
+        it('carries the service text through unmodified', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => searchResponseWithHits,
@@ -285,9 +292,7 @@ describe('ViewerState - IIIF Search', () => {
             await state.search('test');
 
             const firstHit = state.searchResults[0].hits[0];
-            // The fixture has &lt;mark&gt; which should be decoded to <mark>
-            expect(firstHit.match).toContain('<mark>');
-            expect(firstHit.match).not.toContain('&lt;');
+            expect(firstHit.match).toBe('&lt;mark&gt;test&lt;/mark&gt;');
         });
 
         it('should extract xywh coordinates from annotations', async () => {
@@ -337,7 +342,7 @@ describe('ViewerState - IIIF Search', () => {
             expect(state.searchResults[0].hits).toHaveLength(2);
             expect(state.searchResults[0].hits[0]).toMatchObject({
                 type: 'resource',
-                match: '<mark>word</mark>',
+                match: '&lt;mark&gt;word&lt;/mark&gt;',
             });
         });
 
@@ -362,7 +367,7 @@ describe('ViewerState - IIIF Search', () => {
             await state.search('word');
 
             const firstHit = state.searchResults[0].hits[0];
-            expect(firstHit.match).toBe('<mark>word</mark>');
+            expect(firstHit.match).toBe('&lt;mark&gt;word&lt;/mark&gt;');
         });
     });
 
@@ -457,7 +462,7 @@ describe('ViewerState - IIIF Search', () => {
             expect(anno.canvasId).toBe(CANVAS_1);
         });
 
-        it('should include match text in annotation resource', async () => {
+        it('should include match text, without its mark delimiters, in the annotation resource', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => searchResponseWithHits,
@@ -465,8 +470,11 @@ describe('ViewerState - IIIF Search', () => {
 
             await state.search('test');
 
+            // The service's match is `&lt;mark&gt;test&lt;/mark&gt;`. The
+            // annotation panel shows `chars` to the reader, so the delimiters
+            // come off rather than being displayed.
             const anno = state.searchAnnotations[0];
-            expect(anno.resource.chars).toBe('<mark>test</mark>');
+            expect(anno.resource.chars).toBe('test');
         });
 
         it('should create multiple annotations for hits with multiple bounds', async () => {
@@ -633,18 +641,18 @@ describe('ViewerState - IIIF Search', () => {
             expect(state.searchResults[0].hits[0]).toMatchObject({
                 type: 'hit',
                 before: 'This is a ',
-                match: '<mark>test</mark>',
+                match: '&lt;mark&gt;test&lt;/mark&gt;',
                 after: ' result on page one',
             });
             expect(state.searchResults[1].hits[0]).toMatchObject({
                 type: 'hit',
                 before: 'Another ',
-                match: '<mark>test</mark>',
+                match: '&lt;mark&gt;test&lt;/mark&gt;',
                 after: ' result on page two',
             });
         });
 
-        it('should decode HTML entities in v2 match text', async () => {
+        it('carries the v2 service text through unmodified', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => searchResponseV2WithContext,
@@ -653,8 +661,7 @@ describe('ViewerState - IIIF Search', () => {
             await state.search('test');
 
             const firstHit = state.searchResults[0].hits[0];
-            expect(firstHit.match).toContain('<mark>');
-            expect(firstHit.match).not.toContain('&lt;');
+            expect(firstHit.match).toBe('&lt;mark&gt;test&lt;/mark&gt;');
         });
 
         it('should extract xywh bounds from v2 target strings', async () => {
@@ -706,7 +713,7 @@ describe('ViewerState - IIIF Search', () => {
             expect(state.searchResults[0].hits).toHaveLength(2);
             expect(state.searchResults[0].hits[0]).toMatchObject({
                 type: 'resource',
-                match: '<mark>word</mark>',
+                match: '&lt;mark&gt;word&lt;/mark&gt;',
             });
         });
 
@@ -719,7 +726,7 @@ describe('ViewerState - IIIF Search', () => {
             await state.search('word');
 
             const firstHit = state.searchResults[0].hits[0];
-            expect(firstHit.match).toBe('<mark>word</mark>');
+            expect(firstHit.match).toBe('&lt;mark&gt;word&lt;/mark&gt;');
         });
 
         it('should extract bounds from v2 items-only response', async () => {
@@ -746,7 +753,7 @@ describe('ViewerState - IIIF Search', () => {
             expect(state.searchResults[0].hits).toHaveLength(1);
             expect(state.searchResults[0].hits[0]).toMatchObject({
                 type: 'resource',
-                match: '<mark>alpha</mark> foo <mark>beta</mark>',
+                match: '&lt;mark&gt;alpha&lt;/mark&gt; foo &lt;mark&gt;beta&lt;/mark&gt;',
                 bounds: [1, 2, 3, 4],
             });
             expect(state.searchResults[0].hits[0].allBounds).toEqual([

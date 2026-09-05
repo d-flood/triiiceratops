@@ -204,9 +204,9 @@ export { definePlugin } from './definePlugin.js';
 export type { DefinePluginConfig } from './definePlugin.js';
 export { svgIcon, SvgIconError } from './svgIcon.js';
 export { definePluginStyles } from './pluginStyles.js';
-export { whenOsdReady } from './osd.js';
-export type { WhenOsdReadyOptions } from './osd.js';
-export { dispatchPluginCommandError } from './reportError.js';
+export { whenRendererReady } from './renderer.js';
+export type { WhenRendererReadyOptions } from './renderer.js';
+export { createCommandErrorReporter, dispatchPluginCommandError, } from './reportError.js';
 export { activatePlugin, runActivation } from './activate.js';
 export { createSelectorRuntime } from './selectors.js';
 export type { SelectorRuntime } from './selectors.js';
@@ -258,48 +258,6 @@ export declare class SelectorController<T> implements ReactiveController {
     hostConnected(): void;
     hostDisconnected(): void;
 }
-
-// ======================================================================
-// FILE: dist/osd.d.ts
-// ======================================================================
-/**
- * OSD-readiness helper (SPEC.md ViewerState contract — "The SDK provides a
- * helper to await OSD readiness").
- *
- * `osdViewer` is observable viewer state (ADR 0009 / CONTEXT.md **OSD
- * pass-through**): `null` until OpenSeadragon finishes initializing, then set to
- * the live `OpenSeadragon.Viewer`. A plugin that touches raw OSD (declaring the
- * `osd@5` capability) awaits readiness with {@link whenOsdReady} before reaching
- * for `osdViewer`, instead of polling or racing.
- *
- * Framework-neutral by construction: it reads `viewerState.osdViewer` and waits
- * on the framework-neutral `ViewerState.subscribe` fan-out — no Svelte runtime,
- * no OpenSeadragon import. The returned value is whatever core set (the raw
- * viewer), governed by OSD's own versioning.
- */
-import type { ViewerState } from 'triiiceratops';
-/** Options for {@link whenOsdReady}. */
-export interface WhenOsdReadyOptions {
-    /**
-     * Abort the wait. When the signal fires before OSD is ready, the internal
-     * `ViewerState` subscription is dropped (no leak past a plugin's teardown)
-     * and the promise rejects with the signal's reason. Pass a controller you
-     * abort from the plugin's cleanup so an OSD that never becomes ready does
-     * not leave a dangling subscription.
-     */
-    signal?: AbortSignal;
-}
-/**
- * Resolve once the owning viewer's OSD readiness path has fired — i.e.
- * `osdViewer` is non-null. Resolves synchronously (a microtask) if OSD is
- * already ready; otherwise it waits on the batched notification path, so the
- * promise settles on the flush after core sets `osdViewer`.
- *
- * @param state The owning viewer's live state (from `PluginContext.viewerState`).
- * @param options Optional {@link WhenOsdReadyOptions} (e.g. an `AbortSignal`).
- * @returns A promise for the live OSD viewer once it is ready.
- */
-export declare function whenOsdReady(state: ViewerState, options?: WhenOsdReadyOptions): Promise<NonNullable<ViewerState['osdViewer']>>;
 
 // ======================================================================
 // FILE: dist/pluginStyles.d.ts
@@ -412,8 +370,82 @@ export declare function registerBrowserPlugin(plugin: SdkPlugin): void;
 export {};
 
 // ======================================================================
+// FILE: dist/renderer.d.ts
+// ======================================================================
+/**
+ * Renderer-readiness helper.
+ *
+ * **This is not `whenOsdReady` renamed.** That helper meant "the third-party
+ * viewer object exists — here it is, you may touch it", and it resolved WITH
+ * that object. With no pass-through there is nothing to hand over, so the two
+ * are not interchangeable and carrying the old semantics forward under a new
+ * name would have been the wrong half of the choice the spec forces.
+ *
+ * The decision taken: the helper **becomes a first-paint signal** rather than
+ * retiring. It resolves `void`, and what it promises is that the renderer has a
+ * **sized surface and accepts commands** — i.e. that
+ * `ViewerState.viewportScale` / `viewportCentre` / `viewportBounds` /
+ * `containerSize` answer with real numbers instead of zeroes and `null`s, and
+ * that `zoomTo`, `panTo`, `fitBounds`, and `fitCanvas` will do something rather
+ * than no-op.
+ *
+ * It survives rather than retiring because the question it answers is still
+ * asked, by anything that has to place something over the image: a plugin
+ * measuring where a canvas point lands on screen before the surface is sized
+ * gets an honest `null`, and polling for it is exactly what a readiness helper
+ * exists to prevent.
+ *
+ * Framework-neutral by construction: it reads `viewerState.rendererReady` and
+ * waits on the framework-neutral `ViewerState.subscribe` fan-out — no Svelte
+ * runtime, no renderer import, and no renderer object anywhere in the result.
+ */
+import type { ViewerState } from 'triiiceratops';
+/** Options for {@link whenRendererReady}. */
+export interface WhenRendererReadyOptions {
+    /**
+     * Abort the wait. When the signal fires before the renderer is ready, the
+     * internal `ViewerState` subscription is dropped (no leak past a plugin's
+     * teardown) and the promise rejects with the signal's reason. Pass a
+     * controller you abort from the plugin's cleanup so a viewer that never
+     * mounts a renderer does not leave a dangling subscription.
+     */
+    signal?: AbortSignal;
+}
+/**
+ * Resolve once the owning viewer's renderer has a sized surface and accepts
+ * commands. Resolves synchronously (a microtask) if it already does; otherwise
+ * it waits on the batched notification path, so the promise settles on the
+ * flush after core marks the renderer ready — `rendererReady` is an inventoried
+ * observable member.
+ *
+ * Resolves `void`, deliberately: there is no object to hand out, and a helper
+ * that returned one would be the pass-through rebuilt.
+ *
+ * Note that readiness is not permanent. A renderer that unmounts sets
+ * `rendererReady` back to `false`; this helper answers "is it ready now (or
+ * when next it becomes ready)", not "has it ever been ready".
+ *
+ * @param state The owning viewer's live state (from `PluginContext.viewerState`).
+ * @param options Optional {@link WhenRendererReadyOptions} (e.g. an `AbortSignal`).
+ */
+export declare function whenRendererReady(state: ViewerState, options?: WhenRendererReadyOptions): Promise<void>;
+
+// ======================================================================
 // FILE: dist/reportError.d.ts
 // ======================================================================
+/**
+ * Bind {@link dispatchPluginCommandError} to one plugin's identity.
+ *
+ * Every plugin that reports command failures had its own copy of the same
+ * thirteen lines, differing only in the name and version literals it passed —
+ * and because the version was written out a second time there, it drifted from
+ * the one the plugin declares to `definePlugin`. Pass the same meta object to
+ * both and there is one place the identity can be wrong.
+ */
+export declare function createCommandErrorReporter(meta: {
+    name: string;
+    version: string;
+}): (node: EventTarget, error: unknown, retry: () => void) => void;
 /** Dispatch an actionable plugin command failure on the host error channel. */
 export declare function dispatchPluginCommandError(node: EventTarget, pluginName: string, pluginVersion: string, error: unknown, retry: () => void): void;
 
@@ -601,11 +633,11 @@ export declare function runPluginConformance(factory: PluginFactory): void;
  *
  * `createTestViewerContext` assembles a REAL, compiled `ViewerState` (from
  * `triiiceratops/testing`) with RECORDING DOUBLES for the style, UI, and locale
- * services and an injectable OSD stub that defaults to absent. This is the
+ * services and an injectable renderer stand-in that defaults to absent. This is the
  * canonical shape of CONTEXT.md's **Test viewer context**: "the harness is fake;
  * the state is never fake." Commands, `subscribe`, selector memoization, and the
  * batched notification flush are all the production implementations — only the
- * host-owned services and OSD are stand-ins.
+ * host-owned services and the renderer are stand-ins.
  *
  * The doubles only RECORD calls; they need not implement teardown. `runActivation`
  * (ticket 08) auto-tracks every `styles.install` and `locale.subscribe` an
@@ -613,9 +645,9 @@ export declare function runPluginConformance(factory: PluginFactory): void;
  * free to be a pure log.
  */
 import type { IconDescriptor, LocaleCatalog, PluginContext, PluginLocaleService, PluginStyleService, PluginSurface, PluginUiService, PluginUiTarget, ViewerState } from 'triiiceratops';
-import { type HeadlessViewerFixtures } from 'triiiceratops/testing';
-import { whenOsdReady } from '../osd.js';
-export { whenOsdReady };
+import { type HeadlessViewerFixtures, type RendererStub, type RendererStubOptions } from 'triiiceratops/testing';
+import { whenRendererReady } from '../renderer.js';
+export { whenRendererReady };
 /** One recorded `styles.install` call and whether its reference was released. */
 export interface RecordedStyleInstall {
     readonly css: string;
@@ -675,6 +707,15 @@ export interface TestViewerContextOptions {
      * Chrome id the plugin's surface is bound to — the `config.plugins` key. Use
      * the plugin's own `uiId` when a fixture configures it through
      * `fixtures.config.plugins`; defaults to `'test-plugin'`.
+     *
+     * It is also the **only** id the viewer knows a plugin by, so it is the only
+     * prefix `ViewerState.registerOverlayLayer` accepts: a plugin that ids its
+     * layer from `context.surface.id` works here unchanged, and one that hardcodes
+     * its package name has its layer refused (`viewererror`,
+     * `overlay-layer-refused`) with `mount` never called. Hand `surface` to
+     * `activatePlugin` — pass `tc.surface`, as `runActivation` does — or the
+     * plugin gets the always-open stub surface, whose id names no plugin of this
+     * viewer and whose layers are therefore all refused.
      */
     uiId?: string;
     /**
@@ -692,7 +733,7 @@ export interface TestViewerContextOptions {
 }
 /**
  * The assembled test viewer context: a real state, recording-double services, a
- * ready-to-mount {@link PluginContext}, and an OSD injector.
+ * ready-to-mount {@link PluginContext}, and a renderer injector.
  */
 export interface TestViewerContext {
     /**
@@ -716,12 +757,23 @@ export interface TestViewerContext {
      */
     readonly surface: PluginSurface;
     /**
-     * Inject a caller-supplied OSD stub and fire the readiness path
-     * (`ViewerState.notifyOSDReady`). `osdViewer` is `null` until called. The kit
-     * ships NO OSD fake — OSD-dependent behavior belongs to the browser seam
-     * (SPEC.md Testing Decisions). Pair with `whenOsdReady` to await readiness.
+     * Mount core's headless renderer stand-in and fire the real readiness path
+     * (`ViewerState.attachRenderer`). Until it is called `rendererReady` is
+     * `false`, the viewport queries answer with zeroes and `null`s, and
+     * viewport commands are no-ops.
+     *
+     * The stand-in comes from core rather than from the caller: the renderer is
+     * first-party, so there is one right answer to what a stand-in reports.
+     * Returns it, which is also the controller — `setView` moves the viewport,
+     * `emitFrame` fires one animation event, `calls` records commands received.
+     * Pass `canvasIds` to make it answer `null` for any other canvas, the way a
+     * real host does for a canvas it has not laid out.
+     *
+     * Pair with `whenRendererReady` to await readiness.
      */
-    setOsdViewer(stub: unknown): void;
+    attachRenderer(options?: RendererStubOptions): RendererStub;
+    /** Unmount the stand-in {@link attachRenderer} mounted. Idempotent. */
+    detachRenderer(): void;
     /**
      * Drop the context's own selector-runtime subscription. Optional: each
      * context owns a fresh state that is garbage-collected with it, so most tests
@@ -746,14 +798,14 @@ export declare function createTestViewerContext(options?: TestViewerContextOptio
  *
  * A plugin author validates a plugin without a full application by mounting it
  * against a **test viewer context**: a REAL, compiled `ViewerState` (real
- * commands, real batched notifications) with recording-double services and an
- * injectable OSD stub (CONTEXT.md **Test viewer context** — "the harness is
- * fake; the state is never fake"). Because the state is the production
+ * commands, real batched notifications) with recording-double services and a
+ * mountable headless renderer stand-in (CONTEXT.md **Test viewer context** —
+ * "the harness is fake; the state is never fake"). Because the state is the production
  * implementation, a passing test reflects production semantics.
  *
  * ── Flush timing rule (READ THIS) ─────────────────────────────────────────
  * Notifications are BATCHED and delivered on the reactive flush, never
- * synchronously inside a command. After a command (or `setLocale`/`setOsdViewer`),
+ * synchronously inside a command. After a command (or `setLocale`/`attachRenderer`),
  * `await flush()` before asserting a subscriber reacted:
  *
  *   import { createTestViewerContext, flush } from '@triiiceratops/plugin-sdk/testing';
@@ -765,11 +817,11 @@ export declare function createTestViewerContext(options?: TestViewerContextOptio
  *   await flush();            // ← notification lands here
  *   expect(seen).toBe(true);
  *
- * This kit is unit-level. OSD- and Annotorious-dependent behavior is validated
- * at the browser seam, not here: the kit ships NO OSD/Annotorious fake.
+ * This kit is unit-level. Renderer- and Annotorious-dependent behavior is
+ * validated at the browser seam, not here: the kit ships no Annotorious fake.
  */
 export { flush, createHeadlessViewerState, type HeadlessViewerFixtures, } from 'triiiceratops/testing';
-export { createTestViewerContext, whenOsdReady, type TestViewerContext, type TestViewerContextOptions, type RecordingStyleService, type RecordedStyleInstall, type RecordingUiService, type RecordedUiRequest, type TestLocaleService, } from './context.js';
+export { createTestViewerContext, whenRendererReady, type TestViewerContext, type TestViewerContextOptions, type RecordingStyleService, type RecordedStyleInstall, type RecordingUiService, type RecordedUiRequest, type TestLocaleService, } from './context.js';
 export { runPluginConformance, conformanceCases, type PluginFactory, type ConformanceCase, } from './conformance.js';
 
 // ======================================================================

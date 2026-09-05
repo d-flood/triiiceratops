@@ -10,11 +10,11 @@ import { parseStructures, type StructureNode } from '../../utils/structures';
 import { syntheticManifestCorpus } from './syntheticManifests';
 
 /**
- * Corpus smoke test — `remove-manifesto` ticket 01.
+ * Corpus smoke test for the manifest parser.
  *
  * Loads EVERY fixture in the corpus through the real seam a consumer uses —
  * `ViewerState.setManifestData`, backed by the real manifest cache, no mocks —
- * and asserts the three things whose failure this epic is most likely to cause:
+ * and asserts the three things a parser regression is most likely to cause:
  *
  * 1. registration does not throw,
  * 2. canvas enumeration returns an array,
@@ -71,15 +71,15 @@ const EXPECTED_EMPTY: Record<string, string> = {
 };
 
 /**
- * Fixtures the CURRENT parser cannot read, kept precisely so a later ticket can
+ * Fixtures the CURRENT parser cannot read, kept precisely so a later fix can
  * be shown to fix them. A standing debt, not a correct result.
  *
- * When a ticket in this epic makes one of these enumerate, delete its entry —
- * the assertion below insists on it rather than letting the list rot.
+ * When a fix makes one of these enumerate, delete its entry — the assertion
+ * below insists on it rather than letting the list rot.
  */
 const KNOWN_UNSUPPORTED: Record<string, string> = {
-    // `synthetic/v2 sequences as a bare object` lived here until ticket 07.
-    // `manifesto.js` read `sequences` with an indexed loop, so a bare object
+    // `synthetic/v2 sequences as a bare object` lived here until the parser was
+    // fixed. `manifesto.js` read `sequences` with an indexed loop, so a bare object
     // yielded length `undefined` and enumerated to nothing, silently. The
     // first-party enumerator guards array access (SPEC, "Failure contract") and
     // the fixture now enumerates its 2 canvases, asserted like any other.
@@ -197,9 +197,9 @@ describe('manifest corpus smoke test', () => {
                 `${name} enumerated ${canvases.length} canvases, none of which had an id`,
             ).toBe(canvases.length);
 
-            // Canvases crossing the viewer boundary are RAW IIIF Canvas JSON as
-            // of ticket 07 — v2 or v3 as the manifest authored it, with no
-            // library wrapper and no accessors. Integrators and plugins are
+            // Canvases crossing the viewer boundary are RAW IIIF Canvas JSON —
+            // v2 or v3 as the manifest authored it, with no library wrapper
+            // and no accessors. Integrators and plugins are
             // told to read them with ordinary property access, so this holds
             // that contract across the whole corpus rather than on one fixture.
             for (const canvas of canvases as any[]) {
@@ -265,12 +265,12 @@ describe('manifest corpus smoke test', () => {
     it.each(collectionFixtures.map(asCase))(
         '%s degrades rather than crashing when enumerated as a manifest',
         async (_name, collection) => {
-            // This asserted the opposite until ticket 07: `getCanvases` called
-            // `getSequences()` on whatever the library parsed, and a Collection
-            // has no such method, so the manifest path threw a TypeError rather
-            // than returning an empty array — a direct violation of the epic's
-            // failure contract ("every enumerator is total: it never throws and
-            // always returns an array").
+            // This asserted the opposite before the parser was fixed:
+            // `getCanvases` called `getSequences()` on whatever the library
+            // parsed, and a Collection has no such method, so the manifest
+            // path threw a TypeError rather than returning an empty array —
+            // a direct violation of the failure contract ("every enumerator
+            // is total: it never throws and always returns an array").
             //
             // A v3 Collection's `items` are its member *Manifests*, so "total"
             // here means empty rather than a canvas list: enumerating those
@@ -290,7 +290,7 @@ describe('manifest corpus smoke test', () => {
     it('parses a v2 range written in all three content spellings', async () => {
         // Not a behaviour assertion — a fixture assertion. The three-spelling
         // fixture is worthless if it is subtly malformed, and nothing else in
-        // the corpus would notice until the baseline lands in ticket 04.
+        // the corpus would notice.
         const fixture = synthetic.find((f) =>
             f.name.includes('v2 ranges'),
         ) as Fixture;
@@ -342,7 +342,7 @@ describe('manifest corpus smoke test', () => {
     });
 
     it('keeps every vendored fixture trimmed', () => {
-        // The 2 MB corpus budget is checked by `du -sh` in the ticket; what a
+        // The 2 MB corpus budget is checked by `du -sh` separately; what a
         // test usefully holds is that nobody drops an untrimmed manifest in.
         // The largest fixture today is `demo/zavicajna-digitalna-manifest.json`
         // — a 244 KB, 109-canvas institutional manifest, deliberately kept

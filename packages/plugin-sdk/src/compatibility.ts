@@ -1,5 +1,5 @@
 /**
- * Semver compatibility negotiation (ticket 07).
+ * Semver compatibility negotiation.
  *
  * A plugin declares `coreRange`, `pluginApiRange`, and `requiredCapabilities`.
  * At activation the SDK checks them against the host's declared `coreVersion`,
@@ -190,8 +190,8 @@ export interface PluginCompatibilityReason {
 
 /**
  * Structured, actionable error thrown when a plugin cannot activate against the
- * host. Carries every failed check so a host/UI can render precise guidance
- * (ticket 09 routes it through the `pluginerror` channel).
+ * host. Carries every failed check so a host/UI can render precise guidance,
+ * routed through the `pluginerror` channel.
  */
 export class PluginCompatibilityError extends Error {
     readonly code = 'PLUGIN_INCOMPATIBLE' as const;

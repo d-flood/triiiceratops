@@ -2,13 +2,13 @@ import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 /*
- * Automated WCAG 2.2 AA scan suite (ticket 23).
+ * Automated WCAG 2.2 AA scan suite.
  *
  * Scans each meaningful viewer UI state against each of the four built-in
  * themes with @axe-core/playwright and requires ZERO violations. The scan is
  * scoped to the <triiiceratops-viewer> element (axe descends into its shadow
  * root automatically) so it audits the viewer chrome, not the surrounding demo
- * page. Any rule exception would require the ticket-22 allowlist process with a
+ * page. Any rule exception would require a documented allowlist entry with a
  * written rationale — there are none here.
  *
  * Each test loads the page once and re-scans across all four themes in place
@@ -16,13 +16,13 @@ import AxeBuilder from '@axe-core/playwright';
  * page load per state rather than one per cell.
  */
 
-// Axe + OSD is heavy: parallel cold page loads saturate the dev server. Run
+// Axe + the renderer is heavy: parallel cold page loads saturate the dev server. Run
 // this file's scans in a single worker (CI already runs workers=1). Keeps the
 // state × theme matrix reliable without touching playwright.config.ts.
 test.describe.configure({ mode: 'serial' });
 
-// The a11y suite audits the desktop viewer; ticket 24 owns the mobile browser
-// matrix. Skip on mobile projects so this file stays deterministic there.
+// The a11y suite audits the desktop viewer. Skip on mobile projects so this
+// file stays deterministic there.
 test.beforeEach(({ isMobile }) => {
     test.skip(!!isMobile, 'a11y suite targets the desktop viewer (chromium)');
 });
@@ -51,8 +51,8 @@ async function loadViewer(page: Page, query = ''): Promise<void> {
         waitUntil: 'domcontentloaded',
         timeout: 60000,
     });
-    // Wait for the chrome (toolbar) rather than OSD tile rendering: the a11y
-    // scan audits the DOM/chrome, and OSD rendering is heavy enough that waiting
+    // Wait for the chrome (toolbar) rather than tile rendering: the a11y
+    // scan audits the DOM/chrome, and tile rendering is heavy enough that waiting
     // on it flakes under parallel workers.
     await page
         .locator('[aria-controls="tri-flyout-viewing-mode"]')
@@ -108,4 +108,22 @@ test('axe: viewing-mode flyout open × all themes', async ({ page }) => {
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await scanAllThemes(page, 'flyout-open');
+});
+
+/*
+ * The renderer's image surface is a focusable, labelled tab stop. The scans
+ * above wait for the chrome, so they can race the surface's own mount; this
+ * one waits for the image surface itself and re-runs the whole matrix with
+ * that tab stop guaranteed present — a focusable element with a role and no
+ * accessible name, or an unreachable one, is exactly what axe catches.
+ */
+test('axe: Canvas2D renderer (focusable image surface) × all themes', async ({
+    page,
+}) => {
+    test.slow();
+    await loadViewer(page);
+    await page
+        .locator('[data-testid="canvas-renderer-root"]')
+        .waitFor({ timeout: 60000 });
+    await scanAllThemes(page, 'canvas-renderer');
 });

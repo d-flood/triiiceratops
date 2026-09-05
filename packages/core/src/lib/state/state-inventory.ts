@@ -6,8 +6,8 @@
  * `ViewerState` is the sole plugin-facing state surface). It is checked in and
  * reviewed — never generated. `state-inventory.test.ts` reflects over a
  * constructed instance and fails if any mutable member is missing here (the
- * "unclassified member fails CI" gate); ticket 04 builds the notification
- * capability matrix on top of it.
+ * "unclassified member fails CI" gate); the notification capability matrix
+ * builds on top of it.
  *
  * Classification rules (binding — from CONTEXT.md glossary and the grilling
  * decisions):
@@ -18,16 +18,27 @@
  *                 Every listed method exists on `ViewerState` and has at least
  *                 one behavior test.
  * - `observable`— mirrors an external fact core alone writes (network errors,
- *                 fetch flags, `osdViewer`). Readable and notifying, no mutator.
+ *                 fetch flags, renderer readiness). Readable and notifying, no
+ *                 mutator.
  * - `internal`  — no contract; changeable in a patch release and excluded from
  *                 the documented API (TS `private` fields and transient UI
  *                 bookkeeping that has no plugin-facing meaning).
  * - `query-only`— high-frequency/per-frame values readable on demand but never
- *                 notifying (e.g. continuous viewport position). There are no
- *                 such members on `ViewerState` today: continuous viewport
- *                 position is read from `osdViewer` (OpenSeadragon's own API),
- *                 so this classification currently has zero entries but is kept
- *                 available for future inventory decisions.
+ *                 notifying — the viewport's scale, centre, bounds, and
+ *                 container size. Reading them reactively is a `frame`-cadence
+ *                 selector choice, not a reclassification.
+ *
+ * **`query-only` members may still list commands.** The viewport is both: its
+ * values are read per frame and never notify, while `zoomIn`, `panTo`, and
+ * `fitCanvas` are exactly the parity-rule commands the viewer's own chrome
+ * uses. Splitting it into a notifying member and a query member would have
+ * meant either waking every subscriber per pointer sample or leaving the
+ * chrome's own zoom unreachable from a plugin. `command` members MUST list
+ * their mutators; `observable` and `internal` members must list none.
+ *
+ * Query-only members are reflected as getter-only accessors rather than as
+ * mutable fields — they are questions asked of the renderer, not stored values
+ * — so `state-inventory.test.ts` reflects both shapes.
  *
  * Direct property assignment stays physically possible (the object is not
  * sealed); it is an unsupported escape hatch carrying no semver or invariant
@@ -48,8 +59,11 @@ export interface StateInventoryEntry {
     member: string;
     classification: StateClassification;
     /**
-     * For `command` members, the supported mutation method(s) on `ViewerState`.
-     * Required (and only meaningful) when `classification === 'command'`.
+     * The supported mutation method(s) on `ViewerState`.
+     *
+     * Required for `command` members. Optional for `query-only` ones, where it
+     * records which commands move the value (the viewport case); forbidden for
+     * `observable` and `internal` ones, which by definition have no mutator.
      */
     commands?: string[];
     /** Reviewer-facing rationale / parity note. */
@@ -150,10 +164,11 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         classification: 'command',
         commands: [
             'showCurrentCanvasAnnotations',
+            'showVisibleCanvasAnnotations',
             'setAnnotationVisible',
             'setAllAnnotationsVisible',
         ],
-        notes: 'Reactive SvelteSet of visible annotation ids; declared as a plain Set (see REACTIVE_COLLECTION_MEMBERS). Parity commands setAnnotationVisible/setAllAnnotationsVisible added this ticket.',
+        notes: 'Reactive SvelteSet of visible annotation ids; declared as a plain Set (see REACTIVE_COLLECTION_MEMBERS). showVisibleCanvasAnnotations is the multi-canvas default (every canvas on screen: the spread in paged, the folios the viewport meets in continuous); showCurrentCanvasAnnotations remains the single-canvas one.',
     },
     {
         member: 'annotationVisibilityTouched',
@@ -165,27 +180,33 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'hoveredAnnotationId',
         classification: 'command',
         commands: ['setHoveredAnnotationId'],
-        notes: 'Set on annotation hover by the overlay and panel. Parity command added this ticket.',
+        notes: 'Set on annotation hover by the overlay and panel.',
+    },
+    {
+        member: 'activeAnnotationId',
+        classification: 'command',
+        commands: ['setActiveAnnotationId'],
+        notes: 'The SELECTED annotation, as distinct from the hovered one: set by tapping a shape on the image (the gesture the renderer reserves for selection) and read by the panel, the connector lines, and the shape overlay. A command by the parity rule — the viewer chrome selects annotations, so a plugin must be able to; the command toggles when handed the id already selected.',
     },
     {
         member: 'userAnnotations',
         classification: 'command',
         commands: ['setUserAnnotations', 'clearUserAnnotations'],
-        notes: 'Per-viewer plugin-written annotation display state (SvelteMap keyed by manifestId::canvasId, declared as a plain Map — see REACTIVE_COLLECTION_MEMBERS). Moved off the page-shared manifest cache onto ViewerState (ticket 05, ADR 0007) so annotations never leak between viewers; the annotation-editor store display-syncs through these commands.',
+        notes: 'Per-viewer plugin-written annotation display state (SvelteMap keyed by manifestId::canvasId, declared as a plain Map — see REACTIVE_COLLECTION_MEMBERS). Lives on ViewerState rather than the page-shared manifest cache (ADR 0007) so annotations never leak between viewers; the annotation-editor store display-syncs through these commands.',
     },
 
     // ---- Manifest readiness (per-viewer view of the shared cache) ------------
     {
         member: 'loadedManifestIds',
         classification: 'observable',
-        notes: 'Manifest ids this viewer has finished loading (SvelteSet, declared as a plain Set — see REACTIVE_COLLECTION_MEMBERS). Core adds to it at manifest-load completion, giving subscribers a manifest-readiness notification; queried via isManifestReady(). Added ticket 05.',
+        notes: 'Manifest ids this viewer has finished loading (SvelteSet, declared as a plain Set — see REACTIVE_COLLECTION_MEMBERS). Core adds to it at manifest-load completion, giving subscribers a manifest-readiness notification; queried via isManifestReady().',
     },
 
     // ---- Active locale (per-viewer i18n contract) ----------------------------
     {
         member: 'activeLocale',
         classification: 'observable',
-        notes: "This viewer's active locale (BCP-47): config.locale if set, else the page default (CONTEXT.md Active locale). Observable — readable and notifying, no plugin-facing mutator; locale is controlled through config.locale. Core (the viewer root) mirrors the resolved value onto it when the config or page locale changes (like isFullScreen); all chrome renders in it and ticket 08's PluginLocaleService consumes it. Added ticket 06.",
+        notes: "This viewer's active locale (BCP-47): config.locale if set, else the page default (CONTEXT.md Active locale). Observable — readable and notifying, no plugin-facing mutator; locale is controlled through config.locale. Core (the viewer root) mirrors the resolved value onto it when the config or page locale changes (like isFullScreen); all chrome renders in it.",
     },
 
     // ---- Viewing mode / direction / paging -----------------------------------
@@ -304,19 +325,19 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'galleryPosition',
         classification: 'command',
         commands: ['setGalleryPosition'],
-        notes: 'Floating gallery position; parity command added this ticket.',
+        notes: 'Floating gallery position.',
     },
     {
         member: 'gallerySize',
         classification: 'command',
         commands: ['setGallerySize'],
-        notes: 'Floating gallery size; parity command added this ticket.',
+        notes: 'Floating gallery size.',
     },
     {
         member: 'dockSide',
         classification: 'command',
         commands: ['setDockSide'],
-        notes: 'Dock edge; setDockSide keeps the derived docked flags in sync (parity command added this ticket).',
+        notes: 'Dock edge; setDockSide keeps the derived docked flags in sync.',
     },
     {
         member: 'isGalleryDockedBottom',
@@ -351,16 +372,122 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'Measured DOMRect of the center panel captured at drag start (shadow-DOM safe). Layout bookkeeping, no contract.',
     },
 
-    // ---- Errors & OSD pass-through --------------------------------------------
+    // ---- Errors ---------------------------------------------------------------
     {
         member: 'tileSourceError',
         classification: 'observable',
-        notes: 'Tile-source auth/load failure written by core in response to OSD errors; no mutator.',
+        notes: 'Tile-source auth/load failure written by core in response to a renderer load failure; no mutator. Per-canvas error state inside the renderer (`renderer/canvasErrors.ts`) is the source of truth, and this is the DERIVED viewer-level view of it — raised only once every canvas laid out has failed, which in continuous mode is effectively unreachable (the layout is the whole manifest and metadata is lazy, so a canvas nobody has scrolled to has no error entry and counts as working) and in the single-canvas case is exactly right, because the chrome for it is a full cover over the renderer and raising it while a sibling folio still works would blank a working viewer mid-scroll. Deliberately NOT joined by a per-canvas member: the per-canvas record is renderer instrumentation (the host test handle’s `getCanvasErrors`), like the residency and decoded-byte counters beside it, kept out of the plugin-facing surface.',
+    },
+
+    // ---- Viewport -------------------------------------------------------------
+    {
+        member: 'rendererPort',
+        classification: 'internal',
+        notes: 'The mounted renderer’s command/query seam (attachRenderer). Core-internal and deliberately non-reactive: putting a renderer handle on the notification path would be a pass-through. `rendererReady` is the notifying signal.',
     },
     {
-        member: 'osdViewer',
+        member: 'frameListeners',
+        classification: 'internal',
+        notes: 'Frame-cadence fan-out set behind subscribeFrame. Plain Set, not reactive: a frame tick must not wake the batched state watcher.',
+    },
+    {
+        member: 'unsubscribeFrame',
+        classification: 'internal',
+        notes: 'Live detach handle for the renderer’s animation events; non-null exactly while a port exists and someone is listening.',
+    },
+    {
+        member: 'tickingPort',
+        classification: 'internal',
+        notes: 'Which port `unsubscribeFrame` belongs to, so a renderer swap re-attaches instead of leaving the ticker on the departed one.',
+    },
+    {
+        member: 'surfaceTapListeners',
+        classification: 'internal',
+        notes: 'Surface-tap fan-out set behind subscribeSurfaceTap. Plain Set, not reactive, like frameListeners — a tap is delivered to its listeners, not published as state.',
+    },
+    {
+        member: 'unsubscribeSurfaceTap',
+        classification: 'internal',
+        notes: 'Live detach handle for the renderer’s tap events; non-null exactly while a port is attached. Not lazy like unsubscribeFrame: a tap is human-rate, so there is no idle loop to avoid.',
+    },
+    {
+        member: 'visibleCanvasIds',
         classification: 'observable',
-        notes: 'Raw OpenSeadragon.Viewer set at OSD readiness (notifyOSDReady); documented pass-through, existence/timing is core API but its surface is OSD-governed (ADR 0009).',
+        notes: 'The canvases the reader is looking at, in layout order — one canvas in individuals, the whole spread in paged, the folios the viewport meets in continuous. Only the renderer can answer it, so core writes it; the host republishes it when the SET changes rather than per frame, which is what makes an observable safe here. The annotation panel, the shape overlay and the connector all scope themselves to it (via the annotatableCanvasIds derived read).',
+    },
+    {
+        member: 'rendererReady',
+        classification: 'observable',
+        notes: 'Whether a renderer has a sized surface and accepts viewport commands. Core writes it from attachRenderer; no mutator. Not the old OSD-readiness signal renamed — there is no object to hand over.',
+    },
+    {
+        member: 'imageAdjustments',
+        classification: 'command',
+        commands: ['setImageAdjustments', 'resetImageAdjustments'],
+        notes: 'Brightness/contrast/saturation/invert/grayscale applied to the rendered image. Command state rather than a reach into the renderer’s DOM node: it survives a remount and is testable with no renderer.',
+    },
+    {
+        member: 'viewportInset',
+        classification: 'command',
+        commands: ['setViewportInset', 'resetViewportInset'],
+        notes: 'Edges of the surface a plugin has reserved, which fits frame into. Same shape as imageAdjustments: one unkeyed value, merge-over-current, negative or non-finite edges refused at set time. Not reactive beyond notifying — the renderer READS it when it fits, so nothing replays and setting it never moves the current view.',
+    },
+    {
+        member: 'viewportScale',
+        classification: 'query-only',
+        commands: ['zoomIn', 'zoomOut', 'zoomTo', 'fitBounds', 'fitCanvas'],
+        notes: 'Screen pixels per canvas-space unit. Per-frame, so non-notifying; read reactively through a `frame`-cadence selector.',
+    },
+    {
+        member: 'viewportCentre',
+        classification: 'query-only',
+        commands: ['panTo', 'fitBounds', 'fitCanvas'],
+        notes: 'Canvas-space point at the middle of the viewport. Per-frame, so non-notifying.',
+    },
+    {
+        member: 'viewportBounds',
+        classification: 'query-only',
+        commands: ['panTo', 'zoomTo', 'fitBounds', 'fitCanvas'],
+        notes: 'Canvas-space box the viewport shows. Derived from scale and centre; per-frame, so non-notifying.',
+    },
+    {
+        member: 'containerSize',
+        classification: 'query-only',
+        notes: 'Surface size in CSS pixels. Changes only on resize, but it is a renderer measurement rather than viewer state and is read on demand beside the other viewport queries. No command: the host sizes the surface, not a plugin.',
+    },
+
+    // ---- The paint hook -------------------------------------------------------
+    {
+        member: 'paintLayerRevision',
+        classification: 'internal',
+        notes: 'Bumped when a paint layer is registered or released, so the renderer host repaints a layer that arrived while the viewport was idle. Reactive, unlike the layer LIST behind it: registration happens a handful of times per session where drawing happens per frame.',
+    },
+    {
+        member: 'paintLayerRegistry',
+        classification: 'internal',
+        notes: 'The ordered paint-layer registry behind registerPaintLayer (`renderer/paintLayers.ts`). Held here rather than in the renderer host so a layer may be registered before a renderer mounts and survives a remount. Not reactive: it is read once per painted frame.',
+    },
+    {
+        member: 'paintLayers',
+        classification: 'internal',
+        notes: 'The registry’s ordered snapshot, read by the renderer host once per painted frame. Internal rather than query-only: a plugin registers a layer and is called back, it does not read the list — and a per-frame read that is not viewer state would only invite polling.',
+    },
+
+    // ---- Overlay layers -------------------------------------------------------
+    {
+        member: 'overlayLayerRevision',
+        classification: 'internal',
+        notes: 'Bumped when an overlay layer is registered or disposed, so the render site places or removes its container. Deliberately the same shape as paintLayerRevision — the two registries are structurally identical so there is one idiom to learn.',
+    },
+    {
+        member: 'overlayLayerRegistry',
+        classification: 'internal',
+        notes: 'The overlay layer registry behind registerOverlayLayer (`renderer/overlayLayers.ts`). Held here rather than at the render site so a layer may be registered before a renderer mounts and survives a remount. Not reactive: the revision counter above is the signal.',
+    },
+    {
+        member: 'overlayLayers',
+        classification: 'internal',
+        notes: 'The registry’s registration-ordered snapshot, read by the render site. Internal rather than command state: a plugin registers a layer and receives a dispose, it does not mutate this list. Carries no contract, exactly as paintLayers does not; a test that reads it back to prove register/release symmetry is reading an internal.',
     },
 
     // ---- Plugin registration -------------------------------------------------
@@ -414,7 +541,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'annotationEditBus',
         classification: 'internal',
-        notes: 'Transitional per-viewer edit channel shared by OSDViewer and the annotation-editor plugin; mutated by direct reassignment, no stable contract yet (annotation editor migrates in ticket 17).',
+        notes: 'Transitional per-viewer edit channel shared by the annotation shape overlay and the annotation-editor plugin; mutated by direct reassignment, no stable contract yet (the annotation editor returns with the phase-2 drawing layer).',
     },
     {
         member: 'collectionThumbnailHydrationId',
@@ -429,7 +556,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'errorReporter',
         classification: 'internal',
-        notes: 'Private host reporter for the structured `viewererror` channel (ticket 18); wired by the viewer component, null in direct/test use.',
+        notes: 'Private host reporter for the structured `viewererror` channel; wired by the viewer component, null in direct/test use.',
     },
     {
         member: 'viewerElement',

@@ -5,8 +5,8 @@ import type { W3CAnnotation } from '../adapters/types';
 
 /**
  * Adapter authoring kit — a reusable conformance suite so adapter authors can
- * verify their implementation against the contract the plugin relies on (ticket
- * 10, F28 / SPEC §2.6).
+ * verify their implementation against the contract the plugin relies on (F28 /
+ * SPEC §2.6).
  *
  * An adapter is pure storage: the plugin owns display sync, caching, id
  * bookkeeping, timestamp/attribution stamping, and error handling. This suite

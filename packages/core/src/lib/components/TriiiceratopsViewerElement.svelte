@@ -1,8 +1,9 @@
 <!--
     svelte-check runs with `customElement: false` (ticket 22) so ordinary
     components are not analyzed as custom elements. This wrapper IS compiled as a
-    custom element in the real element builds (vite.config.element*.ts, static
-    `customElement: true`), so the customElement options below are correct there.
+    custom element in the real element builds (vite.config.element*.ts, which
+    upgrade this one file via `dynamicCompileOptions`), so the customElement
+    options below are correct there.
     svelte-check cannot apply per-file customElement, so it emits
     `options_missing_custom_element` for this one file; that single code is
     ignored via the `--compiler-warnings` flag on the `check` script and recorded
@@ -156,10 +157,8 @@
         initialCanvasRegion?: string | CanvasRegion;
     } = $props();
 
-    // Reference to host element for event dispatch
     let hostElement: HTMLElement;
 
-    // ViewerState from the inner component (via bindable prop)
     let internalViewerState: ViewerState | undefined = $state();
 
     /**
@@ -174,12 +173,8 @@
      */
     export { internalViewerState as viewerState };
 
-    // Track if we've already wired up the event target and announced state
-    // availability (only do once per mounted inner component).
     let eventTargetSet = false;
 
-    // Wire up eventTarget when viewerState is available - only once - and
-    // announce the state instance on the `viewerstateavailable` channel.
     $effect(() => {
         if (!internalViewerState || !hostElement || eventTargetSet) return;
         eventTargetSet = true;
@@ -202,7 +197,6 @@
         });
     });
 
-    // Validate and convert theme string to BuiltInTheme type
     let validatedTheme = $derived.by((): BuiltInTheme | undefined => {
         if (!theme) return undefined;
         if (isBuiltInTheme(theme)) return theme;
@@ -210,7 +204,6 @@
         return undefined;
     });
 
-    // Parse themeConfig if it's a JSON string, pass through if it's already an object
     let parsedThemeConfig = $derived.by((): ThemeConfig | undefined => {
         if (!themeConfig) return undefined;
         if (typeof themeConfig === 'string') {
@@ -224,7 +217,6 @@
         }
         return themeConfig;
     });
-    // Parse config if it's a JSON string, pass through if it's already an object
     let parsedConfig = $derived.by((): ViewerConfig | undefined => {
         if (!config) return undefined;
         if (typeof config === 'string') {

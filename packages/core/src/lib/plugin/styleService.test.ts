@@ -1,4 +1,4 @@
-// Root-aware plugin style service tests (ticket 08).
+// Root-aware plugin style service tests.
 //
 // Exercises the SPEC.md behaviors: package-qualified keys, dedupe + refcount
 // across activations sharing a root, light-DOM (document) vs shadow-root
@@ -181,7 +181,7 @@ describe('style service — nonce-aware <style> fallback', () => {
     });
 
     it('prefers the nonce <style> fallback (over constructable) when the host advertises a csp-nonce meta', () => {
-        // Ticket 24: a host running a nonce-based `style-src` publishes its nonce
+        // A host running a nonce-based `style-src` publishes its nonce
         // via <meta property="csp-nonce">; the service must then take the
         // nonce-aware fallback even without an explicit forceFallback, because a
         // constructable/adopted sheet cannot carry the nonce.

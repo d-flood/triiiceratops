@@ -15,8 +15,6 @@
             "list(): readonly SdkPlugin[]"
         ]
     },
-    "capabilities": [
-        "osd@5"
-    ],
+    "capabilities": [],
     "pluginApiVersion": "1.0.0"
 }

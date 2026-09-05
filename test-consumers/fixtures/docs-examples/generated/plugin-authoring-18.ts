@@ -1,9 +1,13 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import { definePluginStyles } from '@triiiceratops/plugin-sdk';
+import type { PluginContext, ViewportPoint } from 'triiiceratops';
 
-// Conventionally in its own styles.ts, imported by name wherever installed.
-export const { STYLES, STYLE_ID } = definePluginStyles(
-    '.my-plugin-panel { padding: 1rem; }',
-    'panel',
-);
+function panToVisibleCentre(context: PluginContext, target: ViewportPoint) {
+    const { viewportInset: inset, viewportScale: scale } = context.viewerState;
+    if (!scale) return; // no sized surface yet
+
+    context.viewerState.panTo({
+        x: target.x - (inset.left - inset.right) / 2 / scale,
+        y: target.y - (inset.top - inset.bottom) / 2 / scale,
+    });
+}

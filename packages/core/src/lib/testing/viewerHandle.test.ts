@@ -23,44 +23,6 @@ import {
     type TestViewerHandle,
 } from './index.js';
 
-/**
- * A minimal OpenSeadragon stand-in. The kit ships none deliberately (SPEC.md
- * Testing Decisions) — a `frame`-cadence projection needs only the handler pair
- * plus whatever the projection itself reads.
- */
-function createOsdStub(): {
-    stub: unknown;
-    zoom: { value: number };
-    emit(event: string): void;
-    handlerCount(): number;
-} {
-    const handlers = new Map<string, Set<() => void>>();
-    const zoom = { value: 1 };
-    const stub = {
-        addHandler(event: string, handler: () => void) {
-            const set = handlers.get(event) ?? new Set();
-            set.add(handler);
-            handlers.set(event, set);
-        },
-        removeHandler(event: string, handler: () => void) {
-            handlers.get(event)?.delete(handler);
-        },
-        viewport: { getZoom: () => zoom.value },
-    };
-    return {
-        stub,
-        zoom,
-        emit(event: string): void {
-            for (const handler of [...(handlers.get(event) ?? [])]) handler();
-        },
-        handlerCount(): number {
-            let total = 0;
-            for (const set of handlers.values()) total += set.size;
-            return total;
-        },
-    };
-}
-
 /** Records every `ViewerState.subscribe` and whether its unsubscribe ran. */
 function trackSubscriptions(): { live(): number; total(): number } {
     const records: { released: boolean }[] = [];
@@ -185,13 +147,12 @@ describe('the selector runtime', () => {
     });
 });
 
-describe("cadence: 'frame' through the injected OSD stub", () => {
-    it('wakes a frame projection from the stub’s own animation events', async () => {
+describe("cadence: 'frame' through the kit's renderer stand-in", () => {
+    it("wakes a frame projection from the renderer's own animation events", async () => {
         const handle = make();
-        const osd = createOsdStub();
         const runtime = getSelectorRuntime(handle.state);
         const projection = runtime?.createProjection(
-            (state) => state.osdViewer?.viewport.getZoom() ?? 0,
+            (state) => state.viewportScale,
             { cadence: 'frame' },
         );
         let woke = 0;
@@ -199,23 +160,23 @@ describe("cadence: 'frame' through the injected OSD stub", () => {
             woke++;
         });
 
-        // No OSD yet: nothing to attach to, and the projection reads the
+        // No renderer yet: nothing to attach to, and the projection reads the
         // honest absence rather than a fabricated value.
         expect(projection?.read()).toBe(0);
-        expect(osd.handlerCount()).toBe(0);
+        expect(handle.state.rendererReady).toBe(false);
 
-        handle.setOsdViewer(osd.stub);
+        const renderer = handle.attachRenderer({ scale: 1 });
         await flush();
 
-        expect(handle.state.osdViewer).toBe(osd.stub);
-        expect(osd.handlerCount()).toBeGreaterThan(0);
+        expect(handle.state.rendererReady).toBe(true);
+        expect(renderer.frameListenerCount).toBeGreaterThan(0);
         expect(projection?.read()).toBe(1);
 
-        // A pure OSD-side change: no viewer-state notification exists for it,
-        // which is exactly why the frame cadence has to carry it.
+        // A pure renderer-side change: no viewer-state notification exists for
+        // it, which is exactly why the frame cadence has to carry it.
         const wokeBeforeAnimation = woke;
-        osd.zoom.value = 4;
-        osd.emit('animation');
+        renderer.setView({ scale: 4 });
+        renderer.emitFrame();
 
         expect(woke).toBe(wokeBeforeAnimation + 1);
         expect(projection?.read()).toBe(4);
@@ -224,20 +185,19 @@ describe("cadence: 'frame' through the injected OSD stub", () => {
 
     it('detaches the frame ticker on disposal', async () => {
         const handle = make();
-        const osd = createOsdStub();
         const runtime = getSelectorRuntime(handle.state);
         const projection = runtime?.createProjection(
-            (state) => state.osdViewer?.viewport.getZoom() ?? 0,
+            (state) => state.viewportScale,
             { cadence: 'frame' },
         );
         projection?.subscribe(() => {});
-        handle.setOsdViewer(osd.stub);
+        const renderer = handle.attachRenderer();
         await flush();
-        expect(osd.handlerCount()).toBeGreaterThan(0);
+        expect(renderer.frameListenerCount).toBeGreaterThan(0);
 
         handle.dispose();
 
-        expect(osd.handlerCount()).toBe(0);
+        expect(renderer.frameListenerCount).toBe(0);
     });
 });
 

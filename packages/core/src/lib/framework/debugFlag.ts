@@ -16,7 +16,8 @@
  * So `config: { debug: true }` used to configure the element's logger and leave
  * the wrapper's at `false` forever. Every wrapper-side development warning —
  * the unbound handle, the unmemoized property-tier prop, the second
- * availability event, the `state`-cadence projection reading through `osd` —
+ * availability event, the `state`-cadence projection reading a query-only
+ * viewport value such as `viewportScale` —
  * was unreachable in the published package while passing its unit test, because
  * under vitest the two "instances" are one module.
  *

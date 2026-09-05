@@ -148,7 +148,7 @@ export interface PluginFlyout {
     props?: Record<string, unknown>;
 
     /**
-     * Flyout dismiss behavior (SDK core-owned chrome, ticket 02):
+     * Flyout dismiss behavior:
      * - `light` (default): dismiss on outside pointer-down / Escape.
      * - `explicit`: closes only via its toolbar button (a live-editing surface is
      *   not dismissed by canvas clicks). Excluded from {@link
@@ -158,7 +158,7 @@ export interface PluginFlyout {
 }
 
 // ============================================================================
-// SDK plugin seam (ticket 07)
+// SDK plugin seam
 // ----------------------------------------------------------------------------
 // The framework-neutral plugin authoring contract. `@triiiceratops/plugin-sdk`
 // implements `definePlugin`, activation, selectors, and compatibility
@@ -212,7 +212,7 @@ export interface ViewerSelectors {
  * `<pluginName>:<id>`, deduplicated and reference-counted across every
  * activation and viewer that shares a root, and removed when the last reference
  * releases. Core prefers a constructable `adoptedStyleSheets` sheet and falls
- * back to a nonce-carrying `<style>` element under a strict CSP (ticket 08).
+ * back to a nonce-carrying `<style>` element under a strict CSP.
  */
 export interface PluginStyleService {
     /**
@@ -284,7 +284,7 @@ export interface IconDescriptor {
 }
 
 /**
- * @deprecated Pre-1.0 alias retained for ticket 07 consumers; use
+ * @deprecated Pre-1.0 alias retained for existing consumers; use
  * {@link IconDescriptor}. Both name the same finalized descriptor shape.
  */
 export type PluginIcon = IconDescriptor;
@@ -384,8 +384,8 @@ export interface PluginView {
  * What the host (core, or the SDK test kit) supplies at activation. Core passes
  * its declared `coreVersion`/`pluginApiVersion`/`capabilities` so the SDK can
  * negotiate compatibility without importing core constants. Services are
- * optional in ticket 07 — the SDK fills stubs when the host omits them; ticket
- * 08 makes the host supply real, per-viewer services.
+ * optional — the SDK fills stubs when the host omits them; a host may instead
+ * supply real, per-viewer services.
  */
 export interface PluginHost {
     /** Core-owned DOM container the plugin renders into. */
@@ -396,7 +396,11 @@ export interface PluginHost {
     readonly coreVersion: string;
     /** The host plugin API version, for `pluginApiRange` negotiation. */
     readonly pluginApiVersion: string;
-    /** The host's declared capabilities (e.g. `osd@5`). */
+    /**
+     * The host's declared capabilities. Empty in core's 1.0 line: capability
+     * negotiation existed to version a third-party renderer, and core's own
+     * surface is governed by `coreRange` instead (`plugin/api.ts`).
+     */
     readonly capabilities: readonly string[];
     readonly styles?: PluginStyleService;
     readonly locale?: PluginLocaleService;
@@ -409,11 +413,11 @@ export interface PluginHost {
      */
     readonly surface?: PluginSurface;
     /**
-     * Report a plugin lifecycle failure to the host (ticket 09). When present,
-     * the SDK routes every guarded phase failure here instead of throwing, so
-     * the host can present a plugin-local error state and offer retry. When
-     * absent (direct SDK / test-kit use with no host), setup and mount failures
-     * throw as before and subscription/command/cleanup failures fall back to a
+     * Report a plugin lifecycle failure to the host. When present, the SDK
+     * routes every guarded phase failure here instead of throwing, so the host
+     * can present a plugin-local error state and offer retry. When absent
+     * (direct SDK / test-kit use with no host), setup and mount failures throw
+     * synchronously and subscription/command/cleanup failures fall back to a
      * console error.
      */
     readonly reportError?: (report: PluginErrorReport) => void;
@@ -429,7 +433,7 @@ export interface PluginActivation {
 }
 
 // ============================================================================
-// Plugin failure isolation (ticket 09)
+// Plugin failure isolation
 // ----------------------------------------------------------------------------
 // One structured channel for every plugin lifecycle failure. A failure in any
 // phase for one plugin leaves the viewer and all other plugins operational
@@ -437,8 +441,8 @@ export interface PluginActivation {
 // delivered identically two ways: a bubbling, composed `pluginerror` DOM event
 // from the viewer root AND a host callback (Svelte prop / element property).
 //
-// The type is defined ONCE here (core owns the plugin seam types) so ticket 18
-// can reuse the shape for a `viewererror` channel and ticket 21 can snapshot it.
+// The type is defined ONCE here (core owns the plugin seam types) so it can be
+// reused for the `viewererror` channel and snapshotted for the public API.
 // ============================================================================
 
 /**
@@ -538,7 +542,12 @@ export interface SdkPluginMeta {
     readonly coreRange: string;
     /** Semver range of plugin API versions this plugin supports. */
     readonly pluginApiRange: string;
-    /** Capability identifiers this plugin requires (e.g. `osd@5`). */
+    /**
+     * Capability identifiers this plugin requires. Normally empty: a plugin
+     * states which CORE it works with through `coreRange`, and capabilities are
+     * reserved for genuinely optional runtime features. A plugin declaring one
+     * the host does not have fails activation.
+     */
     readonly requiredCapabilities: readonly string[];
     /** Toolbar icon descriptor (from the SDK's `svgIcon`). */
     readonly icon: IconDescriptor;

@@ -72,22 +72,6 @@ describe('annotationAdapter', () => {
             }
         });
 
-        /**
-         * A test named "should handle Manifesto-style getTarget and getId
-         * methods" stood here. It built an annotation double carrying `getId`,
-         * `getTarget` and `getBody` accessors and pinned the three
-         * `manifesto.js`-shaped branches of `annotationAdapter.ts` that read
-         * them. Nothing in the product ever hands those branches such an
-         * object: every annotation reaching `parseAnnotation` comes from
-         * `ManifestsState.manualGetAnnotations`, from a content-search
-         * response, or from a plugin — raw JSON in all three cases. The test
-         * asserted on the abstraction the `remove-manifesto` epic removes and
-         * could not survive it, so it was dropped rather than migrated
-         * (ticket 08). Ticket 10 deleted those branches; `extractBody` below
-         * covers what replaced them, since this module is public API through
-         * `triiiceratops/image-export`.
-         */
-
         it('should return null for invalid annotations with no geometry', () => {
             const invalidAnno = {
                 '@id': 'bad-anno',
@@ -202,10 +186,94 @@ describe('annotationAdapter', () => {
             );
         });
 
-        it('should treat manifest annotations as image space by default', () => {
+        // A manifest annotation on its Canvas is Canvas coordinates, per IIIF —
+        // the origin marker does not override what the target says. Read the
+        // other way round, every manifest annotation was image space, which
+        // scaled shapes by the Canvas/image ratio on any manifest whose body
+        // declares dimensions other than its Canvas's.
+        it('should treat a canvas-target manifest annotation as canvas space', () => {
             const annotation = {
                 id: 'manifest-fragment',
                 target: 'http://example.org/canvas1#xywh=10,20,100,200',
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+                __triiiceratopsAnnotationOrigin: 'manifest',
+            };
+
+            expect(parseAnnotation(annotation, 8)?.coordinateSpace).toBe(
+                'canvas',
+            );
+        });
+
+        /**
+         * A content-search hit, exactly as `buildSearchAnnotations` makes one:
+         * the v2 `on` spelling, no embedded canvas context, and the canvas
+         * supplied by the caller that asked for that canvas's annotations.
+         *
+         * The Content Search API returns annotations targeting the Canvas, so a
+         * hit is canvas coordinates. Read as image space — which is what it fell
+         * through to while the canvas could only come from an embedded context —
+         * every hit was rescaled by the Canvas/image ratio, the same
+         * mis-scaling that afflicted manifest annotations.
+         */
+        it('should treat a search hit as canvas space, from the canvas asked about', () => {
+            const hit = {
+                '@id': 'urn:search-hit:0',
+                '@type': 'oa:Annotation',
+                on: 'http://example.org/canvas1#xywh=10,20,100,200',
+                isSearchHit: true,
+            };
+
+            expect(
+                parseAnnotation(hit, 10, true, 'http://example.org/canvas1')
+                    ?.coordinateSpace,
+            ).toBe('canvas');
+        });
+
+        it('should keep a hit whose target is not that canvas in image space', () => {
+            const hit = {
+                '@id': 'urn:search-hit:1',
+                '@type': 'oa:Annotation',
+                on: 'http://example.org/image1#xywh=10,20,100,200',
+                isSearchHit: true,
+            };
+
+            expect(
+                parseAnnotation(hit, 11, true, 'http://example.org/canvas1')
+                    ?.coordinateSpace,
+            ).toBe('image');
+        });
+
+        it('should let an annotation’s own canvas context win over the caller’s', () => {
+            // The two agree in practice; when they do not, what the annotation
+            // itself states about its canvas is the more specific fact.
+            const annotation = {
+                id: 'contextual',
+                target: 'http://example.org/canvas1#xywh=10,20,100,200',
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+            };
+
+            expect(
+                parseAnnotation(
+                    annotation,
+                    12,
+                    false,
+                    'http://example.org/other',
+                )?.coordinateSpace,
+            ).toBe('canvas');
+        });
+
+        it('should keep an image-target manifest annotation in image space', () => {
+            const annotation = {
+                id: 'manifest-image-fragment',
+                target: 'http://example.org/image1#xywh=10,20,100,200',
                 __triiiceratopsCanvas: {
                     id: 'http://example.org/canvas1',
                     width: 800,
@@ -338,10 +406,7 @@ describe('annotationAdapter', () => {
 
     /**
      * `extractBody` is exported, and reaches consumers through
-     * `triiiceratops/image-export`. Its `manifesto.js` half — an
-     * `if (typeof annotation.getBody === 'function')` whose `else` held the
-     * raw-JSON reads — was deleted in ticket 10, which promoted that `else`
-     * to the whole function. These pin what a real annotation now produces.
+     * `triiiceratops/image-export`. These pin what a real annotation produces.
      */
     describe('extractBody', () => {
         it('reads a IIIF v3 `body`', () => {
@@ -395,6 +460,90 @@ describe('annotationAdapter', () => {
                     ],
                 }).map((body) => body.value),
             ).toEqual(['one', 'two']);
+        });
+
+        /**
+         * IIIF defaults `TextualBody` to `text/plain`, so only a declared
+         * `format: "text/html"` may route a body through the rich-text path.
+         * Per ADR 0005 the format decision changes how a body renders, never
+         * whether it renders — every case below still yields a body.
+         */
+        describe('only a declared `text/html` format means rich text', () => {
+            it('treats a `TextualBody` with no format as plain text', () => {
+                expect(
+                    extractBody({
+                        id: 'anno-untyped-format',
+                        body: {
+                            type: 'TextualBody',
+                            value: 'Plain transcription',
+                        },
+                    }),
+                ).toEqual([
+                    {
+                        value: 'Plain transcription',
+                        isHtml: false,
+                        purpose: undefined,
+                        format: undefined,
+                    },
+                ]);
+            });
+
+            it('treats a declared `text/html` body as rich text', () => {
+                expect(
+                    extractBody({
+                        id: 'anno-html',
+                        body: {
+                            type: 'TextualBody',
+                            value: '<p>Hello</p>',
+                            format: 'text/html',
+                        },
+                    })[0],
+                ).toMatchObject({ value: '<p>Hello</p>', isHtml: true });
+            });
+
+            it('treats an unrelated format as plain text', () => {
+                expect(
+                    extractBody({
+                        id: 'anno-markdown',
+                        body: {
+                            type: 'TextualBody',
+                            value: '**not markup**',
+                            format: 'text/markdown',
+                        },
+                    })[0],
+                ).toMatchObject({ value: '**not markup**', isHtml: false });
+            });
+
+            it('leaves markup-looking characters in a plain-text body alone', () => {
+                const bodies = extractBody({
+                    id: 'anno-angle-brackets',
+                    body: {
+                        type: 'TextualBody',
+                        value: '<b>bold</b> & <i>italic</i>',
+                    },
+                });
+
+                // The panel renders a non-HTML body as a Svelte text
+                // expression, so the characters survive as characters.
+                expect(bodies).toHaveLength(1);
+                expect(bodies[0].value).toBe('<b>bold</b> & <i>italic</i>');
+                expect(bodies[0].isHtml).toBe(false);
+            });
+
+            it('keeps a v2 `resource` with no format as plain text', () => {
+                expect(
+                    extractBody({
+                        '@id': 'anno-v2-no-format',
+                        resource: {
+                            '@type': 'dctypes:Text',
+                            chars: '<script>alert(1)</script>',
+                        },
+                    })[0],
+                ).toMatchObject({
+                    value: '<script>alert(1)</script>',
+                    isHtml: false,
+                });
+            });
         });
 
         it('falls back to the annotation label, then to a placeholder', () => {

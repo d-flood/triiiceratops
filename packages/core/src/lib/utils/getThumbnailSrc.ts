@@ -76,10 +76,7 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
     //
     // `thumbnail` is spelled the same in IIIF v2 and v3, and
     // `resolveThumbnailResourceSrc` already accepts the array form, a bare
-    // string, and a resource with an image service. This branch was
-    // `canvas.getThumbnail()` alone: with canvases now raw JSON that accessor
-    // is gone, and every canvas declaring an explicit thumbnail would have
-    // silently fallen through to its first painting annotation instead.
+    // string, and a resource with an image service.
     try {
         const thumb = canvas?.thumbnail;
         if (thumb) {
@@ -98,19 +95,9 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
         if (images && images.length > 0) {
             const annotation = images[0];
 
-            // The raw-JSON path, and now the only one. `getPaintingBody` reads
-            // the v2 `resource` spelling as well as the v3 `body` one.
-            //
-            // What stood above this was a library-shaped resolution followed by
-            // a discard guard (`!resource.id && !resource.__jsonld && …`).
-            // Neither could ever fire once annotations are raw JSON: the
-            // resolution needed `annotation.getResource`/`getBody`, so
-            // `resource` was always `null` when the guard was reached. The
-            // guard is therefore deleted whole rather than reduced — reducing
-            // it would have left `if (resource && !resource.id)`, which reads
-            // only the v3 id spelling and would have discarded valid v2
-            // resources carrying `@id` (SPEC → "The governing rule for the
-            // whole epic").
+            // `getPaintingBody` reads the v2 `resource` spelling as well as
+            // the v3 `body` one; a guard checking only `resource.id` would
+            // discard valid v2 resources, which carry `@id` instead.
             let resource: any = null;
             let body = getPaintingBody(annotation);
             if (body) {
@@ -144,8 +131,6 @@ export function getThumbnailSrc(canvas: any, size = 200): string {
                 src = resource.id || resource['@id'] || '';
 
                 if (!src) {
-                    // Same v2 blindness as above, one rung further down the
-                    // ladder: this re-read the annotation for a `body` only.
                     const rawBody = getPaintingBody(annotation);
                     if (rawBody) {
                         let bodyObj = Array.isArray(rawBody)
