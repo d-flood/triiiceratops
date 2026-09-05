@@ -48,7 +48,7 @@ canvas whose Model body core already classifies as non-image, and gets the same 
     `paint-companion-canvases` epic reverses it: **core resolves and paints both
     companions itself**, through the same descriptor builder and tile ladder every
     other canvas goes through, into the claimed canvas's rect. A companion is a
-    Canvas, so it deep-zooms, pans and honours Choice, region placements and both id
+    Canvas, so it deep-zooms, pans and honors Choice, region placements and both id
     spellings for free — none of which the plugin's own resolver ever handled.
 
     **The claimant supplies only *timing*.** Knowing that playback has started is the

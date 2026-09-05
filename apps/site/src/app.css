@@ -458,7 +458,7 @@ code {
 }
 .prose {
     max-width: var(--measure);
-    margin-inline: auto;
+    margin-inline: 0;
 }
 .prose h2 {
     margin: var(--s6) 0 var(--s3);
@@ -516,12 +516,14 @@ code {
     max-width: var(--measure);
 }
 /* A band is as wide as the widest derived block in it, which is wider than
-   anything set at the measure. Prose is centred in that width and a heading
-   stays flush with the frame, so a document's headings line up with the ruled
-   headings a derived block draws for itself. */
+   anything set at the measure. Prose starts at the frame edge like the
+   headings do, so the page keeps one text edge; the extra width is for figures
+   and tables, not for longer lines. A heading stays flush with the frame, so
+   a document's headings line up with the ruled headings a derived block
+   draws for itself. */
 :is(.uncial-rich-content, .uncial-rich-content > .ProseMirror)
     > :is(p, ul, ol, blockquote) {
-    margin-inline: auto;
+    margin-inline: 0;
 }
 /* Each derived block is a section of the page, so what separates it from what
    precedes it is the band's vertical step rather than a paragraph's. The two
@@ -778,7 +780,7 @@ code {
    rule's colour alone: a tinted panel at this measure reads as a different
    page, and the documentation has sixteen of these. */
 .callout {
-    margin: 0 auto var(--s4);
+    margin: 0 0 var(--s4);
     padding: var(--s3) 0 var(--s3) var(--s4);
     border-left: 3px solid var(--rule-2);
     max-width: var(--measure);
@@ -973,12 +975,12 @@ code {
    separate slice that first paint otherwise has no use for. */
 .explain {
     max-width: var(--measure);
-    margin: var(--s4) auto 0;
+    margin: var(--s4) 0 0;
     color: var(--ink-2);
 }
 .figcap {
     max-width: var(--measure);
-    margin: var(--s3) auto 0;
+    margin: var(--s3) 0 0;
     color: var(--ink-2);
     font-size: var(--t-tiny);
 }

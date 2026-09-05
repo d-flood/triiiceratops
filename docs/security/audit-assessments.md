@@ -48,7 +48,7 @@ entirely and replaced with build-time SVG codegen from the dependency-free
 
 | Package     | Was      | Now (resolved) | Rationale |
 | ----------- | -------- | -------------- | --------- |
-| `dompurify` | `^3.3.3` | *removed* | Bumped to `^3.4.11` (3.4.12) to clear the advisories below, then dropped entirely in favour of the first-party IIIF rich-text renderer. |
+| `dompurify` | `^3.3.3` | *removed* | Bumped to `^3.4.11` (3.4.12) to clear the advisories below, then dropped entirely in favor of the first-party IIIF rich-text renderer. |
 
 ### Transitive fixes via root `pnpm.overrides`
 

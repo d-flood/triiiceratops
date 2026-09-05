@@ -243,12 +243,13 @@ export default defineConfig({
     },
     server: {
         /*
-         * The prerendered tree is output, not source, and the landing page's
-         * material alone puts thousands of tiles in it — enough that watching
-         * them exhausts the platform's inotify budget and the server dies on
-         * ENOSPC before it serves anything.
+         * The build tree is output, not source, and the landing page's tile
+         * pyramids under static/material are tens of thousands of committed
+         * files that never need HMR — watching either exhausts the platform's
+         * inotify budget and the server dies on ENOSPC before it serves
+         * anything.
          */
-        watch: { ignored: ['**/build/**'] },
+        watch: { ignored: ['**/build/**', '**/static/material/**'] },
     },
     esbuild: {
         pure: ['console.log', 'console.debug'],

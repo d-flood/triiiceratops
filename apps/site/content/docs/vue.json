@@ -2049,7 +2049,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for the query-only viewport values (scale, centre, bounds, container size) that the renderer answers per frame and that are deliberately not mirrored into viewer state. "
+					"text": " for the query-only viewport values (scale, center, bounds, container size) that the renderer answers per frame and that are deliberately not mirrored into viewer state. "
 				},
 				{
 					"type": "text",

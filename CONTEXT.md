@@ -255,7 +255,7 @@ is chrome)
 
 **Viewport inset**:
 Edges of the surface a plugin has reserved, in screen pixels, which **fits** frame into:
-the scale comes from the inset extent and the centre is offset by half the asymmetry, so a
+the scale comes from the inset extent and the center is offset by half the asymmetry, so a
 folio lands where the reader can see it rather than behind the plugin's own floating UI.
 Fit targets only — pan, zoom, the zoom range, the coordinate helpers and the viewport
 queries stay about the whole surface, because overlay-layer DOM does. Setting one does not
@@ -263,7 +263,7 @@ move the current view; the next fit uses it. One per viewer, so a second setter 
 Negative or non-finite edges are refused at set time; an axis the window has left no room
 on falls back to the full surface silently. Reserving more than **half** an axis is
 unsupported: past that the reader's zoom floor and the pan constraint cut into the fit, so
-the inset is honoured in direction but not in full.
+the inset is honored in direction but not in full.
 _Avoid_: margin, padding (both suggest a box model rather than a fit target)
 
 **Docked chrome**:
@@ -279,7 +279,7 @@ overlay chrome (that is the floating kind, which is the opposite)
 **Surface compensation**:
 What the renderer does when **docked chrome** takes surface away or gives it back: it
 preserves the canvas-space extent visible on the axis that changed, bounded by the whole
-canvas, and leaves the centre alone. One new scale, `scale * min(next / previous)` over the
+canvas, and leaves the center alone. One new scale, `scale * min(next / previous)` over the
 changed axes only, floored at the smaller of the reader's scale and the fit of the
 arriving surface, and — for a reader at or under the fit of the DEPARTING surface —
 capped at the fit of the arriving one. The floor is a lower bound on the result, not a
@@ -287,7 +287,7 @@ promise about where a reader ends up: narrowing a surface leaves a reader who wa
 below the arriving fit exactly where they were. The two fits are named separately because
 gating on the wrong one is the easy mistake, and the reason this rule takes both as
 arguments: gating the cap on the ARRIVING fit would drag a genuinely zoomed-in reader
-down to it whenever the surface widens. The centre needs no adjustment
+down to it whenever the surface widens. The center needs no adjustment
 because it is a canvas-space point; it goes through the usual pan constraint and nothing
 more. The ratio is relative, so it composes exactly across a slide's frames: twelve
 intermediate widths land where one jump to the final width lands, which is what makes a
@@ -300,12 +300,12 @@ opening a panel and closing it returns the reader's scale and repeated toggling 
 drift them outward.
 _Avoid_: re-fit, refit (the rule it replaced, and the thing it exists not to do),
 `compensateForReflow` (reflow compensation, a different operation: it holds a reader's
-place across a change to the world's LAYOUT, and it does move the centre)
+place across a change to the world's LAYOUT, and it does move the center)
 _Note_: five residuals are accepted rather than fixed. A simultaneous change on BOTH axes
 is not exactly invertible, because `min` over two ratios need not pick the same axis as
 `min` over their reciprocals; nothing crops either way and the round trip can only end at
-or below where it started. The centre's constraint is lossy on a widening surface, so the
-round trip is exact in scale but not always in centre for a reader parked hard against a
+or below where it started. The center's constraint is lossy on a widening surface, so the
+round trip is exact in scale but not always in center for a reader parked hard against a
 pan limit. A reader parked at the zoom floor is still moved by the floor, which is derived
 from the live fit scale and so moves when the surface does. A reader BELOW the fit is
 ratcheted up to it by repeated toggling: the floor pins each narrowing to a no-op while the
@@ -316,10 +316,10 @@ reallocated on every frame of a slide, because the surface CSS box genuinely cha
 
 **World refit**:
 The renderer framing its world afresh: it resolves a fit target and writes an absolute
-scale and centre, discarding whatever view the reader had. It is a response to a change of
+scale and center, discarding whatever view the reader had. It is a response to a change of
 **world** — a different manifest, viewing mode, reading direction, scale policy, current
 canvas, or a layout whose rects moved — and to nothing else. What it costs is why that
-list is short: a refit overwrites the reader's scale and centre, so anything that can
+list is short: a refit overwrites the reader's scale and center, so anything that can
 trigger one is a thing that can move the reader. A change of _state_ is not a change of
 world. Opening a panel, docking a band, toggling the toolbar, or a host replacing its
 configuration object leave the framed world exactly where it was; the surface some of them
@@ -368,7 +368,7 @@ companion payload (the seam deliberately carries no resource, only an enum)
 
 **Input claim**:
 A consumer temporarily owning pointer input, suppressing pan and zoom gestures for its
-duration. The gesture recogniser is built with a single arbitration point that decides
+duration. The gesture recognizer is built with a single arbitration point that decides
 which consumer owns a gesture, which is where a claim would be granted. The term is fixed
 now; the API ships in phase 2.
 _Avoid_: capture (that is the DOM pointer-capture mechanism, one implementation detail of
@@ -648,7 +648,7 @@ Uncial, at `vendor/uncial`, is at once a member of this workspace
 links to it, and what makes `pnpm install` fail outright when the submodule is not
 checked out. The second workspace is what makes it a hazard: a pnpm command whose cwd is
 inside `vendor/uncial` resolves against Uncial's root rather than this one and installs
-from Uncial's lockfile, which honours none of the `overrides` here — chiefly
+from Uncial's lockfile, which honors none of the `overrides` here — chiefly
 `uncial-cms>vite: ^6.0.0`, the pin that keeps the `Plugin` returned by
 `createLocalVitePlugin` the same type the site's `vite.config.ts` is written against. The
 `vendor/uncial/node_modules` that leaves behind shadows resolution for the whole tree,

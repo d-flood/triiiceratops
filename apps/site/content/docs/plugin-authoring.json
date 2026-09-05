@@ -4505,7 +4505,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "If your plugin floats UI over the image — a filmstrip along the bottom, an inspector down one side — a fit will happily centre the folio "
+					"text": "If your plugin floats UI over the image — a filmstrip along the bottom, an inspector down one side — a fit will happily center the folio "
 				},
 				{
 					"type": "text",
@@ -4818,7 +4818,7 @@
 				},
 				{
 					"type": "text",
-					"text": " Up to half the surface's width or height per axis, a fit lands exactly centred in what is left. Past that the viewer's own guarantees take over and the inset is honoured in direction but not in full: the reader's zoom floor — half the scale at which a whole canvas fits — stops the fit from shrinking any further, and the pan constraint stops the framed box from being lifted past the edge of the world, which in continuous mode shows up on the first and last folio of the strip. Both of those outrank a plugin's request for space on purpose, because the alternative is a plugin that can collapse the viewer's zoom range. If your UI genuinely needs more than half the surface, it wants to be a panel in the viewer's chrome rather than an overlay with an inset."
+					"text": " Up to half the surface's width or height per axis, a fit lands exactly centered in what is left. Past that the viewer's own guarantees take over and the inset is honored in direction but not in full: the reader's zoom floor — half the scale at which a whole canvas fits — stops the fit from shrinking any further, and the pan constraint stops the framed box from being lifted past the edge of the world, which in continuous mode shows up on the first and last folio of the strip. Both of those outrank a plugin's request for space on purpose, because the alternative is a plugin that can collapse the viewer's zoom range. If your UI genuinely needs more than half the surface, it wants to be a panel in the viewer's chrome rather than an overlay with an inset."
 				}
 			],
 			"attrs": {
@@ -5412,7 +5412,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and cannot desync from the image the way an overlay repositioned on an event can. That world is not canvas space: every canvas of the manifest has a rect in it, placed beside its neighbours, and layout may have resized that rect (facing pages are normalized to a shared height). So a layer holding geometry in canvas space — which is how IIIF annotations are persisted — converts it first:"
+					"text": " and cannot desync from the image the way an overlay repositioned on an event can. That world is not canvas space: every canvas of the manifest has a rect in it, placed beside its neighbors, and layout may have resized that rect (facing pages are normalized to a shared height). So a layer holding geometry in canvas space — which is how IIIF annotations are persisted — converts it first:"
 				}
 			],
 			"attrs": {
@@ -5579,7 +5579,7 @@
 				},
 				{
 					"type": "text",
-					"text": " They have no focus, no accessible name, and no keyboard reach — and an automated scan cannot report a missing element. Anything a reader must perceive or operate needs a DOM element beside the picture: the canvas paints pixels, a parallel DOM layer carries the focusable, labelled targets, both projected from one geometry. Core's own annotation shape overlay works exactly that way."
+					"text": " They have no focus, no accessible name, and no keyboard reach — and an automated scan cannot report a missing element. Anything a reader must perceive or operate needs a DOM element beside the picture: the canvas paints pixels, a parallel DOM layer carries the focusable, labeled targets, both projected from one geometry. Core's own annotation shape overlay works exactly that way."
 				}
 			],
 			"attrs": {
@@ -6441,7 +6441,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Some canvases describe content core cannot display — a film, a sound recording, a 3D model. Core is honest about them: it paints no pixels, asks for nothing over the network, and shows a labelled \"this viewer cannot display this\" box over the canvas's rect, with a glyph rather than a broken picture in the thumbnail strip. That is the "
+					"text": "Some canvases describe content core cannot display — a film, a sound recording, a 3D model. Core is honest about them: it paints no pixels, asks for nothing over the network, and shows a labeled \"this viewer cannot display this\" box over the canvas's rect, with a glyph rather than a broken picture in the thumbnail strip. That is the "
 				},
 				{
 					"type": "text",
@@ -7254,7 +7254,7 @@
 				},
 				{
 					"type": "text",
-					"text": " a property; it never carries one. Core reads the vocabulary itself and resolves the companion through the same descriptor builder every other canvas goes through, so a companion deep-zooms to whatever its image service serves, pans with the viewer's own gestures, and honours Choice bodies, region placements and both id spellings for free. Nothing crosses the seam but the enum — there is no way to hand core a Canvas, deliberately."
+					"text": " a property; it never carries one. Core reads the vocabulary itself and resolves the companion through the same descriptor builder every other canvas goes through, so a companion deep-zooms to whatever its image service serves, pans with the viewer's own gestures, and honors Choice bodies, region placements and both id spellings for free. Nothing crosses the seam but the enum — there is no way to hand core a Canvas, deliberately."
 				}
 			],
 			"attrs": {
