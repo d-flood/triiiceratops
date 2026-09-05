@@ -13,6 +13,7 @@ import {
     buildPyramid,
     chooseLevel,
     tileCanvasRect,
+    tileFallback,
     tileKey,
     tileRegion,
     tilesIntersecting,
@@ -160,9 +161,11 @@ describe('tileRegion', () => {
 
 describe('tileUrl', () => {
     it('uses canonical version 3 tile regions and dimensions', () => {
-        // CSNTM is a static level0 tile tree: it serves exactly the region and
-        // two-dimensional size implied by `tiles[]`, and correctly need not
-        // support the non-canonical `full/192,` spelling.
+        // A CSNTM-shaped static level0 tile tree, requested against the signed
+        // base its info.json declares rather than the id the manifest carries.
+        // Partial tiles take the explicit region and two-dimensional size
+        // implied by `tiles[]`; the one tile covering the image takes the
+        // canonical `full` region, with the explicit region as its fallback.
         const signed = 'https://images.test/signed/abc';
         const pyramid = buildPyramid(
             SERVICE,
@@ -177,8 +180,12 @@ describe('tileUrl', () => {
         )!;
 
         expect(tileUrl(pyramid, pyramid.levels[0], 0, 0)).toBe(
-            `${signed}/0,0,6132,8176/192,256/0/default.jpg`,
+            `${signed}/full/192,256/0/default.jpg`,
         );
+        expect(tileFallback(pyramid, pyramid.levels[0], 0, 0)).toEqual({
+            url: `${signed}/0,0,6132,8176/192,256/0/default.jpg`,
+            group: signed,
+        });
         expect(tileUrl(pyramid, pyramid.levels.at(-1)!, 5, 7)).toBe(
             `${signed}/5120,7168,1012,1008/1012,1008/0/default.jpg`,
         );

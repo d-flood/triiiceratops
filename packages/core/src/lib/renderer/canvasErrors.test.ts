@@ -128,7 +128,7 @@ describe('errorPlacements', () => {
     });
 
     /*
-     * The zoom ceiling is 128x home, so "the failed canvas is bigger than the
+     * The zoom ceiling is several times home, so "the failed canvas is bigger than the
      * viewport" is ordinary rather than exotic — and then the rect's border is off
      * screen on every side and its centre is a point nobody can see. A label
      * centred in the rect leaves a sighted reader with a flat fill and no message

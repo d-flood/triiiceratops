@@ -153,6 +153,10 @@
     --bone: #f7f2e9;
     --paper: #fffdf9;
     --bench: #f2ebdd;
+    /* The ground a viewer draws its material on. A step off every page ground
+       in both schemes, because an embed whose stage matched the band around it
+       had no visible extent wherever the material stopped short of the frame. */
+    --stage: #e6dfd0;
     --ink-block: #2a2521;
     --code-bg: #221e1a;
     /* rail bands, light to dark down the rail */
@@ -194,6 +198,13 @@
     --t-body: 17px;
     --t-small: 15px;
     --t-tiny: 13.5px;
+    /* How far an embedded viewer sits off the page. Two shadows: a wide, soft
+       one for the distance and a tight one for the contact edge, which is what
+       stops a large box reading as a flat tint. It re-steps between the schemes
+       because a warm shadow is invisible on the dark ground. */
+    --lift:
+        0 18px 40px -20px rgba(60, 40, 10, 0.5),
+        0 3px 9px -5px rgba(60, 40, 10, 0.3);
     /* space, 4px base */
     --s1: 4px;
     --s2: 8px;
@@ -234,6 +245,9 @@
     --bone: #1a1613;
     --paper: #221d18;
     --bench: #14100d;
+    --stage: #1e1915;
+    --lift:
+        0 20px 44px -20px rgba(0, 0, 0, 0.8), 0 3px 9px -5px rgba(0, 0, 0, 0.6);
     --code-bg: #12100d;
     --rail-bg: #201b16;
     --band-1: #302820;
@@ -255,6 +269,10 @@
         --bone: #1a1613;
         --paper: #221d18;
         --bench: #14100d;
+        --stage: #1e1915;
+        --lift:
+            0 20px 44px -20px rgba(0, 0, 0, 0.8),
+            0 3px 9px -5px rgba(0, 0, 0, 0.6);
         --code-bg: #12100d;
         --rail-bg: #201b16;
         --band-1: #302820;

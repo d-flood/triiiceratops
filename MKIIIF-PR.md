@@ -88,15 +88,22 @@ dimensions that change 1 has just made real.
 
 ### 3. Pin the viewer, and drop the keys the next release removes
 
-`viewer.go:16` and `viewer.go:81`:
+`viewer.go:81`:
 
 ```html
-<link
-    rel="stylesheet"
-    href="https://unpkg.com/triiiceratops@1.0.0/dist/triiiceratops-element.css"
-/>
-…
 <script src="https://unpkg.com/triiiceratops@1.0.0/dist/triiiceratops-element.iife.js"></script>
+```
+
+`viewer.go:16` should be **deleted rather than pinned**. There has never been a
+`dist/triiiceratops-element.css`: the stylesheet link 404s on every published
+version, `1.0.0-rc.35` and `1.0.0-rc.36` included, and it 404s under `1.0.0`
+too. The published stylesheet is `dist/triiiceratops.css`, and it is not the one
+the custom element wants — the element carries its own styles in its shadow
+root, which is why a generated page has always looked right despite the dead
+link and why nothing needs to be substituted for it.
+
+```html
+<!-- viewer.go:16 — delete; the element needs no external stylesheet -->
 ```
 
 The embedded `config` needs four keys looked at. They are two different
@@ -173,8 +180,14 @@ both can be deleted today.
 > `https://unpkg.com/triiiceratops/…` with no version. `1.0.0` replaces
 > OpenSeadragon with a first-party renderer and removes `openSeadragonConfig`
 > and `gallery.draggable`; every page mkiiif has generated would pick that up
-> on publish. This pins both URLs to `1.0.0` and updates the embedded config:
+> on publish. This pins the script to `1.0.0`, deletes the stylesheet link, and
+> updates the embedded config:
 >
+> - `viewer.go:16` is removed. `dist/triiiceratops-element.css` has never
+>   existed on any published version, so that link has always 404'd. The custom
+>   element styles itself from its shadow root and needs no external stylesheet,
+>   which is why generated pages looked right regardless; the published
+>   `dist/triiiceratops.css` is a different artifact and is not a substitute.
 > - `openSeadragonConfig` → a `renderer` object (`zoomPerWheelNotch`,
 >   `animationTimeConstant`, `zoomPerClick`). `maxZoomPixelRatio` has no
 >   counterpart; the new renderer derives its zoom ceiling from the pyramid.

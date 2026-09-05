@@ -1,0 +1,87 @@
+# Landing Manifest Source Verification
+
+Research date: 2026-09-02. Every claim below comes from the named holding
+institution or its delivery service. No image files were saved or altered.
+`Pixels` are the delivered source image dimensions, not physical object
+dimensions. A row marked **do not use** either has no verified image endpoint
+for the named work or fails the requested public-domain/CC0 rights criterion.
+
+## Verified Exact Records
+
+| Work / supplied identifier                                                                                                                             | Direct original or maximum-resolution image                                                                                                                                                                                            | Pixels                                                                                                                                                                        | Rights statement                                                                                                         | Canonical object / IIIF service                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Audubon, _Snowy Owl_, Havell Plate CXXI (121), 1831; **new holding identifier** Boston Public Library / Digital Commonwealth `9s16d0015`               | `https://iiif.digitalcommonwealth.org/iiif/2/commonwealth:9s16d002f/full/full/0/default.jpg`                                                                                                                                           | **5,230 x 7,884**, from the owner manifest's `image 1` canvas.                                                                                                                | Digital Commonwealth: **No Copyright - United States**; “No known copyright restrictions. No known restrictions on use.” | `https://ark.digitalcommonwealth.org/ark:/50959/9s16d0015` / manifest `https://ark.digitalcommonwealth.org/ark:/50959/9s16d0015/manifest` / IIIF Image API `https://iiif.digitalcommonwealth.org/iiif/2/commonwealth:9s16d002f/info.json`. |
+| Merian, _Metamorphosis insectorum Surinamensium_ (1705), Plate 1 (pineapple and insects); **new proper identifier** BHL item `129308`, page `41398750` | `https://iiif.archive.org/image/iiif/2/Metamorphosisin00Meri%2Fpage%2Fn11/full/full/0/default.jpg`                                                                                                                                     | **4,167 x 6,049**, from `https://iiif.archive.org/image/iiif/2/Metamorphosisin00Meri%2Fpage%2Fn11/info.json`. The owner scan data identifies leaf 12 / `page n11` as `Pl. 1`. | BHL: **Not in copyright. The BHL affirms that this work is in the public domain.**                                       | `https://www.biodiversitylibrary.org/item/129308` / Plate 1 page `https://www.biodiversitylibrary.org/page/41398750` / IIIF Image API above.                                                                                               |
+| Haeckel, Plate 8, `BHL Item 18431`                                                                                                                     | No stable image-per-plate endpoint is published. The owning digitization's original JP2 source is `https://archive.org/download/KunstformenderN00Haec/KunstformenderN00Haec_jp2.zip`. The scan metadata identifies Plate 8 as leaf 49. | **3,645 x 5,267** for leaf 49, from `https://archive.org/download/KunstformenderN00Haec/KunstformenderN00Haec_scandata.xml`.                                                  | Smithsonian Libraries and Archives: **CC0 1.0 / No Copyright - United States**.                                          | `https://www.biodiversitylibrary.org/item/18431` / no published IIIF Image API service.                                                                                                                                                    |
+| Getty, Spinola Hours, fol. 92v, `Ms. Ludwig IX 18`                                                                                                     | `https://media.getty.edu/iiif/image/b71db0c8-0688-451e-b236-7228054cdaf4/full/max/0/default.jpg`                                                                                                                                       | **4,262 x 6,422**, from `https://media.getty.edu/iiif/image/b71db0c8-0688-451e-b236-7228054cdaf4/info.json`.                                                                  | Getty says the image is believed public domain and provides it as **CC0 1.0** through Open Content.                      | `https://www.getty.edu/art/collection/object/105VWB` / `https://media.getty.edu/iiif/image/b71db0c8-0688-451e-b236-7228054cdaf4` / manifest `https://media.getty.edu/iiif/manifest/3/132df54b-6a22-4b33-b43a-8aadf8cfb59b`.                |
+
+## Aleppo Codex Landing Candidate
+
+The current landing fallback calls its image “Deuteronomy 1r.” That is not an
+extant Aleppo Codex folio: the surviving Torah begins with the last word of
+Deuteronomy 28:17. Do not represent any replacement as Deuteronomy 1r.
+
+| Work / supplied identifier                                                                  | Direct original image                                                             | Pixels                                                                      | Rights statement                                                                                                                                                           | Canonical object / holding record                                                                                                                                                                                              | Attribution                                                                                                                                   |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Aleppo Codex, Deuteronomy page `P. 2-5-v`; Wikimedia Commons file `Aleppo Codex (Deut).jpg` | `https://upload.wikimedia.org/wikipedia/commons/3/3c/Aleppo_Codex_%28Deut%29.jpg` | **3,377 x 3,963**, as reported by Wikimedia Commons' image-information API. | **Public domain**. The Commons file is explicitly marked `PD-scan` / `PD-old-100`, with `UsageTerms: Public domain`, `Copyrighted: False`, and no attribution requirement. | `https://commons.wikimedia.org/wiki/File:Aleppo_Codex_(Deut).jpg` / the cited Ben-Zvi/NLI catalogue record is `https://www.nli.org.il/he/manuscripts/NNL_YBZ000114786/NLI`. No IIIF Image API was found for this Commons file. | Credit as: “Aleppo Codex, Deuteronomy page P. 2-5-v. Photograph: Ardon Bar Hama, 2007, Yad Yitzhak Ben-Zvi Institute. Via Wikimedia Commons.” |
+
+The direct JPEG is the original Commons upload (4,982,772 bytes), rather than
+a scaled thumbnail. Commons describes it as a Deuteronomy page and supplies
+`P. 2-5-v` as its page identifier. Its source field identifies
+`aleppocodex.org`, Ardon Bar Hama, and the Yad Yitzhak Ben-Zvi Institute. The
+copyright credit in that source field is retained in the recommended
+attribution above even though Commons marks attribution as unnecessary.
+
+### Aleppo Evidence
+
+- Wikimedia Commons image metadata, including the original download URL,
+  dimensions, public-domain fields, and source credit:
+  `https://commons.wikimedia.org/w/api.php?action=query&titles=File%3AAleppo%20Codex%20%28Deut%29.jpg&prop=imageinfo&iiprop=url%7Csize%7Cextmetadata&format=json`.
+- Wikimedia Commons' file description and licence declaration (`PD-scan` with
+  `PD-old-100`):
+  `https://commons.wikimedia.org/w/api.php?action=query&titles=File%3AAleppo%20Codex%20%28Deut%29.jpg&prop=revisions&rvprop=content&rvslots=main&format=json`.
+- The Aleppo Codex record's physical-description and contents sections state
+  that only the last few Torah pages survive and that the current text begins
+  with the last word of Deuteronomy 28:17:
+  `https://en.wikipedia.org/w/api.php?action=query&titles=Aleppo_Codex&prop=revisions&rvprop=content&rvslots=main&format=json`.
+
+Getty's owner manifest identifies this folio as _The Annunciation_, accession
+`83.ML.114.92v`. `Object 1551` is not its current Getty canonical object URL.
+
+## Identifier Conflicts Or Unresolved Records
+
+| Requested work / supplied identifier                                                    | Owner-record verification                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Result                                                                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cellarius, _Harmonia Macrocosmica_, Plate 5, David Rumsey `12007.005`, image `12007005` | David Rumsey's public LUNA JSON endpoint returns no record for the exact supplied list number: `https://www.davidrumsey.com/luna/servlet/as/search?format=json&q=12007.005`.                                                                                                                                                                                                                                                                                                              | **Do not use.** No owner-published direct image, source dimensions, rights statement, canonical object URL, or IIIF service can be verified from this identifier.                                                                       |
+| Atkins, _Dictyota dichotoma_, Met `2005.100.497.10` or NYPL image `418322`              | The Met's official search for the title resolves instead to object `291515`, accession `2005.100.557 (18)`: `https://collectionapi.metmuseum.org/public/collection/v1/objects/291515`. Its direct image is `https://images.metmuseum.org/CRDImages/ph/original/DP-17302-021.jpg`, but it is not the supplied Met accession. NYPL's `https://images.nypl.org/index.php?id=418322&t=w` delivers an unrelated photograph, not an Atkins cyanotype.                                           | **Do not use either supplied identifier.** The Met title match is public domain but is not a safe replacement; the Met API does not publish its pixel dimensions or an IIIF service.                                                    |
+| Audubon, _Snowy Owl_, NGA object `32204` / `1945.8.121`                                 | NGA's historical object URL `https://www.nga.gov/collection/art-object-page.32204.html` resolves to _White-eyed Fly Catcher_, accession `1945.8.63`. The correct NGA record is `32262`: `https://www.nga.gov/artworks/32262-snowy-owl`, which identifies _Snowy Owl_, 1831, accession `1945.8.121`, and says its media is free and in the public domain. The BPL record in the verified table supplies the implementation image URL and owner IIIF dimensions.                            | **Supplied NGA object number replaced.** Use the BPL IIIF URL above; its owner manifest identifies the same Plate CXXI and provides a direct maximum-resolution endpoint.                                                               |
+| Merian, pineapple, Plate 1, Rijksmuseum `RP-P-1932-109`                                 | Rijksmuseum's object record identifies `RP-P-1932-109` as Cor de Wolff's _Oude Hofstede_, a 1899-1932 print. The Smithsonian Libraries/BHL first-edition scan instead identifies item `129308`, and its scan data identifies Plate 1 as leaf 12.                                                                                                                                                                                                                                          | **Supplied Rijksmuseum identifier replaced.** Use the BHL IIIF URL above.                                                                                                                                                               |
+| Urbano Monte composite, David Rumsey list `10077.000` / Stanford repository             | David Rumsey's exact list record is Jacques Liozu's 1951 _Amerique du Nord et Centrale_, not Monte. The correct Rumsey composite is **list `10130.087`**, _Composite: Tavola 1-60 (Map of the World) (with additional spheres and labels in the four corners)_: `https://www.davidrumsey.com/luna/servlet/detail/RUMSEY~8~1~303661~90074314`. Its owner endpoint reports a 31,039 x 31,080 px JP2 and publishes `https://www.davidrumsey.com/rumsey/download.pl?image=/179/10130087.jp2`. | **Do not use under this request's rights requirement.** The owner metadata and permissions page apply **CC BY-NC-SA 3.0** to the digitization, not public domain or CC0: `https://www.davidrumsey.com/about/copyright-and-permissions`. |
+
+## Source Evidence
+
+- The Internet Archive metadata for the Smithsonian/BHL scan identifies the
+  original JP2 package, while its scan-data file labels leaf 49 as `Tafel 8`
+  and supplies the source dimensions. The BHL item URL is the holding's
+  canonical item record.
+- Getty's IIIF Presentation 3 manifest supplies the folio label, canonical
+  Getty page, CC0 rights, IIIF Image API service, `full/max` image URL, and
+  source dimensions in a single owner-published record.
+- The Met collection API supplies the title-match object's accession, public
+  domain flag, direct original image URL, and canonical object URL. The
+  difference from `2005.100.497.10` is material, so that match is not
+  substituted into a manifest.
+- NGA's item page establishes that `32204` is the _White-eyed Fly Catcher_
+  record and that `32262` is the correct _Snowy Owl_ record. BPL's owner IIIF
+  manifest supplies the deployment-ready full image, dimensions, and
+  no-copyright statement.
+- Rijksmuseum's object page and persistent URL establish that
+  `RP-P-1932-109` is neither Merian nor a digital image record.
+- The BHL METS record for item `129308` identifies the Smithsonian holding,
+  the public-domain statement, and Plate 1's canonical page; its Internet
+  Archive IIIF `info.json` supplies the full-image dimensions.
+- David Rumsey's LUNA search response for `10077` supplies the exact list
+  number, title, direct JP2 download route, and source-pixel dimensions. Its
+  response for `10130.087` identifies the real 60-sheet composite and its
+  full JP2 dimensions, but Rumsey's official permissions statement makes the
+  derivative ineligible here. Its response for `12007.005` has zero results.

@@ -333,12 +333,13 @@ function tileRequestParts(
  * level0 tile tree instead receives the canonical two-dimensional size from the
  * specification's tile calculation: the exact static file it advertised.
  *
- * A version 3 level0 tile tree receives the explicit region even when one tile
- * covers the image. Those static trees are required to hold the regions and
- * two-dimensional sizes implied by `tiles[]`; they need not also hold an
- * equivalent non-canonical `full/w,` file. Not every one of them agrees, and
- * {@link tileFallback} is the second spelling for those that do not. Version 2
- * keeps the width-snapping behavior for whole-image level0 requests; see
+ * Every whole-image request is spelled with the canonical `full` region,
+ * whatever the service. Image API 3.0 §4.8 names `full` the canonical region
+ * for a request covering the whole image and gives static file trees as the
+ * reason the canonical form matters: such a tree "will have only a single URI
+ * at which the content is available". A tree that instead holds the explicit
+ * region is answered by {@link tileFallback}. Version 2 keeps the
+ * width-snapping behavior for whole-image level0 requests; see
  * {@link TilePyramid.wholeImageWidths}.
  */
 export function tileUrl(
@@ -349,8 +350,7 @@ export function tileUrl(
 ): string {
     const parts = tileRequestParts(pyramid, level, column, row);
 
-    const regionParameter =
-        parts.isWholeImage && !parts.isStaticV3Tiles ? 'full' : parts.region;
+    const regionParameter = parts.isWholeImage ? 'full' : parts.region;
     const size = parts.isStaticV3Tiles
         ? `${parts.width},${parts.height}`
         : `${parts.isWholeImage ? snapWholeImageWidth(pyramid, parts.width) : parts.width},`;
@@ -369,14 +369,15 @@ export function tileUrl(
  * tree, and the scope the answer is remembered for — or `null` where there is
  * no second spelling.
  *
- * A tile tree is a directory of files, and two generators in the corpus write
- * that one file under different names. CSNTM's writes the explicit region
- * (`0,0,6132,8176/192,256`) and holds nothing at `full/…`; `vips dzsave
- * --layout iiif3` — and therefore every page `mkiiif` generates — writes only
- * the canonical `full/362,501`. The Image API blesses both: `full` is the
- * canonical region for a whole-image request, and the tile calculation's
- * explicit region names the same pixels. So the request that fails answers the
- * question, and {@link tileUrl}'s spelling stays the one asked first.
+ * A tile tree is a directory of files, and the corpus does not agree on what to
+ * name that one file. `vips dzsave --layout iiif3` — and therefore every page
+ * `mkiiif` generates — writes only the canonical `full/362,501`. CSNTM is split
+ * against itself: its 𝔓3 tree serves both spellings, while its 𝔓40 tree serves
+ * `0,0,6132,8176/192,256` and 404s `full/192,256`, even though it declares
+ * those dimensions in `sizes[]` and §5.3 requires the `full/w,h` form for a
+ * declared size. The explicit region names the same pixels, so it is the
+ * spelling tried when the canonical one is absent, and the request that fails
+ * answers the question.
  *
  * Scoped to the SERVICE, not the tile: every whole-image request a tree
  * receives — the base level and each single-tile rung the thumbnail tier picks
@@ -396,7 +397,7 @@ export function tileFallback(
     if (!parts.isWholeImage || !parts.isStaticV3Tiles) return null;
 
     return {
-        url: `${pyramid.serviceId}/full/${parts.width},${parts.height}/0/default.${pyramid.format}`,
+        url: `${pyramid.serviceId}/${parts.region}/${parts.width},${parts.height}/0/default.${pyramid.format}`,
         group: pyramid.serviceId,
     };
 }

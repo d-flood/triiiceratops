@@ -3,10 +3,116 @@
 	"version": 2,
 	"content": [
 		{
-			"type": "deployments",
+			"type": "heading",
 			"attrs": {
-				"id": "production-deployments"
-			}
+				"id": "3bc045ef-a5cc-4388-9d80-64d7319e9efd",
+				"slug": "reading-rooms-running-the-viewer",
+				"level": 2
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Reading rooms running the viewer"
+				}
+			]
+		},
+		{
+			"type": "linkRows",
+			"attrs": {
+				"note": "Open any of these and you are looking at the viewer doing its job.",
+				"id": "11e91d40-d55b-410c-b809-2456c93023f2"
+			},
+			"content": [
+				{
+					"type": "linkRow",
+					"attrs": {
+						"label": "CSNTM",
+						"href": "https://collections.csntm.org/",
+						"note": "The Center for the Study of New Testament Manuscripts’ photographed manuscript collection.",
+						"actionLabel": "Open an example",
+						"actionHref": "https://collections.csntm.org/manuscripts/MNTGRCP1",
+						"id": "1140b83f-4d5e-4339-89cd-b8482e652abc"
+					}
+				},
+				{
+					"type": "linkRow",
+					"attrs": {
+						"label": "Mapping Color in History",
+						"href": "https://mappingcolor.fas.harvard.edu/",
+						"note": "Harvard’s pigment-analysis database, where the viewer shows the works the analyses are of.",
+						"actionLabel": "Open an example",
+						"actionHref": "https://mappingcolor.fas.harvard.edu/works/chitra-darshana-nayika-the-heroine-who-gazes-at-a-picture-of-her-absent-beloved",
+						"id": "05d06b8f-8c42-4e37-8139-2f3c4fc62219"
+					}
+				},
+				{
+					"type": "linkRow",
+					"attrs": {
+						"label": "Digital Giza",
+						"href": "https://giza.fas.harvard.edu/",
+						"note": "Harvard’s archive of the Giza Necropolis, reading excavation photography site by site.",
+						"actionLabel": "Open an example",
+						"actionHref": "https://giza.fas.harvard.edu/sites/5274/full/",
+						"id": "7d9a4381-80ac-4663-8ed9-a053153f41e0"
+					}
+				},
+				{
+					"type": "linkRow",
+					"attrs": {
+						"label": "Black Teacher Archive",
+						"href": "https://bta.gse.harvard.edu/",
+						"note": "The Harvard Graduate School of Education’s archive of the Colored Teachers Associations’ journals.",
+						"actionLabel": "Open an example",
+						"actionHref": "https://bta.gse.harvard.edu/collection/gut50000c05777",
+						"id": "2e2cf36a-eb7f-4a78-8a8f-3166b3b2939a"
+					}
+				},
+				{
+					"type": "linkRow",
+					"attrs": {
+						"label": "Paleo Bench",
+						"href": "https://d-flood.github.io/paleo-bench/",
+						"note": "Palaeographic comparison of manuscript hands, side by side.",
+						"actionLabel": "Open an example",
+						"actionHref": "https://d-flood.github.io/paleo-bench/compare",
+						"id": "aecbd787-25ec-4985-957b-b4fc8bc59e5c"
+					}
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"id": "438fac8d-e237-438c-8c0f-dc314aa65b1b",
+				"slug": "tools-that-ship-the-viewer",
+				"level": 2
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Tools that ship the viewer"
+				}
+			]
+		},
+		{
+			"type": "linkRows",
+			"attrs": {
+				"note": "Software that generates pages carrying the viewer, rather than a collection to browse.",
+				"id": "558cf5b9-bae1-4272-a6e4-3fd42d5916bc"
+			},
+			"content": [
+				{
+					"type": "linkRow",
+					"attrs": {
+						"label": "mkiiif",
+						"href": "https://github.com/atomotic/iiif",
+						"note": "Raffaele Messuti’s Go command-line tool: it tiles an image, writes a IIIF v3 manifest, and emits a page carrying the viewer from the CDN.",
+						"actionLabel": "",
+						"actionHref": "",
+						"id": "14048a0a-ee3b-4854-ba29-9bb6a3885b71"
+					}
+				}
+			]
 		},
 		{
 			"type": "heading",

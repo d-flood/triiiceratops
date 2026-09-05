@@ -1,11 +1,12 @@
 /**
  * The example material embedded viewers run on.
  *
- * Two tiers, kept apart on purpose. This is the first: the repository's own
- * manifest set, copied into `static/material/` so a page costs one same-origin
- * request rather than a round trip to somebody else's IIIF server. The second —
- * public-domain material tiled for fast first paint — replaces it as a tracked
- * swap, and must not drift into demonstrating range instead.
+ * Two tiers, kept apart on purpose. This is the first: locally served material
+ * behind level-0 Image API services, chosen for visual variety and deep zoom.
+ *
+ * The second tier is the repository's own manifest set in `static/material/`,
+ * which the builder falls back to and the drag-and-drop screens use; it
+ * demonstrates shapes, not speed.
  *
  * The material that demonstrates range is a third thing again, and lives in
  * `materialClasses.ts`: it is somebody else's, it is fetched from their server,
@@ -25,10 +26,15 @@ export type Example = {
     /** Named for a reader, not for the fixture it came from. */
     readonly label: string;
     /**
-     * The shape the box reserves, where the arrangement shows something other
-     * than the first canvas on its own: a paged arrangement shows an opening,
-     * two canvases wide, and a box shaped like one of them letterboxes it into
-     * a third of its own height. Defaults to `firstCanvas`.
+     * The shape the box reserves, where that is not the first canvas's own.
+     *
+     * A paged arrangement shows an opening, two canvases wide, and a box shaped
+     * like one of them letterboxes it into a third of its own height. A shape
+     * declared here is also gentler than a folio's own: a page much taller than
+     * it is wide would give an embed a box taller than the screen.
+     *
+     * It is what sizes every embed, and what sizes the hero at the widths where
+     * the band has no height of its own to give it.
      */
     readonly reserve?: {
         readonly width: number;
@@ -43,12 +49,12 @@ export type Example = {
         readonly height: number;
         /**
          * The image painted into the reserved box until the renderer has
-         * something to show, at the canvas's own dimensions.
+         * something to show.
          *
-         * Only for material this site serves itself. An embed running somebody
-         * else's manifest has nothing here: prerendering it would put a request
-         * to their server on this page's own load, which is exactly what the
-         * deferral exists to avoid.
+         * Same-origin only. This is the one image on the page's own critical
+         * path, so it is served from `static/` even where the manifest and the
+         * tiles are not: a cross-origin first paint would spend a connection
+         * setup on the request the deferral exists to protect.
          */
         readonly prerender?: {
             readonly src: string;
@@ -57,16 +63,31 @@ export type Example = {
     };
 };
 
+/**
+ * The locally tiled visual study set.
+ */
 export const HERO_EXAMPLE: Example = {
-    manifest: '/material/plate/manifest.json',
-    canvases: 2,
-    label: 'Reference plate',
-    firstCanvas: {
+    manifest: '/material/landing/manifest.json',
+    canvases: 11,
+    label: 'Public-domain visual study set',
+    /*
+     * Close to the folio's own 5:6, rather than the landscape frame the hero
+     * used to sit a portrait page inside. The hero's band now declares its own
+     * height, so this shape is what the box takes below that band's width —
+     * where the column is narrow enough that a nearly-square folio is the right
+     * thing to reserve, and letterboxing it inside a landscape box would waste
+     * a third of a phone's screen.
+     */
+    reserve: {
         width: 1200,
-        height: 900,
+        height: 1400,
+    },
+    firstCanvas: {
+        width: 3645,
+        height: 5267,
         prerender: {
-            src: '/material/plate/plate.png',
-            alt: 'The first canvas of the example manifest, a numbered reference grid.',
+            src: '/material/landing/images/haeckel/0,0,3645,5267/228,330/0/default.jpg',
+            alt: 'Plate 8 from Ernst Haeckel’s Kunstformen der Natur, showing jellyfish with coral, ochre, and aqua anatomy.',
         },
     },
 };
