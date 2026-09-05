@@ -25,6 +25,44 @@ import {
 } from '../src/lib/site';
 
 const PHONE = { width: 390, height: 844 };
+const WIDE = { width: 1920, height: 1080 };
+const BELOW_CAP = [
+    { width: 1280, height: 900 },
+    { width: 1024, height: 900 },
+];
+
+/** Every full-bleed strip of the main column, in the order a page stacks them. */
+const FRAME_STRIPS = '.hero, .pagehead, .band, a.next, .sitefoot';
+
+/** Must match `--content-max` in packages/shell/tokens.css. */
+const CONTENT_MAX = 1120;
+
+type Strip = {
+    width: number;
+    content: number;
+    padStart: number;
+    padEnd: number;
+};
+
+/**
+ * Each strip's border-box width and the width of the content it lays out,
+ * measured rather than read off the stylesheet.
+ */
+function strips(page: Page): Promise<Strip[]> {
+    return page.locator(FRAME_STRIPS).evaluateAll((nodes) =>
+        nodes.map((node) => {
+            const style = getComputedStyle(node);
+            const padStart = parseFloat(style.paddingLeft);
+            const padEnd = parseFloat(style.paddingRight);
+            return {
+                width: node.getBoundingClientRect().width,
+                content: node.clientWidth - padStart - padEnd,
+                padStart,
+                padEnd,
+            };
+        }),
+    );
+}
 
 const navPaths = NAV.map((route) => route.path);
 const unindexedPaths = ROUTES.filter((route) => !isNavigable(route)).map(
@@ -312,5 +350,71 @@ test.describe('at phone size', () => {
     }) => {
         await page.goto('/system/');
         await expect(rail(page)).toBeHidden();
+    });
+});
+
+test.describe('the page frame', () => {
+    test.describe('on a wide display', () => {
+        test.use({ viewport: WIDE });
+
+        for (const route of ROUTES) {
+            test(`${route.path} bounds its content and still runs edge to edge`, async ({
+                page,
+            }) => {
+                await page.goto(route.path);
+                const column = await page
+                    .locator('.main')
+                    .evaluate((node) => node.getBoundingClientRect().width);
+                expect(column).toBeGreaterThan(CONTENT_MAX);
+
+                const measured = await strips(page);
+                expect(measured.length).toBeGreaterThan(0);
+                for (const strip of measured) {
+                    expect(strip.content).toBeLessThanOrEqual(CONTENT_MAX);
+                    expect(strip.width).toBeCloseTo(column, 0);
+                }
+            });
+        }
+
+        test('the widest figure reads inside the cap', async ({ page }) => {
+            await page.goto('/size/');
+            const svg = page.locator('.scatter svg').first();
+            const box = await svg.evaluate((node) => {
+                const rect = node.getBoundingClientRect();
+                const label = [...node.querySelectorAll('text')]
+                    .map((text) => text.getBoundingClientRect().right)
+                    .reduce((widest, right) => Math.max(widest, right), 0);
+                return { right: rect.right, width: rect.width, label };
+            });
+            expect(box.width).toBeLessThanOrEqual(860);
+            expect(box.label).toBeLessThanOrEqual(box.right);
+        });
+    });
+
+    for (const viewport of BELOW_CAP) {
+        test.describe(`below the cap at ${viewport.width}px`, () => {
+            test.use({ viewport });
+
+            test('every strip is padded the same on both edges, as it was', async ({
+                page,
+            }) => {
+                await page.goto('/size/');
+                for (const strip of await strips(page)) {
+                    expect(strip.padEnd).toBeCloseTo(strip.padStart, 0);
+                }
+            });
+        });
+    }
+
+    test.describe('at phone size', () => {
+        test.use({ viewport: PHONE });
+
+        test('the breakpoint’s own padding still wins', async ({ page }) => {
+            await page.goto('/system/');
+            const head = await page
+                .locator('.pagehead')
+                .evaluate((node) => getComputedStyle(node).padding);
+            expect(head).toBe('32px 24px 24px');
+        });
     });
 });

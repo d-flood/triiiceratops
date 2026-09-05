@@ -2539,20 +2539,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "a poster before playback — the "
-										},
-										{
-											"type": "text",
-											"text": "<video poster>",
-											"marks": [
-												{
-													"type": "code"
-												}
-											]
-										},
-										{
-											"type": "text",
-											"text": " when it is a plain image URL, an overlay image otherwise"
+											"text": "painted by core into the canvas rect before playback, through the ordinary image pipeline, so it deep-zooms like any other canvas. The stage draws no lanes over it until the first frame plays"
 										}
 									],
 									"attrs": {
@@ -3582,35 +3569,6 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Accompanying and placeholder images are static.",
-									"marks": [
-										{
-											"type": "bold"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": " One appropriately-sized request at claim time, no deep zoom."
-								}
-							],
-							"attrs": {
-								"id": "7e095340-49e5-43c5-ace5-c3c8a729573f"
-							}
-						}
-					],
-					"attrs": {
-						"id": "6b498288-45c3-47bf-b0b5-0e3207f4d0a3"
-					}
-				},
-				{
-					"type": "listItem",
-					"content": [
-						{
-							"type": "paragraph",
-							"content": [
-								{
-									"type": "text",
 									"text": "No quality picker, playback rate, fullscreen, or picture-in-picture",
 									"marks": [
 										{
@@ -3798,7 +3756,7 @@
 				},
 				{
 					"type": "text",
-					"text": "128 KB gzip",
+					"text": "129 KB gzip",
 					"marks": [
 						{
 							"type": "bold"

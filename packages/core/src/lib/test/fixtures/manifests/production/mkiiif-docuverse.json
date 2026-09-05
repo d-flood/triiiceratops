@@ -1,0 +1,111 @@
+{
+  "@context": "http://iiif.io/api/presentation/3/context.json",
+  "id": "https://docuver.se/iiif/p3tgsk8jqt",
+  "type": "Manifest",
+  "label": {
+    "none": [
+      "I percorsi dell'ipertesto"
+    ]
+  },
+  "thumbnail": [
+    {
+      "id": "https://docuver.se/iiif/p3tgsk8jqt/page-001/full/362,501/0/default.jpg",
+      "type": "Image",
+      "format": "image/jpeg"
+    }
+  ],
+  "items": [
+    {
+      "id": "https://docuver.se/iiif/p3tgsk8jqt/canvas/p1",
+      "type": "Canvas",
+      "label": {
+        "none": [
+          "page-001"
+        ]
+      },
+      "height": 2004,
+      "width": 1446,
+      "thumbnail": [
+        {
+          "id": "https://docuver.se/iiif/p3tgsk8jqt/page-001/full/362,501/0/default.jpg",
+          "type": "Image",
+          "format": "image/jpeg"
+        }
+      ],
+      "items": [
+        {
+          "id": "https://docuver.se/iiif/p3tgsk8jqt/page/p1",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://docuver.se/iiif/p3tgsk8jqt/annotation/p1",
+              "type": "Annotation",
+              "motivation": "painting",
+              "body": {
+                "id": "https://docuver.se/iiif/p3tgsk8jqt/page-001/full/1446,2004/0/default.jpg",
+                "type": "Image",
+                "format": "image/jpeg",
+                "service": [
+                  {
+                    "id": "https://docuver.se/iiif/p3tgsk8jqt/page-001",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ],
+                "height": 2004,
+                "width": 1446
+              },
+              "target": "https://docuver.se/iiif/p3tgsk8jqt/canvas/p1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "https://docuver.se/iiif/p3tgsk8jqt/canvas/p2",
+      "type": "Canvas",
+      "label": {
+        "none": [
+          "page-002"
+        ]
+      },
+      "height": 2004,
+      "width": 1447,
+      "thumbnail": [
+        {
+          "id": "https://docuver.se/iiif/p3tgsk8jqt/page-002/full/362,501/0/default.jpg",
+          "type": "Image",
+          "format": "image/jpeg"
+        }
+      ],
+      "items": [
+        {
+          "id": "https://docuver.se/iiif/p3tgsk8jqt/page/p2",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "https://docuver.se/iiif/p3tgsk8jqt/annotation/p2",
+              "type": "Annotation",
+              "motivation": "painting",
+              "body": {
+                "id": "https://docuver.se/iiif/p3tgsk8jqt/page-002/full/1447,2004/0/default.jpg",
+                "type": "Image",
+                "format": "image/jpeg",
+                "service": [
+                  {
+                    "id": "https://docuver.se/iiif/p3tgsk8jqt/page-002",
+                    "type": "ImageService3",
+                    "profile": "level0"
+                  }
+                ],
+                "height": 2004,
+                "width": 1447
+              },
+              "target": "https://docuver.se/iiif/p3tgsk8jqt/canvas/p2"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

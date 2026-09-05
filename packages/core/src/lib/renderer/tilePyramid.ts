@@ -291,6 +291,40 @@ function snapWholeImageWidth(pyramid: TilePyramid, width: number): number {
     return best;
 }
 
+/** What one tile's request URL is assembled from. */
+interface TileRequestParts {
+    /** The tile covers the entire image, so `full` is a legal region for it. */
+    isWholeImage: boolean;
+    /** A level0 version 3 tree: a directory of files, not a scaling server. */
+    isStaticV3Tiles: boolean;
+    region: string;
+    /** The tile's own pixel dimensions, which are its canonical size. */
+    width: number;
+    height: number;
+}
+
+function tileRequestParts(
+    pyramid: TilePyramid,
+    level: PyramidLevel,
+    column: number,
+    row: number,
+): TileRequestParts {
+    const region = tileRegion(pyramid, level, column, row);
+
+    return {
+        isWholeImage:
+            region.x === 0 &&
+            region.y === 0 &&
+            region.width === pyramid.width &&
+            region.height === pyramid.height,
+        isStaticV3Tiles:
+            pyramid.version === 3 && pyramid.wholeImageWidths !== null,
+        region: `${region.x},${region.y},${region.width},${region.height}`,
+        width: Math.max(1, Math.ceil(region.width / level.scaleFactor)),
+        height: Math.max(1, Math.ceil(region.height / level.scaleFactor)),
+    };
+}
+
 /**
  * The IIIF Image API request URL for one tile.
  *
@@ -302,8 +336,9 @@ function snapWholeImageWidth(pyramid: TilePyramid, width: number): number {
  * A version 3 level0 tile tree receives the explicit region even when one tile
  * covers the image. Those static trees are required to hold the regions and
  * two-dimensional sizes implied by `tiles[]`; they need not also hold an
- * equivalent non-canonical `full/w,` file. Version 2 keeps the width-snapping
- * behavior for whole-image level0 requests; see
+ * equivalent non-canonical `full/w,` file. Not every one of them agrees, and
+ * {@link tileFallback} is the second spelling for those that do not. Version 2
+ * keeps the width-snapping behavior for whole-image level0 requests; see
  * {@link TilePyramid.wholeImageWidths}.
  */
 export function tileUrl(
@@ -312,28 +347,13 @@ export function tileUrl(
     column: number,
     row: number,
 ): string {
-    const region = tileRegion(pyramid, level, column, row);
+    const parts = tileRequestParts(pyramid, level, column, row);
 
-    const isWholeImage =
-        region.x === 0 &&
-        region.y === 0 &&
-        region.width === pyramid.width &&
-        region.height === pyramid.height;
-
-    const numericRegion = `${region.x},${region.y},${region.width},${region.height}`;
-    const isStaticV3Tiles =
-        pyramid.version === 3 && pyramid.wholeImageWidths !== null;
     const regionParameter =
-        isWholeImage && !isStaticV3Tiles ? 'full' : numericRegion;
-
-    const exactWidth = Math.max(1, Math.ceil(region.width / level.scaleFactor));
-    const exactHeight = Math.max(
-        1,
-        Math.ceil(region.height / level.scaleFactor),
-    );
-    const size = isStaticV3Tiles
-        ? `${exactWidth},${exactHeight}`
-        : `${isWholeImage ? snapWholeImageWidth(pyramid, exactWidth) : exactWidth},`;
+        parts.isWholeImage && !parts.isStaticV3Tiles ? 'full' : parts.region;
+    const size = parts.isStaticV3Tiles
+        ? `${parts.width},${parts.height}`
+        : `${parts.isWholeImage ? snapWholeImageWidth(pyramid, parts.width) : parts.width},`;
 
     // `default`, never `native`. Version 2.1 deprecated `native` and requires
     // `default` from compliance level 1 upwards, and a 2.0 document is
@@ -342,6 +362,43 @@ export function tileUrl(
     // strictly-2.1 endpoint 404s every tile in the pyramid. `native` belongs to
     // version 1 only, which is not a source kind this renderer supports.
     return `${pyramid.serviceId}/${regionParameter}/${size}/0/default.${pyramid.format}`;
+}
+
+/**
+ * The other legal spelling of a **whole-image** tile on a static version 3 tile
+ * tree, and the scope the answer is remembered for — or `null` where there is
+ * no second spelling.
+ *
+ * A tile tree is a directory of files, and two generators in the corpus write
+ * that one file under different names. CSNTM's writes the explicit region
+ * (`0,0,6132,8176/192,256`) and holds nothing at `full/…`; `vips dzsave
+ * --layout iiif3` — and therefore every page `mkiiif` generates — writes only
+ * the canonical `full/362,501`. The Image API blesses both: `full` is the
+ * canonical region for a whole-image request, and the tile calculation's
+ * explicit region names the same pixels. So the request that fails answers the
+ * question, and {@link tileUrl}'s spelling stays the one asked first.
+ *
+ * Scoped to the SERVICE, not the tile: every whole-image request a tree
+ * receives — the base level and each single-tile rung the thumbnail tier picks
+ * — is spelled by the same generator, so one 404 settles all of them.
+ *
+ * Only whole-image tiles have a second spelling. A partial tile's region is
+ * mandatory and unambiguous, and a level 1/2 service scales on demand, so
+ * neither has an alternative to try.
+ */
+export function tileFallback(
+    pyramid: TilePyramid,
+    level: PyramidLevel,
+    column: number,
+    row: number,
+): { url: string; group: string } | null {
+    const parts = tileRequestParts(pyramid, level, column, row);
+    if (!parts.isWholeImage || !parts.isStaticV3Tiles) return null;
+
+    return {
+        url: `${pyramid.serviceId}/full/${parts.width},${parts.height}/0/default.${pyramid.format}`,
+        group: pyramid.serviceId,
+    };
 }
 
 /**

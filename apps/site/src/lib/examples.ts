@@ -7,14 +7,13 @@
  * public-domain material tiled for fast first paint — replaces it as a tracked
  * swap, and must not drift into demonstrating range instead.
  *
- * `firstCanvas` is what the hero prerenders while the renderer starts: the image
- * the first canvas is painted by, at its own pixel dimensions. They are the
- * canvas dimensions too, which is what lets the reserved box and the image agree
- * on one aspect ratio and hold layout still.
+ * The material that demonstrates range is a third thing again, and lives in
+ * `materialClasses.ts`: it is somebody else's, it is fetched from their server,
+ * and neither tier here may be spent on it.
  */
 
 export type Example = {
-    /** Manifest URL within this site. */
+    /** Where the manifest is fetched from. */
     readonly manifest: string;
     /**
      * How many canvases the manifest has.
@@ -25,11 +24,36 @@ export type Example = {
     readonly canvases: number;
     /** Named for a reader, not for the fixture it came from. */
     readonly label: string;
-    readonly firstCanvas: {
-        readonly src: string;
+    /**
+     * The shape the box reserves, where the arrangement shows something other
+     * than the first canvas on its own: a paged arrangement shows an opening,
+     * two canvases wide, and a box shaped like one of them letterboxes it into
+     * a third of its own height. Defaults to `firstCanvas`.
+     */
+    readonly reserve?: {
         readonly width: number;
         readonly height: number;
-        readonly alt: string;
+    };
+    /**
+     * The first canvas's own pixel dimensions, which are what the reserved box
+     * takes its aspect ratio from unless `reserve` says otherwise.
+     */
+    readonly firstCanvas: {
+        readonly width: number;
+        readonly height: number;
+        /**
+         * The image painted into the reserved box until the renderer has
+         * something to show, at the canvas's own dimensions.
+         *
+         * Only for material this site serves itself. An embed running somebody
+         * else's manifest has nothing here: prerendering it would put a request
+         * to their server on this page's own load, which is exactly what the
+         * deferral exists to avoid.
+         */
+        readonly prerender?: {
+            readonly src: string;
+            readonly alt: string;
+        };
     };
 };
 
@@ -38,9 +62,11 @@ export const HERO_EXAMPLE: Example = {
     canvases: 2,
     label: 'Reference plate',
     firstCanvas: {
-        src: '/material/plate/plate.png',
         width: 1200,
         height: 900,
-        alt: 'The first canvas of the example manifest, a numbered reference grid.',
+        prerender: {
+            src: '/material/plate/plate.png',
+            alt: 'The first canvas of the example manifest, a numbered reference grid.',
+        },
     },
 };

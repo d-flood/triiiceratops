@@ -15,8 +15,11 @@
 import { manifestsState } from '../state/manifests.svelte';
 import type { RequestConfig } from '../types/config';
 import type { ViewerError } from '../types/viewerError';
-import { isCollection } from './collections';
-import { parseContentState, type ContentStateTarget } from './contentState';
+import {
+    isManifestDocument,
+    parseContentState,
+    type ContentStateTarget,
+} from './contentState';
 
 /** The parameter name the IIIF Content State API reserves. */
 const IIIF_CONTENT_PARAM = 'iiif-content';
@@ -61,11 +64,13 @@ export interface ResolvedContentState {
  * through the manifest fetch path.
  *
  * A dereferenced document is re-parsed rather than inspected here, so the shape
- * rules live in `parseContentState` alone. Two outcomes mean "the URI names the
- * manifest itself": the document resolved to nothing (a Manifest with a relative
- * id, or a Collection — a documented degrade case), or it resolved to that same
- * URI. Both fall back to the pre-dereference target, whose manifest load handles
- * a Collection and a Manifest alike.
+ * rules live in `contentState` alone: it decides the target, and
+ * {@link isManifestDocument} decides whether the document in hand IS that
+ * target. Where it is, the caller registers it instead of requesting a second
+ * URL — which for a Manifest declaring an id other than the one it was served
+ * from is not the same document and need not be a manifest at all. Anything
+ * else falls back to the pre-dereference target, whose manifest load handles a
+ * Collection and a Manifest alike.
  */
 export async function resolveContentState(
     value: string,
@@ -93,7 +98,7 @@ export async function resolveContentState(
             requestConfig,
         );
         const target = parseContentState(JSON.stringify(document)) ?? parsed;
-        return target.manifestId === value && !isCollection(document)
+        return isManifestDocument(document)
             ? { target, manifestJson: document }
             : { target };
     } catch (error) {

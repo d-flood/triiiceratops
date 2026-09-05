@@ -830,7 +830,7 @@
 				},
 				{
 					"type": "text",
-					"text": "'left' | 'right'",
+					"text": "'left' | 'right' | 'bottom' | 'overlay'",
 					"marks": [
 						{
 							"type": "code"
@@ -1652,6 +1652,32 @@
 				},
 				{
 					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "companionPaintable",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "parseIiifTime",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
 					"text": " — which "
 				},
 				{
@@ -1716,7 +1742,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — 11 "
+					"text": " — 7 "
 				},
 				{
 					"type": "text",
@@ -1781,7 +1807,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", for 14 names in all — never "
+					"text": ", for 10 names in all — never "
 				},
 				{
 					"type": "text",

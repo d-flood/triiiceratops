@@ -376,3 +376,74 @@ test.describe('the embedded viewer', () => {
         }).toPass();
     });
 });
+
+/**
+ * The deployments block, which the front page and `/production/` both render
+ * from one declaration.
+ *
+ * The failure this guards is drift: a deployment added to a page rather than to
+ * the declaration would show on one page and not the other. Only a browser sees
+ * both pages' rendered output, so only a browser can compare them.
+ */
+async function deploymentLinks(page: Page, path: string): Promise<string[]> {
+    await page.goto(path);
+    return page
+        .locator('.prod__row .who')
+        .evaluateAll((links) =>
+            links.map((link) => (link as HTMLAnchorElement).href),
+        );
+}
+
+test.describe('the deployments', () => {
+    test('put the front page’s entries inside /production/’s', async ({
+        page,
+    }) => {
+        const front = await deploymentLinks(page, '/');
+        const production = await deploymentLinks(page, '/production/');
+
+        expect(front.length).toBeGreaterThan(0);
+        expect(production).toEqual(expect.arrayContaining(front));
+    });
+
+    test('offer a reading room’s landing page and its evidence separately', async ({
+        page,
+    }) => {
+        await page.goto('/production/');
+        const rooms = page
+            .getByRole('heading', { name: 'Reading rooms running the viewer' })
+            .locator('xpath=ancestor::section[1]')
+            .locator('.prod__row');
+
+        expect(await rooms.count()).toBeGreaterThan(0);
+        for (const row of await rooms.all()) {
+            const landing = row.locator('.who');
+            const example = row.locator('.go');
+            await expect(landing).toHaveAttribute('href', /^https:\/\//);
+            await expect(example).toHaveAttribute('href', /^https:\/\//);
+            expect(await landing.getAttribute('href')).not.toBe(
+                await example.getAttribute('href'),
+            );
+        }
+    });
+
+    test('keep mkiiif out of the reading rooms', async ({ page }) => {
+        // A tool that emits pages carrying the viewer is not a collection
+        // anybody browses, and the page must not imply that it is.
+        await page.goto('/production/');
+        const tools = page
+            .getByRole('heading', { name: 'Tools that ship the viewer' })
+            .locator('xpath=ancestor::section[1]')
+            .locator('.prod__row');
+
+        await expect(tools.filter({ hasText: 'mkiiif' })).toHaveCount(1);
+        await expect(
+            page
+                .getByRole('heading', {
+                    name: 'Reading rooms running the viewer',
+                })
+                .locator('xpath=ancestor::section[1]')
+                .locator('.prod__row')
+                .filter({ hasText: 'mkiiif' }),
+        ).toHaveCount(0);
+    });
+});
