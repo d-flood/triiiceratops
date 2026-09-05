@@ -159,13 +159,14 @@ documentation-build time.
 
 <!-- BEGIN GENERATED conformance table — do not edit by hand. Regenerate with: node scripts/docs-content-state.mjs -->
 
-16 committed fixtures, each parsed by
+17 committed fixtures, each parsed by
 `packages/core/src/lib/utils/contentState.test.ts`. Nothing here is fetched.
 
 | Form | Resolves via | Fixture | Cookbook recipe | Captured |
 | --- | --- | --- | --- | --- |
 | Bare IIIF URI | Returned as the manifest id for the caller to dereference | `bare-uri.txt` | [0009-book-1](https://iiif.io/api/cookbook/recipe/0009-book-1/){target=_blank} | 2026-08-20 |
 | base64url-encoded Annotation | Decoded, then parsed as an Annotation | `encoded-annotation.txt` | [0299-region](https://iiif.io/api/cookbook/recipe/0299-region/){target=_blank} | 2026-08-20 |
+| The Cookbook's own published `iiif-content` value for recipe 0485 | base64url decoded, then percent-decoded, then parsed as an Annotation | `0485-published.txt` | [0485-contentstate-canvas-region](https://iiif.io/api/cookbook/recipe/0485-contentstate-canvas-region/){target=_blank} | 2026-08-22 |
 | Annotation, `target` as string | The target string is the Canvas; the Annotation's `partOf` names the Manifest | `string-target-region.json` | [0299-region](https://iiif.io/api/cookbook/recipe/0299-region/){target=_blank} | 2026-08-20 |
 | Annotation, `target` as object | `target.id` is the Canvas; `target.partOf` names the Manifest | `object-target-partof-array.json` | [0299-region](https://iiif.io/api/cookbook/recipe/0299-region/){target=_blank} | 2026-08-20 |
 | Annotation, `target` as object with a single `partOf` | `target.partOf` as a bare object rather than an array | `object-target-partof-object.json` | [0009-book-1](https://iiif.io/api/cookbook/recipe/0009-book-1/){target=_blank} | 2026-08-20 |

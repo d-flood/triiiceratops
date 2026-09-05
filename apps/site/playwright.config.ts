@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { gpuChromium } from '../../scripts/playwright-gpu';
+
 import {
     ORIGIN,
     PORT,
@@ -26,7 +28,12 @@ export default defineConfig({
     timeout: 60_000,
     reporter: 'list',
     use: { baseURL: ORIGIN, trace: 'on-first-retry', locale: 'en-US' },
-    projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+    projects: [
+        {
+            name: 'chromium',
+            use: { ...devices['Desktop Chrome'], ...gpuChromium },
+        },
+    ],
     /*
      * Two servers, because the suite asks two different questions. Most screens
      * ask what the application renders, so they get the development server. The

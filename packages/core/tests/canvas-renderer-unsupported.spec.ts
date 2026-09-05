@@ -18,6 +18,16 @@
  * below is that none is ever made. Fetching the video would be visible as a
  * network request whether the fetch came from an `<img>`, a tile, or a
  * thumbnail.
+ *
+ * ## Why the harness mounts no plugins
+ *
+ * The claim these canvases would otherwise attract is the audiovisual plugin's,
+ * and a claimed canvas is the claimant's to render — core's placard is
+ * suppressed for exactly that canvas, which is the whole point of the claim.
+ * What is under test here is the treatment a canvas gets when NOTHING can
+ * render it, so the harness is asked for a plugin-free viewer (`?plugins=`).
+ * That the claim suppresses this placard, and only for the canvas it names, is
+ * `av-audio.spec.ts`'s to prove.
  */
 
 import { readFileSync } from 'node:fs';
@@ -80,7 +90,7 @@ async function openRecipe(
         JSON.stringify({ gallery: { open: true, dockPosition: 'bottom' } }),
     );
     await page.goto(
-        `/e2e/harness.html?manifest=${recipe.url}&config=${config}`,
+        `/e2e/harness.html?plugins=&manifest=${recipe.url}&config=${config}`,
         {
             waitUntil: 'domcontentloaded',
         },

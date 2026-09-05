@@ -5,9 +5,18 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="./favicon.ico" />
         <title>Live demo — Triiiceratops IIIF Viewer</title>
+        <!--
+          Which application this page is, read by scripts/url-contract.mjs. The
+          bare viewer and the playground both publish an index.html and both
+          resolve, so existence cannot tell /viewer/ from /demo/ and a swapped
+          tree would break every IIIF Cookbook link into the playground's chrome.
+          This is not copy — nothing a reader sees — so no rewording of a title
+          or a card can silently defeat it.
+        -->
+        <meta name="triiiceratops:app" content="demo" />
 
         <!--
-          Social-preview metadata for the /viewer/ live demo.
+          Social-preview metadata for the /demo/ playground.
 
           This page is NOT rendered by Zensical, so it cannot use
           overrides/partials/social-meta.html — the tags are hand-written here
@@ -22,7 +31,7 @@
           URL (see scripts/docs-publish.mjs), so hard-coding it is safe.
 
           This page gets its OWN card image, not the docs one: the two links
-          promise different things. /viewer/ says "click and it runs", so the card
+          promise different things. /demo/ says "click and it runs", so the card
           shows the viewer actually running. See scripts/social-cards.mjs.
         -->
         <meta

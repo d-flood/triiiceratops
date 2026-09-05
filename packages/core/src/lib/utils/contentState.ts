@@ -76,6 +76,29 @@ function decodeContentState(value: string): string {
     }
 }
 
+/**
+ * The JSON document a decoded payload carries. The Cookbook publishes its
+ * `iiif-content` values as JSON through `encodeURIComponent` and then base64url,
+ * so a payload that is not JSON is tried again percent-decoded. Which spelling a
+ * payload uses is decided by attempting the parse rather than by looking for a
+ * `%`: a percent sign inside a legitimate JSON string value must not provoke a
+ * second decode.
+ */
+function parseJsonDocument(text: string): unknown {
+    try {
+        return JSON.parse(text);
+    } catch {
+        // Not JSON as it stands; the percent-encoded spelling is the other form
+        // the specification permits.
+    }
+
+    try {
+        return JSON.parse(decodeURIComponent(text));
+    } catch {
+        return undefined;
+    }
+}
+
 function parseTarget(
     target: string,
 ): Pick<ContentStateTarget, 'canvasId' | 'region' | 'time'> {
@@ -230,13 +253,7 @@ export function parseContentState(value: string): ContentStateTarget | null {
         return { manifestId: raw };
     }
 
-    let document: unknown;
-    try {
-        document = JSON.parse(decodeContentState(raw));
-    } catch {
-        return null;
-    }
-
+    const document = parseJsonDocument(decodeContentState(raw));
     if (!isRecord(document)) return null;
 
     return isAnnotation(document)

@@ -21,6 +21,7 @@
     import { AvPlugin } from '@triiiceratops/plugin-av';
     import {
         buildShareUrl,
+        carriesContentState,
         clearStoredConfig,
         clonePlain,
         createSparseTracker,
@@ -29,6 +30,7 @@
         writeStoredConfig,
         type SparseConfig,
     } from '@triiiceratops/config';
+    import { resolveDroppedView } from './drop';
 
     /** Where this surface keeps its light/dark choice. See the note below. */
     const THEME_STORAGE_KEY = 'triiiceratops.playground.theme';
@@ -188,6 +190,57 @@
 
     function loadManifest() {
         currentManifest = manifestUrl;
+    }
+
+    let dragOver = $state(false);
+    let dropRejected = $state(false);
+    let rejectionTimer: ReturnType<typeof setTimeout> | undefined;
+
+    function onDragOver(event: DragEvent) {
+        if (!carriesContentState(event.dataTransfer)) return;
+        // Without this the browser treats the pane as a non-target and never
+        // fires `drop`.
+        event.preventDefault();
+        dragOver = true;
+    }
+
+    /*
+     * `dragleave` bubbles from every descendant the pointer crosses, so a
+     * pointer still inside the pane would otherwise flicker the drop state off
+     * and on for the whole drag.
+     */
+    function onDragLeave(event: DragEvent) {
+        const pane = event.currentTarget as HTMLElement;
+        const entered = event.relatedTarget as Node | null;
+        if (entered && pane.contains(entered)) return;
+        dragOver = false;
+    }
+
+    /*
+     * The playground resolves the drop itself and assigns its own props. Handing
+     * the payload to this viewer as `contentState` would do nothing: the
+     * precedence ladder discards it whenever a discrete manifest prop is set,
+     * and this page always sets one (ADR 0006).
+     */
+    function onDrop(event: DragEvent) {
+        event.preventDefault();
+        dragOver = false;
+
+        const view = resolveDroppedView(event.dataTransfer);
+        if (!view) {
+            // Transient, and in the overlay: an unusable drop must say so
+            // without leaving the page permanently wearing an error surface.
+            dropRejected = true;
+            clearTimeout(rejectionTimer);
+            rejectionTimer = setTimeout(() => (dropRejected = false), 4000);
+            return;
+        }
+
+        dropRejected = false;
+        manifestUrl = view.manifestId;
+        currentManifest = view.manifestId;
+        canvasId = view.canvasId ?? '';
+        initialCanvasRegion = view.region ?? null;
     }
 
     // This defines <triiiceratops-viewer>
@@ -577,7 +630,13 @@
             />
 
             <!-- Main Viewer -->
-            <div class="viewer-pane">
+            <div
+                class="viewer-pane"
+                ondragover={onDragOver}
+                ondragleave={onDragLeave}
+                ondrop={onDrop}
+                role="presentation"
+            >
                 {#if viewerMode === 'svelte'}
                     <!-- Svelte Component (direct import, not web component) -->
                     <TriiiceratopsViewer
@@ -604,6 +663,14 @@
                             : undefined}
                         config={configStr}
                     ></triiiceratops-viewer>
+                {/if}
+
+                {#if dragOver || dropRejected}
+                    <div class="drop-target" data-testid="drop-target">
+                        <span>
+                            {dropRejected ? m.drop_rejected() : m.drop_hint()}
+                        </span>
+                    </div>
                 {/if}
             </div>
 
@@ -691,6 +758,8 @@
     /* flex-1 rounded-box overflow-hidden border border-base-content/10 shadow-2xl */
     .viewer-pane {
         flex: 1 1 0%;
+        /* The containing block for the drop overlay. */
+        position: relative;
         max-width: 1280px;
         height: 100%;
         max-height: 100%;
@@ -702,6 +771,25 @@
         border-style: solid;
         border-color: color-mix(in oklab, currentColor 10%, transparent);
         box-shadow: 0 25px 50px -12px #00000040;
+    }
+
+    /* No permanent chrome: this exists only while a compatible drag is over the
+       pane, or briefly after a drop that resolved to nothing. */
+    .drop-target {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        /* The drag must reach the pane, not this overlay: a drop landing on an
+           element that appeared mid-drag would retarget the event. */
+        pointer-events: none;
+        text-align: center;
+        background-color: color-mix(in oklab, currentColor 8%, transparent);
+        backdrop-filter: blur(2px);
+        outline: 3px dashed currentColor;
+        outline-offset: -0.75rem;
     }
 
     /* hidden lg:flex flex-col w-80 shrink-0 bg-base-100 rounded-box

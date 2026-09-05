@@ -5,10 +5,15 @@ Third-party IIIF manifests vendored for the `remove-manifesto` epic
 verified against real manifests in CI rather than against synthetic ones only.
 
 The `av/` directory was added later, for the `plugin-av` epic
-(see `.tracker/plugin-av/SPEC.md`), under the same rules.
+(see `.tracker/plugin-av/SPEC.md`), under the same rules, and the three loose
+`cookbook/` files dated below later still for `cookbook-matrix-coverage`.
 
-**Retrieved:** 2026-08-06 (`cookbook/`, `demo/`, `vendored/`); 2026-08-13 (`av/`)
-**Total:** 75 files, 0.8 MB — 59 for `remove-manifesto`, 16 for `plugin-av`
+**Retrieved:** 2026-08-06 (`cookbook/`, `demo/`, `vendored/`); 2026-08-13 (`av/`);
+2026-08-22 (`cookbook/0025-newspaper-article-index.json`,
+`cookbook/0346-multilingual-annotation-body.json`); 2026-08-23
+(`cookbook/0258-tagging-external-resource.json`)
+**Total:** 78 files, 0.8 MB — 59 for `remove-manifesto`, 16 for `plugin-av`, 3 for
+`cookbook-matrix-coverage`
 
 **Trimming.** The `cookbook/` and `demo/` files are the upstream response
 verbatim, re-serialised with 2-space indentation for diff readability; nothing
@@ -78,6 +83,7 @@ and `0033-choice.json` from
 | `0019-html-in-annotations.json` | v3 | Manifest | 1 | 2 KB | general coverage |
 | `0021-tagging.json` | v3 | Manifest | 1 | 2 KB | general coverage |
 | `0024-book-4-toc.json` | v3 | Manifest | 6 | 11 KB | v3 structures / ranges (table of contents) |
+| `0025-newspaper-article-index.json` | v3 | Manifest | 5 | 11 KB | v3 range items that are `SpecificResource` — a canvas region as a table-of-contents target |
 | `0027-alternative-page-order.json` | v3 | Manifest | 4 | 8 KB | v3 ranges with `behavior: sequence` — multi-sequence path |
 | `0029-metadata-anywhere.json` | v3 | Manifest | 2 | 5 KB | general coverage |
 | `0030-multi-volume.json` | v3 | Collection | 2 | 1 KB | Collection with child manifests |
@@ -95,11 +101,13 @@ and `0033-choice.json` from
 | `0202-start-canvas.json` | v3 | Manifest | 5 | 7 KB | v3 `start` property (ticket 05) |
 | `0230-navdate-navdate-collection.json` | v3 | Collection | 2 | 1 KB | Collection with navDate |
 | `0234-provider.json` | v3 | Manifest | 1 | 4 KB | general coverage |
+| `0258-tagging-external-resource.json` | v3 | Manifest | 1 | 3 KB | annotation body that is an external resource — a `SpecificResource` with no text |
 | `0261-non-rectangular-commenting.json` | v3 | Manifest | 1 | 3 KB | non-rectangular selector |
 | `0266-full-canvas-annotation.json` | v3 | Manifest | 1 | 2 KB | general coverage |
 | `0269-embedded-or-referenced-annotations.json` | v3 | Manifest | 1 | 2 KB | external annotation pages (manifest annotations) |
 | `0283-missing-image.json` | v3 | Manifest | 4 | 5 KB | canvas with NO painting annotation — degradation case, expected partial |
 | `0299-region.json` | v3 | Manifest | 1 | 2 KB | canvas region targets |
+| `0346-multilingual-annotation-body.json` | v3 | Manifest | 1 | 3 KB | v3 `Choice` annotation body — one comment in English and Japanese |
 
 ### Collection members
 

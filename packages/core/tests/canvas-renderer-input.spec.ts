@@ -30,8 +30,10 @@ import {
     setView,
 } from './helpers/numberedGrid';
 import {
+    DEFAULT_ZOOM_PER_WHEEL_NOTCH,
     MAX_ZOOM_FACTOR,
     MIN_ZOOM_FRACTION,
+    VELOCITY_WINDOW_MS,
 } from '../src/lib/renderer/rendererDefaults';
 
 /**
@@ -166,17 +168,29 @@ function dispatchPointer(
 }
 
 /**
- * A leftward flick — press, eight frame-paced moves, release — and the
- * viewport centre at the instant of release.
+ * A leftward flick — press, eight moves, release — and the viewport centre at
+ * the instant of release.
  *
  * The release happens in the SAME round trip as the last move. It cannot be a
  * separate call: release velocity is measured over the last few tens of
  * milliseconds, and a round trip can outlast that window entirely, leaving the
  * recogniser a single sample and therefore no velocity at all. That is a
  * property of driving a browser over a socket, not of the renderer.
+ *
+ * The moves are paced against the CLOCK, spread across one
+ * {@link VELOCITY_WINDOW_MS}, rather than one per animation frame. What the
+ * recogniser needs is several samples inside that window, and frame pacing only
+ * delivers them while frames are arriving at something like 60Hz: on a loaded
+ * machine — WebKit under a full parallel run is where this showed — the frame
+ * rate drops until consecutive moves fall a whole window apart, the release
+ * finds one sample, and the flick carries no momentum. The renderer is right in
+ * that case and the gesture was never a flick. Pacing by time is what makes the
+ * gesture the same gesture whatever the frame rate, so the test is about
+ * momentum rather than about how busy the machine was. Busy-waited rather than
+ * slept, because a timer is throttled by the same pressure.
  */
 async function flickLeft(page: Page): Promise<number> {
-    return page.locator(SURFACE).evaluate(async (element) => {
+    return page.locator(SURFACE).evaluate(async (element, windowMs: number) => {
         const handle = (
             element as HTMLCanvasElement & {
                 __triiiceratopsRenderer?: RendererHandle;
@@ -199,23 +213,25 @@ async function flickLeft(page: Page): Promise<number> {
                 }),
             );
         };
-        const frame = () =>
-            new Promise((resolve) =>
-                requestAnimationFrame(() => resolve(undefined)),
-            );
+        const STEPS = 8;
+        const spacing = windowMs / STEPS;
+        const waitUntil = (deadline: number) => {
+            while (performance.now() < deadline);
+        };
 
         const start = rect.width * 0.8;
-        const last = start - 8 * 32;
+        const last = start - STEPS * 32;
+        const began = performance.now();
         send('pointerdown', start);
-        for (let step = 1; step <= 8; step += 1) {
-            await frame();
+        for (let step = 1; step <= STEPS; step += 1) {
+            waitUntil(began + step * spacing);
             send('pointermove', start - step * 32);
         }
 
         const atRelease = handle.getView().centre.x;
         send('pointerup', last);
         return atRelease;
-    });
+    }, VELOCITY_WINDOW_MS);
 }
 
 async function settled(page: Page): Promise<void> {
@@ -720,7 +736,13 @@ test.describe('Canvas2D renderer — gestures', () => {
 
         expect(fast).toBeCloseTo(slow, 6);
         // …and both really zoomed, so equality is not two no-ops agreeing.
-        expect(fast).toBeGreaterThan(start.scale * 3);
+        // Against the shipped per-notch factor rather than a literal, so that
+        // tuning the wheel's sensitivity moves this expectation with it instead
+        // of leaving a threshold nobody can trace back to a number.
+        expect(fast).toBeCloseTo(
+            start.scale * DEFAULT_ZOOM_PER_WHEEL_NOTCH ** 5,
+            3,
+        );
     });
 
     test('a drag plans the scene once per frame, never once per pointer event', async ({

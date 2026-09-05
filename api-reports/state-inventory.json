@@ -1,9 +1,9 @@
 {
-    "count": 82,
+    "count": 83,
     "byClassification": {
         "command": 37,
         "observable": 14,
-        "internal": 27,
+        "internal": 28,
         "query-only": 4
     },
     "entries": [
@@ -203,6 +203,11 @@
             "commands": [
                 "setManifestRequestConfig"
             ]
+        },
+        {
+            "member": "navigationRegion",
+            "classification": "internal",
+            "commands": null
         },
         {
             "member": "overlayLayerRegistry",

@@ -146,7 +146,13 @@ function projectAnnotationShape(
         annotationId: annotation.sourceAnnotationId,
         isSearchHit: annotation.isSearchHit,
         isFullCanvasTarget: annotation.isFullCanvasTarget,
-        tooltip: annotation.body.map((body) => body.value).join(' '),
+        // Empty values are dropped rather than joined: a body whose only
+        // content is an external `href` has no text, and including it would
+        // pad the tooltip with separators for nothing.
+        tooltip: annotation.body
+            .map((body) => body.value)
+            .filter(Boolean)
+            .join(' '),
     };
 
     const geometry = annotation.geometry;

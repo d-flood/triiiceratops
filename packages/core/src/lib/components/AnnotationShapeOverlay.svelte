@@ -162,6 +162,9 @@
                 entry.annotations,
                 entry.searchHitIds,
                 entry.canvasId,
+                // A shape's tooltip is the annotation's body text, so it picks
+                // a `Choice` body's item in the same locale the panel does.
+                viewerState.activeLocale,
             ),
         ),
     );

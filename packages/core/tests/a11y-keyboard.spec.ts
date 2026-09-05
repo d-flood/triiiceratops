@@ -548,15 +548,24 @@ test.describe('Canvas2D renderer — keyboard', () => {
 
         // Reached by TAB rather than by `.focus()`: an element can be
         // programmatically focusable and still sit outside the sequential tab
-        // order. Stepping back and forward proves it participates in that
+        // order. Stepping off it and back on proves it participates in that
         // order.
+        //
+        // FORWARD first, then back, and the direction is the whole reliability
+        // of this step. The surface is the first tab stop in the viewer, so
+        // stepping backwards off it leaves the document altogether — and the
+        // engines disagree about what that means with no browser chrome to
+        // receive the focus: Chromium and WebKit park it on `body`, while
+        // Firefox has nowhere to put it and leaves it exactly where it was, so
+        // the assertion that focus MOVED is false through no fault of the
+        // viewer. Forwards there is always a neighbour: the toolbar.
         await page.locator(SURFACE).focus();
-        await page.keyboard.press('Shift+Tab');
+        await page.keyboard.press('Tab');
         expect((await activeElementInfo(page)).label).not.toBe(
             await page.locator(SURFACE).getAttribute('aria-label'),
         );
 
-        await page.keyboard.press('Tab');
+        await page.keyboard.press('Shift+Tab');
         const active = await activeElementInfo(page);
         expect(active.role).toBe('application');
         expect(

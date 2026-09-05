@@ -3,6 +3,7 @@ import { parseContentState } from 'triiiceratops';
 
 import {
     buildShareUrl,
+    carriesContentState,
     clearStoredConfig,
     clonePlain,
     collectPaths,
@@ -10,10 +11,12 @@ import {
     createSparseTracker,
     diffSparse,
     mergeSparse,
+    readDroppedContentState,
     readStoredConfig,
     resolveInitialConfig,
     resolveInitialView,
     serializeContentState,
+    type DropPayloadSource,
     writeStoredConfig,
 } from './index';
 
@@ -414,6 +417,16 @@ describe('legacy view parameters', () => {
         ).toBe(MANIFEST);
     });
 
+    // Cookbook recipe 0466: the whole content state is the manifest URL itself.
+    it('resolves recipe 0466’s bare manifest URL in iiif-content', () => {
+        const manifest =
+            'https://iiif.io/api/cookbook/recipe/0466-link-for-loading-manifest/manifest.json';
+
+        expect(
+            resolveInitialView(search({ 'iiif-content': manifest })),
+        ).toEqual({ manifestUrl: manifest, canvasId: '', region: null });
+    });
+
     it('consults iiif-content only when no manifest is given', () => {
         const contentState = serializeContentState({
             manifestId: MANIFEST,
@@ -427,5 +440,99 @@ describe('legacy view parameters', () => {
             canvasId: CANVAS,
             region: null,
         });
+    });
+});
+
+describe('drop payloads', () => {
+    const CONTENT_STATE = serializeContentState({
+        manifestId: MANIFEST,
+        canvasId: CANVAS,
+    })!;
+
+    function transfer(data: Record<string, string>): DropPayloadSource {
+        return {
+            types: Object.keys(data),
+            getData: (type: string) => data[type] ?? '',
+        };
+    }
+
+    it('carries a content state when the drag offers a text flavour', () => {
+        expect(carriesContentState(transfer({ 'text/plain': '' }))).toBe(true);
+        expect(carriesContentState(transfer({ 'text/uri-list': '' }))).toBe(
+            true,
+        );
+        expect(carriesContentState(transfer({ Files: '' }))).toBe(false);
+        expect(carriesContentState(null)).toBe(false);
+    });
+
+    it('prefers text/uri-list over text/plain', () => {
+        expect(
+            readDroppedContentState(
+                transfer({
+                    'text/uri-list': MANIFEST,
+                    'text/plain': 'https://example.org/other',
+                }),
+            ),
+        ).toBe(MANIFEST);
+    });
+
+    it('falls back to text/plain, which is what browsers deliver', () => {
+        expect(
+            readDroppedContentState(transfer({ 'text/plain': MANIFEST })),
+        ).toBe(MANIFEST);
+    });
+
+    // The uri-list format allows comment lines and more than one URI.
+    it('takes the first uri of a uri-list, ignoring comments', () => {
+        expect(
+            readDroppedContentState(
+                transfer({
+                    'text/uri-list': `# a comment\r\n${MANIFEST}\r\nhttps://example.org/second`,
+                }),
+            ),
+        ).toBe(MANIFEST);
+    });
+
+    // Recipe 0599's own drag source: a stringified content-state Annotation.
+    it('passes a bare content-state document through untouched', () => {
+        const document = JSON.stringify({
+            '@context': 'http://iiif.io/api/presentation/3/context.json',
+            type: 'Annotation',
+            motivation: 'contentState',
+            target: { id: CANVAS, type: 'Canvas' },
+        });
+
+        expect(
+            readDroppedContentState(transfer({ 'text/plain': document })),
+        ).toBe(document);
+    });
+
+    // Recipe 0466's link, dragged rather than clicked: the parameter is the
+    // content state, and the link around it is not.
+    it('unwraps the iiif-content parameter of a dropped link', () => {
+        const link = `https://example.org/viewer/?iiif-content=${encodeURIComponent(CONTENT_STATE)}&mode=svelte`;
+
+        expect(
+            readDroppedContentState(transfer({ 'text/uri-list': link })),
+        ).toBe(CONTENT_STATE);
+    });
+
+    it('yields a dropped URL that carries no iiif-content unchanged', () => {
+        expect(
+            readDroppedContentState(transfer({ 'text/uri-list': MANIFEST })),
+        ).toBe(MANIFEST);
+    });
+
+    it('yields nothing for an empty or absent payload', () => {
+        expect(readDroppedContentState(null)).toBeNull();
+        expect(readDroppedContentState(transfer({}))).toBeNull();
+        expect(
+            readDroppedContentState(transfer({ 'text/plain': '   ' })),
+        ).toBeNull();
+        expect(
+            readDroppedContentState(
+                transfer({ 'text/uri-list': '# only a comment' }),
+            ),
+        ).toBeNull();
     });
 });

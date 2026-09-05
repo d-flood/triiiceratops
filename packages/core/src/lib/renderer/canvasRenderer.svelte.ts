@@ -1350,14 +1350,15 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     let openedWorld: string | null = null;
 
     /**
-     * The region the viewer OPENED at — `ViewerState.initialCanvasRegion`, once
-     * this renderer has taken it over, scoped to the world and the canvas it was
-     * honoured for, and carrying the geometry it was last measured against.
+     * The region this renderer has taken over — the one the viewer OPENED at
+     * (`ViewerState.initialCanvasRegion`) or the one a navigation carried
+     * (`ViewerState.navigationRegion`), scoped to the world and the canvas it
+     * was honoured for, and carrying the geometry it was last measured against.
      *
-     * Taken over rather than read in place because the state member is an
-     * ingestion input, not a standing override: leaving it set would re-frame
-     * every later canvas the reader navigated to. See {@link openingRegionTarget}
-     * for when the handover happens and why it is not at mount.
+     * Taken over rather than read in place because either member is an input to
+     * one fit, not a standing override: leaving one set would re-frame every
+     * later canvas the reader navigated to. See {@link openingRegionTarget} for
+     * when the handover happens and why it is not at mount.
      */
     let openingRegion: {
         world: string;
@@ -1372,25 +1373,33 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     } | null = null;
 
     /**
-     * What this fit should frame on account of an initial region: the world box
+     * What this fit should frame on account of a claimed region: the world box
      * the region names, `'settled'` for a fit that must leave the view alone (see
      * {@link fitCurrentCanvas}), or `null` when the region has no say in it.
      *
      * Three rules, all of them about sequencing rather than about geometry:
      *
-     * **Claimed only at an opening.** A region is taken over at the first fit of
-     * a world that can actually honour it — a measured surface and a laid-out
-     * canvas — and never at a later fit of that same world. A manifest resolves
-     * asynchronously, so at mount there is no canvas to frame and no geometry to
-     * frame it in; every fit before then leaves the region where the viewer put
-     * it, and the fit that finally has both consumes it. That is why the handover
-     * cannot live in a component effect: mount order is not canvas arrival. The
-     * flip side is that a region arriving after its world has opened is stranded
-     * — deliberately, because `initialCanvasRegion` names where the viewer OPENS,
+     * **Claimed at an opening, or by the navigation that carried it.** An
+     * initial region is taken over at the first fit of a world that can actually
+     * honour it — a measured surface and a laid-out canvas — and never at a
+     * later fit of that same world. A manifest resolves asynchronously, so at
+     * mount there is no canvas to frame and no geometry to frame it in; every fit
+     * before then leaves the region where the viewer put it, and the fit that
+     * finally has both consumes it. That is why the handover cannot live in a
+     * component effect: mount order is not canvas arrival. The flip side is that
+     * an initial region arriving after its world has opened is stranded —
+     * deliberately, because `initialCanvasRegion` names where the viewer OPENS,
      * and a page turn is navigation inside a world already open. It is left in
      * viewer state rather than discarded, so a change of manifest, mode or
      * direction — a new world, which opens afresh — still claims it for the
      * canvas that arrives.
+     *
+     * A navigation region is the other half of that rule rather than an
+     * exception to it: `ViewerState.navigationRegion` names the canvas it was
+     * carried to (a newspaper article's `xywh`, chosen from the table of
+     * contents), so the fit of THAT canvas claims it whether or not the world is
+     * opening. It cannot be stranded because the navigation that supplied it is
+     * the navigation being fitted.
      *
      * **Re-framed only under a changed geometry.** The one reason a claimed
      * region outlives its first fit is a canvas resolving its real intrinsic size
@@ -1421,14 +1430,11 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             const opening = openedWorld !== world;
             openedWorld = world;
 
-            const pending = viewerState.initialCanvasRegion;
-            if (opening && pending) {
-                openingRegion = {
-                    world,
-                    canvasId,
-                    region: pending,
-                    geometry: null,
-                };
+            const navigated = viewerState.takeNavigationRegion(canvasId);
+            if (navigated) {
+                claimRegion(world, canvasId, navigated);
+            } else if (opening && viewerState.initialCanvasRegion) {
+                claimRegion(world, canvasId, viewerState.initialCanvasRegion);
                 viewerState.setInitialCanvasRegion(null);
             }
 
@@ -1450,6 +1456,15 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             openingRegion.geometry = geometry;
             return canvasBoxToWorld(box, placement);
         });
+    }
+
+    /** Adopt `region` as this world's claim, to be framed for `canvasId`. */
+    function claimRegion(
+        world: string,
+        canvasId: string,
+        region: CanvasRegion,
+    ) {
+        openingRegion = { world, canvasId, region, geometry: null };
     }
 
     /**

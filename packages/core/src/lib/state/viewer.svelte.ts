@@ -170,6 +170,20 @@ export class ViewerState {
      * no consume-once semantics.
      */
     temporalOffset = $state<TemporalOffset | null>(null);
+
+    /**
+     * The canvas region the last navigation carried — a structure item's `xywh`
+     * selector — scoped to the canvas it named, or `null` when it carried none.
+     * The spatial peer of {@link temporalOffset}, and replaced whole by every
+     * navigation for the same reason, so a region cannot outlive the navigation
+     * that supplied it and spring on a later canvas.
+     *
+     * Consumed rather than standing: the renderer takes it when it frames that
+     * canvas, through the same path an `initialCanvasRegion` goes through.
+     */
+    navigationRegion = $state<(CanvasRegion & { canvasId: string }) | null>(
+        null,
+    );
     dockSide = $state('bottom');
     /** Reactive collection declared as a plain `Set` — see the note on the `svelte/reactivity` import. */
     visibleAnnotationIds: Set<string> = new SvelteSet<string>();
@@ -2083,11 +2097,21 @@ export class ViewerState {
         }
     }
 
-    setCanvas(canvasId: string, temporalOffset?: IiifTemporalFragment | null) {
+    /**
+     * Navigate to a canvas, optionally at the media time and the region the
+     * navigation carried — the temporal and spatial halves of a target, which
+     * are peers and never exclusive.
+     */
+    setCanvas(
+        canvasId: string,
+        temporalOffset?: IiifTemporalFragment | null,
+        region?: CanvasRegion | null,
+    ) {
         this.canvasId = canvasId;
         this.temporalOffset = temporalOffset
             ? { canvasId, ...temporalOffset }
             : null;
+        this.navigationRegion = region ? { canvasId, ...region } : null;
         this.tileSourceError = null;
 
         if (this.showAnnotations) {
@@ -2305,6 +2329,19 @@ export class ViewerState {
 
     setInitialCanvasRegion(region: CanvasRegion | null) {
         this.initialCanvasRegion = region;
+    }
+
+    /**
+     * Take the region a navigation to `canvasId` carried, spending it. Answers
+     * `null` when the last navigation carried none, or carried one for a
+     * different canvas — a fit of the canvas it named is the only thing the
+     * region has to say.
+     */
+    takeNavigationRegion(canvasId: string): CanvasRegion | null {
+        const region = this.navigationRegion;
+        if (!region || region.canvasId !== canvasId) return null;
+        this.navigationRegion = null;
+        return region;
     }
 
     toggleStructuresPanel() {

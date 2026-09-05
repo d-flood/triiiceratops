@@ -64,6 +64,17 @@ function encode(document: unknown): string {
 }
 
 /**
+ * The spelling the Cookbook itself publishes (recipe 0485): JSON through
+ * `encodeURIComponent` before base64url, so the decoded payload is
+ * percent-encoded rather than JSON.
+ */
+function encodeAsCookbook(document: unknown): string {
+    return Buffer.from(encodeURIComponent(JSON.stringify(document)), 'utf8')
+        .toString('base64url')
+        .replace(/=+$/, '');
+}
+
+/**
  * What the viewport is actually looking at, in canvas coordinates — the public
  * `viewportBounds` query, read off the element's own state.
  */
@@ -135,6 +146,31 @@ test('frames the region an image content state names', async ({ page }) => {
     expect(bounds!.width).toBeCloseTo(width, 0);
     expect(bounds!.y + bounds!.height / 2).toBeCloseTo(y + height / 2, 0);
     // Framed, not merely opened: the whole 1200x900 canvas would be in view.
+    expect(bounds!.height).toBeLessThan(900);
+});
+
+test('frames a region from a percent-encoded content state, as recipe 0485 publishes it', async ({
+    page,
+}) => {
+    const { x, y, width, height } = GRID_REGION;
+    await open(
+        page,
+        `?content-state=${encodeAsCookbook(
+            annotation(
+                IMAGE_MANIFEST,
+                GRID_CANVAS,
+                `#xywh=${x},${y},${width},${height}`,
+            ),
+        )}`,
+    );
+
+    await page.locator(SURFACE).waitFor({ state: 'visible', timeout: 30_000 });
+    expect(await currentCanvas(page)).toBe(GRID_CANVAS);
+
+    const bounds = await settled(page, visibleBounds);
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeCloseTo(x, 0);
+    expect(bounds!.width).toBeCloseTo(width, 0);
     expect(bounds!.height).toBeLessThan(900);
 });
 

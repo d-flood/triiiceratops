@@ -3595,6 +3595,19 @@ export declare class ViewerState {
      * no consume-once semantics.
      */
     temporalOffset: TemporalOffset | null;
+    /**
+     * The canvas region the last navigation carried — a structure item's `xywh`
+     * selector — scoped to the canvas it named, or `null` when it carried none.
+     * The spatial peer of {@link temporalOffset}, and replaced whole by every
+     * navigation for the same reason, so a region cannot outlive the navigation
+     * that supplied it and spring on a later canvas.
+     *
+     * Consumed rather than standing: the renderer takes it when it frames that
+     * canvas, through the same path an `initialCanvasRegion` goes through.
+     */
+    navigationRegion: (CanvasRegion & {
+        canvasId: string;
+    }) | null;
     dockSide: string;
     /** Reactive collection declared as a plain `Set` — see the note on the `svelte/reactivity` import. */
     visibleAnnotationIds: Set<string>;
@@ -4428,7 +4441,12 @@ export declare class ViewerState {
      * Apply manifest-level settings (start canvas, viewing direction, behavior).
      */
     private _applyManifestSettings;
-    setCanvas(canvasId: string, temporalOffset?: IiifTemporalFragment | null): void;
+    /**
+     * Navigate to a canvas, optionally at the media time and the region the
+     * navigation carried — the temporal and spatial halves of a target, which
+     * are peers and never exclusive.
+     */
+    setCanvas(canvasId: string, temporalOffset?: IiifTemporalFragment | null, region?: CanvasRegion | null): void;
     selectChoice(canvasId: string, choiceId: string): void;
     getSelectedChoice(canvasId: string): string | undefined;
     updateConfig(newConfig: ViewerConfig): void;
@@ -4455,6 +4473,13 @@ export declare class ViewerState {
     toggleCanvasInfo(): void;
     setSequenceIndex(index: number): void;
     setInitialCanvasRegion(region: CanvasRegion | null): void;
+    /**
+     * Take the region a navigation to `canvasId` carried, spending it. Answers
+     * `null` when the last navigation carried none, or carried one for a
+     * different canvas — a fit of the canvas it named is the only thing the
+     * region has to say.
+     */
+    takeNavigationRegion(canvasId: string): CanvasRegion | null;
     toggleStructuresPanel(): void;
     toggleCollectionPanel(): void;
     /** Whether the viewer is currently showing a collection */
@@ -6797,6 +6822,25 @@ export declare function imageAdjustmentsToCssFilter(adjustments: ImageAdjustment
 // ======================================================================
 // FILE: dist/utils/annotationAdapter.d.ts
 // ======================================================================
+/**
+ * One rendered annotation body.
+ *
+ * `href` is a dereferenceable `http`/`https` identity the body stands for — a
+ * `SpecificResource`'s `source`, or the body's own `id` — and is present only
+ * where the body has one. It is kept apart from `value` because a URI is not
+ * prose: every consumer that renders `value` would otherwise print a bare URL
+ * as text, and only the panel knows how to make a followable link out of it. A
+ * body may carry both (an external resource with a label) or a URI alone, in
+ * which case `value` is empty and the link's own text is the reader's only
+ * handle on it.
+ */
+export interface AnnotationBody {
+    value: string;
+    isHtml: boolean;
+    purpose?: string;
+    format?: string;
+    href?: string;
+}
 export interface ParsedAnnotation {
     id: string;
     renderId: string;
@@ -6816,12 +6860,7 @@ export interface ParsedAnnotation {
     geometry: RectangleGeometry | PolygonGeometry | PointGeometry;
     coordinateSpace: 'canvas' | 'image';
     isFullCanvasTarget: boolean;
-    body: {
-        value: string;
-        isHtml: boolean;
-        purpose?: string;
-        format?: string;
-    }[];
+    body: AnnotationBody[];
     isSearchHit: boolean;
 }
 export interface RectangleGeometry {
@@ -6849,14 +6888,9 @@ export declare function isFullCanvasAnnotation(annotation: any): boolean;
  * a manifest cannot render in one panel and come back empty in another.
  */
 export declare function bodyText(resource: unknown): string;
-export declare function extractBody(annotation: any): {
-    value: string;
-    isHtml: boolean;
-    purpose?: string;
-    format?: string;
-}[];
-export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean, canvasId?: string | null): ParsedAnnotation | null;
-export declare function parseAnnotations(annotations: any[], searchHitIds?: Set<string>, canvasId?: string | null): ParsedAnnotation[];
+export declare function extractBody(annotation: any, locale?: string): AnnotationBody[];
+export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean, canvasId?: string | null, locale?: string): ParsedAnnotation | null;
+export declare function parseAnnotations(annotations: any[], searchHitIds?: Set<string>, canvasId?: string | null, locale?: string): ParsedAnnotation[];
 
 // ======================================================================
 // FILE: dist/utils/canvasImageSpace.d.ts
@@ -7773,6 +7807,7 @@ export declare function getViewerTileSources({ canvases, currentCanvasIndex, cur
  * contents. IIIF v3 Ranges nest via `items`; IIIF v2 Ranges use `@type:
  * "sc:Range"` with `canvases` / `ranges` arrays.
  */
+import type { CanvasRegion } from './contentState';
 import type { IiifTemporalFragment } from './iiifTime';
 export interface StructureNode {
     /** Range id */
@@ -7790,8 +7825,21 @@ export interface StructureNode {
      * index-aligned with it and `null` where the target carried no time. A
      * range that targets the same canvas twice at different times — the shape
      * chapters of a single recording take — appears twice in both arrays.
+     *
+     * {@link canvasRegions} holds the same alignment for the spatial half of a
+     * target, so a range whose items mix plain canvases, chapters and article
+     * regions keeps all three arrays in step: every target pushes one entry to
+     * each, whether or not it named a time or a region.
      */
     canvasTimes: (IiifTemporalFragment | null)[];
+    /**
+     * The `xywh` region each entry of {@link canvasIds} was targeted at,
+     * index-aligned with it and `null` where the target named none. The
+     * spatial peer of {@link canvasTimes}: a target may carry both, and a
+     * newspaper range that names four articles on two pages appears four times
+     * in every array.
+     */
+    canvasRegions: (CanvasRegion | null)[];
     /** Nested child ranges */
     children: StructureNode[];
 }

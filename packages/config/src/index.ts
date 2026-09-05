@@ -9,6 +9,9 @@
 
 import { parseContentState, type CanvasRegion } from 'triiiceratops';
 
+/** The parameter name the IIIF Content State API reserves. */
+const IIIF_CONTENT_PARAM = 'iiif-content';
+
 export const CONFIG_STORAGE_KEY = 'triiiceratops-demo:config';
 
 /** Presence forces clean defaults without clearing what is stored. */
@@ -359,7 +362,7 @@ export function buildShareUrl({
     params.set('mode', mode);
 
     const contentState = serializeContentState(target);
-    if (contentState) params.set('iiif-content', contentState);
+    if (contentState) params.set(IIIF_CONTENT_PARAM, contentState);
 
     if (Object.keys(config).length) {
         params.set('config', JSON.stringify(config));
@@ -416,7 +419,7 @@ export function resolveInitialView(search: string | URLSearchParams): {
     let canvasId = params.get('canvas') || '';
     let region: CanvasRegion | null = null;
 
-    const contentState = params.get('iiif-content');
+    const contentState = params.get(IIIF_CONTENT_PARAM);
     if (contentState && !manifestUrl) {
         const parsed = parseContentState(contentState);
         if (parsed?.manifestId) {
@@ -427,4 +430,73 @@ export function resolveInitialView(search: string | URLSearchParams): {
     }
 
     return { manifestUrl, canvasId, region };
+}
+
+// ==================== dropped content state ====================
+
+/**
+ * The read side of a `DataTransfer`, which is all a drop payload needs — and all
+ * a test has to build, since jsdom implements neither `DataTransfer` nor
+ * `DragEvent`.
+ */
+export type DropPayloadSource = Pick<DataTransfer, 'types' | 'getData'>;
+
+/** The flavours a IIIF drag source can deliver a content state in. */
+const DROP_TYPES = ['text/uri-list', 'text/plain'] as const;
+
+/**
+ * Whether a drag in flight carries something that could be a content state.
+ * Read from `types` alone: during `dragover` the payload itself is unreadable,
+ * so the flavour on offer is all a host can decide a drop state on.
+ */
+export function carriesContentState(
+    transfer: DropPayloadSource | null | undefined,
+): boolean {
+    if (!transfer) return false;
+    return DROP_TYPES.some((type) => transfer.types.includes(type));
+}
+
+/**
+ * The first URI of a `text/uri-list`. The format permits several, each on its
+ * own line, and `#`-prefixed comment lines among them.
+ */
+function firstUri(value: string): string {
+    for (const line of value.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#')) return trimmed;
+    }
+    return '';
+}
+
+/**
+ * The content state a drop carries, ready for `parseContentState`, or `null`.
+ *
+ * Three payload shapes reach here and all three come out as one string: a link
+ * whose query carries `iiif-content` (recipe 0466's link, dragged rather than
+ * clicked) yields the parameter's value; a bare manifest URL and a stringified
+ * content-state document (recipe 0599's own drag source, which the Content State
+ * API requires be offered as `text/plain`) pass through untouched.
+ */
+export function readDroppedContentState(
+    transfer: DropPayloadSource | null | undefined,
+): string | null {
+    if (!transfer) return null;
+
+    let payload = '';
+    for (const type of DROP_TYPES) {
+        if (!transfer.types.includes(type)) continue;
+        const raw = transfer.getData(type) ?? '';
+        payload = type === 'text/uri-list' ? firstUri(raw) : raw.trim();
+        if (payload) break;
+    }
+    if (!payload) return null;
+
+    try {
+        const carried = new URL(payload).searchParams.get(IIIF_CONTENT_PARAM);
+        if (carried?.trim()) return carried.trim();
+    } catch {
+        // Not a URL, so it is the content state itself.
+    }
+
+    return payload;
 }

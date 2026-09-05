@@ -97,6 +97,11 @@
             "note": "The machine-readable version index the documentation's version switcher reads. Newest first, with the latest release carrying the \"latest\" alias."
         },
         {
+            "url": "/favicon.ico",
+            "owner": "site",
+            "note": "The tab icon, at the one path browsers request whether or not a document links to it. Nothing on the site references it, which is exactly why it is promised here: without the file every visit fetches it and takes a 404, and the site's own Lighthouse gate reads that back as a console error on every route."
+        },
+        {
             "url": "/sitemap.xml",
             "owner": "publish",
             "note": "The site-wide sitemap. It names the landing page, the playground, the bare viewer and the current documentation version only; archived versions are absent here and carry a noindex in the directory itself, so what is offered for indexing and what is allowed to be indexed say the same thing."

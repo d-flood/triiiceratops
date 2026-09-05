@@ -298,15 +298,25 @@ test.describe('the install block', () => {
 });
 
 test.describe('the embedded viewer', () => {
-    /** The viewer's root, once it has mounted. */
-    function viewerRoot(page: Page) {
-        return heroViewer(page).locator('.viewer-root');
+    /**
+     * The viewer's root, once it has mounted.
+     *
+     * Waited for with a budget sized to what it is actually waiting on: the
+     * element bundle has to be fetched, registered and the custom element
+     * upgraded before this node exists at all. That is a script load rather
+     * than a render, and on a cold development server under a parallel run it
+     * outlasts the default assertion timeout — which reads as "the viewer never
+     * mounted" when it only mounted late.
+     */
+    async function viewerRoot(page: Page): Promise<Locator> {
+        const root = heroViewer(page).locator('.viewer-root');
+        await expect(root).toBeAttached({ timeout: 30_000 });
+        return root;
     }
 
     test('is set in the page’s own face', async ({ page }) => {
         await page.goto('/');
-        const root = viewerRoot(page);
-        await expect(root).toBeAttached();
+        const root = await viewerRoot(page);
 
         const [inViewer, onPage] = await Promise.all([
             root.evaluate((node) => getComputedStyle(node).fontFamily),
@@ -320,8 +330,7 @@ test.describe('the embedded viewer', () => {
     }) => {
         await page.emulateMedia({ colorScheme: 'light' });
         await page.goto('/');
-        const root = viewerRoot(page);
-        await expect(root).toBeAttached();
+        const root = await viewerRoot(page);
 
         /**
          * The viewer's ground, once it has settled.

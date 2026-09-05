@@ -40,10 +40,22 @@ function writeBundleOf(plugin: Plugin): WriteBundle {
 
 describe('ELEMENT_TERSER_OPTIONS', () => {
     it('uses the measured compress settings', () => {
-        expect(ELEMENT_TERSER_OPTIONS.compress).toEqual({
-            passes: 3,
-            pure_getters: true,
-        });
+        expect(ELEMENT_TERSER_OPTIONS.compress).toEqual({ passes: 3 });
+    });
+
+    it('assumes nothing about property reads being pure', () => {
+        // A Svelte 5 `$derived` is subscribed to by being READ, so an effect
+        // that names a dependency as a bare read has a statement terser would
+        // call dead under `pure_getters`. Deleting it leaves the effect
+        // compiling, registering, and never running again for that dependency
+        // — in the shipped artifact only. See this module's header for the
+        // framing bug it cost and for the e2e spec that is the only thing that
+        // can catch it.
+        const compress = ELEMENT_TERSER_OPTIONS.compress as Record<
+            string,
+            unknown
+        >;
+        expect(compress.pure_getters ?? false).toBe(false);
     });
 
     it('enables no unsafe compression', () => {

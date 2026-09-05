@@ -38,6 +38,27 @@
             }
         },
         {
+            "id": "0485-published",
+            "file": "0485-published.txt",
+            "encoding": "raw",
+            "row": "encoded-annotation",
+            "form": "The Cookbook's own published `iiif-content` value for recipe 0485",
+            "resolvesVia": "base64url decoded, then percent-decoded, then parsed as an Annotation",
+            "source": "Copied verbatim from the viewer link published on https://iiif.io/api/cookbook/recipe/0485-contentstate-canvas-region/, which targets the vendored cookbook recipe manifest 0009-book-1",
+            "recipe": "0485-contentstate-canvas-region",
+            "capturedAt": "2026-08-22",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p2",
+                "region": {
+                    "x": 1528,
+                    "y": 3024,
+                    "width": 344,
+                    "height": 408
+                }
+            }
+        },
+        {
             "id": "string-target-region",
             "file": "string-target-region.json",
             "encoding": "base64url",

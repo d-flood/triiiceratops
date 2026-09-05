@@ -21,6 +21,28 @@ import type {
 import type { Point } from '../lib/renderer/types';
 
 /**
+ * How many settled paints this handle has seen, ever.
+ *
+ * **The out-of-process way to await a command**, and the reason it exists
+ * rather than the promise every command below also returns. A promise returned
+ * from an `evaluate` is awaited through CDP's `awaitPromise`, which holds it
+ * WEAKLY — and the promise that hangs there is Playwright's own wrapper around
+ * the call, which nothing in the page can name and therefore nothing can keep
+ * alive. These commands provoke the largest allocations the renderer ever makes
+ * (an 800-canvas world re-planned from one `setView`), so a garbage collection
+ * lands inside the window between the call and the frame that settles it often
+ * enough to matter. When it does, the awaiting call fails with CDP's
+ * `Promise was collected`, which Playwright reports as "Execution context was
+ * destroyed, most likely because of a navigation" — a message that sends the
+ * investigation after a navigation that never happened.
+ *
+ * A caller that reads this before issuing a command and polls until it moves
+ * transports no promise at all, and cannot be told that story. That is what
+ * `tests/helpers/numberedGrid.ts` does for every command it drives.
+ */
+let settledPaintCount = 0;
+
+/**
  * Resolve once a frame has been painted and the view has stopped moving.
  *
  * Every command below returns this rather than the frame itself, so an
@@ -37,6 +59,7 @@ function settledPaint(internals: RendererInternals): Promise<void> {
         const settle = () => {
             off();
             offDetach();
+            settledPaintCount += 1;
             resolve();
         };
         const off = internals.port.onFrame(() => {
@@ -118,5 +141,6 @@ export const installCanvasRendererHandle: RendererDevtoolsInstaller = (
         getCanvasErrors: () => ({ ...internals.canvasErrors }),
         registerPaintLayer: internals.registerPaintLayer,
         nextPaint,
+        settledPaintCount: () => settledPaintCount,
     };
 };

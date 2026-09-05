@@ -213,3 +213,170 @@ describe('structure temporal offsets', () => {
         ]);
     });
 });
+
+describe('structure canvas regions', () => {
+    /** The two spellings of the same target: 0025's, and the general one. */
+    const REGION = { x: 553, y: 1157, width: 470, height: 1103 };
+
+    it('carries a `SpecificResource` item`s region beside the canvas it names', () => {
+        const [node] = parseStructures({
+            structures: [
+                {
+                    id: 'range-articles',
+                    type: 'Range',
+                    label: { de: ['Tagesneuigkeiten'] },
+                    items: [
+                        {
+                            type: 'SpecificResource',
+                            source: {
+                                id: 'https://example.org/canvas/p2',
+                                type: 'Canvas',
+                            },
+                            selector: {
+                                type: 'FragmentSelector',
+                                value: 'xywh=553,1157,470,1103',
+                            },
+                        },
+                        {
+                            type: 'Canvas',
+                            id: 'https://example.org/canvas/p3',
+                        },
+                    ],
+                },
+            ],
+        });
+
+        expect(node.label).toBe('Tagesneuigkeiten');
+        expect(node.canvasIds).toEqual([
+            'https://example.org/canvas/p2',
+            'https://example.org/canvas/p3',
+        ]);
+        expect(node.canvasRegions).toEqual([REGION, null]);
+        expect(node.canvasTimes).toEqual([null, null]);
+    });
+
+    it('carries a region from a `SpecificResource` whose source is a bare id', () => {
+        const [node] = parseStructures({
+            structures: [
+                {
+                    id: 'range-articles',
+                    type: 'Range',
+                    items: [
+                        {
+                            type: 'SpecificResource',
+                            source: 'https://example.org/canvas/p2',
+                            selector: {
+                                type: 'FragmentSelector',
+                                value: 'xywh=553,1157,470,1103',
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+
+        expect(node.canvasIds).toEqual(['https://example.org/canvas/p2']);
+        expect(node.canvasRegions).toEqual([REGION]);
+    });
+
+    it('resolves a `#xywh=` string target to the same node', () => {
+        const [node] = parseStructures({
+            structures: [
+                {
+                    id: 'range-articles',
+                    type: 'Range',
+                    items: [
+                        'https://example.org/canvas/p2#xywh=553,1157,470,1103',
+                    ],
+                },
+            ],
+        });
+
+        expect(node.canvasIds).toEqual(['https://example.org/canvas/p2']);
+        expect(node.canvasRegions).toEqual([REGION]);
+    });
+
+    it('keeps a region and a `#t=` time on the same target', () => {
+        const [node] = parseStructures({
+            structures: [
+                {
+                    id: 'range-1',
+                    type: 'Range',
+                    items: [
+                        'https://example.org/canvas/1#xywh=10,20,30,40&t=5,9',
+                    ],
+                },
+            ],
+        });
+
+        expect(node.canvasIds).toEqual(['https://example.org/canvas/1']);
+        expect(node.canvasRegions).toEqual([
+            { x: 10, y: 20, width: 30, height: 40 },
+        ]);
+        expect(node.canvasTimes).toEqual([{ seconds: 5, endSeconds: 9 }]);
+    });
+
+    it('holds the index alignment of `canvasIds` on every range shape', () => {
+        const nodes = parseStructures({
+            structures: [
+                {
+                    id: 'range-mixed',
+                    type: 'Range',
+                    items: [
+                        {
+                            type: 'SpecificResource',
+                            source: {
+                                id: 'https://example.org/canvas/p2',
+                                type: 'Canvas',
+                            },
+                            selector: {
+                                type: 'FragmentSelector',
+                                value: 'xywh=1,2,3,4',
+                            },
+                        },
+                        { type: 'Canvas', id: 'https://example.org/canvas/p2' },
+                        'https://example.org/canvas/p3#t=4',
+                    ],
+                },
+                {
+                    '@id': 'range-v2',
+                    '@type': 'sc:Range',
+                    canvases: ['https://example.org/canvas/p1'],
+                },
+            ],
+        });
+
+        for (const node of nodes) {
+            expect(node.canvasRegions).toHaveLength(node.canvasIds.length);
+            expect(node.canvasTimes).toHaveLength(node.canvasIds.length);
+        }
+        expect(nodes[0].canvasRegions).toEqual([
+            { x: 1, y: 2, width: 3, height: 4 },
+            null,
+            null,
+        ]);
+    });
+
+    it('drops a `SpecificResource` whose source names no canvas', () => {
+        const [node] = parseStructures({
+            structures: [
+                {
+                    id: 'range-1',
+                    type: 'Range',
+                    items: [
+                        {
+                            type: 'SpecificResource',
+                            selector: {
+                                type: 'FragmentSelector',
+                                value: 'xywh=1,2,3,4',
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+
+        expect(node.canvasIds).toEqual([]);
+        expect(node.canvasRegions).toEqual([]);
+    });
+});

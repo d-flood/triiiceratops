@@ -112,6 +112,11 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: "The media time the last navigation carried — a structure item's `#t=`, a manifest `start`, a content-state target — or null when it carried none. Observable rather than command state: no command targets it, and it cannot be set on its own. It is an output of navigation, replaced whole (or nulled) by every navigation as a fact about the one that just happened; `setCanvas`'s optional offset argument supplies that fact rather than writing the member independently. Core carries the value and never acts on it; a canvas claimant interprets it as a seek, and its `endSeconds` is carried but never enforced.",
     },
     {
+        member: 'navigationRegion',
+        classification: 'internal',
+        notes: "Navigation bookkeeping beside temporalOffset: the canvas region the last navigation carried (a structure item's `xywh` selector), scoped to the canvas it named. No plugin contract — the renderer spends it framing that canvas, through the same path an `initialCanvasRegion` goes through, and every navigation replaces it whole.",
+    },
+    {
         member: 'selectedChoices',
         classification: 'command',
         commands: ['selectChoice'],

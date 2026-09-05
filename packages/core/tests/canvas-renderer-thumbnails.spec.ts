@@ -35,9 +35,14 @@ import {
     openRendererManifest,
     setView,
 } from './helpers/numberedGrid';
-import { MULTI_CANVAS_GAP_FRACTION } from '../src/lib/renderer/rendererDefaults';
+import {
+    DEFAULT_BUDGETS,
+    DEFAULT_ZOOM_PER_WHEEL_NOTCH,
+    MULTI_CANVAS_GAP_FRACTION,
+    TILE_IN_FLIGHT_LIMIT,
+    WHEEL_NOTCH_PIXELS,
+} from '../src/lib/renderer/rendererDefaults';
 import { THUMBNAIL_RUNGS } from '../src/lib/renderer/thumbnailLadder';
-import { TILE_IN_FLIGHT_LIMIT } from '../src/lib/renderer/rendererDefaults';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -321,6 +326,15 @@ test.describe('Canvas2D renderer — the thumbnail tier', () => {
         // disjoint sets this file's header describes. Delaying every `full/`
         // request would hold up the base LEVEL too, and then there is genuinely
         // nothing held to carry and the test would be asserting the impossible.
+        // A viewport small enough that the boundary is on the reader's side of
+        // their own zoom floor. That floor is `MIN_ZOOM_FRACTION` of the scale
+        // at which ONE folio fits, so on a tall window a folio still measures
+        // more than `pyramidThreshold` when the reader has zoomed out as far as
+        // the viewer will let them — and no gesture can reach the tier this
+        // test is about. Sized here rather than assumed, so the crossing is a
+        // gesture a reader could actually make.
+        await page.setViewportSize({ width: 640, height: 480 });
+
         await page.route('**/iiif-fixture/**', async (route) => {
             const size = Number(
                 route
@@ -349,10 +363,20 @@ test.describe('Canvas2D renderer — the thumbnail tier', () => {
         expect(await countOpaqueSurfacePixels(page)).toBeGreaterThan(0);
 
         // Out across the threshold, in one animated glide.
+        //
+        // The notch count is derived rather than written down. How far one
+        // notch carries the reader is a tunable, and a literal that no longer
+        // reaches the boundary does not fail here — it makes the sampling above
+        // vacuous, which is the one way this test can pass while proving
+        // nothing. One notch of headroom past the crossing.
         const view = await getView(page);
-        for (let notch = 0; notch < 4; notch += 1) {
+        const crossing =
+            Math.log(
+                (PAGE_EXTENT * view.scale) / DEFAULT_BUDGETS.pyramidThreshold,
+            ) / Math.log(DEFAULT_ZOOM_PER_WHEEL_NOTCH);
+        for (let notch = 0; notch <= Math.ceil(crossing); notch += 1) {
             await page.mouse.move(view.width / 2, view.height / 2);
-            await page.mouse.wheel(0, 120);
+            await page.mouse.wheel(0, WHEEL_NOTCH_PIXELS);
         }
 
         // Sampled right through the round trip the thumbnail now takes. Not once
@@ -429,6 +453,16 @@ test.describe('Canvas2D renderer — the thumbnail tier', () => {
         page,
     }) => {
         await open(page);
+        // The opening fit's own tiles, drained before anything is watched.
+        // Framing below is a viewport change, so whatever is still in flight
+        // when it lands gets ABORTED — and an aborted request is rejected in
+        // the page at once but reported to this process as `requestfailed`
+        // tens of milliseconds later. Counted from those events, it reads as
+        // in-flight throughout that gap, so the peak below would be the
+        // window plus the opening's leftovers and the bound would be
+        // unassertable. See `watchTraffic` for why the lag is nobody's fault.
+        await settled(() => getStats(page).then((s) => s.tileRequestCount));
+
         const traffic = watchTraffic(page);
 
         const CENTRE = 400;

@@ -246,13 +246,16 @@ describe('published distributions ship styles + themes', () => {
         /*
          * The plugin rendering substrate (ADR 0016) is DOM overlay layers plus
          * paint hooks, and both are driven by a revision counter the render site
-         * reads to establish a reactive dependency. That read was once a bare
-         * `void state.overlayLayerRevision;` expression statement, which this
-         * bundle's terser pass deletes as side-effect-free — so in the SHIPPED
-         * web component a plugin could register an overlay layer, the registry
-         * would accept it, the counter would increment, and no container was
-         * ever created. Every overlay and paint test stayed green because they
-         * all load the element from source, not from this artifact.
+         * reads to establish a reactive dependency. Written as a bare
+         * `void state.overlayLayerRevision;` expression statement, that read is
+         * deletable by any minifier that treats a property read as pure — and
+         * then in the SHIPPED web component a plugin registers an overlay layer,
+         * the registry accepts it, the counter increments, and no container is
+         * ever created. Every overlay and paint test stays green regardless,
+         * because they all load the element from source, not from this artifact.
+         * The render sites consume the counter instead of voiding it, and
+         * `compress.pure_getters` is off (`src/packaging/terserElement.ts`); this
+         * is the guard that would catch either of those being undone.
          *
          * Grepping the minified output is the only place that failure is
          * visible, so it is asserted here rather than left to an e2e that would
@@ -327,9 +330,9 @@ describe('published distributions ship styles + themes', () => {
          * different esbuild transpile settings (Vite leaves `minifyWhitespace`
          * off for an ES lib build), so "the IIFE executes" says nothing about
          * this one. Nothing else executes it — every other guard on it is a
-         * regex over the text — which is exactly the wrong shape of evidence
-         * for `compress.pure_getters`, whose licence is to delete member
-         * expressions whose value is unused.
+         * regex over the text — which is exactly the wrong shape of evidence for
+         * a dead-code pass whose licence is to delete member expressions whose
+         * value is unused.
          *
          * The registration path is idempotent and first-wins
          * (`defineViewerElement` returns early when the tag is taken), so the
