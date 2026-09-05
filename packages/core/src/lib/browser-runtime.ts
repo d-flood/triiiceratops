@@ -1,5 +1,5 @@
 /**
- * The `window.Triiiceratops` browser runtime namespace (ticket 10).
+ * The `window.Triiiceratops` browser runtime namespace.
  *
  * One namespace per page, bootstrapped order-independently: every core (and,
  * later, every plugin) IIFE creates it if absent via {@link ensureBrowserRuntime}
@@ -182,7 +182,10 @@ export interface InstallCoreOptions {
     coreVersion: string;
     /** Plugin API version core declares for activation-time negotiation. */
     pluginApiVersion: string;
-    /** Capabilities core declares (e.g. `osd@5`). */
+    /**
+     * Capabilities core declares. Empty in the 1.0 line — see `plugin/api.ts`
+     * for why the renderer capability was retired with no successor.
+     */
     capabilities: readonly string[];
     /** The custom-element constructor to register for {@link tag}. */
     elementCtor: CustomElementConstructor;

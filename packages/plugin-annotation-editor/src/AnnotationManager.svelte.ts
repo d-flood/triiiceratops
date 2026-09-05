@@ -70,7 +70,7 @@ export class AnnotationManager {
     private config: AnnotationEditorConfig;
     // All persistence (cache, hydration state, save queue, load-race token, the
     // raw adapter, and the current canvas context) lives in the store; the
-    // manager only drives Annotorious/OSD mechanics and calls the store (issue 05).
+    // manager only drives Annotorious/OSD mechanics and calls the store.
     private store: AnnotationStore;
     // True only when the manager created its own store (no shared store passed).
     // A shared store's lifecycle belongs to the plugin/loader, not the panel.
@@ -108,7 +108,7 @@ export class AnnotationManager {
     >();
 
     // Current canvas context is owned by the store; these getters keep the
-    // manager's Annotorious/transform call sites reading it unchanged (issue 05).
+    // manager's Annotorious/transform call sites reading it unchanged.
     private get currentManifestId(): string | null {
         return this.store.currentManifestId;
     }
@@ -189,13 +189,11 @@ export class AnnotationManager {
             return;
         }
 
-        // Store viewer reference
         this.osdViewer = viewer;
         // Seed the store's canvas context (the manifest arrives via the
         // controller's handleCanvasChange right after init).
         this.store.setCanvas(this.store.currentManifestId, canvasId);
 
-        // If viewer is already open, init immediately
         const worldCount = viewer.world?.getItemCount() ?? 0;
 
         if (worldCount > 0) {
@@ -211,10 +209,8 @@ export class AnnotationManager {
             viewer.addHandler('open', this.openHandler);
         }
 
-        // Attach global click handler for Point tool
-        // "canvas-click" is robust and handles drag vs click detection
-        // Attach global click handler for ALL tools when drawing is enabled
-        // This ensures we can block Zoom on click, while allowing Panning (Drag)
+        // "canvas-click" distinguishes a real click from a drag, so it can block
+        // OSD's zoom-on-click while still letting drag-to-pan through.
         this.canvasClickHandler = (event: any) => {
             if (this.isDrawingEnabled && event.quick) {
                 // Prevent default OSD navigation (zoom on click)
@@ -235,7 +231,6 @@ export class AnnotationManager {
         if (this.annotorious) return;
 
         try {
-            // Load dynamic dependencies
             if (!this.createOSDAnnotator || !this.W3CImageFormat) {
                 const mod = await import('@annotorious/openseadragon');
                 this.createOSDAnnotator = mod.createOSDAnnotator;
@@ -252,7 +247,8 @@ export class AnnotationManager {
             // persisted output. Pass the real canvas id when we have one.
             const sourceId = canvasId ?? '';
 
-            // Initial drawing enabled state only if tool is NOT point (Annotorious handles others)
+            // Annotorious drives drawing for every tool except point, which the
+            // manager handles manually.
             const initialDrawingEnabled =
                 this.isDrawingEnabled && this.activeTool !== 'point';
 
@@ -276,7 +272,6 @@ export class AnnotationManager {
                 anno.setUser(this.config.user);
             }
 
-            // Set initial tool
             if (this.activeTool !== 'point') {
                 anno.setDrawingTool(this.activeTool);
             }
@@ -286,9 +281,8 @@ export class AnnotationManager {
             // see `styles.ts` and the plugin's `view.mount` (F23).
             this.setupEvents();
 
-            // Apply pending state
             this.updateDrawingMode(this.isDrawingEnabled);
-            anno.setVisible(true); // Always start visible
+            anno.setVisible(true);
 
             if (this.currentManifestId && this.currentCanvasId) {
                 void this.loadAnnotations();
@@ -381,7 +375,7 @@ export class AnnotationManager {
     // === Public API ===
 
     setEditing(enabled: boolean): void {
-        this.isDrawingEnabled = enabled; // Keep track of "Drawing" state
+        this.isDrawingEnabled = enabled;
 
         if (this.annotorious) {
             this.updateDrawingMode(enabled);
@@ -408,16 +402,14 @@ export class AnnotationManager {
             this.annotorious.setDrawingEnabled(canDraw);
         }
 
-        // Toggle class for CSS cursor control
         if (enabled) {
             this.osdViewer.element.classList.add('annotorious-drawing-mode');
         } else {
             this.osdViewer.element.classList.remove('annotorious-drawing-mode');
         }
 
-        // NOTE: We do NOT disable mouse nav (panning) here anymore.
-        // User workflow is "Click-Move-Click", so Dragging should Pan.
-        // We also do NOT isolate events, so that MouseDown/Up bubble to OSD for Panning.
+        // Mouse nav (panning) stays enabled and events are not isolated: the
+        // workflow is "Click-Move-Click", so a drag must still pan via OSD.
     }
 
     /**
@@ -469,7 +461,7 @@ export class AnnotationManager {
     private toPointSelectorTarget(annotation: W3CAnnotation): W3CAnnotation {
         const selector = (annotation as any)?.target?.selector;
         // New (and previously stored) points are authored as PointSelector
-        // already — pass them through untouched (issue 11). Reconstructing would
+        // already — pass them through untouched. Reconstructing would
         // needlessly drop unrelated target fields.
         if (selector?.type === 'PointSelector') {
             return annotation;
@@ -716,8 +708,6 @@ export class AnnotationManager {
         }
     }
 
-    // ... (rest is same)
-
     get availableTools(): DrawingTool[] {
         return this.resolvedTools;
     }
@@ -788,7 +778,6 @@ export class AnnotationManager {
 
             this.setActiveEditingAnnotationId(selected?.id ?? null);
 
-            // Robustly toggle a class on the viewer container
             if (this.isPointAnnotation(selected)) {
                 this.osdViewer.element.classList.add('point-selected');
             } else {
@@ -1089,8 +1078,8 @@ export class AnnotationManager {
         const clone = this.toPointSelectorTarget(
             JSON.parse(JSON.stringify(prepared)),
         );
-        // The point tool authors canvas-space coordinates directly (issue 11);
-        // drawn shapes arrive in Annotorious image space and must be scaled.
+        // The point tool authors canvas-space coordinates directly; drawn
+        // shapes arrive in Annotorious image space and must be scaled.
         // No hydration marker: a freshly prepared draft always has its full
         // body, and persist() records its hydration state as 'full' (F7). The
         // marker is intentionally omitted so it can't leak to the panel.

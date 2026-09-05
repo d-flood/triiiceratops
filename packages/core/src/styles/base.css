@@ -1,5 +1,5 @@
 /*
- * Global base styles: scrollbars and OpenSeadragon background.
+ * Global base styles: scrollbars.
  * (Token + theme definitions live in themes.css; element reset in preflight.css.)
  */
 
@@ -59,12 +59,6 @@
 ::-webkit-scrollbar-corner {
     background: transparent;
     border-radius: 9999px;
-}
-
-/* Transparent canvas background mode for OpenSeadragon. */
-.osd-background,
-.osd-background .openseadragon-container {
-    background-color: transparent;
 }
 
 /*

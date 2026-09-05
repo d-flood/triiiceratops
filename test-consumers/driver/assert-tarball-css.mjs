@@ -5,8 +5,7 @@
 // CSS *inside the packed `.tgz`* — i.e. exactly the bytes a consumer installs as
 // `triiiceratops/style.css`.
 
-// The built-in themes ship with lowercase identifiers (ticket 19 renamed the
-// former `Teal` to `teal`, matching the other three).
+// The built-in themes ship with lowercase identifiers.
 const THEMES = ['light', 'dark', 'teal', 'dracula'];
 
 function splitTopLevel(selector) {

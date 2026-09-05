@@ -6,8 +6,7 @@
  * (`themingDocsTable.test.ts`) regenerates this table and asserts the block
  * committed to `docs/theming.md` (between the GENERATED markers) is identical.
  * Add or rename a token in `publicTokens.ts`, regenerate, and the docs stay in
- * sync automatically. This is ticket 26's "token table generated from ticket
- * 19's module" contract.
+ * sync automatically.
  */
 
 import { CSS_VAR_MAP } from './cssVarMap';

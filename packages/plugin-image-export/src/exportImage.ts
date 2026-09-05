@@ -3,37 +3,46 @@ import {
     buildRelativeSizeOptions,
     clampCompositeSize,
     composeImages,
-    fetchImageBlob,
+    fetchExportImageBlob,
     getCanvasDisplayLayouts,
     getCanvasId,
     getCompositeImagePlacement,
-    getResolvedImageExportUrl,
     getVisibleCanvasEntries,
-    MULTI_CANVAS_GAP,
     resolveAllCanvasImages,
     resolveExportSizeOptions,
+    sanitizeFilenamePart,
     type ComposeImageEntry,
     type ExportSizeOption,
     type ResolvedCanvasImage,
 } from 'triiiceratops/image-export';
 
+export { isCrossOriginImageFailure } from 'triiiceratops/image-export';
+
 export type ImageDownloadFormat = 'image/png' | 'image/jpeg';
 export type ImageDownloadMode = 'composite' | 'single' | 'world';
 
-function sanitizeFilenamePart(value: string): string {
-    return value
-        .replace(/[^a-z0-9-_]+/gi, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-}
-
+/**
+ * The default name for a downloaded image: the manifest's label and the canvas's
+ * label, in that order, sanitized for a filesystem.
+ *
+ * Both labels are localized IIIF language maps, so the caller resolves them in
+ * the viewer's **active locale** rather than passing raw JSON here — a reader
+ * browsing in French should get `Evangiles-Folio-2r.jpg`, not the English label.
+ * Either may resolve to nothing (a manifest with no label, an unlabeled canvas),
+ * and whichever survives is used alone.
+ */
 export function buildImageDownloadFilename(
     canvasLabel: string,
     mode: ImageDownloadMode,
     format: ImageDownloadFormat,
+    manifestLabel?: string | null,
 ): string {
     const extension = format === 'image/jpeg' ? 'jpg' : 'png';
-    const base = sanitizeFilenamePart(canvasLabel) || 'image';
+    const base =
+        [manifestLabel, canvasLabel]
+            .map((part) => sanitizeFilenamePart(part ?? ''))
+            .filter(Boolean)
+            .join('-') || 'image';
     const suffix = mode === 'single' ? '' : `-${mode}`;
     return `${base}${suffix}.${extension}`;
 }
@@ -42,6 +51,20 @@ type ExportOptions = {
     format?: ImageDownloadFormat;
     getSelectedChoice?: (canvasId: string) => string | undefined;
 };
+
+/**
+ * The image server a resolved image comes from, for an error message that names
+ * who declined. `null` when there is no absolute URL to read a host from.
+ */
+export function getImageHost(resolved: ResolvedCanvasImage): string | null {
+    const source = resolved.serviceId ?? resolved.resourceId;
+    if (!source) return null;
+    try {
+        return new URL(source).host || null;
+    } catch {
+        return null;
+    }
+}
 
 /**
  * Every painting image on `canvas` resolved for the "single image" picker
@@ -87,18 +110,10 @@ export async function exportSingleImage(
     resolvedImage: ResolvedCanvasImage,
     sizeOption: ExportSizeOption,
 ): Promise<Blob> {
-    const url =
-        sizeOption.url ??
-        getResolvedImageExportUrl(resolvedImage, {
-            width: sizeOption.width,
-            height: sizeOption.height,
-        });
-
-    if (!url) {
-        throw new Error('No exportable image found for this canvas.');
-    }
-
-    return fetchImageBlob(url);
+    // The option is passed whole: it carries `url` when the resolution is a
+    // single canonical request, and only its dimensions when it is not (a
+    // level0 tile tree's intermediate levels, which arrive as tiles).
+    return fetchExportImageBlob(resolvedImage, sizeOption);
 }
 
 export async function exportCompositeCanvas(
@@ -156,12 +171,9 @@ async function buildComposeEntry(
     // (see resolveExportSizeOptions), so a composited member image from one
     // may be fetched at a different resolution than the rest of the page and
     // scaled to fit here via drawImage rather than via a resized request.
-    const url = getResolvedImageExportUrl(resolved, { width: placement.width });
-    if (!url) {
-        throw new Error('No exportable image found for this canvas.');
-    }
-
-    const blob = await fetchImageBlob(url);
+    const blob = await fetchExportImageBlob(resolved, {
+        width: placement.width,
+    });
 
     return {
         blob,
@@ -214,11 +226,19 @@ function buildWorldLayout(
                 x: resolved.x,
                 y: resolved.y,
                 width: resolved.width,
-                tileSource: {
-                    width: resolved.resourceWidth || resolved.canvasWidth,
-                    height: resolved.resourceHeight || resolved.canvasHeight,
-                    resolved,
-                },
+                // The box this image occupies on its manifest Canvas. Layout
+                // reads only the ratio, so passing the box's own width and
+                // height gives each source exactly the extent the manifest
+                // declares for it. The image service's dimensions are image
+                // space and are deliberately not used as canvas geometry.
+                //
+                // The live renderer lays out from the same manifest box, so
+                // there is no divergence left between what a "current view"
+                // export composes and what the reader is looking at (SPEC:
+                // "manifest dimensions win permanently for geometry").
+                sourceWidth: resolved.width,
+                sourceHeight: resolved.height,
+                tileSource: { resolved },
             }),
         );
     });
@@ -229,7 +249,6 @@ function buildWorldLayout(
         mode: viewerState.viewingMode,
         direction: viewerState.viewingDirection,
         preserveCanvasScale: viewerState.preserveCanvasScale,
-        gap: MULTI_CANVAS_GAP,
     });
 
     if (!layouts.length) return null;
@@ -253,7 +272,7 @@ function buildWorldLayout(
 /**
  * Resolution options for downloading everything currently laid out together
  * in the viewer (e.g. a two-page spread in `paged` viewing mode). Reuses the
- * same layout math OSD itself uses (`getCanvasDisplayLayouts`), so the
+ * same layout math the viewer itself uses (`getCanvasDisplayLayouts`), so the
  * downloaded image matches what's on screen; there's no single native
  * reference size across canvases, so this offers a relative ladder against
  * the first image's own native width as the reference scale.
@@ -297,20 +316,19 @@ export async function exportCurrentWorld(
     const entries = await Promise.all(
         layout.entries.map(async ({ resolved, x, y, width }) => {
             const pixelWidth = Math.max(1, Math.round(width * scale));
+            // The image is drawn into the box the manifest declares for it,
+            // which is exactly the box layout was given and sized the world
+            // from. Deriving this from the image service's own dimensions
+            // instead would overflow the world whenever a Canvas and its
+            // image disagree, and composeImages would clip the overflow.
             const aspect =
-                resolved.resourceWidth && resolved.resourceHeight
-                    ? resolved.resourceHeight / resolved.resourceWidth
+                resolved.width > 0 && resolved.height > 0
+                    ? resolved.height / resolved.width
                     : 1;
             const pixelHeight = Math.max(1, Math.round(pixelWidth * aspect));
-            const url = getResolvedImageExportUrl(resolved, {
+            const blob = await fetchExportImageBlob(resolved, {
                 width: pixelWidth,
             });
-            if (!url) {
-                throw new Error(
-                    'No exportable image found for the current view.',
-                );
-            }
-            const blob = await fetchImageBlob(url);
 
             return {
                 blob,

@@ -1,11 +1,9 @@
 /**
- * Shared utility for resolving IIIF language map values.
+ * Resolves IIIF language-mapped values to display strings.
  *
- * IIIF v3 uses language maps: `{ "en": ["Hello"], "fr": ["Bonjour"] }`
- * Manifesto returns arrays of `{ value, locale/language }` objects.
- * IIIF v2 may use plain strings.
- *
- * This module provides a single resolution strategy used across the viewer.
+ * IIIF v3 uses language maps: `{ "en": ["Hello"], "fr": ["Bonjour"] }`.
+ * IIIF v2 may use plain strings, a JSON-LD value object, or an array of
+ * `{ value, locale/language }` objects.
  */
 
 /**
@@ -60,11 +58,10 @@ export function resolveLanguageValue(
         return '';
     }
 
-    // Manifesto-style array: [{ value: "...", locale: "en" }] or plain string array
+    // [{ value: "...", locale: "en" }] or a plain string array.
     if (Array.isArray(value) && value.length > 0) {
         if (typeof value[0] === 'string') return value[0];
 
-        // Array of { value, locale/language } objects
         const items = value as Array<{
             value?: string;
             _value?: string;
@@ -76,10 +73,8 @@ export function resolveLanguageValue(
         }>;
 
         // `@value` / `@language` is the IIIF Presentation 2 JSON-LD spelling —
-        // e.g. `[{ "@value": "Bild 6", "@language": "sv" }]`. It reaches here
-        // now that canvases are raw JSON; `manifesto.js` used to parse it into
-        // `_value`/`_locale` first, so omitting it returned '' and every such
-        // label silently fell back to "Canvas N".
+        // e.g. `[{ "@value": "Bild 6", "@language": "sv" }]`. Omitting it
+        // would return '' and fall back to "Canvas N".
         const getItemValue = (item?: {
             value?: string;
             _value?: string;
@@ -190,10 +185,8 @@ export function resolveAllLanguageValues(
         }>;
 
         // `@value` / `@language` is the IIIF Presentation 2 JSON-LD spelling —
-        // e.g. `[{ "@value": "Bild 6", "@language": "sv" }]`. It reaches here
-        // now that canvases are raw JSON; previously `manifesto.js` parsed it
-        // into `_value`/`_locale` before this function ever saw it, so omitting
-        // it silently returned '' and every such label fell back to "Canvas N".
+        // e.g. `[{ "@value": "Bild 6", "@language": "sv" }]`. Omitting it
+        // would return '' and fall back to "Canvas N".
         const getItemValue = (item: {
             value?: string;
             _value?: string;

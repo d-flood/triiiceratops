@@ -46,6 +46,7 @@
     "plugins_tooltip": "Erweiterungen",
     "demo_header_external_controls": "Externe Steuerelemente:",
     "demo_header_active_canvas": "Aktives Canvas",
+    "open_menu": "Menü öffnen",
     "close_menu": "Menü schließen",
     "gallery": "Galerie",
     "close_gallery": "Galerie schließen",
@@ -115,6 +116,8 @@
     "settings_view_configuration": "Viewer-Konfiguration",
     "settings_paged_view_offset": "Seitenansatz verschieben",
     "settings_gallery_size": "Galeriegröße",
+    "settings_submenu_renderer": "Renderer",
+    "settings_zoom_per_wheel_notch": "Zoomgeschwindigkeit (Rad)",
     "reset_config": "Konfiguration zurücksetzen",
     "share_current_state": "Aktuellen Zustand teilen",
     "link_copied": "Link kopiert!",
@@ -146,5 +149,8 @@
     "plugin_error_description": "{plugin} konnte nicht ausgeführt werden und wurde isoliert, damit der Rest des Viewers weiter funktioniert.",
     "plugin_error_phase": "Fehlgeschlagen in der Phase {phase}.",
     "plugin_error_retry": "Erneut versuchen",
-    "plugin_error_close": "Fehlerdetails schließen"
+    "plugin_error_close": "Fehlerdetails schließen",
+    "canvas_surface_label": "Bildfläche – mit den Pfeiltasten verschieben, mit Plus und Minus zoomen, mit Null einpassen",
+    "canvas_error_auth": "Diese Seite erfordert eine Authentifizierung",
+    "canvas_error_load": "Diese Seite konnte nicht geladen werden"
 }

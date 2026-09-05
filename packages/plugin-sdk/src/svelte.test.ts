@@ -1,4 +1,4 @@
-// Svelte adapter unit tests (ticket 13).
+// Svelte adapter unit tests.
 //
 // The bridge produces a Svelte readable store, so these assert the store
 // CONTRACT against the SDK's real selector runtime driven by a deterministic

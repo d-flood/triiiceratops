@@ -22,8 +22,16 @@ export const DEMO_ONLY_COMPONENTS = [
     'DemoHeader',
     'SettingsMenu',
     'LightDarkToggle',
-    'MetadataPanelTestHost',
 ] as const;
+
+/*
+ * Test-host components are matched by SUFFIX, not enumerated. An explicit list
+ * drifted: `assert-tarball-contents.mjs` forbids anything matching `TestHost`,
+ * this list named only the one that existed when it was written, and the next
+ * `…TestHost.svelte` therefore reached the tarball and failed that assertion
+ * instead of being pruned. One rule, spelled the same way on both sides.
+ */
+const TEST_HOST_SUFFIX = 'TestHost';
 
 /*
  * Directories (relative to dist/) holding internal test fixtures and mock
@@ -44,12 +52,17 @@ const DEMO_ONLY_RE = new RegExp(
     `^(${DEMO_ONLY_COMPONENTS.join('|')})\\.svelte(\\.d\\.ts)?$`,
 );
 
+const TEST_HOST_RE = new RegExp(
+    `^\\w*${TEST_HOST_SUFFIX}\\.svelte(\\.d\\.ts)?$`,
+);
+
 /** True if a dist file (by basename) should not be published. */
 export function isPackageExcluded(filename: string): boolean {
     // Test/spec files: *.test.js, *.test.d.ts, *.spec.ts, …
     if (/\.(test|spec)\./.test(filename)) return true;
     // Demo-only chrome and test-host components.
     if (DEMO_ONLY_RE.test(filename)) return true;
+    if (TEST_HOST_RE.test(filename)) return true;
     return false;
 }
 

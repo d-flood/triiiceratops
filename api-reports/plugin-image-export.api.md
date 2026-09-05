@@ -11,13 +11,29 @@
 // ======================================================================
 import type { ViewerState } from 'triiiceratops';
 import { type ExportSizeOption, type ResolvedCanvasImage } from 'triiiceratops/image-export';
+export { isCrossOriginImageFailure } from 'triiiceratops/image-export';
 export type ImageDownloadFormat = 'image/png' | 'image/jpeg';
 export type ImageDownloadMode = 'composite' | 'single' | 'world';
-export declare function buildImageDownloadFilename(canvasLabel: string, mode: ImageDownloadMode, format: ImageDownloadFormat): string;
+/**
+ * The default name for a downloaded image: the manifest's label and the canvas's
+ * label, in that order, sanitized for a filesystem.
+ *
+ * Both labels are localized IIIF language maps, so the caller resolves them in
+ * the viewer's **active locale** rather than passing raw JSON here — a reader
+ * browsing in French should get `Evangiles-Folio-2r.jpg`, not the English label.
+ * Either may resolve to nothing (a manifest with no label, an unlabeled canvas),
+ * and whichever survives is used alone.
+ */
+export declare function buildImageDownloadFilename(canvasLabel: string, mode: ImageDownloadMode, format: ImageDownloadFormat, manifestLabel?: string | null): string;
 type ExportOptions = {
     format?: ImageDownloadFormat;
     getSelectedChoice?: (canvasId: string) => string | undefined;
 };
+/**
+ * The image server a resolved image comes from, for an error message that names
+ * who declined. `null` when there is no absolute URL to read a host from.
+ */
+export declare function getImageHost(resolved: ResolvedCanvasImage): string | null;
 /**
  * Every painting image on `canvas` resolved for the "single image" picker
  * and to detect whether "composite canvas" mode has more than one image to
@@ -47,14 +63,13 @@ export declare function getVisibleCanvasesForDownload(viewerState: ViewerState):
 /**
  * Resolution options for downloading everything currently laid out together
  * in the viewer (e.g. a two-page spread in `paged` viewing mode). Reuses the
- * same layout math OSD itself uses (`getCanvasDisplayLayouts`), so the
+ * same layout math the viewer itself uses (`getCanvasDisplayLayouts`), so the
  * downloaded image matches what's on screen; there's no single native
  * reference size across canvases, so this offers a relative ladder against
  * the first image's own native width as the reference scale.
  */
 export declare function resolveWorldSizeOptions(viewerState: ViewerState, getSelectedChoice?: (canvasId: string) => string | undefined): ExportSizeOption[];
 export declare function exportCurrentWorld(viewerState: ViewerState, sizeOption: ExportSizeOption, options?: ExportOptions): Promise<Blob>;
-export {};
 
 // ======================================================================
 // FILE: dist/index.d.ts
@@ -74,7 +89,7 @@ export {};
  * hosts that want to drive image export programmatically.
  */
 export { ImageDownloadPlugin } from './plugin';
-export { buildImageDownloadFilename, exportCompositeCanvas, exportCurrentWorld, exportSingleImage, getCanvasImageChoices, getVisibleCanvasesForDownload, resolveCompositeCanvasSizeOptions, resolveSingleImageSizeOptions, resolveWorldSizeOptions, } from './exportImage';
+export { buildImageDownloadFilename, exportCompositeCanvas, exportCurrentWorld, exportSingleImage, getCanvasImageChoices, getImageHost, getVisibleCanvasesForDownload, isCrossOriginImageFailure, resolveCompositeCanvasSizeOptions, resolveSingleImageSizeOptions, resolveWorldSizeOptions, } from './exportImage';
 export type { ImageDownloadFormat, ImageDownloadMode } from './exportImage';
 
 // ======================================================================
@@ -90,8 +105,8 @@ export type { ImageDownloadFormat, ImageDownloadMode } from './exportImage';
  * cleanup. Styles install through the SDK style service (root-aware), strings
  * resolve through the per-viewer locale service over this package's catalog, and
  * the toolbar glyph is a `svgIcon` descriptor. Export reads canvas geometry from
- * the raw OSD-backed viewer model, so the plugin declares
- * `requiredCapabilities: ['osd@5']`.
+ * raw Canvas JSON and core's first-party layout helpers, so the plugin requires
+ * no capability.
  *
  * This plugin's validation duty (SPEC.md Plugin Migration) is asynchronous
  * operations and binary output: the panel runs async IIIF fetch/compositing and

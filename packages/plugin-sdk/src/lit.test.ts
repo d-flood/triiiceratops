@@ -1,4 +1,4 @@
-// Lit adapter unit tests (ticket 13).
+// Lit adapter unit tests.
 //
 // Drives SelectorController through a fake ReactiveControllerHost against the
 // SDK's real selector runtime and a deterministic fake viewer state: initial

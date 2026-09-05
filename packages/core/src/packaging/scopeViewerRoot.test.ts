@@ -85,8 +85,8 @@ describe('scopeSelector', () => {
         expect(scopeSelector('::-webkit-scrollbar')).toBe(
             '.viewer-root ::-webkit-scrollbar',
         );
-        expect(scopeSelector('.osd-background .openseadragon-container')).toBe(
-            '.viewer-root .osd-background .openseadragon-container',
+        expect(scopeSelector('.renderer-root .canvas-surface')).toBe(
+            '.viewer-root .renderer-root .canvas-surface',
         );
     });
 

@@ -9,7 +9,7 @@ import { expect } from '@playwright/test';
 async function drivePage(page, baseURL, pathname, pageErrors) {
     await page.goto(`${baseURL}/${pathname}`, { waitUntil: 'load' });
 
-    // The custom element upgrades and OSD paints inside the shadow root.
+    // The custom element upgrades and the renderer paints inside the shadow root.
     await expect(page.locator('triiiceratops-viewer')).toBeVisible({
         timeout: 30_000,
     });
@@ -45,7 +45,7 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
     await expect(toggle).toBeVisible({ timeout: 30_000 });
     await toggle.click();
 
-    // Adjust a filter and assert the OSD canvas receives the CSS filter.
+    // Adjust a filter and assert the renderer's canvas receives the CSS filter.
     const brightness = page.locator('[data-tri-im-slider="brightness"]');
     await expect(brightness).toBeVisible({ timeout: 10_000 });
     await brightness.fill('150');

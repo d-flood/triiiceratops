@@ -22,7 +22,7 @@ import type { SearchProvider } from './config';
  * `viewerState` property returns.
  *
  * It means only that state can be bound. It does not mean a manifest has
- * loaded, OpenSeadragon is ready, or a requested canvas is visible — read
+ * loaded, the renderer is ready, or a requested canvas is visible — read
  * `viewerState` (or the `statechange` family) for that.
  *
  * Ordinary state changes do not repeat it. A disconnection that destroys the

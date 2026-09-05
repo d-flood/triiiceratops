@@ -1,10 +1,10 @@
 <script lang="ts">
     /*
-     * Internal icon renderer. Replaces the former runtime icon package: it
-     * renders raw SVG glyph markup generated at build time from
-     * `@phosphor-icons/core` (see scripts/generate-icons.ts). Core owns the
-     * `<svg>` wrapper here — sizing, `currentColor` fill, and accessibility —
-     * so callers pass only a glyph `name` (plus optional size/weight/color).
+     * Internal icon renderer. Renders raw SVG glyph markup generated at build
+     * time from `@phosphor-icons/core` (see scripts/generate-icons.ts). Core
+     * owns the `<svg>` wrapper here — sizing, `currentColor` fill, and
+     * accessibility — so callers pass only a glyph `name` (plus optional
+     * size/weight/color).
      */
     import { icons, type IconName, type IconWeight } from '../generated/icons';
 

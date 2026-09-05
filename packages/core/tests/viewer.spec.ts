@@ -26,11 +26,13 @@ test.describe('Triiiceratops Viewer', () => {
             throw new Error(`Viewer failed to load: ${text}`);
         }
 
-        // Now check for OSD viewer
-        const viewer = page.locator('#triiiceratops-viewer .osd-background');
+        // Now check for the renderer's root
+        const viewer = page.locator(
+            '#triiiceratops-viewer [data-testid="canvas-renderer-root"]',
+        );
         await expect(viewer).toBeVisible({ timeout: 10000 });
 
-        // Check that the canvas element inside OSD is created
+        // Check that the renderer's canvas element is created
         const canvas = page.locator('#triiiceratops-viewer canvas').first();
         await expect(canvas).toBeVisible();
 

@@ -1,5 +1,3 @@
-// Trusted Types default-policy installer tests (ticket 24).
-//
 // `installTrustedTypesPolicy` must: no-op without Trusted Types, install a
 // pass-through `default` policy when Trusted Types is present and no default
 // exists, never clobber a host's existing default policy, and swallow a throwing

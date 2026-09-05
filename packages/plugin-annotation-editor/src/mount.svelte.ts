@@ -17,10 +17,10 @@
  *  5. mounts the panel content into the core-provided container, handing the
  *     mirror + `t` down through context.
  *
- * Core owns the chrome (epic restore-plugin-toolbar-chrome): it renders the
- * toolbar button and the docked-panel / anchored-flyout surface, and hands
- * `mount` a content-only `container`, so the content always renders `embedded`
- * (no self-rendered button, header, or positioning).
+ * Core owns the chrome: it renders the toolbar button and the docked-panel /
+ * anchored-flyout surface, and hands `mount` a content-only `container`, so
+ * the content always renders `embedded` (no self-rendered button, header, or
+ * positioning).
  *
  * The returned cleanup tears every piece down in reverse.
  */

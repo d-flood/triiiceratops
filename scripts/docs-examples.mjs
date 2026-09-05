@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Doc-example extractor (ticket 26).
+// Doc-example extractor.
 //
 // Extracts every fenced `ts` / `tsx` / `js` code block in `docs/**/*.md` that
 // imports package code (`triiiceratops` or `@triiiceratops/*`) into standalone
@@ -8,7 +8,7 @@
 // so published guidance provably matches what users can install.
 //
 // A fenced `vue` block additionally contributes its `<script setup lang="ts">`
-// body as a `.ts` file (ticket 11), so the Vue guide's single-file-component
+// body as a `.ts` file, so the Vue guide's single-file-component
 // examples are idiomatic Markdown AND compiled guidance. Only `lang="ts"`
 // script-setup blocks are extracted, and the body must stand alone as a module:
 // use no compiler macros (`defineProps`, `defineEmits`, …) in a block you want

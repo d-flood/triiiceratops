@@ -1,16 +1,16 @@
 /**
- * The test viewer context (ticket 14).
+ * The test viewer context.
  *
  * `createTestViewerContext` assembles a REAL, compiled `ViewerState` (from
  * `triiiceratops/testing`) with RECORDING DOUBLES for the style, UI, and locale
- * services and an injectable OSD stub that defaults to absent. This is the
+ * services and an injectable renderer stand-in that defaults to absent. This is the
  * canonical shape of CONTEXT.md's **Test viewer context**: "the harness is fake;
  * the state is never fake." Commands, `subscribe`, selector memoization, and the
  * batched notification flush are all the production implementations — only the
- * host-owned services and OSD are stand-ins.
+ * host-owned services and the renderer are stand-ins.
  *
  * The doubles only RECORD calls; they need not implement teardown. `runActivation`
- * (ticket 08) auto-tracks every `styles.install` and `locale.subscribe` an
+ * auto-tracks every `styles.install` and `locale.subscribe` an
  * activation performs and releases them on deactivation, so a recording double is
  * free to be a pure log.
  */
@@ -30,13 +30,16 @@ import {
     createHeadlessLocaleService,
     createHeadlessViewerState,
     createPluginSurface,
+    createRendererStub,
     type HeadlessViewerFixtures,
+    type RendererStub,
+    type RendererStubOptions,
 } from 'triiiceratops/testing';
 
-import { whenOsdReady } from '../osd.js';
+import { whenRendererReady } from '../renderer.js';
 import { createSelectorRuntime } from '../selectors.js';
 
-export { whenOsdReady };
+export { whenRendererReady };
 
 /** One recorded `styles.install` call and whether its reference was released. */
 export interface RecordedStyleInstall {
@@ -153,6 +156,15 @@ export interface TestViewerContextOptions {
      * Chrome id the plugin's surface is bound to — the `config.plugins` key. Use
      * the plugin's own `uiId` when a fixture configures it through
      * `fixtures.config.plugins`; defaults to `'test-plugin'`.
+     *
+     * It is also the **only** id the viewer knows a plugin by, so it is the only
+     * prefix `ViewerState.registerOverlayLayer` accepts: a plugin that ids its
+     * layer from `context.surface.id` works here unchanged, and one that hardcodes
+     * its package name has its layer refused (`viewererror`,
+     * `overlay-layer-refused`) with `mount` never called. Hand `surface` to
+     * `activatePlugin` — pass `tc.surface`, as `runActivation` does — or the
+     * plugin gets the always-open stub surface, whose id names no plugin of this
+     * viewer and whose layers are therefore all refused.
      */
     uiId?: string;
     /**
@@ -171,7 +183,7 @@ export interface TestViewerContextOptions {
 
 /**
  * The assembled test viewer context: a real state, recording-double services, a
- * ready-to-mount {@link PluginContext}, and an OSD injector.
+ * ready-to-mount {@link PluginContext}, and a renderer injector.
  */
 export interface TestViewerContext {
     /**
@@ -195,12 +207,23 @@ export interface TestViewerContext {
      */
     readonly surface: PluginSurface;
     /**
-     * Inject a caller-supplied OSD stub and fire the readiness path
-     * (`ViewerState.notifyOSDReady`). `osdViewer` is `null` until called. The kit
-     * ships NO OSD fake — OSD-dependent behavior belongs to the browser seam
-     * (SPEC.md Testing Decisions). Pair with `whenOsdReady` to await readiness.
+     * Mount core's headless renderer stand-in and fire the real readiness path
+     * (`ViewerState.attachRenderer`). Until it is called `rendererReady` is
+     * `false`, the viewport queries answer with zeroes and `null`s, and
+     * viewport commands are no-ops.
+     *
+     * The stand-in comes from core rather than from the caller: the renderer is
+     * first-party, so there is one right answer to what a stand-in reports.
+     * Returns it, which is also the controller — `setView` moves the viewport,
+     * `emitFrame` fires one animation event, `calls` records commands received.
+     * Pass `canvasIds` to make it answer `null` for any other canvas, the way a
+     * real host does for a canvas it has not laid out.
+     *
+     * Pair with `whenRendererReady` to await readiness.
      */
-    setOsdViewer(stub: unknown): void;
+    attachRenderer(options?: RendererStubOptions): RendererStub;
+    /** Unmount the stand-in {@link attachRenderer} mounted. Idempotent. */
+    detachRenderer(): void;
     /**
      * Drop the context's own selector-runtime subscription. Optional: each
      * context owns a fresh state that is garbage-collected with it, so most tests
@@ -242,6 +265,7 @@ export function createTestViewerContext(
     }
 
     const selectorRuntime = createSelectorRuntime(viewerState);
+    let releaseRenderer: (() => void) | null = null;
 
     const context: PluginContext = {
         viewerState,
@@ -259,12 +283,19 @@ export function createTestViewerContext(
         locale,
         ui,
         surface,
-        setOsdViewer(stub: unknown): void {
-            viewerState.notifyOSDReady(
-                stub as Parameters<ViewerState['notifyOSDReady']>[0],
-            );
+        attachRenderer(options?: RendererStubOptions): RendererStub {
+            releaseRenderer?.();
+            const stub = createRendererStub(options);
+            releaseRenderer = viewerState.attachRenderer(stub);
+            return stub;
+        },
+        detachRenderer(): void {
+            releaseRenderer?.();
+            releaseRenderer = null;
         },
         dispose(): void {
+            releaseRenderer?.();
+            releaseRenderer = null;
             selectorRuntime.dispose();
         },
     };

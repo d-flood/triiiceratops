@@ -1,21 +1,24 @@
 // Selector cadence (ADR 0011 / CONTEXT.md **Selector cadence**).
 //
-// `frame` cadence is how continuous OpenSeadragon viewport values become
-// reactively readable without being mirrored into viewer state: the projection,
+// `frame` cadence is how the query-only viewport values become reactively
+// readable without being mirrored into notifying viewer state: the projection,
 // memoization, equality gate, and disposal are identical to `state` cadence —
-// only the wake-up differs. The ticker is the live OSD instance's OWN animation
-// events, attached lazily and detached on teardown or replacement, so an idle
-// viewer costs nothing and no `requestAnimationFrame` loop exists.
+// only the wake-up differs. The ticker is the RENDERER's own animation events,
+// reached through `ViewerState.subscribeFrame`, attached lazily and detached on
+// teardown or renderer replacement, so an idle viewer costs nothing and no
+// `requestAnimationFrame` loop exists.
 //
-// OSD itself is not instantiated here: a real OpenSeadragon viewer needs a
-// browser canvas, and the kit's established seam is an injectable OSD stub
-// (`TestViewerContext.setOsdViewer`). The `ViewerState` and its notifications
-// are real.
+// The cadence survived the renderer replacement unchanged as a concept; what
+// moved is where the tick comes from — core's own signal rather than a third
+// party's event names. No renderer is instantiated here: the seam is the
+// injectable renderer stub (`testing/rendererStub`), and the `ViewerState` and
+// its notifications are real.
 
 import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { configureLogging, type LogLevel } from '../../logging/logger';
+import { createRendererStub } from '../../testing/rendererStub';
 import { ViewerState } from '../viewer.svelte';
 import { createSelectorRuntime } from './runtime';
 
@@ -32,64 +35,32 @@ vi.mock('../manifests.svelte', () => ({
     },
 }));
 
-/** The three OSD events a frame-cadence projection is woken by. */
-const FRAME_EVENTS = ['animation', 'viewport-change', 'animation-finish'];
-
-/** A minimal OpenSeadragon stand-in exposing the event source and a zoom. */
-class OsdStub {
-    zoom = 1;
-    readonly handlers = new Map<string, Set<() => void>>();
-
-    readonly viewport = {
-        getZoom: (): number => this.zoom,
-    };
-
-    addHandler(event: string, handler: () => void): void {
-        const set = this.handlers.get(event) ?? new Set<() => void>();
-        set.add(handler);
-        this.handlers.set(event, set);
-    }
-
-    removeHandler(event: string, handler: () => void): void {
-        this.handlers.get(event)?.delete(handler);
-    }
-
-    /** Number of handlers currently attached across every frame event. */
-    get attached(): number {
-        let total = 0;
-        for (const set of this.handlers.values()) total += set.size;
-        return total;
-    }
-
-    /** Fire one OSD event, as the real viewer does during an animation. */
-    raise(event: string): void {
-        for (const handler of [...(this.handlers.get(event) ?? [])]) handler();
-    }
-}
-
-/** Publish an OSD stub through the real readiness path. */
-function readyOsd(state: ViewerState, stub: OsdStub): void {
-    state.notifyOSDReady(
-        stub as unknown as NonNullable<ViewerState['osdViewer']>,
-    );
-}
-
 describe('selector cadence', () => {
     let state: ViewerState;
     let runtime: ReturnType<typeof createSelectorRuntime>;
-    let osd: OsdStub;
+    let renderer: ReturnType<typeof createRendererStub>;
+    let detach: (() => void) | null;
+
+    /** The zoom, read exactly as a plugin or wrapper would. */
+    const readZoom = (s: ViewerState): number => s.viewportScale;
 
     beforeEach(() => {
         state = new ViewerState();
         runtime = createSelectorRuntime(state);
-        osd = new OsdStub();
+        renderer = createRendererStub({ scale: 1 });
+        detach = null;
     });
 
     afterEach(() => {
+        detach?.();
         runtime.dispose();
         state.destroy();
         vi.restoreAllMocks();
     });
+
+    function attach(stub = renderer): void {
+        detach = state.attachRenderer(stub);
+    }
 
     it('never attaches a ticker for a viewer with only state-cadence projections', async () => {
         const listener = vi.fn();
@@ -97,167 +68,170 @@ describe('selector cadence', () => {
             .createProjection((s: ViewerState) => s.toolbarOpen)
             .subscribe(listener);
 
-        readyOsd(state, osd);
+        attach();
         await tick();
 
-        expect(osd.attached).toBe(0);
+        expect(renderer.frameListenerCount).toBe(0);
         expect(listener).toHaveBeenCalledTimes(1);
     });
 
-    it('attaches the ticker lazily and wakes a frame projection from OSD animation events', async () => {
-        readyOsd(state, osd);
+    it("attaches the ticker lazily and wakes a frame projection from the renderer's animation events", async () => {
+        attach();
         await tick();
 
-        const zoom = runtime.createProjection(
-            (s: ViewerState) => s.osdViewer?.viewport.getZoom() ?? 0,
-            { cadence: 'frame' },
-        );
+        const zoom = runtime.createProjection(readZoom, { cadence: 'frame' });
 
         // Creating the projection is not enough — nothing is subscribed yet.
-        expect(osd.attached).toBe(0);
+        expect(renderer.frameListenerCount).toBe(0);
         expect(zoom.read()).toBe(1);
 
         const listener = vi.fn();
         const off = zoom.subscribe(listener);
 
-        expect([...osd.handlers.keys()].sort()).toEqual(
-            [...FRAME_EVENTS].sort(),
-        );
-        expect(osd.attached).toBe(FRAME_EVENTS.length);
+        // ONE subscription, whatever the renderer's internal event vocabulary
+        // is: the viewer owns the fan-out, so a projection costs one listener
+        // rather than one per event name.
+        expect(renderer.frameListenerCount).toBe(1);
 
-        osd.zoom = 2;
-        osd.raise('animation');
+        renderer.setView({ scale: 2 });
+        renderer.emitFrame();
         expect(listener).toHaveBeenCalledTimes(1);
         expect(zoom.read()).toBe(2);
 
-        osd.zoom = 3;
-        osd.raise('viewport-change');
-        osd.zoom = 4;
-        osd.raise('animation-finish');
+        renderer.setView({ scale: 3 });
+        renderer.emitFrame();
+        renderer.setView({ scale: 4 });
+        renderer.emitFrame();
         expect(listener).toHaveBeenCalledTimes(3);
         expect(zoom.read()).toBe(4);
 
         off();
-        expect(osd.attached).toBe(0);
+        expect(renderer.frameListenerCount).toBe(0);
     });
 
-    it('attaches when OSD appears after the frame projection subscribed', async () => {
+    it('attaches when the renderer mounts after the frame projection subscribed', async () => {
         const listener = vi.fn();
         runtime
-            .createProjection(
-                (s: ViewerState) => s.osdViewer?.viewport.getZoom(),
-                {
-                    cadence: 'frame',
-                },
-            )
+            .createProjection(readZoom, { cadence: 'frame' })
             .subscribe(listener);
 
-        expect(osd.attached).toBe(0);
+        expect(renderer.frameListenerCount).toBe(0);
 
-        readyOsd(state, osd);
+        attach();
         await tick();
 
-        expect(osd.attached).toBe(FRAME_EVENTS.length);
-        // `osdViewer` is an inventoried member, so readiness itself was a state
-        // notification the frame projection also woke on.
+        expect(renderer.frameListenerCount).toBe(1);
+        // `rendererReady` is an inventoried observable member, so attaching was
+        // itself a state notification the frame projection also woke on.
         expect(listener).toHaveBeenCalledTimes(1);
     });
 
-    it('detaches from a replaced OSD instance and follows the new one', async () => {
-        readyOsd(state, osd);
+    // A renderer swap — the development-only flag switching hosts, or a
+    // remount — leaves a listener count that is non-zero on both sides. A
+    // ticker left on the departed renderer reads as a viewport that silently
+    // stopped moving, which is the failure this asserts against.
+    it('detaches from a replaced renderer and follows the new one', async () => {
+        attach();
         await tick();
 
         const listener = vi.fn();
         runtime
-            .createProjection(
-                (s: ViewerState) => s.osdViewer?.viewport.getZoom(),
-                {
-                    cadence: 'frame',
-                },
-            )
+            .createProjection(readZoom, { cadence: 'frame' })
             .subscribe(listener);
-        expect(osd.attached).toBe(FRAME_EVENTS.length);
+        expect(renderer.frameListenerCount).toBe(1);
 
-        const replacement = new OsdStub();
-        readyOsd(state, replacement);
+        const replacement = createRendererStub({ scale: 5 });
+        detach = state.attachRenderer(replacement);
         await tick();
 
-        expect(osd.attached).toBe(0);
-        expect(replacement.attached).toBe(FRAME_EVENTS.length);
+        expect(renderer.frameListenerCount).toBe(0);
+        expect(replacement.frameListenerCount).toBe(1);
 
         listener.mockClear();
-        osd.raise('animation');
+        renderer.emitFrame();
         expect(listener).not.toHaveBeenCalled();
-        replacement.raise('animation');
+        replacement.emitFrame();
         expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops ticking when the renderer unmounts', async () => {
+        attach();
+        await tick();
+
+        const listener = vi.fn();
+        runtime
+            .createProjection(readZoom, { cadence: 'frame' })
+            .subscribe(listener);
+        expect(renderer.frameListenerCount).toBe(1);
+
+        detach?.();
+        detach = null;
+        await tick();
+
+        expect(renderer.frameListenerCount).toBe(0);
+        // A frame from a renderer that is no longer attached reaches nobody.
+        listener.mockClear();
+        renderer.emitFrame();
+        expect(listener).not.toHaveBeenCalled();
     });
 
     it('detaches the ticker on disposal', async () => {
-        readyOsd(state, osd);
+        attach();
         await tick();
 
         const listener = vi.fn();
         runtime
-            .createProjection(
-                (s: ViewerState) => s.osdViewer?.viewport.getZoom(),
-                {
-                    cadence: 'frame',
-                },
-            )
+            .createProjection(readZoom, { cadence: 'frame' })
             .subscribe(listener);
-        expect(osd.attached).toBe(FRAME_EVENTS.length);
+        expect(renderer.frameListenerCount).toBe(1);
 
         runtime.dispose();
 
-        expect(osd.attached).toBe(0);
-        osd.raise('animation');
+        expect(renderer.frameListenerCount).toBe(0);
+        renderer.emitFrame();
         expect(listener).not.toHaveBeenCalled();
     });
 
-    it('isolates a throwing frame listener: no core guard sits on the OSD path', async () => {
+    it('isolates a throwing frame listener so one consumer cannot abort the rest', async () => {
         const boom = new Error('frame listener boom');
         const onListenerError = vi.fn();
         const attributing = createSelectorRuntime(state, { onListenerError });
-        readyOsd(state, osd);
+        attach();
         await tick();
 
         const survivor = vi.fn();
         attributing
-            .createProjection((s: ViewerState) => s.osdViewer, {
-                cadence: 'frame',
-            })
+            .createProjection(readZoom, { cadence: 'frame' })
             .subscribe(() => {
                 throw boom;
             });
         attributing
-            .createProjection((s: ViewerState) => s.osdViewer, {
-                cadence: 'frame',
-            })
+            .createProjection(readZoom, { cadence: 'frame' })
             .subscribe(survivor);
 
-        expect(() => osd.raise('animation')).not.toThrow();
+        renderer.setView({ scale: 2 });
+        expect(() => renderer.emitFrame()).not.toThrow();
         expect(onListenerError).toHaveBeenCalledWith(boom);
         expect(survivor).toHaveBeenCalledTimes(1);
 
         attributing.dispose();
 
-        // With no error hook the failure is logged rather than thrown into
-        // OpenSeadragon's event dispatch.
+        // With no error hook the failure is logged rather than thrown into the
+        // renderer's own frame loop, which would stop the viewport dead.
         const unattributed = createSelectorRuntime(state);
         unattributed
-            .createProjection((s: ViewerState) => s.osdViewer, {
-                cadence: 'frame',
-            })
+            .createProjection(readZoom, { cadence: 'frame' })
             .subscribe(() => {
                 throw boom;
             });
-        expect(() => osd.raise('animation')).not.toThrow();
+        renderer.setView({ scale: 3 });
+        expect(() => renderer.emitFrame()).not.toThrow();
 
         unattributed.dispose();
     });
 
     it('wakes a frame projection on state notifications too, so inventoried members never go stale', async () => {
-        readyOsd(state, osd);
+        attach();
         await tick();
 
         const listener = vi.fn();
@@ -274,9 +248,34 @@ describe('selector cadence', () => {
         expect(listener).toHaveBeenCalledTimes(1);
         expect(selected.read()).toBe(true);
     });
+
+    // The whole point of query-only state: a frame tick must not reach the
+    // batched watcher, or a drag would wake every `state`-cadence subscriber in
+    // the page sixty times a second.
+    it('does not wake state-cadence projections from a frame tick', async () => {
+        attach();
+        await tick();
+
+        const stateListener = vi.fn();
+        runtime
+            .createProjection((s: ViewerState) => s.toolbarOpen)
+            .subscribe(stateListener);
+        const frameListener = vi.fn();
+        runtime
+            .createProjection(readZoom, { cadence: 'frame' })
+            .subscribe(frameListener);
+
+        stateListener.mockClear();
+        renderer.setView({ scale: 9 });
+        renderer.emitFrame();
+        await tick();
+
+        expect(frameListener).toHaveBeenCalledTimes(1);
+        expect(stateListener).not.toHaveBeenCalled();
+    });
 });
 
-describe('state-cadence projection reading the OSD pass-through', () => {
+describe('state-cadence projection reading a query-only viewport value', () => {
     let state: ViewerState;
     let runtime: ReturnType<typeof createSelectorRuntime>;
     let warnings: string[];
@@ -302,12 +301,15 @@ describe('state-cadence projection reading the OSD pass-through', () => {
 
     it('warns once in development and names the frame cadence as the fix', async () => {
         const selected = runtime.createProjection(
-            (s: ViewerState) => s.osdViewer?.viewport.getZoom() ?? 0,
+            (s: ViewerState) => s.viewportScale,
         );
 
         expect(selected.read()).toBe(0);
         expect(warnings).toHaveLength(1);
         expect(warnings[0]).toContain("cadence: 'frame'");
+        // Names the member that was read, so the fix is obvious in a projection
+        // that touches several things.
+        expect(warnings[0]).toContain('viewportScale');
 
         // Every later evaluation stays quiet.
         state.toggleToolbar();
@@ -315,6 +317,24 @@ describe('state-cadence projection reading the OSD pass-through', () => {
         selected.read();
         selected.recompute();
         expect(warnings).toHaveLength(1);
+    });
+
+    it('warns for the centre and bounds as well as the scale', () => {
+        runtime.createProjection((s: ViewerState) => s.viewportCentre).read();
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]).toContain('viewportCentre');
+
+        runtime.createProjection((s: ViewerState) => s.viewportBounds).read();
+        expect(warnings).toHaveLength(2);
+        expect(warnings[1]).toContain('viewportBounds');
+    });
+
+    // `rendererReady` is an inventoried observable member, so a `state`-cadence
+    // projection over it is exactly right and must not be warned about — that
+    // is how a consumer waits for the viewport to be answerable at all.
+    it('does not warn for a projection that only reads renderer readiness', () => {
+        runtime.createProjection((s: ViewerState) => s.rendererReady).read();
+        expect(warnings).toEqual([]);
     });
 
     it('probes a projection that was first read before debug was enabled', () => {
@@ -325,7 +345,7 @@ describe('state-cadence projection reading the OSD pass-through', () => {
         // read and never revisiting it is what made this warning dead.
         configureLogging({ debug: false });
         const selected = runtime.createProjection(
-            (s: ViewerState) => s.osdViewer?.viewport.getZoom() ?? 0,
+            (s: ViewerState) => s.viewportScale,
         );
 
         expect(selected.read()).toBe(0);
@@ -368,41 +388,45 @@ describe('state-cadence projection reading the OSD pass-through', () => {
         let evaluations = 0;
         const selected = runtime.createProjection((s: ViewerState) => {
             evaluations++;
-            return s.osdViewer;
+            return s.viewportScale;
         });
 
         for (let i = 0; i < 10; i++) selected.read();
 
         expect(evaluations).toBe(1);
         expect(
-            Object.getOwnPropertyDescriptor(state, 'osdViewer'),
+            Object.getOwnPropertyDescriptor(state, 'viewportScale'),
         ).toBeUndefined();
     });
 
     it('leaves the state it probed exactly as it found it', () => {
-        const before = state.osdViewer;
-        runtime.createProjection((s: ViewerState) => s.osdViewer).read();
+        const before = state.viewportScale;
+        runtime.createProjection((s: ViewerState) => s.viewportScale).read();
 
-        expect(
-            Object.getOwnPropertyDescriptor(state, 'osdViewer'),
-        ).toBeUndefined();
-        expect(state.osdViewer).toBe(before);
+        for (const member of [
+            'viewportScale',
+            'viewportCentre',
+            'viewportBounds',
+        ]) {
+            expect(
+                Object.getOwnPropertyDescriptor(state, member),
+                `${member} must be left with no own property`,
+            ).toBeUndefined();
+        }
+        expect(state.viewportScale).toBe(before);
     });
 
     it('does not warn for a frame-cadence projection', () => {
         runtime
-            .createProjection(
-                (s: ViewerState) => s.osdViewer?.viewport.getZoom(),
-                {
-                    cadence: 'frame',
-                },
-            )
+            .createProjection((s: ViewerState) => s.viewportScale, {
+                cadence: 'frame',
+            })
             .read();
 
         expect(warnings).toEqual([]);
     });
 
-    it('does not warn for a projection that never reads the OSD pass-through', () => {
+    it('does not warn for a projection that never reads the viewport', () => {
         runtime.createProjection((s: ViewerState) => s.toolbarOpen).read();
 
         expect(warnings).toEqual([]);
@@ -410,16 +434,12 @@ describe('state-cadence projection reading the OSD pass-through', () => {
 
     it('stays silent outside development', () => {
         configureLogging({ debug: false });
-        runtime
-            .createProjection((s: ViewerState) =>
-                s.osdViewer?.viewport.getZoom(),
-            )
-            .read();
+        runtime.createProjection((s: ViewerState) => s.viewportScale).read();
 
         expect(warnings).toEqual([]);
     });
 
-    it('runs unchanged over a state object that has no OSD pass-through', () => {
+    it('runs unchanged over a state object that has no viewport queries', () => {
         // The runtime's only requirement is `subscribe` plus synchronous reads,
         // so a minimal `ViewerState`-shaped double (the SDK adapter tests use
         // one) must work — including under the development probe.

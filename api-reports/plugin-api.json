@@ -1,6 +1,4 @@
 {
     "pluginApiVersion": "1.0.0",
-    "capabilities": [
-        "osd@5"
-    ]
+    "capabilities": []
 }

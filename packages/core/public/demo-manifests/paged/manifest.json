@@ -1,0 +1,129 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/demo-manifests/paged/manifest.json",
+    "type": "Manifest",
+    "behavior": ["paged"],
+    "label": {
+        "en": ["Paged renderer fixture"]
+    },
+    "summary": {
+        "en": [
+            "A facing-page manifest for the multi-canvas layout assertions. Every canvas paints the same numbered grid at the same Canvas dimensions, so median-height normalization is the identity and the second page's expected position is arithmetic the test can state: the first page's width plus the inter-canvas gap. The pages being identical is deliberate — a feature is located by colour, so a spec must put exactly one page in the viewport to know which page it found, which is precisely the assertion that the second page really is beside the first rather than on top of it. The third canvas carries a v2-spelled `viewingHint: non-paged`, so pairing it into a spread would show the wrong two pages."
+        ]
+    },
+    "items": [
+        {
+            "id": "/demo-manifests/paged/canvas/recto",
+            "type": "Canvas",
+            "label": { "en": ["Recto"] },
+            "width": 1200,
+            "height": 900,
+            "items": [
+                {
+                    "id": "/demo-manifests/paged/page/recto",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/paged/annotation/recto",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/demo-manifests/static-image/numbered-grid.png",
+                                "type": "Image",
+                                "format": "image/png",
+                                "width": 1200,
+                                "height": 900
+                            },
+                            "target": "/demo-manifests/paged/canvas/recto"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/demo-manifests/paged/canvas/verso",
+            "type": "Canvas",
+            "label": { "en": ["Verso"] },
+            "width": 1200,
+            "height": 900,
+            "items": [
+                {
+                    "id": "/demo-manifests/paged/page/verso",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/paged/annotation/verso",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/demo-manifests/static-image/numbered-grid.png",
+                                "type": "Image",
+                                "format": "image/png",
+                                "width": 1200,
+                                "height": 900
+                            },
+                            "target": "/demo-manifests/paged/canvas/verso"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/demo-manifests/paged/canvas/plate",
+            "type": "Canvas",
+            "label": { "en": ["Fold-out plate"] },
+            "viewingHint": "non-paged",
+            "width": 1200,
+            "height": 900,
+            "items": [
+                {
+                    "id": "/demo-manifests/paged/page/plate",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/paged/annotation/plate",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/demo-manifests/static-image/numbered-grid.png",
+                                "type": "Image",
+                                "format": "image/png",
+                                "width": 1200,
+                                "height": 900
+                            },
+                            "target": "/demo-manifests/paged/canvas/plate"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/demo-manifests/paged/canvas/tail",
+            "type": "Canvas",
+            "label": { "en": ["Tail"] },
+            "width": 1200,
+            "height": 900,
+            "items": [
+                {
+                    "id": "/demo-manifests/paged/page/tail",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/paged/annotation/tail",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/demo-manifests/static-image/numbered-grid.png",
+                                "type": "Image",
+                                "format": "image/png",
+                                "width": 1200,
+                                "height": 900
+                            },
+                            "target": "/demo-manifests/paged/canvas/tail"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

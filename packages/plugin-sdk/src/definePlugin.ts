@@ -1,5 +1,5 @@
 /**
- * `definePlugin` — the framework-neutral plugin authoring entry (ticket 07).
+ * `definePlugin` — the framework-neutral plugin authoring entry.
  *
  * Accepts declarative metadata (package-qualified name, version, `coreRange`,
  * `pluginApiRange`, `requiredCapabilities`, icon, target) and a `PluginView`,

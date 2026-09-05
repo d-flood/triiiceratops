@@ -1,5 +1,5 @@
 /**
- * Plugin conformance suite (ticket 14).
+ * Plugin conformance suite.
  *
  * `runPluginConformance(factory)` registers a battery of vitest cases that
  * activate the plugin against a real test viewer context and assert the
@@ -62,7 +62,9 @@ interface Harness {
     readonly styles: ReturnType<typeof createTestViewerContext>['styles'];
     readonly locale: ReturnType<typeof createTestViewerContext>['locale'];
     readonly surface: ReturnType<typeof createTestViewerContext>['surface'];
-    setOsdViewer(stub: unknown): void;
+    attachRenderer: ReturnType<
+        typeof createTestViewerContext
+    >['attachRenderer'];
 }
 
 function makeHarness(): Harness {
@@ -112,7 +114,7 @@ function makeHarness(): Harness {
         styles: tc.styles,
         locale: tc.locale,
         surface: tc.surface,
-        setOsdViewer: tc.setOsdViewer,
+        attachRenderer: tc.attachRenderer,
     };
 }
 

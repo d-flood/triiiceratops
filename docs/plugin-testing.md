@@ -8,8 +8,8 @@ description: "Validate a plugin without a full application using @triiiceratops/
 `@triiiceratops/plugin-sdk/testing` lets you validate a plugin without a full
 application. It mounts your plugin against a **test viewer context**: a real,
 compiled `ViewerState` (real commands, real batched notifications) with recording
-doubles for the style, UI, and locale services and an injectable OSD stub that
-defaults to absent. The harness is fake; the state is never fake, so a passing
+doubles for the style, UI, and locale services and an injectable renderer
+stand-in that defaults to absent. The harness is fake; the state is never fake, so a passing
 test reflects production semantics.
 
 The kit runs in a plain vitest project — no Svelte tooling required — because the
@@ -36,7 +36,7 @@ headless state comes from core's compiled `triiiceratops/testing` entry.
 ## The flush timing rule
 
 Notifications are **batched** and delivered on the reactive flush, never
-synchronously inside a command. After a command (or a locale/OSD change),
+synchronously inside a command. After a command (or a locale/renderer change),
 `await flush()` before asserting a subscriber reacted:
 
 ```ts
@@ -93,6 +93,9 @@ describe('example plugin', () => {
             styles: tc.styles,
             locale: tc.locale,
             ui: tc.ui,
+            // Pass the real surface. Omit it and the plugin gets an always-open
+            // stub whose `id` names no plugin of this viewer — see the trap below.
+            surface: tc.surface,
         });
 
         const label = container.querySelector('span');
@@ -108,6 +111,30 @@ describe('example plugin', () => {
 });
 ```
 
+### The id the viewer knows your plugin by
+
+`createTestViewerContext` binds the surface to one chrome id — `uiId`, defaulting
+to `'test-plugin'` — and seeds the viewer's plugin UI state for it. That id is the
+only thing the viewer knows your plugin as, so it is the only prefix
+`registerOverlayLayer` accepts. Two ways to trip over it, both of which show up as
+a layer that never mounts:
+
+- **Your plugin hardcodes its own name in the layer id.** Derive it from
+  `context.surface.id` instead — in a test that is `uiId`, in production it is your
+  declared `uiId` or your sanitised package name, and in neither case is it
+  guaranteed to be the string you typed.
+- **You do not pass `surface` to `activatePlugin`.** The SDK then hands your plugin
+  an always-open stub surface whose id is your `uiId ?? name`, which the viewer has
+  never heard of, so every layer is refused. Pass `surface: tc.surface`;
+  `runActivation` and `runPluginConformance` already do.
+
+A refusal is reported on the host's `viewererror` channel
+(`code: 'overlay-layer-refused'`), not thrown, and `mount` is never called. If you
+want the refusal to be loud in a test, wire a reporter:
+`tc.viewerState.setErrorReporter((error) => { throw new Error(error.message); })`.
+Pass `uiId: '<your plugin's uiId>'` when your plugin declares one, so the test id
+and the production id are the same string.
+
 ## The conformance suite
 
 `runPluginConformance` runs the whole SDK lifecycle battery against your plugin
@@ -121,24 +148,56 @@ import { createExamplePlugin } from './my-plugin';
 runPluginConformance(() => createExamplePlugin());
 ```
 
-## OSD-dependent behavior
+## Renderer-dependent behavior
 
-The kit ships **no** OSD or Annotorious fake. Inject a caller-supplied stub with
-`setOsdViewer(...)` to exercise the readiness path, but validate genuine
-OSD-dependent behavior at the browser seam instead:
+The kit ships **no** Annotorious fake, but it does ship a headless renderer
+stand-in — the renderer is first-party now, so there is one right answer to what
+a stand-in reports. Mount it with `attachRenderer(...)` to exercise the readiness
+path, the viewport queries, and the `frame` selector cadence with no DOM:
 
 ```ts
-import { createTestViewerContext, whenOsdReady } from '@triiiceratops/plugin-sdk/testing';
+import {
+    createTestViewerContext,
+    whenRendererReady,
+} from '@triiiceratops/plugin-sdk/testing';
 
 async function readinessExample() {
     const tc = createTestViewerContext();
-    const ready = whenOsdReady(tc.viewerState);
-    tc.setOsdViewer({ viewport: {} }); // your stub
+    const ready = whenRendererReady(tc.viewerState);
+    const renderer = tc.attachRenderer({ scale: 2 }); // sized surface
     await ready;
+
+    // Move the viewport and fire one animation event, synchronously.
+    renderer.setView({ scale: 4 });
+    renderer.emitFrame();
+
+    // Tap the image surface at a screen-space point — the gesture reserved for
+    // annotation selection — without synthesizing pointer events.
+    renderer.emitTap({ x: 120, y: 80 });
+
+    // And read what a command sent to the renderer.
+    tc.viewerState.zoomIn();
+    return renderer.calls;
 }
 ```
 
+`emitTap` reaches every `viewerState.subscribeSurfaceTap` listener. The stand-in
+does not decide what was tapped: a real tap arrives already filtered by the
+renderer's single arbitration point (never a drag, a pinch, or a gesture
+suppressed by an input claim), and which annotation a point selects is answered
+from geometry the subscriber holds.
+
+Genuine pixel behaviour still belongs at the browser seam.
+
 ## Testing an annotation storage adapter
+
+!!! warning "Paused with the plugin"
+
+    `@triiiceratops/plugin-annotation-editor` is
+    [paused and no longer published](plugin-annotation-editor.md) in this release
+    line, so this subpath is only installable from `1.0.0-rc.7` (which needs
+    `triiiceratops@1.0.0-rc.36`). The API below is unaffected by the pause and is
+    what returns with the phase-2 drawing layer.
 
 Annotation-editor adapters have their own conformance API in
 `@triiiceratops/plugin-annotation-editor/testing`. It checks

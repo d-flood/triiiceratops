@@ -37,7 +37,6 @@
         (viewerState.config as { locale?: string }).locale || language.current,
     );
 
-    // Config shorthands
     let draggable = $derived(viewerState.config.gallery?.draggable ?? true);
 
     let { canvases } = $props<{ canvases?: ManifestCanvas[] }>();
@@ -51,29 +50,27 @@
     };
     let galleryElement: HTMLElement | null = $state(null);
 
-    // Initialize position and size from config if available (only once on mount)
     $effect(() => {
         if (
             viewerState.config.gallery?.width &&
             viewerState.config.gallery?.height
         ) {
-            viewerState.gallerySize = {
+            viewerState.setGallerySize({
                 width: viewerState.config.gallery.width,
                 height: viewerState.config.gallery.height,
-            };
+            });
         }
         if (
             viewerState.config.gallery?.x !== undefined &&
             viewerState.config.gallery?.y !== undefined
         ) {
-            viewerState.galleryPosition = {
+            viewerState.setGalleryPosition({
                 x: viewerState.config.gallery.x,
                 y: viewerState.config.gallery.y,
-            };
+            });
         }
     });
 
-    // Generate thumbnail data
     let thumbnails = $derived.by(() => {
         if (!canvases || !Array.isArray(canvases))
             return [] as Array<{
@@ -87,7 +84,6 @@
             let src = getThumbnailSrc(canvas);
             let hasChoice = false;
 
-            // Check for choices
             try {
                 const images = getPaintingAnnotations(canvas);
                 if (images && images.length > 0) {
@@ -109,10 +105,8 @@
 
             return {
                 id: getCanvasId(canvas) || `canvas-${index}`,
-                // Via the shared helper, which reads the raw JSON first. This
-                // used to call `canvas.getLabel?.()` directly, and once
-                // canvases became raw JSON that accessor vanished — every
-                // label in the gallery silently fell back to "Canvas N".
+                // Reads the raw JSON directly — canvases have no getLabel()
+                // accessor to fall back on.
                 label: getCanvasLabel(canvas, index, viewerLocale),
                 src,
                 index,
@@ -124,11 +118,9 @@
     function onDrag(e: MouseEvent) {
         if (!viewerState.isGalleryDragging) return;
 
-        // Simple fixed positioning logic
         let newX = e.clientX - viewerState.galleryDragOffset.x;
         let newY = e.clientY - viewerState.galleryDragOffset.y;
 
-        // Constrain to Window (Viewport)
         const maxX = Math.max(
             0,
             window.innerWidth - viewerState.gallerySize.width,
@@ -140,7 +132,7 @@
         newX = Math.max(0, Math.min(newX, maxX));
         newY = Math.max(0, Math.min(newY, maxY));
 
-        viewerState.galleryPosition = { x: newX, y: newY };
+        viewerState.setGalleryPosition({ x: newX, y: newY });
 
         // Use the stored center panel rect (captured at drag start, works with shadow DOM)
         const rect = viewerState.galleryCenterPanelRect;
@@ -151,13 +143,10 @@
         const x = e.clientX;
         const y = e.clientY;
 
-        // Threshold for docking detection (pixels)
         const THRESHOLD = 60;
 
-        // Reset
         viewerState.dragOverSide = null;
 
-        // Check boundaries
         if (x >= rect.left && x <= rect.left + THRESHOLD) {
             viewerState.dragOverSide = 'left';
         } else if (x <= rect.right && x >= rect.right - THRESHOLD) {
@@ -170,7 +159,6 @@
     }
 
     function stopDrag() {
-        // If we were dragging towards a dock zone
         const dropTarget = viewerState.dragOverSide;
 
         viewerState.isGalleryDragging = false;
@@ -178,9 +166,8 @@
         window.removeEventListener('mousemove', onDrag);
         window.removeEventListener('mouseup', stopDrag);
 
-        // Commit drop
         if (dropTarget) {
-            viewerState.dockSide = dropTarget;
+            viewerState.setDockSide(dropTarget);
         }
     }
 
@@ -201,10 +188,10 @@
         if (!isResizing) return;
         const dx = e.clientX - resizeStart.x;
         const dy = e.clientY - resizeStart.y;
-        viewerState.gallerySize = {
+        viewerState.setGallerySize({
             width: Math.max(200, resizeStart.w + dx),
             height: Math.max(200, resizeStart.h + dy),
-        };
+        });
     }
 
     function stopResize() {
@@ -240,11 +227,6 @@
         }
     }
 
-    // State for docking
-    // We default to bottom, but we should sync with viewerState immediately?
-    // Actually dockSide *is* viewerState.dockSide essentially.
-    // We can just use viewerState.dockSide and provide a local setter?
-    // Using a local proxy to sync back and forth:
     let dockSide: 'none' | 'top' | 'bottom' | 'left' | 'right' = $state(
         viewerState.dockSide as 'none' | 'top' | 'bottom' | 'left' | 'right',
     );
@@ -265,9 +247,7 @@
     // Sync internal changes
     $effect(() => {
         if (viewerState.dockSide !== dockSide) {
-            viewerState.dockSide = dockSide;
-            viewerState.isGalleryDockedBottom = dockSide === 'bottom';
-            viewerState.isGalleryDockedRight = dockSide === 'right';
+            viewerState.setDockSide(dockSide);
         }
     });
 
@@ -466,7 +446,6 @@
 
         // Calculate position and offset first (no state changes yet)
         if (wasDocked) {
-            // Center on mouse logic is still good for UX
             let centeredX = Math.max(0, e.clientX - 150);
             let centeredY = Math.max(0, e.clientY - 20);
 
@@ -477,13 +456,12 @@
             centeredX = Math.min(centeredX, maxInitialX);
             centeredY = Math.min(centeredY, maxInitialY);
 
-            viewerState.galleryPosition = { x: centeredX, y: centeredY };
+            viewerState.setGalleryPosition({ x: centeredX, y: centeredY });
             viewerState.galleryDragOffset = {
                 x: e.clientX - centeredX,
                 y: e.clientY - centeredY,
             };
         } else {
-            // Already floating
             viewerState.galleryDragOffset = {
                 x: e.clientX - viewerState.galleryPosition.x,
                 y: e.clientY - viewerState.galleryPosition.y,
@@ -562,7 +540,6 @@
 </script>
 
 {#if viewerState.showThumbnailGallery}
-    <!-- Floating Window -->
     <div
         bind:this={galleryElement}
         class={[
@@ -672,7 +649,6 @@
             </Tooltip>
         {/if}
 
-        <!-- Content (Grid or Horizontal Scroll) -->
         <div
             class={[
                 'gallery-content',
@@ -688,7 +664,6 @@
                 ]}
             >
                 {#if viewerState.viewingMode === 'paged'}
-                    <!-- grouped thumbnail display -->
                     {#each groupedThumbnails as thumbGroup (thumbGroup.id)}
                         {@const isGroupSelected = (() => {
                             const idx = thumbGroup.index;
@@ -861,7 +836,6 @@
             </div>
         </div>
 
-        <!-- Resize Handle -->
         {#if dockSide === 'none' && !expanded}
             <div
                 class="resize-handle"
@@ -875,8 +849,6 @@
     </div>
 
     {#if viewerState.isGalleryDragging}
-        <!-- Drop Zones -->
-        <!-- Top -->
         <div
             class={[
                 'drop-zone drop-top',
@@ -888,7 +860,6 @@
             <span class="drop-label">Dock Top</span>
         </div>
 
-        <!-- Bottom -->
         <div
             class={[
                 'drop-zone drop-bottom',
@@ -900,7 +871,6 @@
             <span class="drop-label">Dock Bottom</span>
         </div>
 
-        <!-- Left -->
         <div
             class={[
                 'drop-zone drop-left',
@@ -915,7 +885,6 @@
             >
         </div>
 
-        <!-- Right -->
         <div
             class={[
                 'drop-zone drop-right',

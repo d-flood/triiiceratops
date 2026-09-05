@@ -30,3 +30,23 @@ inventory, batching, or the plugin subscription contract changes; cadence is a s
 concern only, and is wrapper-facing first (the plugin SDK's `selectors.select` signature
 is unchanged). A `state`-cadence projection that reads through `osd` is a developer
 mistake — it will appear frozen — so it warns in development and names the fix.
+
+**Amended for the first-party renderer.** The two paragraphs above describe the OSD era
+and are kept as the record of why cadence exists; the OpenSeadragon instance they name is
+gone ([ADR 0012](0012-the-renderer-is-first-party-with-no-pass-through.md)). The decision
+survives intact and only its **event source** moved: `frame` is now driven by the
+renderer's own animation events, delivered through `ViewerState.subscribeFrame`, in place
+of a third party's `animation` / `viewport-change` / `animation-finish` names. Everything
+else holds unchanged — the values are still query-only and still never mirrored into
+inventoried state, `frame` is still the *finer* cadence (a frame-cadence projection also
+wakes on state notifications, so it never serves a stale inventoried member between
+animations), the ticker still attaches lazily and detaches on teardown or replacement with
+no permanent `requestAnimationFrame` loop, and the projection, memoization, equality gate,
+and disposal are identical in both cadences. The developer mistake it warns about is
+unchanged in substance and only in spelling: a `state`-cadence projection reading
+`viewportScale`, `viewportCentre`, or `viewportBounds` appears frozen, so the runtime
+warns once under `debug`, names the member, and names the fix. (`containerSize` is
+query-only too but changes only on resize, so the probe deliberately leaves it out of that
+watch list — a `state`-cadence projection reading it is not the silent-freeze mistake it
+warns about.) Waiting for the viewport to be answerable at all is `rendererReady`, which
+*is* an inventoried observable member and is correctly read at `state` cadence.

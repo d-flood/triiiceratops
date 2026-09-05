@@ -23,6 +23,8 @@
         getMessages,
         provideActiveLocale,
     } from '../state/i18n.svelte';
+    import { watchReducedMotion } from '../state/reducedMotion';
+    import { FOCUS_MEMORY_KEY, createFocusMemory } from '../utils/focusMemory';
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
     import type { BuiltInTheme, ThemeConfig } from '../theme/types';
@@ -75,10 +77,11 @@
     import { parseContentState } from '../utils/contentState';
     import { getCanvasId } from './viewerControls';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
+    import AnnotationShapeOverlay from './AnnotationShapeOverlay.svelte';
+    import CanvasHost from './CanvasHost.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import CollectionPanel from './CollectionPanel.svelte';
     import MetadataPanel from './MetadataPanel.svelte';
-    import OSDViewer from './OSDViewer.svelte';
     import PanelStack, { type PanelStackItem } from './PanelStack.svelte';
     import PluginMountHost from './PluginMountHost.svelte';
     import SearchPanel from './SearchPanel.svelte';
@@ -88,12 +91,25 @@
     import ViewerControls from './ViewerControls.svelte';
     import { Spinner } from './ui';
 
-    // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
 
-    const prefersReducedMotion =
-        browser &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /**
+     * `prefers-reduced-motion`, from the viewer-wide watcher.
+     *
+     * WATCHED, not read once at init: the renderer honors the preference live
+     * (`CanvasHost` stops the viewport the moment it is turned on), and a
+     * chrome that only sampled it at mount would go on gliding its drawer and
+     * its panels after the same toggle — one viewer giving two answers about
+     * whether it respects the setting. Every transition below reads this at the
+     * instant it starts, so a change reaches the next one. SSR-safe: the helper
+     * reports `false` off the browser and never calls back.
+     */
+    let prefersReducedMotion = $state(false);
+    onDestroy(
+        watchReducedMotion((reduced) => {
+            prefersReducedMotion = reduced;
+        }),
+    );
 
     /**
      * Open the expanded gallery as a drawer sliding out of its dock edge — a
@@ -221,10 +237,8 @@
     // onto ViewerState.activeLocale as observable state.
     let viewerLocale = $derived(config.locale ?? language.current);
 
-    // Reference to root element for applying theme
     let rootElement: HTMLElement | undefined = $state();
 
-    // Reactively apply theme when element is available or theme/themeConfig changes
     $effect(() => {
         if (rootElement) {
             applyTheme(rootElement, theme, themeConfig);
@@ -232,7 +246,17 @@
         }
     });
 
-    // Create per-instance viewer state
+    // One memory per viewer, torn down with it: a control this viewer's chrome
+    // destroyed must never be something ANOTHER viewer on the page acts on, and
+    // the remembered node is usually detached, so holding it past unmount would
+    // pin the whole torn-down subtree.
+    const focusMemory = createFocusMemory();
+    setContext(FOCUS_MEMORY_KEY, focusMemory);
+    $effect(() => {
+        if (rootElement) focusMemory.attach(rootElement);
+    });
+    onDestroy(() => focusMemory.destroy());
+
     // Note: We pass empty initial values and use $effect blocks below to set
     // manifestId, canvasId, and plugins reactively, avoiding Svelte's
     // "state_referenced_locally" warning about capturing initial prop values.
@@ -416,7 +440,6 @@
                 ) {
                     return;
                 }
-                // Only apply if different from current internal state
                 if (canvasId !== internalViewerState.canvasId) {
                     internalViewerState.setCanvas(canvasId);
                 }
@@ -454,17 +477,23 @@
     // icon-rendering UI service.
 
     // One activation record per mounted SDK plugin. `deactivate` runs the
-    // instance's teardown (view cleanup + drop subscriptions + release styles) and
-    // — for core-owned-chrome plugins — unregisters its toolbar chrome.
+    // instance's teardown (view cleanup + drop subscriptions + release styles);
+    // tearing the record down also unregisters the plugin from viewer state (its
+    // chrome, its overlay layers, its UI state) — see `deactivateSdkRecord`.
     // `primaryReported` de-dupes repeated command/subscription failures from the
     // same still-live instance so the channel fires once per failure, not once per
-    // flush. `chromeId` is the id of the plugin's core-owned toolbar chrome;
+    // flush. `chromeId` is the id core knows this plugin by: the key under
+    // `config.plugins`, the prefix of its chrome record ids, and the prefix of
+    // its overlay layer ids. It is set when the record is CREATED, before the
+    // plugin's view mounts — not after a successful activation — because it is
+    // also the handle everything registered DURING that mount is released by,
+    // and a mount that throws registers things too (see `activateSdkPlugin`).
     // `failed` records that setup/mount failed so core renders NO button (fail
     // closed, ADR 0010).
     interface SdkActivationRecord {
         plugin: SdkPlugin;
         el: HTMLElement;
-        chromeId?: string;
+        chromeId: string;
         deactivate: () => void;
         primaryReported: boolean;
         failed: boolean;
@@ -616,6 +645,14 @@
         const record: SdkActivationRecord = {
             plugin,
             el,
+            // Recorded HERE, not after a successful activation. The plugin's
+            // `view.mount` runs below and may register things core knows by this
+            // id — its overlay layers, and the UI state its surface seeded — so a
+            // record whose `chromeId` were only filled in on success would leave
+            // a failed mount's registrations with no owner: `unregisterPlugin`
+            // would never be called for them, and a retry's identical layer id
+            // would then hit the duplicate-id refusal forever.
+            chromeId,
             deactivate: () => {},
             primaryReported: false,
             failed: false,
@@ -650,6 +687,14 @@
                     error,
                 );
             }
+            // Leave nothing of this plugin behind in viewer state either. A
+            // mount that threw half-way may already have registered overlay
+            // layers — DOM on the image with nothing left to remove it — and its
+            // surface seeded plugin UI state, which is what `registerOverlayLayer`
+            // validates ids against, so a plugin that does not exist would keep
+            // looking like a known one. No chrome was registered, so the chrome
+            // filters in `unregisterPlugin` simply match nothing.
+            internalViewerState.unregisterPlugin(chromeId);
             el.remove();
             return;
         }
@@ -661,7 +706,6 @@
         // down; a layout change that recreates the node simply re-parents `el`.
         // The plugin observes open/close through `PluginContext.surface` instead
         // of through a mount lifecycle event (see `plugin/surface.ts`).
-        record.chromeId = chromeId;
         const mountThunk: PluginMountThunk = (node) => {
             node.appendChild(el);
             return () => {
@@ -685,15 +729,19 @@
     }
 
     /**
-     * Tear one activation down: unregister its core-owned chrome (if any), run
-     * its deactivation (view cleanup + drop subscriptions + release styles), and
-     * remove its content element. Isolated so a throwing teardown never blocks
-     * the rest.
+     * Tear one activation down: unregister everything core knows by this
+     * plugin's id — its chrome records, its overlay layers, and its UI state —
+     * run its deactivation (view cleanup + drop subscriptions + release styles),
+     * and remove its content element. Isolated so a throwing teardown never
+     * blocks the rest.
+     *
+     * Unconditional: `unregisterPlugin` on a plugin that never got as far as
+     * registering chrome matches no chrome record and simply drops whatever the
+     * failed activation did leave behind, so a record for a failed mount is torn
+     * down by exactly this path too.
      */
     function deactivateSdkRecord(record: SdkActivationRecord) {
-        if (record.chromeId) {
-            internalViewerState.unregisterPlugin(record.chromeId);
-        }
+        internalViewerState.unregisterPlugin(record.chromeId);
         try {
             record.deactivate();
         } catch (error) {
@@ -904,6 +952,16 @@
             iconDescriptor: panel.iconDescriptor,
             component: PluginMountHost,
             props: { mount: panel.mount },
+            // A plugin author cannot reach the section element, so core names
+            // the panel here — the same `dialog` role a core panel component
+            // renders for itself.
+            dialog: true,
+            close: showPanelCloseButton(
+                internalViewerState.config.plugins?.[panel.pluginId]
+                    ?.showCloseButton,
+            )
+                ? () => internalViewerState.setPluginOpen(panel.pluginId, false)
+                : undefined,
         };
     }
 
@@ -1126,7 +1184,10 @@
     // (slideWidth outro). Holding this signal true across that window lets the
     // docked rail stay put — full size, not collapsing — until the column is
     // actually gone, then hand off to the floating toolbar in one atomic swap.
-    const SIDEBAR_ANIM_MS = prefersReducedMotion ? 0 : 200;
+    // `$derived`, because `prefersReducedMotion` is now watched rather than
+    // sampled at init: a latch sized to an animation that no longer runs would
+    // hold the rail for 200ms of nothing after the preference is turned on.
+    const SIDEBAR_ANIM_MS = $derived(prefersReducedMotion ? 0 : 200);
 
     let leftSidebarPresent = $state(false);
     $effect(() => {
@@ -1202,7 +1263,6 @@
     let canvases = $derived(internalViewerState.canvases);
     let currentCanvasIndex = $derived(internalViewerState.currentCanvasIndex);
 
-    // Effect to trigger deferred search once manifest is loaded
     $effect(() => {
         if (
             internalViewerState.pendingSearchQuery &&
@@ -1296,6 +1356,20 @@
             ? tileSourceError.details
             : null,
     );
+
+    /**
+     * The plugin **overlay layers** to place over the image.
+     *
+     * Reading the revision counter is what establishes the dependency: the
+     * registry's list is a plain frozen array rebuilt on change, not reactive
+     * state, exactly as the paint hook's is — the two registries are
+     * deliberately structurally identical, so this is one idiom rather than two.
+     * The `void` read is therefore load-bearing and not a leftover to tidy away.
+     */
+    let overlayLayers = $derived.by(() => {
+        void internalViewerState.overlayLayerRevision;
+        return internalViewerState.overlayLayers;
+    });
 </script>
 
 <div
@@ -1321,7 +1395,6 @@
         </div>
     {/if}
 
-    <!-- Left Column -->
     {#if isLeftSidebarVisible}
         <div
             class="side-col side-col-left"
@@ -1341,7 +1414,6 @@
                 </div>
             {/if}
 
-            <!-- Gallery (when docked left) -->
             {#if galleryDocked && internalViewerState.dockSide === 'left'}
                 <div
                     class="gallery-host"
@@ -1354,9 +1426,7 @@
         </div>
     {/if}
 
-    <!-- Center Column -->
     <div id="triiiceratops-center-panel" class="center-col">
-        <!-- Top Area (Gallery) -->
         {#if galleryDocked && internalViewerState.dockSide === 'top'}
             <div
                 class="gallery-band"
@@ -1366,7 +1436,6 @@
             </div>
         {/if}
 
-        <!-- Main Viewer Area -->
         <div
             class="viewer-area"
             class:opaque={!internalViewerState.config.transparentBackground}
@@ -1443,7 +1512,13 @@
                         </div>
                     </div>
                 {:else}
-                    <OSDViewer
+                    <!--
+                        The one renderer. There is no renderer selection: the
+                        first-party Canvas2D host is what the viewer mounts, and
+                        no build flag, config option, or capability can change
+                        that (ADR 0012).
+                    -->
+                    <CanvasHost
                         {tileSources}
                         viewerState={internalViewerState}
                     />
@@ -1471,7 +1546,53 @@
                 </div>
             {/if}
 
+            <!--
+                The annotation SHAPES, and then the connector lines between them
+                and the annotation panel. Two distinct concerns, both mounted
+                here rather than inside a renderer: they are bound to the `frame`
+                cadence and to the viewport coordinate helpers, so neither knows
+                which renderer is mounted.
+
+                The shape layer comes AFTER the renderer in DOM order, so Tab
+                reaches the image surface before the things marked on it, and it
+                is a SIBLING of the renderer root rather than a child — the
+                renderer root is `role="application"`, which suppresses browse
+                mode for its whole subtree and would hide these labels from NVDA
+                and JAWS. `.viewer-area` is the shared positioning context, which
+                is what makes the surface-local coordinates
+                `ViewerState.canvasToScreen` returns this layer's own.
+            -->
+            <AnnotationShapeOverlay />
             <AnnotationOverlay />
+
+            <!--
+                Plugin **overlay layers**: one container per registered layer,
+                which the plugin renders into and owns.
+
+                TWO INDEPENDENT REQUIREMENTS, both load-bearing, both easy to
+                break by a refactor that looks tidier:
+
+                1. This is OUTSIDE the `{#if}` that mounts `CanvasHost`, a
+                   sibling of the annotation overlays above. Grouping it with the
+                   renderer would put every plugin's DOM inside the gate a
+                   manifest change closes, destroying and rebuilding it — which
+                   fails invisibly in any test that only ever loads one manifest.
+                2. It is KEYED on layer id. Unkeyed, node reuse is positional, so
+                   registering or disposing one layer can hand a SURVIVING layer
+                   a different container node — and `PluginMountHost` remounts
+                   when its node is recreated. Same broken guarantee, different
+                   mechanism.
+
+                The wrapper is what provides the box: `PluginMountHost`'s own
+                element is `display: contents` and provides none, so positioning
+                it instead would leave plugin children measured against the wrong
+                ancestor — which looks almost right until a panel is docked.
+            -->
+            {#each overlayLayers as layer (layer.id)}
+                <div class="plugin-overlay-layer">
+                    <PluginMountHost mount={layer.mount} />
+                </div>
+            {/each}
 
             <!-- Floating Toolbar (suppressed while the docked rail occupies its
                  side — including the tail of the un-dock animation, since
@@ -1482,7 +1603,6 @@
                 <Toolbar />
             {/if}
 
-            <!-- Overlay Plugin Panels -->
             {#each internalViewerState.pluginPanels as panel (panel.id)}
                 {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'overlay'}
                     <div class="plugin-overlay">
@@ -1493,7 +1613,6 @@
                 {/if}
             {/each}
 
-            <!-- Viewer Controls (Canvas Navigation + Zoom + IIIF Choice Selector) -->
             <ViewerControls />
 
             {#if internalViewerState.config.enableDragDrop && isDragOver}
@@ -1510,7 +1629,6 @@
             {/if}
         </div>
 
-        <!-- Bottom Area (Gallery) -->
         {#if galleryDocked && internalViewerState.dockSide === 'bottom'}
             <div
                 class="gallery-band"
@@ -1520,7 +1638,6 @@
             </div>
         {/if}
 
-        <!-- Bottom Area (Plugin Panels) -->
         {#each internalViewerState.pluginPanels as panel (panel.id)}
             {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'bottom'}
                 <div class="plugin-bottom">
@@ -1532,7 +1649,7 @@
         {/each}
 
         <!-- Expanded Gallery. An overlay layer covering the center column, so
-             OSD keeps its size underneath (no re-layout or re-fit when it
+             the renderer keeps its size underneath (no re-layout or re-fit when it
              collapses) and the side panels stay visible and usable. Last child
              of the column and z-index above the bands so it covers the docked
              strip site and the bottom plugin panels. -->
@@ -1548,7 +1665,6 @@
         {/if}
     </div>
 
-    <!-- Right Column -->
     {#if isRightSidebarVisible}
         <div
             class="side-col side-col-right"
@@ -1568,7 +1684,6 @@
                 </div>
             {/if}
 
-            <!-- Gallery (when docked right) -->
             {#if galleryDocked && internalViewerState.dockSide === 'right'}
                 <div
                     class="gallery-host"
@@ -1801,6 +1916,24 @@
     }
 
     .plugin-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+        pointer-events: none;
+    }
+    /*
+     * A plugin overlay layer's box. Its origin is `.viewer-area`'s, which is
+     * what makes it `ViewerState.canvasToScreen`'s origin too — a published
+     * contract, so a plugin positions an element straight from a projected
+     * point.
+     *
+     * `z-index: 40` matches `.plugin-overlay` and sits BELOW core's annotation
+     * shapes at 50: those are focusable targets carrying the viewer's own
+     * accessible names, and a plugin layer painted over them would break that
+     * silently. Transparent to pointer events, so adding a layer cannot cost the
+     * reader panning; plugin children opt in with `pointer-events: auto`.
+     */
+    .plugin-overlay-layer {
         position: absolute;
         inset: 0;
         z-index: 40;

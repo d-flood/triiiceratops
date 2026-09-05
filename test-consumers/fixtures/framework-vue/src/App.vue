@@ -41,7 +41,7 @@ const canvasId = useViewerSelector(viewer1, selectCanvasId);
 const toolbar = useViewerSelector(viewer1, (state) =>
     state.toolbarOpen ? 'open' : 'closed',
 );
-// `frame` cadence: continuous viewport values are woken by OpenSeadragon's own
+// `frame` cadence: per-frame viewport values are woken by the renderer's own
 // animation events, not by the batched state watcher.
 const zoom = useViewerSelector(viewer1, selectZoomThousandths, {
     cadence: 'frame',

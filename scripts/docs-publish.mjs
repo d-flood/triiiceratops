@@ -1,12 +1,11 @@
 #!/usr/bin/env node
-// Publish-layer documentation versioning (ticket 39).
+// Publish-layer documentation versioning.
 //
 // Zensical has no native versioning: its own docs describe the `mike` fork as
 // "a bridge solution until we introduce native versioning support", and that
 // fork is git-install-only and requires a gh-pages-branch deploy model — which
 // conflicts with this repo's artifact-based GitHub Pages deploy. So versioning
-// is handled here, at the publish layer, exactly as the ticket's contract
-// allows.
+// is handled here, at the publish layer.
 //
 // This script places a freshly built site under a version subdirectory of a
 // publish root, PRESERVING every previously published version directory

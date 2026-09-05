@@ -7,14 +7,23 @@
         title: string;
         icon?: Component<any>;
         /**
-         * Framework-neutral header icon descriptor (SDK core-owned chrome path,
-         * ticket 02). Rendered by `PluginIcon` when set; takes precedence over
-         * {@link icon}.
+         * Framework-neutral header icon descriptor. Rendered by `PluginIcon`
+         * when set; takes precedence over {@link icon}.
          */
         iconDescriptor?: IconDescriptor;
         component: Component<any>;
         props?: Record<string, unknown>;
         close?: () => void;
+        /**
+         * Give the whole section — header, close button and content — a `dialog`
+         * role named by {@link title}. Core panel components render their own
+         * inside their content; a plugin panel's content is a bare mount host,
+         * so the section supplies one. Without it the panel has no accessible
+         * name and two stacked panels are two identical "Close" buttons. Naming
+         * the section rather than the content is what puts the close button
+         * inside the named dialog.
+         */
+        dialog?: boolean;
     }
 </script>
 

@@ -10,10 +10,8 @@ import type {
 } from './exportPdf';
 
 /**
- * Consumer-facing configuration for the PDF export plugin. This is the same
- * public shape the plugin exposed before it moved to its own package (ticket 16
- * moved it here unchanged), so `createPdfExportPlugin(config)` keeps its
- * factory-with-config authoring contract.
+ * Consumer-facing configuration for the PDF export plugin, preserving
+ * `createPdfExportPlugin(config)`'s factory-with-config authoring contract.
  */
 export type PdfExportConfig = {
     coverSheet?: PdfCoverSheetConfig;

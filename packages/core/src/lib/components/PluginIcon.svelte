@@ -1,7 +1,7 @@
 <script lang="ts">
     /*
      * Renders a plugin's framework-neutral IconDescriptor (from the SDK's
-     * svgIcon). Mirrors Icon.svelte's pattern (ticket 02): core owns the <svg>
+     * svgIcon). Mirrors Icon.svelte's pattern: core owns the <svg>
      * wrapper — sizing, viewBox, currentColor fill, focusability, and
      * accessibility — while the descriptor carries only sanitized inner markup.
      * svgIcon has already rejected <script>, on* handlers, external href URLs,

@@ -3,16 +3,16 @@
  * in src/packaging, never published). Runs in `build:lib` AFTER svelte-package
  * + pruneDist.
  *
- * Why: the UI primitives were extracted into the internal, UNPUBLISHED
- * `@triiiceratops/ui` package (restore-plugin-toolbar-chrome ticket 01). Core's
- * `components/ui/index.ts` is a re-export shim (`export … from '@triiiceratops/ui'`)
+ * Why: the UI primitives live in the internal, UNPUBLISHED `@triiiceratops/ui`
+ * package. Core's `components/ui/index.ts` is a re-export shim
+ * (`export … from '@triiiceratops/ui'`)
  * so in-core call sites and dev/test/check resolve the primitives from source.
  * But `@sveltejs/package` copies src/lib VERBATIM and does not bundle
  * dependencies, so the shim lands in `dist/components/ui/index.js` as a bare
  * `export … from '@triiiceratops/ui'`. Since that package is never published, a
  * consumer of core's tarball could not resolve it.
  *
- * The contract (SPEC.md / ticket 01) is that the primitives are BUNDLED INTO
+ * The contract (SPEC.md) is that the primitives are BUNDLED INTO
  * core — shipped as Svelte source, never an externalized runtime dependency of
  * the published artifact. Core already ships every component as `.svelte`
  * source, so this step reproduces exactly what `dist/components/ui/` held before

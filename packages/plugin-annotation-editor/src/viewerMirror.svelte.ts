@@ -5,7 +5,7 @@
  * OWN Svelte runtime) reads `viewerState.canvasId` inside an `$effect`, no
  * dependency is registered because the two reactivity graphs don't cross. The
  * plugin therefore mirrors the handful of fields its UI reacts to
- * (`manifestId`, `canvasId`, `osdViewer`) into plugin-runtime `$state`, kept in
+ * (`manifestId`, `canvasId`) into plugin-runtime `$state`, kept in
  * sync through the framework-neutral `ViewerState.subscribe` fan-out. Every other
  * member/method (queries, display sync, the annotation-edit bus, the style root)
  * delegates straight to the real state, so a mirror is a drop-in `ViewerState`
@@ -19,13 +19,11 @@ export class ViewerStateMirror {
 
     manifestId = $state<string | null>(null);
     canvasId = $state<string | null>(null);
-    osdViewer = $state.raw<ViewerState['osdViewer']>(null);
 
     constructor(real: ViewerState) {
         this.#real = real;
         this.manifestId = real.manifestId;
         this.canvasId = real.canvasId;
-        this.osdViewer = real.osdViewer;
         // Batched notifications carry no payload; re-read and gate each mirror
         // field so an unrelated change doesn't churn plugin reactivity.
         this.#unsubscribe = real.subscribe(() => {
@@ -34,9 +32,6 @@ export class ViewerStateMirror {
             }
             if (this.canvasId !== real.canvasId) {
                 this.canvasId = real.canvasId;
-            }
-            if (this.osdViewer !== real.osdViewer) {
-                this.osdViewer = real.osdViewer;
             }
         });
     }

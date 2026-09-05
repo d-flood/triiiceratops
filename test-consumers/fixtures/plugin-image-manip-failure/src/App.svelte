@@ -1,5 +1,5 @@
 <script>
-    // Failure-isolation smoke (ticket 09) for a real SDK plugin. A plugin
+    // Failure-isolation smoke for a real SDK plugin. A plugin
     // authored on the packed SDK deliberately THROWS in `mount`. Core must
     // isolate the failure: the viewer stays live, the failed plugin presents a
     // plugin-local error state (a badged toolbar button + retry), and the

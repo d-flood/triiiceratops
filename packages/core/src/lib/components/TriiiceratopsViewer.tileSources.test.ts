@@ -403,7 +403,6 @@ describe('TriiiceratopsViewer - Tile Sources', () => {
                 }),
             );
 
-            // Should use first valid image service
             expect(getCanvasTileSource(canvas)).toBe(
                 'http://example.org/iiif/first/info.json',
             );

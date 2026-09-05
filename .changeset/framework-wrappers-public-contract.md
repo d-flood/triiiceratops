@@ -5,7 +5,8 @@
 Finalize `triiiceratops/react` and `triiiceratops/vue` as supported, release-tested
 subpaths of core rather than experimental additions. They are subpaths — not
 separate `@triiiceratops/react` / `@triiiceratops/vue` packages — so the release
-still promotes the same six publishable tarballs, core first.
+still promotes the same set of publishable tarballs, core first — adding a subpath
+adds no package.
 
 Both subpaths resolve to precompiled JS and declarations with named exports only,
 and `react ^19` / `vue ^3.5` are OPTIONAL peer dependencies. Neither is a runtime
@@ -36,8 +37,8 @@ What now enforces that, so it cannot regress into a release:
   `./react` and `./vue` must each declare both `types` and `import`, and
   `react` / `vue` / `svelte` must be declared, ranged, optional peers that appear
   nowhere in `dependencies`.
-- **The registry smoke installs the optional peer.** After the six published
-  packages resolve, it now also resolves all four core subpaths from a consumer
+- **The registry smoke installs the optional peer.** After every published
+  package resolves, it now also resolves all four core subpaths from a consumer
   with no peer installed at all, then builds one throwaway consumer per framework
   — published core plus exactly one peer, at the range the published package
   itself declares — and imports that subpath for real in plain Node with no

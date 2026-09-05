@@ -4,12 +4,14 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 import { ViewerState } from './viewer.svelte';
 import { manifestsState } from './manifests.svelte';
+import { createRendererStub } from '../testing/rendererStub';
 import type { IconDescriptor } from '../types/plugin';
 import {
     REACTIVE_COLLECTION_MEMBERS,
     STATE_INVENTORY,
     type StateInventoryEntry,
 } from './state-inventory';
+import { NOTIFYING_MEMBERS } from '../generated/notifyingMembers';
 
 vi.mock('./manifests.svelte', () => ({
     manifestsState: {
@@ -61,14 +63,87 @@ function getMutableMembers(instance: object): Set<string> {
     return members;
 }
 
+/**
+ * Reflect getter-only prototype accessors — the shape a `query-only` member
+ * takes.
+ *
+ * Query-only state is not a stored value the viewer writes; it is a question
+ * asked of the renderer on demand (`viewportScale`, `containerSize`), which is
+ * precisely why it never notifies. It therefore has no setter and would be
+ * invisible to {@link getMutableMembers}, so the inventory reflects both shapes
+ * and each test below says which one it means.
+ *
+ * These ARE subject to the "classify everything" gate, via {@link DERIVED_READS}
+ * below. `getMutableMembers` cannot see a getter with no setter by construction,
+ * so leaving this set ungated would mean a new public getter on the plugin
+ * surface — a per-frame read that never notifies — could be added with no
+ * inventory entry and nothing would fail.
+ */
+function getQueryAccessors(instance: object): Set<string> {
+    const members = new Set<string>();
+    let proto: object | null = Object.getPrototypeOf(instance);
+    while (proto && proto !== Object.prototype) {
+        for (const [name, desc] of Object.entries(
+            Object.getOwnPropertyDescriptors(proto),
+        )) {
+            if (name === 'constructor') continue;
+            if (typeof desc.get === 'function' && !desc.set) {
+                members.add(name);
+            }
+        }
+        proto = Object.getPrototypeOf(proto);
+    }
+    return members;
+}
+
+/**
+ * Getter-only accessors that are NOT viewer state and therefore carry no
+ * inventory entry.
+ *
+ * Every one of these is an ordinary **derived read** — a projection of state
+ * that is already inventoried elsewhere (`canvases` off the manifest cache,
+ * `hasNext` off the canvas index, `showToggle` off config) — or is TS-private
+ * and only visible here because `private` compiles away. Nothing in this list
+ * is a new fact about the viewer, so classifying them would say nothing.
+ *
+ * The list is exhaustive on purpose: adding a getter without either an
+ * inventory entry or a line here fails the gate below, which is the point. If a
+ * new getter genuinely IS viewer state — a value a plugin reads that no other
+ * member carries — it belongs in `state-inventory.ts`, most likely as
+ * `query-only`, not here.
+ */
+const DERIVED_READS = new Set([
+    // Projections of the manifest cache and the current canvas index.
+    'annotatableCanvasIds',
+    'canvases',
+    'currentCanvasIndex',
+    'currentCanvasSearchAnnotations',
+    'hasCollection',
+    'hasNext',
+    'hasPrevious',
+    'manifestEntry',
+    'sequenceCount',
+    'structures',
+    // Projections of `config`.
+    'galleryExtent',
+    'preserveCanvasScale',
+    'showCanvasNav',
+    'showToggle',
+    'showZoomControls',
+    // TS-private; a getter at runtime only because `private` is erased.
+    'zoomPerClick',
+]);
+
 describe('ViewerState state inventory', () => {
     let state: ViewerState;
     let mutableMembers: Set<string>;
+    let queryAccessors: Set<string>;
     let byMember: Map<string, StateInventoryEntry>;
 
     beforeEach(() => {
         state = new ViewerState();
         mutableMembers = getMutableMembers(state);
+        queryAccessors = getQueryAccessors(state);
         byMember = new Map(
             STATE_INVENTORY.map((entry) => [entry.member, entry]),
         );
@@ -85,12 +160,61 @@ describe('ViewerState state inventory', () => {
         expect(unclassified).toEqual([]);
     });
 
-    it('contains no stale entries (every entry maps to a real member)', () => {
-        const stale = STATE_INVENTORY.map((entry) => entry.member)
-            .filter((member) => !mutableMembers.has(member))
+    // The companion to the gate above, for the shape `getMutableMembers` cannot
+    // see. A `query-only` member is a getter with no setter, so without this a
+    // new public per-frame read would be invisible to every gate in this file.
+    it('classifies every getter-only accessor, or names it a derived read', () => {
+        const unclassified = [...queryAccessors]
+            .filter(
+                (member) => !byMember.has(member) && !DERIVED_READS.has(member),
+            )
+            .sort();
+
+        // If this fails, a new getter was added to ViewerState. Either give it
+        // a state-inventory.ts entry (if a plugin reads it as viewer state) or
+        // add it to DERIVED_READS above (if it merely projects a member that is
+        // already inventoried).
+        expect(unclassified).toEqual([]);
+    });
+
+    // Guards the allowlist itself: a derived read that is later deleted, or
+    // promoted into the inventory, must not leave a line here claiming it.
+    it('has no stale derived-read exemptions', () => {
+        const stale = [...DERIVED_READS]
+            .filter(
+                (member) => !queryAccessors.has(member) || byMember.has(member),
+            )
             .sort();
 
         expect(stale).toEqual([]);
+    });
+
+    it('contains no stale entries (every entry maps to a real member)', () => {
+        const stale = STATE_INVENTORY.map((entry) => entry.member)
+            .filter(
+                (member) =>
+                    !mutableMembers.has(member) && !queryAccessors.has(member),
+            )
+            .sort();
+
+        expect(stale).toEqual([]);
+    });
+
+    // A query-only member is a question asked of the renderer, never a stored
+    // value: giving one a setter would put a per-frame value on the batched
+    // notification path, which is the whole reason the classification exists.
+    it('exposes every query-only member as a getter-only accessor', () => {
+        for (const entry of STATE_INVENTORY) {
+            if (entry.classification !== 'query-only') continue;
+            expect(
+                queryAccessors.has(entry.member),
+                `query-only member "${entry.member}" must be a getter with no setter`,
+            ).toBe(true);
+            expect(
+                mutableMembers.has(entry.member),
+                `query-only member "${entry.member}" must not be writable`,
+            ).toBe(false);
+        }
     });
 
     it('has no duplicate member entries', () => {
@@ -104,7 +228,15 @@ describe('ViewerState state inventory', () => {
                     entry.commands && entry.commands.length > 0,
                     `command member "${entry.member}" must list at least one mutation method`,
                 ).toBe(true);
+            }
 
+            // `query-only` members MAY list commands — the viewport is read per
+            // frame and moved by the same commands the viewer's own chrome uses
+            // (see state-inventory.ts). Whatever is listed must still exist.
+            if (
+                entry.classification === 'command' ||
+                entry.classification === 'query-only'
+            ) {
                 for (const method of entry.commands ?? []) {
                     expect(
                         typeof (state as unknown as Record<string, unknown>)[
@@ -144,6 +276,44 @@ describe('ViewerState state inventory', () => {
                 `"${member}" must have a state-inventory entry`,
             ).toBe(true);
         }
+    });
+
+    // The runtime no longer imports the inventory: `ViewerState.WATCHED_MEMBERS`
+    // reads the GENERATED `NOTIFYING_MEMBERS` list so the inventory's review
+    // prose stays out of the shipped bundle. The generator is the only writer,
+    // so this now guards the generated file being STALE — regenerating is part
+    // of build/check/test, and a checkout that skipped it turns this red.
+    it('keeps the generated notifying-member list equal to the inventory derivation', () => {
+        const derived = STATE_INVENTORY.filter(
+            (entry) =>
+                entry.classification === 'command' ||
+                entry.classification === 'observable',
+        ).map((entry) => entry.member);
+
+        expect(NOTIFYING_MEMBERS).toEqual(derived);
+    });
+
+    // Guards the wiring, not just the data. The list above could agree with the
+    // inventory perfectly while the watcher read some narrowed or reordered
+    // variant of it, and dropping a member from the watcher silently costs that
+    // member its notifications.
+    //
+    // The capability matrix below already catches most of that: it generates a
+    // test per notifying member, and for the ~30 whose scenario moves exactly
+    // one watched member, losing that member turns its own test red. The gap
+    // this closes is the rest — members whose scenario co-changes a sibling, so
+    // the batched flush still yields its one notification with the member gone.
+    // `setDockSide` moving three members, `registerChrome` moving four, and
+    // `setManifestData` moving both `manifestId` and `canvasId` are the cases
+    // that were invisible.
+    it('watches exactly the checked-in notifying members', () => {
+        const watched = (
+            ViewerState as unknown as {
+                WATCHED_MEMBERS: readonly string[];
+            }
+        ).WATCHED_MEMBERS;
+
+        expect(watched).toEqual(NOTIFYING_MEMBERS);
     });
 });
 
@@ -239,6 +409,14 @@ interface CapabilityScenario {
 
 const commandScenarios: CapabilityScenario[] = [
     {
+        member: 'imageAdjustments',
+        act: (state) => state.setImageAdjustments({ brightness: 120 }),
+    },
+    {
+        member: 'viewportInset',
+        act: (state) => state.setViewportInset({ bottom: 200 }),
+    },
+    {
         member: 'manifestId',
         setup: () => {
             vi.mocked(manifestsState.getManifestEntry).mockReturnValue({
@@ -310,6 +488,10 @@ const commandScenarios: CapabilityScenario[] = [
     {
         member: 'hoveredAnnotationId',
         act: (state) => state.setHoveredAnnotationId('anno-1'),
+    },
+    {
+        member: 'activeAnnotationId',
+        act: (state) => state.setActiveAnnotationId('anno-1'),
     },
     {
         member: 'userAnnotations',
@@ -439,9 +621,18 @@ const observableScenarios: CapabilityScenario[] = [
         },
     },
     {
-        member: 'osdViewer',
-        act: (state) =>
-            state.notifyOSDReady({} as unknown as OpenSeadragon.Viewer),
+        member: 'rendererReady',
+        act: (state) => {
+            state.attachRenderer(createRendererStub());
+        },
+    },
+    {
+        // The renderer alone can answer which canvases are on screen; the host
+        // publishes the set when it changes. The stand-in does it directly.
+        member: 'visibleCanvasIds',
+        act: (state) => {
+            state.visibleCanvasIds = ['canvas-1', 'canvas-2'];
+        },
     },
     {
         member: 'loadedManifestIds',
@@ -549,14 +740,59 @@ describe('ViewerState subscription capability matrix', () => {
         state.destroy();
     });
 
-    it('has no query-only members to notify (kept out of the flush by design)', () => {
-        // Query-only members are readable on demand but never notify. There are
-        // none today; if one is added it must be driven here and asserted to NOT
-        // notify (like the internal-exclusion case above).
+    // The viewport moves on every pointer sample and every animation frame.
+    // Waking the batched watcher from it would make an idle-looking drag the
+    // most expensive thing the viewer does — which is the entire reason these
+    // members are query-only rather than observable.
+    it('never notifies when a query-only member changes (exclusion)', async () => {
+        const state = new ViewerState();
+        const stub = createRendererStub();
+        state.attachRenderer(stub);
+        await tick();
+
+        const listener = vi.fn();
+        state.subscribe(listener);
+
+        const before = {
+            scale: state.viewportScale,
+            centre: state.viewportCentre,
+            bounds: state.viewportBounds,
+            container: state.containerSize,
+        };
+
+        // Move every query-only member: through a command (zoomIn/panTo) and
+        // through the renderer moving on its own (a drag, a resize).
+        state.zoomIn();
+        state.panTo({ x: 500, y: 500 });
+        stub.setView({ container: { width: 1024, height: 768 } });
+        stub.emitFrame();
+        await tick();
+
+        expect(state.viewportScale).not.toBe(before.scale);
+        expect(state.viewportCentre).not.toEqual(before.centre);
+        expect(state.viewportBounds).not.toEqual(before.bounds);
+        expect(state.containerSize).not.toEqual(before.container);
+        expect(listener).not.toHaveBeenCalled();
+
+        state.destroy();
+    });
+
+    it('covers every query-only member in the exclusion test above', () => {
+        // Drift guard: the assertion above names each member explicitly, so a
+        // new query-only member must be added to it rather than silently
+        // trusted not to notify.
         const queryOnly = STATE_INVENTORY.filter(
             (entry) => entry.classification === 'query-only',
-        );
-        expect(queryOnly).toEqual([]);
+        )
+            .map((entry) => entry.member)
+            .sort();
+
+        expect(queryOnly).toEqual([
+            'containerSize',
+            'viewportBounds',
+            'viewportCentre',
+            'viewportScale',
+        ]);
     });
 });
 

@@ -27,8 +27,6 @@ export type {
     PdfExportSelectionChangeHandler,
 } from './types';
 
-// The consumer-facing export-logic types (cover sheet, image loader, OCR
-// overlays, filename provider, …) moved here with `exportPdf` (ticket 16).
 export type {
     PdfCanvasOcrOverlayProvider,
     PdfCoverSheetConfig,

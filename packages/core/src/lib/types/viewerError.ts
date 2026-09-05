@@ -1,8 +1,8 @@
 /**
- * The structured `viewererror` channel (ticket 18 — core distribution cleanup).
+ * The structured `viewererror` channel.
  *
- * Mirrors the `pluginerror` channel (ticket 09, {@link PluginError} in
- * `./plugin`) so hosts handle viewer-level failures exactly as they handle
+ * Mirrors the `pluginerror` channel ({@link PluginError} in `./plugin`) so
+ * hosts handle viewer-level failures exactly as they handle
  * plugin failures: actionable configuration, content, and operation problems are
  * delivered as a typed payload on BOTH a bubbling, composed `viewererror`
  * CustomEvent from the viewer root AND an `onviewererror` host callback — the
@@ -10,7 +10,8 @@
  * "Core Distribution" — "Actionable configuration, version, plugin, and
  * operation failures use structured events or callbacks"; user stories 12–13).
  *
- * The payload type is defined ONCE here so ticket 21 can snapshot it.
+ * The payload type is defined ONCE here so it can be snapshotted for the
+ * public API surface.
  *
  * Bundler-neutral and SSR-safe: pure types plus a string constant; no runtime,
  * no browser globals, no bundler-specific env replacement.
@@ -25,6 +26,13 @@ export type ViewerErrorSeverity = 'warning' | 'error';
  * - `config`: an invalid or conflicting `ViewerConfig` value.
  * - `content-state`: content-state ingestion degraded or failed (ADR 0006).
  * - `manifest`: a manifest or linked resource failed to load or parse.
+ * - `plugin`: a call a plugin made into `ViewerState` was refused — a plugin
+ *   *author* error, reported to the host because the (silent-by-default) logger
+ *   would otherwise swallow it in every viewer that has not enabled `debug`.
+ *   Distinct from the `pluginerror` channel, which carries a failure *thrown by*
+ *   an identified plugin along with its `retry()`; a refused call throws nothing
+ *   and core cannot always attribute it to a plugin at all (a layer id naming no
+ *   known plugin is exactly that case).
  * - `search`: a search operation failed or no search service was available.
  * - `viewport`: a viewport operation (e.g. fullscreen) failed.
  */
@@ -32,6 +40,7 @@ export type ViewerErrorScope =
     | 'config'
     | 'content-state'
     | 'manifest'
+    | 'plugin'
     | 'search'
     | 'viewport';
 

@@ -2,8 +2,8 @@
  * Machine-readable registry of the PUBLIC CSS custom properties a theme author
  * may set to customize the viewer. This is the single source of truth for the
  * semver-governed token set and is consumed by:
- *   - the theming documentation (ticket 26),
- *   - the public-CSS-token API snapshot (ticket 21), and
+ *   - the theming documentation,
+ *   - the public-CSS-token API snapshot, and
  *   - the distribution test that asserts every listed token ships in the built
  *     stylesheet and that no `--tri-*` variable in the stylesheet is missing
  *     from this list.

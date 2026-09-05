@@ -5,6 +5,10 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
 import { coverage } from '../../vitest.coverage.js';
+// A fake IIIF Image API service for the tiled e2e fixture. Dev-server only —
+// the plugin declares `apply: 'serve'`, so it is in no build.
+// @ts-expect-error - plain ESM fixture helper, deliberately untyped
+import { iiifFixture } from './scripts/iiifFixturePlugin.mjs';
 
 /**
  * The framework substrate (`src/lib/framework/registration.ts`) dynamic-imports
@@ -47,6 +51,7 @@ function elementArtifactStub() {
 export default defineConfig({
     plugins: [
         elementArtifactStub(),
+        iiifFixture(),
         paraglideVitePlugin({
             project: './project.inlang',
             outdir: './src/lib/paraglide',
@@ -66,7 +71,7 @@ export default defineConfig({
         // In tests, force the browser condition so Svelte resolves correctly.
         ...(process.env.VITEST ? { conditions: ['browser'] } : {}),
         alias: {
-            // The internal, unpublished shared UI primitives (ticket 01) and the
+            // The internal, unpublished shared UI primitives and the
             // SDK resolve to SOURCE so the dev server and core's tests compile
             // them from `.svelte`/`.ts` with HMR. In the published `build:lib`
             // path the UI is inlined into dist by src/packaging/inlineUi.ts.
