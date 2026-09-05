@@ -40,11 +40,10 @@ export const REPO_ROOT = join(
 /**
  * The publishable packages. `build` lists the package scripts that must run (in
  * order) before packing so the packed `dist/` is complete — these mirror the
- * packed-consumer harness (`test-consumers/driver/run.mjs`), which packs one
- * package MORE than this list: it still packs the paused annotation-editor plugin
- * so the fixtures that consume it from a tarball (its adapter-conformance suite,
- * the docs examples) keep running. Packing is not publishing. `dir` is the
- * package directory under `packages/`.
+ * packed-consumer harness (`test-consumers/driver/run.mjs`), whose own list is
+ * deliberately wider: it packs the paused annotation-editor plugin so its
+ * adapter-conformance fixture keeps running against a real tarball. Packing is
+ * not publishing. `dir` is the package directory under `packages/`.
  */
 export const PUBLISHABLE_PACKAGES = [
     {
@@ -55,6 +54,14 @@ export const PUBLISHABLE_PACKAGES = [
         build: ['build:lib', 'build:testing', 'build:element'],
     },
     { name: '@triiiceratops/plugin-sdk', dir: 'plugin-sdk', build: ['build'] },
+    {
+        // `build` also emits the four lazy IIFE chunks and then runs a
+        // shared-runtime guard, so the packed `dist/` is the whole directory a
+        // no-bundler consumer has to serve — not just `iife.js`.
+        name: '@triiiceratops/plugin-av',
+        dir: 'plugin-av',
+        build: ['build'],
+    },
     {
         name: '@triiiceratops/plugin-image-manipulation',
         dir: 'plugin-image-manipulation',

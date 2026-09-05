@@ -6,9 +6,10 @@
 // build time we derive the version from the core package.json and write an
 // *effective* config that injects it into `[project.extra]`; `overrides/main.html`
 // renders the version banner from those keys. For a versioned publish
-// (`--version X.Y`) the `site_url` is additionally suffixed with the version
-// path so canonical URLs and the sitemap are correct for that subdirectory, and
-// the banner links to the other published versions.
+// (`--version X.Y`) the `site_url` is additionally suffixed with `docs/<version>/`
+// — the path the documentation publishes at, see docs-publish.mjs — so canonical
+// URLs and the sitemap are correct for that subdirectory, and the banner links to
+// the other published versions.
 //
 // Usage:
 //   node scripts/docs-build.mjs                 # unversioned developer build
@@ -21,7 +22,7 @@ import { join } from 'node:path';
 import { REPO_ROOT, docsVersion, packageVersion } from './docs-version.mjs';
 
 // The canonical site root. Must match `site_url` in zensical.toml.
-const BASE_URL = 'https://d-flood.github.io/triiiceratops/';
+const BASE_URL = 'https://triiiceratops.org/';
 const EFFECTIVE_CONFIG = join(REPO_ROOT, '.zensical.effective.toml');
 
 function parseArgs(argv) {
@@ -60,7 +61,7 @@ export function effectiveConfig(base, { versioned, version, fullVersion }) {
     const extra = { docs_version: version, docs_full_version: fullVersion };
     let toml = base;
     if (versioned) {
-        const url = `${BASE_URL}${version}/`;
+        const url = `${BASE_URL}docs/${version}/`;
         const before = `site_url = "${BASE_URL}"`;
         if (!toml.includes(before)) {
             throw new Error(
@@ -68,9 +69,12 @@ export function effectiveConfig(base, { versioned, version, fullVersion }) {
             );
         }
         toml = toml.replace(before, `site_url = "${url}"`);
-        // The human-browsable version index lives at <root>/versions/, one
-        // level up from /<version>/.
-        extra.docs_versions_url = '../versions/';
+        // The human-browsable version index lives at <root>/versions/, outside
+        // the version directory. Absolute, not relative: overrides/main.html
+        // emits this href verbatim, and every documentation page sits at a
+        // different depth below /docs/<version>/, so no single relative path is
+        // correct for all of them.
+        extra.docs_versions_url = `${BASE_URL}versions/`;
     }
     return withExtra(toml, extra);
 }

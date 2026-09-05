@@ -204,6 +204,7 @@ jobs:
                   pnpm --filter @triiiceratops/plugin-image-export build
                   pnpm --filter @triiiceratops/plugin-pdf-export build
                   pnpm --filter @triiiceratops/plugin-annotation-editor build
+                  pnpm --filter @triiiceratops/plugin-av build
 
             - name: Run E2E Tests
               run: pnpm --filter triiiceratops exec playwright test --project=${{ matrix.project }}
@@ -250,6 +251,7 @@ jobs:
                   pnpm --filter @triiiceratops/plugin-image-export build
                   pnpm --filter @triiiceratops/plugin-pdf-export build
                   pnpm --filter @triiiceratops/plugin-annotation-editor build
+                  pnpm --filter @triiiceratops/plugin-av build
 
             # Axe scans (states × themes), keyboard journeys, and reduced-motion,
             # scoped to the desktop chromium project.
@@ -452,7 +454,7 @@ jobs:
 
     # Ticket 27: release reproducibility (required CI). Two independent clean
     # builds of THIS SHA must produce byte-identical tarballs for every publishable
-    # package (five today — `scripts/release/packages.mjs` is the list). This is
+    # package (`scripts/release/packages.mjs` is the list). This is
     # what lets publication PROMOTE verified artifacts instead of rebuilding — a
     # rebuild would land on the same bytes.
     # `npm pack` normalises mtimes + gzip headers, so there is no variable
@@ -511,7 +513,7 @@ jobs:
             - name: Install dependencies
               run: pnpm install
 
-            # build:all + npm pack every publishable package (five today; the paused
+            # build:all + npm pack every publishable package (the paused
             # annotation-editor plugin is not one of them). Output goes to
             # RUNNER_TEMP so the tarballs never touch the tracked tree (keeps the
             # clean-build check below honest).

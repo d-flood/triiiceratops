@@ -1,10 +1,10 @@
 /**
- * The demo, against every audiovisual IIIF Cookbook recipe (user story 47).
+ * The viewer, against every audiovisual IIIF Cookbook recipe (user story 47).
  *
- * This is the epic's exit criterion, driven where a visitor meets it: the real
- * demo page at `/`, with `@triiiceratops/plugin-av` registered the way
- * `Demo.svelte` registers it, opened on each of the fifteen recipes at their
- * canonical `iiif.io` URLs — the same URLs the manifest picker offers.
+ * This is the epic's exit criterion, driven on the bare e2e harness
+ * (`/e2e/harness.html`) with `@triiiceratops/plugin-av` registered the way a
+ * host registers it, opened on each of the fifteen recipes at their canonical
+ * `iiif.io` URLs — the same URLs the demo's manifest picker offers.
  *
  * The network stands in and nothing else does. Each recipe's manifest is served
  * from the VENDORED copy under `src/lib/test/fixtures/manifests/av/` (byte for
@@ -18,7 +18,7 @@
  * media element, or (for `0489-multimedia-canvas`, the one documented
  * exception) a painted image body and a degradation warning.
  *
- * `pnpm build:all` must have run: the demo resolves the plugin to its built
+ * `pnpm build:all` must have run: the harness resolves the plugin to its built
  * `dist/`, as a consumer's bundler would.
  */
 
@@ -35,6 +35,13 @@ test.skip(
     ({ browserName }) => browserName !== 'chromium',
     'Canvas2D renderer slice is Chromium-only (see canvas-renderer.spec.ts).',
 );
+
+// A recipe's assertions can settle while an image-service route is still
+// fetching, and a route callback that outlives the page fails the test it has
+// already passed. Drop the handlers before teardown instead.
+test.afterEach(async ({ page }) => {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 const STAGE = '[data-testid="av-stage"]';
@@ -267,7 +274,7 @@ function rangeAware(
 }
 
 /**
- * Stand the network up, then open the demo on one recipe.
+ * Stand the network up, then open the harness on one recipe.
  *
  * Routes are registered generic-first: Playwright matches the most recently
  * added first, so the recipe manifests and the reference image service win over
@@ -316,16 +323,19 @@ async function installRoutes(page: Page, log: Log): Promise<void> {
     }
 }
 
-/** The demo, opened on one recipe. */
+/** The harness, opened on one recipe. */
 async function openRecipe(page: Page, id: string, log: Log): Promise<void> {
     await installRoutes(page, log);
-    await page.goto(`/?manifest=${encodeURIComponent(recipeUrl(id))}`, {
-        waitUntil: 'domcontentloaded',
-    });
+    await page.goto(
+        `/e2e/harness.html?manifest=${encodeURIComponent(recipeUrl(id))}`,
+        {
+            waitUntil: 'domcontentloaded',
+        },
+    );
     await page.locator(SURFACE).waitFor({ state: 'visible', timeout: 60_000 });
 }
 
-/** Open the plugin's panel through the demo's toolbar, as a reader would. */
+/** Open the plugin's panel through the viewer's toolbar, as a reader would. */
 async function openAvPanel(page: Page): Promise<void> {
     await page.locator(PANEL_TOGGLE).click();
     // Attached, not visible: a canvas with no transcript leaves the panel
@@ -455,22 +465,11 @@ async function seekPlugin(page: Page, seconds: number): Promise<void> {
     }, seconds);
 }
 
-test.describe('demo av cookbook coverage', () => {
-    test('the picker lists every audiovisual recipe in one group', async ({
-        page,
-    }) => {
-        await page.goto('/?manifest=', { waitUntil: 'domcontentloaded' });
-        const group = page.locator('optgroup[data-testid="av-recipes"]');
-        await expect(group).toHaveAttribute('label', 'Audio & Video');
-
-        const urls = await group
-            .locator('option')
-            .evaluateAll((options) =>
-                options.map((option) => (option as HTMLOptionElement).value),
-            );
-        expect(urls).toEqual(RECIPES.map((recipe) => recipeUrl(recipe.id)));
-    });
-
+/*
+    Scope: this file drives the bare harness, so it covers the plugin and the
+    viewer chrome only — no recipe picker or other application UI exists here.
+*/
+test.describe('av cookbook coverage', () => {
     for (const recipe of RECIPES) {
         test(`${recipe.id} — ${recipe.label}`, async ({ page }) => {
             const log = newLog();
@@ -485,7 +484,7 @@ test.describe('demo av cookbook coverage', () => {
                 await expect(page.locator(TRANSPORT).first()).toBeVisible();
                 await expect(page.locator(CANNOT_PLAY).first()).toBeHidden();
 
-                // The plugin's own panel is reachable from the demo's chrome —
+                // The plugin's own panel is reachable from the viewer's chrome —
                 // on the recipes that have something to put in it. The rest
                 // offer no control, which is the no-dead-control rule and is
                 // asserted on its own recipes below.
@@ -636,12 +635,13 @@ test.describe('demo av cookbook coverage', () => {
     /**
      * The script-tag half of user story 30, on the page that ships it.
      *
-     * The BUILT `docs/demo/webcomponent/index.html` is served verbatim from a
-     * depth where its own relative `../../dist/…` URLs land on the dev server's
-     * `/dist/` — core's real element IIFE — and on a route mapping
-     * `/dist/plugin-av/` onto the plugin's real dist DIRECTORY, chunks and all.
-     * Nothing here is a fixture page: a change to the demo's markup or to the
-     * build step that copies the plugin beside core is what this catches.
+     * The example's authored `apps/examples/src/web-component/index.html` is
+     * served verbatim from a depth where its own relative `../../dist/…` URLs
+     * land on the dev server's `/dist/` — core's real element IIFE — and on a
+     * route mapping `/dist/plugin-av/` onto the plugin's real dist DIRECTORY,
+     * chunks and all. Nothing here is a fixture page: a change to that page's
+     * markup, or to the build step that puts the plugin beside core, is what
+     * this catches.
      */
     test('the webcomponent demo plays an AV manifest from the IIFE dist', async ({
         page,
@@ -649,9 +649,9 @@ test.describe('demo av cookbook coverage', () => {
         const log = newLog();
         await installRoutes(page, log);
 
-        const built = join(
+        const source = join(
             import.meta.dirname,
-            '../../../docs/demo/webcomponent',
+            '../../../apps/examples/src/web-component',
         );
         await page.route('**/e2e/wc-demo/*', (route) => {
             const name = basename(new URL(route.request().url()).pathname);
@@ -659,7 +659,7 @@ test.describe('demo av cookbook coverage', () => {
                 contentType: name.endsWith('.css')
                     ? 'text/css'
                     : 'text/html; charset=utf-8',
-                body: readFileSync(join(built, name)),
+                body: readFileSync(join(source, name)),
             });
         });
         await page.route('**/plugin-av/*.js', (route) => {
@@ -845,7 +845,7 @@ test.describe('demo av cookbook coverage', () => {
             ),
         );
         await page.goto(
-            `/?manifest=${encodeURIComponent(recipeUrl('0103-poetry-reading-annotations'))}`,
+            `/e2e/harness.html?manifest=${encodeURIComponent(recipeUrl('0103-poetry-reading-annotations'))}`,
             { waitUntil: 'domcontentloaded' },
         );
         await page

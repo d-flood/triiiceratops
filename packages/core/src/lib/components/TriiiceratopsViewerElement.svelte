@@ -33,6 +33,21 @@
                 type: 'String',
                 reflect: true,
             },
+            contentState: {
+                attribute: 'content-state',
+                type: 'String',
+                reflect: false,
+            },
+            // A real HTML boolean attribute: PRESENCE opts in. Svelte's
+            // `Boolean` coercion is `value != null`, so — exactly like
+            // `disabled` — `read-content-state-from-url="false"` is still on.
+            // `viewerElementAttributes` therefore omits the attribute for a
+            // false-valued framework prop rather than stringifying it.
+            readContentStateFromUrl: {
+                attribute: 'read-content-state-from-url',
+                type: 'Boolean',
+                reflect: false,
+            },
             themeConfig: {
                 attribute: 'theme-config',
                 type: 'String',
@@ -101,6 +116,8 @@
         manifestId = '',
         manifestJson = undefined as string | Record<string, any> | undefined,
         canvasId = '',
+        contentState = '',
+        readContentStateFromUrl = false,
         plugins = [],
         theme = undefined as string | undefined,
         themeConfig = undefined as string | ThemeConfig | undefined,
@@ -113,6 +130,19 @@
         manifestId?: string;
         manifestJson?: string | Record<string, any>;
         canvasId?: string;
+        /**
+         * A IIIF Content State naming the view to open (ADR 0006): a bare IIIF
+         * URI, an Annotation as JSON, or that Annotation base64url-encoded.
+         * Ignored whenever `manifest-id` or `manifest-json` is set.
+         */
+        contentState?: string;
+        /**
+         * Opt in to reading the `iiif-content` parameter from the host's
+         * address, once on mount (ADR 0006). A boolean attribute: presence opts
+         * in. Off by default, lowest precedence, and the address bar is never
+         * mutated.
+         */
+        readContentStateFromUrl?: boolean;
         /**
          * Framework-neutral `SdkPlugin`s. A property-only input (there is no
          * supported `plugins` attribute): assign `element.plugins = [...]`,
@@ -291,6 +321,8 @@
         {manifestId}
         manifestJson={parsedManifestJson}
         {canvasId}
+        {contentState}
+        readContentStateFromUrl={!!readContentStateFromUrl}
         {plugins}
         theme={validatedTheme}
         themeConfig={parsedThemeConfig}

@@ -541,6 +541,85 @@ Triiiceratops' resolved projection of a content state after parsing —
 incoming content state. (Currently typed `ContentStateTarget` in `contentState.ts`.)
 _Avoid_: content state (that is the spec artifact, not the parsed result)
 
+## Repository topology
+
+**Shipped surface**:
+What a published package contains: only what the viewer strictly needs in order to
+run. Everything that exists for the playground or for a test is kept out
+_structurally_ — it lives where the build cannot reach it — rather than by a policy
+asking authors to remember. Four mechanisms hold that line.
+`packages/core/src/packaging/pruneDist.ts` trims what `svelte-package` copied wholesale:
+`src/lib/test/**`, every `*.test.*` and `*.spec.*`, every `__golden__` directory
+wherever it sits, and every `*TestHost.svelte` — matched by SUFFIX rather than by an
+enumerated list, so the next one written is pruned without editing anything.
+`test-consumers/driver/assert-tarball-contents.mjs` then asserts
+the contents of the packed tarball itself rather than of `dist/`. The **workspace
+boundary** keeps application code out of the packages entirely. And `packages/cookbook`
+is the fourth: reference data several consumers need is held in its own package,
+outside core, rather than exported from it. That last one is the standing hazard the
+structure exists to prevent — a recipe catalog reads like library data, and at
+`packages/core/src/lib/cookbook/` no prune rule covers it, so every build copies it
+into `dist/`, and a public `./cookbook` export then makes the accident permanent API.
+Nothing else in the repository reports it.
+_Avoid_: dead code (a test host is live, correct code — it is simply not the library),
+private API (the point is that it is not in the package at all)
+
+**Workspace boundary**:
+The rule that `apps/*` — the site's applications, private and never published — may
+see exactly what an external consumer sees: a package's published entrypoints.
+Reaching into a package's `src` tree is forbidden in BOTH directions, and each
+direction is spelled twice: `no-restricted-imports` for static imports, and
+`no-restricted-syntax` for `import()`, which `no-restricted-imports` does not inspect.
+It is implemented in `eslint.boundaries.js` and called from the root
+`eslint.config.js` with an unanchored `**/src/**` glob plus `apps/**`, and re-declared
+from each app's own `eslint.config.js` because a root-anchored `apps/**` glob matches
+nothing when ESLint runs from inside the app. The unanchored spelling is what lets one
+declaration police all nine packages: each of them runs `eslint .` from its own
+directory, where a root-anchored glob matches nothing at all — which is how a boundary
+rule can end up policing only the single package it was written from.
+
+Why it exists. The playground used to live inside the library, at
+`packages/core/src/demo`, importing core's source directly. Three separate times,
+demo-only chrome was written inside `src/lib` and its strings and glyphs enrolled in
+the shared registries — core's inlang message set and the generated icon manifest.
+Both are indexed by a runtime string (`createLocalizedMessages`' Proxy,
+`icons[weight]?.[name]`), so no bundler can tree-shake them: every demo-only key and
+glyph became bytes in the shipped element artifact. The per-directory rules that
+policed those registries are gone, because the registries are no longer reachable from
+an application at all — and a lint rule guarding an unreachable path teaches a future
+reader that the boundary is softer than it is. This rule is what makes them
+unreachable, and that history is the reason it may not be relaxed.
+_Avoid_: demo boundary (it governs every app, and both directions), import hygiene
+(suggests a preference; this is what makes the registries unreachable)
+
+**Subtree ownership**:
+Which publish job owns which path of the published site, and what triggers it. Every
+job is path-filtered and writes only its own subtree into the durable storage branch,
+so a subtree no job touched is preserved rather than rebuilt or dropped.
+
+| subtree                                                             | owner           | trigger                                     |
+| ------------------------------------------------------------------- | --------------- | ------------------------------------------- |
+| `/`, `/404.html`                                                    | landing         | `apps/landing/**`                           |
+| `/demo/**`                                                          | demo            | `apps/demo/**` or `packages/**`             |
+| `/viewer/**`                                                        | viewer          | `apps/viewer/**` or `packages/**`           |
+| `/docs/<ver>/**` incl. `examples/` and `dist/`                      | docs + examples | `docs/**`, `apps/examples/**`, or a release |
+| `/latest/`, `/versions/`, `/social/`, `/sitemap.xml`, `/robots.txt` | publish job     | any publish                                 |
+
+Demo and viewer rebuild on any `packages/**` change on the default branch, not only on
+release, because they consume the workspace build.
+_Avoid_: deploy target (a subtree is a path in one published tree, not a destination)
+
+**URL contract**:
+`site-urls.json` — the definition of the site's public paths. It records every
+published URL, the subtree owner permitted to write it, and the reason it exists, and
+`scripts/url-contract.mjs` (`pnpm urls:check`) asserts it against the fully assembled
+tree as a required gate.
+Adding, moving or retiring a public URL is an edit to that file, reviewed as such —
+including the case of a path that keeps its URL while serving different content, whose
+reason is recorded there rather than repeated here.
+_Avoid_: sitemap (generated output listing a subset for crawlers; the contract is the
+reviewed source), route table (nothing routes — these are paths in a static tree)
+
 ## Relationships
 
 - **Manager → Store → Adapter**: the manager (the annotation drawing-layer mechanics)
@@ -554,7 +633,11 @@ _Avoid_: content state (that is the spec artifact, not the parsed result)
 - **Host ↔ Plugin**: the host customizes via the extension (behavior), the body editor
   (body UI), and the adapter (storage).
 - **Content state → delivery → View target**: a content state (the payload) arrives
-  through a delivery channel, which the host owns — the viewer ships none. The host
-  reads the channel (the `iiif-content` parameter, a drop handler, a paste), parses the
-  payload into a view target with `parseContentState`, and drives the viewer through
-  `manifestId`/`canvasId`/`initialCanvasRegion`.
+  through a delivery channel, and the channel is the host's. The viewer ships no
+  channel of its own — but it accepts the payload directly on the `content-state`
+  input, and it can be handed ONE channel: `read-content-state-from-url` (off by
+  default) delegates the `iiif-content` parameter to the viewer, read once on mount.
+  Anything else — a drop handler, a paste, a `FileReader` — the host reads itself,
+  parses with `parseContentState`, and drives through
+  `manifestId`/`canvasId`/`initialCanvasRegion`. Those discrete inputs outrank
+  `content-state`, which outranks the URL parameter (ADR 0006).

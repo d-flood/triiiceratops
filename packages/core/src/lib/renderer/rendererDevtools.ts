@@ -5,8 +5,8 @@
  * own counters — residency by canvas, decoded bytes, plan counts, metadata
  * failures — which no public command offers and which ADR 0012 keeps off the
  * plugin surface deliberately. The instrumentation itself lives in
- * `src/devtools/`, which the element build never reaches: the dev entry
- * (`src/main.ts`) registers an installer here, and the renderer calls it if
+ * `src/devtools/`, which the element build never reaches: the e2e harness page
+ * (`public/e2e/harness.html`) registers an installer here, and the renderer calls it if
  * one is present. With no installer registered — every production build — the
  * renderer's thunk is never called and the instrumentation is not in the graph
  * at all.

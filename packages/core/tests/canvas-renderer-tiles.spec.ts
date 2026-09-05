@@ -157,7 +157,7 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
             }),
         );
 
-        await page.goto('/?manifest=/no-cors-manifest.json', {
+        await page.goto('/e2e/harness.html?manifest=/no-cors-manifest.json', {
             waitUntil: 'domcontentloaded',
         });
         await page.locator(SURFACE).waitFor({ state: 'visible' });
@@ -195,7 +195,7 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
     }) => {
         const infoRequests = recordRequests(page, INFO_PATTERN);
 
-        await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+        await page.goto(`/e2e/harness.html?manifest=${TILED_MANIFEST}`, {
             waitUntil: 'domcontentloaded',
         });
         await page.locator(SURFACE).waitFor({ state: 'visible' });
@@ -219,7 +219,7 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
     }) => {
         const infoRequests = recordRequests(page, INFO_PATTERN);
 
-        await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+        await page.goto(`/e2e/harness.html?manifest=${TILED_MANIFEST}`, {
             waitUntil: 'domcontentloaded',
         });
         await expect
@@ -451,7 +451,7 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
             await route.continue();
         });
 
-        await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+        await page.goto(`/e2e/harness.html?manifest=${TILED_MANIFEST}`, {
             waitUntil: 'domcontentloaded',
         });
         await page.locator(SURFACE).waitFor({ state: 'visible' });
@@ -483,7 +483,7 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
             }
         });
 
-        await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+        await page.goto(`/e2e/harness.html?manifest=${TILED_MANIFEST}`, {
             waitUntil: 'domcontentloaded',
         });
         await page.locator(SURFACE).waitFor({ state: 'visible' });
@@ -513,7 +513,7 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
             await route.fulfill({ status: 404, body: 'gone' });
         });
 
-        await page.goto(`/?manifest=${TILED_MANIFEST}`, {
+        await page.goto(`/e2e/harness.html?manifest=${TILED_MANIFEST}`, {
             waitUntil: 'domcontentloaded',
         });
         await page.locator(SURFACE).waitFor({ state: 'visible' });
@@ -600,7 +600,7 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
             if (response.status() >= 400) rejected.push(response.url());
         });
 
-        await page.goto(`/?manifest=${TILED_V2_MANIFEST}`, {
+        await page.goto(`/e2e/harness.html?manifest=${TILED_V2_MANIFEST}`, {
             waitUntil: 'domcontentloaded',
         });
         await page

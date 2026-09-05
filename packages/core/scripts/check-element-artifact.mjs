@@ -125,9 +125,11 @@ const OBSERVED_ATTRIBUTES = /static\s+get\s+observedAttributes\s*\(\s*\)/;
  * load-bearing and gone — has no signal at all: the element renders unstyled,
  * degraded rather than absent, in the shipped viewer only.
  *
- * The risk is not hypothetical. `src/demo/` reaches for `<details>/<summary>`
- * and `<optgroup>` one directory away from the library tree, and demo chrome
- * has leaked back into that tree before.
+ * The risk is not hypothetical. The playground reaches for `<details>/<summary>`
+ * and `<optgroup>`, and demo chrome has leaked into the library tree three
+ * times. The playground is a separate workspace package under `apps/`, held
+ * outside the library by the boundary rule in `eslint.boundaries.js`; this guard
+ * covers the components that remain.
  *
  * TWO LIMITS, deliberately not papered over:
  *
@@ -234,7 +236,12 @@ for (const artifact of ELEMENT_ARTIFACTS) {
 
     // Compiled Svelte templates keep tag names verbatim, so an opening tag in
     // the bundle is a reliable signal the element can reach the shadow root.
-    const emits = (tag) => new RegExp(`<${tag}(?![a-z0-9-])`, 'i').test(code);
+    //
+    // An opening tag is only ever followed by whitespace, `/` or `>`, and the
+    // match is case-sensitive: minified code is full of `h<Hr.length` and
+    // `i<table.length`, and a looser pattern reads a terser variable name as an
+    // emitted element — a false failure that moves with every rename.
+    const emits = (tag) => new RegExp(`<${tag}(?=[\\s/>])`).test(code);
     for (const { selector, branches } of markedRules) {
         // The rule is unreachable as long as every branch is still missing at
         // least one of the element types it needs.

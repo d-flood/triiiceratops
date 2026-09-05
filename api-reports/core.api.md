@@ -257,6 +257,26 @@ interface Props {
     manifestId?: string;
     manifestJson?: any;
     canvasId?: string;
+    /**
+     * A IIIF Content State naming the view to open (ADR 0006): a bare IIIF
+     * URI, an Annotation as JSON, or that Annotation base64url-encoded.
+     *
+     * Ignored whenever {@link manifestId} or {@link manifestJson} is set,
+     * and its canvas and region yield to {@link canvasId} and
+     * {@link initialCanvasRegion} — the discrete inputs are the
+     * manual-driving API and win. Ingestion never throws: what cannot be
+     * honored degrades, reporting on the `content-state` scope of the
+     * `viewererror` channel.
+     */
+    contentState?: string;
+    /**
+     * Opt in to reading the `iiif-content` parameter from the host's
+     * address, once on mount (ADR 0006). Off by default, and the
+     * lowest-precedence source: a viewer dropped into a page it does not
+     * own must not consume a parameter meant for the host application. The
+     * address bar is never mutated.
+     */
+    readContentStateFromUrl?: boolean;
     plugins?: readonly SdkPlugin[] | null | boolean;
     /** Built-in theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
     theme?: BuiltInTheme;
@@ -839,7 +859,8 @@ export type { SelectorCadence, SelectorProjection, SelectorProjectionOptions, Se
  * Three tiers, and the tier is a property of the INPUT, never of the runtime
  * value it happens to carry:
  *
- * - **Attribute tier** (`manifestId`, `canvasId`, `theme`) — rendered
+ * - **Attribute tier** (`manifestId`, `canvasId`, `theme`, `contentState`,
+ *   `readContentStateFromUrl`) — rendered
  *   declaratively as kebab-case attributes by each wrapper, on the server and
  *   on the client's first render alike, so hydration reuses the same host with
  *   no mismatch. {@link viewerElementAttributes} builds that record; it is a
@@ -876,6 +897,27 @@ export interface ViewerAttributeProps {
     canvasId?: string;
     /** Built-in theme name (`light`, `dark`, …). Unknown names are ignored. */
     theme?: string;
+    /**
+     * A IIIF Content State — a bare IIIF URI, an Annotation as JSON, or that
+     * Annotation base64url-encoded — naming the view to open (ADR 0006).
+     *
+     * Lower precedence than the discrete inputs: whenever {@link manifestId} or
+     * `manifestJson` is set, they drive the viewer and this is ignored.
+     * Ingestion never throws — a content state the viewer cannot fully honor
+     * degrades to the most it can, reporting on the `content-state`
+     * `ViewerErrorScope`.
+     */
+    contentState?: string;
+    /**
+     * Opt in to reading the `iiif-content` parameter from the host's address
+     * (ADR 0006). **Off by default**, and deliberately so: the viewer is dropped
+     * into pages it does not own, so consuming an ambient parameter meant for
+     * the host application has to be a decision the host makes.
+     *
+     * Read ONCE on mount, and the lowest-precedence source of all. The address
+     * bar is never mutated.
+     */
+    readContentStateFromUrl?: boolean;
 }
 /** Viewer inputs assigned imperatively as element properties. */
 export interface ViewerPropertyProps {
@@ -913,6 +955,8 @@ export declare const VIEWER_ATTRIBUTE_PROPS: {
     readonly manifestId: "manifest-id";
     readonly canvasId: "canvas-id";
     readonly theme: "theme";
+    readonly contentState: "content-state";
+    readonly readContentStateFromUrl: "read-content-state-from-url";
 };
 /** Property-tier inputs, in the order the applier writes them. */
 export declare const VIEWER_PROPERTY_PROPS: readonly ["manifestJson", "themeConfig", "config", "initialCanvasRegion", "plugins", "searchProvider"];
@@ -925,6 +969,12 @@ export declare function viewerPropTier(name: string): ViewerPropTier | undefined
  *
  * Absent inputs are omitted rather than rendered empty, so a viewer configured
  * only by properties emits a bare host.
+ *
+ * A boolean-valued input follows HTML's own boolean-attribute rule: `true`
+ * renders the attribute empty, `false` omits it entirely. Stringifying it would
+ * emit `read-content-state-from-url="false"`, which the element reads as
+ * PRESENT — a flag a wrapper consumer explicitly turned off would turn itself
+ * back on.
  */
 export declare function viewerElementAttributes(props: Readonly<ViewerAttributeProps>): Record<string, string>;
 /**
@@ -1198,6 +1248,9 @@ export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 export { createPluginSurface } from './plugin/surface';
 export { getPaintingAnnotations } from './utils/iiifParsing';
 export { parseIiifTime } from './utils/iiifTime';
+export type { CanvasRegion } from './utils/contentState';
+export type { ContentStateTarget } from './utils/contentState';
+export { parseContentState } from './utils/contentState';
 export type { ChoiceSelection } from './utils/paintingBodies';
 export { isImageBody, isUnsupportedCanvas, isUnsupportedCanvasFor, paintingBodyAlternatives, } from './utils/paintingBodies';
 export type { CompanionProperty } from './renderer/companionCanvases';
@@ -1661,7 +1714,8 @@ export declare function useViewerSelector<T>(projection: ViewerProjection<T>, op
  *
  * ## The three prop tiers
  *
- * - **Attribute tier** (`manifestId`, `canvasId`, `theme`) is rendered
+ * - **Attribute tier** (`manifestId`, `canvasId`, `theme`, `contentState`,
+ *   `readContentStateFromUrl`) is rendered
  *   declaratively as kebab-case attributes, identically on the server and on
  *   the client's first render, so hydration reuses and upgrades the same host.
  * - **Property tier** (`manifestJson`, `themeConfig`, `config`,
@@ -6902,6 +6956,11 @@ export declare function sortCollectionItems(items: CollectionItem[]): Collection
 // ======================================================================
 // FILE: dist/utils/contentState.d.ts
 // ======================================================================
+/**
+ * IIIF Content State resolution: a bare IIIF URI or a W3C Annotation (optionally
+ * base64url-encoded) becomes the `{ manifestId, canvasId?, region?, time? }`
+ * view target the viewer is driven by. Never throws, never fetches (ADR 0006).
+ */
 import type { IiifTemporalFragment } from './iiifTime';
 export type CanvasRegion = {
     x: number;
@@ -8140,6 +8199,14 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
         readonly type: StringConstructor;
         readonly required: false;
     };
+    readonly contentState: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
+    readonly readContentStateFromUrl: {
+        readonly type: BooleanConstructor;
+        readonly required: false;
+    };
     readonly manifestJson: {
         readonly type: PropType<string | Record<string, any>>;
         readonly required: false;
@@ -8184,6 +8251,14 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
         readonly type: StringConstructor;
         readonly required: false;
     };
+    readonly contentState: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
+    readonly readContentStateFromUrl: {
+        readonly type: BooleanConstructor;
+        readonly required: false;
+    };
     readonly manifestJson: {
         readonly type: PropType<string | Record<string, any>>;
         readonly required: false;
@@ -8215,4 +8290,6 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
     onChoiceChange?: ((snapshot: ViewerStateSnapshot) => any) | undefined;
     onPluginError?: ((error: PluginError) => any) | undefined;
     onViewerError?: ((error: ViewerError) => any) | undefined;
-}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+}>, {
+    readonly readContentStateFromUrl: boolean;
+}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;

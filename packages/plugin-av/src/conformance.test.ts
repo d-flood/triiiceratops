@@ -23,6 +23,10 @@ import {
 import { CORE_VERSION, capabilities, pluginApiVersion } from 'triiiceratops';
 import { describe, expect, it } from 'vitest';
 
+// Safe in a test and not in the plugin source: a test is never bundled, so the
+// shipped artifact still carries no JSON module.
+import pkg from '../package.json';
+
 import { catalog } from './catalog';
 import { AvPlugin } from './plugin';
 
@@ -204,5 +208,17 @@ describe('the published-state classification gate bites', () => {
         await expect(
             CLASSIFICATION_CASE.run(() => misclassifiedAvPlugin()),
         ).rejects.toThrow(/classification/i);
+    });
+});
+
+// Declared-version drift guard. `version` is a hand-written literal (a JSON
+// module here would land package.json in the shipped bundle), and it is what
+// reaches consumers as `pluginerror.pluginVersion` and as the plugin's declared
+// identity. Nothing in the release tooling re-stamps it, so `changeset version`
+// would otherwise publish a package whose own metadata names a version that was
+// never released. Bump both together.
+describe('the declared plugin version', () => {
+    it('matches the version the package actually publishes', () => {
+        expect(AvPlugin.version).toBe(pkg.version);
     });
 });

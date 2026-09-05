@@ -7,9 +7,9 @@ import AxeBuilder from '@axe-core/playwright';
  * Scans each meaningful viewer UI state against each of the four built-in
  * themes with @axe-core/playwright and requires ZERO violations. The scan is
  * scoped to the <triiiceratops-viewer> element (axe descends into its shadow
- * root automatically) so it audits the viewer chrome, not the surrounding demo
- * page. Any rule exception would require a documented allowlist entry with a
- * written rationale — there are none here.
+ * root automatically) so it audits the viewer chrome and nothing around it. Any
+ * rule exception would require a documented allowlist entry with a written
+ * rationale — there are none here.
  *
  * Each test loads the page once and re-scans across all four themes in place
  * (the `theme` attribute is reactive), so the state × theme matrix costs one
@@ -47,7 +47,7 @@ const ALL_PANELS = encodeURIComponent(
 async function loadViewer(page: Page, query = ''): Promise<void> {
     // Cold vite compilation across parallel workers can be slow on first load;
     // give navigation + the chrome wait a generous budget (see test.slow()).
-    await page.goto(`/?manifest=${MANIFEST}${query}`, {
+    await page.goto(`/e2e/harness.html?manifest=${MANIFEST}${query}`, {
         waitUntil: 'domcontentloaded',
         timeout: 60000,
     });

@@ -187,6 +187,7 @@ import {
     zoomRange,
 } from './viewportMath';
 import { watchReducedMotion } from '../state/reducedMotion';
+import type { CanvasRegion } from '../utils/contentState';
 import type { ViewerState } from '../state/viewer.svelte';
 
 export interface CanvasRendererOptions {
@@ -1140,6 +1141,23 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     /**
+     * The identity of the laid-out WORLD: the four viewer members that decide
+     * what is arranged where, joined.
+     *
+     * Read tracked, and `refitForCurrentWorld` depends on that — see its own
+     * doc comment for why those four are change signals while everything else a
+     * fit reads is not.
+     */
+    function worldKey(): string {
+        return [
+            viewerState.manifestId,
+            viewerState.viewingMode,
+            viewerState.viewingDirection,
+            viewerState.preserveCanvasScale,
+        ].join('|');
+    }
+
+    /**
      * The inset the next fit frames into — the edges a plugin has reserved for
      * its own floating UI (`ViewerState.setViewportInset`).
      *
@@ -1293,21 +1311,188 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * decides: navigation inside a world already on screen is travel and eases
      * (ADR 0015 lists canvas navigation among the animated cases); the first
      * measured frame, and a change of world, have no view to travel from.
+     *
+     * An unspent {@link openingRegion} outranks the canvas's own bounds, which
+     * is the whole of how a content state's `#xywh=` reaches the viewport: both
+     * of the paths that adopt an initial view — the first measured frame and
+     * every world refit — come through here, so neither has to know the region
+     * exists.
+     *
+     * `'settled'` is the third answer, and it fits NOTHING. A region already
+     * applied under the geometry in force is neither re-applied nor overridden:
+     * the reader stays exactly where they are, whether that is the region the
+     * viewer opened at or somewhere they have since panned to. This is
+     * `refitForCurrentWorld`'s own rule — a refit that can justify no change
+     * makes none — reaching one step further, and it is load-bearing rather than
+     * an optimisation: a refit on a churned source list lands immediately after
+     * the fit that applies the region, so a fall-through to the whole canvas
+     * here would undo every opening frame.
      */
     function fitCurrentCanvas(animated = false) {
-        applyFit(navigationBoundsTarget(viewportLimits()), animated);
+        const opening = openingRegionTarget();
+        if (opening === 'settled') return;
+        applyFit(opening ?? navigationBoundsTarget(viewportLimits()), animated);
+    }
+
+    /**
+     * The world whose OPENING fit has already been performed — the first fit in
+     * that world with a measured surface and a laid-out canvas.
+     *
+     * This is what separates opening from navigation. Every fit reaches
+     * {@link openingRegionTarget}, and a fit is indistinguishable from any other
+     * by its arguments alone: a page turn and a first frame both arrive with a
+     * canvas and a geometry. Without this memory an initial region sitting in
+     * viewer state would be claimed by whichever fit next happened to be able to
+     * honour it, which on a page turn means framing the canvas the reader
+     * navigated TO on the region the content state named for the one they came
+     * from.
+     */
+    let openedWorld: string | null = null;
+
+    /**
+     * The region the viewer OPENED at — `ViewerState.initialCanvasRegion`, once
+     * this renderer has taken it over, scoped to the world and the canvas it was
+     * honoured for, and carrying the geometry it was last measured against.
+     *
+     * Taken over rather than read in place because the state member is an
+     * ingestion input, not a standing override: leaving it set would re-frame
+     * every later canvas the reader navigated to. See {@link openingRegionTarget}
+     * for when the handover happens and why it is not at mount.
+     */
+    let openingRegion: {
+        world: string;
+        canvasId: string;
+        region: CanvasRegion;
+        /**
+         * `paintedGeometry` as it stood when the region was last framed, or
+         * `null` while it has never been framed. A fit under this same geometry
+         * has no new reading of the region to offer, so it changes nothing.
+         */
+        geometry: string | null;
+    } | null = null;
+
+    /**
+     * What this fit should frame on account of an initial region: the world box
+     * the region names, `'settled'` for a fit that must leave the view alone (see
+     * {@link fitCurrentCanvas}), or `null` when the region has no say in it.
+     *
+     * Three rules, all of them about sequencing rather than about geometry:
+     *
+     * **Claimed only at an opening.** A region is taken over at the first fit of
+     * a world that can actually honour it — a measured surface and a laid-out
+     * canvas — and never at a later fit of that same world. A manifest resolves
+     * asynchronously, so at mount there is no canvas to frame and no geometry to
+     * frame it in; every fit before then leaves the region where the viewer put
+     * it, and the fit that finally has both consumes it. That is why the handover
+     * cannot live in a component effect: mount order is not canvas arrival. The
+     * flip side is that a region arriving after its world has opened is stranded
+     * — deliberately, because `initialCanvasRegion` names where the viewer OPENS,
+     * and a page turn is navigation inside a world already open. It is left in
+     * viewer state rather than discarded, so a change of manifest, mode or
+     * direction — a new world, which opens afresh — still claims it for the
+     * canvas that arrives.
+     *
+     * **Re-framed only under a changed geometry.** The one reason a claimed
+     * region outlives its first fit is a canvas resolving its real intrinsic size
+     * — a thumbnail giving way to a pyramid. Canvas space is the region's own
+     * coordinate system, so that fit is a more accurate reading of the same
+     * region, not a repeat of it. A world also refits on a change of tile sources
+     * alone, and that carries no new reading of the region: such a fit answers
+     * `'settled'`, and the memory survives it so a genuinely later dimension
+     * correction still re-frames.
+     *
+     * **Spent by a change of canvas or of world.** The reader has navigated, and
+     * navigation fits normally.
+     *
+     * Read untracked for the reason {@link currentInset} is: this runs inside
+     * the refit effect, and a tracked read here would make the effect follow
+     * viewer state it only consults when it fits.
+     */
+    function openingRegionTarget(): Box | 'settled' | null {
+        return untrack(() => {
+            if (viewport.width === 0 || viewport.height === 0) return null;
+
+            const canvasId = viewerState.canvasId;
+            if (!canvasId) return null;
+            const placement = placementOf(canvasId);
+            if (!placement) return null;
+
+            const world = worldKey();
+            const opening = openedWorld !== world;
+            openedWorld = world;
+
+            const pending = viewerState.initialCanvasRegion;
+            if (opening && pending) {
+                openingRegion = {
+                    world,
+                    canvasId,
+                    region: pending,
+                    geometry: null,
+                };
+                viewerState.setInitialCanvasRegion(null);
+            }
+
+            if (!openingRegion) return null;
+            if (
+                openingRegion.canvasId !== canvasId ||
+                openingRegion.world !== world
+            ) {
+                openingRegion = null;
+                return null;
+            }
+
+            const geometry = paintedGeometry;
+            if (openingRegion.geometry === geometry) return 'settled';
+
+            const box = regionWithinCanvas(openingRegion.region, placement);
+            if (!box) return null;
+
+            openingRegion.geometry = geometry;
+            return canvasBoxToWorld(box, placement);
+        });
+    }
+
+    /**
+     * A region clipped to the canvas it names, or `null` if nothing of it is on
+     * the canvas at all.
+     *
+     * Ingestion never throws and never blanks the viewer (ADR 0006): a region
+     * running off the edge is honoured for the part that exists, and one wholly
+     * outside the canvas — or non-finite, or degenerate — answers `null` so the
+     * caller fits the whole canvas. Clipping rather than translating, because a
+     * region is a claim about WHERE on this canvas the reader is being sent.
+     */
+    function regionWithinCanvas(
+        region: CanvasRegion,
+        placement: CanvasPlacement,
+    ): Box | null {
+        const extent = canvasExtent(placement);
+        const left = Math.max(0, region.x);
+        const top = Math.max(0, region.y);
+        const right = Math.min(extent.width, region.x + region.width);
+        const bottom = Math.min(extent.height, region.y + region.height);
+        const width = right - left;
+        const height = bottom - top;
+
+        // Stated as `>` rather than `<=` so a `NaN` extent — a region carrying
+        // one, or a canvas with no usable size — fails the test instead of
+        // passing every comparison against it.
+        if (!(width > 0) || !(height > 0)) return null;
+        return { x: left, y: top, width, height };
     }
 
     /**
      * Adopt the view that frames `bounds`.
      *
      * The fitted scale goes through `clampScale` like every other scale this
-     * component adopts. It is a no-op for `fitWorld`/`fitCurrentCanvas`, whose
-     * bounds are layout rects and whose fit therefore IS the home scale — but
-     * the public `fitBounds` command hands in a box a CALLER chose, and a
-     * two-unit box on a 4000-unit canvas fits at a scale hundreds of times the
-     * ceiling. `zoomTo` documents its limits as inescapable; a sibling command
-     * that skips them would make that false, and would bypass the tier and
+     * component adopts. It is a no-op only when the bounds are a layout rect,
+     * whose fit IS the home scale — `fitWorld`, and `fitCurrentCanvas` on the
+     * canvas's own bounds. Clamping is live for every box chosen rather than
+     * measured: the public `fitBounds` command, and the opening region
+     * `fitCurrentCanvas` prefers when a content state named one. A two-unit box
+     * on a 4000-unit canvas fits at a scale hundreds of times the ceiling.
+     * `zoomTo` documents its limits as inescapable; a sibling command that
+     * skips them would make that false, and would bypass the tier and
      * zoom-floor invariants derived from the same range.
      *
      * **The single choke point every fit goes through**, which is why the
@@ -3327,12 +3512,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * at all.
      */
     function refitForCurrentWorld() {
-        const world = [
-            viewerState.manifestId,
-            viewerState.viewingMode,
-            viewerState.viewingDirection,
-            viewerState.preserveCanvasScale,
-        ].join('|');
+        const world = worldKey();
         const sources = untrack(() => options.getTileSources());
         const geometry = untrack(() => paintedGeometry);
 

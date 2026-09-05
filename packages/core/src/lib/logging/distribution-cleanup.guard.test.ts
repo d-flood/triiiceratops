@@ -91,7 +91,8 @@ describe('core distribution cleanup guard (ticket 18)', () => {
     });
 
     // No exclusions: `import.meta.env` is banned throughout `src/lib`. The demo
-    // chrome that used to need it lives in `src/demo`, outside this scan.
+    // chrome that needs it is a separate workspace package under `apps/`,
+    // outside this scan.
     it('has no `import.meta.env` in shipped lib source', () => {
         const offenders: string[] = [];
         for (const full of files) {

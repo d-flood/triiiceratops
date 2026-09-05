@@ -1,0 +1,90 @@
+{
+    "$comment": "The published site's public URL contract. Asserted against the fully assembled tree by `pnpm urls:check` (scripts/url-contract.mjs) as a required merge gate. `{version}` is substituted with the current docs major.minor; a trailing `/` resolves to that directory's index.html. `owner` names the subtree owner from the publishing ownership table: the job permitted to write that path. Adding, moving or retiring a public URL is an edit to this file, reviewed as such.",
+    "urls": [
+        {
+            "url": "/",
+            "owner": "landing",
+            "note": "The front door. A hand-written static page, served directly rather than redirecting anywhere, and the canonical URL for the project as a whole."
+        },
+        {
+            "url": "/404.html",
+            "owner": "landing",
+            "note": "The not-found page the static host serves for every unmatched path. Retired documentation URLs land here by design; nothing is redirected."
+        },
+        {
+            "url": "/demo/",
+            "owner": "demo",
+            "note": "The playground: the full-featured interactive application for trying manifests, plugins and settings. Unversioned — always the current build of the workspace."
+        },
+        {
+            "url": "/viewer/",
+            "owner": "viewer",
+            "note": "The bare content-state viewer application: a viewer with no playground chrome, driven entirely by the content state in the URL. This path previously served the playground, which now lives at /demo/. The path is preserved rather than moved because IIIF cookbook recipes link it directly, so the URL must keep resolving even though what it serves has changed."
+        },
+        {
+            "url": "/docs/{version}/",
+            "owner": "docs",
+            "note": "The documentation home for one major.minor line. Published version directories are immutable: a later release publishes alongside this one rather than over it."
+        },
+        {
+            "url": "/docs/{version}/examples/svelte/",
+            "owner": "examples",
+            "note": "The Svelte consumer example for this release, proving the framework component's packaging works in a browser."
+        },
+        {
+            "url": "/docs/{version}/examples/web-component/",
+            "owner": "examples",
+            "note": "The web-component consumer example for this release, loading the element bundle from the sibling dist/ directory."
+        },
+        {
+            "url": "/docs/{version}/examples/plain-html/",
+            "owner": "examples",
+            "note": "The no-build, plain-HTML consumer example for this release; its relative ../dist/ reference is what pins the bundle location below."
+        },
+        {
+            "url": "/docs/{version}/dist/triiiceratops-element.iife.js",
+            "owner": "examples",
+            "note": "The self-contained element bundle for this release, inside the version directory so an example page always loads the build its own documentation describes."
+        },
+        {
+            "url": "/latest/",
+            "owner": "publish",
+            "note": "A stable alias forwarding to the newest documentation version. Safe to share in prose that should not name a version."
+        },
+        {
+            "url": "/versions/",
+            "owner": "publish",
+            "note": "The human-browsable index of every published documentation version, regenerated on each publish from the version directories present in the tree."
+        },
+        {
+            "url": "/versions.json",
+            "owner": "publish",
+            "note": "The machine-readable version index the documentation's version switcher reads. Newest first, with the latest release carrying the \"latest\" alias."
+        },
+        {
+            "url": "/sitemap.xml",
+            "owner": "publish",
+            "note": "The site-wide sitemap. It names the landing page, the playground, the bare viewer and the current documentation version only; archived versions are absent here and carry a noindex in the directory itself, so what is offered for indexing and what is allowed to be indexed say the same thing."
+        },
+        {
+            "url": "/robots.txt",
+            "owner": "publish",
+            "note": "The crawl policy. It points crawlers at the sitemap and disallows nothing on purpose: a Disallow on an archived version directory would stop crawlers reading the noindex inside it, which is the only thing that gets an already-indexed archived page out of the results."
+        },
+        {
+            "url": "/social/og-docs-v1.png",
+            "owner": "publish",
+            "note": "The social preview image every documentation page's og:image points at. Unversioned and suffix-stamped because scrapers cache preview images by URL for weeks; renaming it invalidates that cache, moving it breaks every card already in circulation."
+        },
+        {
+            "url": "/social/og-landing-v1.png",
+            "owner": "publish",
+            "note": "The social preview image the landing page's og:image points at. Same cache contract as the documentation card, and hardcoded absolutely in apps/landing/index.html."
+        },
+        {
+            "url": "/social/og-viewer-v1.png",
+            "owner": "publish",
+            "note": "The social preview image the playground's og:image points at, showing the viewer actually running. Same cache contract as the other two cards, and hardcoded absolutely in apps/demo/index.html."
+        }
+    ]
+}

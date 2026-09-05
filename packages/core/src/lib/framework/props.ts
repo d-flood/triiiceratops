@@ -5,7 +5,8 @@
  * Three tiers, and the tier is a property of the INPUT, never of the runtime
  * value it happens to carry:
  *
- * - **Attribute tier** (`manifestId`, `canvasId`, `theme`) — rendered
+ * - **Attribute tier** (`manifestId`, `canvasId`, `theme`, `contentState`,
+ *   `readContentStateFromUrl`) — rendered
  *   declaratively as kebab-case attributes by each wrapper, on the server and
  *   on the client's first render alike, so hydration reuses the same host with
  *   no mismatch. {@link viewerElementAttributes} builds that record; it is a
@@ -44,6 +45,27 @@ export interface ViewerAttributeProps {
     canvasId?: string;
     /** Built-in theme name (`light`, `dark`, …). Unknown names are ignored. */
     theme?: string;
+    /**
+     * A IIIF Content State — a bare IIIF URI, an Annotation as JSON, or that
+     * Annotation base64url-encoded — naming the view to open (ADR 0006).
+     *
+     * Lower precedence than the discrete inputs: whenever {@link manifestId} or
+     * `manifestJson` is set, they drive the viewer and this is ignored.
+     * Ingestion never throws — a content state the viewer cannot fully honor
+     * degrades to the most it can, reporting on the `content-state`
+     * `ViewerErrorScope`.
+     */
+    contentState?: string;
+    /**
+     * Opt in to reading the `iiif-content` parameter from the host's address
+     * (ADR 0006). **Off by default**, and deliberately so: the viewer is dropped
+     * into pages it does not own, so consuming an ambient parameter meant for
+     * the host application has to be a decision the host makes.
+     *
+     * Read ONCE on mount, and the lowest-precedence source of all. The address
+     * bar is never mutated.
+     */
+    readContentStateFromUrl?: boolean;
 }
 
 /** Viewer inputs assigned imperatively as element properties. */
@@ -86,6 +108,8 @@ export const VIEWER_ATTRIBUTE_PROPS = {
     manifestId: 'manifest-id',
     canvasId: 'canvas-id',
     theme: 'theme',
+    contentState: 'content-state',
+    readContentStateFromUrl: 'read-content-state-from-url',
 } as const satisfies Record<ViewerAttributePropName, string>;
 
 /** Property-tier inputs, in the order the applier writes them. */
@@ -114,6 +138,12 @@ export function viewerPropTier(name: string): ViewerPropTier | undefined {
  *
  * Absent inputs are omitted rather than rendered empty, so a viewer configured
  * only by properties emits a bare host.
+ *
+ * A boolean-valued input follows HTML's own boolean-attribute rule: `true`
+ * renders the attribute empty, `false` omits it entirely. Stringifying it would
+ * emit `read-content-state-from-url="false"`, which the element reads as
+ * PRESENT — a flag a wrapper consumer explicitly turned off would turn itself
+ * back on.
  */
 export function viewerElementAttributes(
     props: Readonly<ViewerAttributeProps>,
@@ -121,8 +151,8 @@ export function viewerElementAttributes(
     const attributes: Record<string, string> = {};
     for (const [name, attribute] of Object.entries(VIEWER_ATTRIBUTE_PROPS)) {
         const value = props[name as ViewerAttributePropName];
-        if (value === undefined || value === null) continue;
-        attributes[attribute] = String(value);
+        if (value === undefined || value === null || value === false) continue;
+        attributes[attribute] = value === true ? '' : String(value);
     }
     return attributes;
 }

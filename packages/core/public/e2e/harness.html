@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops viewer — e2e harness</title>
+        <!--
+            The viewer, full-bleed, with nothing around it: no header, no
+            settings menu, no theme or language control, no persisted state.
+            The e2e suite drives this page rather than the demo so that library
+            correctness never depends on the demo's chrome.
+
+            Query parameters: `manifest`, `canvas`, `config` (URL-encoded JSON,
+            merged over the same defaults the demo starts from) and `theme`.
+        -->
+        <!-- Dev-only: installs the renderer e2e handle (see src/devtools). -->
+        <script type="module" src="/src/devtools/register.ts"></script>
+        <script type="module" src="/src/e2e/harness.ts"></script>
+        <style>
+            html,
+            body {
+                margin: 0;
+                height: 100%;
+            }
+            triiiceratops-viewer {
+                display: block;
+                width: 100vw;
+                height: 100vh;
+            }
+        </style>
+    </head>
+    <body></body>
+</html>

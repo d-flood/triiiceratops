@@ -129,6 +129,8 @@ reactivity already does that work, so you do not need it here.
 | :-- | :-- |
 | `manifestId` | `string` |
 | `canvasId` | `string` |
+| `contentState` | `string` |
+| `readContentStateFromUrl` | `boolean` (default `false`) |
 | `manifestJson` | `Record<string, any>` |
 | `theme` | `BuiltInTheme` |
 | `themeConfig` | `ThemeConfig` |
@@ -177,6 +179,13 @@ single viewer instance.
 ```ts
 import { manifestsState } from 'triiiceratops/svelte';
 ```
+
+## Live example
+
+[The Svelte example](examples/svelte/) is a Vite + Svelte 5 application that
+imports `triiiceratops/svelte` and `triiiceratops/style.css` from the published
+package. It is published beside these pages and runs this release's bundles, so
+what it does is what the version documented here does.
 
 ## Where to go next
 
