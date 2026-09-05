@@ -21,7 +21,7 @@ import {
     type MeasuredViewer,
     type SessionKind,
 } from '@triiiceratops/comparison';
-import { COOKBOOK_RECIPES, type CookbookRecipe } from '@triiiceratops/cookbook';
+import { COOKBOOK_RECIPES } from '@triiiceratops/cookbook';
 
 const { compression, measuredAt, sessionManifests, viewers } =
     MEASURED_COMPARISON;
@@ -32,10 +32,14 @@ export const MEASURED_AT = measuredAt;
  * The measurement date as the page sets it. Formatted in UTC from the committed
  * `YYYY-MM-DD` so the string does not change with the machine that builds it.
  */
-export const MEASURED_ON = new Date(`${measuredAt}T00:00:00Z`).toLocaleDateString(
-    'en-GB',
-    { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' },
-);
+export const MEASURED_ON = new Date(
+    `${measuredAt}T00:00:00Z`,
+).toLocaleDateString('en-GB', {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+});
 export const COMPRESSION = compression;
 export const SESSION_MANIFESTS = sessionManifests;
 
@@ -92,6 +96,12 @@ const supported = COOKBOOK_RECIPES.filter((r) => r.support === 'supported');
  *
  * `withPlugin` is the figure plotted: both axes have to describe the same
  * viewer, and the size axis is the audiovisual session, which is the pair.
+ *
+ * `matrix` is the same viewer as the Cookbook's own matrix scores it, which is
+ * how every other point on the chart is counted. The two differ because the
+ * matrix records what a project has submitted, and ours understates us; the page
+ * states both rather than plotting the larger and leaving the difference
+ * unexplained.
  */
 export const RECIPES: {
     readonly total: number;
@@ -99,7 +109,7 @@ export const RECIPES: {
     readonly withPlugin: number;
     readonly core: number;
     readonly pluginOnly: number;
-    readonly partial: readonly CookbookRecipe[];
+    readonly matrix: number;
 } = {
     total: COOKBOOK_RECIPES.length,
     audiovisual: COOKBOOK_RECIPES.filter((r) => r.group === 'audiovisual')
@@ -107,7 +117,7 @@ export const RECIPES: {
     withPlugin: supported.length,
     core: supported.filter((r) => !r.requiresPluginAv).length,
     pluginOnly: supported.filter((r) => r.requiresPluginAv).length,
-    partial: COOKBOOK_RECIPES.filter((r) => r.support === 'partial'),
+    matrix: COOKBOOK_RECIPES.filter((r) => r.matrixSupport).length,
 };
 
 // ---- The size bars --------------------------------------------------------
@@ -257,16 +267,18 @@ const maxKb = Math.max(...plotted.map((e) => e.audiovisual.gzip / 1000));
 const yMaxKb = Math.ceil(maxKb / 100) * 100;
 
 function xAt(recipes: number): number {
-    return (
-        PLOT.left + (recipes / RECIPES.total) * (PLOT.right - PLOT.left)
-    );
+    return PLOT.left + (recipes / RECIPES.total) * (PLOT.right - PLOT.left);
 }
 
 function yAt(kb: number): number {
     return PLOT.bottom - (kb / yMaxKb) * (PLOT.bottom - PLOT.top);
 }
 
-function ticks(max: number, step: number, place: (v: number) => number): Tick[] {
+function ticks(
+    max: number,
+    step: number,
+    place: (v: number) => number,
+): Tick[] {
     const out: Tick[] = [];
     for (let value = 0; value <= max; value += step) {
         out.push({ value, at: Math.round(place(value) * 10) / 10 });
@@ -327,10 +339,12 @@ export const CAPABILITY_ROWS: readonly CapabilityRow[] = plotted
         name: viewer.name,
         isSelf: viewer.isSelf,
         recipes,
-        partial:
-            viewer.id === PAIR_ID
-                ? RECIPES.partial.length
-                : (pinnedEntry(viewer.id).matrixRecipes?.partial ?? 0),
+        // Only a pinned matrix reading can carry a partial: the recipe catalog
+        // has no such status, so our own row is always a whole number of
+        // recipes.
+        partial: viewer.isSelf
+            ? 0
+            : (pinnedEntry(viewer.id).matrixRecipes?.partial ?? 0),
         gzip: audiovisual.gzip,
         bytesPerRecipe: Math.round(audiovisual.gzip / recipes),
     }))
@@ -390,17 +404,6 @@ export const NO_AV: readonly string[] = viewers
 export const LAZY_CHUNKS: readonly { name: string; gzip: number }[] = (
     viewers.find((viewer) => viewer.id === PAIR_ID)?.lazyArtifacts ?? []
 ).map((file) => ({ name: file.name, gzip: file.gzip }));
-
-/**
- * A catalog reason as this page sets it: the catalog's own prose, with its
- * Markdown code ticks dropped and its `docs/<page>.md` reference named as the
- * guide it points at, since that guide is not a page of this site.
- */
-export function reasonText(reason: string): string {
-    return reason
-        .replace(/`docs\/([\w-]+)\.md`/g, 'the $1 guide')
-        .replace(/`/g, '');
-}
 
 // ---- The disclosure -------------------------------------------------------
 

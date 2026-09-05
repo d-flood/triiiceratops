@@ -174,9 +174,12 @@ inventory decision. Reading such values reactively is a selector cadence choice,
 reclassification.
 
 **Active locale**:
-The locale a given viewer instance renders in: its configured locale if set, otherwise
-the page default. Per viewer instance — plugin context reports the owning viewer's
-active locale, and all of that viewer's chrome and plugin UI render in it.
+The locale a given viewer instance renders in: the language its own picker chose if the
+user chose one, otherwise its configured locale, otherwise the page default. Per viewer
+instance — plugin context reports the owning viewer's active locale, and that viewer's
+chrome and plugin UI render in it. It is a _content_ locale, ranging over whatever
+languages a manifest is authored in; a message catalog that has no entry for it (core's
+chrome, a plugin's) falls back rather than rendering in the wrong language.
 _Avoid_: the locale, current language (ambiguous about whose)
 
 ## Renderer domain
@@ -541,6 +544,41 @@ Triiiceratops' resolved projection of a content state after parsing —
 incoming content state. (Currently typed `ContentStateTarget` in `contentState.ts`.)
 _Avoid_: content state (that is the spec artifact, not the parsed result)
 
+## Site content domain
+
+**Content document**:
+One route's body and its own words held as a single Uncial document in normalized
+JSON — the page's heading, its rail label and its lede among them, so the most-read
+prose on a page is content rather than code. A route either has one or is rendered
+from code; there is no partial case.
+_Avoid_: page (that is the route, not its body), template (a document is content, not
+the markup around it), markdown file (the stored form is a normalized document, not
+prose markup)
+
+**Edit variant**:
+The development-only editing route paired with a content route: the same page in the
+same layout with the editor standing where the body would be, writing each change
+straight back to the document it is showing. A production build has no such route and
+carries no editor.
+_Avoid_: admin, CMS route (there is no second application), draft mode (there is no
+save step and no unpublished state)
+
+**Derived block**:
+A block placed in a content document but rendered from code, with nothing editable
+inside it. Two kinds, and the distinction is load bearing: a _live-data_ block carries
+no attributes and renders the data it names directly, so the document holds no copy to
+drift from it; a _script-owned_ block carries attributes a generator writes and a gate
+re-checks, and is read-only in the editor for that reason.
+_Avoid_: component, embed (both describe how it renders rather than what it guarantees:
+that the figures it shows cannot be hand-edited)
+
+**Local storage backend**:
+The filesystem implementation of Uncial's forge interface: content documents are read
+and written in the working tree itself, with no hosting provider, no authentication and
+no commit step. Version control is the history and the undo.
+_Avoid_: local mode, offline CMS (nothing is queued or synced later — the working tree
+is the store)
+
 ## Repository topology
 
 **Shipped surface**:
@@ -574,7 +612,7 @@ It is implemented in `eslint.boundaries.js` and called from the root
 `eslint.config.js` with an unanchored `**/src/**` glob plus `apps/**`, and re-declared
 from each app's own `eslint.config.js` because a root-anchored `apps/**` glob matches
 nothing when ESLint runs from inside the app. The unanchored spelling is what lets one
-declaration police all nine packages: each of them runs `eslint .` from its own
+declaration police all ten packages: each of them runs `eslint .` from its own
 directory, where a root-anchored glob matches nothing at all — which is how a boundary
 rule can end up policing only the single package it was written from.
 
@@ -592,33 +630,41 @@ unreachable, and that history is the reason it may not be relaxed.
 _Avoid_: demo boundary (it governs every app, and both directions), import hygiene
 (suggests a preference; this is what makes the registries unreachable)
 
-**Subtree ownership**:
-Which publish job owns which path of the published site, and what triggers it. Every
-job is path-filtered and writes only its own subtree into the durable storage branch,
-so a subtree no job touched is preserved rather than rebuilt or dropped.
-
-| subtree                                                             | owner           | trigger                                     |
-| ------------------------------------------------------------------- | --------------- | ------------------------------------------- |
-| `/`, `/404.html`                                                    | site            | `apps/site/**`                              |
-| `/demo/**`                                                          | demo            | `apps/demo/**` or `packages/**`             |
-| `/viewer/**`                                                        | viewer          | `apps/viewer/**` or `packages/**`           |
-| `/docs/<ver>/**` incl. `examples/` and `dist/`                      | docs + examples | `docs/**`, `apps/examples/**`, or a release |
-| `/latest/`, `/versions/`, `/social/`, `/sitemap.xml`, `/robots.txt` | publish job     | any publish                                 |
-
-Demo and viewer rebuild on any `packages/**` change on the default branch, not only on
-release, because they consume the workspace build.
-_Avoid_: deploy target (a subtree is a path in one published tree, not a destination)
-
 **URL contract**:
 `site-urls.json` — the definition of the site's public paths. It records every
-published URL, the subtree owner permitted to write it, and the reason it exists, and
-`scripts/url-contract.mjs` (`pnpm urls:check`) asserts it against the fully assembled
-tree as a required gate.
+published URL, which build emits it, and the reason it exists, and
+`scripts/url-contract.mjs` (`pnpm urls:check`) asserts it against the built tree as a
+required gate.
 Adding, moving or retiring a public URL is an edit to that file, reviewed as such —
 including the case of a path that keeps its URL while serving different content, whose
 reason is recorded there rather than repeated here.
 _Avoid_: sitemap (generated output listing a subset for crawlers; the contract is the
 reviewed source), route table (nothing routes — these are paths in a static tree)
+
+**Vendored workspace**:
+Uncial, at `vendor/uncial`, is at once a member of this workspace
+(`vendor/uncial/packages/*`) and a complete pnpm workspace of its own, carrying its own
+`pnpm-workspace.yaml` and its own lockfile. Membership is what resolves the `workspace:*`
+links to it, and what makes `pnpm install` fail outright when the submodule is not
+checked out. The second workspace is what makes it a hazard: a pnpm command whose cwd is
+inside `vendor/uncial` resolves against Uncial's root rather than this one and installs
+from Uncial's lockfile, which honours none of the `overrides` here — chiefly
+`uncial-cms>vite: ^6.0.0`, the pin that keeps the `Plugin` returned by
+`createLocalVitePlugin` the same type the site's `vite.config.ts` is written against. The
+`vendor/uncial/node_modules` that leaves behind shadows resolution for the whole tree,
+and reports itself two steps away as svelte-check errors in `apps/site` naming a `Plugin`
+mismatch rather than the store that caused it. `scripts/assert-no-nested-store.mjs` gates
+`pnpm check` and `pnpm test` on its absence.
+Upstream work never needs to `cd` in there: `pnpm check:uncial` and `pnpm test:uncial`
+run the submodule's own suites through this workspace's store. Note what that verifies —
+Uncial under the Vite this repository builds it with, not the Vite 7 its own CI uses.
+The store at `vendor/uncial` itself is the mistake; the root install provisions each
+member at `vendor/uncial/packages/*/node_modules`, which is ordinary — but a nested
+install repoints those members at its own store, so recovery deletes them along with it.
+Deleting the store alone leaves them dangling, and the lockfile is already satisfied, so
+the reinstall relinks nothing and the dev server serves a 500 from inside Uncial's source.
+_Avoid_: nested install, submodule node_modules (both name the symptom, where the cause
+is that the submodule is a workspace root in its own right)
 
 ## Relationships
 
@@ -632,6 +678,11 @@ reviewed source), route table (nothing routes — these are paths in a static tr
   included.
 - **Host ↔ Plugin**: the host customizes via the extension (behavior), the body editor
   (body UI), and the adapter (storage).
+- **Content route → content document → derived block**: a route declared as content has
+  exactly one document, which holds its body and its own words; a derived block inside
+  that document is a hole the document does not fill, rendered from code so that what it
+  shows cannot be hand-edited. The **edit variant** is that same document opened for
+  writing, and exists only where a **local storage backend** can reach the working tree.
 - **Content state → delivery → View target**: a content state (the payload) arrives
   through a delivery channel, and the channel is the host's. The viewer ships no
   channel of its own — but it accepts the payload directly on the `content-state`

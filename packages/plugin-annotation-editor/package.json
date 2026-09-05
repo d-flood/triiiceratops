@@ -62,13 +62,13 @@
         "openseadragon": "^5.0.1"
     },
     "devDependencies": {
-        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "@sveltejs/vite-plugin-svelte": "^6.2.4",
         "@triiiceratops/plugin-sdk": "workspace:*",
         "@triiiceratops/ui": "workspace:*",
         "@types/node": "^24.10.1",
         "@types/openseadragon": "^5.0.1",
         "@vitest/coverage-v8": "4.0.15",
-        "svelte": "5.45.5",
+        "svelte": "5.56.10",
         "svelte-check": "^4.3.4",
         "triiiceratops": "workspace:*",
         "typescript": "~5.9.3",

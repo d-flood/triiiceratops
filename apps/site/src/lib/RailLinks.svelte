@@ -7,12 +7,14 @@
     } from './site';
 
     /**
-     * The rail's coloured link block: the four destinations that are not pages
-     * of this site. The hosted viewer leads because a stranger watching their
+     * The rail's coloured link block: the four destinations the rail's own list
+     * does not carry. The hosted viewer leads because a stranger watching their
      * own material render outperforms every chart on the site.
      *
-     * The documentation link uses the version-agnostic alias, not a version
-     * segment: the rail outlives release lines.
+     * Three of them are routes of this application and the fourth is the
+     * repository; the documentation is a link into its own sidebar rather than
+     * an entry in the rail's list, because seventeen pages in a rail of seven
+     * would be a different argument.
      */
 </script>
 

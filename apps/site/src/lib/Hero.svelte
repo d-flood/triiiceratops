@@ -65,7 +65,11 @@
                 config={current.config}
                 label="The viewer, running"
             />
-            <div class="hero__pick" role="group" aria-label="Chrome arrangement">
+            <div
+                class="hero__pick"
+                role="group"
+                aria-label="Chrome arrangement"
+            >
                 {#each HERO_CONFIGURATIONS as arrangement, at (arrangement.label)}
                     <button
                         type="button"

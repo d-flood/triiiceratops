@@ -15,13 +15,13 @@ export const PORT = process.env.SITE_E2E_PORT ?? '5179';
 export const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 /**
- * The second origin: the fully assembled `published/` tree, served statically.
+ * The second origin: the built tree at `apps/site/build`, served statically.
  *
- * The score gate measures this rather than the development server. The SEO
- * category reads `robots.txt` and `sitemap.xml`, which the publish step owns at
- * the tree's root, and the rail links out to sibling subtrees that exist only
- * once the tree is assembled — so only the assembled tree gives real answers
- * about links and crawlability.
+ * One build emits the whole published tree, so this IS the published site. The
+ * score gate measures it rather than the development server: the SEO category
+ * reads `robots.txt` and `sitemap.xml` at the tree's root, the search bundle and
+ * the consumer examples are written after the bundler has finished, and only the
+ * finished tree gives real answers about links and crawlability.
  */
 export const PUBLISHED_PORT = process.env.SITE_PUBLISHED_PORT ?? '5180';
 

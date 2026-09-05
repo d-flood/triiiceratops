@@ -1,0 +1,149 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "heading",
+			"attrs": {
+				"id": "7155b28e-951c-51c5-a05e-155d131d9756",
+				"slug": "placeholder-section",
+				"level": 2
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder section"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "a4c2c964-501c-5e37-b8e4-35b33d05f4ec"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder paragraph. This block exists so the page's measure, rhythm and rule weights can be judged at the width a reader will see them, and so the route is a real document rather than an empty one."
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "95b1565e-60d6-53c2-991e-cee8c90a8ae8"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder paragraph. A second paragraph, because a single one does not show how the spacing between them reads."
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"id": "875b3877-0465-5955-802e-8f5f335c1b9a",
+				"slug": "a-second-placeholder-section",
+				"level": 2
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "A second placeholder section"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "6d122ed5-245d-5635-b98f-0d7306555ed0"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Placeholder paragraph. Ideas on this site sit on ruled rows and lists rather than in cards, so the list below stands in for whatever the finished page arranges here."
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"attrs": {
+				"id": "414f8a88-c9b0-53ab-bafc-1b7478981843"
+			},
+			"content": [
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "f3916c95-25cc-54e0-8dc5-eb1e8da4ebce"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "0f67d323-6ff9-5999-bbdb-d72d79822aad"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Placeholder item."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "72ead702-f0d7-545b-8c6f-e2ab42a04909"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "3222f1e6-5395-5cf2-b63d-6cca664b44c9"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Placeholder item."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "56c8b9b8-4c40-504b-a78f-f6458ed88f05"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "5083fb82-606a-52d1-8f95-d353baf4211f"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Placeholder item."
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "2a42e837-aad8-5317-9ae2-77913cf6b5a1"
+			}
+		}
+	],
+	"meta": {
+		"title": "In production",
+		"shortTitle": "In production",
+		"intro": "Real deployments you can open, because a working link into a live reading room is the strongest evidence this site can carry."
+	}
+}

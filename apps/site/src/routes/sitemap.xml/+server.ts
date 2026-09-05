@@ -1,18 +1,19 @@
-import { LISTED } from '$lib/routes';
+import { DOC_ROUTES, NAV } from '$lib/routes';
 import { absolute } from '$lib/site';
 
 /**
- * The marketing site's own sitemap, prerendered to `sitemap.xml` at the root of
- * this application's build.
+ * The site's sitemap, prerendered to `sitemap.xml` at the root of this
+ * application's build — which is the root of the published tree.
  *
  * Adding a page is one edit — the declaration in `routes.ts` — and the appendix
- * and any route still carrying filler are absent, because a page nobody may
- * index must not be offered for indexing.
+ * is absent, because a page nobody may index must not be offered for indexing.
+ * The documentation is here with the rail's pages: the rail does not carry it,
+ * but it is published prose and a crawler is offered it.
  *
- * Site assembly re-roots these entries into the site-wide sitemap, the way it
- * re-roots the documentation generator's, and owns `/sitemap.xml` in the
- * published tree; this file is its input. See `writeSitemap` in
- * scripts/docs-publish.mjs.
+ * This is the published sitemap: one build emits the whole tree, so nothing
+ * re-roots or merges it afterwards. The playground and the bare viewer are
+ * deliberately absent — a canvas application is not prose a crawler has any use
+ * for, and `/sitemap.xml`'s entry in site-urls.json says so.
  */
 export const prerender = true;
 
@@ -30,10 +31,12 @@ function xmlEscape(text: string): string {
 }
 
 export function GET(): Response {
-    const body = LISTED.map(
-        (route) =>
-            `  <url>\n    <loc>${xmlEscape(absolute(route.path))}</loc>\n  </url>`,
-    ).join('\n');
+    const body = [...NAV, ...DOC_ROUTES]
+        .map(
+            (route) =>
+                `  <url>\n    <loc>${xmlEscape(absolute(route.path))}</loc>\n  </url>`,
+        )
+        .join('\n');
     return new Response(
         '<?xml version="1.0" encoding="UTF-8"?>\n' +
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +

@@ -194,6 +194,14 @@ function normalize(node: unknown): unknown {
         if (key === 'start' || key === 'end' || key === 'loc') continue;
         if (key === 'content') continue;
         /*
+         * The stylesheet root carries every comment in the sheet as a sibling
+         * of `children`. Dropping comments is the minifier's job, so this
+         * collection is expected to differ; the comparison still sees any
+         * comment the minifier was NOT allowed to touch, because those live
+         * inside a raw value string that `normalizeRawText` guards verbatim.
+         */
+        if (key === 'comments' && record.type === 'StyleSheet') continue;
+        /*
          * The parser hands back an attribute selector's value with its quotes
          * already removed, so nothing here is raw CSS the minifier may re-space
          * — every byte is part of the matched string. Compare it untouched.

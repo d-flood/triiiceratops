@@ -1,0 +1,4608 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Core is an image viewer. A canvas whose painting bodies are "
+				},
+				{
+					"type": "text",
+					"text": "Sound",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or "
+				},
+				{
+					"type": "text",
+					"text": "Video",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " gets core's "
+				},
+				{
+					"type": "text",
+					"text": "unsupported presentation",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — an honest placard that keeps the canvas in layout, navigation, and the thumbnail strip, but plays nothing."
+				}
+			],
+			"attrs": {
+				"id": "1f878e14-41bb-4406-a7be-a72bc4a78e2a"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " "
+				},
+				{
+					"type": "text",
+					"text": "claims",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " those canvases and renders their media instead: a media stage over the canvas rect, playback controls in the viewer's own control bar, waveforms, captions, a transcript panel, and an "
+				},
+				{
+					"type": "text",
+					"text": "AVState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " object your application can command playback through."
+				}
+			],
+			"attrs": {
+				"id": "784da3e4-a4a8-43c2-a012-139d986e9e19"
+			}
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "info",
+				"title": "Audiovisual support is opt-in",
+				"id": "53f4606b-bb1b-45d4-ad8b-c12bd389e9e7"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "None of it is in core's bundle, and none of it activates unless you add the plugin to a viewer's "
+						},
+						{
+							"type": "text",
+							"text": "plugins",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " list. Registering it costs 15.5 KB gzip, and its four heaviest pieces are "
+						},
+						{
+							"type": "text",
+							"text": "lazy chunks",
+							"marks": [
+								{
+									"type": "link",
+									"attrs": {
+										"href": "#bundle"
+									}
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " fetched only when a manifest needs them. A page of scanned folios pays nothing."
+						}
+					],
+					"attrs": {
+						"id": "dba94340-1098-4b7f-bff8-81ae0b88b559"
+					}
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "install",
+				"id": "ba44068f-66dc-4614-9501-e8fa909a2278"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Install"
+				}
+			]
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "package-manager",
+				"id": "2d762f15-53f0-4227-b3ec-d3f46b413f25"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "pnpm",
+						"id": "f951229b-6e4a-4a53-a4be-7c9512213074"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "b232b065-9b19-4993-aea4-3518753ddb0f"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pnpm add @triiiceratops/plugin-av"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "npm",
+						"id": "5cff05e0-68f4-41a1-80b6-4aa8309156d6"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "5ca79360-2d2f-49fa-8690-c3a2cf616a1e"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "npm install @triiiceratops/plugin-av"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "bun",
+						"id": "6afa3eb5-7684-4558-836d-f43208017a79"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "b730bf64-dc12-4791-bba9-65b86a266978"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "bun add @triiiceratops/plugin-av"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "triiiceratops",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-sdk",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and "
+				},
+				{
+					"type": "text",
+					"text": "svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are peers."
+				}
+			],
+			"attrs": {
+				"id": "90aa01ce-cabb-48e7-86ba-791d85d6a6b1"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "registering-it",
+				"id": "7510200f-06cc-4c13-ae9c-cae26efa74ad"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Registering it"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "AvPlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is exported ready to use with no configuration. Hand it to the viewer the way you hand it any other plugin — see "
+				},
+				{
+					"type": "text",
+					"text": "adding a plugin to your viewer",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#adding-a-plugin-to-your-viewer"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the full per-framework code:"
+				}
+			],
+			"attrs": {
+				"id": "8e9a204c-e258-4bd5-a5f7-0217f11ceaa4"
+			}
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "framework",
+				"id": "c0b76c4e-439f-44f4-8e19-13939c82ba8e"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "HTML",
+						"id": "08549205-1694-4d50-9707-60a01b85362c"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "ts",
+								"id": "a6435214-ddfd-4f04-ba08-b6a72a36e21e"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import 'triiiceratops/element/register';\nimport { AvPlugin } from '@triiiceratops/plugin-av';\n\nviewer.plugins = [AvPlugin];"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "React",
+						"id": "039655a0-1829-4d6e-8675-5279f30d44cc"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "tsx",
+								"id": "c55962a6-0fba-46bc-b350-1e9e9299d6f2"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import { TriiiceratopsViewer } from 'triiiceratops/react';\nimport { AvPlugin } from '@triiiceratops/plugin-av';\n\nconst plugins = [AvPlugin];\n\nexport function Reader() {\n    return (\n        <TriiiceratopsViewer\n            manifestId=\"https://example.org/manifest.json\"\n            plugins={plugins}\n            style={{ display: 'block', height: '600px' }}\n        />\n    );\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Vue",
+						"id": "a19bf450-41b1-496d-8d27-6bf04e121e50"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "vue",
+								"id": "cbdb0028-4de7-465a-852c-204de652c5dc"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script setup lang=\"ts\">\nimport { TriiiceratopsViewer, type SdkPlugin } from 'triiiceratops/vue';\nimport { AvPlugin } from '@triiiceratops/plugin-av';\n\nconst plugins: readonly SdkPlugin[] = [AvPlugin];\n</script>\n\n<template>\n    <TriiiceratopsViewer\n        manifest-id=\"https://example.org/manifest.json\"\n        :plugins=\"plugins\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Svelte",
+						"id": "b86dda41-4dc9-4373-9206-5ad85bc14c18"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "ec9b504d-854b-4306-ad66-bee19da0d436"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script>\n    import { TriiiceratopsViewer } from 'triiiceratops/svelte';\n    import 'triiiceratops/style.css';\n    import { AvPlugin } from '@triiiceratops/plugin-av';\n</script>\n\n<TriiiceratopsViewer\n    manifestId=\"https://example.org/manifest.json\"\n    plugins={[AvPlugin]}\n/>"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "as-a-script-tag-iife",
+				"id": "5dbaf471-ee9c-4424-9260-ffaef1e29606"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "As a script tag (IIFE)"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Two things are different here from every other Triiiceratops plugin, and both matter."
+				}
+			],
+			"attrs": {
+				"id": "070022d2-16a0-4f3f-893b-dddd4100b4c1"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Host the ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "dist",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " DIRECTORY, not one file out of it.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " The lazy chunks are sibling ES modules the entry "
+				},
+				{
+					"type": "text",
+					"text": "import()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "s by a URL resolved against its own "
+				},
+				{
+					"type": "text",
+					"text": "document.currentScript.src",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Copy "
+				},
+				{
+					"type": "text",
+					"text": "node_modules/@triiiceratops/plugin-av/dist/",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " somewhere your server serves it and point the script tag inside that directory. A deployment that copies only "
+				},
+				{
+					"type": "text",
+					"text": "iife.js",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " works until a reader reaches anything a chunk serves — an HLS stream, a canvas with linked waveform data, a canvas whose duration is tiled by several media files, or a caption track that loaded with cues in it — and then 404s."
+				}
+			],
+			"attrs": {
+				"id": "a8176804-7504-4042-b5d9-819e84f02a78"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Core's script must load first.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Unlike other plugins this one does not bundle a Svelte runtime; it reads core's off "
+				},
+				{
+					"type": "text",
+					"text": "window.Triiiceratops",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", which is what keeps it as small as it is. See "
+				},
+				{
+					"type": "text",
+					"text": "script order",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#script-order-triiiceratops-plugin-av-loads-after-core"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for what the diagnostic looks like when the order is wrong."
+				}
+			],
+			"attrs": {
+				"id": "3741fcf0-3fa6-4a94-b89c-4aaf1b2063e3"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "218e8494-b289-475a-87c7-143f3f887991"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script src=\"/assets/triiiceratops-element.iife.js\"></script>\n<script src=\"/assets/plugin-av/iife.js\"></script>\n\n<triiiceratops-viewer id=\"viewer\"></triiiceratops-viewer>\n<script>\n    // Loading the script only registers a factory; activation is per-viewer.\n    document.getElementById('viewer').plugins = [\n        window.Triiiceratops.plugins.get('@triiiceratops/plugin-av'),\n    ];\n</script>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The shared runtime is a "
+				},
+				{
+					"type": "text",
+					"text": "first-party arrangement, not a pattern to copy",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": "
+				},
+				{
+					"type": "text",
+					"text": "svelte/internal",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is private, unversioned API, and it is only safe here because core and this plugin are built and released from one repository at one Svelte version. The plugin pins "
+				},
+				{
+					"type": "text",
+					"text": "coreRange",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to an exact core version to say so, and refuses to activate against anything else. If you are writing your own plugin, "
+				},
+				{
+					"type": "text",
+					"text": "bundle your own Svelte runtime",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-authoring/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "f777aeb5-94e7-4fb0-95b9-a44f1659122f"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "what-it-renders",
+				"id": "2e4ef709-3503-4d14-9090-06bbca21e70a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "What it renders"
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Stage layout.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " The claimed canvas rect is divided into lanes in canvas space, so the whole stack pans and zooms with the viewer. Video takes the whole rect as a visual lane. Audio takes the whole rect as a timeline lane, which draws a waveform when the canvas links audiowaveform data and is a bare timeline otherwise. A canvas core paints a companion Canvas into gets no lanes at all — the rect belongs to the renderer, and the stage contributes only a tap target, the play-state glyph and the \"can't play\" notice. That covers a canvas with an "
+								},
+								{
+									"type": "text",
+									"text": "accompanyingCanvas",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and a canvas with a "
+								},
+								{
+									"type": "text",
+									"text": "placeholderCanvas",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " until its first play, so a recording published with a poster shows no waveform until it starts playing. Because the lane is a region of the rect, it keeps the canvas's own aspect ratio: a publisher that declares a very wide, very short audio canvas gets a correspondingly shallow lane."
+								}
+							],
+							"attrs": {
+								"id": "a1ecc8a8-4a22-4f8b-bf5f-7ffebc457f8a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d4d929f8-5b14-490f-8694-77a1df049717"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Timeline projection.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " Canvas x maps linearly to media time, so the viewer's own zoom doubles as temporal zoom into the waveform, and a tap on the timeline lane is a seek."
+								}
+							],
+							"attrs": {
+								"id": "e3581583-86e4-40e2-9c62-e62c6f78adaf"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8eb71952-6f08-42b4-9a7e-a3b10d39d24c"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Transport.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " Play/pause, a real "
+								},
+								{
+									"type": "text",
+									"text": "role=\"slider\"",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " scrubber with arrow-key seeking and buffered ranges, elapsed/total time, mute and volume, and a captions control when tracks exist. It is registered into core's control bar through the "
+								},
+								{
+									"type": "text",
+									"text": "transport-chrome",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " seam, so it is themed and placed like the rest of the viewer's chrome. There is exactly one, driving the current canvas; every other claimed canvas on screen carries a decorative play-state glyph on its own stage, so a reader with several recordings in view can tell which one is playing. Every label comes from the plugin's own locale catalog in the viewer's active locale. Native "
+								},
+								{
+									"type": "text",
+									"text": "controls",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " are never shown."
+								}
+							],
+							"attrs": {
+								"id": "23eba511-87b9-478c-9d3a-bfed3266c527"
+							}
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": " While the transport is registered, "
+								},
+								{
+									"type": "text",
+									"text": "nav.align",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is "
+								},
+								{
+									"type": "text",
+									"text": "inert",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and the control bar spans its full width — the seek bar's width is the precision a reader aims with. "
+								},
+								{
+									"type": "text",
+									"text": "nav.style",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "nav.edge",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and "
+								},
+								{
+									"type": "text",
+									"text": "controls",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " go on meaning exactly what they meant. See "
+								},
+								{
+									"type": "text",
+									"text": "nav alignment and playback controls",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/configuration/#nav-alignment-and-playback-controls"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "d47fe000-f6f9-42ee-9da4-9130360fb8ef"
+							}
+						}
+					],
+					"attrs": {
+						"id": "91a66887-ad03-4d6c-88f0-a84143b5eb80"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Waveform.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " Drawn from audiowaveform data linked from the canvas, parsed into one peaks model whichever on-disk format arrived. Temporal zoom sharpens only to the data's own resolution and never fabricates detail."
+								}
+							],
+							"attrs": {
+								"id": "ce9d964f-7f14-45bd-826e-de7212f1e8aa"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d711a73b-a1e9-4d3a-b9e3-33bbd870417f"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Transcript panel.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " A list of timestamped, keyboard-operable buttons: the entry at the playhead is marked, clicking one seeks without starting playback, and following the playhead stops the moment you scroll away. It draws on three things the current canvas may offer, and lists whichever of them are there:"
+								}
+							],
+							"attrs": {
+								"id": "4301c3c1-8b13-4e59-a1d7-9bc39b7d9704"
+							}
+						},
+						{
+							"type": "table",
+							"content": [
+								{
+									"type": "tableRow",
+									"content": [
+										{
+											"type": "tableHeader",
+											"content": [
+												{
+													"type": "paragraph",
+													"content": [
+														{
+															"type": "text",
+															"text": "Source"
+														}
+													],
+													"attrs": {
+														"id": "a615cde6-646d-4010-8857-1a0b8d0e2b65"
+													}
+												}
+											],
+											"attrs": {
+												"id": "903da3c3-69bc-408b-845b-d9c0854cff1e"
+											}
+										},
+										{
+											"type": "tableHeader",
+											"content": [
+												{
+													"type": "paragraph",
+													"content": [
+														{
+															"type": "text",
+															"text": "IIIF shape"
+														}
+													],
+													"attrs": {
+														"id": "b9be3da0-4abf-43dd-b167-04062b79d94a"
+													}
+												}
+											],
+											"attrs": {
+												"id": "25fe28fc-441b-4dda-a798-b1eea53777f3"
+											}
+										}
+									],
+									"attrs": {
+										"id": "16e9ceb0-08d9-4df2-91dc-673d19d1bddf"
+									}
+								},
+								{
+									"type": "tableRow",
+									"content": [
+										{
+											"type": "tableCell",
+											"content": [
+												{
+													"type": "paragraph",
+													"content": [
+														{
+															"type": "text",
+															"text": "Caption cues"
+														}
+													],
+													"attrs": {
+														"id": "e7c2cefe-6282-4ee9-ab35-f2deae6cf42f"
+													}
+												}
+											],
+											"attrs": {
+												"id": "a15a75fd-a487-4d53-94a1-7a9ab44bbfe7"
+											}
+										},
+										{
+											"type": "tableCell",
+											"content": [
+												{
+													"type": "paragraph",
+													"content": [
+														{
+															"type": "text",
+															"text": "the WebVTT track behind the captions control"
+														}
+													],
+													"attrs": {
+														"id": "27b38424-d02b-4bb1-b975-6ca3dbcae7f2"
+													}
+												}
+											],
+											"attrs": {
+												"id": "91fb36b8-a0f9-4ff0-a0ce-003ffb331824"
+											}
+										}
+									],
+									"attrs": {
+										"id": "50d28581-fd0c-4601-ab71-25a6d83bd9cc"
+									}
+								},
+								{
+									"type": "tableRow",
+									"content": [
+										{
+											"type": "tableCell",
+											"content": [
+												{
+													"type": "paragraph",
+													"content": [
+														{
+															"type": "text",
+															"text": "The manifest's timed notes"
+														}
+													],
+													"attrs": {
+														"id": "1fe146b2-bab2-4359-b25d-95880f678f94"
+													}
+												}
+											],
+											"attrs": {
+												"id": "b3b9b004-5999-4d61-9452-4b74d2752e72"
+											}
+										},
+										{
+											"type": "tableCell",
+											"content": [
+												{
+													"type": "paragraph",
+													"content": [
+														{
+															"type": "text",
+															"text": "commentary annotations whose "
+														},
+														{
+															"type": "text",
+															"text": "target",
+															"marks": [
+																{
+																	"type": "code"
+																}
+															]
+														},
+														{
+															"type": "text",
+															"text": " carries "
+														},
+														{
+															"type": "text",
+															"text": "#t=",
+															"marks": [
+																{
+																	"type": "code"
+																}
+															]
+														},
+														{
+															"type": "text",
+															"text": " and whose body is a "
+														},
+														{
+															"type": "text",
+															"text": "text/plain",
+															"marks": [
+																{
+																	"type": "code"
+																}
+															]
+														},
+														{
+															"type": "text",
+															"text": " "
+														},
+														{
+															"type": "text",
+															"text": "TextualBody",
+															"marks": [
+																{
+																	"type": "code"
+																}
+															]
+														},
+														{
+															"type": "text",
+															"text": ", earliest first (Cookbook 0103). "
+														},
+														{
+															"type": "text",
+															"text": "motivation",
+															"marks": [
+																{
+																	"type": "code"
+																}
+															]
+														},
+														{
+															"type": "text",
+															"text": " is never inspected"
+														}
+													],
+													"attrs": {
+														"id": "5e9057b8-58b8-45cb-afb5-37223956ba07"
+													}
+												}
+											],
+											"attrs": {
+												"id": "8ea5b472-dd2b-49a8-8f2f-21bede26bc48"
+											}
+										}
+									],
+									"attrs": {
+										"id": "9677a525-0cc5-42a9-9f61-d9e5e6760337"
+									}
+								},
+								{
+									"type": "tableRow",
+									"content": [
+										{
+											"type": "tableCell",
+											"content": [
+												{
+													"type": "paragraph",
+													"content": [
+														{
+															"type": "text",
+															"text": "An untimed transcript"
+														}
+													],
+													"attrs": {
+														"id": "0ccc80d0-9035-4a5b-ab2a-5a42130601e0"
+													}
+												}
+											],
+											"attrs": {
+												"id": "1470cf5c-26d0-45ac-a97c-f7f05c78f9c8"
+											}
+										},
+										{
+											"type": "tableCell",
+											"content": [
+												{
+													"type": "paragraph",
+													"content": [
+														{
+															"type": "text",
+															"text": "one "
+														},
+														{
+															"type": "text",
+															"text": "text/plain",
+															"marks": [
+																{
+																	"type": "code"
+																}
+															]
+														},
+														{
+															"type": "text",
+															"text": " file linked from the canvas's "
+														},
+														{
+															"type": "text",
+															"text": "rendering",
+															"marks": [
+																{
+																	"type": "code"
+																}
+															]
+														},
+														{
+															"type": "text",
+															"text": " (Cookbook 0017)"
+														}
+													],
+													"attrs": {
+														"id": "1224a7f3-714e-45dd-99ce-359962165419"
+													}
+												}
+											],
+											"attrs": {
+												"id": "4282d111-f526-494d-bf0a-75e382233443"
+											}
+										}
+									],
+									"attrs": {
+										"id": "38d2e469-432d-4229-b55e-1274e69b5970"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ac9e0764-ffd1-4553-9dc1-4db499c4092a"
+							}
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": " Audio and video alike — it is how a sound recording's words become readable, since an "
+								},
+								{
+									"type": "text",
+									"text": "<audio>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " element has no area to paint captions in. The captions "
+								},
+								{
+									"type": "text",
+									"text": "toggle",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is video-only for that same reason. The toolbar button is absent on a canvas offering none of the three, so the panel is never opened onto nothing, and it is named for what it actually holds: "
+								},
+								{
+									"type": "text",
+									"text": "Transcript",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " when there is one, "
+								},
+								{
+									"type": "text",
+									"text": "Notes",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " when the canvas offers only the manifest's timed commentary."
+								}
+							],
+							"attrs": {
+								"id": "5839ce5f-8373-45a1-9f65-be1980b58151"
+							}
+						}
+					],
+					"attrs": {
+						"id": "07c1fc55-cd16-46bc-9618-e3bf88eaac98"
+					}
+				}
+			],
+			"attrs": {
+				"id": "cd5ca786-0524-483e-823d-4cd38405b685"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "commanding-playback-avstate",
+				"id": "626d56f1-ee00-4091-9851-8012d3c0142f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Commanding playback: "
+				},
+				{
+					"type": "text",
+					"text": "AVState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The plugin publishes its playback state through core's published-state seam, so a host commands media exactly as it commands the viewer — through viewer state, never by importing the object. "
+				},
+				{
+					"type": "text",
+					"text": "getAVState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a typed accessor over "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.getPluginState('av')",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "; it returns "
+				},
+				{
+					"type": "text",
+					"text": "null",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " whenever the plugin is not active on that viewer (absent, failed, or retrying)."
+				}
+			],
+			"attrs": {
+				"id": "6dbcae8c-c62b-4f12-84d1-a54b854f3eca"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "5d587c37-6df7-454c-b424-8f6b14abfa89"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { getAVState } from '@triiiceratops/plugin-av';\n\nconst av = getAVState(viewer.viewerState);\nif (av) {\n    av.seek(30);\n    av.play();\n\n    // Batched, payload-free: a notification means \"read what you need\".\n    const stop = av.subscribe(() => {\n        console.log(av.paused ? 'paused' : 'playing', 'of', av.duration);\n    });\n\n    // The playhead has its own, finer cadence and does NOT notify `subscribe`.\n    const stopClock = av.subscribeFrame(() => {\n        scrubber.value = String(av.currentTime);\n    });\n}"
+				}
+			]
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Member"
+										}
+									],
+									"attrs": {
+										"id": "719d9075-3194-4613-abfb-9f757b03cf8f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "199cc719-7e3c-43a9-9492-7991d04ae18c"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Kind"
+										}
+									],
+									"attrs": {
+										"id": "ede80355-606a-45a2-89a2-1021b1003213"
+									}
+								}
+							],
+							"attrs": {
+								"id": "860a4258-d40f-42d0-97d6-2bf43a6f32e7"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Notes"
+										}
+									],
+									"attrs": {
+										"id": "acf332de-a5fe-40db-a2d2-4db5c4e0f69d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0aae4731-0074-4a53-9192-5eb0cfd1d83d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2ccfc6a4-2f6a-40b2-80d1-9359519240cc"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "play()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " "
+										},
+										{
+											"type": "text",
+											"text": "pause()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " "
+										},
+										{
+											"type": "text",
+											"text": "seek(s)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " "
+										},
+										{
+											"type": "text",
+											"text": "setMuted(b)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " "
+										},
+										{
+											"type": "text",
+											"text": "setVolume(v)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "5691c4ee-06ac-4606-a18d-7ec2026ce0e6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "bf924d2e-2086-4581-827a-d4e7cf06c638"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "command"
+										}
+									],
+									"attrs": {
+										"id": "3fa2ed5a-c0cc-40b5-b5cd-c27b36d3d984"
+									}
+								}
+							],
+							"attrs": {
+								"id": "714f1b02-d714-4703-998f-d8f3d08a8e47"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "address the "
+										},
+										{
+											"type": "text",
+											"text": "current",
+											"marks": [
+												{
+													"type": "bold"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " canvas's media"
+										}
+									],
+									"attrs": {
+										"id": "5564fd5e-40c7-4677-a4ed-8d1a0a03f89f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "29e10e90-8182-43ae-8898-4929c5e1b5bc"
+							}
+						}
+					],
+					"attrs": {
+						"id": "054c0255-f245-4df6-8ff7-74c38c926450"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "paused",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " "
+										},
+										{
+											"type": "text",
+											"text": "duration",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " "
+										},
+										{
+											"type": "text",
+											"text": "buffering",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " "
+										},
+										{
+											"type": "text",
+											"text": "activeMediaCanvasId",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "8972c05c-2603-47b9-bd99-69137e80a389"
+									}
+								}
+							],
+							"attrs": {
+								"id": "228e6a4b-e662-4d74-a187-27dd419ca191"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "observable"
+										}
+									],
+									"attrs": {
+										"id": "1b85b0aa-b56a-4855-a02e-08e4e950eaa3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e53aab82-6a9d-42fc-940b-0e24d6fec44c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "notify through "
+										},
+										{
+											"type": "text",
+											"text": "subscribe",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", batched"
+										}
+									],
+									"attrs": {
+										"id": "384baba6-40ce-4f6c-801f-8be94cfc32bc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0ff4e436-97ad-442a-81a5-0ce39b037b99"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1ce334c0-e00d-49f9-846c-acedf246b0f0"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "currentTime",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "57a2b6b3-4867-4c71-87fa-8dfa7b5eb7ce"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a56de813-dcf1-4f5a-b08c-dc470d28ec18"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "query-only"
+										}
+									],
+									"attrs": {
+										"id": "99a638f8-e201-40db-9d44-c110454f0793"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9145ef9c-92d4-43d9-a6f3-d1e5b019b4c4"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "read it on "
+										},
+										{
+											"type": "text",
+											"text": "subscribeFrame",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", never off "
+										},
+										{
+											"type": "text",
+											"text": "subscribe",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "25b7a894-fcdd-4e37-8d39-1d65dba1f064"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8c9d0519-0377-450b-b805-abbb5ef2f2f4"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7cd6816e-4bf5-4ce6-b3f8-527e2b1c4ade"
+					}
+				}
+			],
+			"attrs": {
+				"id": "b93f27fc-fd5d-41c9-9a37-804ba753ace7"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Three contract points worth stating plainly:"
+				}
+			],
+			"attrs": {
+				"id": "7a255d26-b768-4f38-9a25-cb5db9837534"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "All times are canvas time.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " "
+								},
+								{
+									"type": "text",
+									"text": "duration",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is the canvas's duration and "
+								},
+								{
+									"type": "text",
+									"text": "seek()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " takes a canvas-time position, even when several media files tile that canvas. "
+								},
+								{
+									"type": "text",
+									"text": "seek",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " clamps to "
+								},
+								{
+									"type": "text",
+									"text": "[0, duration]",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "d1740bc1-eca1-4966-a3a3-0d2d2277b61b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7bcf3663-e1d2-4ab1-bbd3-a8ef23e24934"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Nothing throws at the host.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " A "
+								},
+								{
+									"type": "text",
+									"text": "play()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " the browser's autoplay policy refuses resolves into state — still paused — rather than into a rejected promise or an exception."
+								}
+							],
+							"attrs": {
+								"id": "70c6175c-1974-4f85-b03a-45cd915f6d0d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4b4fe251-5515-44f3-8e59-b381537e16bb"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Commands against a non-AV current canvas are refused",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", through the plugin error channel's "
+								},
+								{
+									"type": "text",
+									"text": "command",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " phase, not by throwing."
+								}
+							],
+							"attrs": {
+								"id": "ab0721c1-e19f-4509-8099-3cca9171b38a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "73fedd91-1437-46b1-be4e-0f0defda5366"
+					}
+				}
+			],
+			"attrs": {
+				"id": "59c898a9-1e89-4a78-a6bc-3d6e7c0eec95"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Multi-target addressing ("
+				},
+				{
+					"type": "text",
+					"text": "seek(canvasId, t)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") is a compatible future extension and deliberately not in this version: there is one transport, anchored to the current canvas, and every other visible AV canvas shows a play-state glyph."
+				}
+			],
+			"attrs": {
+				"id": "ebb861f7-a1a8-4208-b027-19aa86e29bb1"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "To open at a media time rather than command one after the fact, pass a temporal offset to "
+				},
+				{
+					"type": "text",
+					"text": "setCanvas",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — see "
+				},
+				{
+					"type": "text",
+					"text": "media time",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#media-time"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "ca3d60f5-abef-40a7-b91c-6db9cdd1d7cf"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "manifest-shapes-it-understands",
+				"id": "3fcdd9f5-c40f-4f80-9b27-708660480eda"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Manifest shapes it understands"
+				}
+			]
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Shape"
+										}
+									],
+									"attrs": {
+										"id": "ca926e68-8594-4893-89ca-ad879189b1e3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c520dbe5-9339-424c-a9fa-369c5d6850f8"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Behavior"
+										}
+									],
+									"attrs": {
+										"id": "2d2be8e4-5912-4cfd-9964-69e6b3fbc43f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2e900036-53c0-43d5-aa35-db0c3729722d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e0382de7-1cbe-4f3c-adc5-bf49b95f36ba"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Sound",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " / "
+										},
+										{
+											"type": "text",
+											"text": "Video",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " painting bodies"
+										}
+									],
+									"attrs": {
+										"id": "6e14a794-01bf-444b-ac86-bfe3c673654d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "149485cf-d20a-4c24-b292-21c1493370e0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "claimed and played"
+										}
+									],
+									"attrs": {
+										"id": "fd6857b2-1a8e-40f9-ae56-095f7aabe7ff"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d588ef65-cb0f-4cf2-9c15-d6e54d42e922"
+							}
+						}
+					],
+					"attrs": {
+						"id": "37a2f3b8-ae16-4a38-b8fe-b72bb9820740"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Choice",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " of formats"
+										}
+									],
+									"attrs": {
+										"id": "85ab66b3-2b5a-4ead-813c-af35327636d4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "08758723-a642-4d51-8680-830bee53301e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the rendition is picked by what the browser can actually decode, not first-wins; a host override through the viewer's choice-selection commands preserves position across the swap"
+										}
+									],
+									"attrs": {
+										"id": "3fbbcb03-916b-4bbc-bccd-db6726ed76c1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7ecad121-8e67-469a-9f6a-c6b2f6551469"
+							}
+						}
+					],
+					"attrs": {
+						"id": "14bafb6a-8e96-40a3-bb29-afbf84657f33"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "HLS ("
+										},
+										{
+											"type": "text",
+											"text": ".m3u8",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "4da5a33c-07ba-4bb7-891c-cd737ef4152c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ad8d8550-bf55-4766-ae80-64ac0cc17bc9"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "native where the browser has it, otherwise through an on-demand hls.js chunk"
+										}
+									],
+									"attrs": {
+										"id": "e720369f-964a-447f-9f8a-c129a8008843"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9f15b62e-a61b-4086-a8d0-3a6296764054"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f28af700-29dc-40c3-96ad-233a59be0f8e"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Captions"
+										}
+									],
+									"attrs": {
+										"id": "6cf9fd1a-4804-4d45-a3ad-e9e22d9a4e00"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4c68ccdb-65fb-4ccb-82fe-cd625508661c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "WebVTT, from a body whose "
+										},
+										{
+											"type": "text",
+											"text": "format",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " is exactly "
+										},
+										{
+											"type": "text",
+											"text": "text/vtt",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " (the "
+										},
+										{
+											"type": "text",
+											"text": "Text",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " type is not sufficient and is not what is checked), in the painting annotation or a canvas-level "
+										},
+										{
+											"type": "text",
+											"text": "supplementing",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " annotation. Attached "
+										},
+										{
+											"type": "text",
+											"text": "hidden",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " so cues parse; a track that fails to load or carries no cues is dropped rather than offered as a dead control"
+										}
+									],
+									"attrs": {
+										"id": "6e44e6a0-9588-4102-b386-39553a26ea16"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1a119866-6f2e-46d5-b31c-259aa73a5f84"
+							}
+						}
+					],
+					"attrs": {
+						"id": "55f1eac7-a57e-4c08-9232-e089a3228e01"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "placeholderCanvas",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "0d6e9407-a5eb-45cc-bd0c-61b63ff9f7a9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "046cec68-1bd1-4cf5-b7ed-bcbd75f5fffe"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "a poster before playback — the "
+										},
+										{
+											"type": "text",
+											"text": "<video poster>",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " when it is a plain image URL, an overlay image otherwise"
+										}
+									],
+									"attrs": {
+										"id": "0b3c625f-daa6-4265-8b0e-368230d6052a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9fe92745-f5e0-4ee8-a0f4-92e779990144"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8c1d35e2-3fa7-4623-a3fb-706bbf915cdd"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "accompanyingCanvas",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "0735396d-e600-43cd-bc04-99b2b37a0a9e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "96196305-bc5e-4d0f-bafc-ae3d9697f169"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "painted by core into the whole canvas rect, behind a transparent stage that draws no lanes"
+										}
+									],
+									"attrs": {
+										"id": "490f8d6e-07af-4a13-97e8-b62fbc11c156"
+									}
+								}
+							],
+							"attrs": {
+								"id": "acc67d21-220b-44fb-97fd-4cd668870f20"
+							}
+						}
+					],
+					"attrs": {
+						"id": "5dbed1d7-fd31-4b1d-b3ef-2db0442e5363"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "start",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "#t=",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " on structures, content-state targets"
+										}
+									],
+									"attrs": {
+										"id": "e8518013-3f99-4863-a7f3-1ecba81d43fd"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ae110406-f420-4351-8849-641fd0cda504"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "a "
+										},
+										{
+											"type": "text",
+											"text": "temporal offset",
+											"marks": [
+												{
+													"type": "bold"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ": the playhead is positioned. Always a seek, never autoplay"
+										}
+									],
+									"attrs": {
+										"id": "dc91b689-dee0-49eb-b114-fc0bdb694817"
+									}
+								}
+							],
+							"attrs": {
+								"id": "43a3b7c8-2401-4668-8e44-b8afc96198bd"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9a179672-96a2-4a5a-a2c3-71777af21473"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "behavior: auto-advance",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " / "
+										},
+										{
+											"type": "text",
+											"text": "repeat",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2227ab22-6740-465c-8e60-54750f32fee3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "58e50ad4-69ae-46c7-bbcf-e8bac649519b"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "playback continues into the next canvas; "
+										},
+										{
+											"type": "text",
+											"text": "repeat",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " (a Collection/Manifest term, and dependent on "
+										},
+										{
+											"type": "text",
+											"text": "auto-advance",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ") returns to the first canvas at the end"
+										}
+									],
+									"attrs": {
+										"id": "629e7648-084c-4675-9d77-0bbf15f5d1f8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "acf8eb4f-17ca-4ead-a08c-747d32786c4f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "dac8d2ad-6308-421c-ac6d-92b01608b41c"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Several media bodies tiling one canvas via "
+										},
+										{
+											"type": "text",
+											"text": "#t=",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c85e0ebe-987e-491b-af63-af09b08d7805"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3fe16e07-bf1a-4f1b-888f-d8bec57aa593"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "one "
+										},
+										{
+											"type": "text",
+											"text": "canvas timeline",
+											"marks": [
+												{
+													"type": "bold"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " under one transport, with a sequencer swapping segments at each boundary"
+										}
+									],
+									"attrs": {
+										"id": "026f9800-00bb-44e3-8a0d-458ebcdff248"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0b01ee64-9a67-44f5-84b3-30ba68ae71e9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a03d819e-95f9-47fb-9a6f-1dc550558e59"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Annotations targeting "
+										},
+										{
+											"type": "text",
+											"text": "#t=",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "5967d3a5-aab2-4f3e-8ce5-5c4b68cc9647"
+									}
+								}
+							],
+							"attrs": {
+								"id": "28d05caa-38d2-491f-ac47-d3772aefe3ef"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "listed in the transcript panel in canvas time, earliest first, each one a seek. "
+										},
+										{
+											"type": "text",
+											"text": "text/plain",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " "
+										},
+										{
+											"type": "text",
+											"text": "TextualBody",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " only; any other body is skipped rather than guessed at"
+										}
+									],
+									"attrs": {
+										"id": "3a681eed-9198-456f-99d0-72b300b41c79"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6535e621-6eeb-4315-8961-55226e419b3d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ba005a91-0d1e-4e2f-a8f9-7c663a94fddc"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "rendering",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " with "
+										},
+										{
+											"type": "text",
+											"text": "format: text/plain",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "153e327c-65eb-4206-a650-416926e40b90"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7e0927ee-8afe-46a7-994c-a5eb1d20c904"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "adopted as the canvas's untimed transcript. "
+										},
+										{
+											"type": "text",
+											"text": "format",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " is trusted here and nothing else is accepted — a PDF, HTML or TEI transcript needs parsing this bundle does not carry, and stays reachable as a link in core's metadata panel"
+										}
+									],
+									"attrs": {
+										"id": "4b5ae1b7-c88a-4bcc-8558-97dfbb38f42a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "49a30a96-6e58-4b2a-968e-229d8c7ddefa"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6c1b4c55-d545-4366-990b-e57c2ad1b783"
+					}
+				}
+			],
+			"attrs": {
+				"id": "f2c394e4-84a9-4f4f-b03b-fb46f9bfc538"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "cors",
+				"id": "b8cbeaed-4800-4957-9579-bd08906beebc"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "CORS"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Media must be CORS-readable.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Every media element is created in CORS mode ("
+				},
+				{
+					"type": "text",
+					"text": "crossOrigin = 'anonymous'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "), because a "
+				},
+				{
+					"type": "text",
+					"text": "<track>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is only fetched at all when it is, and essentially every Cookbook caption recipe is cross-origin. The cost is that the requirement lands on the "
+				},
+				{
+					"type": "text",
+					"text": "media",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " too: a file or stream served without an "
+				},
+				{
+					"type": "text",
+					"text": "Access-Control-Allow-Origin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " header that admits your viewer's origin will fail to load and show the \"can't play\" treatment, even though the same URL plays in a plain "
+				},
+				{
+					"type": "text",
+					"text": "<video>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tag."
+				}
+			],
+			"attrs": {
+				"id": "8edea2b1-ea9e-4fd1-8884-06f961a7e517"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "This is the first thing to check when media that works elsewhere will not play here. No credentials are ever sent, so "
+				},
+				{
+					"type": "text",
+					"text": "Access-Control-Allow-Origin: *",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is enough."
+				}
+			],
+			"attrs": {
+				"id": "53847679-772e-42bf-8ddd-e562b57da72c"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Your Content Security Policy needs a "
+				},
+				{
+					"type": "text",
+					"text": "media-src",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " that admits the media host, the caption host, and "
+				},
+				{
+					"type": "text",
+					"text": "blob:",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for HLS — see "
+				},
+				{
+					"type": "text",
+					"text": "audio and video under a strict CSP",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/csp/#audio-and-video"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "3017bb4b-77d7-41e9-8ee5-766745e615c6"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A stream that cannot play — a dead URL, a CORS or CSP refusal, an offline reader — shows a localized \"can't play this\" treatment in that canvas's stage. One bad stream costs one canvas, never the session."
+				}
+			],
+			"attrs": {
+				"id": "42827dba-4cea-4493-b574-55a40587348b"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "configuring-its-ui",
+				"id": "f93c4dc9-4a76-43b0-b69f-a8571f35b5ca"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Configuring its UI"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The plugin's "
+				},
+				{
+					"type": "text",
+					"text": "uiId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is "
+				},
+				{
+					"type": "text",
+					"text": "av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so it is controlled through "
+				},
+				{
+					"type": "text",
+					"text": "config.plugins.av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " like any other plugin — see "
+				},
+				{
+					"type": "text",
+					"text": "controlling plugin UI through config",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#controlling-plugin-ui-through-config"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". That key governs the "
+				},
+				{
+					"type": "text",
+					"text": "transcript panel",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and its toolbar button; the media stage and the transport are not plugin chrome and are not switchable."
+				}
+			],
+			"attrs": {
+				"id": "b62cdc78-b36d-4035-b318-f277289de6d4"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "92ba4e95-c39a-4597-aa91-d7d6a2a88372"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "viewer.config = {\n    plugins: {\n        av: { position: 'right', open: true },\n    },\n};"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "documented-limitations",
+				"id": "a26c175a-5c88-4831-818e-07d8be0cd6ee"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Documented limitations"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "These are contracts, not bugs. Each is a deliberate fence for this release:"
+				}
+			],
+			"attrs": {
+				"id": "05484e3b-d2d1-4489-9b3d-610595296c6d"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "No MPEG-DASH.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " HLS and progressive files only."
+								}
+							],
+							"attrs": {
+								"id": "add83f5f-8ca1-419e-aa4b-3ed49eb4a9ca"
+							}
+						}
+					],
+					"attrs": {
+						"id": "89c388db-9ba1-4f3d-b23d-6c315b66ef70"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A brief gap at each segment seam.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " A temporally composed canvas swaps media elements at the boundary; gapless "
+								},
+								{
+									"type": "text",
+									"text": "MediaSource",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " stitching is not implemented."
+								}
+							],
+							"attrs": {
+								"id": "5c7b423d-c7c9-4875-a419-cd2afee912b5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "10ab5479-1ab5-4f6e-9469-dab1997a5cab"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "WebVTT captions only.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " No TTML, no SRT, no annotation-derived captions, and no caption styling controls."
+								}
+							],
+							"attrs": {
+								"id": "4777b63d-608c-4782-b614-473f9394df71"
+							}
+						}
+					],
+					"attrs": {
+						"id": "67df93ee-14ad-426a-bc20-ed3a73c721dd"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Only embedded annotations are read",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", for caption tracks and for the panel's timed notes alike. A canvas whose annotation page is an external reference contributes neither; no page is ever fetched."
+								}
+							],
+							"attrs": {
+								"id": "1efa2fdf-b4b3-42cc-bf9a-2bcc54083bf3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f46b499c-0a04-48c4-b233-6a1f62ca4c7c"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Spatially placed media renders full-rect or not at all.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " A painting body targeted at "
+								},
+								{
+									"type": "text",
+									"text": "#xywh=",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is not placed within the canvas — the Cookbook's "
+								},
+								{
+									"type": "text",
+									"text": "0489-multimedia-canvas",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is the one recipe affected. It renders its image body alone and warns on the developer console, and is counted as unsupported: the recipe is the compositing, so a canvas that cannot composite does not support it."
+								}
+							],
+							"attrs": {
+								"id": "22c3d020-8816-49d6-ad74-ed685613cd14"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3754df0a-430b-499f-b1a3-5a73415a0f35"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "No waveform on a temporally composed canvas",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and no waveform computed in the browser: peaks come from data the manifest links."
+								}
+							],
+							"attrs": {
+								"id": "d14cc8bf-7922-43db-93b5-28df7b314487"
+							}
+						}
+					],
+					"attrs": {
+						"id": "94096f3c-38ee-47a3-a451-17ab7e45fa48"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Accompanying and placeholder images are static.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " One appropriately-sized request at claim time, no deep zoom."
+								}
+							],
+							"attrs": {
+								"id": "7e095340-49e5-43c5-ace5-c3c8a729573f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6b498288-45c3-47bf-b0b5-0e3207f4d0a3"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "No quality picker, playback rate, fullscreen, or picture-in-picture",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " in the transport. Rendition switching is host-driven through the viewer's choice-selection commands."
+								}
+							],
+							"attrs": {
+								"id": "ba8f3932-3bba-4d90-afe0-2a4695e34706"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8abc2237-bae2-490e-b5f1-187e209189c4"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "AV canvases are excluded from image and PDF export",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " by documented contract (see "
+								},
+								{
+									"type": "text",
+									"text": "Image Download",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-image-export/#audiovisual-canvases"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "PDF Export",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-pdf-export/#audiovisual-canvases"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "), and a claimed canvas leaves "
+								},
+								{
+									"type": "text",
+									"text": "annotatableCanvasIds",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — there is no rectangle tool over a video."
+								}
+							],
+							"attrs": {
+								"id": "cc0cb3ca-f8b7-4754-9a37-6c4bcd8fa5ee"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9808b294-1ac4-4b13-a1f8-73ee4d8324e3"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Timed annotations are read, not drawn.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " An annotation targeting a "
+								},
+								{
+									"type": "text",
+									"text": "#t=",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " range is listed in the transcript panel and seekable from it, but nothing paints it against the playhead or onto the stage, and there is no authoring surface for one. A range's end is carried and not enforced."
+								}
+							],
+							"attrs": {
+								"id": "1b298a22-5261-4d01-a50c-a4f205f0a0e5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d06f4ed6-e836-4cd5-bead-e73f4280cec2"
+					}
+				}
+			],
+			"attrs": {
+				"id": "ce9208cd-06bd-414a-8f72-a5192bbc9c46"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "bundle",
+				"id": "eee8a54d-8304-4b43-8448-1077dcc928b5"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Bundle"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "dist/iife.js",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is about "
+				},
+				{
+					"type": "text",
+					"text": "15.5 KB gzip",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Registered alongside core's element that makes roughly "
+				},
+				{
+					"type": "text",
+					"text": "128 KB gzip",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the pair, which CI holds under a standing budget measured against TIFY — the nearest audiovisual-capable viewer. The four lazy chunks are outside that figure:"
+				}
+			],
+			"attrs": {
+				"id": "ecfbc678-6aef-4928-b454-8697f310b805"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Chunk"
+										}
+									],
+									"attrs": {
+										"id": "92e5a66a-33b4-459b-b105-fe342c1a665b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e78cee98-aa8e-4bec-b964-ec98800faaa8"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "gzip"
+										}
+									],
+									"attrs": {
+										"id": "25f2dcef-d75a-4522-9727-cc7716674b1d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "af3a7a44-09a9-4819-85e2-f15fc14c030e"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Fetched when"
+										}
+									],
+									"attrs": {
+										"id": "14ac33ba-92c3-433a-9af3-6b045136c379"
+									}
+								}
+							],
+							"attrs": {
+								"id": "05a41efd-cd85-4382-aced-9a9f3cfb050d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a64ea201-1a6b-48e3-aed2-8b380577c983"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "av-hls.js",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "9f42d227-382c-4c9e-8b8d-bdda5ae7088d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7416a1ac-c11b-4469-8213-939dc619e491"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "~224 KB"
+										}
+									],
+									"attrs": {
+										"id": "8fa9a861-cb87-4162-878c-f87d64809b5e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "624b1aee-32c6-48ed-a53e-8ee458acb1c0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "an HLS body must play without native HLS support"
+										}
+									],
+									"attrs": {
+										"id": "a40ab80c-b027-48be-803f-a1e006c6e668"
+									}
+								}
+							],
+							"attrs": {
+								"id": "68bce9a3-1c6b-4cce-9d09-ce4e2764f590"
+							}
+						}
+					],
+					"attrs": {
+						"id": "fdf1f38a-06d5-4134-80a1-9153f3bae411"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "av-waveform.js",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d1c2c6c5-370c-4573-ab93-dcfa2b67e4a4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b4b29b6a-4a95-401d-a39a-9581db789bb3"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "~2.6 KB"
+										}
+									],
+									"attrs": {
+										"id": "a1ae0487-c55e-4327-aaec-6f0f7384eb3e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "401cd996-e314-408a-b51a-149f7edfb4c7"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "a canvas links audiowaveform data"
+										}
+									],
+									"attrs": {
+										"id": "82c03e25-1eec-4310-9874-5db2ed048eff"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e64e6961-94ec-4b77-b916-6d99b292ed87"
+							}
+						}
+					],
+					"attrs": {
+						"id": "aad95305-d552-412e-9190-eddf8c92bf55"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "av-sequencer.js",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ab8a76f4-48d5-4f97-abd5-484fd2a9ccab"
+									}
+								}
+							],
+							"attrs": {
+								"id": "98bf4ccb-c09f-45dc-ad71-294bde5159eb"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "~2.1 KB"
+										}
+									],
+									"attrs": {
+										"id": "56afc0e1-e836-46b1-a930-3d75875dd829"
+									}
+								}
+							],
+							"attrs": {
+								"id": "59cd98a7-6275-4022-b0da-cd630fc72080"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "a canvas is painted by several media tiling its duration"
+										}
+									],
+									"attrs": {
+										"id": "01cd6bd9-de23-44a0-8176-6ee234137521"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fdc20ce2-761e-44b6-9f75-f9d27e100082"
+							}
+						}
+					],
+					"attrs": {
+						"id": "344a0e22-ab5a-4a93-a5ca-43bbb2f27a0a"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "av-transcript.js",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3d9489b5-3d1e-47eb-97d2-dd45de22ec20"
+									}
+								}
+							],
+							"attrs": {
+								"id": "be86c0cd-5f44-4a06-9b87-7b748e4fa627"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "~3.2 KB"
+										}
+									],
+									"attrs": {
+										"id": "1d1e202d-9225-4327-83fc-e24e2b29cf7c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6a75badf-7253-4a8e-9707-f3952bd144ae"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the current canvas has anything for the panel to hold"
+										}
+									],
+									"attrs": {
+										"id": "d7649b74-fea8-40b2-8104-bd1e789b2cb8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d3d37b1b-1c30-498f-8f2e-db8864300e79"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9cb8c504-fd37-4a6d-b8a5-7afdc6914a89"
+					}
+				}
+			],
+			"attrs": {
+				"id": "2601ad90-7be5-42db-b69e-87db9d30756c"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Figures are gzip at level 9, rounded — they move by tens of bytes build to build, and the byte-exact table lives with the measurement rather than here."
+				}
+			],
+			"attrs": {
+				"id": "0c0d10b9-989d-49e5-8bf5-e3dc3ab887b4"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "hls.js alone is nearly twice the whole viewer, which is exactly why it is a chunk: a manifest of MP4s never pays for it."
+				}
+			],
+			"attrs": {
+				"id": "5239f55f-5596-4ba8-a03a-2ee376bf27fb"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "design-notes",
+				"id": "3785e014-71e3-46c4-b4d3-689a5621c07d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Design notes"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The plugin is authored entirely on the framework-neutral "
+				},
+				{
+					"type": "text",
+					"text": "plugin SDK",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-authoring/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — core never imports it. It builds on four capability seams, and declares each in "
+				},
+				{
+					"type": "text",
+					"text": "requiredCapabilities",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " so it fails closed rather than half-working:"
+				}
+			],
+			"attrs": {
+				"id": "84e9690e-4683-46fe-8b39-fbc92a8e0e0e"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Capability"
+										}
+									],
+									"attrs": {
+										"id": "4e2c1e60-9327-49fe-bd60-7d3fbfec3252"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d77a1cd3-dcb6-41b1-bcf4-62b8edec8f19"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Without it"
+										}
+									],
+									"attrs": {
+										"id": "69d8dccb-8fd4-4715-9d59-0736a4b4bf5c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "446cc1b9-e06a-4909-865b-bbeacdaf77be"
+							}
+						}
+					],
+					"attrs": {
+						"id": "37fb8c6d-5a7d-457e-ba84-53dfe78da0e0"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "canvas-claim",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ea771078-9456-4518-8053-44d1b3db2e97"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d0b202ad-d1b8-4951-b66a-f2ad939a0a0f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the plugin would render over an unsupported-content placard it cannot suppress"
+										}
+									],
+									"attrs": {
+										"id": "99438df1-295b-4e61-8bc6-6bfcfab3d865"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4950682a-b7ed-4806-b6d7-4a20c3c88a58"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6d5930b6-7fbb-4676-8aa3-84fd31d196f2"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "transport-chrome",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "04e6b27d-8fab-4d9e-865b-e49ef5b74a72"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d192491d-4bbc-4d71-9cfd-8d49cfdc1963"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "there would be nowhere to register the playback controls, and it builds none of its own — a staged recording with no way to play it"
+										}
+									],
+									"attrs": {
+										"id": "0c70f6b4-b049-4135-8612-1b6bcbb05628"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1953c375-1731-4490-9a9e-b7502246afe8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "89218cbb-2f58-4861-b5d8-85e3aca1636f"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "shared-svelte-runtime",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ee1509b9-479f-4df9-8ffa-461240d519ae"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c1ec22d9-19d4-4417-84a6-cca3215d3503"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "there is no "
+										},
+										{
+											"type": "text",
+											"text": "window.Triiiceratops",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " Svelte to consume, and its IIFE bundles none"
+										}
+									],
+									"attrs": {
+										"id": "93263356-1e19-404e-8e1d-5d57f82ca3e9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "511cbdcd-9f4a-4670-b518-8cbb4741c61a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "178fd8ec-d50f-428c-89da-4957f2a25c68"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "shared-core-utils",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a3c22c82-e732-4563-b959-597bb06d04bf"
+									}
+								}
+							],
+							"attrs": {
+								"id": "13c151a5-1c4d-48b3-8433-fddc167e5ac7"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "there are no curated core utilities on the namespace, and its IIFE bundles no copies"
+										}
+									],
+									"attrs": {
+										"id": "adfef80c-75db-4156-af8d-79f36b19a962"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3a834fdf-bcba-470a-b4d6-aac630142a27"
+							}
+						}
+					],
+					"attrs": {
+						"id": "17cb8be9-b0d4-4576-9500-a9666fb2caf4"
+					}
+				}
+			],
+			"attrs": {
+				"id": "b63964d1-7b73-40d2-af3e-f8b81be13448"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Why audiovisual support is a plugin over a generic canvas claim rather than a core feature is recorded in "
+				},
+				{
+					"type": "text",
+					"text": "ADR 0017",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "https://github.com/d-flood/triiiceratops/blob/main/docs/adr/0017-av-is-a-plugin-over-a-generic-canvas-claim.md"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "; the published-state seam "
+				},
+				{
+					"type": "text",
+					"text": "AVState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " rides on is "
+				},
+				{
+					"type": "text",
+					"text": "ADR 0018",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "https://github.com/d-flood/triiiceratops/blob/main/docs/adr/0018-published-plugin-state.md"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "98545890-c74c-42af-9485-54919ff1a4ed"
+			}
+		}
+	],
+	"meta": {
+		"title": "Audio & Video",
+		"shortTitle": "Audio & video",
+		"intro": "Play a IIIF canvas's audio and video: a media stage over the canvas rect, playback controls in the viewer's own control bar, waveforms, captions, and a transcript panel."
+	}
+}

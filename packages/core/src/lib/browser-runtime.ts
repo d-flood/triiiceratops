@@ -93,7 +93,7 @@ export interface PluginFactoryRegistry {
  *    missing (see `sharedRuntimeGate.ts` in `@triiiceratops/plugin-av`).
  *    This is a FIRST-PARTY-ONLY privilege: a third-party plugin is released
  *    independently of core and must keep bundling its own runtime, which is what
- *    `docs/plugin-authoring.md` goes on telling external authors to do.
+ *    the `/docs/plugin-authoring/` page goes on telling external authors to do.
  *
  * A plugin consuming this reads it before it can do anything else, so its script
  * must load AFTER core's — the one ordering constraint in an otherwise
@@ -149,8 +149,8 @@ export interface SharedSvelteRuntime {
  *
  * This is a FIRST-PARTY-ONLY privilege, as the Svelte runtime is, and for the
  * same reason: it holds only because core and plugin are built and released from
- * one repository at one version. `docs/plugin-authoring.md` goes on telling
- * third-party authors to bundle their own copies.
+ * one repository at one version. The `/docs/plugin-authoring/` page goes on
+ * telling third-party authors to bundle their own copies.
  */
 export type SharedCoreUtils = Readonly<Record<string, unknown>>;
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Render the social-preview ("Open Graph") card images.
 //
-// The cards are COMMITTED PNGs under docs/media/social/ — nothing in CI runs
+// The cards are COMMITTED PNGs under apps/site/static/social/ — nothing in CI runs
 // this script. It exists so the cards stay editable source rather than opaque
 // binaries: change the HTML below, re-run, commit the result.
 //
@@ -34,14 +34,14 @@ import {
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { extname, join } from 'node:path';
-import { REPO_ROOT } from './docs-version.mjs';
+import { REPO_ROOT } from './package-version.mjs';
 
 const SITE = 'triiiceratops.org';
-const SOCIAL_DIR = join(REPO_ROOT, 'docs', 'media', 'social');
+const SOCIAL_DIR = join(REPO_ROOT, 'apps', 'site', 'static', 'social');
 // The captured viewer screenshot the demo card is composed from. Deliberately
-// NOT under docs/: everything in docs/ is copied into the built site and then
-// into every published version directory, and this is build input, not a site
-// asset — it would ship ~1.4 MB per release for nothing.
+// NOT under the site's `static/`, which is copied verbatim into the published
+// tree: this is build input, not a site asset, and would ship ~1.4 MB for
+// nothing.
 const SHOT = 'scripts/social-cards/viewer-dark.jpg';
 // Wheel-zoom steps applied before capture. Enough that the manuscript fills the
 // frame, few enough that its silhouette still reads as a fragment rather than
@@ -57,8 +57,8 @@ const LAYOUT_PRESET = 'Unified bar';
 // `close_menu`). Collapses the unified bar's tool row back to a menu button.
 const CLOSE_MENU_LABEL = 'Close Menu';
 
-// The docs theme tokens, copied from docs/stylesheets/triiiceratops.css so the
-// cards read as part of the same product as the site they link to.
+// The viewer's own dark theme, so the cards read as part of the same product as
+// the site they link to.
 const NAVY = 'oklch(25.33% 0.016 252.42)'; // --tri-viewer-bg (slate)
 const DEEP = 'oklch(17.5% 0.012 254.09)'; // --tri-surface-border (slate)
 const AMBER = 'oklch(78% 0.15 80)'; // --tri-primary
@@ -298,7 +298,7 @@ function landingCard(logo) {
 // --capture: re-shoot the viewer image used by the demo card
 // ---------------------------------------------------------------------------
 
-// The manifest the docs already showcase (see docs/index.md), so the card shows
+// The manifest the docs already showcase (see `/docs/`), so the card shows
 // what a visitor sees when they follow it.
 const DEMO_MANIFEST =
     'https://collections.csntm.org/image-service/iiif/artifacts/MNTGRCP40/default/manifest/';
@@ -310,9 +310,10 @@ const MIME = {
     '.ico': 'image/x-icon',
     '.png': 'image/png',
     '.svg': 'image/svg+xml',
+    '.woff2': 'font/woff2',
 };
 
-/** Serve the built demo over http:// — file:// breaks its module imports. */
+/** Serve the built site over http:// — file:// breaks its module imports. */
 function serveViewer(root) {
     const server = createServer((req, res) => {
         let p = join(root, decodeURIComponent(req.url.split('?')[0]));
@@ -341,10 +342,11 @@ function serveViewer(root) {
  * stays sharp on retina.
  */
 async function captureViewer(chromium) {
-    const root = join(REPO_ROOT, 'apps', 'demo', 'dist');
-    if (!existsSync(join(root, 'index.html'))) {
+    const root = join(REPO_ROOT, 'apps', 'site', 'build');
+    if (!existsSync(join(root, 'demo', 'index.html'))) {
         throw new Error(
-            `--capture needs the built playground at apps/demo/dist/. Run \`pnpm build:demo\` first.`,
+            '--capture needs the built playground at apps/site/build/demo/. ' +
+                'Run `pnpm build:site` first.',
         );
     }
     const { server, port } = await serveViewer(root);
@@ -359,7 +361,7 @@ async function captureViewer(chromium) {
             colorScheme: 'dark',
         });
         await page.goto(
-            `http://localhost:${port}/?manifest=${encodeURIComponent(DEMO_MANIFEST)}`,
+            `http://localhost:${port}/demo/?manifest=${encodeURIComponent(DEMO_MANIFEST)}`,
             { waitUntil: 'load' },
         );
         await page.waitForTimeout(6000);
@@ -459,7 +461,7 @@ async function main() {
     if (argv.includes('--capture')) await captureViewer(chromium);
 
     mkdirSync(outDir, { recursive: true });
-    const logo = dataUri('docs/media/logo.png');
+    const logo = dataUri('scripts/social-cards/logo.png');
     const shot = dataUri(SHOT);
 
     const browser = await chromium.launch();

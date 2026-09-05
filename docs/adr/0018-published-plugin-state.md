@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # Plugin-owned state is published through ViewerState, not exported beside it
 
 A plugin whose UI performs actions (play, seek, mute) must make those actions externally

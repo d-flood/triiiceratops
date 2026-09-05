@@ -1,14 +1,14 @@
 <script lang="ts">
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { getMessages, language } from '../state/i18n.svelte';
+    import { getMessages } from '../state/i18n.svelte';
     import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
     import { normalizeDescriptiveMetadata } from '../utils/metadataNormalization';
     import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
-    let viewerLocale = $derived(viewerState.config.locale ?? language.current);
+    let viewerLocale = $derived(viewerState.activeLocale);
 
     // Raw IIIF Manifest JSON, v2 or v3 as the publisher authored it. The
     // version mapping lives in `normalizeDescriptiveMetadata`; this panel only

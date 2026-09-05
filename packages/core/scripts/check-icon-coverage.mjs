@@ -58,7 +58,7 @@ const repoRoot = path.resolve(coreRoot, '..', '..');
 
 /**
  * Source trees whose `<Icon>` usages resolve through core's generated table.
- * The library tree only: the playground at `apps/demo` carries its own glyph
+ * The library tree only: the playground carries its own glyph
  * table and renders it through `DemoIcon`, so counting its usages here would
  * hold demo-only chrome against the manifest in both directions.
  */

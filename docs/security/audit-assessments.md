@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # Production dependency audit assessments
 
 This document records the applicability assessment for every advisory that the

@@ -6,9 +6,12 @@
     let {
         manifest,
         manifestId,
+        locale = 'en',
     }: {
         manifest: any;
         manifestId?: string;
+        /** The viewer's active locale — the content locale the panel resolves in. */
+        locale?: string;
     } = $props();
 
     // `manifestEntry` is the whole contract the panel reads: the raw IIIF
@@ -16,6 +19,9 @@
     const viewerState = {
         config: {},
         showMetadataPanel: true,
+        get activeLocale() {
+            return locale;
+        },
         get manifestId() {
             return manifestId ?? manifest.id;
         },

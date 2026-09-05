@@ -1,0 +1,8484 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Write plugins with "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-sdk",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". The SDK is framework-neutral and dependency-light: a plugin mounts into a plain "
+				},
+				{
+					"type": "text",
+					"text": "HTMLElement",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", reads and controls the viewer through the live "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and returns a cleanup function. Render it with vanilla JavaScript, React, Vue, Svelte, Lit, or any other framework that mounts into an element — see "
+				},
+				{
+					"type": "text",
+					"text": "Rendering UI in your framework",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#rendering-ui-in-your-framework"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " below."
+				}
+			],
+			"attrs": {
+				"id": "ff7bc4c0-f568-426b-8055-0ed0db00b083"
+			}
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "package-manager",
+				"id": "5580cccf-398c-4cb0-92be-685074492385"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "pnpm",
+						"id": "18e3ff95-43f8-4f76-b8c2-47da5b8c7f72"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "686aac3e-faf3-45d0-b8ca-a73cb186a6e9"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pnpm add @triiiceratops/plugin-sdk"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "npm",
+						"id": "237f92f0-d091-4c5f-b093-e8324d16476f"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "6f2627c6-096a-40fc-bba3-4228b8413b01"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "npm install @triiiceratops/plugin-sdk"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "bun",
+						"id": "ee6813f2-386d-4230-91c6-07128e7f9d52"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "7a1b491c-3de8-4e3e-a097-2751dd197a1d"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "bun add @triiiceratops/plugin-sdk"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "This page is the authoring reference. For the packed-consumer test kit, see the "
+				},
+				{
+					"type": "text",
+					"text": "plugin testing guide",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-testing/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "862dfb36-2eae-49e3-81ca-26c1a955130e"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "the-mount-contract",
+				"id": "7157ab1e-7bd1-4b06-a77b-856de709fef9"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The mount contract"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Core owns the panel and flyout "
+				},
+				{
+					"type": "text",
+					"text": "container",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "; your plugin owns what renders inside it and returns a teardown function:"
+				}
+			],
+			"attrs": {
+				"id": "91ca85d4-bbd5-4c41-a28b-d7d82f378c6a"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "6769f9fb-91fc-4625-9995-7c9a9841901d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext } from 'triiiceratops';\n\nfunction mount(container: HTMLElement, context: PluginContext): () => void {\n    const label = document.createElement('span');\n    label.textContent = 'hello from a plugin';\n    container.appendChild(label);\n\n    // Return cleanup — run on deactivation / retry / viewer teardown.\n    return () => {\n        label.remove();\n    };\n}"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "rendering-ui-in-your-framework",
+				"id": "1c4a95a5-e09d-4415-86fc-16fc583e7c3a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Rendering UI in your framework"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "mount()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " receives a plain "
+				},
+				{
+					"type": "text",
+					"text": "HTMLElement",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — render into it with whatever you already use. Each framework has an optional adapter subpath ("
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-sdk/{react,vue,svelte,lit}",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") that turns a selector into that framework's native reactive primitive (a hook, a composable, a store, a reactive controller) so state reads stay idiomatic. Here is the same \"show whether the toolbar is open\" plugin, mounted five ways:"
+				}
+			],
+			"attrs": {
+				"id": "068ac4dd-dad7-4c44-a84c-63053a583240"
+			}
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "plugin-ui",
+				"id": "26deb9d9-8c2c-425a-a366-e2f47c4c50ee"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Vanilla JavaScript",
+						"id": "173509ca-b581-4707-9919-7ae8ef5e7318"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "No adapter needed — read "
+								},
+								{
+									"type": "text",
+									"text": "context.selectors.select(fn)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " directly (see "
+								},
+								{
+									"type": "text",
+									"text": "Selectors",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "#selectors"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " below for the memoization/equality details):"
+								}
+							],
+							"attrs": {
+								"id": "81589b97-0763-4220-a167-72b3749118c5"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "ts",
+								"id": "25c65b64-cfdb-445f-889c-3743637872b0"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import type { PluginContext } from 'triiiceratops';\n\nfunction mount(container: HTMLElement, context: PluginContext): () => void {\n    const label = document.createElement('span');\n    const open = context.selectors.select((s) => s.toolbarOpen);\n    label.textContent = open.get() ? 'open' : 'closed';\n    const stop = open.subscribe((value) => {\n        label.textContent = value ? 'open' : 'closed';\n    });\n    container.appendChild(label);\n    return () => {\n        stop();\n        label.remove();\n    };\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "React",
+						"id": "b84b8301-4f5d-4167-b8fa-795c6e9e9a25"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "@triiiceratops/plugin-sdk/react",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " provides "
+								},
+								{
+									"type": "text",
+									"text": "useViewerSelector",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", backed by "
+								},
+								{
+									"type": "text",
+									"text": "useSyncExternalStore",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ":"
+								}
+							],
+							"attrs": {
+								"id": "93267ea7-7582-4780-9028-e7965faf8e23"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "tsx",
+								"id": "5a0ef5c0-0a98-4581-a5cd-e024e4e1a212"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import { createRoot } from 'react-dom/client';\nimport { useViewerSelector } from '@triiiceratops/plugin-sdk/react';\nimport type { PluginContext } from 'triiiceratops';\n\nfunction PluginUI({ context }: { context: PluginContext }) {\n    const open = useViewerSelector(context, (s) => s.toolbarOpen);\n    return <span>{open ? 'open' : 'closed'}</span>;\n}\n\nfunction mount(container: HTMLElement, context: PluginContext): () => void {\n    const root = createRoot(container);\n    root.render(<PluginUI context={context} />);\n    return () => root.unmount();\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Vue",
+						"id": "330136ed-7bb2-43a7-803b-a76fda52f246"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "@triiiceratops/plugin-sdk/vue",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " provides a composable returning a readonly "
+								},
+								{
+									"type": "text",
+									"text": "Ref",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ":"
+								}
+							],
+							"attrs": {
+								"id": "cdc8cdd6-e5c2-4e4e-9ee5-d4d96e365d18"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "ts",
+								"id": "ed949655-1d37-4528-9fa8-b5c97b455513"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import { createApp, defineComponent, h, type PropType } from 'vue';\nimport { useViewerSelector } from '@triiiceratops/plugin-sdk/vue';\nimport type { PluginContext } from 'triiiceratops';\n\nconst PluginUI = defineComponent({\n    props: {\n        context: { type: Object as PropType<PluginContext>, required: true },\n    },\n    setup(props) {\n        const open = useViewerSelector(props.context, (s) => s.toolbarOpen);\n        return () => h('span', open.value ? 'open' : 'closed');\n    },\n});\n\nfunction mount(container: HTMLElement, context: PluginContext): () => void {\n    const app = createApp(PluginUI, { context });\n    app.mount(container);\n    return () => app.unmount();\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Svelte",
+						"id": "e768643c-e09f-4570-9fe3-f0997ecf67f3"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "@triiiceratops/plugin-sdk/svelte",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " exposes a selector as a Svelte readable store:"
+								}
+							],
+							"attrs": {
+								"id": "5e19a7dd-cf9d-4b20-9d00-cb99077416cd"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "e7e7994b-0920-4455-ab7b-fc0018f2fa1b"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<!-- PluginUI.svelte -->\n<script lang=\"ts\">\n    import { viewerSelector } from '@triiiceratops/plugin-sdk/svelte';\n    let { context } = $props();\n    const open = viewerSelector(context, (s) => s.toolbarOpen);\n</script>\n\n<span>{$open ? 'open' : 'closed'}</span>"
+								}
+							]
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "ts",
+								"id": "66f8ace6-3f88-4d6b-bdc8-ce215f722f58"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import { mount as mountComponent, unmount } from 'svelte';\nimport PluginUI from './PluginUI.svelte';\nimport type { PluginContext } from 'triiiceratops';\n\nfunction mount(container: HTMLElement, context: PluginContext): () => void {\n    const app = mountComponent(PluginUI, {\n        target: container,\n        props: { context },\n    });\n    return () => unmount(app);\n}"
+								}
+							]
+						},
+						{
+							"type": "callout",
+							"attrs": {
+								"kind": "note",
+								"title": "Svelte hosts use the same SDK path",
+								"id": "76f50670-4d9e-44cf-a0cf-d0090f968a04"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "There is no Svelte-only shortcut — a dedicated one would put Svelte component types into every consumer's type graph. Mount your Svelte component from "
+										},
+										{
+											"type": "text",
+											"text": "mount()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " exactly as above; set a stable "
+										},
+										{
+											"type": "text",
+											"text": "uiId",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " if you plan to control the plugin through "
+										},
+										{
+											"type": "text",
+											"text": "config.plugins",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									],
+									"attrs": {
+										"id": "261a5e2d-9a09-4b3a-a29b-a85314b093a8"
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Lit",
+						"id": "62274b7e-b228-45ce-a4bb-1a2c959f1f8f"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "@triiiceratops/plugin-sdk/lit",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " provides a "
+								},
+								{
+									"type": "text",
+									"text": "ReactiveController",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ":"
+								}
+							],
+							"attrs": {
+								"id": "7e952303-5a0f-407d-97af-74808ea2013a"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "ts",
+								"id": "10f84f9c-62d4-42b9-86b3-585df9ae349e"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import { SelectorController } from '@triiiceratops/plugin-sdk/lit';\nimport { LitElement, html } from 'lit';\nimport type { PluginContext } from 'triiiceratops';\n\nclass PluginUI extends LitElement {\n    createRenderRoot() {\n        return this; // light DOM\n    }\n    toolbar?: SelectorController<boolean>;\n\n    setContext(context: PluginContext) {\n        this.toolbar = new SelectorController(\n            this,\n            context.selectors.select((s) => s.toolbarOpen),\n        );\n    }\n\n    render() {\n        return html`<span>${this.toolbar?.value ? 'open' : 'closed'}</span>`;\n    }\n}\ncustomElements.define('plugin-ui', PluginUI);\n\nfunction mount(container: HTMLElement, context: PluginContext): () => void {\n    const el = document.createElement('plugin-ui') as PluginUI;\n    el.setContext(context);\n    container.appendChild(el);\n    return () => el.remove();\n}"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "defineplugin",
+				"id": "c1f949ea-30ec-4530-b158-d51055d72780"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "definePlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "definePlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " wraps declarative metadata and a view. Registration is side-effect-free and does not activate anything; compatibility is negotiated later, at activation, per viewer."
+				}
+			],
+			"attrs": {
+				"id": "241ecf36-43f4-4e52-a0c4-579e0ff7a91b"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "cac6f0a8-4fd0-423a-aed6-ddab7658cfb0"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { definePlugin, svgIcon } from '@triiiceratops/plugin-sdk';\n\nconst icon = svgIcon('<svg viewBox=\"0 0 16 16\"><path d=\"M0 0h16v16H0z\" /></svg>');\n\nexport function createExamplePlugin() {\n    return definePlugin({\n        name: '@example/my-plugin', // package-qualified, keys the registry\n        title: 'example_title', // chrome label (tooltip + panel header):\n        // resolved against `catalog` in the viewer's active locale, English\n        // fallback, then rendered verbatim if no key matches — so a literal\n        // like 'Example' works too. Omit it and the toolbar shows `name`.\n        uiId: 'my-plugin', // stable, DOM-safe key for config.plugins[uiId]\n        version: '1.0.0',\n        coreRange: '>=1.0.0', // core versions this plugin supports\n        pluginApiRange: '^1.0.0', // plugin API versions supported\n        requiredCapabilities: [], // normally empty; see \"Capabilities\" below\n        icon,\n        target: 'panel', // default target; or 'flyout'. Host can override at\n        // runtime via config.plugins[uiId].target / setPluginTarget.\n        // There is no `position` field here — a panel's dock side is chosen\n        // by the consuming app, not the plugin. See \"Panel position\" below.\n        dismiss: 'light', // flyout dismiss: 'light' (default) or 'explicit'; ignored for panels\n        fills: false, // true gives the panel the height left over in its column\n        // and scrolls it there, instead of sizing it to its content. For a body\n        // that runs long (a list or a document); a short panel would only\n        // stretch. Ignored for flyouts.\n        catalog: { en: { example_title: 'Example' } }, // package-owned localization\n        view: {\n            mount(container, context) {\n                const selector = context.selectors.select((s) => s.toolbarOpen);\n                const label = document.createElement('span');\n                label.textContent = selector.get() ? 'open' : 'closed';\n                const stop = selector.subscribe((open) => {\n                    label.textContent = open ? 'open' : 'closed';\n                });\n                container.appendChild(label);\n                return () => {\n                    stop();\n                    label.remove();\n                };\n            },\n        },\n    });\n}"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "panel-position",
+				"id": "f8456c48-1e71-46fd-93eb-df93155fcc1b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Panel position"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A "
+				},
+				{
+					"type": "text",
+					"text": "definePlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " plugin has no authoring-time way to pick where its panel docks — that choice belongs to the consuming app, since it's the app that knows its own layout. A host sets it per plugin, keyed by the same "
+				},
+				{
+					"type": "text",
+					"text": "uiId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " used for "
+				},
+				{
+					"type": "text",
+					"text": "visible",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "/"
+				},
+				{
+					"type": "text",
+					"text": "open",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "/"
+				},
+				{
+					"type": "text",
+					"text": "target",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ":"
+				}
+			],
+			"attrs": {
+				"id": "379fd816-7e45-4307-b02b-0631cadc5789"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "b719d59f-ac78-4557-9b0f-78aabc6e0dc4"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "// <TriiiceratopsViewer manifestId=\"...\" config={{\n//     plugins: { 'my-plugin': { position: 'right' } },\n// }} />"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "position",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " accepts "
+				},
+				{
+					"type": "text",
+					"text": "'left' | 'right'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (default "
+				},
+				{
+					"type": "text",
+					"text": "'left'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "), applies reactively after mount like "
+				},
+				{
+					"type": "text",
+					"text": "target",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and has an imperative sibling, "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState.setPluginPosition(uiId, position)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". It's ignored while the plugin's effective target is "
+				},
+				{
+					"type": "text",
+					"text": "'flyout'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — a flyout is anchored to its toolbar button, not docked to a side."
+				}
+			],
+			"attrs": {
+				"id": "4c466aef-305f-4417-a29f-aa1a407c0dff"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "toolbar-icons",
+				"id": "fc755d01-0062-4c77-ac57-b00313dc6b4e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Toolbar icons"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Produce the toolbar icon with "
+				},
+				{
+					"type": "text",
+					"text": "svgIcon(fullSvgString)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". It validates the SVG synchronously and "
+				},
+				{
+					"type": "text",
+					"text": "throws at the call site",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " on invalid input — scripts, event attributes, external resources, and "
+				},
+				{
+					"type": "text",
+					"text": "foreignObject",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are rejected. Core owns the icon's dimensions, focus behavior, color, and accessibility attributes; you supply only the shape:"
+				}
+			],
+			"attrs": {
+				"id": "57a7032c-2d53-4891-91f5-dc90bff558be"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "bc259ac2-fce3-4f03-a0d2-4782f05a3aaa"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { svgIcon, SvgIconError } from '@triiiceratops/plugin-sdk';\n\ntry {\n    const icon = svgIcon('<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"8\" /></svg>');\n    void icon;\n} catch (err) {\n    if (err instanceof SvgIconError) {\n        // A developer error — fix the SVG string.\n    }\n}"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "activating-a-plugin",
+				"id": "6c524aed-8ee3-4878-a1f7-f19b61a0d504"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Activating a plugin"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The common path: pass your plugin straight to the viewer's "
+				},
+				{
+					"type": "text",
+					"text": "plugins",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " prop and core activates it for you. The "
+				},
+				{
+					"type": "text",
+					"text": "createExamplePlugin()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " from the sections above slots in exactly where a pre-built plugin like "
+				},
+				{
+					"type": "text",
+					"text": "ImageManipulationPlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " would go — see "
+				},
+				{
+					"type": "text",
+					"text": "using plugins",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#adding-a-plugin-to-your-viewer"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the same example wired up in each supported framework:"
+				}
+			],
+			"attrs": {
+				"id": "348be01e-6c11-4afd-81d6-e6973037623b"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "9ef4a03e-013e-42a8-826a-74d0506ce2ea"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script lang=\"ts\">\n    import { TriiiceratopsViewer } from 'triiiceratops/svelte';\n    import { createExamplePlugin } from './my-plugin';\n</script>\n\n<TriiiceratopsViewer manifestId=\"...\" plugins={[createExamplePlugin()]} />"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "In module builds you can also activate a plugin explicitly against a live "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", without going through the viewer component — this is what the "
+				},
+				{
+					"type": "text",
+					"text": "test kit",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-testing/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " uses, and what you'd reach for in a test or a manual harness (a scratch page, a one-off script):"
+				}
+			],
+			"attrs": {
+				"id": "0895f604-3f3e-4e19-a95b-235c2e1607d3"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The constructible "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " class comes from "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and needs the "
+				},
+				{
+					"type": "text",
+					"text": "svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " peer installed — it is the same class the viewer component itself uses. For "
+				},
+				{
+					"type": "text",
+					"text": "tests",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", prefer "
+				},
+				{
+					"type": "text",
+					"text": "createHeadlessViewerState()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " from the "
+				},
+				{
+					"type": "text",
+					"text": "test kit",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-testing/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", which needs no Svelte."
+				}
+			],
+			"attrs": {
+				"id": "eeb3ceb9-ec24-4d6f-a0c5-f4af294b9ffa"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "You supply the whole host, services included: "
+				},
+				{
+					"type": "text",
+					"text": "styles",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "locale",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "ui",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "surface",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and the "
+				},
+				{
+					"type": "text",
+					"text": "reportError",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " channel every guarded phase failure is routed to. Core builds real, per-viewer ones for each activation it runs, and a real custom host does the same — it implements the four services against its own chrome. The snippet below is a test/harness example instead: it fills them with the test kit's "
+				},
+				{
+					"type": "text",
+					"text": "createStub*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " helpers, which are inert placeholders from "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-sdk/testing",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — a dev dependency that does not belong in shipped code. In a test, "
+				},
+				{
+					"type": "text",
+					"text": "createTestViewerContext()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " hands you recording doubles worth asserting against."
+				}
+			],
+			"attrs": {
+				"id": "8a317813-10fe-4d18-8854-397edf08f207"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "86195435-cf69-471f-adf5-aa20823aef28"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { CORE_VERSION, pluginApiVersion, capabilities } from 'triiiceratops';\nimport { ViewerState } from 'triiiceratops/svelte';\nimport { activatePlugin } from '@triiiceratops/plugin-sdk';\nimport {\n    createStubLocaleService,\n    createStubStyleService,\n    createStubSurfaceService,\n    createStubUiService,\n} from '@triiiceratops/plugin-sdk/testing';\nimport { createExamplePlugin } from './my-plugin';\n\nconst state = new ViewerState();\nconst activation = activatePlugin(createExamplePlugin(), {\n    container: document.getElementById('host')!,\n    viewerState: state,\n    coreVersion: CORE_VERSION,\n    pluginApiVersion,\n    capabilities,\n    styles: createStubStyleService(),\n    locale: createStubLocaleService(),\n    ui: createStubUiService(),\n    // No chrome to hide the plugin, so the stub surface reports itself open.\n    surface: createStubSurfaceService('example'),\n    reportError: (report) => {\n        console.error(report.phase, report.error);\n    },\n});\n\n// Later:\nactivation.deactivate();"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "shipping-as-a-script-tag-iife",
+				"id": "6f7f78af-b6de-4133-a698-5730d134bed1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Shipping as a script tag (IIFE)"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "To distribute your plugin as a "
+				},
+				{
+					"type": "text",
+					"text": "<script>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tag for no-build-step, Web Component hosts (see "
+				},
+				{
+					"type": "text",
+					"text": "how the plugin system works",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#how-the-plugin-system-works"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the delivery-format overview), register it into the page-level "
+				},
+				{
+					"type": "text",
+					"text": "window.Triiiceratops",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " registry with "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-sdk/register",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " instead of exporting it from a module:"
+				}
+			],
+			"attrs": {
+				"id": "7fe139cb-37cc-47dc-8167-7843453af080"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "8c5c81a8-4527-4b45-92f3-1a2e00a165a4"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "// iife.ts — your plugin's IIFE entry point, bundled standalone\nimport { registerBrowserPlugin } from '@triiiceratops/plugin-sdk/register';\nimport { createExamplePlugin } from './my-plugin';\n\nregisterBrowserPlugin(createExamplePlugin());"
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "b04af1f6-0fce-4acb-86ee-f811bdbb23ad"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script src=\"https://unpkg.com/@example/my-plugin/dist/iife.js\"></script>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "registerBrowserPlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " only imports a type from "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (erased at build), so bundling it pulls no runtime and no Svelte into your plugin's script. Registration follows the same rule as "
+				},
+				{
+					"type": "text",
+					"text": "definePlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " itself — it is side-effect-free and does not activate anything; the host's core build discovers and activates registered plugins by name. If two scripts register the same plugin name with different versions, the first registration wins and the second logs a console warning."
+				}
+			],
+			"attrs": {
+				"id": "84d7cbdc-1e17-435a-a7d6-e0f25f3ad2e1"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Bundle your own Svelte runtime",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (or whichever framework you build the UI in). Core does publish a curated set of "
+				},
+				{
+					"type": "text",
+					"text": "svelte/internal/client",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " helpers on "
+				},
+				{
+					"type": "text",
+					"text": "window.Triiiceratops",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and the first-party "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " consumes them instead of shipping a second copy — but "
+				},
+				{
+					"type": "text",
+					"text": "svelte/internal",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is private, unversioned API, and that plugin can only rely on it because it is built and released from core's own repository at core's own Svelte version, and pins "
+				},
+				{
+					"type": "text",
+					"text": "coreRange",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to an exact core version to say so. A plugin released on its own schedule has no such guarantee and would break on the first skew, so bundling is the right answer for everybody outside this repository. Your IIFE then loads in any order relative to core's."
+				}
+			],
+			"attrs": {
+				"id": "34982efc-a923-4835-888a-4a5c0713c2d8"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Bundle your own copies of core's utilities too.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " The same first-party exception covers a second curated namespace member, "
+				},
+				{
+					"type": "text",
+					"text": "window.Triiiceratops.core",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", carrying a handful of core's own functions — "
+				},
+				{
+					"type": "text",
+					"text": "getPaintingAnnotations",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "isImageBody",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "paintingBodyAlternatives",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "isUnsupportedCanvasFor",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — which "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "'s IIFE reads instead of bundling the painting classifier and the IIIF parsing helpers behind them a second time. The privilege is the same one and it holds for the same single reason: core and that plugin are built and released together, at one version, from one repository, so the list can change with core's own release rather than being a public contract. It is not one for a plugin on its own release schedule. Import what you need from "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and let your bundler include it, and do not declare "
+				},
+				{
+					"type": "text",
+					"text": "shared-core-utils",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "260b21bd-1188-4a55-ba07-6b7d337f0274"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "What makes the arrangement safe on the inside is a build gate, and it is worth knowing why it has to exist. The list core publishes is "
+				},
+				{
+					"type": "text",
+					"text": "curated",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — 11 "
+				},
+				{
+					"type": "text",
+					"text": "svelte/internal/client",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " helpers under "
+				},
+				{
+					"type": "text",
+					"text": "svelteInternal",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", alongside "
+				},
+				{
+					"type": "text",
+					"text": "mount",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "unmount",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "getContext",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", for 14 names in all — never "
+				},
+				{
+					"type": "text",
+					"text": "export *",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", because re-exporting the namespace wholesale defeats tree-shaking and was measured at +8,837 gzip on core. A plugin that compiles to a helper outside that list does not fail to build and does not fail its unit tests (those mount against the real "
+				},
+				{
+					"type": "text",
+					"text": "svelte/internal",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "); it throws at mount in a real browser. One bare text child of a component — "
+				},
+				{
+					"type": "text",
+					"text": "<Button>CC</Button>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", which compiles to "
+				},
+				{
+					"type": "text",
+					"text": "next()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — did exactly that once, and killed a whole transport while every gate stayed green. So "
+				},
+				{
+					"type": "text",
+					"text": "check-shared-runtime.mjs",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " now reads the helpers the "
+				},
+				{
+					"type": "text",
+					"text": "built",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " bundle references back out of the minified output and fails the build if any of them is unpublished."
+				}
+			],
+			"attrs": {
+				"id": "7b43a2ae-831f-4a4a-bae6-a7c8ef77a7aa"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Know its limits before you lean on it. It is a "
+				},
+				{
+					"type": "text",
+					"text": "regex scan over minified text",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", not a parse, and that cuts both ways. It reported a clean pass on every helper it was ever given until a fix to how it escapes minified locals: a local the minifier had spelled with a "
+				},
+				{
+					"type": "text",
+					"text": "$",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " matched nothing, and a gate that resolves no locals resolves no helpers — which has exactly the shape of a pass. In the other direction it cannot tell code from data, so a literal "
+				},
+				{
+					"type": "text",
+					"text": ".svelteInternal.<name>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " inside a string will be reported as a reference that is not one. If you are considering the same trick in your own monorepo: the gate is not optional decoration, and it is what makes a private-API dependency reviewable at all — but it is a heuristic backed by a real browser mount, not a proof, and it is worth mounting the thing before you believe it."
+				}
+			],
+			"attrs": {
+				"id": "e35cb876-d164-4ebb-a3bd-69fed3db5217"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "reading-and-controlling-state",
+				"id": "bed49c83-1879-491d-a937-b9d46345c359"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Reading and controlling state"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "context.viewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the actual live viewer state — the sole plugin-facing state surface. Read properties directly (reads are synchronous and always current). Change state only through "
+				},
+				{
+					"type": "text",
+					"text": "supported commands",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (the parity rule: anything the viewer's own UI can do, a plugin can do through a command). Direct property assignment is not a supported mutation API."
+				}
+			],
+			"attrs": {
+				"id": "1325e1d7-8a29-4b51-aaa6-cb6887648350"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "7c2e29f2-c07c-40ee-846c-f3f98280d303"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext } from 'triiiceratops';\n\nfunction example(context: PluginContext) {\n    const { viewerState } = context;\n\n    // Read directly.\n    const canvasId: string | null = viewerState.canvasId;\n    void canvasId;\n\n    // Mutate through commands.\n    viewerState.nextCanvas();\n    viewerState.toggleAnnotations();\n}"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "the-canvas-contract",
+				"id": "727dd40c-4b60-4ee2-aa9f-788aa5f1ea63"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The canvas contract"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every canvas the viewer hands you — "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.canvases",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.getCanvases(manifestId, sequenceIndex)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and every canvas passed into a plugin — is "
+				},
+				{
+					"type": "text",
+					"text": "raw IIIF Canvas JSON, IIIF Presentation 2 or 3 exactly as the manifest authored it",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". There is no wrapper object and there are no accessor methods. The active manifest is likewise raw JSON, at "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.manifestEntry?.json",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "109611ef-2dde-47b7-bfbb-3a8e786057da"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The two versions spell the same things differently — a v2 canvas uses "
+				},
+				{
+					"type": "text",
+					"text": "@id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "images[]",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", a v3 canvas uses "
+				},
+				{
+					"type": "text",
+					"text": "id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "items[]",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — and every one of these values is typed "
+				},
+				{
+					"type": "text",
+					"text": "any",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so TypeScript will not tell you which one you are holding. Rather than branch on version yourself, read them with core's version-neutral helpers:"
+				}
+			],
+			"attrs": {
+				"id": "fbbe243c-67bc-49de-aff7-af90d05f992e"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Helper"
+										}
+									],
+									"attrs": {
+										"id": "ff64ddbe-dc70-439c-8e36-274ca54c4f65"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b153263e-12b8-4dbc-a4ee-e300a75d4485"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "From"
+										}
+									],
+									"attrs": {
+										"id": "40ca0839-37df-4d6a-aef8-ecb445e2c73f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7a7215c3-6a24-4dcb-b75c-a0d838574a81"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Reads"
+										}
+									],
+									"attrs": {
+										"id": "28c0766b-57f5-4967-8780-74803ef8d8aa"
+									}
+								}
+							],
+							"attrs": {
+								"id": "88de878b-5529-4cc1-a4d9-aa83ac529bae"
+							}
+						}
+					],
+					"attrs": {
+						"id": "33d795bd-456f-41f6-ab14-e070c35090d4"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "getPaintingAnnotations(canvas)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ce3500b5-73de-4c2a-8897-5af452687ddc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "62871889-f9a2-4371-9053-5ff1939ada81"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "triiiceratops/image-export",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a355839b-f61d-48b7-96cb-9794af4293cb"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0eccce52-93f0-41d3-a85a-9daaeaa72686"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the canvas's image-bearing annotations"
+										}
+									],
+									"attrs": {
+										"id": "2fdd460b-b864-4566-86ca-4a60ed870eb7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "78e87fc2-7928-4de8-b322-ff56c4229e5d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "365e48ea-e866-4758-a98e-b24407d6da64"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "getCanvasId(canvas)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "fccaaeef-0e55-46ab-ada4-fbd28efd45d7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "33084257-03ae-4dd7-b8f6-b48f62575455"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/image-export",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "65e57da0-5d73-499e-ba63-287daf97067b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b3746964-ea1b-43ac-9434-b7127565b118"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "id",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " / "
+										},
+										{
+											"type": "text",
+											"text": "@id",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "0488f97e-7bff-4cf5-93aa-a09522c77c79"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f6b5b864-18c2-472a-9fb7-18ef7568c8ba"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9d5836b2-8c54-4044-b341-27fc67b846eb"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "getCanvasLabel(canvas, fallbackIndex?, locale?)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "94f4b1b7-3d7d-4afb-ad5e-f19f4f1d152b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ed6b592b-c8f5-4364-b82f-5281a1b119c0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/image-export",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ccecb39c-4a71-446b-8a02-fbb059de7121"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3bbbde66-cce0-4fa1-b48d-3ed773b4b2dd"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "label",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", in any of its shapes"
+										}
+									],
+									"attrs": {
+										"id": "e386cfc3-a4df-458e-bfba-22f73d2c87d6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d40f27fd-0a38-4693-9363-591c62952cb9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "89c52533-b454-46f8-b1f5-35ee89577d61"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "getThumbnailSrc(canvas)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ccfc3414-8f43-4090-8fe0-951b64ca13ab"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a5cf8aa8-a039-474c-908b-a6a07456105c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/image-export",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "85839f79-2ac5-4a97-8398-0c9cd2bc3cfe"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ee7a49c6-43b5-430c-80ad-09f17089e1c6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "a thumbnail URL, with fallbacks"
+										}
+									],
+									"attrs": {
+										"id": "0a575ec3-fbb3-4902-8184-e1323987da99"
+									}
+								}
+							],
+							"attrs": {
+								"id": "cc25cad0-24f8-4af2-b426-6a75d016ce7c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1425bb7d-3a24-4b73-96ea-b7de82a9ed38"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "resolveCanvasImage(canvas)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " / "
+										},
+										{
+											"type": "text",
+											"text": "resolveAllCanvasImages",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "1996fd3e-ba8a-4e48-8d89-393d75d34ca5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9f030af7-1b31-400f-aaec-eea9348ce1f3"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/image-export",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "28b237fc-7409-436c-806d-dc8f2fddfaf8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3e46c72a-9d07-4714-aa72-0c023ad14629"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "resolved image URLs and Choices"
+										}
+									],
+									"attrs": {
+										"id": "931d90ba-6c77-41ce-bd4b-d023f806ea3f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b91006f0-e5b7-4c03-af93-15f64098e1c4"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9be85f85-e8c1-404f-8e1d-60e4348b17d3"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "resolveLanguageValue(value, locale?)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a7bbe8b9-19a8-4cbf-96de-5a922aefcf2e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c2b10ca9-49e5-4019-aa5f-b13a6d0678a2"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/image-export",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "572f2e75-0623-4cd8-9368-96a3c0a8577e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8286f3b3-c47b-4c90-99c4-7347291570f4"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "any IIIF language-mapped value"
+										}
+									],
+									"attrs": {
+										"id": "29e3b089-1be8-4164-bf40-21d9972ffbba"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0c003e89-9d12-4fc6-8d8d-903f453d3502"
+							}
+						}
+					],
+					"attrs": {
+						"id": "babe1587-9f7d-4a26-a965-93bb32b03c39"
+					}
+				}
+			],
+			"attrs": {
+				"id": "bcfe158d-f98b-4d7b-b45f-32a41460c1c3"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "4689cf63-fa35-4ad9-abe6-eb76720c0fdd"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { getPaintingAnnotations } from 'triiiceratops';\nimport { getCanvasId, resolveAllCanvasImages } from 'triiiceratops/image-export';\nimport type { PluginContext } from 'triiiceratops';\n\nfunction imagesOnCurrentCanvas(context: PluginContext) {\n    const { viewerState } = context;\n    const canvas = viewerState.canvases.find(\n        (c: any) => getCanvasId(c) === viewerState.canvasId,\n    );\n\n    // Annotation-level view: what the manifest says paints this canvas.\n    const painting = getPaintingAnnotations(canvas);\n    // A v2 annotation carries its image under `resource`, a v3 one under `body`.\n\n    // Or go straight to resolved image URLs, Choices included.\n    return resolveAllCanvasImages(canvas);\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "getPaintingAnnotations",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is "
+				},
+				{
+					"type": "text",
+					"text": "total",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": it never throws and always returns an array, including for "
+				},
+				{
+					"type": "text",
+					"text": "null",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", a non-canvas, or a canvas whose "
+				},
+				{
+					"type": "text",
+					"text": "items",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "/"
+				},
+				{
+					"type": "text",
+					"text": "images",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a bare object rather than an array. Do not reimplement it — enumerating a canvas by hand is the one mistake here that fails silently, as a blank canvas with no error."
+				}
+			],
+			"attrs": {
+				"id": "a33d430e-d889-47c4-8ed4-fd25d52227a1"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "selectors",
+				"id": "377bdf55-a4e8-470b-9a60-23ab52a951a4"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Selectors"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "context.selectors.select(fn)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " returns a memoized "
+				},
+				{
+					"type": "text",
+					"text": "{ get(), subscribe() }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " selector. It recomputes only when state changes and notifies only when the selected value fails the equality gate ("
+				},
+				{
+					"type": "text",
+					"text": "Object.is",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " by default, or a supplied comparator):"
+				}
+			],
+			"attrs": {
+				"id": "a1ef27ad-aa65-40fd-887e-d868c8a56a8d"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "8a3fa4b4-eb8a-44cc-9ef5-e164f767974c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext } from 'triiiceratops';\n\nfunction watchCanvas(context: PluginContext) {\n    const canvas = context.selectors.select((s) => s.canvasId);\n    const stop = canvas.subscribe((id) => {\n        console.log('canvas changed to', id);\n    });\n    return stop; // unsubscribe\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Notifications are "
+				},
+				{
+					"type": "text",
+					"text": "batched",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and carry no payload — a notification means \"state changed, read what you need,\" not a transition log. Subscribers read the current value rather than reconstructing intermediate states."
+				}
+			],
+			"attrs": {
+				"id": "838cb7d5-c694-4b3a-83ca-af10cbc6170f"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "publishing-state-for-hosts-to-command-you-through",
+				"id": "843f4018-51ed-4461-9d7d-6b169a2ce1f6"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Publishing state for hosts to command you through"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Selectors let "
+				},
+				{
+					"type": "text",
+					"text": "you",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " read the viewer. "
+				},
+				{
+					"type": "text",
+					"text": "Published state",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the other direction: one object your activation exposes so the host application, a framework wrapper, or another plugin can command your plugin — the parity rule, one level down. A plugin that renders a panel and nothing else needs none of this. A plugin whose behavior a host would reasonably want to drive from its own chrome does: the first-party "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " publishes playback ("
+				},
+				{
+					"type": "text",
+					"text": "play",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "pause",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "seek",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", the playhead) so an application's own transport can control the viewer's media."
+				}
+			],
+			"attrs": {
+				"id": "613ebb97-8bd2-4e2c-a1c4-53759e800964"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "context.publishState(state)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " publishes it. An activation publishes "
+				},
+				{
+					"type": "text",
+					"text": "at most one",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " object — publishing again supersedes the previous one — and the publication lives exactly as long as the activation: core retires it on deactivation, on a failure, and while a retry is in flight, so a host asking during any of those gets "
+				},
+				{
+					"type": "text",
+					"text": "null",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " rather than a stale object. Do not export the state from your package for a host to import; the viewer is the only way in."
+				}
+			],
+			"attrs": {
+				"id": "1099457f-a6b2-4a25-abf9-939e00643701"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "c5c256eb-df6e-48c2-934e-17057b9f9d69"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext, PublishedState } from 'triiiceratops';\n\ninterface CounterState extends PublishedState {\n    increment(): void;\n    readonly count: number;\n}\n\nfunction publish(context: PluginContext) {\n    let count = 0;\n    const listeners = new Set<() => void>();\n\n    const state: CounterState = {\n        // Commands maintain the invariants; nothing outside writes `count`.\n        increment() {\n            count += 1;\n            for (const listener of listeners) listener();\n        },\n        get count() {\n            return count;\n        },\n        subscribe(listener: () => void) {\n            listeners.add(listener);\n            return () => listeners.delete(listener);\n        },\n        // Every member above, classified. The seam's own members are not.\n        stateInventory: { increment: 'command', count: 'observable' },\n    };\n\n    context.publishState(state);\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every member is classified",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", in a "
+				},
+				{
+					"type": "text",
+					"text": "stateInventory",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " table keyed by member name, using the same taxonomy the viewer's own state follows:"
+				}
+			],
+			"attrs": {
+				"id": "415a5f19-6a55-41ac-bb56-92f2410cf36c"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "command",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — a method that maintains your invariants. Anything a host can change is a command; there is no writable property on a published state."
+								}
+							],
+							"attrs": {
+								"id": "4ce02fcd-862c-473e-8c66-443bda13926c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "79797230-1a79-4c44-a8cd-07bf611501b7"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "observable",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — a value that notifies through "
+								},
+								{
+									"type": "text",
+									"text": "subscribe",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". Notifications are "
+								},
+								{
+									"type": "text",
+									"text": "batched and payload-free",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", exactly as the viewer's are: a notification means \"something changed, read what you need.\""
+								}
+							],
+							"attrs": {
+								"id": "bafaa9b8-37bf-4dd2-b3c0-e6041ec7fad7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c18552b5-7e37-4398-9466-0371431926f6"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "queryOnly",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — a high-frequency value that deliberately does "
+								},
+								{
+									"type": "text",
+									"text": "not",
+									"marks": [
+										{
+											"type": "italic"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " notify, because notifying per change would be a storm. A playhead is the archetype: it moves sixty times a second, and a host reads it on the finer "
+								},
+								{
+									"type": "text",
+									"text": "subscribeFrame",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " cadence or on its own schedule."
+								}
+							],
+							"attrs": {
+								"id": "e7a84e30-825e-48ae-a9ce-60a153b894ae"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8fca129d-36b0-4956-a481-af3c4eff9e09"
+					}
+				}
+			],
+			"attrs": {
+				"id": "ed7d7607-0c52-4bee-ab63-6fd49835c4b4"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "subscribe",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", the optional "
+				},
+				{
+					"type": "text",
+					"text": "subscribeFrame",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and "
+				},
+				{
+					"type": "text",
+					"text": "stateInventory",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " itself are the seam, not state, so they are not classified. Any "
+				},
+				{
+					"type": "text",
+					"text": "other",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " member missing from the table fails conformance — including inherited accessors and methods, if your state is a class instance."
+				}
+			],
+			"attrs": {
+				"id": "27f4ed2d-2eb1-4e1e-8d2c-aa7969626519"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A published state is a "
+				},
+				{
+					"type": "text",
+					"text": "SelectorSource",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". The selector runtime's only requirements on its source are "
+				},
+				{
+					"type": "text",
+					"text": "subscribe",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", an optional finer-cadence "
+				},
+				{
+					"type": "text",
+					"text": "subscribeFrame",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and synchronous reads — so the "
+				},
+				{
+					"type": "text",
+					"text": "same",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " runtime that backs viewer-state selectors works over a published state unchanged, and a host can build one with "
+				},
+				{
+					"type": "text",
+					"text": "createSelectorRuntime(published)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " from the "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/selectors",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " entry point. There is no second reactivity system to learn, and a "
+				},
+				{
+					"type": "text",
+					"text": "frame",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "-cadence projection over a "
+				},
+				{
+					"type": "text",
+					"text": "queryOnly",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " member is served from "
+				},
+				{
+					"type": "text",
+					"text": "subscribeFrame",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " when you supply one."
+				}
+			],
+			"attrs": {
+				"id": "af2c740a-dc63-44c0-b149-0377c130bc5c"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "What is generalized is the runtime, not the ready-made bindings: "
+				},
+				{
+					"type": "text",
+					"text": "context.selectors",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is typed "
+				},
+				{
+					"type": "text",
+					"text": "ViewerSelectors",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and projects viewer state only, and React's and Vue's "
+				},
+				{
+					"type": "text",
+					"text": "useViewerSelector",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " take a viewer handle with no published-state overload. (Svelte needs no selector API at all — see "
+				},
+				{
+					"type": "text",
+					"text": "the Svelte guide",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/svelte/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ".) So a host selecting over a published state instantiates the runtime itself rather than reaching for a wrapper hook."
+				}
+			],
+			"attrs": {
+				"id": "d3bb607f-b06a-4f17-832d-7343029dc937"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Hosts reach it with "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.getPluginState(pluginId)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", which returns "
+				},
+				{
+					"type": "text",
+					"text": "unknown",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — core cannot know your type — so ship a small typed accessor beside your plugin that narrows it, and export only the "
+				},
+				{
+					"type": "text",
+					"text": "type",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " of the state:"
+				}
+			],
+			"attrs": {
+				"id": "73dc0d1d-9c3c-4b97-8073-071109a8a207"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "475f84f5-8c86-4374-8173-5bee49d9f051"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PublishedState } from 'triiiceratops';\n\ninterface CounterState extends PublishedState {\n    increment(): void;\n    readonly count: number;\n}\n\nexport function getCounterState(viewerState: {\n    getPluginState(pluginId: string): unknown;\n}): CounterState | null {\n    const published = viewerState.getPluginState('counter');\n    // Structural, not `instanceof`: the object crossed a package boundary.\n    return published !== null &&\n        typeof published === 'object' &&\n        typeof (published as CounterState).increment === 'function'\n        ? (published as CounterState)\n        : null;\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Declare "
+				},
+				{
+					"type": "text",
+					"text": "published-state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " in "
+				},
+				{
+					"type": "text",
+					"text": "requiredCapabilities",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " if you call "
+				},
+				{
+					"type": "text",
+					"text": "publishState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". "
+				},
+				{
+					"type": "text",
+					"text": "runPluginConformance",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " then verifies that whatever your plugin publishes declares a "
+				},
+				{
+					"type": "text",
+					"text": "stateInventory",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", that the table classifies every member and names only real ones, and — as a spot check — that "
+				},
+				{
+					"type": "text",
+					"text": "some",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " subscriber is woken when an observable member's value changes across a flush. Read that last one narrowly: it proves only that a notification arrived, not which member it was for, and the kit does not check that you declared the capability at all, since its own harness activates with "
+				},
+				{
+					"type": "text",
+					"text": "requiredCapabilities: []",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". A plugin that publishes nothing passes these checks vacuously. Hosts that want to render controls only while a plugin is live can watch the set of published states, which is itself a notifying member of the viewer's inventory."
+				}
+			],
+			"attrs": {
+				"id": "3976480f-7789-4190-b19d-8adc3c7818a6"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "knowing-whether-your-panel-or-flyout-is-open",
+				"id": "c6808400-c5f9-4c45-b00e-3d6880ffe216"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Knowing whether your panel or flyout is open"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Core mounts your plugin "
+				},
+				{
+					"type": "text",
+					"text": "once per viewer",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", into a content element it moves in and out of the open panel/flyout. "
+				},
+				{
+					"type": "text",
+					"text": "mount",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is "
+				},
+				{
+					"type": "text",
+					"text": "not",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " re-run when the user opens or closes your surface, and your cleanup is "
+				},
+				{
+					"type": "text",
+					"text": "not",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " run on close — that's deliberate, so state survives a close→reopen round trip. It also means you can't use mount and cleanup as open/close hooks."
+				}
+			],
+			"attrs": {
+				"id": "ee9722c2-29e7-4908-a6f7-1c0b5f3584be"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "context.surface",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is your plugin's own chrome. Use it to pause work that only matters while the user can actually see your UI:"
+				}
+			],
+			"attrs": {
+				"id": "3b99e6d1-60f9-4f8f-9d98-8a2a156040c3"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "ca778967-6d24-4919-b668-f4a84455dd60"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext } from 'triiiceratops';\n\nfunction surfaceAware(context: PluginContext) {\n    const { surface } = context;\n\n    // `isOpen` and `target` are live getters — never snapshot them.\n    const open = context.selectors.select(() => surface.isOpen);\n\n    const render = (isOpen: boolean) => {\n        if (isOpen) {\n            // Start polling, attach an expensive frame handler, resume an\n            // animation — whatever is wasted while nobody can see it.\n        } else {\n            // Pause it. Keep your state: the plugin is still activated.\n        }\n    };\n\n    render(open.get()); // may already be open (config.plugins[uiId].open)\n    return open.subscribe(render);\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "isOpen",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " reflects "
+				},
+				{
+					"type": "text",
+					"text": "every",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " way a surface opens or closes: the plugin's toolbar button, a flyout light-dismiss (outside click or Escape), the consumer's "
+				},
+				{
+					"type": "text",
+					"text": "config.plugins[uiId].open",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState.setPluginOpen",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Read it as a plain getter for a one-off check, or project it through a selector (as above) to react. Like all viewer notifications, changes land on the batched flush, not synchronously inside the click."
+				}
+			],
+			"attrs": {
+				"id": "90f58367-824f-4473-ab0f-0f06e60c0cf3"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The surface also lets your content close itself — a \"Done\" or \"Apply\" button inside a flyout — and tells you which chrome you're rendering in, so a compact flyout can lay out differently from a docked panel:"
+				}
+			],
+			"attrs": {
+				"id": "6ef1cadb-30df-4b24-899d-7061a404c424"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "50150377-2e77-4cd5-88e3-f3ec8e0a247e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext } from 'triiiceratops';\n\nfunction surfaceControls(context: PluginContext) {\n    const { surface } = context;\n\n    void surface.id; // your chrome id — the `config.plugins` key\n    void surface.target; // 'panel' | 'flyout', follows a runtime override\n\n    const done = document.createElement('button');\n    done.textContent = 'Done';\n    done.onclick = () => surface.close(); // also: open(), toggle()\n    return done;\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "If your panel's content is a fact about the current canvas — captions, timed annotations, a transcript — declare it with "
+				},
+				{
+					"type": "text",
+					"text": "surface.setAvailable(false)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " when there is none, and "
+				},
+				{
+					"type": "text",
+					"text": "true",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " when there is. That hides your toolbar button, so a canvas with nothing to show grows no control that opens an empty panel; it is the gating core's own annotations and structures buttons have. An open surface is closed as it goes, so nothing is left on screen with no way to dismiss it. Call it whenever the fact changes — a canvas change, a track that settles on the network — from wherever you already compute what the panel renders, so the button and the body cannot disagree."
+				}
+			],
+			"attrs": {
+				"id": "dd4c84c8-d0d2-45ef-91d5-94174349a478"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "When a plugin is activated with no chrome at all — a bare "
+				},
+				{
+					"type": "text",
+					"text": "runActivation",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " into a container you placed yourself, with the test kit's "
+				},
+				{
+					"type": "text",
+					"text": "createStubSurfaceService()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for a surface — "
+				},
+				{
+					"type": "text",
+					"text": "isOpen",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is "
+				},
+				{
+					"type": "text",
+					"text": "true",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and the movers are no-ops: there is nothing that could be hiding your UI, so surface-gated work runs."
+				}
+			],
+			"attrs": {
+				"id": "7fb0cc62-bf3e-4773-8f00-a3d5d376c870"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "the-viewport",
+				"id": "966e35a8-a69d-456c-8c87-ade3febca046"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The viewport"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "No renderer object is exposed.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " The viewer's image surface is reached through first-party commands and queries on "
+				},
+				{
+					"type": "text",
+					"text": "viewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", all of them governed by core's own semver:"
+				}
+			],
+			"attrs": {
+				"id": "36cb3be3-4895-41c8-a5e5-00c90eda84fb"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Commands",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — "
+								},
+								{
+									"type": "text",
+									"text": "zoomIn()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "zoomOut()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "zoomTo(scale)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "panTo(point)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "fitBounds(box)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "fitCanvas()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "setImageAdjustments({ ... })",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and "
+								},
+								{
+									"type": "text",
+									"text": "setViewportInset({ ... })",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "cda5c012-21d8-4083-b0fc-c152b7d4e938"
+							}
+						}
+					],
+					"attrs": {
+						"id": "05df806b-0071-4c11-b31f-1ad37edf4bd9"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Query-only state",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — "
+								},
+								{
+									"type": "text",
+									"text": "viewportScale",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "viewportCentre",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "viewportBounds",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and "
+								},
+								{
+									"type": "text",
+									"text": "containerSize",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". These change every frame and deliberately never notify; read them reactively with a "
+								},
+								{
+									"type": "text",
+									"text": "frame",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "-cadence selector."
+								}
+							],
+							"attrs": {
+								"id": "a9fd76c3-c353-4bdf-a4a2-b6659cb98e1a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "5de1870f-9570-475f-a41f-c2f4af1825a0"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Coordinate helpers",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — "
+								},
+								{
+									"type": "text",
+									"text": "canvasToScreen(point)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "screenToCanvas(point)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", converting between "
+								},
+								{
+									"type": "text",
+									"text": "canvas space",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " (the IIIF Canvas's own dimensions, which is already how annotation geometry is persisted) and "
+								},
+								{
+									"type": "text",
+									"text": "screen space",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " (the surface's CSS pixels). An image's pixel dimensions never enter into it."
+								}
+							],
+							"attrs": {
+								"id": "cf534d2a-c94f-46f9-8c36-dafe76f1cb4b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9d5479ce-8bfd-4338-9251-fdc75206cb85"
+					}
+				}
+			],
+			"attrs": {
+				"id": "aea8d713-4d15-45ae-8b0f-b7147f95c9a0"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Commands are safe to call before a renderer has mounted — they are no-ops, and the queries answer "
+				},
+				{
+					"type": "text",
+					"text": "0",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "/"
+				},
+				{
+					"type": "text",
+					"text": "null",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — so most plugins need no readiness gate at all. When you do need one (anything positioning something over the image), await it:"
+				}
+			],
+			"attrs": {
+				"id": "dc67fa95-4c49-4d48-bf8e-fbbb999b6c8c"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "44cf5ecd-4b4c-4e35-8416-ddf1bd92ee9b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { whenRendererReady } from '@triiiceratops/plugin-sdk';\nimport type { PluginContext } from 'triiiceratops';\n\nasync function markCentre(context: PluginContext) {\n    await whenRendererReady(context.viewerState);\n    // The surface is sized, so this answers in real screen pixels.\n    return context.viewerState.canvasToScreen({ x: 100, y: 200 });\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "whenRendererReady",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " resolves "
+				},
+				{
+					"type": "text",
+					"text": "void",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": there is no object to hand over. It means \"the renderer has a sized surface and accepts commands\" — nothing more, and in particular not a renderer instance. The renderer is first-party and unexposed ("
+				},
+				{
+					"type": "text",
+					"text": "ADR 0012",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "https://github.com/d-flood/triiiceratops/blob/main/docs/adr/0012-the-renderer-is-first-party-with-no-pass-through.md"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "); the commands, the query-only viewport values, and the coordinate helpers on "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are the whole of what a plugin gets."
+				}
+			],
+			"attrs": {
+				"id": "fcd72897-9345-4153-9ef5-92710eaaf79b"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 4,
+				"slug": "reserving-space-for-your-own-ui-the-viewport-inset",
+				"id": "80efa444-d622-4407-a94d-4ce44d357934"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Reserving space for your own UI: the viewport inset"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "If your plugin floats UI over the image — a filmstrip along the bottom, an inspector down one side — a fit will happily centre the folio "
+				},
+				{
+					"type": "text",
+					"text": "behind",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " it. "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.setViewportInset({ bottom: 200 })",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " reserves edges of the surface, in screen pixels, so fits frame into what is left; "
+				},
+				{
+					"type": "text",
+					"text": "resetViewportInset()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " returns every edge to zero, and "
+				},
+				{
+					"type": "text",
+					"text": "viewportInset",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " reads the current set back. Edges you leave out keep their value, exactly as with "
+				},
+				{
+					"type": "text",
+					"text": "setImageAdjustments",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "716c7fce-1f78-4823-a60e-0f02000da78a"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "698d0b42-3a96-4d4e-a322-4439a9cc4c79"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext } from 'triiiceratops';\n\nfunction filmstrip(context: PluginContext, height: number) {\n    const { viewerState } = context;\n\n    viewerState.setViewportInset({ bottom: height });\n    // Setting it does not move the image. Ask for the re-frame yourself, if you\n    // want one — most of the time you do not, because the reader may have zoomed\n    // in deliberately and being yanked back to the whole page is a surprise.\n    viewerState.fitCanvas();\n\n    return () => {\n        viewerState.resetViewportInset();\n        viewerState.fitCanvas();\n    };\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Four things to know about it:"
+				}
+			],
+			"attrs": {
+				"id": "39785029-6cf2-4c7c-aefc-a9e760f02551"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Only fits are affected",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — "
+								},
+								{
+									"type": "text",
+									"text": "fitCanvas",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "fitBounds",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and canvas navigation. Pan, zoom, "
+								},
+								{
+									"type": "text",
+									"text": "canvasToScreen",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "/"
+								},
+								{
+									"type": "text",
+									"text": "screenToCanvas",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and the viewport queries are all about the whole surface and stay that way. That is deliberate: your overlay layer spans the full surface, so an inset that shifted the coordinate mapping would misplace every marker on it, yours included."
+								}
+							],
+							"attrs": {
+								"id": "cc6e5e5b-21fc-4126-a716-a9b6918b59ec"
+							}
+						}
+					],
+					"attrs": {
+						"id": "158a4648-3741-4698-b6e6-05e1fa599895"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "The zoom range is not affected either.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " How far in and out a reader may zoom is measured against the whole surface, so reserving space never lowers the zoom ceiling under the reader's fingers and never snaps a reader who was already at it back out."
+								}
+							],
+							"attrs": {
+								"id": "1a2d6c07-ff57-4139-92c2-45875b84d056"
+							}
+						}
+					],
+					"attrs": {
+						"id": "590fd8bc-7a44-4d6c-93c8-4f9cd06e2a90"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Setting an inset does not move the current view.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " The "
+								},
+								{
+									"type": "text",
+									"text": "next",
+									"marks": [
+										{
+											"type": "italic"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " fit uses it. Issue a fit yourself when you want the image re-framed, as above."
+								}
+							],
+							"attrs": {
+								"id": "173757b4-3af4-4d64-ad3a-9bdfd05979dc"
+							}
+						}
+					],
+					"attrs": {
+						"id": "db435741-7fa6-4ab9-9fe0-241973fec5b4"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "One inset per viewer.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " A second plugin calling "
+								},
+								{
+									"type": "text",
+									"text": "setViewportInset",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " replaces yours; there is no per-plugin reservation and no maximum-per-edge merge. In practice one plugin owns the viewer's chrome, so this is a constraint to know rather than one to work around."
+								}
+							],
+							"attrs": {
+								"id": "d2edb2f9-f91c-46a0-8aa2-73cbfc07424e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "77a92dd6-18a7-4cd2-ba8a-c368b366a6cd"
+					}
+				}
+			],
+			"attrs": {
+				"id": "0d02a4af-7400-4ae3-82a4-c6db2967733e"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Do not reserve more than half of an axis.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Up to half the surface's width or height per axis, a fit lands exactly centred in what is left. Past that the viewer's own guarantees take over and the inset is honoured in direction but not in full: the reader's zoom floor — half the scale at which a whole canvas fits — stops the fit from shrinking any further, and the pan constraint stops the framed box from being lifted past the edge of the world, which in continuous mode shows up on the first and last folio of the strip. Both of those outrank a plugin's request for space on purpose, because the alternative is a plugin that can collapse the viewer's zoom range. If your UI genuinely needs more than half the surface, it wants to be a panel in the viewer's chrome rather than an overlay with an inset."
+				}
+			],
+			"attrs": {
+				"id": "917dd56c-637e-493e-9dc3-83f60e9da4ac"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A negative or non-finite edge is refused whole and logged — it is an author error at any window size. An edge given as "
+				},
+				{
+					"type": "text",
+					"text": "undefined",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is treated as omitted, so "
+				},
+				{
+					"type": "text",
+					"text": "setViewportInset({ bottom: open ? 200 : undefined })",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " leaves the bottom edge alone rather than being refused. An inset too large for the "
+				},
+				{
+					"type": "text",
+					"text": "current",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " window is neither: the axis with no room left silently falls back to the full surface, so a reader can always zoom out far enough to see a whole canvas."
+				}
+			],
+			"attrs": {
+				"id": "5e33218c-5736-417e-a352-f306232ea0d3"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "panTo",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " deliberately aims at the middle of the "
+				},
+				{
+					"type": "text",
+					"text": "surface",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", not of the inset, so that it stays the exact inverse of "
+				},
+				{
+					"type": "text",
+					"text": "viewportCentre",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Aim it yourself in one line when you need to — half the inset's asymmetry, converted to canvas space with "
+				},
+				{
+					"type": "text",
+					"text": "viewportScale",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ":"
+				}
+			],
+			"attrs": {
+				"id": "d844c247-5143-492e-a863-c34abc8bc1a1"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "34565923-f469-48d9-b37e-6852703ea985"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext, ViewportPoint } from 'triiiceratops';\n\nfunction panToVisibleCentre(context: PluginContext, target: ViewportPoint) {\n    const { viewportInset: inset, viewportScale: scale } = context.viewerState;\n    if (!scale) return; // no sized surface yet\n\n    context.viewerState.panTo({\n        x: target.x - (inset.left - inset.right) / 2 / scale,\n        y: target.y - (inset.top - inset.bottom) / 2 / scale,\n    });\n}"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "a-tap-on-the-image",
+				"id": "ef4774fc-19dd-4e20-aa0d-68deaa71bf18"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "A tap on the image"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A "
+				},
+				{
+					"type": "text",
+					"text": "single tap",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the one gesture the viewport does not consume — it never zooms — and "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.subscribeSurfaceTap(listener)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is how a plugin hears it, with the point in screen space. It arrives already filtered by the renderer's single arbitration point: never for a drag, never for a pinch, and never for a gesture some other consumer had claimed. Deciding "
+				},
+				{
+					"type": "text",
+					"text": "what",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " was tapped is yours, from geometry you already hold, projected with "
+				},
+				{
+					"type": "text",
+					"text": "canvasToScreen",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — which is exactly what core's own annotation overlay does to select an annotation."
+				}
+			],
+			"attrs": {
+				"id": "0ef23c7c-1197-4bdd-ab56-c7dee15b1409"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "f46ee858-4e25-4c4a-acf3-a2a1f21d95b7"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext } from 'triiiceratops';\n\nfunction watchTaps(context: PluginContext, onCanvasPoint: (point: { x: number; y: number }) => void) {\n    // Returns an idempotent unsubscribe; a listener survives a renderer remount.\n    return context.viewerState.subscribeSurfaceTap((point) => {\n        const canvasPoint = context.viewerState.screenToCanvas(point);\n        if (canvasPoint) onCanvasPoint(canvasPoint);\n    });\n}"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "which-canvases-are-on-screen",
+				"id": "211c692f-dbf7-42c2-a454-0eb958a6a85c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Which canvases are on screen"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "viewerState.visibleCanvasIds",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the canvases the reader is actually looking at, in layout order — one canvas in "
+				},
+				{
+					"type": "text",
+					"text": "individuals",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", the "
+				},
+				{
+					"type": "text",
+					"text": "whole spread",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " in "
+				},
+				{
+					"type": "text",
+					"text": "paged",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and the folios the viewport meets in "
+				},
+				{
+					"type": "text",
+					"text": "continuous",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". It is observable state that core writes and republishes when the set "
+				},
+				{
+					"type": "text",
+					"text": "changes",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", not per frame, so it is safe to subscribe to. Read "
+				},
+				{
+					"type": "text",
+					"text": "annotatableCanvasIds",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the same list with a fallback to the current canvas before a renderer has answered, and with every canvas under a "
+				},
+				{
+					"type": "text",
+					"text": "canvas claim",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " removed — the claimant owns what is rendered there, so core has no painting of its own for a comment to be anchored against. Its array identity is stable while the ids are unchanged, so it is safe to hand straight to a React "
+				},
+				{
+					"type": "text",
+					"text": "getSnapshot",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "effa6e32-055f-49f0-85df-07930c064b82"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Prefer it to "
+				},
+				{
+					"type": "text",
+					"text": "canvasId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for anything drawn over the image. "
+				},
+				{
+					"type": "text",
+					"text": "canvasId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the canvas last "
+				},
+				{
+					"type": "text",
+					"text": "navigated",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to, which in continuous mode is not what is on screen after a scroll — core's own annotation surfaces read the visible set for exactly that reason, and geometry then goes through "
+				},
+				{
+					"type": "text",
+					"text": "canvasToScreen(point, canvasId)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " per canvas, because two pages of a spread sit at different offsets."
+				}
+			],
+			"attrs": {
+				"id": "50394df8-cc04-486b-9323-b9ebb2e7536b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The annotation core selects this way is "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.activeAnnotationId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " ("
+				},
+				{
+					"type": "text",
+					"text": "setActiveAnnotationId(id | null)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", which clears when handed the id already selected). It is the "
+				},
+				{
+					"type": "text",
+					"text": "selection",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", notifying like any command state, and it is distinct from "
+				},
+				{
+					"type": "text",
+					"text": "hoveredAnnotationId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": a selection persists after the pointer has moved on, which is why the panel keeps its row marked and the connector line stays drawn. Neither of them changes what is visible — that is "
+				},
+				{
+					"type": "text",
+					"text": "visibleAnnotationIds",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "42fc6692-f677-4795-9646-24ba99653572"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "drawing-into-the-image-the-paint-hook",
+				"id": "37861ac1-d3fc-44bf-8d5f-7411454cdbd2"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Drawing into the image: the paint hook"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "viewerState.registerPaintLayer({ id, order, draw })",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " registers a layer the renderer calls "
+				},
+				{
+					"type": "text",
+					"text": "each frame, after the tiles are painted",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", with the 2D context and the transform the tiles were drawn with. Lower "
+				},
+				{
+					"type": "text",
+					"text": "order",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " draws first; layers sharing an "
+				},
+				{
+					"type": "text",
+					"text": "order",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are called in registration order. It returns an idempotent unregister."
+				}
+			],
+			"attrs": {
+				"id": "d9939757-5070-428a-ab1a-2ac018f1526f"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The context arrives already transformed, so a layer draws in the renderer's "
+				},
+				{
+					"type": "text",
+					"text": "laid-out world",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and cannot desync from the image the way an overlay repositioned on an event can. That world is not canvas space: every canvas of the manifest has a rect in it, placed beside its neighbours, and layout may have resized that rect (facing pages are normalized to a shared height). So a layer holding geometry in canvas space — which is how IIIF annotations are persisted — converts it first:"
+				}
+			],
+			"attrs": {
+				"id": "f354ab89-bbc3-4b16-9089-bc27c16c4493"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "frame.canvasToWorld(point, canvasId)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "frame.canvasBoxToWorld(box, canvasId)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " map canvas space into the space the context is in, and answer "
+								},
+								{
+									"type": "text",
+									"text": "null",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " for a canvas this frame did not lay out."
+								}
+							],
+							"attrs": {
+								"id": "e73a192e-378d-4cc7-bce0-602703f88689"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3aead581-12f9-4f77-81f7-1b50949b43f2"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "frame.canvases",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " gives each laid-out canvas's rect directly, for a layer that wants to draw a whole page rather than something on one."
+								}
+							],
+							"attrs": {
+								"id": "ffbc45c4-643a-48a1-b12e-773509ed4ba8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9a39bee9-739e-44e9-90c5-38141915bfa7"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "frame.transform",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " carries the matrix as numbers for a layer that would rather work in device pixels."
+								}
+							],
+							"attrs": {
+								"id": "35093080-fdbb-4e04-86fa-49586f9ea7d2"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e9553307-598b-40c7-818a-5b1849a56435"
+					}
+				}
+			],
+			"attrs": {
+				"id": "28e23a32-c570-404d-96d2-690f50213c01"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "4a70cbf0-2b10-467c-819d-abf178cd8da5"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PaintFrame, PluginContext } from 'triiiceratops';\n\nfunction markRegion(context: PluginContext, canvasId: string) {\n    return context.viewerState.registerPaintLayer({\n        id: 'my-plugin:region',\n        order: 10,\n        draw: (ctx: CanvasRenderingContext2D, frame: PaintFrame) => {\n            // The region in the Canvas's own coordinates — as an annotation\n            // stores it — mapped into the space the context is in.\n            const box = frame.canvasBoxToWorld(\n                { x: 100, y: 200, width: 300, height: 400 },\n                canvasId,\n            );\n            if (!box) return; // that canvas is not on screen this frame\n\n            ctx.strokeStyle = 'red';\n            ctx.lineWidth = 2 / frame.transform.scale; // 2 device px, any zoom\n            ctx.strokeRect(box.x, box.y, box.width, box.height);\n        },\n    });\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Registering before a renderer mounts is fine: the layer is kept and drawn when one arrives, and it survives a remount. A layer that throws is reported once and skipped; it never stops the renderer painting."
+				}
+			],
+			"attrs": {
+				"id": "8c538b15-e72a-465c-8a82-4b943b9548b5"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Painted pixels are invisible to assistive technology.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " They have no focus, no accessible name, and no keyboard reach — and an automated scan cannot report a missing element. Anything a reader must perceive or operate needs a DOM element beside the picture: the canvas paints pixels, a parallel DOM layer carries the focusable, labelled targets, both projected from one geometry. Core's own annotation shape overlay works exactly that way."
+				}
+			],
+			"attrs": {
+				"id": "02ecad85-d1a4-4e80-84b6-f6684e117d08"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "putting-dom-on-the-image-overlay-layers",
+				"id": "a4a8aaca-8a68-4168-822d-1ac4e04b2370"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Putting DOM on the image: overlay layers"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "An "
+				},
+				{
+					"type": "text",
+					"text": "overlay layer",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is where that parallel DOM lives. "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.registerOverlayLayer({ id, mount })",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " asks core for a container over the image; core creates it, places it in the viewer's stage beside the renderer, and calls your "
+				},
+				{
+					"type": "text",
+					"text": "mount",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " with it — the same "
+				},
+				{
+					"type": "text",
+					"text": "(container) => cleanup",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " thunk your panels already use. It returns an idempotent dispose, so releasing it from your mount cleanup and from a teardown path is safe."
+				}
+			],
+			"attrs": {
+				"id": "256a361c-0c7e-403b-b6a7-bd5e255c3d74"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Id your layer ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "`${context.surface.id}:<name>`",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — the same convention your chrome ids follow. It is required, not advisory: an id whose prefix names no plugin the viewer knows is refused and registers nothing, as is a duplicate id. Naming your plugin is what makes ids collision-free between plugins, and it lets the viewer release your layers if your plugin is deactivated without them having been disposed. Do not rely on that: release the layer from your "
+				},
+				{
+					"type": "text",
+					"text": "view.mount",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " cleanup, alongside your styles. Doing both is safe, because the dispose is idempotent."
+				}
+			],
+			"attrs": {
+				"id": "a2b95f9f-46fa-443d-a15c-cf762f34a47e"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Derive the prefix from ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "context.surface.id",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "; do not hardcode it.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " The id the viewer knows you by is not your package name: it is your declared "
+				},
+				{
+					"type": "text",
+					"text": "uiId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " if you have one, and otherwise your package name with every run of characters that is not "
+				},
+				{
+					"type": "text",
+					"text": "[A-Za-z0-9_-]",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " collapsed to a single "
+				},
+				{
+					"type": "text",
+					"text": "-",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " ("
+				},
+				{
+					"type": "text",
+					"text": "@scope/plugin-notes",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " → "
+				},
+				{
+					"type": "text",
+					"text": "scope-plugin-notes",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "). "
+				},
+				{
+					"type": "text",
+					"text": "context.surface.id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is that value, verbatim, and it is the only string the check accepts — a literal "
+				},
+				{
+					"type": "text",
+					"text": "'my-plugin:markers'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is refused unless "
+				},
+				{
+					"type": "text",
+					"text": "my-plugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " happens to be your "
+				},
+				{
+					"type": "text",
+					"text": "uiId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "48bf8213-33ad-43dd-8c42-5d51cccb3b12"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A refusal is not silent, but it is not a thrown error either: it arrives on the host's structured "
+				},
+				{
+					"type": "text",
+					"text": "viewererror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " channel with "
+				},
+				{
+					"type": "text",
+					"text": "scope: 'plugin'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "code: 'overlay-layer-refused'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and in the console when the viewer runs with "
+				},
+				{
+					"type": "text",
+					"text": "debug: true",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Your "
+				},
+				{
+					"type": "text",
+					"text": "mount",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is simply never called, so the symptom you will see first is a layer that renders nothing."
+				}
+			],
+			"attrs": {
+				"id": "88d31f37-627f-4028-9806-3125ce3fd938"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The container's origin is ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "canvasToScreen",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "'s origin.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " That is a published contract, not a coincidence: a projected point is already the container's own coordinates, so no rect correction, no "
+				},
+				{
+					"type": "text",
+					"text": "getBoundingClientRect",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", no offset arithmetic."
+				}
+			],
+			"attrs": {
+				"id": "0c5c40b1-1dea-4347-a981-edba1e76b1f2"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The container itself is ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "display: contents",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so it has no box of its own",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": its "
+				},
+				{
+					"type": "text",
+					"text": "clientWidth",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "/"
+				},
+				{
+					"type": "text",
+					"text": "clientHeight",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and its "
+				},
+				{
+					"type": "text",
+					"text": "getBoundingClientRect()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are all zero, and it is the wrapper core puts it in that is the positioning box your absolutely positioned children resolve against. Position children against "
+				},
+				{
+					"type": "text",
+					"text": "canvasToScreen",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " output as above; if you need the visible extent (to clip a backing store, say), walk up from the container to the first ancestor that has a box rather than measuring the container."
+				}
+			],
+			"attrs": {
+				"id": "54e5afa7-d370-48a4-94cb-cc86d1e97cb4"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "fcd0c462-7a0f-4245-86a6-5cbd84254c97"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext } from 'triiiceratops';\n\nfunction markPoint(context: PluginContext, canvasId: string) {\n    const at = { x: 600, y: 450 }; // canvas space, as an annotation stores it\n\n    return context.viewerState.registerOverlayLayer({\n        // The prefix is the id the viewer knows this plugin by — never a literal.\n        id: `${context.surface.id}:markers`,\n        mount: (container: HTMLElement) => {\n            const pin = document.createElement('button');\n            pin.type = 'button';\n            pin.textContent = 'Analysis point 1';\n            // The layer is transparent to pointer events; this child opts in.\n            pin.style.cssText =\n                'position:absolute;pointer-events:auto;transform:translate(-50%,-50%)';\n            container.append(pin);\n\n            const place = () => {\n                const point = context.viewerState.canvasToScreen(at, canvasId);\n                // `null` means that canvas is not laid out — one honest branch.\n                pin.hidden = point === null;\n                if (point) {\n                    pin.style.left = `${point.x}px`;\n                    pin.style.top = `${point.y}px`;\n                }\n            };\n\n            place();\n            // The `frame` cadence: the image moved. This write lands in the same\n            // frame the tiles are painted in, so the pin does not trail them.\n            const stop = context.viewerState.subscribeFrame(place);\n\n            return () => {\n                stop();\n                pin.remove();\n            };\n        },\n    });\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "subscribeFrame",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " means \"the image moved\" — nothing else.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " When "
+				},
+				{
+					"type": "text",
+					"text": "your own",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " state changes (a marker added, a selection moved, your data reloaded), re-place on your own "
+				},
+				{
+					"type": "text",
+					"text": "requestAnimationFrame",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": the viewer has no reason to produce a frame for something that happened on your side, so waiting for one can wait forever."
+				}
+			],
+			"attrs": {
+				"id": "e98c3eaf-082c-4b88-bbd1-50297f03ea3b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Pointer events pass through by default.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " The container is "
+				},
+				{
+					"type": "text",
+					"text": "pointer-events: none",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " so that adding a layer cannot cost the reader panning and pinching; each element you want operable opts in with "
+				},
+				{
+					"type": "text",
+					"text": "pointer-events: auto",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", as the pin above does. The trap to know about: if you draw a "
+				},
+				{
+					"type": "text",
+					"text": "full-surface SVG",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — connector lines between a panel row and your markers, for instance — that SVG covers the whole image, so leave it "
+				},
+				{
+					"type": "text",
+					"text": "pointer-events: none",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and opt in only the individual shapes inside it. Otherwise it silently swallows every gesture on the image. Events on your layer never contend with the renderer: it binds its pointer handling inside its own root, and your layer is a sibling of that root."
+				}
+			],
+			"attrs": {
+				"id": "8d40493b-6b44-4394-8102-d1d6b35cda32"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The container is created once and removed once.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " It is not remounted when the renderer remounts, so a manifest change leaves your DOM and your state intact — which also means clearing content that was scoped to the old manifest is yours to do, since core cannot know which of your DOM that is. Registering before any renderer has mounted is fine; the container exists regardless, and "
+				},
+				{
+					"type": "text",
+					"text": "canvasToScreen",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " answers "
+				},
+				{
+					"type": "text",
+					"text": "null",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " until there is a layout."
+				}
+			],
+			"attrs": {
+				"id": "b0b22c64-4bb8-40d4-b2cd-f216338b010b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Layers stack in "
+				},
+				{
+					"type": "text",
+					"text": "registration order",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and all of them below the viewer's own annotation shapes — those are focusable targets carrying the viewer's accessible names, and covering them would break that silently. If you want primacy, hide the viewer's shapes through the annotation visibility API and draw your own. There is no ordering field: two plugins cannot coordinate one, and within your own plugin one container with "
+				},
+				{
+					"type": "text",
+					"text": "z-index",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " on its children is less work than two layers."
+				}
+			],
+			"attrs": {
+				"id": "01387da0-b7c8-4af2-a6a6-008d33be1976"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Choosing between an overlay layer and the paint hook is the accessibility rule",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", not a performance judgement: anything a reader must perceive or operate is DOM in an overlay layer, because painted pixels have no focus, no accessible name, and no keyboard reach. Reach for the paint hook for decoration, or for a second rendering of geometry your DOM already carries — a heat map under your pins, a thousand tick marks no one clicks. Both hooks exist because the substrates differ, not because one is on its way out ("
+				},
+				{
+					"type": "text",
+					"text": "ADR 0016",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "https://github.com/d-flood/triiiceratops/blob/main/docs/adr/0016-overlay-layers-are-dom-and-the-paint-hook-stays.md"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ")."
+				}
+			],
+			"attrs": {
+				"id": "5420dc6e-cc08-455f-86dd-d8a2291579ba"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "\"Decoration\" does not always mean \"the paint hook\", though.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " The paint hook draws into the "
+				},
+				{
+					"type": "text",
+					"text": "renderer's",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " canvas, and every overlay layer stacks above it — so if your decoration belongs on top of opaque DOM you put there yourself, painting it through the hook draws it correctly and leaves it invisible behind your own box. "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "'s waveform is that case: it sits over an opaque media stage, so it is a "
+				},
+				{
+					"type": "text",
+					"text": "<canvas>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " nested inside the overlay layer's timeline lane rather than a paint layer. ADR 0016's rule is about the DOM/pixels split, not about which API the pixels come from; the operable geometry is still DOM (a real slider and the lane's own tap handling), and the pixels are still decoration over it."
+				}
+			],
+			"attrs": {
+				"id": "75e47c43-2907-4e22-bd1c-f6ecb0746b70"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "taking-over-a-canvas-the-canvas-claim",
+				"id": "919c4084-a9a7-47bd-9512-39063616e803"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Taking over a canvas: the canvas claim"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Some canvases describe content core cannot display — a film, a sound recording, a 3D model. Core is honest about them: it paints no pixels, asks for nothing over the network, and shows a labelled \"this viewer cannot display this\" box over the canvas's rect, with a glyph rather than a broken picture in the thumbnail strip. That is the "
+				},
+				{
+					"type": "text",
+					"text": "unsupported presentation",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "bfa244b8-1cb7-4fab-a705-7d43ed15f56c"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "viewerState.claimCanvas(canvasId, pluginId)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " takes that canvas's non-image content over. It returns an idempotent release, and its effect is to suppress the unsupported presentation and its strip glyph for that canvas, leaving a clean box for you to render into through an overlay layer, the paint hook, or both. It carries no payload: no render callback, no options. Core goes on painting the canvas's "
+				},
+				{
+					"type": "text",
+					"text": "image",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " bodies through the tile pipeline (which is what makes a composite image+video canvas compose), and layout, navigation, residency, and "
+				},
+				{
+					"type": "text",
+					"text": "canvasToScreen",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " never learn a claim exists."
+				}
+			],
+			"attrs": {
+				"id": "19ce5cef-2783-4215-b2b2-1be6b90f41e0"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The one thing beyond the placard that a claim moves is the annotation scope: a claimed canvas leaves "
+				},
+				{
+					"type": "text",
+					"text": "annotatableCanvasIds",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", because core paints nothing there for a comment to be anchored against. Every annotation surface reads that list — the panel and the overlays included — so the reader is not offered a rectangle tool over your video."
+				}
+			],
+			"attrs": {
+				"id": "0e5d25ac-e0bb-4019-822c-7e5563ca4b3d"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Pass ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "context.surface.id",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " as ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "pluginId",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — never a literal, and never your package name.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " It is the id the viewer knows you by, the same value your overlay layer ids are prefixed with, and it is checked: a claim naming an id no plugin of this viewer answers to is "
+				},
+				{
+					"type": "text",
+					"text": "refused",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", on the "
+				},
+				{
+					"type": "text",
+					"text": "viewererror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " channel with "
+				},
+				{
+					"type": "text",
+					"text": "scope: 'plugin'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "code: 'canvas-claim-refused'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". The check is there because that id is what releases your claim if your plugin goes away without releasing it itself; a claim under a name nothing will ever unregister would outlive your activation silently, leaving a canvas with no placard and nothing rendering over it for the rest of the session."
+				}
+			],
+			"attrs": {
+				"id": "6e85890a-2c5f-4934-903e-e65b43bb768b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "One claimant per canvas.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " A second claim on a canvas somebody already holds is refused through the same channel and the first claimant keeps it — claiming is not last-writer-wins, so a plugin cannot take a canvas another one is already rendering into. A refused call still hands back a dispose, so you never have to branch on whether your claim was accepted; it is simply a no-op."
+				}
+			],
+			"attrs": {
+				"id": "344db493-bbde-4ba9-ada0-b8eba76a59c1"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Release from your own ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "view.mount",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " cleanup.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Core releases whatever you left behind when your plugin is deactivated, retried, or fails to mount — the same backstop your overlay layers get — and doing both is safe."
+				}
+			],
+			"attrs": {
+				"id": "3614e13b-72db-43cd-9b53-29d0e6a07f1f"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A claim against a canvas id the current manifest does not carry is "
+				},
+				{
+					"type": "text",
+					"text": "inert and kept",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and applies if that id appears later: you claim from inside your mount, which may well run before the manifest you care about is loaded."
+				}
+			],
+			"attrs": {
+				"id": "8e5e4839-588e-48e5-b071-1ab7c635dcbe"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "To decide "
+				},
+				{
+					"type": "text",
+					"text": "which",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " canvases are yours, ask core's own classifier rather than typing bodies yourself — "
+				},
+				{
+					"type": "text",
+					"text": "isUnsupportedCanvas(canvas)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is exactly the question core answers when it decides to show the placard, so the two cannot drift apart. "
+				},
+				{
+					"type": "text",
+					"text": "isImageBody",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "paintingBodyAlternatives",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are exported beside it for when you need the individual bodies (which medium, which Choice alternative)."
+				}
+			],
+			"attrs": {
+				"id": "7596f905-efc4-454b-9937-3fb5a05f5c31"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "cbc65276-7d47-494c-a654-2298388d2fe0"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { isUnsupportedCanvas, type PluginContext } from 'triiiceratops';\n\nfunction claimMine(context: PluginContext) {\n    const releases = context.viewerState.canvases\n        .filter((canvas) => isUnsupportedCanvas(canvas))\n        .map((canvas) =>\n            context.viewerState.claimCanvas(\n                canvas.id ?? canvas['@id'],\n                // The id the viewer knows this plugin by — never a literal.\n                context.surface.id,\n            ),\n        );\n\n    return () => releases.forEach((release) => release());\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Declare "
+				},
+				{
+					"type": "text",
+					"text": "canvas-claim",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " in "
+				},
+				{
+					"type": "text",
+					"text": "requiredCapabilities",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " if you call this, so your plugin fails closed on a core that predates the seam instead of activating and rendering over a placard it cannot suppress."
+				}
+			],
+			"attrs": {
+				"id": "bc87d721-2910-4474-82fd-21f884fe7874"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "the-second-half-of-a-claim-the-companion-phase",
+				"id": "5ea69fd6-f3fd-4cf3-a07d-9b9e4004d62b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The second half of a claim: the companion phase"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A claim on its own paints nothing, but a claimed canvas often "
+				},
+				{
+					"type": "text",
+					"text": "has",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " a picture to show — IIIF gives a canvas two ordinary Presentation 3 properties for it, "
+				},
+				{
+					"type": "text",
+					"text": "placeholderCanvas",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (what to show before the content starts) and "
+				},
+				{
+					"type": "text",
+					"text": "accompanyingCanvas",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (what to show alongside it). Both are "
+				},
+				{
+					"type": "text",
+					"text": "Canvases",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and core paints them for you."
+				}
+			],
+			"attrs": {
+				"id": "41e2c16f-6ce5-41f0-9bd3-cb4bcc86c939"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "viewerState.setCompanionPhase(canvasId, pluginId, phase)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " says which one core should paint into that canvas's rect right now:"
+				}
+			],
+			"attrs": {
+				"id": "e15d87da-28b5-4f6d-810c-818d12c2bbd6"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Phase"
+										}
+									],
+									"attrs": {
+										"id": "7dd02b2e-635c-4f54-9917-c1e50ebcb5ed"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5206e9b4-1111-421f-b91e-b9d50b529009"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "What core paints"
+										}
+									],
+									"attrs": {
+										"id": "e744731f-855c-467c-bf47-88c3ce695b6f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "59789424-f152-49a7-865d-6d8d37b488d7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2db432e8-af6f-44c0-b3be-56234ffab147"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "'placeholder'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a9a41a91-9894-448e-886b-278c60272cf2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1aff99c9-616e-4aa3-9e97-2b3febb07ec4"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the canvas's "
+										},
+										{
+											"type": "text",
+											"text": "placeholderCanvas",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e5a86174-1223-4310-850e-5774be348fb1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b4a82d5c-85c0-496d-8545-c43dedeee3ce"
+							}
+						}
+					],
+					"attrs": {
+						"id": "52827f5c-b9be-4ced-be17-897999b1a6d5"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "'accompanying'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "0f614932-a962-42eb-9a62-104c6bc5c964"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7aed0e13-6ba7-4340-a585-822f257b50b6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "its "
+										},
+										{
+											"type": "text",
+											"text": "accompanyingCanvas",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b36b849e-397f-4eda-b09d-eddbb4a1c70d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7df20190-78b6-4cb0-85a0-a62931fae24a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "863a9087-c8f3-490b-8bf4-0e0e53588d6b"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "'none'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "cd477e6f-84db-49b6-abfe-6fccdbaeff59"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5370f655-4fc4-4e45-a7cf-687cd51c8492"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "nothing — but the rect the companion established is kept"
+										}
+									],
+									"attrs": {
+										"id": "fcec2ff1-5a39-43ff-add3-8e995bf46b6a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "11d219e4-95b9-488f-b78f-0fa9979988cb"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ac4be2d3-d66f-4e89-a6e2-1cd85569ee89"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "never called",
+											"marks": [
+												{
+													"type": "italic"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "0cdb5843-e6bd-482f-9d8f-f66b78d2954f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f40c85c0-6473-49d6-8d56-96c30e2411ee"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "nothing, and the canvas's descriptor is untouched"
+										}
+									],
+									"attrs": {
+										"id": "28677082-d2cb-46ca-a222-d44c113720f2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "eff30826-6d7b-453e-b78a-77e52d059430"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c0b09f4b-7f41-4eea-a7f4-0e8fc8175a71"
+					}
+				}
+			],
+			"attrs": {
+				"id": "cd7c0b81-7eed-4743-83ae-b1120e8d730b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The phase "
+				},
+				{
+					"type": "text",
+					"text": "names",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " a property; it never carries one. Core reads the vocabulary itself and resolves the companion through the same descriptor builder every other canvas goes through, so a companion deep-zooms to whatever its image service serves, pans with the viewer's own gestures, and honours Choice bodies, region placements and both id spellings for free. Nothing crosses the seam but the enum — there is no way to hand core a Canvas, deliberately."
+				}
+			],
+			"attrs": {
+				"id": "4f62b277-c9f4-4b7a-9370-0a0122b61e44"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Your only contribution is "
+				},
+				{
+					"type": "text",
+					"text": "timing",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", because that is the one thing core cannot know. A media plugin's schedule is the obvious shape: "
+				},
+				{
+					"type": "text",
+					"text": "'placeholder'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " when it claims, "
+				},
+				{
+					"type": "text",
+					"text": "'accompanying'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (or an explicit "
+				},
+				{
+					"type": "text",
+					"text": "'none'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") the moment playback really starts."
+				}
+			],
+			"attrs": {
+				"id": "991fac71-4795-44df-a755-32f39757e8c1"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Four rules worth knowing before you wire it up:"
+				}
+			],
+			"attrs": {
+				"id": "2261cc0b-8c05-438e-b80e-1c29f6f5232d"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Only the canvas's claimant may set a phase.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " An unclaimed canvas, a canvas another plugin holds, an id no plugin of this viewer answers to, or an unrecognized phase string is refused on the "
+								},
+								{
+									"type": "text",
+									"text": "viewererror",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " channel with "
+								},
+								{
+									"type": "text",
+									"text": "code: 'canvas-claim-refused'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", exactly as a refused claim is, and leaves the stored phase alone. A typo is reported rather than quietly turning painting off."
+								}
+							],
+							"attrs": {
+								"id": "8ba51bd5-fd06-4520-bfd4-dabb09195d39"
+							}
+						}
+					],
+					"attrs": {
+						"id": "91aba533-4158-4df8-94ca-3c8aeb862e5e"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A phase is released with the claim",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — by the claim's own dispose and by the same deactivation backstops. There is no second release to forget."
+								}
+							],
+							"attrs": {
+								"id": "aa2afc0b-4310-463c-ac70-e6d641ba8e7f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b2f5a440-6288-4d40-aa4a-1fb124802421"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Never called is not ",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "'none'",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ".",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " Never calling leaves the canvas's descriptor exactly as it would be with no claimant at all. An explicit "
+								},
+								{
+									"type": "text",
+									"text": "'none'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " keeps the rect the companion established and paints nothing into it — which is what stops a phase change from reflowing the page mid-playback. Geometry is decided once, from whichever companion resolved to something requestable, and never by the phase."
+								}
+							],
+							"attrs": {
+								"id": "cadbf7ac-b66f-438b-ad35-dfc842482a3c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "30935199-bf52-45a8-835f-e215aed36a8c"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "There is no fallback between the two.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " A phase naming a property the canvas does not have paints nothing, because only you know which one you meant."
+								}
+							],
+							"attrs": {
+								"id": "f293dea8-759f-439e-bef0-a7ab51a9ebfa"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2ae9df99-c761-4c18-bfdc-0a3e5d0aded8"
+					}
+				}
+			],
+			"attrs": {
+				"id": "7de8d336-0644-4b3f-b122-8b3c3cb6787e"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "9b1a35f1-f4bf-4e31-b616-ba947abf5c79"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "// In the claimant, once playback has a frame to show.\ncontext.viewerState.setCompanionPhase(\n    canvasId,\n    context.surface.id, // the same id you claimed with\n    'accompanying',\n);"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "viewerState.isPaintingCompanion(canvasId)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the read for your own chrome — a recording with a picture in its rect needs different lanes from one without. It is reactive inside a Svelte host (the storage is a "
+				},
+				{
+					"type": "text",
+					"text": "SvelteMap",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "), but it is classified "
+				},
+				{
+					"type": "text",
+					"text": "internal",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and therefore "
+				},
+				{
+					"type": "text",
+					"text": "never notifies",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so a host watching through "
+				},
+				{
+					"type": "text",
+					"text": "subscribe()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " has to poll it."
+				}
+			],
+			"attrs": {
+				"id": "fa5875dd-c871-4e94-9faa-3263e66ab746"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "This is part of the "
+				},
+				{
+					"type": "text",
+					"text": "canvas-claim",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " capability; there is nothing extra to declare."
+				}
+			],
+			"attrs": {
+				"id": "b87c34cc-a9a3-4351-93f4-05acb3e6fcf9"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "capabilities",
+				"id": "7738a624-dfb0-48a5-b2dd-446a0597ac62"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Capabilities"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "requiredCapabilities",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is normally "
+				},
+				{
+					"type": "text",
+					"text": "[]",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Capability negotiation exists for genuinely optional runtime features, not for versions: a plugin states which "
+				},
+				{
+					"type": "text",
+					"text": "core",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " it works with through "
+				},
+				{
+					"type": "text",
+					"text": "coreRange",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Core declares five capabilities today:"
+				}
+			],
+			"attrs": {
+				"id": "04e20daa-bcc3-4d68-83c1-c264a46803f8"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "canvas-claim",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — "
+								},
+								{
+									"type": "text",
+									"text": "ViewerState.claimCanvas",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", the seam a plugin owning a canvas's non-image content builds on, and with it "
+								},
+								{
+									"type": "text",
+									"text": "setCompanionPhase",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "isPaintingCompanion",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "020fc1ef-9e1a-418d-a1f5-6ed6980e637f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1dff6b78-fd21-4544-93c8-f4581dd7da96"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "published-state",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — "
+								},
+								{
+									"type": "text",
+									"text": "PluginContext.publishState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", which a host reads back through "
+								},
+								{
+									"type": "text",
+									"text": "viewerState.getPluginState(pluginId)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "168d7eca-e892-4c30-b34c-14ceebd58126"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7dbb122a-7f02-46b2-a9b4-83e115f8e9ff"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "shared-svelte-runtime",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — the curated Svelte helpers core publishes on "
+								},
+								{
+									"type": "text",
+									"text": "window.Triiiceratops",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". A third-party plugin bundles its own runtime and must not declare this."
+								}
+							],
+							"attrs": {
+								"id": "9c752c86-3ec0-4111-88aa-321fe9a337d0"
+							}
+						}
+					],
+					"attrs": {
+						"id": "63305462-fcb9-46a4-9871-d6e0d02a6bca"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "shared-core-utils",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — the curated core utilities core publishes on "
+								},
+								{
+									"type": "text",
+									"text": "window.Triiiceratops.core",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". Also first-party only: a third-party plugin bundles its own copies and must not declare this."
+								}
+							],
+							"attrs": {
+								"id": "3800612b-d291-4c23-9df0-7f26ddd3ef6b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7827f7ca-5d79-4df5-b200-89ed429f2ff7"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "transport-chrome",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — "
+								},
+								{
+									"type": "text",
+									"text": "ViewerState.registerTransportChrome",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", which takes a view model of playback facts and a port of playback commands and renders them as playback controls in core's own control bar. Declare it if the only playback chrome your plugin has is the one core renders, so a core too old to render it refuses activation instead of mounting a plugin whose controls never appear."
+								}
+							],
+							"attrs": {
+								"id": "480db697-926a-4438-ad43-ed77b7265db4"
+							}
+						}
+					],
+					"attrs": {
+						"id": "313c39fc-5cf0-44c7-8333-f05a2473be01"
+					}
+				}
+			],
+			"attrs": {
+				"id": "84274a4b-f57f-45c8-9701-41d73c6b43f3"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Declare one only if your plugin calls that seam, so it fails closed on a viewer that predates it instead of silently doing nothing. A plugin requiring a capability the host does not declare fails activation with a "
+				},
+				{
+					"type": "text",
+					"text": "PluginCompatibilityError",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " that names the capability."
+				}
+			],
+			"attrs": {
+				"id": "bd94676c-8abf-4e36-9bef-cab650bbddf9"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "services",
+				"id": "1366bf00-730e-46e7-b349-e00d6245809c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Services"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The plugin context carries three root-aware services."
+				}
+			],
+			"attrs": {
+				"id": "11c07813-9c61-4938-ab40-8c876ec20d8c"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "styles",
+				"id": "b78d271e-c0ff-4ec1-a94b-1d926b892711"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Styles"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "context.styles.install(css, id)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " installs a global stylesheet under a package-qualified key. It is deduplicated across viewers sharing a root, reference-counted, and cleaned up automatically on deactivation. It works in both light DOM and shadow DOM and is nonce-aware for CSP (see the "
+				},
+				{
+					"type": "text",
+					"text": "Content Security Policy guide",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/csp/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "):"
+				}
+			],
+			"attrs": {
+				"id": "40a7ac4c-715d-4fe1-9503-69b424103c8b"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "3fbf25b9-58c9-4f38-ac31-59534afe5739"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext } from 'triiiceratops';\n\nfunction installStyles(context: PluginContext) {\n    const uninstall = context.styles.install(\n        '.my-plugin-panel { padding: 1rem; }',\n        'panel',\n    );\n    return uninstall; // release one reference\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Shape your CSS and its install id with "
+				},
+				{
+					"type": "text",
+					"text": "definePluginStyles(css, id)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — a small, dependency-free helper that first-party plugins use to export a named "
+				},
+				{
+					"type": "text",
+					"text": "STYLES",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "STYLE_ID",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " pair instead of an inline string literal, so the CSS lives in its own module (conventionally "
+				},
+				{
+					"type": "text",
+					"text": "styles.ts",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") and the id stays a stable, reusable constant. "
+				},
+				{
+					"type": "text",
+					"text": "context.styles.install",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " takes the pair exactly where it took the literal string and id above:"
+				}
+			],
+			"attrs": {
+				"id": "42a5be21-0f32-4402-9a58-06aa0d113406"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "6f4dcf71-297c-4bf3-9551-5c08e18246e5"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { definePluginStyles } from '@triiiceratops/plugin-sdk';\n\n// Conventionally in its own styles.ts, imported by name wherever installed.\nexport const { STYLES, STYLE_ID } = definePluginStyles(\n    '.my-plugin-panel { padding: 1rem; }',\n    'panel',\n);"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "localization",
+				"id": "2216aa6e-fa18-4761-a83e-0c3c4d51cec1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Localization"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Plugin localization catalogs are package-owned. "
+				},
+				{
+					"type": "text",
+					"text": "context.locale.t(key, params?)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " resolves against your catalog in the viewer's active locale with English fallback, and "
+				},
+				{
+					"type": "text",
+					"text": "subscribe",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " reacts to per-viewer locale changes:"
+				}
+			],
+			"attrs": {
+				"id": "c663e3a6-74db-4422-8c5d-067aa89faa35"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "8c7ecf6c-9584-4068-a232-95d84b8a3b24"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { PluginContext } from 'triiiceratops';\n\nfunction greeting(context: PluginContext) {\n    const text = context.locale.t('example_title');\n    const stop = context.locale.subscribe((locale) => {\n        console.log('active locale is now', locale);\n    });\n    return { text, stop };\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Your plugin's core-owned chrome is localized from the same catalog: core resolves "
+				},
+				{
+					"type": "text",
+					"text": "definePlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "'s "
+				},
+				{
+					"type": "text",
+					"text": "title",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " through it, so the toolbar tooltip and the docked-panel header follow the viewer's active locale exactly like the strings you resolve yourself. "
+				},
+				{
+					"type": "text",
+					"text": "name",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is identity, never copy — a plugin that omits "
+				},
+				{
+					"type": "text",
+					"text": "title",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " gets its package name in the toolbar."
+				}
+			],
+			"attrs": {
+				"id": "c3a18fe2-8521-4742-bac2-863fc5fcfd8a"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "ui",
+				"id": "60cd15d4-e7a6-443f-8d8d-e7111945fe9c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "UI"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "context.ui.renderIcon(icon, container)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " renders a core-owned icon descriptor so plugin-authored icons stay visually and semantically consistent with core."
+				}
+			],
+			"attrs": {
+				"id": "6767a990-30ca-4659-aa3f-31213a05c2d2"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "failure-isolation-and-retry",
+				"id": "03c665d8-6505-487b-b06c-7c60752d2cb6"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Failure isolation and retry"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Setup, mount, update, command, subscription-listener, and cleanup failures are isolated: core keeps the viewer and other plugins running. A failed plugin shows a plugin-local error state whose toolbar button stays visible with an error indicator and offers "
+				},
+				{
+					"type": "text",
+					"text": "retry",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (a manual, full re-activation). Failures are also delivered through the structured "
+				},
+				{
+					"type": "text",
+					"text": "pluginerror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " channel — as a DOM event from the viewer root and as a host callback — carrying "
+				},
+				{
+					"type": "text",
+					"text": "{ pluginName, pluginVersion, phase, error, retry() }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "3888e23e-2bb7-48cd-b48c-180d1fc0adda"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "verified-against-the-packed-packages",
+				"id": "d2c1ad8e-2ab9-45cf-b644-6748591da42f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Verified against the packed packages"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every adapter is exercised in CI by a dedicated packed-consumer fixture ("
+				},
+				{
+					"type": "text",
+					"text": "plugin-svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "plugin-react",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "plugin-vue",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "plugin-lit",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "), each installing the real SDK tarball and mounting a plugin against a live packed "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". The code samples above are additionally compiled against the packed tarballs by the "
+				},
+				{
+					"type": "text",
+					"text": "docs-examples",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " fixture."
+				}
+			],
+			"attrs": {
+				"id": "cb04981b-0dc7-4726-bb30-37000962c543"
+			}
+		}
+	],
+	"meta": {
+		"title": "Authoring a plugin (the SDK)",
+		"shortTitle": "Authoring a plugin",
+		"intro": "Write Triiiceratops plugins with @triiiceratops/plugin-sdk: framework-neutral, dependency-light, and mounted into a plain HTMLElement."
+	}
+}

@@ -219,8 +219,14 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     // ---- Active locale (per-viewer i18n contract) ----------------------------
     {
         member: 'activeLocale',
-        classification: 'observable',
-        notes: "This viewer's active locale (BCP-47): config.locale if set, else the page default (CONTEXT.md Active locale). Observable — readable and notifying, no plugin-facing mutator; locale is controlled through config.locale. Core (the viewer root) mirrors the resolved value onto it when the config or page locale changes (like isFullScreen); all chrome renders in it.",
+        classification: 'command',
+        commands: ['setLocale', 'updateConfig'],
+        notes: "This viewer's active locale (BCP-47): the chrome's language picker if the user has chosen one, else config.locale, else the page default (CONTEXT.md Active locale). User-actionable via the toolbar's language menu, which flows through setLocale; a host sets it through config.locale. Core (the viewer root) mirrors the resolved value onto it whenever any of the three moves; all chrome renders in it.",
+    },
+    {
+        member: '_localeOverride',
+        classification: 'internal',
+        notes: "The language picker's choice, or null while the viewer follows its host. Outranks config.locale in the resolution the viewer root mirrors onto activeLocale; updateConfig clears it when the host names a different locale. Internal because activeLocale is the notifying member that carries the resolved answer.",
     },
 
     // ---- Viewing mode / direction / paging -----------------------------------

@@ -103,7 +103,7 @@
         "lit": "3.3.3",
         "react": "19.2.7",
         "react-dom": "19.2.7",
-        "svelte": "5.45.5",
+        "svelte": "5.56.10",
         "triiiceratops": "workspace:*",
         "typescript": "~5.9.3",
         "vitest": "^4.0.15",

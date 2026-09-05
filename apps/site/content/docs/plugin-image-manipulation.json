@@ -1,0 +1,248 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Provides brightness, contrast, saturation, invert, and grayscale controls for the displayed image. It renders as a compact "
+				},
+				{
+					"type": "text",
+					"text": "flyout",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " that grows out of its toolbar button — three bare vertical sliders (brightness/contrast/saturation) plus invert/grayscale toggles and a reset button, all visible and interactable at once, floating directly over the canvas with no container box."
+				}
+			],
+			"attrs": {
+				"id": "a47eb055-7eda-4253-9ad4-772c3be476a2"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "setup",
+				"id": "9e1ecf2b-08ed-4b77-99ab-0e0a79d5f770"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Setup"
+				}
+			]
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "package-manager",
+				"id": "683219f9-ba2b-4d68-9c7a-d7d204c16444"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "pnpm",
+						"id": "66f70ee2-305a-4473-9c45-ad0ac9633ac8"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "ef24a0db-9acf-4cbb-beb9-788de080facf"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pnpm add @triiiceratops/plugin-image-manipulation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "npm",
+						"id": "48fa94a1-68bd-4ac2-9de3-dbe083c6672d"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "5f727572-fdb3-4e22-b78f-c4944e1b50a1"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "npm install @triiiceratops/plugin-image-manipulation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "bun",
+						"id": "22bf7a28-0b68-4c2a-848d-3eb49f76aa31"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "a37688a6-0794-4ecc-bcd5-5c7e8250db35"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "bun add @triiiceratops/plugin-image-manipulation"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "ImageManipulationPlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is exported ready to use with no configuration required. Add it like any plugin — see "
+				},
+				{
+					"type": "text",
+					"text": "using plugins",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#adding-a-plugin-to-your-viewer"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the per-framework assignment code (every example there uses this plugin)."
+				}
+			],
+			"attrs": {
+				"id": "d4625d91-c874-48ee-a537-66332cb9617e"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "examples",
+				"id": "0e2c5d3e-3245-4c5b-81cc-2e0c22dfc9b6"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Examples"
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Adding a plugin to your viewer",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugins/#adding-a-plugin-to-your-viewer"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — mounting this exact plugin from React, Vue, Svelte, and plain HTML."
+								}
+							],
+							"attrs": {
+								"id": "645be1c5-67b7-4df0-a2b9-136543084dc1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f3ab5dd8-4fd1-43dc-8ff0-4aecad7e080b"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Controlling plugin UI at runtime",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugins/#controlling-plugin-ui-at-runtime"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — switching this plugin between a flyout and a docked panel responsively."
+								}
+							],
+							"attrs": {
+								"id": "e384ac5c-0389-468a-bb21-c038040d7484"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a9ff874a-a7fc-4465-918a-c4417569492e"
+					}
+				}
+			],
+			"attrs": {
+				"id": "48d52a50-e81d-48f7-9214-56c3eb45e04c"
+			}
+		}
+	],
+	"meta": {
+		"title": "Image Manipulation",
+		"shortTitle": "Image manipulation",
+		"intro": "Brightness, contrast, saturation, invert and grayscale controls for the displayed IIIF image, as a compact flyout over the canvas."
+	}
+}

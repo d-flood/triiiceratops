@@ -6,7 +6,7 @@
  * arrives here as nothing but a manifest id. Dereferencing it is this module's
  * job, and it goes through the same manifest fetch path a `manifest-id` would:
  * a content-state URI is exactly as trusted as a manifest URI, and the embedding
- * page's CSP is the control (see `docs/csp.md`).
+ * page's CSP is the control (see the `/docs/csp/` page).
  *
  * Nothing here throws. Every failure degrades to the most the caller can honor
  * and reports on the `content-state` {@link ViewerErrorScope}.

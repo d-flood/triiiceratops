@@ -1,0 +1,892 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-sdk/testing",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " lets you validate a plugin without a full application. It mounts your plugin against a "
+				},
+				{
+					"type": "text",
+					"text": "test viewer context",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": a real, compiled "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (real commands, real batched notifications) with recording doubles for the style, UI, and locale services and an injectable renderer stand-in that defaults to absent. The harness is fake; the state is never fake, so a passing test reflects production semantics."
+				}
+			],
+			"attrs": {
+				"id": "6f865d2c-b48a-453d-bdd4-c838416c475c"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The kit runs in a plain vitest project — no Svelte tooling required — because the headless state comes from core's compiled "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/testing",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " entry."
+				}
+			],
+			"attrs": {
+				"id": "3eda43e6-6445-48f9-8307-50a39a560ed0"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "It also carries the inert stub services — "
+				},
+				{
+					"type": "text",
+					"text": "createStubStyleService",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "createStubLocaleService",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "createStubUiService",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "createStubSurfaceService",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — for an activation with no viewer behind it at all. A "
+				},
+				{
+					"type": "text",
+					"text": "PluginHost",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " requires every service, and these are the ones to hand it when the test is about something else. They live here rather than in the SDK's base entry so no shipped plugin bundle carries a service implementation no reader can see."
+				}
+			],
+			"attrs": {
+				"id": "2983b6ee-cf07-4adc-b92b-2890842969a2"
+			}
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "package-manager",
+				"id": "018cc7f0-4133-4f24-8d11-4b61ebddadb7"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "pnpm",
+						"id": "f2f0a672-f046-4710-a93a-1227aaeecc19"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "618c9248-79da-42c3-8eb1-8e11b5dc8ae0"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pnpm add -D @triiiceratops/plugin-sdk vitest"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "npm",
+						"id": "fd630395-9032-4f73-96cd-c3f7d351b13b"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "ef0a1e46-5cae-4bee-a661-693d49f13344"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "npm install -D @triiiceratops/plugin-sdk vitest"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "bun",
+						"id": "e3b14451-6e6e-41ad-8627-32b1a8119366"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "03a61ffa-7744-45a0-b4ed-4142961b6b3b"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "bun add -d @triiiceratops/plugin-sdk vitest"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "the-flush-timing-rule",
+				"id": "5b94201f-ce87-41ea-ac96-7ce29a896664"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The flush timing rule"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Notifications are "
+				},
+				{
+					"type": "text",
+					"text": "batched",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and delivered on the reactive flush, never synchronously inside a command. After a command (or a locale/renderer change), "
+				},
+				{
+					"type": "text",
+					"text": "await flush()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " before asserting a subscriber reacted:"
+				}
+			],
+			"attrs": {
+				"id": "a6902841-7dd8-42bf-aa21-1090b6e99e5d"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "ccdd44af-de00-4f8d-892d-1032dc813247"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { describe, it, expect } from 'vitest';\nimport { createTestViewerContext, flush } from '@triiiceratops/plugin-sdk/testing';\n\ndescribe('viewer state notifications', () => {\n    it('delivers on the flush, not synchronously', async () => {\n        const { context } = createTestViewerContext();\n        const open = context.selectors.select((s) => s.toolbarOpen);\n\n        let seen = open.get();\n        open.subscribe((v) => {\n            seen = v;\n        });\n\n        context.viewerState.toggleToolbar();\n        // Batched: no synchronous delivery yet.\n        expect(seen).toBe(false);\n\n        await flush();\n        expect(seen).toBe(true);\n    });\n});"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "mounting-a-plugin-against-real-state",
+				"id": "7e9b811e-1aa7-41ea-aac9-4a521f4a82eb"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Mounting a plugin against real state"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Activate your plugin against the context's live state and assert its DOM and cleanup. The recording style service records installs so you can assert they were released on deactivation:"
+				}
+			],
+			"attrs": {
+				"id": "8f8071b0-d375-4e08-ab4b-89a722a28433"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "467a9115-a8c2-4873-bd80-e02239c50af0"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { describe, it, expect } from 'vitest';\nimport { activatePlugin } from '@triiiceratops/plugin-sdk';\nimport { createTestViewerContext, flush } from '@triiiceratops/plugin-sdk/testing';\nimport {\n    CORE_VERSION,\n    pluginApiVersion,\n    capabilities,\n} from 'triiiceratops/testing';\nimport { createExamplePlugin } from './my-plugin';\n\ndescribe('example plugin', () => {\n    it('reacts to a command and cleans up', async () => {\n        const tc = createTestViewerContext();\n        const container = document.createElement('div');\n        const activation = activatePlugin(createExamplePlugin(), {\n            container,\n            viewerState: tc.viewerState,\n            coreVersion: CORE_VERSION,\n            pluginApiVersion,\n            capabilities,\n            styles: tc.styles,\n            locale: tc.locale,\n            ui: tc.ui,\n            // The REAL surface over the real state — see the trap below.\n            surface: tc.surface,\n            // Every guarded phase failure lands here. Rethrowing turns a broken\n            // activation into a failing test instead of a silent one.\n            reportError: (report) => {\n                throw report.error;\n            },\n        });\n\n        const label = container.querySelector('span');\n        expect(label?.textContent).toBe('closed');\n\n        tc.viewerState.toggleToolbar();\n        await flush();\n        expect(label?.textContent).toBe('open');\n\n        activation.deactivate();\n        expect(tc.styles.installed.every((s) => s.released)).toBe(true);\n    });\n});"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "the-id-the-viewer-knows-your-plugin-by",
+				"id": "571ffdcd-d68b-4e13-abe4-ed1a9d7fa3e6"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The id the viewer knows your plugin by"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "createTestViewerContext",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " binds the surface to one chrome id — "
+				},
+				{
+					"type": "text",
+					"text": "uiId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", defaulting to "
+				},
+				{
+					"type": "text",
+					"text": "'test-plugin'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — and seeds the viewer's plugin UI state for it. That id is the only thing the viewer knows your plugin as, so it is the only prefix "
+				},
+				{
+					"type": "text",
+					"text": "registerOverlayLayer",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " accepts. Two ways to trip over it, both of which show up as a layer that never mounts:"
+				}
+			],
+			"attrs": {
+				"id": "b0ee436a-31fb-4ba4-9dff-dff753153fbc"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Your plugin hardcodes its own name in the layer id.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " Derive it from "
+								},
+								{
+									"type": "text",
+									"text": "context.surface.id",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " instead — in a test that is "
+								},
+								{
+									"type": "text",
+									"text": "uiId",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", in production it is your declared "
+								},
+								{
+									"type": "text",
+									"text": "uiId",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " or your sanitised package name, and in neither case is it guaranteed to be the string you typed."
+								}
+							],
+							"attrs": {
+								"id": "d56acbab-cc78-4d89-8c7e-cc7a91bf48df"
+							}
+						}
+					],
+					"attrs": {
+						"id": "11be1cca-9ee0-4ca2-8321-473d2fc361ca"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "You pass a stub surface instead of ",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "tc.surface",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ".",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " "
+								},
+								{
+									"type": "text",
+									"text": "createStubSurfaceService",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " answers with whatever id you gave it, and a viewer has never heard of an id it did not register, so every layer is refused. Pass "
+								},
+								{
+									"type": "text",
+									"text": "surface: tc.surface",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "; "
+								},
+								{
+									"type": "text",
+									"text": "runPluginConformance",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " already does."
+								}
+							],
+							"attrs": {
+								"id": "3974d80b-7397-4c8b-bff4-d242d220a44b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "487e4339-3eb7-448e-89fd-a46ce92cb6bc"
+					}
+				}
+			],
+			"attrs": {
+				"id": "05a36da7-4df3-4cf0-a7c1-18eb342be303"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A refusal is reported on the host's "
+				},
+				{
+					"type": "text",
+					"text": "viewererror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " channel ("
+				},
+				{
+					"type": "text",
+					"text": "code: 'overlay-layer-refused'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "), not thrown, and "
+				},
+				{
+					"type": "text",
+					"text": "mount",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is never called. If you want the refusal to be loud in a test, wire a reporter: "
+				},
+				{
+					"type": "text",
+					"text": "tc.viewerState.setErrorReporter((error) => { throw new Error(error.message); })",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Pass "
+				},
+				{
+					"type": "text",
+					"text": "uiId: '<your plugin's uiId>'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " when your plugin declares one, so the test id and the production id are the same string."
+				}
+			],
+			"attrs": {
+				"id": "626e6cf0-70a5-44f8-ad15-7981d70fd5c5"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "the-conformance-suite",
+				"id": "378c90e3-f31d-4bcd-824e-304b33ebae54"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The conformance suite"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "runPluginConformance",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " runs the whole SDK lifecycle battery against your plugin factory. It registers its own "
+				},
+				{
+					"type": "text",
+					"text": "describe",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "/"
+				},
+				{
+					"type": "text",
+					"text": "it",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " blocks, so call it at the top level of a test file:"
+				}
+			],
+			"attrs": {
+				"id": "ec1af45b-1016-4961-8cec-3c27b5a3e001"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "f69e28dc-30b2-4142-b63a-46035ebcdc22"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { runPluginConformance } from '@triiiceratops/plugin-sdk/testing';\nimport { createExamplePlugin } from './my-plugin';\n\nrunPluginConformance(() => createExamplePlugin());"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "renderer-dependent-behavior",
+				"id": "6bd47621-6e01-4fb2-9c64-8128e45e866b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Renderer-dependent behavior"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The kit ships a headless renderer stand-in. The renderer is first-party, so there is exactly one right answer to what a stand-in reports. Mount it with "
+				},
+				{
+					"type": "text",
+					"text": "attachRenderer(...)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to exercise the readiness path, the viewport queries, and the "
+				},
+				{
+					"type": "text",
+					"text": "frame",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " selector cadence with no DOM:"
+				}
+			],
+			"attrs": {
+				"id": "23302928-1157-4c3b-b0ad-c7319b014031"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "99c3dfdf-b0b9-4f31-a380-1349ac0bcdb6"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import {\n    createTestViewerContext,\n    whenRendererReady,\n} from '@triiiceratops/plugin-sdk/testing';\n\nasync function readinessExample() {\n    const tc = createTestViewerContext();\n    const ready = whenRendererReady(tc.viewerState);\n    const renderer = tc.attachRenderer({ scale: 2 }); // sized surface\n    await ready;\n\n    // Move the viewport and fire one animation event, synchronously.\n    renderer.setView({ scale: 4 });\n    renderer.emitFrame();\n\n    // Tap the image surface at a screen-space point — the gesture reserved for\n    // annotation selection — without synthesizing pointer events.\n    renderer.emitTap({ x: 120, y: 80 });\n\n    // And read what a command sent to the renderer.\n    tc.viewerState.zoomIn();\n    return renderer.calls;\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "emitTap",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " reaches every "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.subscribeSurfaceTap",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " listener. The stand-in does not decide what was tapped: a real tap arrives already filtered by the renderer's single arbitration point (never a drag, a pinch, or a gesture suppressed by an input claim), and which annotation a point selects is answered from geometry the subscriber holds."
+				}
+			],
+			"attrs": {
+				"id": "270b6238-8c58-41be-9a68-bfb35272a388"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Genuine pixel behaviour still belongs at the browser seam."
+				}
+			],
+			"attrs": {
+				"id": "ac2b0214-0e1f-4f05-9f3a-1d5c3c5f0532"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "verified-against-the-packed-packages",
+				"id": "e93e2023-37de-46eb-96b9-6cd4d5f3647d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Verified against the packed packages"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "CI runs the "
+				},
+				{
+					"type": "text",
+					"text": "vitest-kit",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " fixture: the SDK test kit against the compiled "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/testing",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " entry in a plain vitest project, installed from the packed tarballs the way a consumer installs it."
+				}
+			],
+			"attrs": {
+				"id": "3df00f73-cedc-4f2c-9c18-e1a4ce964461"
+			}
+		}
+	],
+	"meta": {
+		"title": "Testing a plugin",
+		"shortTitle": "Testing a plugin",
+		"intro": "Validate a plugin without a full application using @triiiceratops/plugin-sdk/testing and its real test viewer context."
+	}
+}

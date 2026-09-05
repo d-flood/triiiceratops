@@ -61,6 +61,7 @@ import type {
     IconDescriptor,
 } from '../types/plugin';
 import { parseStructures, type StructureNode } from '../utils/structures';
+import { collectManifestLocales } from '../utils/manifestLocales';
 import {
     isCollection,
     parseCollection,
@@ -445,6 +446,15 @@ export class ViewerState {
      * runs.
      */
     activeLocale = $state<string>(getLocale());
+
+    /**
+     * The locale chosen through the viewer's own language picker, or `null`
+     * while the viewer is still following its host. It outranks `config.locale`
+     * so a user's pick survives unrelated config churn, and `updateConfig`
+     * drops it when the host names a different `locale` — an explicit new
+     * instruction from the embedder, like `viewingMode`'s.
+     */
+    _localeOverride = $state<string | null>(null);
 
     /*
      * Derived configuration specific getters.
@@ -2147,6 +2157,10 @@ export class ViewerState {
             this.viewingDirection = newConfig.viewingDirection;
         }
 
+        if (newConfig.locale !== oldConfig.locale) {
+            this._localeOverride = null;
+        }
+
         if (newConfig.pagedViewOffset !== undefined) {
             this.pagedOffset = newConfig.pagedViewOffset ? 1 : 0;
         }
@@ -2370,6 +2384,26 @@ export class ViewerState {
         const manifestJson = this.manifestEntry?.json;
         if (!manifestJson) return [];
         return parseStructures(manifestJson);
+    }
+
+    /**
+     * Every language this manifest's descriptive properties are authored in,
+     * sorted. Empty or single-entry for the overwhelming majority of manifests,
+     * which is what lets the language picker hide itself.
+     */
+    get availableLocales(): string[] {
+        const manifestJson = this.manifestEntry?.json;
+        if (!manifestJson) return [];
+        return collectManifestLocales(manifestJson);
+    }
+
+    /**
+     * Choose the locale this viewer renders in — its chrome and its resolution
+     * of IIIF language maps alike. `null` hands the choice back to the host's
+     * `config.locale`, or to the page locale when it sets none.
+     */
+    setLocale(locale: string | null) {
+        this._localeOverride = locale;
     }
 
     setViewingMode(mode: 'individuals' | 'paged' | 'continuous') {

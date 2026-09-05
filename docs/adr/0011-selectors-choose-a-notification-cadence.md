@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # Selectors choose a notification cadence; per-frame state is never mirrored into viewer state
 
 Continuous viewport values (`viewportScale`, `viewportCentre`, `viewportBounds`,

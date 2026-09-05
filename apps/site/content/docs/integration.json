@@ -1,0 +1,2012 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Triiiceratops ships the viewer as a standards-based custom element, "
+				},
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". If your stack can put a tag on a page, it can host the viewer — no adapter required."
+				}
+			],
+			"attrs": {
+				"id": "75ccdf2a-b984-4e4a-ae64-29a2d9b71659"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "This is your page if you are using",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Angular, Lit, Solid, Svelte-free vanilla JavaScript, Alpine.js, htmx, Astro, Ember, jQuery, a server-rendered template language (Django, Rails, Laravel, ASP.NET, PHP), a static-site generator, or "
+				},
+				{
+					"type": "text",
+					"text": "WordPress",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — as a block, a shortcode, or a raw HTML widget. Every one of those is the same two steps: get the script onto the page, then set attributes and properties on the tag."
+				}
+			],
+			"attrs": {
+				"id": "a9dc66dc-0829-4ab1-b0d3-fa243ee3c5d6"
+			}
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "tip",
+				"title": "React, Vue, and Svelte have first-class components",
+				"id": "549bc79d-d291-4324-acda-b284a894cea4"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Those three have dedicated guides, and you should use them rather than the element directly — each translates props, events, and viewer state into its framework's own idioms:"
+						}
+					],
+					"attrs": {
+						"id": "e9814709-65d7-472b-89ed-8b1c97a07b7e"
+					}
+				},
+				{
+					"type": "bulletList",
+					"content": [
+						{
+							"type": "listItem",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "React guide",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/react/"
+													}
+												},
+												{
+													"type": "bold"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " — "
+										},
+										{
+											"type": "text",
+											"text": "triiiceratops/react",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d76bbd4d-d907-402a-897b-593b3b625923"
+									}
+								}
+							],
+							"attrs": {
+								"id": "831b0bfd-07cb-4e43-a7cf-3b03797b4a0f"
+							}
+						},
+						{
+							"type": "listItem",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Vue guide",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/vue/"
+													}
+												},
+												{
+													"type": "bold"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " — "
+										},
+										{
+											"type": "text",
+											"text": "triiiceratops/vue",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "5e31249e-f1f2-4b75-8d69-d67fc2e5bee6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "64e5141f-b9ff-4231-b510-3c0ae708ca27"
+							}
+						},
+						{
+							"type": "listItem",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Svelte guide",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/svelte/"
+													}
+												},
+												{
+													"type": "bold"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " — "
+										},
+										{
+											"type": "text",
+											"text": "triiiceratops/svelte",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3b6ef54f-783f-41c8-919c-d13ca9f38dc8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "43bba3c1-2779-46b0-8c91-d46482657ff9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7c213042-385a-45b5-a302-ec84ad301442"
+					}
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "React and Vue require no Svelte, at runtime or at type-check time. The custom-element material here stays fully supported for hosts that want direct DOM control, including a React or Vue app that deliberately drops down to it — see "
+						},
+						{
+							"type": "text",
+							"text": "hand-wiring",
+							"marks": [
+								{
+									"type": "link",
+									"attrs": {
+										"href": "#hand-wiring-a-component-framework"
+									}
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": "."
+						}
+					],
+					"attrs": {
+						"id": "b0c9dd35-3431-4eb4-8573-9d32a39810a6"
+					}
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The element comes in two forms:"
+				}
+			],
+			"attrs": {
+				"id": "622625e7-a246-4994-86ff-0d5315c3a347"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ESM registration",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " ("
+								},
+								{
+									"type": "text",
+									"text": "triiiceratops/element/register",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ") for projects with a bundler (Vite, webpack, Rollup, …)."
+								}
+							],
+							"attrs": {
+								"id": "6a80f6d3-9669-4bbc-9a10-0dd3fe331140"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a2a31f9d-0368-43d2-a1c1-b541c626447b"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Self-contained IIFE",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " ("
+								},
+								{
+									"type": "text",
+									"text": "triiiceratops/element",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ") for no-bundler pages loaded from a "
+								},
+								{
+									"type": "text",
+									"text": "<script>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " tag."
+								}
+							],
+							"attrs": {
+								"id": "6e126b5a-93cb-4c94-8e9e-a7b85721ab3f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ccba0f24-0c1e-4187-8ba7-b5b9be156c87"
+					}
+				}
+			],
+			"attrs": {
+				"id": "7aa9e56b-361c-445f-a992-f16799fc9312"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Both register the "
+				},
+				{
+					"type": "text",
+					"text": "same tag",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and expose the same properties, methods, and events. Styles and themes are installed "
+				},
+				{
+					"type": "text",
+					"text": "inside the element's shadow root",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — there is no separate element stylesheet to import."
+				}
+			],
+			"attrs": {
+				"id": "6bded850-9900-4c87-91c3-4d56ccba01b8"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "install",
+				"id": "5dd0a2e0-60b0-4f7d-a821-314e4aa76c81"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Install"
+				}
+			]
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "package-manager",
+				"id": "e28c3f75-fc61-45f4-8164-ccfb231b939d"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "pnpm",
+						"id": "e2979159-e841-4fcb-8338-28f901e8ad68"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "8e75894d-9216-4afe-9d78-27b58598e912"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pnpm add triiiceratops"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "npm",
+						"id": "9f9e5e47-c4fe-4b97-affc-ffdd45b1ae83"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "980a1b64-ceee-4ce0-b7bd-bfb7ef52f89e"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "npm install triiiceratops"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "bun",
+						"id": "fabbd6c3-9d7d-4275-9b8a-c64b082d0c84"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "04657783-245d-4456-9d0d-a47f1bf05062"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "bun add triiiceratops"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "No-bundler pages skip this — see the HTML tab below for loading straight from a CDN "
+				},
+				{
+					"type": "text",
+					"text": "<script>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tag."
+				}
+			],
+			"attrs": {
+				"id": "1a7fa35e-b7e0-4895-b049-34f8c26bd3aa"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "use-it",
+				"id": "ad40614f-d95e-437f-b38e-a0ade996a262"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Use it"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Load the self-contained IIFE from a CDN or a copied file — no install, no build step. It bundles the element, the Svelte runtime, the image renderer, and all styles:"
+				}
+			],
+			"attrs": {
+				"id": "920fbf22-d116-4eb1-af87-b2a6664e4783"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "cc04040d-70ce-4da1-91de-fc7df1e7de52"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script src=\"https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js\"></script>\n<script src=\"https://unpkg.com/@triiiceratops/plugin-image-manipulation/dist/iife.js\"></script>\n\n<triiiceratops-viewer\n    manifest-id=\"https://example.org/manifest.json\"\n    style=\"display: block; width: 100%; height: 100vh;\"\n></triiiceratops-viewer>\n\n<script>\n    customElements.whenDefined('triiiceratops-viewer').then(() => {\n        const viewer = document.querySelector('triiiceratops-viewer');\n        const plugin = window.Triiiceratops.plugins.get(\n            '@triiiceratops/plugin-image-manipulation',\n        );\n        viewer.plugins = [plugin];\n    });\n</script>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "That snippet is the entire integration for a WordPress custom-HTML block, a Django or Rails template, or any page you can add a "
+				},
+				{
+					"type": "text",
+					"text": "<script>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tag to."
+				}
+			],
+			"attrs": {
+				"id": "03682d04-0fb2-48ad-8a4e-3d340c907f37"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Using a bundler instead? Register the element with "
+				},
+				{
+					"type": "text",
+					"text": "import 'triiiceratops/element/register'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", then set properties directly — "
+				},
+				{
+					"type": "text",
+					"text": "document.querySelector('triiiceratops-viewer').manifestId = …",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — no ref needed outside a component framework."
+				}
+			],
+			"attrs": {
+				"id": "fcb1ceae-55a8-4bf1-94ea-e860245ed84a"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Loading the "
+								},
+								{
+									"type": "text",
+									"text": "same",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " core version twice is a harmless no-op."
+								}
+							],
+							"attrs": {
+								"id": "fc68a0fb-f808-4017-aabe-15095262c6df"
+							}
+						}
+					],
+					"attrs": {
+						"id": "392bdf59-c10b-4740-8ac0-a1115b9abf6b"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Loading a "
+								},
+								{
+									"type": "text",
+									"text": "different",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " core version alongside one already registered leaves the first registration and custom element untouched and throws an actionable conflict error. Side-by-side multi-version loading on one page is not supported."
+								}
+							],
+							"attrs": {
+								"id": "bb785ef3-53d5-4098-8258-6a2b0ccb480e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "29476448-6b59-4903-828c-e390a53574a7"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Registering a plugin whose name is already registered keeps the first factory; a version mismatch is reported as a console warning (first-wins), not an error."
+								}
+							],
+							"attrs": {
+								"id": "e33a60c6-b4ea-4585-a30b-ddac60ffdd16"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4ec0993e-fd55-4f22-aa27-b5ded1d83d60"
+					}
+				}
+			],
+			"attrs": {
+				"id": "8decd133-74d5-46f0-9046-4681c3e4d75a"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Runs under a strict CSP without "
+				},
+				{
+					"type": "text",
+					"text": "unsafe-eval",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — see the "
+				},
+				{
+					"type": "text",
+					"text": "CSP recipe",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/csp/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "7758ace1-6b46-482b-b081-0eed691f6da4"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "From there: "
+				},
+				{
+					"type": "text",
+					"text": "add plugins",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "configure the UI",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", or "
+				},
+				{
+					"type": "text",
+					"text": "theme it",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/theming/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "991c05f8-013f-4882-83ef-fe9895d8f481"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "driving-the-element-directly",
+				"id": "724c9a21-f9a2-4939-97ae-603095eaf2ff"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Driving the element directly"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "registering-the-element",
+				"id": "733edb6b-09d4-46f8-8b17-b4da771b399c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Registering the element"
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "47dffeaf-6eae-4732-a2cf-22057a2095b7"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import 'triiiceratops/element/register';"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Registration is a side-effecting import and is idempotent. Custom-element registration is first-wins per page: a second, different Triiiceratops core cannot replace an already-registered tag."
+				}
+			],
+			"attrs": {
+				"id": "172d3117-ca87-4e5f-9940-598ad11ffa72"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "attributes-properties-and-events",
+				"id": "20d8d995-a4af-445b-bae5-82a0d1529bfe"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Attributes, properties, and events"
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Attributes",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — "
+								},
+								{
+									"type": "text",
+									"text": "manifest-id",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "canvas-id",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "theme",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "content-state",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". Strings only, plus the boolean attribute "
+								},
+								{
+									"type": "text",
+									"text": "read-content-state-from-url",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " (presence opts in; see "
+								},
+								{
+									"type": "text",
+									"text": "content state",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/content-state/#passing-one-to-the-viewer"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ")."
+								}
+							],
+							"attrs": {
+								"id": "e92a2e4e-fc37-4d5a-8745-95b7fae16ae8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "dbf1a328-3be9-4e2a-83f9-7f9cfa4be54f"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Properties",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — "
+								},
+								{
+									"type": "text",
+									"text": "manifestJson",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "themeConfig",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "config",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "initialCanvasRegion",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "plugins",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "searchProvider",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". Objects, arrays, and functions cannot travel through an HTML attribute, so assign them to the element. Assignment before the element upgrades is safe: the values are ported when it does."
+								}
+							],
+							"attrs": {
+								"id": "a0a7deb2-3ff5-42bc-8b67-788eaed82e1e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c35c4c77-5849-436f-8f34-f6c5c68b743a"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Events",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — "
+								},
+								{
+									"type": "text",
+									"text": "statechange",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "canvaschange",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "manifestchange",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "choicechange",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "pluginerror",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "viewererror",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and "
+								},
+								{
+									"type": "text",
+									"text": "viewerstateavailable",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". All bubble and are composed, so they escape the shadow root."
+								}
+							],
+							"attrs": {
+								"id": "d30775b4-63ca-4c6f-8981-bd1b42b04bbe"
+							}
+						}
+					],
+					"attrs": {
+						"id": "84c534d9-36b7-4f28-a9aa-dc8817817251"
+					}
+				}
+			],
+			"attrs": {
+				"id": "49b729c3-29b8-41e9-9921-fe3113ea6556"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "ea302738-339d-43cc-8a64-7e100674b12a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import 'triiiceratops/element/register';\nimport type { TriiiceratopsViewerElement } from 'triiiceratops';\n\n// The published element type declares the state bridge (`viewerState`) and\n// `searchProvider`. TypeScript hosts widen it locally with the other\n// property-tier inputs they assign; those exist on the element at runtime.\ntype ViewerHost = TriiiceratopsViewerElement & {\n    manifestJson?: string | object;\n    themeConfig?: string | object;\n    config?: string | object;\n    initialCanvasRegion?: string | object;\n    plugins?: readonly unknown[];\n};\n\nconst el = document.querySelector<ViewerHost>('triiiceratops-viewer')!;\n\nel.setAttribute('manifest-id', 'https://example.org/manifest.json');\nel.config = { toolbar: { side: 'right' } };\n\nel.addEventListener('canvaschange', (event) => {\n    const snapshot = (event as CustomEvent).detail;\n    console.log('canvas is now', snapshot.canvasId);\n});"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "the-state-bridge",
+				"id": "8e3569d5-b2c6-485c-be75-e4fb2905ba1d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The state bridge"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The element exposes the owning viewer's live per-instance "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — the same object plugins and framework wrappers read — through a "
+				},
+				{
+					"type": "text",
+					"text": "getter-only",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " "
+				},
+				{
+					"type": "text",
+					"text": "viewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " property, paired with a "
+				},
+				{
+					"type": "text",
+					"text": "viewerstateavailable",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " event:"
+				}
+			],
+			"attrs": {
+				"id": "f21616bf-4e18-4953-9b44-8f533505f520"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "04aff679-a2f6-40b2-ab70-d3b221c815a4"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import 'triiiceratops/element/register';\nimport type { TriiiceratopsViewerElement } from 'triiiceratops';\n\nconst el = document.querySelector<TriiiceratopsViewerElement>(\n    'triiiceratops-viewer',\n)!;\n\nfunction bind(state: NonNullable<TriiiceratopsViewerElement['viewerState']>) {\n    // Read on demand…\n    console.log(state.canvasId);\n    // …command it…\n    state.nextCanvas();\n    // …or subscribe. Notifications are batched and carry no payload: they mean\n    // \"state changed — read what you need\".\n    return state.subscribe(() => console.log('now at', state.canvasId));\n}\n\n// Listen THEN check: this catches state that becomes available before, during,\n// or after this code runs, with no race and no polling.\nel.addEventListener('viewerstateavailable', (event) => {\n    bind((event as CustomEvent).detail);\n});\nif (el.viewerState) bind(el.viewerState);"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Notes on the bridge:"
+				}
+			],
+			"attrs": {
+				"id": "6a9aed62-c30a-464f-ae39-aae474e17a0e"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "viewerState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is "
+								},
+								{
+									"type": "text",
+									"text": "undefined",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " before the inner viewer mounts and again after disconnection, and it is getter-only — a host physically cannot replace it."
+								}
+							],
+							"attrs": {
+								"id": "de628147-8fd5-43b8-ac53-3b4cfe88dffa"
+							}
+						}
+					],
+					"attrs": {
+						"id": "aba0f405-e2b6-496b-97c3-cb49673b043e"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "viewerstateavailable",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " means only that state can be bound. It does not mean a manifest has loaded, the renderer is ready, or a requested canvas is visible."
+								}
+							],
+							"attrs": {
+								"id": "f4446412-b239-4902-a6b9-10fc4b431417"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9831c3b0-a68f-479f-949a-f8c1dd4575c5"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Ordinary state updates do not repeat the event. A disconnection that destroys the inner viewer and a later reconnection produce a "
+								},
+								{
+									"type": "text",
+									"text": "new",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " "
+								},
+								{
+									"type": "text",
+									"text": "ViewerState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and a new event; rebind and drop the old one."
+								}
+							],
+							"attrs": {
+								"id": "e0e16bfb-e910-4c5c-8fea-a7f51d3417bf"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e69e7df5-7b94-4665-a01a-0e735ee04010"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "For memoized, equality-gated reads over this state, "
+								},
+								{
+									"type": "text",
+									"text": "triiiceratops/selectors",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " exports the same framework-neutral selector runtime the wrappers and the plugin SDK use."
+								}
+							],
+							"attrs": {
+								"id": "1d5eb415-faf6-40ea-a3f9-c8d90a839c7c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "178c4636-2194-4c0e-abb3-e8318746f42b"
+					}
+				}
+			],
+			"attrs": {
+				"id": "6d1c5669-22a6-42ec-975a-ce4ace366e76"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "searchprovider-on-the-element",
+				"id": "d4fa7153-1bc9-4435-bb38-64a745224416"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "searchProvider",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " on the element"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "searchProvider",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a property-only input — there is no reflected attribute — and it works exactly as it does in the framework wrappers and in Svelte:"
+				}
+			],
+			"attrs": {
+				"id": "41bc3b6a-1251-4122-8eea-a6a878e944e0"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "60262f1b-2282-4641-a7be-f353c5298fff"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import 'triiiceratops/element/register';\nimport type { SearchProvider, TriiiceratopsViewerElement } from 'triiiceratops';\n\nconst el = document.querySelector<TriiiceratopsViewerElement>(\n    'triiiceratops-viewer',\n)!;\n\nconst searchProvider: SearchProvider = async (query, context) => [\n    {\n        canvasIndex: 0,\n        canvasLabel: context.canvasId ?? 'Page 1',\n        hits: [{ type: 'hit', match: query }],\n    },\n];\n\nel.searchProvider = searchProvider;"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Set it to "
+				},
+				{
+					"type": "text",
+					"text": "null",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (or leave it unset) to use the viewer's normal IIIF Content Search service discovery."
+				}
+			],
+			"attrs": {
+				"id": "c77268d5-5979-4541-b2a3-175e9e3aaa44"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "hand-wiring-a-component-framework",
+				"id": "965f5654-5dc7-4802-a713-22d48561e17f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Hand-wiring a component framework"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The two recipes below exist only for hosts that deliberately want the raw element — most often an existing integration mid-migration. New React and Vue code should use the "
+				},
+				{
+					"type": "text",
+					"text": "React",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/react/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "Vue",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/vue/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " wrappers, which do all of this for you and are the supported path."
+				}
+			],
+			"attrs": {
+				"id": "a6b046a4-9e32-4633-84fe-6efdc3d49a2e"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "hand-wiring-react",
+				"id": "a22314fd-55b7-4cec-8bcc-536987fa2631"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Hand-wiring React"
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "jsx",
+				"id": "59be96b3-79f7-4d93-a638-194aced3584e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { useEffect, useRef } from 'react';\nimport 'triiiceratops/element/register';\nimport { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';\n\nexport function Viewer({ manifestId }) {\n    const ref = useRef(null);\n\n    useEffect(() => {\n        const el = ref.current;\n        if (!el) return;\n        el.manifestId = manifestId;\n        el.plugins = [ImageManipulationPlugin];\n        el.config = { toolbar: { side: 'right' } };\n        const onStateChange = (e) => console.log('viewer state', e.detail);\n        el.addEventListener('statechange', onStateChange);\n        return () => el.removeEventListener('statechange', onStateChange);\n    }, [manifestId]);\n\n    return (\n        <triiiceratops-viewer\n            ref={ref}\n            style={{ display: 'block', width: '100%', height: '600px' }}\n        />\n    );\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "TypeScript hosts taking this path must declare the tag in "
+				},
+				{
+					"type": "text",
+					"text": "JSX.IntrinsicElements",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (or set properties through a typed ref, as above) to satisfy the compiler. The wrapper removes that requirement."
+				}
+			],
+			"attrs": {
+				"id": "b61be9d8-4688-45ae-92b0-68945d4fdc99"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "hand-wiring-vue",
+				"id": "bea33c4f-905b-4e54-acc3-492dafb2bb0f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Hand-wiring Vue"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Tell the compiler the tag is a custom element so it does not try to resolve it as a Vue component, then set complex values as properties through a template ref:"
+				}
+			],
+			"attrs": {
+				"id": "d6f9f870-9204-47ad-9a01-ee2ebf137a3b"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "33c4799b-865b-4291-8050-a5efa56d96e4"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "// vite.config.ts\nvue({\n    template: {\n        compilerOptions: {\n            isCustomElement: (tag) => tag === 'triiiceratops-viewer',\n        },\n    },\n});"
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "f3da1a6f-e490-4e79-a165-3549d83fb202"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup>\nimport { onMounted, ref, watch } from 'vue';\nimport 'triiiceratops/element/register';\nimport { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';\n\nconst props = defineProps(['manifestId']);\nconst viewer = ref(null);\n\nfunction sync() {\n    viewer.value.manifestId = props.manifestId;\n    viewer.value.plugins = [ImageManipulationPlugin];\n    viewer.value.config = { toolbar: { side: 'right' } };\n}\n\nonMounted(() => {\n    sync();\n    viewer.value.addEventListener('statechange', (e) => {\n        console.log('viewer state', e.detail);\n    });\n});\nwatch(() => props.manifestId, sync);\n</script>\n\n<template>\n    <triiiceratops-viewer ref=\"viewer\" style=\"display: block; width: 100%; height: 600px\" />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The wrapper removes the "
+				},
+				{
+					"type": "text",
+					"text": "isCustomElement",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " configuration, the property assignments, and the manual listeners."
+				}
+			],
+			"attrs": {
+				"id": "31f6a9a3-a597-47a0-97bf-1268d6400e4b"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "live-examples",
+				"id": "e75679a3-b6cd-457e-9b12-30b901d12468"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Live examples"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Two example pages are published beside these docs and run this release's bundles:"
+				}
+			],
+			"attrs": {
+				"id": "903a442f-2a70-478f-9381-ba48a8b45c43"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Plain HTML",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/examples/plain-html/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — one script tag, one element, no bundler and no plugins."
+								}
+							],
+							"attrs": {
+								"id": "a5f5047b-f350-4500-ab35-c063b2395c6f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "212bdd34-d89f-4ae1-9583-a66c3b95f85f"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Web component",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/examples/web-component/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — the same element plus "
+								},
+								{
+									"type": "text",
+									"text": "@triiiceratops/plugin-av",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", loaded from a second script tag in the required order and registered per viewer."
+								}
+							],
+							"attrs": {
+								"id": "17a8c7f8-926c-4c5f-9842-011593bc2706"
+							}
+						}
+					],
+					"attrs": {
+						"id": "39ae7758-99d9-414f-a57e-b8d257102f75"
+					}
+				}
+			],
+			"attrs": {
+				"id": "1d47c05e-2be7-49fb-8caa-04b77f35777b"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "verified-against-the-packed-package",
+				"id": "77bae70c-9537-4820-9961-05b61f1a7c68"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Verified against the packed package"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "CI runs packed-consumer fixtures across Chromium, Firefox, and WebKit for both element forms on this page: "
+				},
+				{
+					"type": "text",
+					"text": "wc-esm",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (bundler ESM registration) and "
+				},
+				{
+					"type": "text",
+					"text": "plain-html-iife",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " plus "
+				},
+				{
+					"type": "text",
+					"text": "plugin-image-manip-iife",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (script tags, core and a plugin IIFE loaded in "
+				},
+				{
+					"type": "text",
+					"text": "both",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " script orders — which "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-image-manipulation",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " supports because it bundles its own Svelte runtime; "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " does not, and must load after core, see "
+				},
+				{
+					"type": "text",
+					"text": "script order",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#script-order-triiiceratops-plugin-av-loads-after-core"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "). Every code sample on this site is also type-checked against those same tarballs."
+				}
+			],
+			"attrs": {
+				"id": "f32fff3b-e103-4eae-9030-a71daba16b45"
+			}
+		}
+	],
+	"meta": {
+		"title": "Any framework (web component)",
+		"shortTitle": "Any framework",
+		"intro": "Drop the <triiiceratops-viewer> custom element into plain HTML, a Django or WordPress template, or any framework that can render a tag."
+	}
+}

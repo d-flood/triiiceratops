@@ -256,11 +256,6 @@
     let allPlugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
     // The SDK path (ticket 07) is the one plugin path.
     let sdkPlugins = $derived(allPlugins.filter(isSdkPlugin));
-    // Active locale (CONTEXT.md **Active locale**, ticket 06): the viewer's typed
-    // `config.locale` if set, otherwise the page default. Published to chrome via
-    // Svelte context (below) so every `m.*()` call renders in it; also mirrored
-    // onto ViewerState.activeLocale as observable state.
-    let viewerLocale = $derived(config.locale ?? language.current);
 
     let rootElement: HTMLElement | undefined = $state();
 
@@ -325,6 +320,17 @@
         onviewererror?.(error);
     }
 
+    // Active locale (CONTEXT.md **Active locale**, ticket 06): the chrome's
+    // language picker if the user has chosen one, otherwise the viewer's typed
+    // `config.locale`, otherwise the page default. Published to chrome via
+    // Svelte context (below) so every `m.*()` call renders in it; also mirrored
+    // onto ViewerState.activeLocale.
+    let viewerLocale = $derived(
+        internalViewerState._localeOverride ??
+            config.locale ??
+            language.current,
+    );
+
     // Publish this viewer's active locale to its chrome subtree, and route all
     // core message rendering through it. `getMessages()` returns a drop-in `m`
     // whose calls render in `viewerLocale`; chrome uses `m.*()` unchanged.
@@ -335,10 +341,10 @@
     });
     const m = getMessages();
 
-    // Mirror the resolved active locale onto ViewerState as observable state so
-    // subscribers (and ticket 08's PluginLocaleService) are notified on change.
-    // `viewerLocale` already resolves `config.locale ?? page default` reactively,
-    // so this keeps the observable identical to the locale the chrome renders in.
+    // Mirror the resolved active locale onto ViewerState so subscribers (and
+    // ticket 08's PluginLocaleService) are notified on change. `viewerLocale`
+    // already resolves picker/config/page reactively, so this keeps the
+    // notifying member identical to the locale the chrome renders in.
     $effect(() => {
         internalViewerState.activeLocale = viewerLocale;
     });

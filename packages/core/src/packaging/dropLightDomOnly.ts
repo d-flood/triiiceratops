@@ -12,7 +12,7 @@
  * rich text filtered through `sanitizeHtml`'s allowlist — so a reset for
  * `<hr>`, `<table>` or a date picker's shadow parts is bytes every reader
  * downloads for markup that cannot appear. The other two consumers reset a
- * whole document (the playground at `apps/demo`) or a library consumer's
+ * whole document (the playground at `/demo/`) or a library consumer's
  * light DOM (`lib/styles-lightdom.ts` → `dist/triiiceratops.css`), where those
  * same elements are ordinary and the rules are load-bearing.
  *

@@ -11,7 +11,11 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { THEME_STORAGE_KEY, readStoredTheme, storeTheme } from '../../src/lib/theme';
+import {
+    THEME_STORAGE_KEY,
+    readStoredTheme,
+    storeTheme,
+} from '../../src/lib/theme';
 
 const APP_HTML = readFileSync(
     fileURLToPath(new URL('../../src/app.html', import.meta.url)),

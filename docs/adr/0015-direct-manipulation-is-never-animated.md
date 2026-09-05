@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # Continuous input is never animated; discrete and programmatic input always is
 
 One rule governs every viewport motion. **Continuous input is direct**: a drag updates

@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # The renderer is first-party with no pass-through, and no capability negotiates it
 
 Core owns its deep-zoom renderer outright, so the renderer object is not public state.

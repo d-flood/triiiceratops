@@ -1,0 +1,2085 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "triiiceratops/svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the "
+				},
+				{
+					"type": "text",
+					"text": "native",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Svelte 5 component — no custom element, no wrapper layer. Core ships the viewer as a source-distributed component, so your application compiles it inside its own Svelte runtime: it tree-shakes normally and never bundles a second copy of Svelte."
+				}
+			],
+			"attrs": {
+				"id": "05d5261c-66d0-4376-8323-3437eeac4986"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "This is also the only entry point that needs the optional "
+				},
+				{
+					"type": "text",
+					"text": "svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " peer installed. It is a superset of the root entry — everything "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " exports is re-exported here, so a Svelte app imports from this one specifier and nothing else."
+				}
+			],
+			"attrs": {
+				"id": "9e8bb953-0ef2-44ba-b402-e35ee2f5de57"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "install",
+				"id": "c45e4320-5907-4be9-b232-b7279921ad80"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Install"
+				}
+			]
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "package-manager",
+				"id": "baa681aa-9f32-4e9a-b9a5-b333abbf66cc"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "pnpm",
+						"id": "b098ea2a-5c9f-4ad0-9d75-a0b1d86c8b22"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "95d30d2d-0a98-4b26-87bc-00269b712ed3"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pnpm add triiiceratops svelte"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "npm",
+						"id": "7a6bb4c6-d266-4f9a-a1e6-320b79b803ac"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "a9023d5f-f076-4d9f-8806-f3c4410c69d5"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "npm install triiiceratops svelte"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "bun",
+						"id": "e22d3795-1d7c-4409-9789-4deff11fd95d"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "31865a27-63a0-4af1-8dbf-00d6d1b8660c"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "bun add triiiceratops svelte"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "your-first-viewer",
+				"id": "0b7a6d59-3e3e-4e17-8ef0-ba2d9ae9149a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Your first viewer"
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "ec31dd48-ae5d-4f3f-99ca-56cde9ae06b6"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script lang=\"ts\">\n    import { TriiiceratopsViewer } from 'triiiceratops/svelte';\n    // Import the design tokens + themes exactly once, anywhere in your app.\n    import 'triiiceratops/style.css';\n</script>\n\n<!-- The container must have a height; the viewer fills it. -->\n<div style=\"height: 600px;\">\n    <TriiiceratopsViewer manifestId=\"https://example.org/manifest.json\" />\n</div>"
+				}
+			]
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "important",
+				"title": "The stylesheet is an explicit import",
+				"id": "a8506676-2708-4867-8127-bebe778a4774"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Importing the component adds "
+						},
+						{
+							"type": "text",
+							"text": "no",
+							"marks": [
+								{
+									"type": "bold"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " global CSS side effects. Styling comes from the one "
+						},
+						{
+							"type": "text",
+							"text": "import 'triiiceratops/style.css'",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": ". Every rule in that stylesheet is scoped to the viewer root, so it cannot restyle your host page."
+						}
+					],
+					"attrs": {
+						"id": "1f10cd24-2925-4897-b2a6-cf7286abfce5"
+					}
+				}
+			]
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "note",
+				"title": "Works in SvelteKit out of the box",
+				"id": "927643c3-f12f-4579-934d-5d216737c953"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Bundler-neutral (no "
+						},
+						{
+							"type": "text",
+							"text": "import.meta.env",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " reliance) and SSR-safe — core server-renders cleanly and initializes the browser-only image renderer only on the client, so it hydrates without mismatch warnings. You do "
+						},
+						{
+							"type": "text",
+							"text": "not",
+							"marks": [
+								{
+									"type": "bold"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " need "
+						},
+						{
+							"type": "text",
+							"text": "export const ssr = false",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " or a browser-only guard. Import the stylesheet once in your root "
+						},
+						{
+							"type": "text",
+							"text": "+layout.svelte",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": "."
+						}
+					],
+					"attrs": {
+						"id": "0d5d6561-b1dc-4741-9663-dfeed023cbe8"
+					}
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "reading-and-commanding-state",
+				"id": "790193bd-5b4e-4fec-9f18-edbe02501820"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Reading and commanding state"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Svelte needs no handle abstraction and no selector API. "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a rune class, so its members are already reactive: read them in your markup or in a "
+				},
+				{
+					"type": "text",
+					"text": "$derived",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and Svelte tracks the dependency for you. There are two ways to get the instance."
+				}
+			],
+			"attrs": {
+				"id": "b53d8f4c-744d-4839-bad3-451178f75dd0"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "bind:viewerState",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — when the state belongs to this component:"
+				}
+			],
+			"attrs": {
+				"id": "d56260e4-9899-4ee8-a5e1-9551921dfe1b"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "7376c2b0-b4b9-4302-86d6-d82059c21aee"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script lang=\"ts\">\n    import { TriiiceratopsViewer, type ViewerState } from 'triiiceratops/svelte';\n    import 'triiiceratops/style.css';\n\n    let viewerState = $state<ViewerState | undefined>();\n\n    // Reactive: recomputes when the viewer navigates.\n    const canvasId = $derived(viewerState?.canvasId ?? 'No canvas yet');\n</script>\n\n<p>{canvasId}</p>\n<button onclick={() => viewerState?.nextCanvas()}>Next canvas</button>\n\n<div style=\"height: 600px;\">\n    <TriiiceratopsViewer\n        bind:viewerState\n        manifestId=\"https://example.org/manifest.json\"\n    />\n</div>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "getContext(VIEWER_STATE_KEY)",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — inside any descendant, with no prop threading:"
+				}
+			],
+			"attrs": {
+				"id": "b1718cad-27b7-486b-95c5-f592545443dd"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "6753bc7c-39d4-4083-a68d-6ee52ba247a8"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script lang=\"ts\">\n    import { getContext } from 'svelte';\n    import { VIEWER_STATE_KEY, type ViewerState } from 'triiiceratops/svelte';\n\n    const state = getContext<ViewerState>(VIEWER_STATE_KEY);\n</script>\n\n<span>{state.currentCanvasIndex + 1} / {state.sequenceCount}</span>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The component sets that context, so this is the same instance "
+				},
+				{
+					"type": "text",
+					"text": "bind:viewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " exposes — the one the plugin SDK and every other host read. "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is per-viewer: two viewers on a page are two independent instances."
+				}
+			],
+			"attrs": {
+				"id": "e50d3af2-417b-4a93-ab89-19c4fec24dd5"
+			}
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "tip",
+				"title": "`undefined` until the viewer mounts",
+				"id": "43a601ba-b5b3-42b4-a697-244ad7b48899"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "bind:viewerState",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " is populated when the component mounts its viewer, so the bound variable is "
+						},
+						{
+							"type": "text",
+							"text": "undefined",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " for the first tick. "
+						},
+						{
+							"type": "text",
+							"text": "$derived",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " plus "
+						},
+						{
+							"type": "text",
+							"text": "?.",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": ", as above, is the whole pattern."
+						}
+					],
+					"attrs": {
+						"id": "c9684ba7-f1aa-41b9-ae2f-748c5d508df7"
+					}
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The framework-neutral "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/selectors",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " runtime exists for hosts that need memoized, equality-gated projections. Svelte's reactivity already does that work, so you do not need it here."
+				}
+			],
+			"attrs": {
+				"id": "d8ed374c-a81c-4a8f-8bad-8f1cb41efaeb"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "props",
+				"id": "c546d7a4-7f57-49c1-9ca7-e48d7f70ca0c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Props"
+				}
+			]
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Prop"
+										}
+									],
+									"attrs": {
+										"id": "468a53f4-179e-4cef-a527-a330ec74d222"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0b4705d9-91cf-43e7-93b6-6815f6e32371"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Type"
+										}
+									],
+									"attrs": {
+										"id": "0b022901-1ef2-4556-ab75-ac1543ee39a9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d3486ab1-aac6-4a72-99ef-c6407760fcf4"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a08ee509-b9c4-4070-9523-76044f5bf471"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "manifestId",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a44c3192-3ac7-4aad-9bb1-916576be7fa7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "701255af-2f33-4247-9d9f-cf4bef623d2f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "00e5d301-c396-475b-8b96-497da3997b91"
+									}
+								}
+							],
+							"attrs": {
+								"id": "326962f6-bd63-4e5f-867b-a7b2f42a4d67"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1c73319e-786a-412b-a074-36e0522ddf12"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "canvasId",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "caf184a9-edd6-450d-a9bf-f6b4c2c8e524"
+									}
+								}
+							],
+							"attrs": {
+								"id": "33fd8341-afb1-4abc-bcf3-5577077aeaa5"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "212bfe95-7edc-4d8d-be7f-9278bffd0cb0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1f919de2-2873-4ac1-91ff-a2ced008a746"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3efcafd6-2ac3-4776-896b-24c71afcddb3"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "contentState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "89201588-dbca-46ba-9082-b910d63daa95"
+									}
+								}
+							],
+							"attrs": {
+								"id": "29d44d75-462e-40a7-87e9-5567469b9994"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "31552c56-3dfb-4a10-9132-eada4abc84ca"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e2d5aba6-603f-499e-b6e8-bc4f465d93c8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f73e9331-23ee-4c07-84eb-564fc36675bd"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "readContentStateFromUrl",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "577d96f9-a966-4e57-9658-4ee1da76dde4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8885267f-1bce-4a0b-a7b8-0972c03a8d5f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "boolean",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " (default "
+										},
+										{
+											"type": "text",
+											"text": "false",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "52727958-8d80-4117-936e-8a953661350b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d1710366-e62e-4e4f-aa6b-5f409319afcd"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b8dec554-9b45-4bf7-a591-62acde1a450e"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "manifestJson",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7178bb03-8f7f-4884-a008-4a35d106d8ef"
+									}
+								}
+							],
+							"attrs": {
+								"id": "55f748bb-e676-4c41-b5e0-42454f276783"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Record<string, any>",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "52f8f567-f599-4837-9b35-eb2676dcea95"
+									}
+								}
+							],
+							"attrs": {
+								"id": "985d41e0-0d42-4ba2-aa8f-1026172e7ad5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "97e5624d-6434-4baa-be5b-1377df64f509"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "theme",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "57f0e28a-b86e-4c9d-abb2-38e248df1b07"
+									}
+								}
+							],
+							"attrs": {
+								"id": "cb62d238-1355-43a5-a39a-3444a473d6d8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "BuiltInTheme",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a35b0fcb-8374-4236-a1ab-443fe97c486b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c6c28b45-f443-4993-97b6-4c908770a395"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b13b0c2b-7349-453c-95ca-b6d812045e83"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "themeConfig",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "03a56bc4-3124-4fca-8cd2-2954cb4c4306"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a1f23c6f-4c3a-43eb-b8cf-61fd5133a00a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ThemeConfig",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e2070acc-5ca1-4b82-b278-02d2116bc5da"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9e43f0a3-f889-4341-89a4-ef769abaaa27"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d1318448-3b1d-4d6a-a0f9-f4e5ae33da86"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "config",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "625611be-43b4-4024-81b0-64d6460d407c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9d53c8a4-a86e-4ac9-a9bc-0b0a9fb797ba"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ViewerConfig",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "9b45b0bd-ddcc-4ee4-8c5f-59fc7f1a3a04"
+									}
+								}
+							],
+							"attrs": {
+								"id": "368ebf60-dc14-4319-a0e4-1e6295bbf53b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6f1d2570-7b9b-4ca5-a23e-8fba5c1cb101"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "initialCanvasRegion",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "aec9b2c3-54e0-4103-bd22-5ed817fe9df1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9c0e40a2-e0c1-4e78-b191-6a4a3e61efdb"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "CanvasRegion | null",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "68668467-a005-43fc-9da5-98bd8d364349"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d5cafadd-0ce0-4a13-ae39-844bb814b91e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "74f6cad2-c157-40a8-ae01-6d430f7bc244"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "plugins",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "8371fd26-bafb-4ac2-8197-fa4928a6a9e8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d4140962-bcb8-485c-b05f-3fbd661b7c72"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "readonly SdkPlugin[]",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "93fd1d80-ad0c-4b31-9098-c41d85b777a0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b718b59f-582d-45b0-ba84-3d653508bef6"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b8354f24-8c25-404f-abaa-8a0fc7a11178"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "searchProvider",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "5f28ec2d-a6f5-4cc2-9d18-c59541e5c279"
+									}
+								}
+							],
+							"attrs": {
+								"id": "95d8c1a0-139a-40b8-8ee4-a31b79b3d7e3"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "SearchProvider | null",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "71d0d654-40d7-4c00-92b2-cbf3c24c31e5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f9720363-9fea-4562-b7a3-ef720b0b7f0a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a71196ff-014f-4224-b2ac-bb035073f3d8"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "viewerState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3b11e7ac-83a6-41df-9b2a-c218507a0b2a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2b55e58a-af56-4e17-a8fd-1e04bd6b84df"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ViewerState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " (bindable, read-only in practice)"
+										}
+									],
+									"attrs": {
+										"id": "bc0acbe1-7fa3-4435-b1ea-04b70c661ee3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e2acd03f-2bea-468a-8d87-0d4aa68bbc7d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d0072817-d741-4a1a-a57b-83e0752693d1"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "onpluginerror",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4f8cc454-1acb-45ca-a6f4-3eab00660915"
+									}
+								}
+							],
+							"attrs": {
+								"id": "953416ef-37d7-4402-ad79-264b031a70ad"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "(error: PluginError) => void",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "8f83a3c3-0e06-40a7-b43d-0ed8fe4b6b59"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f2c21881-5481-4212-8638-388a22437ac5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "868b628a-4abe-4c02-8847-7c177af6de7c"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "onviewererror",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7156de01-0eae-4c36-94b2-914aa55afe29"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a06a4120-9c60-4d12-b40b-5e37d2dddb37"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "(error: ViewerError) => void",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7faf9f1d-25f3-427e-9f3e-373c77f2ff3e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4899618a-68ed-4b8a-81d0-8a4536770fc9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "972342dd-47e3-4e18-bde0-a4e2e8015577"
+					}
+				}
+			],
+			"attrs": {
+				"id": "5b2f7ba7-25b4-4e03-bf90-be534e048f59"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Plain Svelte props — objects and functions pass straight through, so none of the attribute-versus-property care the custom element needs applies. "
+				},
+				{
+					"type": "text",
+					"text": "manifestId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "canvasId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are "
+				},
+				{
+					"type": "text",
+					"text": "uncontrolled",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": one-way instructions to the viewer, not enforced bindings. Re-asserting the current "
+				},
+				{
+					"type": "text",
+					"text": "canvasId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " writes nothing, so your markup never fights a user who navigated internally; read "
+				},
+				{
+					"type": "text",
+					"text": "viewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to follow where the viewer actually is."
+				}
+			],
+			"attrs": {
+				"id": "e32bab59-68b0-4173-b800-2ee55c816868"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "errors",
+				"id": "41faefa7-f6f0-41a0-8b00-ed2c8b5a8131"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Errors"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The two callback props receive the same structured objects the custom element dispatches as "
+				},
+				{
+					"type": "text",
+					"text": "pluginerror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "viewererror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " events:"
+				}
+			],
+			"attrs": {
+				"id": "bd7f77da-dc3b-44fd-b255-7be1e2e8fa2a"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "40a1c103-dcf3-4448-b67e-9b13300b72cf"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script lang=\"ts\">\n    import { TriiiceratopsViewer } from 'triiiceratops/svelte';\n    import 'triiiceratops/style.css';\n</script>\n\n<TriiiceratopsViewer\n    manifestId=\"https://example.org/manifest.json\"\n    onpluginerror={(error) => console.warn(error.pluginName, error.phase)}\n    onviewererror={(error) => console.error(error.code, error.message)}\n/>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "PluginError",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " carries a "
+				},
+				{
+					"type": "text",
+					"text": "retry()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so a host can offer the user a second attempt rather than only reporting the failure."
+				}
+			],
+			"attrs": {
+				"id": "bf6eb153-d316-4b4a-9f8a-a39b70a8c3d5"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "multiple-manifests",
+				"id": "0cac877a-43c3-415b-a509-4ae7b43087a3"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Multiple manifests"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "manifestsState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (and its "
+				},
+				{
+					"type": "text",
+					"text": "ManifestsState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " class) is exported from this entry for apps that coordinate several manifests — a collection browser, say — outside any single viewer instance."
+				}
+			],
+			"attrs": {
+				"id": "d6454b89-1658-4c15-9c7d-284600195b2c"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "42e38301-69a6-4037-bc77-c95677e8b958"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { manifestsState } from 'triiiceratops/svelte';"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "live-example",
+				"id": "c329c8be-7ca7-4905-8522-9e8af2870f35"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Live example"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The Svelte example",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/examples/svelte/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a Vite + Svelte 5 application that imports "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/style.css",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " from the published package. It is published beside these pages and runs this release's bundles, so what it does is what the version documented here does."
+				}
+			],
+			"attrs": {
+				"id": "16279937-0706-4465-b450-364200124aee"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "where-to-go-next",
+				"id": "d7c6ff64-a741-443d-9896-20b486bb148f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Where to go next"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Everything below is framework-neutral and has a "
+				},
+				{
+					"type": "text",
+					"text": "Svelte",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tab on every example:"
+				}
+			],
+			"attrs": {
+				"id": "9e6b053f-8ddc-4e91-8357-0ddd6e6750b4"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Configuration & state",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/configuration/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — panels, layout, gallery, and the full "
+								},
+								{
+									"type": "text",
+									"text": "ViewerState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " surface."
+								}
+							],
+							"attrs": {
+								"id": "0e4ca668-645b-4826-9a1d-34bfd4ea93dc"
+							}
+						}
+					],
+					"attrs": {
+						"id": "cd18b7d7-751e-4305-8fa6-d7d2fc5a45d0"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Theming",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/theming/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — "
+								},
+								{
+									"type": "text",
+									"text": "theme",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "themeConfig",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and CSS variables."
+								}
+							],
+							"attrs": {
+								"id": "a47202d2-7a29-489a-8736-5a29d405769e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4943620d-9849-4c4f-966d-309a5e4be5bd"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Plugins",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugins/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — the "
+								},
+								{
+									"type": "text",
+									"text": "plugins",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " prop, and "
+								},
+								{
+									"type": "text",
+									"text": "authoring",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-authoring/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " your own."
+								}
+							],
+							"attrs": {
+								"id": "d57658c6-9e08-4503-8ea3-8e6c73de8423"
+							}
+						}
+					],
+					"attrs": {
+						"id": "92d0a906-d71d-4083-bcad-e4a6bdbb41c1"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Content Security Policy",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/csp/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — Svelte hosts use the light-DOM recipe, whose component styles are nonce-addressable."
+								}
+							],
+							"attrs": {
+								"id": "508cb70f-dcbe-4a75-9b9f-88ee796c87d6"
+							}
+						}
+					],
+					"attrs": {
+						"id": "cb71f210-66b9-45e5-b466-00d195aadbde"
+					}
+				}
+			],
+			"attrs": {
+				"id": "e5f141f9-e48a-4e74-8980-fde2ce13104f"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "verified-against-the-packed-package",
+				"id": "55fae000-4943-4adb-9418-3bc0b9313fc6"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Verified against the packed package"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "CI runs packed-consumer fixtures across Chromium, Firefox, and WebKit: "
+				},
+				{
+					"type": "text",
+					"text": "svelte-vite",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (the native component under Vite) and "
+				},
+				{
+					"type": "text",
+					"text": "sveltekit-ssr",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (server-rendered, then hydrated, with no mismatch warnings). Every code sample on this site is type-checked against those same tarballs."
+				}
+			],
+			"attrs": {
+				"id": "c6d6a154-ed3e-4283-ae34-6c8beb4440f8"
+			}
+		}
+	],
+	"meta": {
+		"title": "Svelte",
+		"shortTitle": "Svelte",
+		"intro": "Use Triiiceratops in Svelte 5 as a native component \\u2014 no custom element and no wrapper layer, source-distributed and driven by runes."
+	}
+}

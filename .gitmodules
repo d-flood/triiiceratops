@@ -1,0 +1,4 @@
+[submodule "vendor/uncial"]
+	path = vendor/uncial
+	url = https://github.com/d-flood/uncial.git
+	branch = triiiceratops-epic

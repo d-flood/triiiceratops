@@ -290,7 +290,7 @@ describe('insetFitCentre', () => {
  * `constrainCentre` is the guarantee that the world never leaves the viewport;
  * both outrank a plugin's request for space, because the alternative is a viewer
  * whose zoom range and pan bounds a plugin can collapse. Reserving more than half
- * an axis is documented as unsupported (`docs/plugin-authoring.md`).
+ * an axis is documented as unsupported (`/docs/plugin-authoring/`).
  *
  * These numbers mirror the shipped constants and a 1200x900 canvas on an 800x600
  * surface, which is the browser fixture.

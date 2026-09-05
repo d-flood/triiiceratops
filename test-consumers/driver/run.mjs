@@ -190,7 +190,7 @@ export const FIXTURES = [
     'strict-dts',
     // Doc-example compilation. A non-browser fixture that type-checks
     // (`tsc --noEmit`) every `ts`/`tsx`/`js` code sample importing package code
-    // (extracted from `docs/**/*.md` into its `generated/` dir by
+    // (extracted from the site's content documents into its `generated/` dir by
     // `scripts/docs-examples.mjs`) against the packed tarballs of every packed
     // package, so published documentation matches what users can install.
     'docs-examples',

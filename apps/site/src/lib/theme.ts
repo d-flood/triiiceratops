@@ -5,10 +5,10 @@
  * state and the default — the page follows `prefers-color-scheme` — so absence
  * is meaningful and must never be written back as a value.
  *
- * The key is namespaced because the playground stores a scheme choice on the
- * same origin, and the two must not read each other's. That is deliberate: the
- * choice does not travel between the surfaces of this domain, and a shared bare
- * `theme` key would make it travel between two of them by accident.
+ * The key is namespaced against everything else this origin stores, and the one
+ * key serves the whole domain: the marketing routes, the documentation and the
+ * playground are all routes of this application and share the one toggle, so
+ * the choice travels with the reader rather than flashing at each boundary.
  *
  * The stored choice is applied to `<html>` by the inline blocking script in
  * `app.html`, before first paint. Nothing here runs early enough to do that job;

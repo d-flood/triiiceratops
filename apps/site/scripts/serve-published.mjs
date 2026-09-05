@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /*
- * Serve the assembled `published/` tree over HTTP for the browser suite.
+ * Serve the built tree over HTTP for the browser suite.
  *
- * The score gate has to measure the real site, not this application's own build
- * output: the SEO category reads `robots.txt` and `sitemap.xml`, which the
- * publish step owns at the tree's root, and the rail links out to sibling
- * subtrees that only exist once the tree is assembled. A development server
- * proxying those in would be a second definition of the site, able to be correct
- * while the real one is broken.
+ * The score gate has to measure the published site rather than a development
+ * server: the SEO category reads `robots.txt` and `sitemap.xml` at the tree's
+ * root, the search bundle is written after the bundler has finished, and the
+ * consumer examples are placed afterwards too. A development server proxying
+ * those in would be a second definition of the site, able to be correct while
+ * the real one is broken.
  *
  * Static only, and deliberately dumb — the closer this is to a plain file host,
  * the closer the measurement is to production.
@@ -49,8 +49,8 @@ const port = Number(flag('port', '4190'));
 
 if (!existsSync(join(root, 'index.html'))) {
     console.error(
-        `serve-published: no index.html under ${root} — assemble the tree first ` +
-            'with `pnpm site:build`.',
+        `serve-published: no index.html under ${root} — build the tree first ` +
+            'with `pnpm build:all`.',
     );
     process.exit(1);
 }

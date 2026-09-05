@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # Plugin activation failures degrade silently; observability is via the channel, not UI
 
 When an SDK plugin's activation or mount fails, core logs it through the debug-gated

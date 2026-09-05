@@ -1,0 +1,575 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Downloads the current canvas (or the current multi-canvas view) as a raster image, correctly handling IIIF canvases painted with more than one image. It renders as a "
+				},
+				{
+					"type": "text",
+					"text": "panel",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " with three modes:"
+				}
+			],
+			"attrs": {
+				"id": "a53a0d48-0674-4ae1-b2c4-d89c5aec46e1"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Composite canvas",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — every image on the current canvas, composited together at their annotated positions."
+								}
+							],
+							"attrs": {
+								"id": "2aa50609-1798-4d88-9831-f834e1c6547d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "00434b4c-de68-4396-9c01-814af71e1875"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Single image",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — one image from the current canvas, with a picker shown when the canvas has more than one."
+								}
+							],
+							"attrs": {
+								"id": "21f07e38-12ef-4bbe-8415-4b39b74b9c85"
+							}
+						}
+					],
+					"attrs": {
+						"id": "db9fad4f-57dd-4ba8-81d3-1e2152be0f16"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Current view",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — everything currently laid out together in the viewer (e.g. a two-page spread in "
+								},
+								{
+									"type": "text",
+									"text": "paged",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " viewing mode), matching the on-screen layout."
+								}
+							],
+							"attrs": {
+								"id": "41f0a798-52ab-4087-9025-ebfdc5bbe5cf"
+							}
+						}
+					],
+					"attrs": {
+						"id": "aea0cf4a-88a0-4f7c-89d5-0b1b88cb7fb8"
+					}
+				}
+			],
+			"attrs": {
+				"id": "d91d4efb-ec9b-45c9-a983-b28bbea6876f"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Each mode offers a resolution picker. IIIF "
+				},
+				{
+					"type": "text",
+					"text": "level0",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " image services can only be requested at a fixed list of sizes declared in their "
+				},
+				{
+					"type": "text",
+					"text": "info.json",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so those are enumerated exactly; other services offer an Original/50%/25% ladder based on native dimensions. Output is always capped to a size browsers can reliably render to a canvas."
+				}
+			],
+			"attrs": {
+				"id": "27d03534-75d0-4685-bec7-dd400c42b134"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "audiovisual-canvases",
+				"id": "548ee1c6-be21-4370-ad79-6da64a00df28"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Audiovisual Canvases"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A canvas whose painting annotations place only non-image content — audio, video, a 3D model — has no raster to export. It is the canvas the viewer itself gives the "
+				},
+				{
+					"type": "text",
+					"text": "unsupported presentation",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to, and this plugin leaves it out silently. That is a contract, not an accident:"
+				}
+			],
+			"attrs": {
+				"id": "8a6c6531-338d-432b-95dd-f8c6a342f796"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "The "
+								},
+								{
+									"type": "text",
+									"text": "single image",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " picker lists only canvases an image can be produced from. On a spread of one page and one video, the video is not offered — the reader never picks it and never meets a resolution list with nothing in it."
+								}
+							],
+							"attrs": {
+								"id": "362e650d-eceb-49d0-b95f-a9753a0f176f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "746fc6be-5d81-449f-8e95-5dc3b3c1617c"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Current view",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " composites exactly the image canvases in the view, at the shape those canvases make on their own; the video leaves no empty column behind. As everywhere else, the mode is offered only when more than one canvas remains to combine, so that same page-and-video spread offers "
+								},
+								{
+									"type": "text",
+									"text": "single image",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " instead."
+								}
+							],
+							"attrs": {
+								"id": "444fd414-5302-4def-a918-26731afa2625"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6d4d77cd-c53f-4933-a6bf-9ba734f53ad5"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "On such a canvas alone, every mode is empty: no images to composite and no resolution ladder to pick from."
+								}
+							],
+							"attrs": {
+								"id": "c0313dd4-d1ca-48a4-aeef-eef165f72789"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9bb863c8-2366-4434-950d-11393cf452ba"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Nothing is ever substituted for the missing image. A poster thumbnail, a "
+								},
+								{
+									"type": "text",
+									"text": "placeholderCanvas",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", or an "
+								},
+								{
+									"type": "text",
+									"text": "accompanyingCanvas",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " describes the media; none of them is the canvas, and exporting one would hand the reader a picture the manifest never said was the content."
+								}
+							],
+							"attrs": {
+								"id": "c9d18848-822e-4b60-a9fb-877ae3922b71"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b9626289-6ab1-4549-99b8-a3b1063184f7"
+					}
+				}
+			],
+			"attrs": {
+				"id": "9970e498-b7da-4280-95e0-eb67beb71c40"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A "
+				},
+				{
+					"type": "text",
+					"text": "canvas claim",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " makes no difference. A claim is about what is rendered on screen; whether a raster can be produced is decided by the canvas's own painting bodies, so the answer is the same whether or not a media plugin has taken the canvas over."
+				}
+			],
+			"attrs": {
+				"id": "0b024722-166b-409e-b6a2-8f7341861a12"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "setup",
+				"id": "43bc573c-8e4a-4c41-a2d6-e15ce131bc5e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Setup"
+				}
+			]
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "package-manager",
+				"id": "fd8f4822-b321-4d31-a3f7-d49870d49610"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "pnpm",
+						"id": "a45629b8-74d2-49dd-a7b0-2507283a9741"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "6410e134-f5f2-40a6-949a-1f5e3521472d"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pnpm add @triiiceratops/plugin-image-export"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "npm",
+						"id": "b0a00960-8e25-4901-9db5-2b73c024b998"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "cc411e7b-27ee-48d2-935d-4099acab2531"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "npm install @triiiceratops/plugin-image-export"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "bun",
+						"id": "392eb7a8-5e23-423c-8f41-d31a2b6f7dc2"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "d40fe8d1-da2d-41e1-a9d5-677588251505"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "bun add @triiiceratops/plugin-image-export"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "ImageDownloadPlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is exported ready to use with no configuration required. Add it like any plugin — see "
+				},
+				{
+					"type": "text",
+					"text": "using plugins",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#adding-a-plugin-to-your-viewer"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "083c797c-c0f4-49d7-a5e4-f69b056e4c90"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "examples",
+				"id": "7b212998-641f-4356-8f02-7c470a9ac389"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Examples"
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Multiple and configured plugins",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugins/#multiple-and-configured-plugins"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — adding this plugin alongside others."
+								}
+							],
+							"attrs": {
+								"id": "8c1f60f0-bec4-4559-a7a9-d339e4fdb7f5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4cb6bb53-a16e-4f99-89d2-71f6048ec426"
+					}
+				}
+			],
+			"attrs": {
+				"id": "ee51d8a6-faaf-40d8-acfc-b442c67ce66e"
+			}
+		}
+	],
+	"meta": {
+		"title": "Image Download",
+		"shortTitle": "Image download",
+		"intro": "Download the current IIIF canvas as a raster image, handling canvases painted with more than one image correctly."
+	}
+}

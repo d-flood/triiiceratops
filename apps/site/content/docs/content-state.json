@@ -1,0 +1,1919 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A "
+				},
+				{
+					"type": "text",
+					"text": "content state",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a portable IIIF description of a view: either a bare IIIF URI, or a "
+				},
+				{
+					"type": "text",
+					"text": "W3C Annotation",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "https://www.w3.org/TR/annotation-model/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " with "
+				},
+				{
+					"type": "text",
+					"text": "motivation: contentState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " whose "
+				},
+				{
+					"type": "text",
+					"text": "target",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " names a Canvas — optionally with an "
+				},
+				{
+					"type": "text",
+					"text": "#xywh=",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " region or a "
+				},
+				{
+					"type": "text",
+					"text": "#t=",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " media time — and whose "
+				},
+				{
+					"type": "text",
+					"text": "partOf",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " names the Manifest. It says "
+				},
+				{
+					"type": "text",
+					"text": "what to show",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". It says nothing about how it reached you."
+				}
+			],
+			"attrs": {
+				"id": "89217622-0100-4c66-90fa-5e1e92320534"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The "
+				},
+				{
+					"type": "text",
+					"text": "iiif-content",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " request parameter is one delivery channel for it. So are a paste, a drop, a "
+				},
+				{
+					"type": "text",
+					"text": "FileReader",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and a "
+				},
+				{
+					"type": "text",
+					"text": "data-*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " attribute. The channel is yours: the viewer never reaches for one on its own, because a component that claimed the address bar could hijack your routing or consume an "
+				},
+				{
+					"type": "text",
+					"text": "iiif-content",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " parameter meant for the page around it ("
+				},
+				{
+					"type": "text",
+					"text": "ADR 0006",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "https://github.com/d-flood/triiiceratops/blob/main/docs/adr/0006-content-state-is-an-explicit-component-input.md"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "). What it will do is accept the payload from you, on the "
+				},
+				{
+					"type": "text",
+					"text": "content-state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " input — and, if you say so explicitly, read that one parameter on your behalf."
+				}
+			],
+			"attrs": {
+				"id": "fc5451e3-3af3-444a-a7a6-69e5a6db1815"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "You can also skip the viewer entirely. "
+				},
+				{
+					"type": "text",
+					"text": "parseContentState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " turns a content state into a "
+				},
+				{
+					"type": "text",
+					"text": "view target",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — "
+				},
+				{
+					"type": "text",
+					"text": "{ manifestId, canvasId?, region?, time? }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — which you map onto whatever inputs you like."
+				}
+			],
+			"attrs": {
+				"id": "d97447d4-b790-4ce9-987a-d224c1f159be"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "85f781e0-07f0-479f-8569-08cf40552ee4"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { parseContentState } from 'triiiceratops';\n\nconst param = new URLSearchParams(location.search).get('iiif-content');\nconst target = param ? parseContentState(param) : null;\n\n// Your own routing wins — the URL parameter is the fallback, not the authority.\nif (target) {\n    console.log(target.manifestId, target.canvasId, target.region);\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "parseContentState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is pure and fetches nothing. A bare URI comes back as the "
+				},
+				{
+					"type": "text",
+					"text": "manifestId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for you to dereference; it is never dereferenced here. The viewer, "
+				},
+				{
+					"type": "text",
+					"text": "given the same URI",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#passing-one-to-the-viewer"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", does dereference it."
+				}
+			],
+			"attrs": {
+				"id": "3473d639-a656-4e67-8aee-05edb7faafc5"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "passing-one-to-the-viewer",
+				"id": "fab85805-f75f-4ad6-aeba-c18a8afe2d42"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Passing one to the viewer"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Two inputs, on every distribution — the Svelte component, the custom element, and the React and Vue wrappers:"
+				}
+			],
+			"attrs": {
+				"id": "7ce53d36-758d-4e03-8364-15521cda2f42"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Input"
+										}
+									],
+									"attrs": {
+										"id": "c01ec900-8ee7-4d74-b168-2456877f6a3c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5f50e854-c8d5-4405-a3c9-76c38f205d28"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Attribute"
+										}
+									],
+									"attrs": {
+										"id": "48cdc2a8-511b-42c7-aaa0-02be6c3ca8be"
+									}
+								}
+							],
+							"attrs": {
+								"id": "551caed7-7cac-4b40-a476-618c6f660864"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Default"
+										}
+									],
+									"attrs": {
+										"id": "486ca762-8d67-4f58-a00a-cf0d1b3b43de"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6acbb88c-1459-4775-8954-60cd30d07695"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9938d059-9faf-4c83-b7d2-528e5bc66666"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "contentState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "16e9eba4-c8b3-4d1b-9e6d-c0f1ffb2fac3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3014947d-1d30-4c6d-a80e-2115df920ac7"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "content-state",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2131f640-c552-43c8-88e7-41591f7c72ec"
+									}
+								}
+							],
+							"attrs": {
+								"id": "be419aae-059f-4dc7-8466-ad3ed7d46206"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "—"
+										}
+									],
+									"attrs": {
+										"id": "e5794435-b111-4733-946a-017465759211"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e4167571-1568-4f14-a1d5-b3c639bf6aca"
+							}
+						}
+					],
+					"attrs": {
+						"id": "fecf58a2-60da-443c-8e77-3bbab284a2ca"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "readContentStateFromUrl",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "95ca910b-ba8b-4631-bca5-00c3ee586d9e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "259d449a-1c88-438d-8d8a-3777fbba70fd"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "read-content-state-from-url",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "66a1c079-f235-4f26-915f-f40168847b55"
+									}
+								}
+							],
+							"attrs": {
+								"id": "acb78d6e-e1a9-4233-8f0f-3c4ce266ede6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "off"
+										}
+									],
+									"attrs": {
+										"id": "f16c376b-a107-4004-ad87-5ceccab44923"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1b6a9880-3695-4cba-928a-a19e5c65d10f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f0ab2f2f-27c1-414f-b7fb-1e8e36036161"
+					}
+				}
+			],
+			"attrs": {
+				"id": "2b0b49d8-0050-4a10-afe0-6b3350121526"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "content-state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " takes a content state in any of its forms: a bare IIIF URI, the Annotation as JSON, or that Annotation base64url-encoded exactly as the "
+				},
+				{
+					"type": "text",
+					"text": "iiif-content",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " parameter delivers it."
+				}
+			],
+			"attrs": {
+				"id": "ed84a836-b515-47a1-8c8c-412d86abc7b9"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "485d9434-f6e7-42f1-94d5-fdec0d609378"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer content-state=\"https://example.org/state/1\">\n</triiiceratops-viewer>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "read-content-state-from-url",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " delegates one channel — the "
+				},
+				{
+					"type": "text",
+					"text": "iiif-content",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " parameter — to the viewer. It is a boolean attribute: presence opts in. It is "
+				},
+				{
+					"type": "text",
+					"text": "off by default",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", it is read "
+				},
+				{
+					"type": "text",
+					"text": "once on mount",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and the viewer never writes to the address bar, so URL cleanup and re-navigation in a single-page application stay yours."
+				}
+			],
+			"attrs": {
+				"id": "61c96a82-b453-4955-b242-fc82eaaf578f"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "df322571-c3bd-4894-be92-bc0dc4dff7dc"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer read-content-state-from-url></triiiceratops-viewer>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "\"Once on mount\" is literal: the flag is read on the viewer's first render, so it has to be set "
+				},
+				{
+					"type": "text",
+					"text": "before",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " the element is inserted into the document. Adding the attribute to a viewer that is already mounted does nothing, and never will — there is no second read to catch it. Build the element with the attribute (or render it with the prop) rather than setting it afterwards."
+				}
+			],
+			"attrs": {
+				"id": "d25ef424-3c20-4cb7-9e81-dfb5b71f326d"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "precedence",
+				"id": "4712e0ea-1f63-4cd6-b4a8-fcbc406b7198"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Precedence"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "When more than one source is present:"
+				}
+			],
+			"attrs": {
+				"id": "6547fe9d-43e6-4e82-a513-242b5d56a92b"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "plaintext",
+				"id": "3c03658a-dd98-4326-ac8a-e0778194756d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "manifest-id / manifest-json (+ canvas-id, initial-canvas-region)\n  > content-state\n  > the iiif-content URL parameter"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The discrete inputs are the manual-driving API and win. The URL is ambient and lowest-trust. Setting "
+				},
+				{
+					"type": "text",
+					"text": "manifest-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " therefore turns a content state into a no-op rather than a conflict — which is what lets an application keep its own routing and still opt into the parameter as a fallback."
+				}
+			],
+			"attrs": {
+				"id": "f58b05c8-c3db-4fd6-817b-b14293e83db4"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The tier wins input by input, not just as a whole: a content state still opens its manifest when you set only "
+				},
+				{
+					"type": "text",
+					"text": "canvas-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or only "
+				},
+				{
+					"type": "text",
+					"text": "initial-canvas-region",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", but the canvas and the region you set are the ones honored, and the target's own canvas or "
+				},
+				{
+					"type": "text",
+					"text": "#xywh",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is dropped."
+				}
+			],
+			"attrs": {
+				"id": "c0ba5471-946f-4449-bb63-3ef1405e298b"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "dereferencing-a-uri",
+				"id": "8f79bf48-b980-47a0-b2be-bb0251c99621"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Dereferencing a URI"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A content state that is a bare URI is fetched, and the document that comes back is parsed — so the URI form works whether it points at a content-state Annotation or straight at a Manifest. The request goes through the same fetch path "
+				},
+				{
+					"type": "text",
+					"text": "manifest-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " uses; it introduces no new trust boundary, and your "
+				},
+				{
+					"type": "text",
+					"text": "Content Security Policy",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/csp/#content-states"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the control on it."
+				}
+			],
+			"attrs": {
+				"id": "88012c84-398e-4810-ae21-76414f7aa629"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "failures-are-reported-never-thrown",
+				"id": "74bf12a8-8fab-44c6-b2c7-b4694d02e369"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Failures are reported, never thrown"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Ingestion never throws. What cannot be honored degrades, and anything worth your attention arrives on the "
+				},
+				{
+					"type": "text",
+					"text": "viewererror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " channel under the scope "
+				},
+				{
+					"type": "text",
+					"text": "content-state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ":"
+				}
+			],
+			"attrs": {
+				"id": "78db0bf1-95de-4325-bf4a-b189fe0ff846"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Code"
+										}
+									],
+									"attrs": {
+										"id": "b15ac254-b4ed-4eec-ab5c-6cb1ba804eb7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7712ed57-e60b-4764-b79d-58b48f2d7e3a"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Meaning"
+										}
+									],
+									"attrs": {
+										"id": "e94fbb7c-0752-499b-ba12-fe61f0499995"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3d763a62-e998-4dcd-bc3d-e281f182e861"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6f9aeb66-d530-452d-9986-bd2a2e64dca6"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "content-state-dereference-failed",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4ea38bac-edd7-41d1-9610-d9a4154b3e9f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f9c088f6-5186-417c-a83c-5471d6aec597"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "The URI could not be fetched. The viewer falls back to loading it as a manifest."
+										}
+									],
+									"attrs": {
+										"id": "c6b79004-f6ab-43ea-8cb6-d96949d68276"
+									}
+								}
+							],
+							"attrs": {
+								"id": "15a07c30-0d81-4372-9c6a-7be23f343bdc"
+							}
+						}
+					],
+					"attrs": {
+						"id": "0d39ba85-5720-402d-880e-641a59fb0ded"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "content-state-unresolved",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "618e032c-84e6-4108-b7a3-a9854c21d79b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c7c1003e-6328-40a3-8316-cde517d99f7f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Nothing in the content state named a Manifest, so nothing was loaded."
+										}
+									],
+									"attrs": {
+										"id": "13e44356-91f7-413d-a9fd-14ceb651bd25"
+									}
+								}
+							],
+							"attrs": {
+								"id": "eb99d9a0-ea09-47d7-a08b-2ab4a416a262"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f762d9f1-f9a5-4906-ad1d-a39d320fcb5b"
+					}
+				}
+			],
+			"attrs": {
+				"id": "a7ad6405-1bea-45dc-8e7c-e9d945a352a6"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Partially-supported shapes — a multi-target array, a "
+				},
+				{
+					"type": "text",
+					"text": "partOf",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " naming only a Collection, a missing "
+				},
+				{
+					"type": "text",
+					"text": "motivation",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — resolve to the most the viewer can honor and log a dev-mode warning instead."
+				}
+			],
+			"attrs": {
+				"id": "5f202605-cf09-4bde-a4d5-5e36513be8cd"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "degradation-not-rejection",
+				"id": "7c51fa1f-d11a-4a8c-8055-406a6d4a8c30"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Degradation, not rejection"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Resolution never throws. A content state that is partly unsupported degrades to the most that can be honored, and "
+				},
+				{
+					"type": "text",
+					"text": "null",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " comes back only when "
+				},
+				{
+					"type": "text",
+					"text": "no manifest is resolvable at all",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ":"
+				}
+			],
+			"attrs": {
+				"id": "93ca9089-5623-4f08-808e-8546cf87e697"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A "
+								},
+								{
+									"type": "text",
+									"text": "target",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " array resolves its first entry; the rest are dropped with a dev-mode warning."
+								}
+							],
+							"attrs": {
+								"id": "0528df32-7558-4b77-9822-19dd3c9d4ea1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3e590962-08a0-4da5-aa3c-4342835a5509"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A "
+								},
+								{
+									"type": "text",
+									"text": "partOf",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " array resolves the first entry whose type is "
+								},
+								{
+									"type": "text",
+									"text": "Manifest",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". When "
+								},
+								{
+									"type": "text",
+									"text": "no",
+									"marks": [
+										{
+											"type": "italic"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " entry declares a type at all, the first entry is taken — untyped references are common in the wild. When entries "
+								},
+								{
+									"type": "text",
+									"text": "are",
+									"marks": [
+										{
+											"type": "italic"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " typed but none is a "
+								},
+								{
+									"type": "text",
+									"text": "Manifest",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " (a "
+								},
+								{
+									"type": "text",
+									"text": "Collection",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", say), nothing is resolved and a dev-mode warning names what was found: fetching a Collection as a Manifest would fail anyway."
+								}
+							],
+							"attrs": {
+								"id": "4ccbffc4-4e39-45e0-ba24-dd328d0a4726"
+							}
+						}
+					],
+					"attrs": {
+						"id": "13219e8d-a0e8-4bef-8708-e18d924bc59e"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A "
+								},
+								{
+									"type": "text",
+									"text": "motivation",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " that is missing or is not "
+								},
+								{
+									"type": "text",
+									"text": "contentState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " still resolves, with a dev-mode warning. A document that names a Manifest is worth honoring whatever it claims to motivate."
+								}
+							],
+							"attrs": {
+								"id": "e0b7e4b0-8161-40f9-b7c4-73e931478a1a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "0e58f42e-da43-4aaa-8c2d-e65557f5b450"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Identifiers and types are read in both the IIIF Presentation 3 ("
+								},
+								{
+									"type": "text",
+									"text": "id",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "type",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ") and Presentation 2 ("
+								},
+								{
+									"type": "text",
+									"text": "@id",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "@type",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ") spellings."
+								}
+							],
+							"attrs": {
+								"id": "5564bc7d-d109-4659-8b39-3db02a071f90"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8d399364-5e89-45c8-ac81-ccf317c276be"
+					}
+				}
+			],
+			"attrs": {
+				"id": "0b875365-a0fb-4ac7-99cd-6558f35de948"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Two spec-legal shapes are deliberately "
+				},
+				{
+					"type": "text",
+					"text": "not",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " resolved, because neither appears in any IIIF Cookbook recipe the fixtures are drawn from:"
+				}
+			],
+			"attrs": {
+				"id": "102e38d0-92a2-4914-addf-6becb903e5e9"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A "
+								},
+								{
+									"type": "text",
+									"text": "target",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " that is a "
+								},
+								{
+									"type": "text",
+									"text": "SpecificResource",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — a "
+								},
+								{
+									"type": "text",
+									"text": "source",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " plus a "
+								},
+								{
+									"type": "text",
+									"text": "selector",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — is not unwrapped. The Manifest is looked for on "
+								},
+								{
+									"type": "text",
+									"text": "target.partOf",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", not on "
+								},
+								{
+									"type": "text",
+									"text": "target.source.partOf",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and a "
+								},
+								{
+									"type": "text",
+									"text": "FragmentSelector",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "'s "
+								},
+								{
+									"type": "text",
+									"text": "xywh=",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " region or "
+								},
+								{
+									"type": "text",
+									"text": "t=",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " time is not read. Region and time are read only from the fragment on the target's own id."
+								}
+							],
+							"attrs": {
+								"id": "e2616bb5-8c64-42d5-8cbd-7bc51d344ba2"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ec81578c-46c2-437e-92ab-73daa397dd41"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "An annotation-level "
+								},
+								{
+									"type": "text",
+									"text": "source",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " (not a spec form) is not honored as a target."
+								}
+							],
+							"attrs": {
+								"id": "2bbe12b3-512b-43cc-859c-8ef4828d26d7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "18331827-26b1-4263-adfb-58e51eaad08b"
+					}
+				}
+			],
+			"attrs": {
+				"id": "33605099-5b9b-4a43-89c5-ac851b03ed68"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Dev-mode warnings go through the viewer's logger, which is silent unless you enable "
+				},
+				{
+					"type": "text",
+					"text": "debug mode",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "e0f806fd-ae31-489c-b19e-5e0cf3eee316"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "supported-forms",
+				"id": "13e93c5a-fb6a-4555-9935-461da0a78db4"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Supported forms"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every form below is pinned by a committed fixture that the unit tests parse, and this table is generated from those fixtures — so it cannot claim a form no test covers. Fixtures whose shape comes from a IIIF Cookbook recipe are constructed over that recipe's vendored manifest; none of them is fetched, at test time or at documentation-build time."
+				}
+			],
+			"attrs": {
+				"id": "9899d6d9-aaec-4b58-b108-aba39caafcd9"
+			}
+		},
+		{
+			"type": "contentStateFixtures",
+			"attrs": {
+				"fixtures": [
+					{
+						"form": "Bare IIIF URI",
+						"resolvesVia": "Returned as the manifest id for the caller to dereference",
+						"file": "bare-uri.txt",
+						"recipe": "0009-book-1",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "base64url-encoded Annotation",
+						"resolvesVia": "Decoded, then parsed as an Annotation",
+						"file": "encoded-annotation.txt",
+						"recipe": "0299-region",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "The Cookbook's own published `iiif-content` value for recipe 0485",
+						"resolvesVia": "base64url decoded, then percent-decoded, then parsed as an Annotation",
+						"file": "0485-published.txt",
+						"recipe": "0485-contentstate-canvas-region",
+						"capturedAt": "2026-08-22"
+					},
+					{
+						"form": "Annotation, `target` as string",
+						"resolvesVia": "The target string is the Canvas; the Annotation's `partOf` names the Manifest",
+						"file": "string-target-region.json",
+						"recipe": "0299-region",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "Annotation, `target` as object",
+						"resolvesVia": "`target.id` is the Canvas; `target.partOf` names the Manifest",
+						"file": "object-target-partof-array.json",
+						"recipe": "0299-region",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "Annotation, `target` as object with a single `partOf`",
+						"resolvesVia": "`target.partOf` as a bare object rather than an array",
+						"file": "object-target-partof-object.json",
+						"recipe": "0009-book-1",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "Annotation, `target` as object carrying a `#t=` media time",
+						"resolvesVia": "The fragment on `target.id`, through the shared IIIF target helpers",
+						"file": "object-target-time.json",
+						"recipe": "0002-mvm-audio",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "`partOf` as array, Collection first",
+						"resolvesVia": "First entry whose type is `Manifest`, skipping the Collection",
+						"file": "partof-array-collection-first.json",
+						"recipe": "0009-book-1",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "`partOf` as array, no entry declaring a type",
+						"resolvesVia": "First entry, since none declares `Manifest`",
+						"file": "partof-array-untyped.json",
+						"recipe": "0009-book-1",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "`partOf` as array, typed but naming no Manifest",
+						"resolvesVia": "Nothing — a Collection is not fetchable as a manifest, so it degrades rather than resolving",
+						"file": "partof-array-no-manifest.json",
+						"recipe": "0032-collection",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "Annotation, `target` as array",
+						"resolvesVia": "First entry; the rest are dropped with a dev-mode warning",
+						"file": "target-array.json",
+						"recipe": "0009-book-1",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "`motivation` as the bare string `contentState`",
+						"resolvesVia": "Accepted alongside the array form",
+						"file": "motivation-string.json",
+						"recipe": "0009-book-1",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "`motivation` absent or not `contentState`",
+						"resolvesVia": "Resolved anyway, with a dev-mode warning",
+						"file": "motivation-missing.json",
+						"recipe": "0009-book-1",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "Annotation spelling identifiers `@id` and types `@type`",
+						"resolvesVia": "Both spellings read at every level",
+						"file": "legacy-at-id.json",
+						"recipe": "0009-book-1",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "A Manifest document rather than an Annotation",
+						"resolvesVia": "The document's own id",
+						"file": "manifest-document.json",
+						"recipe": "0009-book-1",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "A Canvas document naming its Manifest in `partOf`",
+						"resolvesVia": "`partOf` names the Manifest; the document's own id is the view target",
+						"file": "canvas-document-partof.json",
+						"recipe": "0009-book-1",
+						"capturedAt": "2026-08-20"
+					},
+					{
+						"form": "Annotation naming a Canvas but no Manifest",
+						"resolvesVia": "Nothing — no manifest is resolvable",
+						"file": "no-manifest.json",
+						"recipe": "0009-book-1",
+						"capturedAt": "2026-08-20"
+					}
+				],
+				"id": "0d5c42a3-9c53-418e-9a6e-f7f83fef8b14"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "keeping-the-claim-honest",
+				"id": "63f5b2a1-c67d-4d67-bba2-8876775dfb87"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Keeping the claim honest"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Those fixtures were captured from cookbook recipes on a date, and the Cookbook keeps changing. A scheduled, advisory job — "
+				},
+				{
+					"type": "text",
+					"text": ".github/workflows/recipe-drift.yml",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — fetches the live recipes weekly and reports where the recipe catalog, the vendored manifests or a fixture's pinned manifest and canvas no longer match what iiif.io publishes. It files a GitHub issue; it never fails a build, and it is never a required check. A maintainer decides what to update."
+				}
+			],
+			"attrs": {
+				"id": "14996b58-136f-46d8-9f2d-3b232db15f4e"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Run it locally against the live Cookbook:"
+				}
+			],
+			"attrs": {
+				"id": "5dfe81d6-1bdd-423b-8a6f-295564f2d431"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "bash",
+				"id": "3629af31-8c2d-48b3-a49d-6bf4f4b73dbf"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "node scripts/recipe-drift.mjs                        # all 67 catalogued recipes\nnode scripts/recipe-drift.mjs --recipe 0009-book-1   # spot-check one"
+				}
+			]
+		}
+	],
+	"meta": {
+		"title": "IIIF Content State",
+		"shortTitle": "IIIF Content State",
+		"intro": "Which IIIF Content State forms Triiiceratops resolves, and how to turn an iiif-content parameter into viewer inputs."
+	}
+}

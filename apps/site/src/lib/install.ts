@@ -9,6 +9,15 @@
 
 export const PACKAGE_NAME = 'triiiceratops';
 
+/**
+ * The tab group the package-manager choice is sticky on, site-wide.
+ *
+ * One key, so the manager a reader picks on the front page is the one they see
+ * in the documentation. It is deliberately independent of the framework group:
+ * choosing Vue must not disturb somebody's pnpm.
+ */
+export const PACKAGE_MANAGER_GROUP = 'package-manager';
+
 export type PackageManager = {
     /** Tab label, and the identifier a test names the tab by. */
     readonly id: 'npm' | 'pnpm' | 'bun' | 'yarn';

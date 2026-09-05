@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # Residency is tiered by projected size, nested canvas-over-level, and budgeted in bytes
 
 Every canvas is assigned a **residency tier** each frame from its projected on-screen

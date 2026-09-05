@@ -1,0 +1,2518 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A modern, lightweight, "
+				},
+				{
+					"type": "text",
+					"text": "framework-agnostic",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " IIIF viewer. Use the typed React or Vue component, drop the standards-based web component into plain HTML or any other frontend, or use the native Svelte component if that's your stack."
+				}
+			],
+			"attrs": {
+				"id": "b102b0ad-49a4-4899-8cfd-b4d9ed6ef347"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "View Live Demo",
+					"marks": [
+						{
+							"type": "bold"
+						},
+						{
+							"type": "link",
+							"attrs": {
+								"href": "https://triiiceratops.org/demo/"
+							}
+						}
+					]
+				}
+			],
+			"attrs": {
+				"id": "20f7ae44-6427-4742-9f6a-02a6473170bf"
+			}
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "info",
+				"title": "This documentation describes the Triiiceratops 1.0 release line",
+				"id": "f2976675-63df-4dd8-90c2-869ef4438f47"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Core is published as "
+						},
+						{
+							"type": "text",
+							"text": "triiiceratops",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": "; the plugin SDK and first-party plugins are published under the "
+						},
+						{
+							"type": "text",
+							"text": "@triiiceratops",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " npm scope and versioned independently."
+						}
+					],
+					"attrs": {
+						"id": "cf54c04e-cc04-4006-a673-d6c2d65864e9"
+					}
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "start-here",
+				"id": "63f9a798-ad40-4f82-b2b5-8959169d42c6"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Start here"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Pick your stack. Each tab is a complete, working viewer; the guide behind it is the one place that stack's integration is documented."
+				}
+			],
+			"attrs": {
+				"id": "4dd3396d-e46f-454f-9c71-1a65d7f514ec"
+			}
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "framework",
+				"id": "465d45ab-6205-4217-b619-4cf9d618d0cd"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "HTML",
+						"id": "1517d04e-bae3-4c89-9ced-1dfdcc154b6b"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "No install and no build step — one script tag from a CDN:"
+								}
+							],
+							"attrs": {
+								"id": "17dc7b84-a19c-4cdd-b79f-3b64c7a8c995"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "0cb32e36-ffa0-4615-84e7-74a6c3cef80f"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script src=\"https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js\"></script>\n\n<triiiceratops-viewer\n    manifest-id=\"https://iiif.wellcomecollection.org/presentation/v2/b18035723\"\n    style=\"display: block; width: 100%; height: 100vh;\"\n></triiiceratops-viewer>"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "That is the whole integration — styles and themes ship inside the element. The same custom element is how you use the viewer from "
+								},
+								{
+									"type": "text",
+									"text": "Angular, Lit, Solid, Alpine, htmx, Django or Rails templates, and WordPress",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "2c98e271-12a8-4541-9fbb-cff830b75bb2"
+							}
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Any framework guide",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/integration/"
+											}
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "5cc6881d-e1d0-4ae1-918e-e93a0ab2411c"
+							}
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "React",
+						"id": "ebbd1a8c-e165-41ec-8d4c-12f040f1b830"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "tsx",
+								"id": "1010ee21-03b8-4a57-ba16-627680ed814d"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import { TriiiceratopsViewer } from 'triiiceratops/react';\n\nexport function Reader() {\n    return (\n        <TriiiceratopsViewer\n            manifestId=\"https://example.org/manifest.json\"\n            style={{ display: 'block', height: '600px' }}\n        />\n    );\n}"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Typed props, typed callbacks, automatic element registration, and hooks for viewer state."
+								}
+							],
+							"attrs": {
+								"id": "8657b5bc-fe84-4b0c-a987-41fb80a19433"
+							}
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "React guide",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/react/"
+											}
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "6c36de52-a744-4504-9c2d-9b317faa4221"
+							}
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Vue",
+						"id": "3b97ffe1-247a-412f-93fa-2052dbbb09fc"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "vue",
+								"id": "6dd44811-adda-4885-b1bd-cd94032883c3"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script setup lang=\"ts\">\nimport { TriiiceratopsViewer } from 'triiiceratops/vue';\n</script>\n\n<template>\n    <TriiiceratopsViewer\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Typed props, typed emits, automatic element registration, and composables for viewer state."
+								}
+							],
+							"attrs": {
+								"id": "64d4fd1a-29da-4c86-bad6-f63c64ee9ba4"
+							}
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Vue guide",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/vue/"
+											}
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "aabd3851-c5cf-4703-a250-2e132a1af108"
+							}
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Svelte",
+						"id": "3ffff0ef-ebe7-4d96-9a22-883e74fc8a25"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "4ec40f92-6c2b-4ab3-8742-40a7db9d0651"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script lang=\"ts\">\n    import { TriiiceratopsViewer } from 'triiiceratops/svelte';\n    import 'triiiceratops/style.css'; // once, anywhere in your app\n</script>\n\n<!-- Container must have height -->\n<div style=\"height: 600px;\">\n    <TriiiceratopsViewer manifestId=\"https://example.org/manifest.json\" />\n</div>"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A native Svelte 5 component — no custom element in the way."
+								}
+							],
+							"attrs": {
+								"id": "b5d843f0-9e8f-47b8-9d5b-c123a9d79325"
+							}
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Svelte guide",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/svelte/"
+											}
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "490bd7e7-49a5-41e6-9729-abaf9299a3e0"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "tip",
+				"title": "No Svelte in your React or Vue app",
+				"id": "db0757b8-2bb1-4368-833b-f8c8b73bc3e2"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "The framework wrappers host the same custom element every other integration uses, so Svelte and its runtime stay behind that boundary. You add no Svelte dependency, no Svelte Vite plugin, and no custom-element tag configuration — and the published type declarations for "
+						},
+						{
+							"type": "text",
+							"text": "triiiceratops/react",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " and "
+						},
+						{
+							"type": "text",
+							"text": "triiiceratops/vue",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " resolve with no "
+						},
+						{
+							"type": "text",
+							"text": "svelte",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " package installed."
+						}
+					],
+					"attrs": {
+						"id": "75a95b6c-1f73-4005-97e3-c7c91525aa8f"
+					}
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "which-entry-point-do-i-import-from",
+				"id": "4b212f9d-d59e-47ab-b89f-c6eeb6cbd781"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Which entry point do I import from?"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every entry below except "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is "
+				},
+				{
+					"type": "text",
+					"text": "framework-neutral",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": nothing reachable from it needs the optional "
+				},
+				{
+					"type": "text",
+					"text": "svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " peer, at runtime or at type-check time. Import from the one that matches your framework and you never think about this again."
+				}
+			],
+			"attrs": {
+				"id": "5b4a404d-079d-41fe-aff8-0c8de3c3aade"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Entry"
+										}
+									],
+									"attrs": {
+										"id": "b5ccb654-5312-4cfb-b037-8d4bb477c01a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4439cb26-f6bb-43be-9929-a8ef88c7848b"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "For"
+										}
+									],
+									"attrs": {
+										"id": "8969c2ed-5da1-4984-961e-02edeaec1524"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d86c6c6e-163e-48bd-b0a1-3cebf36d4c7d"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Needs "
+										},
+										{
+											"type": "text",
+											"text": "svelte",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " installed"
+										}
+									],
+									"attrs": {
+										"id": "45187cb3-8005-4377-963a-e50d87b7cd35"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ed9922f5-8fd0-4db9-9fe7-25bc992c6d5a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ee34099a-b36f-4751-b170-d4922c5e32ca"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/element/register",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f98db8af-fa32-4322-a5b1-0f86c0e77e5a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a0b79dac-7504-4962-924d-99489a46b170"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "plain HTML / any framework"
+										}
+									],
+									"attrs": {
+										"id": "3d3b2372-bb2d-46ce-af20-297684425dae"
+									}
+								}
+							],
+							"attrs": {
+								"id": "aea83787-8b51-4d54-8424-6b506075eeb9"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "no"
+										}
+									],
+									"attrs": {
+										"id": "306747f6-6481-4468-b8c8-12d05545ae59"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f2d30981-720a-4fd2-9c2c-1a90a6f92766"
+							}
+						}
+					],
+					"attrs": {
+						"id": "49143061-1354-4d7a-b437-c2e52456d6f6"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/react",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "93bde10a-4b6f-4b9b-8902-8047d1f11d06"
+									}
+								}
+							],
+							"attrs": {
+								"id": "854e5b3a-52e9-4960-b447-a99a1b913e11"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "React 19 apps"
+										}
+									],
+									"attrs": {
+										"id": "2da3f55d-ff83-4104-b51e-9399dc7d9a83"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2eb02510-67a2-4870-b545-4ffabf7111b6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "no"
+										}
+									],
+									"attrs": {
+										"id": "8d2f6717-df63-4cd1-a547-3bae0711235e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ae64665a-fa25-4e79-ab98-86257e4f596f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "300c72d5-deea-4717-a03b-6e8c97d8915e"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/vue",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "cdbace24-0fd3-4ba3-bbad-ca707014f1a0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8a23f823-d923-4fb7-b060-95cc9eb8d967"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Vue 3 apps"
+										}
+									],
+									"attrs": {
+										"id": "4e2bb81d-fe83-4f8d-978d-0fd87aaf3703"
+									}
+								}
+							],
+							"attrs": {
+								"id": "838776ce-985d-4a8c-89d3-133eef960a56"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "no"
+										}
+									],
+									"attrs": {
+										"id": "afd4e2b9-3860-41d2-9906-e590323dbe79"
+									}
+								}
+							],
+							"attrs": {
+								"id": "18c80373-7b3d-4386-82a5-33b73c89e0ca"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2aa7c997-7067-47e1-bfe0-8350dbe95bf8"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "1d2d2fd4-68a6-4967-bf23-d15054f2592f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a34c1c9d-7733-4d86-b478-211b9899bcb8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "shared types, theming, logging, plugin contracts"
+										}
+									],
+									"attrs": {
+										"id": "cff34490-33e0-488b-a70a-c1969bc57b3b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "48fc5187-b6aa-49bb-83b7-63bfa75d7a10"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "no"
+										}
+									],
+									"attrs": {
+										"id": "e0e43149-14df-4ecd-9f1f-0eff64be5efe"
+									}
+								}
+							],
+							"attrs": {
+								"id": "365112ee-6fbf-493e-bf9f-8867b4e34a18"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e3c49e87-e133-4d69-beee-e10e95f35c6f"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/selectors",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "fd74d93c-a099-496a-ae1c-c879a365c230"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9c862047-d915-49b9-95ad-62c26220ebcf"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "framework-neutral state projections"
+										}
+									],
+									"attrs": {
+										"id": "4f8e8667-40be-4bec-b327-ce36c98d77af"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ab9c0420-b44e-4d67-be55-6a5b6786c0b8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "no"
+										}
+									],
+									"attrs": {
+										"id": "bc1ff67b-29f9-4c58-8be3-2eef999bf7e7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "54e38e48-40f0-4251-b971-67964d3a39a5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "35c315f2-3535-4f2e-81f5-ac64fb270f17"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/testing",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "18bfdb05-281a-41a6-994a-44158e96292a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ef886d64-7874-48b8-afdf-caf2ddc5e4d9"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "headless test kit (constructible "
+										},
+										{
+											"type": "text",
+											"text": "ViewerState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "6c81cda3-d261-430f-8303-53f522df2cc0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "68cd7a67-f2c8-4bcd-9b45-6ad1fbafcb52"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "no"
+										}
+									],
+									"attrs": {
+										"id": "9f1a5938-0c5a-4e19-9c29-4bcb603e5f74"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b85d4020-ee0c-484b-bcce-15e5036bdc77"
+							}
+						}
+					],
+					"attrs": {
+						"id": "dbc5d09f-4d21-418d-a76e-978683e3021c"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/svelte",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "158f7e3d-d427-4476-ba75-3e8c54c68803"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c50b4680-ca1c-4e30-9b79-47b99543429d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Svelte 5 apps — the "
+										},
+										{
+											"type": "text",
+											"text": "<TriiiceratopsViewer>",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " component"
+										}
+									],
+									"attrs": {
+										"id": "56c4f10a-c17f-42d5-bfd0-c67e8662614b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e2ee997b-61fd-4590-ae24-b451944ec4e3"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "yes",
+											"marks": [
+												{
+													"type": "bold"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3e7f2fcf-dd11-4f71-87ee-33c3a2ca1af4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "76afed04-16cd-4e5d-bbca-4371a1e59589"
+							}
+						}
+					],
+					"attrs": {
+						"id": "bd853e58-0229-4edd-bb6a-942219fe6df5"
+					}
+				}
+			],
+			"attrs": {
+				"id": "d7d5ac0d-1368-43fe-b2d4-b4bb8504d800"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "triiiceratops/svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a superset of "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": everything the root exports is re-exported there, so a Svelte app can import everything it needs from that single specifier."
+				}
+			],
+			"attrs": {
+				"id": "ecc9c047-213b-412e-a865-857ad4e1c783"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is exported from the root as a "
+				},
+				{
+					"type": "text",
+					"text": "type",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "; the constructible class lives in "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/testing",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " provides one that needs no Svelte."
+				}
+			],
+			"attrs": {
+				"id": "480f9249-c952-4fed-b264-285b746afb0c"
+			}
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "tip",
+				"title": "Plugins are framework-agnostic",
+				"id": "ef18009b-6a59-4b08-b3d5-2b720b9e609c"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Author plugins once with the framework-neutral "
+						},
+						{
+							"type": "text",
+							"text": "plugin SDK",
+							"marks": [
+								{
+									"type": "link",
+									"attrs": {
+										"href": "/docs/plugin-authoring/"
+									}
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " and use them from React, Vue, Svelte, Lit, or vanilla JS. See "
+						},
+						{
+							"type": "text",
+							"text": "using plugins",
+							"marks": [
+								{
+									"type": "link",
+									"attrs": {
+										"href": "/docs/plugins/#adding-a-plugin-to-your-viewer"
+									}
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": "."
+						}
+					],
+					"attrs": {
+						"id": "2fb7f1cb-4bfc-47ae-8121-91775d9afb13"
+					}
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "audio-and-video",
+				"id": "48ae7cc4-bc95-47b1-9ed3-a5d51a061abd"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Audio and video"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Core is an image viewer, and time-based media is "
+				},
+				{
+					"type": "text",
+					"text": "opt-in",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": add "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-av",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-av/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to a viewer's "
+				},
+				{
+					"type": "text",
+					"text": "plugins",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " list and its "
+				},
+				{
+					"type": "text",
+					"text": "Sound",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "Video",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " canvases play — a media stage over the canvas rect, playback controls in the viewer's own control bar, waveforms, WebVTT captions, a transcript panel, and an "
+				},
+				{
+					"type": "text",
+					"text": "AVState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " object your application commands playback through."
+				}
+			],
+			"attrs": {
+				"id": "5a914f19-5ed8-49f7-a723-2cfef5bfa286"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "19fc7ef9-ef8f-45bf-8b00-8900e6db0d51"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { AvPlugin } from '@triiiceratops/plugin-av';\n\nviewer.plugins = [AvPlugin];"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Nothing about it is in core's bundle, and nothing activates unless you add it, so a manifest of scanned folios pays nothing for it. "
+				},
+				{
+					"type": "text",
+					"text": "Read the AV guide",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-av/"
+							}
+						}
+					]
+				}
+			],
+			"attrs": {
+				"id": "c2bc8e4a-f7ea-44ea-9508-03d1304c4feb"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "once-it-renders",
+				"id": "b41139f6-e3f3-475c-a8d1-dffa72ee58e3"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Once it renders"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The guides below are framework-neutral: every example carries a tab per stack, and the tab you picked above follows you across the site."
+				}
+			],
+			"attrs": {
+				"id": "14d28670-3f47-4d9a-bc2f-781387d4c97a"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Configuration & state",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/configuration/"
+											}
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — panels (search, annotations, table of contents, collections), layout, the thumbnail gallery, and reading or commanding viewer state."
+								}
+							],
+							"attrs": {
+								"id": "3aea0540-d127-43a1-83b1-a2b2511555ac"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3e252f00-cccb-4a68-af21-d6da82a1b0a3"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Theming",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/theming/"
+											}
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — four built-in themes, typed "
+								},
+								{
+									"type": "text",
+									"text": "themeConfig",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " token overrides, or raw "
+								},
+								{
+									"type": "text",
+									"text": "--tri-*",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " CSS variables."
+								}
+							],
+							"attrs": {
+								"id": "1a14ffc8-c11c-479a-a5bc-5ca7309a4006"
+							}
+						}
+					],
+					"attrs": {
+						"id": "29bc753e-7f68-495e-86dc-31a6d9ec744e"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Plugins",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugins/"
+											}
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — add the first-party plugins, or "
+								},
+								{
+									"type": "text",
+									"text": "author",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-authoring/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "test",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-testing/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " your own against the framework-neutral SDK."
+								}
+							],
+							"attrs": {
+								"id": "aa8e493b-144e-4e20-8790-cffac5709477"
+							}
+						}
+					],
+					"attrs": {
+						"id": "91169b11-6488-490f-97b4-61c19b72abf5"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Audio & video",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-av/"
+											}
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — play a manifest's "
+								},
+								{
+									"type": "text",
+									"text": "Sound",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "Video",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " canvases. Opt-in: add one plugin to the "
+								},
+								{
+									"type": "text",
+									"text": "plugins",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " list."
+								}
+							],
+							"attrs": {
+								"id": "e9123321-44e6-4f19-810a-961e15a1de12"
+							}
+						}
+					],
+					"attrs": {
+						"id": "555686e8-1644-4ff5-925c-dd78f949500d"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Content Security Policy",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/csp/"
+											}
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — ready-made strict-CSP recipes."
+								}
+							],
+							"attrs": {
+								"id": "bf21dd7c-eb02-4a89-9962-10216bf8e969"
+							}
+						}
+					],
+					"attrs": {
+						"id": "18bdc852-9aaf-441b-aba0-0b27675acb49"
+					}
+				}
+			],
+			"attrs": {
+				"id": "7b37ef2e-e7f7-4127-b4bd-27f263c96896"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "features",
+				"id": "cd8b077f-ce7a-4b3c-b2a0-0d90ca91dc25"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Features"
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "IIIF Presentation API",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Compatible with versions 2.0 and 3.0"
+								}
+							],
+							"attrs": {
+								"id": "3a4ecb47-0ed3-461e-a2f2-942f7e64c965"
+							}
+						}
+					],
+					"attrs": {
+						"id": "370f5d8e-0147-4987-bdf8-d6372228c105"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Audio and Video",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": "
+								},
+								{
+									"type": "text",
+									"text": "Sound",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "Video",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " canvases — media stage, transport in the control bar, waveforms, WebVTT captions, and a transcript panel. Opt-in via "
+								},
+								{
+									"type": "text",
+									"text": "the AV plugin",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-av/"
+											}
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "252346d1-833d-4cdb-9aec-3b49a35e4368"
+							}
+						}
+					],
+					"attrs": {
+						"id": "bf8a9dc7-7de1-43a6-b6c1-a4bb7a423ec3"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Canvas Navigation",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Browse canvases via thumbnail gallery (dockable to any side, expandable to a full-column grid) or prev/next controls"
+								}
+							],
+							"attrs": {
+								"id": "e4977d20-4914-46be-a377-e8524ed1a72e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8ab05e75-7fd4-42b0-aab8-e4cbd5846fdf"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Viewing Modes",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Single-page (\"individuals\"), book view (\"paged\") with offset, and continuous scroll (\"continuous\")"
+								}
+							],
+							"attrs": {
+								"id": "eeb14a21-5093-44ae-89b1-ad49ba3c02db"
+							}
+						}
+					],
+					"attrs": {
+						"id": "508c0de9-fb8f-4c22-affb-d6eefcb32ec0"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Behaviors",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Detects and applies IIIF "
+								},
+								{
+									"type": "text",
+									"text": "behavior",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "viewingDirection",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " (including RTL and top-to-bottom)"
+								}
+							],
+							"attrs": {
+								"id": "f153f104-e5b6-4e5a-9ff3-531b48442b48"
+							}
+						}
+					],
+					"attrs": {
+						"id": "975404a5-5b4e-422f-bee1-9e5576b16968"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Structures / Table of Contents",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Parses IIIF "
+								},
+								{
+									"type": "text",
+									"text": "structures",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " (Ranges) for hierarchical navigation"
+								}
+							],
+							"attrs": {
+								"id": "40355bd7-ac39-42e6-8e43-d6edae5b6bb1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2e6bec55-c4c9-468f-94df-62702a937eb9"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Collections",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Browse IIIF Collections and navigate between manifests; items with "
+								},
+								{
+									"type": "text",
+									"text": "navDate",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " are sorted chronologically"
+								}
+							],
+							"attrs": {
+								"id": "feb02097-fff4-48a3-a691-b319cb16a14b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "80f71438-ac58-4a07-9748-caa35684f12e"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Annotations",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Renders rectangle, polygon, and point geometries from embedded or external annotation lists"
+								}
+							],
+							"attrs": {
+								"id": "4f9eabda-d830-4af6-ba93-77959e3c59e0"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1598eaa2-d0e1-41bc-8ba8-4b6cbbc8b0fc"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "IIIF Choice",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Switch between alternate image views (e.g. color vs. infrared)"
+								}
+							],
+							"attrs": {
+								"id": "eeca1de3-3935-4445-82cc-9b408e7a4c6f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b7e18032-bfac-4156-a0d3-1adaf62dc002"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Multi-image Canvases",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Composites canvases painted with multiple images"
+								}
+							],
+							"attrs": {
+								"id": "f9b59329-95ba-4366-a81d-593104c8c032"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ebe46259-de68-46ae-aa85-36b7f3342aef"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "IIIF Search",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Full Content Search API support with hit highlighting"
+								}
+							],
+							"attrs": {
+								"id": "f8a7368d-c903-4df1-b721-260e9b2c2e55"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2265ef02-76fd-416d-9a3a-51889b4411d8"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Content State targets",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Opens at a specific manifest, canvas, region, and — with the AV plugin — media time, from a decoded IIIF Content State"
+								}
+							],
+							"attrs": {
+								"id": "221d452f-ee53-448b-b7a5-f96cec8b2838"
+							}
+						}
+					],
+					"attrs": {
+						"id": "34dfe28f-4dbd-4b3b-a06a-bd2c8ac9ff7f"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Direct Manifest Injection",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Pass manifest JSON directly instead of loading over HTTP"
+								}
+							],
+							"attrs": {
+								"id": "ea3fc2fe-46e5-43ec-883d-881d65cd0215"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c8f9fafb-0467-4f66-a9f7-d1fae7cabe59"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Custom Search Providers",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": React, Vue, Svelte, and custom-element hosts can all feed search results from local state or app services"
+								}
+							],
+							"attrs": {
+								"id": "f021b235-a132-4828-8d4a-f499c9980aa1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b7d6e32a-dc77-46e3-a75c-f4924477bcd7"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Metadata Display",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Manifest metadata, rights, "
+								},
+								{
+									"type": "text",
+									"text": "homepage",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "rendering",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "seeAlso",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and "
+								},
+								{
+									"type": "text",
+									"text": "provider",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "093ef0ac-68f4-4110-b873-ddc07cea48ae"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6be62fc6-75cf-464c-8794-0d45e8424a05"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Multi-language",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Language-aware metadata with fallback chain; English and German UI translations"
+								}
+							],
+							"attrs": {
+								"id": "187b4ea6-efde-4201-914f-94500d44adb3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "cb74386c-ead5-44ed-a5b7-0bcc041de4f0"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Image Services",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": IIIF Image API v1/v2/v3 tiled deep-zoom"
+								}
+							],
+							"attrs": {
+								"id": "0ba35843-7326-4113-8935-45e7bb96b619"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8a5c0814-228a-4eb0-83e1-6da3bf44d70f"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Theming",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Four built-in themes plus typed "
+								},
+								{
+									"type": "text",
+									"text": "themeConfig",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and raw CSS-variable overrides"
+								}
+							],
+							"attrs": {
+								"id": "cdb4a60e-833c-4903-9c67-4d5832b03242"
+							}
+						}
+					],
+					"attrs": {
+						"id": "881b6884-15f7-4a46-80c4-a685234c67d0"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Plugin System",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Framework-agnostic plugins via an independently versioned SDK; first-party plugins for audio/video, image adjustment, image download, and PDF export"
+								}
+							],
+							"attrs": {
+								"id": "babd0a82-eaae-4a04-adb4-4c7b6dd9daf3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8bd23fb4-bc6e-4133-bd48-52724e619a57"
+					}
+				}
+			],
+			"attrs": {
+				"id": "1ac899e0-8acc-414d-b0b9-0d21739e7207"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "development",
+				"id": "5735fd3c-dbc2-43df-a10f-7a91c4b22e4b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Development"
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "bash",
+				"id": "4a5da466-6d99-49fe-8d39-c53ab4fa06f2"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "pnpm install\n\npnpm build:all     # Build the packages, the playground, and the example pages\npnpm dev           # Serve the playground (consumes the built packages)\npnpm test          # Run unit tests\npnpm test:e2e      # Run end-to-end tests"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "license",
+				"id": "be61e0b5-69b7-4671-9656-9f43ecc31c72"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "License"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "MIT"
+				}
+			],
+			"attrs": {
+				"id": "574ab933-83ef-4226-9a26-9d9fee01471b"
+			}
+		}
+	],
+	"meta": {
+		"title": "Documentation",
+		"shortTitle": "Documentation",
+		"intro": "How to install, configure and extend the viewer, in one site with the rest of the project."
+	}
+}

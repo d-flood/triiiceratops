@@ -2,7 +2,7 @@
     "name": "@triiiceratops/cookbook",
     "version": "0.0.0",
     "type": "module",
-    "description": "Internal, unpublished catalog of the IIIF Cookbook recipes and what Triiiceratops supports. Consumed as TypeScript source by the playground, the documentation generator and the drift job; never shipped to a consumer.",
+    "description": "Internal, unpublished catalog of the IIIF Cookbook recipes and what Triiiceratops supports. Consumed as TypeScript source by the site application, the comparison package and the drift job; never shipped to a consumer.",
     "license": "MIT",
     "author": "David Flood",
     "repository": {

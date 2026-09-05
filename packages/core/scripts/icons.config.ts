@@ -70,6 +70,7 @@ export const CORE_ICONS = {
     Scroll: [],
     Slideshow: [],
     Stack: [],
+    Translate: [],
     X: [],
 } as const satisfies Record<string, readonly ExtraIconWeight[]>;
 

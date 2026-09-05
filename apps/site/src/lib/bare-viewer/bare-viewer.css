@@ -1,0 +1,12 @@
+@import '@triiiceratops/shell/controls.css';
+
+/*
+ * The bare viewer route's own stylesheet: the control skin, and nothing else.
+ *
+ * The colour, type and space tokens come from the site's `app.css`, which the
+ * root layout loads for every route. Only the control skin is here rather than
+ * there: the marketing routes are prose and do not need it, and their score gate
+ * measures the bytes they are served. The one control on this page — the
+ * fallback form, which is also the reader's way onward — wears the same skin as
+ * the playground's.
+ */

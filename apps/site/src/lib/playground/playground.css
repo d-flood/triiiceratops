@@ -1,0 +1,23 @@
+@import '@triiiceratops/shell/controls.css';
+
+/*
+ * The playground route's own stylesheet: the control skin, and the two places
+ * the site's prose chrome needs adjusting for an application.
+ *
+ * The colour, type and space tokens, the ground and the base type come from the
+ * site's `app.css`, which the root layout loads for every route. Only the
+ * control skin is here rather than there: the marketing routes are prose and do
+ * not need it, and their score gate measures the bytes they are served.
+ *
+ * The VIEWER's appearance is a separate question and stays that way: it comes
+ * from `triiiceratops/style.css` and from the viewer's own theme inputs, which
+ * this page drives from the settings pane. The page never styles the viewer's
+ * internals. It reads a `--tri-*` token in exactly one place — the theme chips
+ * in the settings pane, whose whole job is to preview a viewer theme.
+ */
+
+/* The rail's toggle is the last item in its row and pushes itself right; in the
+   playground's header it is one control among several after the spacer. */
+.header .themebtn {
+    margin-left: 0;
+}

@@ -1,10 +1,11 @@
 /*
  * The workspace boundary between the applications and the packages.
  *
- * `apps/*` are the site's applications — the playground, and the pages built
- * beside it. They are private, never published, and they may see exactly what an
- * external consumer sees: a package's published entrypoints. Reaching across
- * into a package's `src` tree is forbidden in both directions.
+ * `apps/*` are the site's applications — the site itself, which owns the whole
+ * published tree, and the framework consumer examples carried into it. They are
+ * private, never published, and they may see exactly what an external consumer
+ * sees: a package's published entrypoints. Reaching across into a package's
+ * `src` tree is forbidden in both directions.
  *
  * WHY THIS EXISTS. Three incidents put demo-only strings and glyphs into
  * registries that no bundler can tree-shake, and so into the shipped element

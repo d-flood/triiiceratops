@@ -18,10 +18,10 @@ import { fileURLToPath } from 'node:url';
  * `…TestHost.svelte` therefore reached the tarball and failed that assertion
  * instead of being pruned. One rule, spelled the same way on both sides.
  *
- * There is no companion list for demo-only chrome: the playground is a separate
- * workspace package under `apps/`, outside anything svelte-package copies, and
- * the workspace boundary rule in `eslint.boundaries.js` forbids `src/lib` from
- * importing it.
+ * There is no companion list for demo-only chrome: the playground is a route of
+ * the site application under `apps/`, outside anything svelte-package copies,
+ * and the workspace boundary rule in `eslint.boundaries.js` forbids `src/lib`
+ * from importing it.
  */
 const TEST_HOST_SUFFIX = 'TestHost';
 

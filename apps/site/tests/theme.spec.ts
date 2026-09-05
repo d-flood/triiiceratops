@@ -62,7 +62,11 @@ function toggle(page: Page) {
  * hydration signal that is SvelteKit's internal business. A click that did take
  * satisfies the check on the first pass, so this cannot toggle twice.
  */
-async function switchTo(page: Page, control: Locator, scheme: 'light' | 'dark') {
+async function switchTo(
+    page: Page,
+    control: Locator,
+    scheme: 'light' | 'dark',
+) {
     await expect(async () => {
         await control.click();
         expect(await settledGround(page)).toBe(BONE[scheme]);
@@ -175,7 +179,10 @@ test.describe('a hard load with a choice opposing the machine', () => {
             await page.addInitScript(() => {
                 const record = (
                     window as unknown as {
-                        recordScheme: (at: string, theme: string | null) => void;
+                        recordScheme: (
+                            at: string,
+                            theme: string | null,
+                        ) => void;
                     }
                 ).recordScheme;
                 const sample = (at: string) =>

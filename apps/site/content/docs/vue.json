@@ -1,0 +1,6269 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "triiiceratops/vue",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a "
+				},
+				{
+					"type": "text",
+					"text": "framework wrapper",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": a real Vue 3.5 component that hosts the Triiiceratops custom element and translates its lifecycle, properties, events, and viewer state into Vue idioms. It does not implement or own a second viewer — there is exactly one viewer implementation, behind the custom-element boundary."
+				}
+			],
+			"attrs": {
+				"id": "d1d2aba0-17c9-456b-a7aa-c2482803a61b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "That boundary is also where Svelte stays. You do "
+				},
+				{
+					"type": "text",
+					"text": "not",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " install Svelte, add a Svelte plugin to Vite, or write "
+				},
+				{
+					"type": "text",
+					"text": "compilerOptions.isCustomElement",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " anywhere: "
+				},
+				{
+					"type": "text",
+					"text": "<TriiiceratopsViewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a render-function component, so the raw "
+				},
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tag never reaches Vue's template compiler. "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/vue",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is precompiled JavaScript plus declarations that resolve with "
+				},
+				{
+					"type": "text",
+					"text": "no ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "svelte",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " package installed",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "f5d006ee-e50e-475f-98a7-204a57c07384"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "install",
+				"id": "95bb6198-8680-4f08-bd18-8eb26d92ac43"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Install"
+				}
+			]
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "package-manager",
+				"id": "956dca20-02f1-4bb3-9afb-852a996d9b33"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "pnpm",
+						"id": "bf2cf79d-48f0-43a1-aeaf-c59e6a6394db"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "b32d0287-4200-4806-9106-8cdabe53b4b6"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pnpm add triiiceratops"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "npm",
+						"id": "f6c0b308-e034-4f06-bf33-335ee43041b4"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "09e06113-308e-4101-adf4-8f8f60ef15d7"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "npm install triiiceratops"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "bun",
+						"id": "18e57e2e-1607-4de6-808f-a15efde28d0c"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "a55a7c73-f69d-49e2-854f-93be3afe74bc"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "bun add triiiceratops"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Vue 3.5 is an "
+				},
+				{
+					"type": "text",
+					"text": "optional peer dependency",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — installing Triiiceratops for a different integration never pulls Vue in, and Vue is never bundled into the package."
+				}
+			],
+			"attrs": {
+				"id": "f602d169-7737-447c-b8fc-c04154d48dfc"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "your-first-viewer",
+				"id": "36589559-ca6d-4f8d-8991-504821d13e29"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Your first viewer"
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "54932cfc-33c4-4bd8-96be-9bc877a5fced"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport { TriiiceratopsViewer } from 'triiiceratops/vue';\n</script>\n\n<template>\n    <TriiiceratopsViewer\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "That is the whole integration — no "
+				},
+				{
+					"type": "text",
+					"text": "vite.config.ts",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " change, no registration import, no "
+				},
+				{
+					"type": "text",
+					"text": "onMounted",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " block assigning properties to a ref. Some things worth knowing right away:"
+				}
+			],
+			"attrs": {
+				"id": "e3d0d64a-78bb-4cc8-8add-efbbec467d98"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Registration is automatic.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " The first "
+								},
+								{
+									"type": "text",
+									"text": "<TriiiceratopsViewer>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " to mount in the browser lazily imports and registers the self-contained custom element. The work is memoized and shared across every instance on the page."
+								}
+							],
+							"attrs": {
+								"id": "d7058fe7-5da6-4343-944f-21da00b28f05"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2914eea2-a4b7-49d6-b4fd-000db0a9c9ca"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "The wrapper renders exactly one element",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — the "
+								},
+								{
+									"type": "text",
+									"text": "<triiiceratops-viewer>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " host, and nothing else. No layout wrapper, so adopting it changes no sizing or CSS. Give the host a height, as above."
+								}
+							],
+							"attrs": {
+								"id": "8128b281-5e22-4708-b242-28e4d3c7c310"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6232bbc2-4870-4f85-b7a6-ef398235de9b"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "It has no slots.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " The viewer's chrome is not composable from Vue components. See "
+								},
+								{
+									"type": "text",
+									"text": "what the wrapper does not do",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "#what-the-wrapper-does-not-do"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "548bd395-dc7c-4d70-b5d5-f301b40abec9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "0950c436-2b64-4972-96aa-a1097cb6d4f1"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "class",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", ",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "style",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", ",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "id",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", ",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "data-*",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and ordinary attributes fall through",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " to the host element. "
+								},
+								{
+									"type": "text",
+									"text": "inheritAttrs",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is disabled and the render function spreads "
+								},
+								{
+									"type": "text",
+									"text": "attrs",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " deliberately, so attribute inheritance stays predictable even though the component renders a single element."
+								}
+							],
+							"attrs": {
+								"id": "953ee0d4-4108-4e97-b497-f855109d5f4d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a2634683-7c25-4f6a-91b7-1ed120b26c76"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Styles are bundled inside the element's shadow root.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " There is no stylesheet to import."
+								}
+							],
+							"attrs": {
+								"id": "7a80c778-656a-4666-8b4b-7fc64b9236ab"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d53f2bf7-dc19-4943-b04f-c9134a95a82e"
+					}
+				}
+			],
+			"attrs": {
+				"id": "7e3f3816-82a2-48b5-a08d-514812daace4"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "the-template-ref-is-the-handle",
+				"id": "7aab7590-21d5-479f-a868-9e119e17b713"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The template ref is the handle"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Vue already has the thing a viewer handle needs to be — a stable, consumer-owned box the component fills in — so this wrapper adds no handle API of its own. An ordinary template ref "
+				},
+				{
+					"type": "text",
+					"text": "is",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " the handle:"
+				}
+			],
+			"attrs": {
+				"id": "2f89edc3-3f0d-4f52-91e4-7d3096e33096"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "6b12e8c5-6a88-48e5-8a45-308993b6ece8"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport { useTemplateRef } from 'vue';\nimport {\n    TriiiceratopsViewer,\n    useViewerSelector,\n    type TriiiceratopsViewerInstance,\n} from 'triiiceratops/vue';\n\nconst viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');\n\n// Reactive read: a `computed` that updates when the selected value changes.\nconst canvasId = useViewerSelector(viewer, (state) => state.canvasId);\n\n// Imperative command, straight through the ref.\nfunction next(): void {\n    viewer.value?.state?.nextCanvas();\n}\n</script>\n\n<template>\n    <p>{{ canvasId ?? 'No canvas yet' }}</p>\n    <button type=\"button\" @click=\"next\">Next canvas</button>\n    <TriiiceratopsViewer\n        ref=\"viewer\"\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "If you already use "
+				},
+				{
+					"type": "text",
+					"text": "useTemplateRef",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and VueUse composables, nothing here is new machinery — the ref is the handle and the composables take it."
+				}
+			],
+			"attrs": {
+				"id": "01d63e99-8a31-4b42-acef-ac5cfebb109b"
+			}
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "note",
+				"title": "Why `viewer.value?.state?.…` has two optional chains",
+				"id": "74daa9cf-9891-4af3-8739-a6f016ff1f76"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "viewer.value",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " is "
+						},
+						{
+							"type": "text",
+							"text": "null",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " before mount and after unmount — that is Vue's template-ref contract. "
+						},
+						{
+							"type": "text",
+							"text": "state",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " is additionally "
+						},
+						{
+							"type": "text",
+							"text": "undefined",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " in the window between \"Vue mounted the host\" and \"the custom element finished mounting its viewer\", so the exposed type is"
+						}
+					],
+					"attrs": {
+						"id": "a51f707c-e46e-41bc-93f9-e87319e1a412"
+					}
+				},
+				{
+					"type": "codeBlock",
+					"attrs": {
+						"language": "ts",
+						"id": "2f7a538a-ae08-4261-b030-c98ef490d14a"
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "interface TriiiceratopsViewerInstance {\n    readonly element: TriiiceratopsViewerElement;\n    readonly state: ReadonlyViewerState | undefined;\n}"
+						}
+					]
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Nothing is gated or withheld to hide that window; "
+						},
+						{
+							"type": "text",
+							"text": "undefined",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " is the honest state of the world, and the second "
+						},
+						{
+							"type": "text",
+							"text": "?.",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " is how you handle it. The interface is derived from the shared "
+						},
+						{
+							"type": "text",
+							"text": "ViewerHandle",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " contract so the two cannot drift."
+						}
+					],
+					"attrs": {
+						"id": "9529f964-cb14-4a24-9393-5951efe99752"
+					}
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The ref is optional.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " A viewer that nothing reads from needs no ref at all — the first example above has none."
+				}
+			],
+			"attrs": {
+				"id": "2c2a532e-ad82-40c1-b3aa-792ca0fc9869"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Your UI can live anywhere.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " The ref is a value, so controls can be siblings, ancestors, nested inside your own layout components, or in a completely different part of the tree. The wrapper imposes no markup structure."
+				}
+			],
+			"attrs": {
+				"id": "d65fa3b0-399a-4224-94cb-47acacc1bc1e"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "One ref per viewer.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Two viewers on a page means two template refs; their state, selectors, commands, emits, and handles are completely isolated. Putting the "
+				},
+				{
+					"type": "text",
+					"text": "same",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " ref on a second "
+				},
+				{
+					"type": "text",
+					"text": "<TriiiceratopsViewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " throws "
+				},
+				{
+					"type": "text",
+					"text": "TriiiceratopsHandleConflictError",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " naming both elements, because ambiguous ownership would silently make every read follow whichever viewer mounted last. Two shapes are exempt, because sharing is the intent rather than a mistake: a ref inside "
+				},
+				{
+					"type": "text",
+					"text": "v-for",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (Vue collects every match into an array) and a callback ref ("
+				},
+				{
+					"type": "text",
+					"text": ":ref=\"(el) => …\"",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", where you decide what to do with each value)."
+				}
+			],
+			"attrs": {
+				"id": "9912ed02-5232-467b-9a6d-2b15a953e349"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "useviewer-vs-useviewerselector",
+				"id": "bf363841-eca6-46ae-aad9-5c9b22d80354"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "useViewer()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " vs "
+				},
+				{
+					"type": "text",
+					"text": "useViewerSelector()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [],
+									"attrs": {
+										"id": "7da870c8-5273-4eda-9287-e98faf2bae0b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d3775aa8-aee5-48a0-8df1-f69697b450b2"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "useViewer(handle)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3a244138-ea17-4d7a-a605-6b7a2c7024dd"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e891f3c6-76df-4d58-a3f0-9db1cb92fe9e"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "useViewerSelector(handle, projection, options?)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "cb9cc41e-b2e2-4548-8f23-1fd1ac2be15b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ad612387-1550-4920-8d0b-68ecbed96c1b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ef7916a4-377a-44c0-b145-86f1465320bc"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Returns"
+										}
+									],
+									"attrs": {
+										"id": "99cf24f2-8836-4860-96e0-1f24b02136dc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ff081220-b51b-40bb-b2d4-73f8272cf008"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ComputedRef<ReadonlyViewerState | undefined>",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d21ae8af-4d67-4584-8ae2-3f73ccf289bd"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8610cec9-095a-4690-a2f4-dbe109403e6b"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ComputedRef<T | undefined>",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "217f58fb-aa52-4a8a-8b17-d1f6e7df7e59"
+									}
+								}
+							],
+							"attrs": {
+								"id": "031d4b4a-e30d-4454-8098-36e71505ef62"
+							}
+						}
+					],
+					"attrs": {
+						"id": "63280f59-0832-4215-a511-f8e6df65cdad"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Subscribes to state"
+										}
+									],
+									"attrs": {
+										"id": "138976d5-a8ab-4671-ae69-b96362d0fc1a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "202c09c7-0c03-481f-bac5-f0c55055485f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "No",
+											"marks": [
+												{
+													"type": "bold"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "6db7c38e-525b-41f9-ba6c-6d33279653ff"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8694bbb5-56dc-4395-8b96-e9c42aa81e46"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Yes"
+										}
+									],
+									"attrs": {
+										"id": "87982ecb-9244-48f7-882d-8e492bc6776f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a24d27bc-0a02-41f3-b613-1079be12bb8a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "daad9084-fe47-487c-ac78-0a1ae4657436"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Invalidates when"
+										}
+									],
+									"attrs": {
+										"id": "f2003536-75e3-4705-b933-3f49ed939cee"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4b92edc4-28d3-4834-ba7a-151ed38a2d66"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the viewer binds, rebinds, or unmounts"
+										}
+									],
+									"attrs": {
+										"id": "69544461-6af4-4ed3-baad-fe89bd279a2e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0f8db4cb-fbcb-4dcc-8752-c22561262d48"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the selected value changes"
+										}
+									],
+									"attrs": {
+										"id": "bad39624-161c-4543-9a87-de465edf3801"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fea45464-b825-407f-b448-46b2eca8c0d9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "5d507c4d-737c-4c7e-a6ab-2fc582e8151b"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Use it for"
+										}
+									],
+									"attrs": {
+										"id": "e6ded2b8-1e98-4264-9546-9e19dc43abf0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e0e37803-3bfd-4e0c-9ab5-ba5b5a111075"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "commands, one-shot reads inside handlers"
+										}
+									],
+									"attrs": {
+										"id": "9a0991ee-30b1-4de9-af9b-bc1d44bb2f34"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b6851cf9-3d06-4e9e-9588-e3cccff2e915"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "anything you render"
+										}
+									],
+									"attrs": {
+										"id": "0156c411-e35e-42f2-af08-592ae5e45a65"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c45a5f95-99a7-4982-abae-de3b58a11c87"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c782ee5b-a7a8-4ca5-83a1-77a36f836513"
+					}
+				}
+			],
+			"attrs": {
+				"id": "bee4a59f-e5cb-4609-8f31-dff1a6a766ff"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Both also have a context form that omits the handle — see "
+				},
+				{
+					"type": "text",
+					"text": "passing the handle to a deep tree",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#passing-the-handle-to-a-deep-tree"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "052baefd-b38a-40eb-8eed-6e18b4158a06"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Both are a "
+				},
+				{
+					"type": "text",
+					"text": "computed",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so both unwrap automatically in templates. "
+				},
+				{
+					"type": "text",
+					"text": "useViewer()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " gives you the very same live "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " object the element owns — no facade, no "
+				},
+				{
+					"type": "text",
+					"text": "Proxy",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", no copy — with the four lifecycle-plumbing methods ("
+				},
+				{
+					"type": "text",
+					"text": "setEventTarget",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "setViewerElement",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "destroy",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "destroyAllPlugins",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") hidden so autocomplete offers only supported operations. It is reference-equal to "
+				},
+				{
+					"type": "text",
+					"text": "viewer.value?.state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "0bb170de-ddd3-415e-b0ae-6375653f4cec"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Reading a notifying member off that object does "
+				},
+				{
+					"type": "text",
+					"text": "not",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " subscribe to it:"
+				}
+			],
+			"attrs": {
+				"id": "d430da84-9102-4d85-96b7-dd0c17fa0a32"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "c3e9d52a-9087-4150-be9f-57d69a7e5d9c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport { useTemplateRef } from 'vue';\nimport {\n    TriiiceratopsViewer,\n    useViewer,\n    type TriiiceratopsViewerInstance,\n} from 'triiiceratops/vue';\n\nconst viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');\nconst state = useViewer(viewer);\n\n// Commands: correct — read at the moment the user clicks.\nconst zoomIn = (): void => state.value?.zoomIn();\nconst search = (query: string): void => void state.value?.search(query);\n</script>\n\n<template>\n    <button type=\"button\" @click=\"zoomIn\">Zoom in</button>\n    <button type=\"button\" @click=\"search('lorem')\">Search</button>\n    <TriiiceratopsViewer\n        ref=\"viewer\"\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Rendering "
+				},
+				{
+					"type": "text",
+					"text": "state.canvasId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " from "
+				},
+				{
+					"type": "text",
+					"text": "useViewer()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " would show the value at binding time and never update. Use "
+				},
+				{
+					"type": "text",
+					"text": "useViewerSelector()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for anything you render."
+				}
+			],
+			"attrs": {
+				"id": "2ae96924-65f9-4e0f-b6d2-cee38f54fcd3"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "reactive-reads",
+				"id": "f7ce998b-861c-4256-b532-309e1cecea48"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Reactive reads"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "useViewerSelector()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is one generic, memoized, equality-gated projection. "
+				},
+				{
+					"type": "text",
+					"text": "T",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is inferred from the projection:"
+				}
+			],
+			"attrs": {
+				"id": "289c92b7-a58e-482e-afab-4c40e356dc83"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "8ed19e41-c961-4156-a6ea-ba87bb78dcef"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport { useTemplateRef } from 'vue';\nimport {\n    TriiiceratopsViewer,\n    useViewerSelector,\n    type TriiiceratopsViewerInstance,\n} from 'triiiceratops/vue';\n\nconst viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');\n// ComputedRef<boolean | undefined>, inferred.\nconst galleryOpen = useViewerSelector(\n    viewer,\n    (state) => state.showThumbnailGallery,\n);\n</script>\n\n<template>\n    <span>{{ galleryOpen ? 'Gallery open' : 'Gallery closed' }}</span>\n    <TriiiceratopsViewer\n        ref=\"viewer\"\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "equality-gating",
+				"id": "b3bf4e02-f709-4e10-a268-cce109d125b2"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Equality gating"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A projection is memoized twice over. Within one viewer notification it is computed once, and across notifications the equality gate decides: when a recompute produces a value that satisfies "
+				},
+				{
+					"type": "text",
+					"text": "equals",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", the projection keeps returning the "
+				},
+				{
+					"type": "text",
+					"text": "previous reference",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so the "
+				},
+				{
+					"type": "text",
+					"text": "computed",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " stays clean and nothing downstream re-renders."
+				}
+			],
+			"attrs": {
+				"id": "79e9e684-59e0-4b26-847e-52663976e5c8"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "equals",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " defaults to "
+				},
+				{
+					"type": "text",
+					"text": "Object.is",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". A projection that builds a fresh object or array on every run is never "
+				},
+				{
+					"type": "text",
+					"text": "Object.is",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "-equal to its predecessor, so give those an "
+				},
+				{
+					"type": "text",
+					"text": "equals",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ":"
+				}
+			],
+			"attrs": {
+				"id": "1f7942dd-8344-47d6-9eea-fad98b6ac74b"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "cbb7d001-8123-41c9-8085-9b74c9599672"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport { useTemplateRef } from 'vue';\nimport {\n    TriiiceratopsViewer,\n    useViewerSelector,\n    type TriiiceratopsViewerInstance,\n} from 'triiiceratops/vue';\n\nconst viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');\nconst position = useViewerSelector(\n    viewer,\n    (state) => ({\n        index: state.currentCanvasIndex,\n        total: state.canvases.length,\n    }),\n    { equals: (a, b) => a.index === b.index && a.total === b.total },\n);\n</script>\n\n<template>\n    <span v-if=\"position\">{{ position.index + 1 }} / {{ position.total }}</span>\n    <TriiiceratopsViewer\n        ref=\"viewer\"\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "All selectors for one viewer share one underlying subscription.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Adding selector components does not multiply "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState.subscribe",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " registrations."
+				}
+			],
+			"attrs": {
+				"id": "bcda2d1f-73a2-4358-92bb-1e0964cf1282"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Projection failures reach Vue's own error handling.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " A projection or equality function that throws does so during your component's evaluation, so it reaches "
+				},
+				{
+					"type": "text",
+					"text": "onErrorCaptured",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "app.config.errorHandler",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". It is never swallowed, never converted into a "
+				},
+				{
+					"type": "text",
+					"text": "viewer-error",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or "
+				},
+				{
+					"type": "text",
+					"text": "plugin-error",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " emit, and never served as a stale selected value."
+				}
+			],
+			"attrs": {
+				"id": "04398ad1-272b-4c4c-af85-182decf7eca3"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "vue-reactive-dependencies-are-tracked",
+				"id": "4374929f-7ad4-4d8c-8b38-686896952789"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Vue reactive dependencies are tracked"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Because the projection runs inside a "
+				},
+				{
+					"type": "text",
+					"text": "computed",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", any "
+				},
+				{
+					"type": "text",
+					"text": "ref",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or "
+				},
+				{
+					"type": "text",
+					"text": "reactive",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " value it reads is tracked automatically. You never add a manual watcher to keep a projection current with your own state:"
+				}
+			],
+			"attrs": {
+				"id": "feab6f51-460f-490b-a705-450892854bc4"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "d8fc732f-eb41-40ce-b170-b716459cda33"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport { ref, useTemplateRef } from 'vue';\nimport {\n    TriiiceratopsViewer,\n    useViewerSelector,\n    type TriiiceratopsViewerInstance,\n} from 'triiiceratops/vue';\n\nconst viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');\nconst showIndex = ref(false);\n\n// Two dependencies, one composable: the viewer's canvas AND `showIndex`.\n// Toggling `showIndex` invalidates the selection with no watcher of your own.\nconst label = useViewerSelector(viewer, (state) =>\n    showIndex.value\n        ? `Canvas ${state.currentCanvasIndex + 1}`\n        : (state.canvasId ?? 'No canvas yet'),\n);\n</script>\n\n<template>\n    <label>\n        <input v-model=\"showIndex\" type=\"checkbox\" />\n        Show index\n    </label>\n    <p>{{ label }}</p>\n    <TriiiceratopsViewer\n        ref=\"viewer\"\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "selector-cadence",
+				"id": "fea93676-2cb7-408e-bd48-86615558ca73"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Selector cadence"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The "
+				},
+				{
+					"type": "text",
+					"text": "cadence",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " option chooses which notification wakes a projection: the default "
+				},
+				{
+					"type": "text",
+					"text": "state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for anything in the viewer's state inventory, and "
+				},
+				{
+					"type": "text",
+					"text": "frame",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the query-only viewport values (scale, centre, bounds, container size) that the renderer answers per frame and that are deliberately not mirrored into viewer state. "
+				},
+				{
+					"type": "text",
+					"text": "Selector cadence",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#selector-cadence"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " explains the split and why it exists; the Vue call is one option:"
+				}
+			],
+			"attrs": {
+				"id": "8ca3f3dc-5d38-4306-a6d8-cf391b5434d4"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "e45b82ed-44f6-4266-8382-31e71819f20d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport { useTemplateRef } from 'vue';\nimport {\n    TriiiceratopsViewer,\n    useViewerSelector,\n    type TriiiceratopsViewerInstance,\n} from 'triiiceratops/vue';\n\nconst viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');\nconst zoom = useViewerSelector(\n    viewer,\n    (state) => state.viewportScale,\n    { cadence: 'frame' },\n);\n</script>\n\n<template>\n    <span v-if=\"zoom !== undefined\">{{ Math.round(zoom * 100) }}%</span>\n    <TriiiceratopsViewer\n        ref=\"viewer\"\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Reading a query-only viewport value ("
+				},
+				{
+					"type": "text",
+					"text": "viewportScale",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "viewportCentre",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "viewportBounds",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") at the default "
+				},
+				{
+					"type": "text",
+					"text": "state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " cadence is the one selector mistake that fails silently — the projection simply appears frozen. See "
+				},
+				{
+					"type": "text",
+					"text": "what notifies",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#what-notifies"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the inventory that decides which members a "
+				},
+				{
+					"type": "text",
+					"text": "state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "-cadence projection may read."
+				}
+			],
+			"attrs": {
+				"id": "90125ebb-0f60-4ed2-a216-2cfe9d4511e7"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "passing-the-handle-to-a-deep-tree",
+				"id": "70aa585a-2a3c-4c78-8fac-baa34b989db1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Passing the handle to a deep tree"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "provideViewer(viewer)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " publishes the handle to the whole subtree, and both composables have a context form that omits the handle argument:"
+				}
+			],
+			"attrs": {
+				"id": "a7fe6394-e394-4b78-b536-63b81599d46e"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "653f335b-fb9f-4eec-80a0-66560721786e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport { useTemplateRef } from 'vue';\nimport {\n    provideViewer,\n    TriiiceratopsViewer,\n    type TriiiceratopsViewerInstance,\n} from 'triiiceratops/vue';\nimport CanvasLabel from './CanvasLabel.vue';\n\nconst viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');\nprovideViewer(viewer);\n</script>\n\n<template>\n    <header><CanvasLabel /></header>\n    <TriiiceratopsViewer\n        ref=\"viewer\"\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "20fdcee5-75a3-49fe-8a7a-e60cd15037de"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<!-- CanvasLabel.vue -->\n<script setup lang=\"ts\">\nimport { useViewer, useViewerSelector } from 'triiiceratops/vue';\n\nconst canvasId = useViewerSelector((state) => state.canvasId);\nconst state = useViewer();\n</script>\n\n<template>\n    <p>{{ canvasId ?? 'No canvas yet' }}</p>\n    <button type=\"button\" @click=\"state?.nextCanvas()\">Next</button>\n</template>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "provideViewer",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " gates nothing and has no fallback; reads through the handle stay nullable. Providing again in a nested component scopes a second viewer, and the nearest one wins."
+				}
+			],
+			"attrs": {
+				"id": "f8efd001-8a09-4b48-98d6-fece72f486e2"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A "
+				},
+				{
+					"type": "text",
+					"text": "<ViewerProvider :value=\"viewer\">",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " component is also exported, for parity with "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/react",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and for teams who prefer the boundary visible in the template. Vue does not need it — "
+				},
+				{
+					"type": "text",
+					"text": "provideViewer",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " in "
+				},
+				{
+					"type": "text",
+					"text": "setup",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is enough."
+				}
+			],
+			"attrs": {
+				"id": "1b543d7d-dfb9-4d2c-83c2-5baa771c39aa"
+			}
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "warning",
+				"title": "A component's own `provide()` is not visible to its own `inject()`",
+				"id": "ec3beafb-a82a-48c7-98e4-07397913adbd"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Only descendants resolve the provided handle. In the component that calls "
+						},
+						{
+							"type": "text",
+							"text": "provideViewer(viewer)",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": ", keep passing "
+						},
+						{
+							"type": "text",
+							"text": "viewer",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " explicitly to composables in that same "
+						},
+						{
+							"type": "text",
+							"text": "setup",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": "."
+						}
+					],
+					"attrs": {
+						"id": "944db3bf-92b8-4d73-a9eb-bea147b23d15"
+					}
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Calling a composable with neither an explicit handle nor a provided one throws immediately with a message naming the fix, rather than returning "
+				},
+				{
+					"type": "text",
+					"text": "undefined",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " forever."
+				}
+			],
+			"attrs": {
+				"id": "1379fbec-d52f-4330-809f-67ea454e45ff"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "props",
+				"id": "02f47576-a50c-4eab-9f30-508a6fc03da1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Props"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every viewer input is a typed prop, usable with Vue's normal kebab-case in templates."
+				}
+			],
+			"attrs": {
+				"id": "98fe2ce2-0d86-4e46-b154-1689cfd69f74"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Prop"
+										}
+									],
+									"attrs": {
+										"id": "c79410e0-b70b-4cbc-b192-e4e80a73ff29"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9ebc18b2-e025-4ff7-a079-48c116a0fbb9"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Type"
+										}
+									],
+									"attrs": {
+										"id": "6bbfc7b5-d6e8-470e-ba06-f31b39e4c4fe"
+									}
+								}
+							],
+							"attrs": {
+								"id": "166c307f-6b59-42c2-9ad2-aeb3aba04fa7"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Carried as"
+										}
+									],
+									"attrs": {
+										"id": "15c5cfbd-604a-422c-b295-5b9721e6bf7f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9b59b193-02f0-441d-9eeb-ef314b3b54aa"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f1bc75cc-ba9f-4a15-a184-f14c6d4ca2ed"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "manifest-id",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c6cca06c-5c1a-46ac-a4db-cc90d0bfd9d8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3d6695d9-9ab8-4ceb-bd13-3e03e7560382"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e10ad6f7-8bfc-42ce-b4be-952b594ab341"
+									}
+								}
+							],
+							"attrs": {
+								"id": "db57ebff-64b9-4450-b952-058fb696bc63"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "manifest-id",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "b41985ae-1e59-4319-a46b-9a7c493f32e7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "10611c00-a6e9-4013-a63f-459211874285"
+							}
+						}
+					],
+					"attrs": {
+						"id": "340a5a59-042b-46f7-a197-e574eed0d26f"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "canvas-id",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d3564fe0-bea5-49fb-9fca-28373295a03a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3a968c4f-8d44-4222-8b89-14f042a97690"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e89d7a37-ecbc-4710-8c16-3561c97f8bd7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d601787e-929d-4142-8349-fb9dd1d27d9e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "canvas-id",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "6bbd9752-8859-4a4f-a8d6-ee07df13726f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f4eecf5b-1cb4-4de3-94f7-90419b0f4396"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a174be35-8683-41b2-b809-95551208bbf3"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "theme",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "08d19946-098e-4333-96e1-5206ab41bc2c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b8a3823b-e6a6-453e-81af-1557be527a3f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "32b61b16-e0c0-46cc-b04f-3b077b437272"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e02db86e-d1ae-47a3-972f-fd96790e6a0b"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "theme",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "309ee493-75e5-4cc6-ada4-0535c724cb4d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4e7c79f4-8bdc-4b79-82ae-19613d1fa59b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "12c1d83e-4023-482e-a14d-9d63e6c04602"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "content-state",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "98cb92a6-1251-4d45-987d-b58a28255d1d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "30db94cc-2eeb-4f29-b108-426f75cf2e3c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "282cca0c-bac0-4eb1-9707-9b77848696e9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a50e8b16-4a9f-4f92-8760-7144efe10b93"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "content-state",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "6975d6a6-ae38-4807-a2e6-af6ebd1a4d21"
+									}
+								}
+							],
+							"attrs": {
+								"id": "12a351d8-d97c-428b-8f9e-93e2acafad4e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "03ccf665-f16d-481b-98bd-46dfdf972aa9"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "read-content-state-from-url",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3e64c98d-9078-4fd6-aded-8740a0116df7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "44e8984c-9d66-4f87-9924-55bbfbfd959d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "boolean",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7a87dd3a-8538-4b65-9556-d5a7390b95dd"
+									}
+								}
+							],
+							"attrs": {
+								"id": "52f6b3e8-02b9-4e5d-97a1-d2ae3f2d6f56"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "read-content-state-from-url",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "e05d5b62-2b85-44d7-a273-caa0f69126c1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6532c23c-f966-49c0-a32c-7d867e5db72b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4815a510-ade3-41f0-8a99-05dbc9d1b174"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "manifest-json",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "52c46517-fa60-4cce-96b4-219c20c942f3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "30384f40-046c-4e46-8789-bc3e8bad363c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string | Record<string, any>",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b3c38033-514a-493f-8f7e-c9b1cf527447"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7607f7d4-6398-4ea7-aee9-4a53cdb2f2b5"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "cc6b7e53-afca-48db-afcf-2ff1ff0b77c5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "cfac3038-d970-4343-b7f8-5cf3bbacab41"
+							}
+						}
+					],
+					"attrs": {
+						"id": "47e4e6d5-4a4c-4600-8fce-eb71c37983ee"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "theme-config",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "727bd93d-ed6f-4996-8507-bceb5aa6d443"
+									}
+								}
+							],
+							"attrs": {
+								"id": "37e5a1f5-946e-41ac-8a13-83b7e5456337"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string | ThemeConfig",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "8d0f8b1e-46fd-4661-9a05-bd9dc5d15170"
+									}
+								}
+							],
+							"attrs": {
+								"id": "384fab64-80c8-4edb-a839-018581208e94"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "1e1bca2e-8c66-4b0c-a8b0-359b3f10d414"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7edf48ac-d109-4f34-8083-a8effe731b2c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b94ec6c2-aad9-4e0e-8d70-9e8204aca26d"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "config",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "fd37b466-8d75-4100-a13f-b99635e0d1ee"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5371c11b-0a20-42e6-bc3c-c32936eb1f70"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string | ViewerConfig",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "67900158-c06c-4d55-a628-42b1e052dc79"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b4e7eb2a-ba98-42c1-8908-4be666bd0119"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "1cc3b50d-0184-459f-80d4-0e419b77c909"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0c480f41-4470-43eb-a3ed-4b65af875940"
+							}
+						}
+					],
+					"attrs": {
+						"id": "74625236-8bbc-4fa7-9ad4-788898ef6ec5"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "initial-canvas-region",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "8302bbc0-3c11-4f59-b63c-87f247ffab91"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f6bd8f8f-6e9d-4f4c-a7c1-fd00be32715a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string | CanvasRegion",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "20c5a31f-8ae1-41ac-92e2-0c71eb12afb5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "be293532-e28a-4a46-948b-0d1c47be8a3e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "8acaffea-f883-426c-9e6c-0cb23a43ddf6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "85fbe8a7-1170-4059-80c8-459f310ffee5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "44c1a9d7-edbd-4050-bb98-c171dcbf2f2e"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "plugins",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "73286319-28d1-46e3-8fb9-66cff1675196"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6c77b1e1-5e2d-4d90-84fc-0d03c0e0c166"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "readonly SdkPlugin[]",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b51221df-58c8-44f6-b0fd-afd28306cf96"
+									}
+								}
+							],
+							"attrs": {
+								"id": "63f04f92-962f-4d4d-8c94-f5e5bb4fde4e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "a08898b4-ed95-49fd-9cac-d066c638eef4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1bb1239c-823c-41be-833d-8cede966c794"
+							}
+						}
+					],
+					"attrs": {
+						"id": "78e5a6b5-0443-4d8e-b2d6-c19ef3de02c9"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "search-provider",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "140008a7-f65d-4f39-ba26-5fd8b1d05230"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9f1ffa5a-7f7c-46c4-aa3e-40f569e6bf3b"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "SearchProvider | null",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7459e04b-b36d-4635-a4fe-84c63f7de4fb"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2d406662-0e7c-4eec-93ef-73eb64b3ca86"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "property"
+										}
+									],
+									"attrs": {
+										"id": "6a77c592-606b-4397-b283-6e413fc3aaca"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fab83a9b-74c9-4f92-a3e1-b95e86eeb10a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9c99f628-eef8-49a7-8827-391172b7c8d0"
+					}
+				}
+			],
+			"attrs": {
+				"id": "b49519e0-e4ac-41c9-af29-c1d6303943ce"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Anything not in that table is not a viewer input: it lands in "
+				},
+				{
+					"type": "text",
+					"text": "attrs",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and is forwarded to the host element untouched. Object- and function-valued inputs always reach the element as JavaScript "
+				},
+				{
+					"type": "text",
+					"text": "properties",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", never stringified into attributes, whether or not the lazy registration has finished."
+				}
+			],
+			"attrs": {
+				"id": "3557323b-0c7d-4940-bacc-1cb4469b6482"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "All tiers are "
+				},
+				{
+					"type": "text",
+					"text": "edge-triggered",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": a write happens only when the prop value differs from the value the wrapper last applied. A parent re-render with equal props writes nothing, so it never reloads your manifest, snaps the viewport, or restarts your plugins."
+				}
+			],
+			"attrs": {
+				"id": "81f4d12e-ed65-443f-bf6a-6bf29213bed4"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "manifest-id-and-canvas-id-are-uncontrolled",
+				"id": "045a1a63-5495-41e9-ad0d-963bfeb2a9e2"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "manifest-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "canvas-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are uncontrolled"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "They are one-way instructions to the viewer, not continuously enforced bindings. There is no "
+				},
+				{
+					"type": "text",
+					"text": "v-model",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for them, deliberately: after the user navigates internally, re-asserting the same "
+				},
+				{
+					"type": "text",
+					"text": "canvas-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " writes nothing, so the wrapper never fights the user."
+				}
+			],
+			"attrs": {
+				"id": "41ba7ec8-4a73-46d6-81f2-df8c1121e14c"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "To follow where the viewer actually is, observe it — with a selector, or with the "
+				},
+				{
+					"type": "text",
+					"text": "@canvas-change",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "@manifest-change",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " emits when you want to sync something outside Vue state (a router, say):"
+				}
+			],
+			"attrs": {
+				"id": "78036e4e-fd22-40eb-a8d9-2e35fd83d548"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "16cafc5a-1790-4ed8-b5d4-641a115079d3"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport { ref } from 'vue';\nimport {\n    TriiiceratopsViewer,\n    type ViewerStateSnapshot,\n} from 'triiiceratops/vue';\n\nconst initialCanvasId = 'https://example.org/canvas/1';\nconst currentCanvasId = ref(initialCanvasId);\n\nfunction onCanvasChange(snapshot: ViewerStateSnapshot): void {\n    if (snapshot.canvasId) currentCanvasId.value = snapshot.canvasId;\n}\n</script>\n\n<template>\n    <p>Showing {{ currentCanvasId }}</p>\n    <TriiiceratopsViewer\n        manifest-id=\"https://example.org/manifest.json\"\n        :canvas-id=\"initialCanvasId\"\n        style=\"display: block; height: 600px\"\n        @canvas-change=\"onCanvasChange\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "use-shallowref-for-object-props",
+				"id": "063456eb-396c-40ca-ab72-25ea70c3147c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Use "
+				},
+				{
+					"type": "text",
+					"text": "shallowRef",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for object props"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Property-tier inputs are compared with one uniform, one-level shallow equality: identical by "
+				},
+				{
+					"type": "text",
+					"text": "Object.is",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "; or both arrays of equal length with identical elements; or both plain objects with equal own-key sets and identical values. Deep equality is deliberately not used."
+				}
+			],
+			"attrs": {
+				"id": "04b7257c-d72f-4816-88b2-6b87cd4ac6d6"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Two consequences in Vue:"
+				}
+			],
+			"attrs": {
+				"id": "8e34aad9-2b75-495b-9bd2-a20d599bd88b"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A "
+								},
+								{
+									"type": "text",
+									"text": "nested",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " object rebuilt on every render is written on every render, and writing "
+								},
+								{
+									"type": "text",
+									"text": "config",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " or "
+								},
+								{
+									"type": "text",
+									"text": "manifest-json",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is not free. Hoist it or keep it in a ref."
+								}
+							],
+							"attrs": {
+								"id": "fd5aa558-d38c-4c0b-ac8e-36b735fc49dd"
+							}
+						}
+					],
+					"attrs": {
+						"id": "38f9be72-0003-4189-9526-7808c8402d15"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Use "
+								},
+								{
+									"type": "text",
+									"text": "shallowRef",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", not "
+								},
+								{
+									"type": "text",
+									"text": "ref",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", for object-valued viewer inputs. A deep "
+								},
+								{
+									"type": "text",
+									"text": "ref",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " hands the wrapper a "
+								},
+								{
+									"type": "text",
+									"text": "reactive",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " "
+								},
+								{
+									"type": "text",
+									"text": "proxy",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " rather than your object, so identity no longer matches what you passed."
+								}
+							],
+							"attrs": {
+								"id": "51997ad6-49fd-430a-8e06-ff8a1955f0ff"
+							}
+						}
+					],
+					"attrs": {
+						"id": "bd242ba3-8916-4ac6-8b6b-20ff0945ecb6"
+					}
+				}
+			],
+			"attrs": {
+				"id": "743f7abe-c4c8-48d2-bac9-4b6610132c86"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "7932d9d9-6805-4bd5-a56d-4d00fc7a4954"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport { shallowRef } from 'vue';\nimport { TriiiceratopsViewer, type ViewerConfig } from 'triiiceratops/vue';\n\n// shallowRef: the wrapper receives this exact object, not a reactive proxy.\nconst config = shallowRef<ViewerConfig>({ toolbar: { side: 'right' } });\n\nfunction moveToolbar(side: 'left' | 'right'): void {\n    // Replace the object; do not mutate it in place.\n    config.value = { toolbar: { side } };\n}\n</script>\n\n<template>\n    <button type=\"button\" @click=\"moveToolbar('left')\">Toolbar left</button>\n    <TriiiceratopsViewer\n        manifest-id=\"https://example.org/manifest.json\"\n        :config=\"config\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "With "
+				},
+				{
+					"type": "text",
+					"text": "config: { debug: true }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " the wrapper warns once, naming the prop, after one property-tier input has been re-assigned an implausible number of times on one element — so an accidentally unstable object prop is diagnosable instead of mysterious."
+				}
+			],
+			"attrs": {
+				"id": "161694a3-187f-4f43-80b1-00a4826bfd9e"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "plugins",
+				"id": "06e44fb6-41a5-4d01-92cd-89deceed0235"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Plugins"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "plugins",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " takes framework-neutral "
+				},
+				{
+					"type": "text",
+					"text": "SDK plugins",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — "
+				},
+				{
+					"type": "text",
+					"text": "readonly SdkPlugin[]",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", with no Svelte types or Svelte runtime involved. The "
+				},
+				{
+					"type": "text",
+					"text": "plugins guide",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#adding-a-plugin-to-your-viewer"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " has the Vue example."
+				}
+			],
+			"attrs": {
+				"id": "03ac80da-b196-42b0-a6f8-04bdb66ba74b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Activation lifetime is keyed to "
+				},
+				{
+					"type": "text",
+					"text": "plugin identity",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", not to the identity of the list: re-supplying an equal list leaves running plugins completely untouched — no teardown, no restart, no re-injected styles. Build the list once outside any reactive re-evaluation anyway, since a fresh "
+				},
+				{
+					"type": "text",
+					"text": "createPdfExportPlugin()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " call would produce a genuinely different plugin each time."
+				}
+			],
+			"attrs": {
+				"id": "7649051f-5549-420a-ae1a-01aa05c1129b"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "emits",
+				"id": "f9cd1c95-e35b-41d7-8bf7-b410d4d010d9"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Emits"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The custom element's channels are typed emits, usable with Vue's normal template casing. Each carries the event "
+				},
+				{
+					"type": "text",
+					"text": "detail",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " directly — never a "
+				},
+				{
+					"type": "text",
+					"text": "CustomEvent",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — so your code is independent of the DOM event envelope."
+				}
+			],
+			"attrs": {
+				"id": "68b86d62-868a-4244-827e-356b4a6bbc4d"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Emit"
+										}
+									],
+									"attrs": {
+										"id": "22e2490e-54ce-4399-bafb-86a7007ee182"
+									}
+								}
+							],
+							"attrs": {
+								"id": "90a4edd3-3407-482e-9d31-82142f5de43b"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Payload"
+										}
+									],
+									"attrs": {
+										"id": "04b1ccaf-83c3-4fa3-b977-e43276c9eda2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "32392be1-3b74-402b-9877-ac582c153158"
+							}
+						}
+					],
+					"attrs": {
+						"id": "594d3d0d-1805-4fff-932e-a7cea72e936f"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@state-change",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "0b4c6b8d-4c06-4d18-899c-c571f78a4dc4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "caf177a7-cb12-4901-8768-468a06ebf079"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ViewerStateSnapshot",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " (any inventoried change, batched)"
+										}
+									],
+									"attrs": {
+										"id": "a227893d-3b8c-4f95-9cd7-4ae48651080f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c9911702-8946-4a8f-a6e5-43d1c559af16"
+							}
+						}
+					],
+					"attrs": {
+						"id": "fdabe400-a008-4deb-bc55-6ad5b3789a0d"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@canvas-change",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e3f7b1e7-1c75-4111-946c-c31a559e6d01"
+									}
+								}
+							],
+							"attrs": {
+								"id": "55e7346a-cc6e-408f-a357-b4661579c443"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ViewerStateSnapshot",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "fbb80195-1e34-44cb-94f0-94bb22267c1d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "491f4a2e-4289-4cf4-9cec-295206ea01ea"
+							}
+						}
+					],
+					"attrs": {
+						"id": "536668f9-928b-472a-9afc-4000236dd87f"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@manifest-change",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "68cb4a5f-9a78-4643-9155-722c58267929"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b0c9d2fd-f94e-479c-bc6c-375ba94686f1"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ViewerStateSnapshot",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "afd3e517-7286-4045-9a58-09f3ab575225"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ba07edcc-1d5d-486d-a6a0-304b1f15d06d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e22eae98-f381-43f3-9f3b-e422976ed595"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@choice-change",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "9fb52144-89bb-4b10-8b2e-7f96e7a26a26"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8fc0400a-214f-4cdd-a272-79b6e3145a01"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ViewerStateSnapshot",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2bbd108b-bd3c-4e8a-8c9d-a5bf8d6d915b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "95d9da65-235a-44c0-8250-46333ca290d6"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e95e836f-6db2-428a-9ff6-0ca7a0696506"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@plugin-error",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "dbb56f41-712f-4b04-a227-3b72667d0b9a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a0cb59b4-1fe1-4be2-9605-fc89e1c7ea27"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the exact "
+										},
+										{
+											"type": "text",
+											"text": "PluginError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", with a callable "
+										},
+										{
+											"type": "text",
+											"text": "retry()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "24b5592e-7197-42f4-8786-bf8ca18931e1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4a6fc69e-f9f8-408b-ac71-5d5ba264fab7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ce16e94d-84f3-42d6-948f-318cf048313f"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@viewer-error",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "109144b4-00fe-4e76-b840-d87cfce6ea2d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8d3e8112-8f5d-4ffd-a952-7f621db3b008"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the exact typed "
+										},
+										{
+											"type": "text",
+											"text": "ViewerError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4f25b749-9580-49d2-b296-c2b8444dbb1f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "48ce699a-a4dc-4590-9b80-acc1b4622575"
+							}
+						}
+					],
+					"attrs": {
+						"id": "36a79562-0069-4525-9ab6-a338729e947e"
+					}
+				}
+			],
+			"attrs": {
+				"id": "a68159bd-f948-4232-b814-6ef94f889a18"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "766f520b-f047-4800-ad3b-8063c2862d8f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport {\n    TriiiceratopsViewer,\n    type PluginError,\n    type ViewerError,\n    type ViewerStateSnapshot,\n} from 'triiiceratops/vue';\n\nfunction syncUrl(snapshot: ViewerStateSnapshot): void {\n    history.replaceState(\n        null,\n        '',\n        `?canvas=${encodeURIComponent(snapshot.canvasId ?? '')}`,\n    );\n}\n// The original PluginError object, recovery behavior intact.\nconst retry = (error: PluginError): void => error.retry();\nconst report = (error: ViewerError): void => console.error(error.message);\n</script>\n\n<template>\n    <TriiiceratopsViewer\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n        @canvas-change=\"syncUrl\"\n        @plugin-error=\"retry\"\n        @viewer-error=\"report\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "custom-search",
+				"id": "4e6695dd-3be1-443b-b559-c0ef044ed669"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Custom search"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The "
+				},
+				{
+					"type": "text",
+					"text": "search-provider",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " prop supplies search results from your own application code instead of a manifest-declared IIIF Content Search service. It behaves the same in every host, so it is documented once with a Vue tab in "
+				},
+				{
+					"type": "text",
+					"text": "custom search providers",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#custom-search-providers"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "6423bfe4-14ef-427b-bc15-625bacc7e12c"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "the-imperative-escape-hatch",
+				"id": "c59d6937-9b0f-4c55-903b-94c220baff0e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The imperative escape hatch"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The same template ref is the escape hatch. It exposes exactly two members — "
+				},
+				{
+					"type": "text",
+					"text": "element",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (the "
+				},
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " host) and "
+				},
+				{
+					"type": "text",
+					"text": "state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (the readonly viewer state) — so it stays small and discoverable:"
+				}
+			],
+			"attrs": {
+				"id": "c40fc2fa-312c-4549-9870-a413edb8d073"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "vue",
+				"id": "2f388ac6-97df-44b8-abf4-12597762942a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script setup lang=\"ts\">\nimport { useTemplateRef } from 'vue';\nimport {\n    TriiiceratopsViewer,\n    type TriiiceratopsViewerInstance,\n} from 'triiiceratops/vue';\n\nconst viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');\n\nfunction scrollToViewer(): void {\n    viewer.value?.element.scrollIntoView();\n}\n</script>\n\n<template>\n    <button type=\"button\" @click=\"scrollToViewer\">Scroll to viewer</button>\n    <TriiiceratopsViewer\n        ref=\"viewer\"\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "viewer.value.state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is reference-equal to what "
+				},
+				{
+					"type": "text",
+					"text": "useViewer()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " returns and to the element's own "
+				},
+				{
+					"type": "text",
+					"text": "viewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "b173683c-bd82-4f6f-8a40-14f4cadbbb17"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "server-rendering",
+				"id": "c4db5f34-db0e-4b24-aa3d-1606a4ac673b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Server rendering"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Importing "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/vue",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is safe where "
+				},
+				{
+					"type": "text",
+					"text": "window",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "document",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and "
+				},
+				{
+					"type": "text",
+					"text": "customElements",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " do not exist: nothing browser-only runs at module evaluation and nothing is registered."
+				}
+			],
+			"attrs": {
+				"id": "eac0e269-caf5-4107-ae7f-fc3cc28b5424"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "On the server, "
+				},
+				{
+					"type": "text",
+					"text": "<TriiiceratopsViewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " renders an "
+				},
+				{
+					"type": "text",
+					"text": "inert host",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — the "
+				},
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " tag carrying the attribute tier ("
+				},
+				{
+					"type": "text",
+					"text": "manifest-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "canvas-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "theme",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "content-state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "read-content-state-from-url",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") and your forwarded host attributes, and nothing else. No shadow-DOM internals, no property-tier values, no renderer. The client's first render emits the identical attribute set, so hydration reuses and upgrades the same host with no mismatch, and viewer internals initialize only in the browser."
+				}
+			],
+			"attrs": {
+				"id": "cc1b8d78-ec4d-4766-b35c-435e23658e4d"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "State-reading components server-render harmlessly, which is a real difference from the React wrapper: there is no viewer during a server render, so the refs from "
+				},
+				{
+					"type": "text",
+					"text": "useViewer()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "useViewerSelector()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " hold "
+				},
+				{
+					"type": "text",
+					"text": "undefined",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and your not-ready branch is what gets serialized. Because reads are nullable rather than gated, the client's first render agrees with it and hydration reports no mismatch — write that branch as markup the client can also produce."
+				}
+			],
+			"attrs": {
+				"id": "89ecf3b3-36b1-4bbb-b734-243de22c5e45"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Triiiceratops ships no meta-framework-specific components; there is no Nuxt module. The wrapper is a plain Vue component with SSR-safe evaluation."
+				}
+			],
+			"attrs": {
+				"id": "ada385f2-c081-4a28-b86e-67ba2a996e6b"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "keepalive",
+				"id": "d6ffc2ce-0fe3-4aba-8f69-8356e5bc2fcf"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<KeepAlive>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "<KeepAlive>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " deactivation detaches the element from the document for long enough that the custom element destroys its inner viewer, and reactivation mounts a brand-new one. Both halves of that matter:"
+				}
+			],
+			"attrs": {
+				"id": "d0957c1f-fffb-4cba-87b6-c2b3b50a0e8e"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "The wrapper rebinds cleanly.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " On reactivation the element publishes a new "
+								},
+								{
+									"type": "text",
+									"text": "ViewerState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "; the wrapper atomically disposes the previous selector runtime, publishes the new binding, and rebuilds the handle. Every composable rewires itself — selectors, commands, and the template ref all keep working, and no consumer is ever left holding a projection subscribed to a disposed runtime."
+								}
+							],
+							"attrs": {
+								"id": "2fdae45d-03fd-4d55-a849-4f1618a7f3a1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8459d46a-0afe-444f-abea-49b3bbc2eb42"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Viewer state does not survive.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " The manifest, canvas, viewport, and plugin state from before deactivation are gone, because the object that held them was destroyed. Restoring it is not attempted: that would require the wrapper to own a second state surface, which it deliberately does not."
+								}
+							],
+							"attrs": {
+								"id": "95b43223-1f1f-4820-8f8c-6fba5fd1fe50"
+							}
+						}
+					],
+					"attrs": {
+						"id": "90b149a9-8a8b-4e76-8775-6484d527ec46"
+					}
+				}
+			],
+			"attrs": {
+				"id": "3ea0ac7d-7fd7-4f87-8bc4-0a59a9ce997f"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "With "
+				},
+				{
+					"type": "text",
+					"text": "config: { debug: true }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", the wrapper warns once when it sees a second "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", because the state loss is otherwise completely silent."
+				}
+			],
+			"attrs": {
+				"id": "769ab0db-76bb-4ed8-a9b8-2aa4337cc370"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "If a round trip must preserve where the user was, keep that in your own state and re-supply it — for example, remember the last "
+				},
+				{
+					"type": "text",
+					"text": "@canvas-change",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " snapshot's "
+				},
+				{
+					"type": "text",
+					"text": "canvasId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and pass it back as "
+				},
+				{
+					"type": "text",
+					"text": ":canvas-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "f7e567b1-6e7f-4bf0-b2db-63fe8f50aa38"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "when-wiring-goes-wrong",
+				"id": "0a4e8b70-03ad-4db3-98d8-b42b4cdf51b9"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "When wiring goes wrong"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Failures are thrown from a watcher so they reach "
+				},
+				{
+					"type": "text",
+					"text": "onErrorCaptured",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "app.config.errorHandler",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " rather than the console."
+				}
+			],
+			"attrs": {
+				"id": "41c22b6e-5c80-45b3-9e63-fdc768378e50"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Error"
+										}
+									],
+									"attrs": {
+										"id": "1162fd91-e2e4-4b81-abf8-3b942cf57c84"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c8e20a07-a6da-4693-9c1d-10f4c1abfd2c"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Means"
+										}
+									],
+									"attrs": {
+										"id": "180d7f9a-447d-4454-bf60-9e5916d647b7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6fff7ddc-dca3-45f5-8025-27955a41214c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "acc96bdf-6949-4e36-ad32-47b512256017"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "TriiiceratopsElementVersionError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "93b764b7-56aa-4f65-b5f2-47a268e7d37e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a36b543a-cd4e-4d12-aa4e-6bdab777b9b5"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "<triiiceratops-viewer>",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " is already defined by a constructor with no "
+										},
+										{
+											"type": "text",
+											"text": "viewerState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " getter — usually a second, older Triiiceratops core that registered first"
+										}
+									],
+									"attrs": {
+										"id": "78345b75-6519-4553-bbb6-21663c3da058"
+									}
+								}
+							],
+							"attrs": {
+								"id": "65c1da70-8a44-443a-940c-39e97f4d4ccf"
+							}
+						}
+					],
+					"attrs": {
+						"id": "05325fd4-379f-4146-8523-5f0d60ccd47a"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "TriiiceratopsCoreConflictError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "200dc1f7-0e90-4513-9704-b38757f255f2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3a735ec9-4b99-46c6-987b-6726c18393cc"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "two different Triiiceratops core versions loaded on one page"
+										}
+									],
+									"attrs": {
+										"id": "0299ac28-ab8d-4d16-b9ea-bac043c1741c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "218ab2bf-f847-4376-aaef-5f9e382da3f1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c748de2b-1290-4557-8b1e-4e4faa7f8eab"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "TriiiceratopsElementRegistrationError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f8643d36-a60f-4d26-bb12-ce351de81df0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "264f8ddc-408c-4954-b4e6-c19b2e174040"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "no "
+										},
+										{
+											"type": "text",
+											"text": "customElements",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " registry — the mount path ran outside a browser"
+										}
+									],
+									"attrs": {
+										"id": "dda54c4d-b9fe-4219-8983-e659425a34b1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "df46c2bf-f576-4e5e-9457-10e090fff182"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6f09920c-2e0b-484b-a0fa-2d2ed900e01d"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "TriiiceratopsHandleConflictError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c0c846c8-d1c0-4cea-b66b-98015ff366e5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2115b914-1063-4e33-8334-451d2ec9cd64"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "one template ref was put on two viewers"
+										}
+									],
+									"attrs": {
+										"id": "069ae2d1-eab5-47e5-ae21-1cf1661e1835"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c8c28a48-1397-40bd-948c-7cbdf6a9e9d9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6302332a-2ab3-4432-aa91-700934eabae2"
+					}
+				}
+			],
+			"attrs": {
+				"id": "31c0271e-2636-4487-8782-a75a2731a418"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The handle conflict is raised from the second viewer's mount hook, so it reaches "
+				},
+				{
+					"type": "text",
+					"text": "onErrorCaptured",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "app.config.errorHandler",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " like the others. It is the same error, with the same message, that "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/react",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " raises when one "
+				},
+				{
+					"type": "text",
+					"text": "useViewerHandle()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " slot is passed to two viewers — see "
+				},
+				{
+					"type": "text",
+					"text": "One ref per viewer",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#the-template-ref-is-the-handle"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "9b987c50-f785-42c2-83ab-47e1da3279d7"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Version conflicts are diagnosed "
+				},
+				{
+					"type": "text",
+					"text": "synchronously",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", right after registration: the wrapper probes the constructor that actually owns the tag for the "
+				},
+				{
+					"type": "text",
+					"text": "viewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " getter. There is no timeout, deadline, retry, or "
+				},
+				{
+					"type": "text",
+					"text": "customElements.whenDefined",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " poll anywhere in the path, so an incompatible page fails fast instead of hanging."
+				}
+			],
+			"attrs": {
+				"id": "c14a9629-02dc-4b99-9c30-300154ac1c35"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Further failure modes are silent by design and surface only under "
+				},
+				{
+					"type": "text",
+					"text": "config: { debug: true }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — unstable property-tier props, a "
+				},
+				{
+					"type": "text",
+					"text": "state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "-cadence projection reading a query-only viewport value, and the "
+				},
+				{
+					"type": "text",
+					"text": "<KeepAlive>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " state loss above. See "
+				},
+				{
+					"type": "text",
+					"text": "debug diagnostics",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#debug-diagnostics"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "8e63b5b2-40fe-4397-adc0-fff60f39495f"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "testing-your-own-components",
+				"id": "19b3787d-8d70-4245-aa42-464a11bbed3d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Testing your own components"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "triiiceratops/testing",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " builds a handle backed by a "
+				},
+				{
+					"type": "text",
+					"text": "real",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — real commands, real batched notifications, the real selector runtime "
+				},
+				{
+					"type": "text",
+					"text": "useViewerSelector()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " consults — with no DOM viewer, no custom element, no renderer surface, and no network. Run it under "
+				},
+				{
+					"type": "text",
+					"text": "jsdom",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or "
+				},
+				{
+					"type": "text",
+					"text": "happy-dom",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — which a Vue test runner already provides — because the published entry bundles a "
+				},
+				{
+					"type": "text",
+					"text": "fetch",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " polyfill that reaches for a "
+				},
+				{
+					"type": "text",
+					"text": "self",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " global, so bare Node fails with "
+				},
+				{
+					"type": "text",
+					"text": "ReferenceError: self is not defined",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (or set "
+				},
+				{
+					"type": "text",
+					"text": "globalThis.self = globalThis",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " first)."
+				}
+			],
+			"attrs": {
+				"id": "95554dc1-c838-4669-928f-9c1a15bbd0cf"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Wrap the handle in a "
+				},
+				{
+					"type": "text",
+					"text": "shallowRef",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and pass it where a template ref would go:"
+				}
+			],
+			"attrs": {
+				"id": "30b0b1ba-b1a1-442b-bb2e-910b526badcd"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "7bea2b5d-ed2d-4849-8ae7-108596b8f676"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { createApp, defineComponent, h, nextTick, shallowRef } from 'vue';\nimport { afterEach, expect, test } from 'vitest';\nimport { createTestViewerHandle, flush } from 'triiiceratops/testing';\nimport type { TestViewerHandle } from 'triiiceratops/testing';\nimport { useViewerSelector } from 'triiiceratops/vue';\n\nlet handle: TestViewerHandle | undefined;\n// `dispose()` drops the underlying subscription. It is idempotent, so an\n// already-disposed handle is fine here.\nafterEach(() => handle?.dispose());\n\ntest('follows the viewer to a new canvas', async () => {\n    handle = createTestViewerHandle();\n    // shallowRef, NOT ref: a deep ref would hand the composable a reactive\n    // proxy of the handle, and identity comparisons would stop holding.\n    const viewer = shallowRef(handle);\n\n    const CanvasLabel = defineComponent({\n        setup() {\n            const canvasId = useViewerSelector(viewer, (s) => s.canvasId);\n            return () => h('p', canvasId.value ?? 'No canvas yet');\n        },\n    });\n\n    const container = document.createElement('div');\n    const app = createApp(CanvasLabel);\n    app.mount(container);\n    expect(container.textContent).toBe('No canvas yet');\n\n    handle.state.setCanvas('https://example.org/canvas/2');\n    // Notifications are batched; then let Vue re-render.\n    await flush();\n    await nextTick();\n\n    expect(container.textContent).toBe('https://example.org/canvas/2');\n    app.unmount();\n});"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "createTestViewerHandle()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " accepts "
+				},
+				{
+					"type": "text",
+					"text": "{ fixtures }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to seed a config, an active locale, or already-parsed manifest JSON (through the real "
+				},
+				{
+					"type": "text",
+					"text": "setManifestData",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " command — still no network). "
+				},
+				{
+					"type": "text",
+					"text": "handle.attachRenderer()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " mounts core's headless renderer stand-in and fires the real readiness path, which is how a "
+				},
+				{
+					"type": "text",
+					"text": "cadence: 'frame'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " projection and the query-only viewport values are exercised headlessly. It returns the stand-in, which is also the controller: "
+				},
+				{
+					"type": "text",
+					"text": "setView",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " moves the viewport and "
+				},
+				{
+					"type": "text",
+					"text": "emitFrame",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " fires one animation event, synchronously."
+				}
+			],
+			"attrs": {
+				"id": "78d842fb-f91b-48e4-87a7-cb1ced6e6340"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "what-the-wrapper-does-not-do",
+				"id": "d1cf427e-dd5a-4b91-8b75-8640bcb4b1cb"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "What the wrapper does not do"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The promise of this wrapper is "
+				},
+				{
+					"type": "text",
+					"text": "idiomatic access",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to the viewer. Two limits are deliberately outside it, and both are shared by every host rather than being Vue-specific:"
+				}
+			],
+			"attrs": {
+				"id": "e837f0a7-8d06-4df9-8587-ae771b6331ed"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Styling stops at theme tokens.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " "
+								},
+								{
+									"type": "text",
+									"text": "theme",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "theme-config",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and the "
+								},
+								{
+									"type": "text",
+									"text": "--tri-*",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " custom properties are the whole surface; the shadow-DOM internals are not reachable. Everything about the "
+								},
+								{
+									"type": "text",
+									"text": "host",
+									"marks": [
+										{
+											"type": "italic"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " element — "
+								},
+								{
+									"type": "text",
+									"text": "class",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "style",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", layout, size, borders — is yours as usual, and scoped styles ("
+								},
+								{
+									"type": "text",
+									"text": "<style scoped>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ") reach the host and nothing inside it, which is the same boundary stated a different way. See "
+								},
+								{
+									"type": "text",
+									"text": "theming",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/theming/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "313ed0ca-51b8-4345-bdd7-1dfa15b581ee"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9553d5fe-2cfb-4212-ae7a-8317cb64ccee"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Viewer chrome is not composable.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " You cannot supply Vue components for the toolbar, panels, or navigation, and the component has no slots. "
+								},
+								{
+									"type": "text",
+									"text": "Building your own chrome",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/configuration/#building-your-own-chrome"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " covers the three supported answers, with a Vue custom-toolbar example."
+								}
+							],
+							"attrs": {
+								"id": "20a91791-fbb7-48ed-9204-bb4eea46b4eb"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7bece5fb-25d2-46e7-b7fe-c52098c5fd7a"
+					}
+				}
+			],
+			"attrs": {
+				"id": "ce2cd906-1b37-42bb-aa17-671906fdb7b7"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Direct custom-element integration also remains fully supported for hosts that want it — see "
+				},
+				{
+					"type": "text",
+					"text": "driving the element directly",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/integration/#driving-the-element-directly"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Adopting the wrapper is not required."
+				}
+			],
+			"attrs": {
+				"id": "721651dd-d5f7-4954-b82f-1998f648614c"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "There is no Vue example page: the wrapper's whole job is to hand you Vue idioms over the same element every host uses. To see that element running this release's bundles in a browser, open the "
+				},
+				{
+					"type": "text",
+					"text": "web component example",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/examples/web-component/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", which loads it from a script tag with no bundler."
+				}
+			],
+			"attrs": {
+				"id": "d132986a-a5fb-4960-b9a8-24cf4908a074"
+			}
+		}
+	],
+	"meta": {
+		"title": "Vue",
+		"shortTitle": "Vue",
+		"intro": "Use Triiiceratops in Vue 3.5: a typed component that hosts the viewer's custom element and maps its lifecycle, props and events to Vue idioms."
+	}
+}
