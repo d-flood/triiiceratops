@@ -521,10 +521,10 @@ describe('fetchExportImageBlob', () => {
 
         await fetchExportImageBlob(resolved, { width: 500 });
 
-        // The canonical static version 3 spelling: explicit region, explicit
-        // `w,h`. `renderer/tilePyramid.tileUrl` owns that decision.
+        // The canonical whole-image spelling: `full` region, explicit `w,h`.
+        // `renderer/tilePyramid.tileUrl` owns that decision.
         expect(requested).toEqual([
-            'https://signed.example.org/t/abc123/iiif/level0-image/0,0,4000,3000/500,375/0/default.jpg',
+            'https://signed.example.org/t/abc123/iiif/level0-image/full/500,375/0/default.jpg',
         ]);
         expect(vi.mocked(mocks.drawImage)).toHaveBeenCalledTimes(1);
     });

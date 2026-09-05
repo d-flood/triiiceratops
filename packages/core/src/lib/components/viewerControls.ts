@@ -30,26 +30,30 @@ export type CanvasNavLayout = {
     rightIcon: CanvasNavIcon;
 };
 
+/** Row-centre difference still read as one row, absorbing subpixel layout noise. */
+export const SAME_ROW_EPSILON_PX = 1;
+
 /**
  * Whether to draw the divider between two adjacent groups of the control bar.
  *
  * One rule, applied per boundary: a divider is shown when both groups sit on
  * the same row, because a vertical rule between groups on different rows reads
- * as noise rather than as a separator. Rows are compared by offset top — on a
- * shared row both groups align to the same row box, so any difference means the
- * later group has dropped.
+ * as noise rather than as a separator. Rows are compared by the groups' vertical
+ * CENTRES, not their tops: the bar centres its items, so groups of unequal
+ * height (the toolbar buttons are shorter than the nav buttons) share a row
+ * centre while their tops differ.
  *
  * `null` means the group is not rendered at all, and a boundary with only one
  * side has nothing to divide.
  */
 export function shouldShowGroupDivider(
-    beforeOffsetTop: number | null,
-    afterOffsetTop: number | null,
+    beforeCentre: number | null,
+    afterCentre: number | null,
 ): boolean {
     return (
-        beforeOffsetTop !== null &&
-        afterOffsetTop !== null &&
-        beforeOffsetTop === afterOffsetTop
+        beforeCentre !== null &&
+        afterCentre !== null &&
+        Math.abs(beforeCentre - afterCentre) <= SAME_ROW_EPSILON_PX
     );
 }
 

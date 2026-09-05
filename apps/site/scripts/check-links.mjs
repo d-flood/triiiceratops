@@ -47,8 +47,9 @@ const EXTERNAL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
 
 /**
  * Where a route's document lives, mirroring Uncial's default path-to-source
- * mapping: `/` is `content/index.json`, `/docs/react/` is
- * `content/docs/react.json`.
+ * mapping: `/production/` is `content/production.json`, `/docs/react/` is
+ * `content/docs/react.json`. The root's `index` case is kept because it is part
+ * of that mapping, not because a route currently uses it.
  *
  * Restated here rather than imported from `uncial-cms/sveltekit` because this
  * gate runs as a plain node script against a checkout: the site resolves that

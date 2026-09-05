@@ -17,7 +17,7 @@
 import type { ThemeConfig } from 'triiiceratops';
 
 export const SITE_VIEWER_THEME: ThemeConfig = {
-    viewerBg: 'var(--bench)',
+    viewerBg: 'var(--stage)',
     toolbarBg: 'var(--paper)',
     panelBg: 'var(--paper)',
     galleryBg: 'var(--rail-bg)',

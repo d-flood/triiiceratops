@@ -245,6 +245,31 @@ function resolveDocument(document: JsonRecord): ContentStateTarget | null {
     return manifestId ? { manifestId } : null;
 }
 
+/**
+ * Whether a dereferenced document **is** the Manifest a target names, rather
+ * than a resource that merely points at one.
+ *
+ * Asked by `contentStateIngestion` of a document it has just fetched, to decide
+ * whether the manifest is already in hand. Deliberately not "its declared id
+ * equals the URL it came from": a Manifest served at `…/manifest.json` and
+ * declaring `…/` as its `id` is legal and common in generated trees, and the
+ * declared id is frequently not a manifest URL at all — for a `mkiiif` page it
+ * is the directory, which serves the embedding HTML.
+ *
+ * A Collection is not one: only the fetching manifest path expands a Collection
+ * into its members (ADR 0006). Nor is an Annotation or a Canvas, whose
+ * Manifest is a different resource named in `partOf` and genuinely has to be
+ * fetched. An untyped document with an http id is one, matching the branch
+ * {@link parseContentState} resolves it through.
+ */
+export function isManifestDocument(value: unknown): boolean {
+    if (!isRecord(value) || isAnnotation(value)) return false;
+
+    return declaredTypes(value).length
+        ? isType(value, 'Manifest')
+        : isHttpUri(idOf(value));
+}
+
 export function parseContentState(value: string): ContentStateTarget | null {
     const raw = value?.trim();
     if (!raw) return null;

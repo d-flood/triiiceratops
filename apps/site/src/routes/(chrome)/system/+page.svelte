@@ -51,6 +51,12 @@
         { name: '--t-tiny', role: 'Numeral', style: 'font-size:13.5px' },
     ];
 
+    const measure = [
+        ['--measure', '62ch', 'Prose'],
+        ['--content-max', '1120px', 'A page frame’s content'],
+        ['--rail-w', '290px', 'The navigation rail'],
+    ];
+
     const space = [
         ['--s1', '4px'],
         ['--s2', '8px'],
@@ -193,6 +199,24 @@
                     ></span>
                     {value}</span
                 >
+            </div>
+        {/each}
+    </div>
+</section>
+
+<section class="band" aria-labelledby="measure">
+    <h2 id="measure">Measure</h2>
+    <p class="aside">
+        Two bounds, and every route obeys both. Prose stops at the measure; a
+        table, a chart or a figure is allowed past it and stops at the content
+        cap. The cap bounds what a full-bleed strip lays out, never the strip: a
+        band’s ground and its top rule still run the whole column.
+    </p>
+    <div class="scale">
+        {#each measure as [name, value, role] (name)}
+            <div>
+                <span class="nm">{name}</span>
+                <span>{value} — {role}</span>
             </div>
         {/each}
     </div>

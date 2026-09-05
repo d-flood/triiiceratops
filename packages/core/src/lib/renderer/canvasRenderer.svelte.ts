@@ -323,6 +323,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         carry('boxThreshold', config?.boxThreshold);
         carry('minPixelRatio', config?.minPixelRatio);
         const animation = config?.animationTimeConstant;
+        const maxZoom = config?.maxZoomFactor;
         return {
             budgets,
             /**
@@ -332,6 +333,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             animationTime: usable(animation)
                 ? animation
                 : ANIMATION_TIME_CONSTANT,
+            /**
+             * How far past the fit the reader may zoom. A factor of 1 or less
+             * is rejected rather than honoured, the same way `zoomPerClick`
+             * refuses one: it would put the ceiling at or below the fit and
+             * leave a viewer that cannot zoom in at all.
+             */
+            maxZoomFactor:
+                usable(maxZoom) && maxZoom > 1 ? maxZoom : MAX_ZOOM_FACTOR,
         };
     });
 
@@ -1219,7 +1228,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         const { min, max } = zoomRange(
             homeScale(limits),
             limits.minZoom,
-            MAX_ZOOM_FACTOR,
+            knobs.maxZoomFactor,
             MIN_ZOOM_FRACTION,
         );
         return clamp(scale, min, max);

@@ -13,7 +13,9 @@
      * cluster centred on the bottom edge — so the swap on mount lands the
      * controls where they already appeared to be. Both are anchored to the
      * box's edges and sized in pixels, exactly as the real chrome is, so the
-     * match holds at every width.
+     * match holds at every width. The cluster's width depends on how many
+     * digits the canvas count takes, because the real counter's does; see
+     * `.vwc__at`.
      *
      * Decorative, and hidden from assistive technology: every control it draws
      * is inert, and the real ones arrive with the viewer.
@@ -25,6 +27,8 @@
      * performance, to draw shapes with no text in them at all.
      */
     let { canvases }: { canvases: number } = $props();
+
+    const digits = $derived(String(canvases).length);
 </script>
 
 <div class="vwc" aria-hidden="true">
@@ -43,7 +47,9 @@
             <span class="vwc__btn"
                 ><span class="vwc__chev vwc__chev--prev"></span></span
             >
-            <span class="vwc__at">1 / {canvases}</span>
+            <span class="vwc__at" style="--digits: {digits}"
+                >1 / {canvases}</span
+            >
             <span class="vwc__btn"
                 ><span class="vwc__chev vwc__chev--next"></span></span
             >

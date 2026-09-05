@@ -210,9 +210,18 @@ export const HEADROOM: { readonly competitor: string; readonly bytes: number } =
 
 /**
  * The plot's frame, in `viewBox` units. The left and bottom margins hold the
- * tick labels and the axis titles; the right one holds the widest point label.
+ * tick labels and the axis titles; the right one holds the widest point label,
+ * which is why the frame's right edge is well inside `WIDTH`.
  */
 const PLOT = { left: 70, right: 650, top: 30, bottom: 340 } as const;
+/**
+ * The `viewBox`'s extent. Wide enough that the longest viewer name, set beside a
+ * point plotted at `PLOT.right`, still ends inside the box: a label that runs
+ * past it is clipped, because the surrounding `.scatter` scrolls the whole
+ * figure rather than overflowing it.
+ */
+const WIDTH = 860;
+const HEIGHT = 400;
 const Y_TICK_STEP_KB = 200;
 const X_TICK_STEP = 20;
 /** Where a point's label sits relative to its mark. */
@@ -297,8 +306,8 @@ export const SCATTER: {
     readonly yTicks: readonly Tick[];
     readonly points: readonly ScatterPoint[];
 } = {
-    width: 680,
-    height: 400,
+    width: WIDTH,
+    height: HEIGHT,
     plot: PLOT,
     yMaxKb,
     xTicks: ticks(RECIPES.total, X_TICK_STEP, xAt),

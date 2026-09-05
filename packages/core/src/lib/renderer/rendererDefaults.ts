@@ -232,10 +232,21 @@ export const WHEEL_PAGE_PIXELS = WHEEL_LINE_PIXELS * 24;
 
 /**
  * How far past a whole-canvas fit the viewer may zoom in, as a multiple of the
- * fit scale. Generous: the point of a deep-zoom viewer is to exceed 1:1 on a
- * high-resolution scan.
+ * fit scale, and the default behind `ViewerConfig.renderer.maxZoomFactor`.
+ *
+ * Comfortably past 1:1 on a high-resolution scan — the point of a deep-zoom
+ * viewer — without running far past the pixels the source actually has. The
+ * ceiling is relative to the fit and the fit falls as the scan grows, so a
+ * generous factor buys a large scan the depth it deserves and hands a modest
+ * one nothing but magnified blur: an 8000-pixel folio fitted into an
+ * 800-pixel-wide viewport reaches about 1:1 at the ceiling, where a
+ * 1000-pixel one stops at 8x its own pixels rather than the 100x a much
+ * larger factor would allow.
+ *
+ * Consumers who know their own images are deeper than the fit suggests raise
+ * it through the knob.
  */
-export const MAX_ZOOM_FACTOR = 128;
+export const MAX_ZOOM_FACTOR = 8;
 
 /**
  * How small a canvas may get, as a fraction of the scale at which it exactly
@@ -268,8 +279,8 @@ export const MAX_ZOOM_FACTOR = 128;
  * would. Chosen deliberately — an overview of placeholder rectangles is not worth
  * a floor that reads as a broken viewer.
  *
- * A fixed number in this phase. Author-facing `minZoom`/`maxZoom` settings are
- * the intended home for it, and this is the default they will supply.
+ * A fixed number in this phase. An author-facing `minZoom` setting is the
+ * intended home for it, and this is the default it will supply.
  */
 export const MIN_ZOOM_FRACTION = 1 / 2;
 

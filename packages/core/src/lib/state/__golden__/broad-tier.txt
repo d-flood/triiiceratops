@@ -284,6 +284,8 @@ demo/iiif-wellcomecollection-b18035723.json
     canvases=36 withPainting=36 withoutPainting=0 withChoice=0 sequences=1 structureNodes=1
 demo/zavicajna-digitalna-manifest.json
     canvases=109 withPainting=109 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
+production/mkiiif-docuverse.json
+    canvases=2 withPainting=2 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
 synthetic/v2 level-0 image service
     canvases=2 withPainting=2 withoutPainting=0 withChoice=0 sequences=1 structureNodes=0
 synthetic/v2 manifest with two sequences

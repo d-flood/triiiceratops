@@ -58,10 +58,8 @@ describe('the route declaration', () => {
         expect(NAV.every(isNavigable)).toBe(true);
     });
 
-    it('renders the five editable routes from content and the rest from code', () => {
+    it('renders the three editable routes from content and the rest from code', () => {
         expect(CONTENT_ROUTES.map((route) => route.path)).toEqual([
-            '/',
-            '/handles/',
             '/install/',
             '/access/',
             '/production/',
@@ -75,7 +73,7 @@ describe('the route declaration', () => {
             ROUTES.filter((route) => route.source === 'code').map(
                 (route) => route.path,
             ),
-        ).toEqual(['/size/', '/configure/', '/system/']);
+        ).toEqual(['/', '/size/', '/handles/', '/configure/', '/system/']);
     });
 });
 

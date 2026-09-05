@@ -179,6 +179,27 @@
         };
     }
 
+    /**
+     * The band counterpart to {@link slideWidth}: animate a docked gallery band's
+     * height (0 → full) so the center viewer resizes smoothly as the band opens
+     * and closes, instead of the column snapping to its height in one frame.
+     *
+     * Sets no `overflow` of its own, unlike {@link slideWidth}: the band's own
+     * track already clips on this axis (`.gallery-content.content-horizontal` is
+     * `overflow-y: hidden`), and a clip here would also cut off the gallery's
+     * drop shadow — which for a TOP-docked band falls across the canvas, so it
+     * stayed hidden for the whole slide and then snapped in on the last frame.
+     * Left unclipped, the shadow travels with the growing edge.
+     */
+    function slideHeight(node: HTMLElement, { duration = 200 } = {}) {
+        const height = node.getBoundingClientRect().height;
+        return {
+            duration: prefersReducedMotion ? 0 : duration,
+            easing: cubicOut,
+            css: (t: number) => `height: ${t * height}px; min-height: 0;`,
+        };
+    }
+
     interface Props {
         manifestId?: string;
         manifestJson?: any;
@@ -1469,7 +1490,11 @@
 
 <!-- The docked gallery in a band across the top or bottom of the center column. -->
 {#snippet galleryBand()}
-    <div class="gallery-band" style="--ui-gallery-band: {galleryExtent}px">
+    <div
+        class="gallery-band"
+        style="--ui-gallery-band: {galleryExtent}px"
+        transition:slideHeight|global
+    >
         <ThumbnailGallery />
     </div>
 {/snippet}
