@@ -9,6 +9,11 @@
 // This inspects the ACTUAL packed `.tgz` (not `dist/`). A file passes only if it
 // matches an ALLOW rule AND no REJECT rule — so an allowed extension (`.js`)
 // living in a rejected location (`dist/test/…`, `__fixtures__`) still fails.
+//
+// One rule needs more than the allowlist: no published package may ship a
+// typeface. A font FILE is already excluded by the extension allowlist, but a
+// face embedded in a stylesheet as a data URI is ordinary CSS bytes, so the
+// stylesheets are read as well — see `assertTarballNoEmbeddedFonts`.
 
 import { execFileSync } from 'node:child_process';
 
@@ -388,6 +393,116 @@ export function assertCoreOptionalPeers(tarballPath, pkgName) {
     ];
 
     return { ok: checks.every((c) => c.ok), checks };
+}
+
+/**
+ * Every `@font-face` rule declared in a stylesheet, as its own text.
+ *
+ * A published package may not ship a typeface. The file-extension half of that
+ * rule is enforced by the allowlist above — no `.woff2` suffix is admitted
+ * anywhere — but the sharper failure is a face EMBEDDED in a stylesheet as a
+ * data URI, which arrives as ordinary CSS bytes and no extension rule can see.
+ * The comparison's own measurements record a competitor shipping 58% of its
+ * stylesheet that way.
+ *
+ * Any `@font-face` at all is the failure, embedded or linked: the viewer names
+ * two font custom properties and falls back to the reader's system faces (see
+ * docs/theming.md), so a consumer's page carries only the type it chose.
+ */
+export function findFontFaceRules(css) {
+    const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const rules = [];
+    const re = /@font-face\s*\{/gi;
+    let m;
+    while ((m = re.exec(withoutComments))) {
+        let depth = 1;
+        let i = m.index + m[0].length;
+        for (; i < withoutComments.length && depth; i++) {
+            if (withoutComments[i] === '{') depth++;
+            else if (withoutComments[i] === '}') depth--;
+        }
+        rules.push(withoutComments.slice(m.index, i).replace(/\s+/g, ' '));
+    }
+    return rules;
+}
+
+/** The stylesheet entries of a tarball, as `[relative path, contents]`. */
+function tarballStylesheets(tarballPath) {
+    return listTarball(tarballPath)
+        .filter(
+            (entry) => entry.startsWith('package/') && entry.endsWith('.css'),
+        )
+        .map((entry) => [
+            entry.slice('package/'.length),
+            execFileSync('tar', ['xzOf', tarballPath, entry], {
+                encoding: 'utf8',
+                maxBuffer: 64 * 1024 * 1024,
+            }),
+        ]);
+}
+
+/**
+ * Assert no stylesheet in a packed tarball declares a face. Returns
+ * { ok, checks }. Every offending rule is named with its file and its own text
+ * truncated, so the failure says which package and which rule rather than that
+ * something somewhere ships a font.
+ */
+export function assertTarballNoEmbeddedFonts(tarballPath, pkgName) {
+    const problems = [];
+    for (const [rel, css] of tarballStylesheets(tarballPath)) {
+        for (const rule of findFontFaceRules(css)) {
+            problems.push(`${rel}: ${rule.slice(0, 120)}`);
+        }
+    }
+    return {
+        ok: problems.length === 0,
+        checks: [
+            {
+                name: `${pkgName}: no @font-face in any published stylesheet`,
+                ok: problems.length === 0,
+                detail: problems.slice(0, 4).join(' | '),
+            },
+        ],
+    };
+}
+
+/**
+ * One-time self-check: prove the no-font rule bites on both halves — a planted
+ * `.woff2` in a `dist/`, and a face embedded in a stylesheet as a data URI.
+ * Kept as a permanent guard rather than mutating a real tarball, and paired with
+ * a clean stylesheet so the detector cannot pass by flagging everything.
+ * Returns { ok, detail }.
+ */
+export function selfCheckNoFonts() {
+    const planted = validateEntries([
+        'package/package.json',
+        'package/LICENSE',
+        'package/dist/index.js',
+        'package/dist/fonts/GenericSans-Variable.woff2', // the plant
+    ]);
+    const caughtFile = planted.problems.some(
+        (p) => p.entry === 'dist/fonts/GenericSans-Variable.woff2',
+    );
+
+    const embedded = findFontFaceRules(
+        '.viewer-root{color:red}' +
+            "@font-face{font-family:'X';src:url(data:font/woff2;base64,AA) format('woff2')}",
+    );
+    const commentedOut = findFontFaceRules(
+        '/* @font-face{font-family:"X"} */ .viewer-root{color:red}',
+    );
+
+    const ok =
+        caughtFile &&
+        embedded.length === 1 &&
+        embedded[0].includes('data:font/woff2') &&
+        commentedOut.length === 0;
+    return {
+        ok,
+        detail: ok
+            ? ''
+            : 'the no-font rule failed to reject a planted .woff2 or an embedded data-URI face',
+    };
 }
 
 /**

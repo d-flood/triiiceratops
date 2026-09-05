@@ -13,7 +13,7 @@
 //      nobody meant to move cannot move silently. A manifest URL whose
 //      normalized form escapes the publish root is itself an error.
 //   2. Every relative `href`/`src` in the four pages the publish job itself
-//      owns — the landing page, 404, /latest/ and /versions/ — resolves inside
+//      owns — the site root, 404, /latest/ and /versions/ — resolves inside
 //      the tree. These are hand-written or generated at a depth their source
 //      does not show, which is exactly how a link that reads correctly in the
 //      editor emits broken.
@@ -75,8 +75,7 @@ const MANIFEST = join(REPO_ROOT, 'site-urls.json');
  * The keys are the manifest's `owner` vocabulary.
  */
 const OWNER_HINTS = {
-    landing:
-        'copied from apps/landing/ by scripts/docs-publish.mjs (no build step)',
+    site: 'run `pnpm build:site`',
     demo: 'run `pnpm build:demo`',
     viewer: 'run `pnpm build:viewer`',
     docs: 'built by scripts/docs-publish.mjs (zensical build)',
@@ -85,12 +84,29 @@ const OWNER_HINTS = {
 };
 
 /**
- * Host control files: served out of the publish root but not public URLs, and so
- * not manifest entries. A manifest entry is a promise about a URL somebody can
- * link; `CNAME` is host configuration, the same category as the dotfiles check 4
- * already skips.
+ * Served out of the publish root but not public URLs, and so not manifest
+ * entries. A manifest entry is a promise about a URL somebody can link; nothing
+ * here is linkable, which is the same category as the dotfiles check 4 skips.
+ *
+ *   CNAME  host configuration, describing the domain rather than a path on it.
+ *   _app   the static adapter's asset directory for the marketing site: hashed
+ *          JavaScript and CSS the site's own markup references. It is served,
+ *          but no page links it and no reader could type it. Listing it in the
+ *          URL contract instead would make a promise about a path whose contents
+ *          are renamed by every build.
+ *   material
+ *          the example manifests and their images, which the marketing site's
+ *          embedded viewers load. Served, referenced only from the site's own
+ *          markup and from the manifests themselves, and never a URL a reader
+ *          is offered. Promising them would freeze fixture paths that exist to
+ *          be swapped for better material.
+ *   fonts  the self-hosted typefaces the marketing site's stylesheet names in
+ *          `@font-face` and its head preloads. Served, referenced only from CSS
+ *          and from a `rel=preload`, and never a page anyone could link. The
+ *          documentation's copies live inside each version directory, which the
+ *          `docs` owner already accounts for.
  */
-const HOST_CONTROL_FILES = new Set(['CNAME']);
+const HOST_CONTROL_FILES = new Set(['CNAME', '_app', 'fonts', 'material']);
 
 /** The publish job's own hand-written and generated pages, relative to the tree. */
 const OWNED_PAGES = [

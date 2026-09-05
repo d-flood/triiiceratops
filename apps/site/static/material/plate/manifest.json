@@ -1,0 +1,81 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/plate/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": [
+            "Reference plate"
+        ]
+    },
+    "summary": {
+        "en": [
+            "The repository's static-image fixture, served from the marketing site so the hero costs one same-origin request. Placeholder material: the public-domain plates the front page will run on are a tracked swap."
+        ]
+    },
+    "items": [
+        {
+            "id": "/material/plate/canvas/grid",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Numbered grid"
+                ]
+            },
+            "width": 1200,
+            "height": 900,
+            "items": [
+                {
+                    "id": "/material/plate/page/grid",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/plate/annotation/grid",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/plate/plate.png",
+                                "type": "Image",
+                                "format": "image/png",
+                                "width": 1200,
+                                "height": 900
+                            },
+                            "target": "/material/plate/canvas/grid"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/plate/canvas/plain",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Plain static image"
+                ]
+            },
+            "width": 400,
+            "height": 300,
+            "items": [
+                {
+                    "id": "/material/plate/page/plain",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/plate/annotation/plain",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23fef3c7'/%3E%3Crect x='40' y='40' width='320' height='220' fill='%23b45309'/%3E%3C/svg%3E",
+                                "type": "Image",
+                                "format": "image/svg+xml",
+                                "width": 400,
+                                "height": 300
+                            },
+                            "target": "/material/plate/canvas/plain"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

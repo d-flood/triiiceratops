@@ -92,4 +92,21 @@ export default ts.config(
         apps: ['apps/**'],
         packageSources: ['**/src/**'],
     }),
+    // The marketing site's two exemptions, repeated here against the root
+    // anchor. `apps/site/eslint.config.js` declares them for runs started in
+    // that directory; the pre-commit hook lints staged paths from the repo root,
+    // where those `src/**`-relative globs match nothing. The reasoning for each
+    // exemption lives in that file — keep the two in step.
+    {
+        files: ['apps/site/src/**/*.svelte', 'apps/site/src/**/*.ts'],
+        languageOptions: {
+            globals: {
+                __SITE_VERSION__: 'readonly',
+                __SITE_VERSION_DATE__: 'readonly',
+            },
+        },
+        rules: {
+            'svelte/no-navigation-without-resolve': 'off',
+        },
+    },
 );

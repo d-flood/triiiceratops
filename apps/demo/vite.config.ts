@@ -23,7 +23,6 @@ export default defineConfig({
     // publish job assembles the site's tree from each app's own output.
     test: {
         coverage,
-        // `playgroundState` reads `sessionStorage` and base64-encodes with `btoa`.
         environment: 'jsdom',
         include: ['src/**/*.test.ts'],
     },

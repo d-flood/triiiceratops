@@ -3,13 +3,48 @@
     "urls": [
         {
             "url": "/",
-            "owner": "landing",
-            "note": "The front door. A hand-written static page, served directly rather than redirecting anywhere, and the canonical URL for the project as a whole."
+            "owner": "site",
+            "note": "The front door, and the first of the marketing site's routes. Served directly rather than redirecting anywhere, and the canonical URL for the project as a whole."
         },
         {
             "url": "/404.html",
-            "owner": "landing",
-            "note": "The not-found page the static host serves for every unmatched path. Retired documentation URLs land here by design; nothing is redirected."
+            "owner": "site",
+            "note": "The not-found page the static host serves for every unmatched path. Retired documentation URLs land here by design; nothing is redirected. Prerendered at /404/ and relocated to this name by the site's own build."
+        },
+        {
+            "url": "/size/",
+            "owner": "site",
+            "note": "The comparative evidence: bundle size measured against how much of IIIF each viewer implements, with the method, the versions and the measurement date."
+        },
+        {
+            "url": "/handles/",
+            "owner": "site",
+            "note": "Whether the viewer copes with a given kind of material — codices, single sheets, photographic series, annotated and right-to-left material — each shown running."
+        },
+        {
+            "url": "/configure/",
+            "owner": "site",
+            "note": "The builder. A share URL landing here rehydrates the sender's configuration against a manifest, and the same URL opens in the playground and means the same thing."
+        },
+        {
+            "url": "/install/",
+            "owner": "site",
+            "note": "Framework specifics, versioning and bundler notes — what the install lines on the front page cannot cover."
+        },
+        {
+            "url": "/access/",
+            "owner": "site",
+            "note": "Which standards the viewer holds itself to, and how that is gated rather than asserted."
+        },
+        {
+            "url": "/production/",
+            "owner": "site",
+            "note": "Real deployments, each an openable link into a live reading room."
+        },
+        {
+            "url": "/system/",
+            "owner": "site",
+            "note": "The design-token appendix. Served and promised, but absent from the rail and from the sitemap and carrying noindex, so it does not compete with a real page for a query: this file is the contract, not the crawl policy."
         },
         {
             "url": "/demo/",
@@ -79,7 +114,7 @@
         {
             "url": "/social/og-landing-v1.png",
             "owner": "publish",
-            "note": "The social preview image the landing page's og:image points at. Same cache contract as the documentation card, and hardcoded absolutely in apps/landing/index.html."
+            "note": "The social preview image the landing page's og:image points at. Same cache contract as the documentation card, and hardcoded absolutely in apps/site/index.html."
         },
         {
             "url": "/social/og-viewer-v1.png",

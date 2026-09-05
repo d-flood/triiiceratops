@@ -16,10 +16,8 @@ permissions:
 jobs:
     # Required PR gate: the docs site builds with zero warnings and zero broken
     # internal links (`zensical build --strict`), every extracted doc example is
-    # in sync with the Markdown (`docs:examples:check`), the content-state
-    # conformance table matches its fixture index (`docs:content-state:check`),
-    # and the published Cookbook recipe-support numbers match the catalog
-    # (`docs:recipes:check`).
+    # in sync with the Markdown (`docs:examples:check`), and the content-state
+    # conformance table matches its fixture index (`docs:content-state:check`).
     # Runs on pull requests; the deploy job below runs only on pushes to main.
     #
     # Skipped on the Changesets "Version Packages" PR (see the note in test.yml):
@@ -153,7 +151,7 @@ jobs:
             # The assembly that actually ships always passes `--only`, so a gate
             # that only ever assembles everything asserts a tree that never
             # ships. This re-runs the narrowest selection over the tree just
-            # assembled — landing only, which needs no application build — and
+            # assembled — the site subtree only, which needs no application build — and
             # asserts every other subtree came through byte-identical. That is
             # the epic's isolation guarantee, checked rather than claimed.
             - name: Prove subtree isolation under --only
@@ -161,7 +159,7 @@ jobs:
                   set -euo pipefail
                   rm -rf "${RUNNER_TEMP}/baseline"
                   cp -a published "${RUNNER_TEMP}/baseline"
-                  node scripts/docs-publish.mjs --dest published --version "${{ steps.docsver.outputs.version }}" --only landing
+                  node scripts/docs-publish.mjs --dest published --version "${{ steps.docsver.outputs.version }}" --only site
                   for subtree in viewer demo docs; do
                       diff -r "${RUNNER_TEMP}/baseline/${subtree}" "published/${subtree}"
                   done
@@ -257,7 +255,7 @@ jobs:
             # IMMUTABLE and are preserved on every deploy. `docs-publish.mjs`
             # also builds the versioned site (correct canonical/site_url) and
             # maintains `versions.json`, the `/versions/` index and the `/latest/`
-            # redirect. The site root is not a redirect: the landing page is
+            # redirect. The site root is not a redirect: the site root page is
             # served there as a real document and carries its own canonical URL.
             #
             # The accumulated site is kept on the durable `docs-site` branch,
@@ -310,7 +308,7 @@ jobs:
             # something it is derived from changed, so a documentation typo fix
             # leaves the published viewer and playground bytes untouched.
             #
-            #   landing  apps/landing/**
+            #   site     apps/site/**
             #   demo     apps/demo/**     or packages/**
             #   viewer   apps/viewer/**   or packages/**
             #   docs     docs/**, apps/examples/**, or a version directory the
@@ -338,8 +336,8 @@ jobs:
             # versions.json and /latest/ from a tree that does not contain it.
             #
             # `--no-renames` because a rename is otherwise reported at its
-            # destination only: moving a file OUT of apps/landing/ would leave
-            # the published landing page stale with nothing in the diff saying so.
+            # destination only: moving a file OUT of apps/site/ would leave
+            # the published site root stale with nothing in the diff saying so.
             - name: Classify changed subtrees
               id: subtrees
               env:
@@ -355,12 +353,12 @@ jobs:
                   else
                       changed="$(git diff --no-renames --name-only "${BEFORE}" "${AFTER}")" || all=1
                   fi
-                  landing=0; demo=0; viewer=0; docs=0
+                  site=0; demo=0; viewer=0; docs=0
                   if [ "${all}" = "0" ]; then
                       while IFS= read -r f; do
                           [ -z "${f}" ] && continue
                           case "${f}" in
-                              apps/landing/*) landing=1 ;;
+                              apps/site/*) site=1 ;;
                               apps/demo/*) demo=1 ;;
                               apps/viewer/*) viewer=1 ;;
                               packages/*) demo=1; viewer=1 ;;
@@ -371,7 +369,7 @@ jobs:
                   ${changed}
                   EOF
                   fi
-                  if [ "${all}" = "1" ]; then landing=1; demo=1; viewer=1; docs=1; fi
+                  if [ "${all}" = "1" ]; then site=1; demo=1; viewer=1; docs=1; fi
                   if [ ! -d "published/docs/${VERSION}" ]; then
                       echo "published/docs/${VERSION} is absent from the restored tree: publishing documentation for it."
                       docs=1
@@ -380,9 +378,9 @@ jobs:
                   if [ "${docs}" = "1" ]; then only="${only},docs,examples"; fi
                   if [ "${viewer}" = "1" ]; then only="${only},viewer"; fi
                   if [ "${demo}" = "1" ]; then only="${only},demo"; fi
-                  if [ "${landing}" = "1" ]; then only="${only},landing"; fi
+                  if [ "${site}" = "1" ]; then only="${only},site"; fi
                   only="${only#,}"
-                  echo "landing=${landing}" >> "$GITHUB_OUTPUT"
+                  echo "site=${site}" >> "$GITHUB_OUTPUT"
                   echo "demo=${demo}" >> "$GITHUB_OUTPUT"
                   echo "viewer=${viewer}" >> "$GITHUB_OUTPUT"
                   echo "docs=${docs}" >> "$GITHUB_OUTPUT"
@@ -408,6 +406,10 @@ jobs:
             - name: Build example pages
               if: steps.subtrees.outputs.docs == '1'
               run: pnpm build:examples
+
+            - name: Build the marketing site
+              if: steps.subtrees.outputs.site == '1'
+              run: pnpm build:site
 
             # Zensical is needed only to build the documentation version
             # directory, which is the subtree most pushes do not select.
@@ -500,7 +502,7 @@ jobs:
             # a valid archive of an EMPTY tree extracts cleanly to nothing, which
             # no exit status can catch — that is the case that would force-push an
             # empty tree over `docs-site` and destroy every published version, so
-            # both the emptiness and the missing landing page are checked before
+            # both the emptiness and the missing site root page are checked before
             # anything is written or pushed.
             #
             # The input is attacker-controlled text and needs all three of the

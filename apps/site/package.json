@@ -1,0 +1,43 @@
+{
+    "name": "@triiiceratops/app-site",
+    "version": "0.0.0",
+    "type": "module",
+    "private": true,
+    "description": "The marketing site published at the domain root: a SvelteKit application on the static adapter, every route prerendered. A private workspace application; never published.",
+    "license": "MIT",
+    "author": "David Flood",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/d-flood/triiiceratops.git",
+        "directory": "apps/site"
+    },
+    "scripts": {
+        "dev": "vite dev",
+        "build": "vite build && node scripts/finish-build.mjs",
+        "preview": "vite preview",
+        "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+        "test": "vitest run",
+        "test:e2e": "playwright test",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0"
+    },
+    "dependencies": {
+        "@triiiceratops/comparison": "workspace:*",
+        "@triiiceratops/cookbook": "workspace:*",
+        "triiiceratops": "workspace:*"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.57.0",
+        "@sveltejs/adapter-static": "^3.0.9",
+        "@sveltejs/kit": "^2.49.2",
+        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "@types/node": "^24.10.1",
+        "eslint": "^9.39.2",
+        "lighthouse": "^13.4.1",
+        "svelte": "^5.43.8",
+        "svelte-check": "^4.3.4",
+        "typescript": "~5.9.3",
+        "vite": "^6.0.0",
+        "vitest": "^4.0.15"
+    }
+}

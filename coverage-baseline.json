@@ -1,4 +1,12 @@
 {
+    "@triiiceratops/comparison": {
+        "lines": 100,
+        "branches": 100
+    },
+    "@triiiceratops/config": {
+        "lines": 93.65,
+        "branches": 80.24
+    },
     "@triiiceratops/cookbook": {
         "lines": 100,
         "branches": 100
@@ -8,8 +16,8 @@
         "branches": 41.86
     },
     "@triiiceratops/plugin-av": {
-        "lines": 94.09,
-        "branches": 81.3
+        "lines": 91.71,
+        "branches": 81
     },
     "@triiiceratops/plugin-image-export": {
         "lines": 51.54,

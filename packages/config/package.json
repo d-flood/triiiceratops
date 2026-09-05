@@ -1,0 +1,39 @@
+{
+    "name": "@triiiceratops/config",
+    "version": "0.0.0",
+    "type": "module",
+    "description": "Internal, unpublished configuration algebra for the share URL: the sparse-config merge/diff, the IIIF content state encoding, and the URL/sessionStorage resolution. Consumed as TypeScript source by the playground and the marketing site; never shipped to a consumer.",
+    "license": "MIT",
+    "author": "David Flood",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/d-flood/triiiceratops.git",
+        "directory": "packages/config"
+    },
+    "private": true,
+    "sideEffects": false,
+    "types": "./src/index.ts",
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "default": "./src/index.ts"
+        }
+    },
+    "scripts": {
+        "check": "tsc -p tsconfig.json --noEmit",
+        "test": "vitest run",
+        "test:coverage": "vitest run --coverage",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0"
+    },
+    "peerDependencies": {
+        "triiiceratops": "workspace:^"
+    },
+    "devDependencies": {
+        "@vitest/coverage-v8": "4.0.15",
+        "jsdom": "^27.3.0",
+        "triiiceratops": "workspace:*",
+        "typescript": "~5.9.3",
+        "vitest": "^4.0.15"
+    }
+}

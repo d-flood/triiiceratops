@@ -599,7 +599,7 @@ so a subtree no job touched is preserved rather than rebuilt or dropped.
 
 | subtree                                                             | owner           | trigger                                     |
 | ------------------------------------------------------------------- | --------------- | ------------------------------------------- |
-| `/`, `/404.html`                                                    | landing         | `apps/landing/**`                           |
+| `/`, `/404.html`                                                    | site            | `apps/site/**`                              |
 | `/demo/**`                                                          | demo            | `apps/demo/**` or `packages/**`             |
 | `/viewer/**`                                                        | viewer          | `apps/viewer/**` or `packages/**`           |
 | `/docs/<ver>/**` incl. `examples/` and `dist/`                      | docs + examples | `docs/**`, `apps/examples/**`, or a release |
