@@ -30,6 +30,37 @@
 #     block. Ticket 06 taught the enumerator the v2 Choice spelling; the canvas
 #     rendered nothing before.
 #
+# MOVE ACCEPTED AT THE SECOND RE-PIN (`plugin-av` ticket 02):
+#   - `vendored/lunchroom-manners.json` canvas [0] went
+#     thumbnail=`.../lunchroom_manners_1024kb.mp4` -> `<none>`, and this is the
+#     ONE record in either tier that shows the thumbnail half of the classifier.
+#     That canvas declares no `thumbnail`, so the strip fell back to the
+#     painting body's own id — which here is an MP4, put straight into an
+#     `<img src>` and rendered as a broken image. The fallback is now gated by
+#     the painting-body classifier, so it declines to answer rather than
+#     answering with a video. `<none>` is what routes the canvas to the strip's
+#     no-thumbnail treatment, where it gets an audiovisual glyph instead of a
+#     broken picture (user story 29).
+#
+#     Reaching that body at all is itself the fix to a second, latent defect.
+#     This canvas's `body` is an ARRAY — `[Choice(three Videos), Text(vtt)]` —
+#     and the old code tested for a Choice BEFORE unwrapping the array, so it
+#     saw "not a Choice", took `body[0]`, and got the Choice object itself,
+#     which has no id. Its `images:` line read `(none)` by accident. The PAINT
+#     path now unwraps the array first and so resolves the Choice properly, and
+#     the classifier is what keeps that from turning an accident into an MP4 in
+#     the tile pipeline (user story 40). `images: (none)` is unchanged and now
+#     means what it says.
+#
+#     `withChoice` is unaffected, and this canvas still reads `withChoice=0`.
+#     `getCanvasChoices` (and `ThumbnailGallery`'s badge) still test for a
+#     Choice BEFORE unwrapping the body array, so on this shape they go on
+#     seeing "not a Choice" and offer no alternatives. Known follow-up rather
+#     than an oversight: user story 40 is about the image pipeline, and the only
+#     shape where the two paths would visibly disagree is a
+#     `[Choice(imageA, imageB), Text(vtt)]` — painting imageA while the choice
+#     picker lists nothing — which no corpus fixture has.
+#
 # RE-CURATION — three fixtures were swapped in and three out, inside the SPEC's
 # 15-20 budget. The original 20 gave this tier ZERO variance on two of the three
 # manifest scalars it records (`startCanvasId=<none>` and
@@ -123,8 +154,10 @@
 #     dimensions are strings, not just the height, and `getCanvasDimensions`
 #     requires numbers, so the canvas renders blank.
 #   - `vendored/lunchroom-manners.json` — `paintingAnnotations=1` with
-#     `images: (none)`. Enumeration works; the annotation is a Choice of Video
-#     bodies and there is no image to paint.
+#     `images: (none)`. Enumeration works; the annotation's body array holds a
+#     Choice of Video bodies and a VTT, and none of that is an image to paint.
+#     Since `plugin-av` ticket 02 that is a decision rather than an accident —
+#     see the move recorded above.
 #   - `vendored/audio.json` — `paintingAnnotations=0` on both canvases, and
 #     that is CORRECT, not a loss. An IxIF `element` is a `dctypes:Sound`
 #     resource with no `images`, `items` or `content`: the media is the element
@@ -546,7 +579,7 @@ structures:
   [0] id=http://dlib.indiana.edu/iiif_av/lunchroom_manners/canvas/1
       label=Beginning Reponsibility: Lunchroom Manners [motion picture] Coronet Films
       size=480x360
-      thumbnail=http://dlib.indiana.edu/iiif_av/lunchroom_manners/high/lunchroom_manners_1024kb.mp4
+      thumbnail=<none>
       paintingAnnotations=1
       images:
         (none)

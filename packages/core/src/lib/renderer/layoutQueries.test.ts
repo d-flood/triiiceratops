@@ -15,6 +15,7 @@ import {
     boxContains,
     canvasBoxToWorld,
     canvasPointToWorld,
+    canvasExtent,
     canvasScaleFactor,
     fitTargetBounds,
     navigationTargetBounds,
@@ -308,6 +309,63 @@ describe('canvas space <-> world space', () => {
             x: 100,
             y: 100,
         });
+    });
+});
+
+describe('canvasExtent', () => {
+    it('is the declared size when the manifest gave one', () => {
+        expect(
+            canvasExtent({
+                rect: {
+                    canvasId: 'c',
+                    x: 500,
+                    y: 40,
+                    width: 800,
+                    height: 1000,
+                },
+                width: 1600,
+                height: 2000,
+            }),
+        ).toEqual({ width: 1600, height: 2000 });
+    });
+
+    /*
+        The duration-only audio canvas. It declares nothing, layout sized it
+        from its siblings anyway, and that rect IS its canvas space — which is
+        what a claimant has to project to put a stage over it.
+    */
+    it('falls back to the laid-out rect, per axis', () => {
+        expect(
+            canvasExtent({
+                rect: { canvasId: 'c', x: 0, y: 0, width: 640, height: 360 },
+                width: null,
+                height: null,
+            }),
+        ).toEqual({ width: 640, height: 360 });
+
+        expect(
+            canvasExtent({
+                rect: { canvasId: 'c', x: 0, y: 0, width: 640, height: 360 },
+                width: 1600,
+                height: null,
+            }),
+        ).toEqual({ width: 1600, height: 360 });
+    });
+
+    it('agrees with the point mapping, which is what makes it usable as a rect', () => {
+        const placement = {
+            rect: { canvasId: 'c', x: 12, y: 34, width: 640, height: 360 },
+            width: null,
+            height: null,
+        };
+        const extent = canvasExtent(placement);
+
+        expect(
+            canvasPointToWorld(
+                { x: extent.width, y: extent.height },
+                placement,
+            ),
+        ).toEqual({ x: 12 + 640, y: 34 + 360 });
     });
 });
 

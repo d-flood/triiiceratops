@@ -4,6 +4,8 @@
  * "sc:Range"` with `canvases` / `ranges` arrays.
  */
 
+import { parseIiifTime } from './iiifTargets';
+import type { IiifTemporalFragment } from './iiifTime';
 import { resolveLanguageValue } from './languageMap';
 
 export interface StructureNode {
@@ -17,8 +19,30 @@ export interface StructureNode {
     depth: number;
     /** Canvas IDs directly referenced by this range (not children) */
     canvasIds: string[];
+    /**
+     * The `#t=` media time each entry of {@link canvasIds} was targeted at,
+     * index-aligned with it and `null` where the target carried no time. A
+     * range that targets the same canvas twice at different times — the shape
+     * chapters of a single recording take — appears twice in both arrays.
+     */
+    canvasTimes: (IiifTemporalFragment | null)[];
     /** Nested child ranges */
     children: StructureNode[];
+}
+
+/**
+ * Record one canvas target, splitting its id from its media fragment: the
+ * canvas resolves by stripped id, the time rides alongside it.
+ */
+function pushCanvasTarget(
+    target: string,
+    canvasIds: string[],
+    canvasTimes: (IiifTemporalFragment | null)[],
+) {
+    const canvasId = target.split('#')[0];
+    if (!canvasId) return;
+    canvasIds.push(canvasId);
+    canvasTimes.push(parseIiifTime(target));
 }
 
 /** Resolve a IIIF label value to a plain string. */
@@ -43,6 +67,7 @@ function parseV3Range(range: any, depth: number): StructureNode {
     const label = resolveLabel(range.label);
     const behaviors = getBehaviors(range);
     const canvasIds: string[] = [];
+    const canvasTimes: (IiifTemporalFragment | null)[] = [];
     const children: StructureNode[] = [];
 
     if (Array.isArray(range.items)) {
@@ -53,16 +78,18 @@ function parseV3Range(range: any, depth: number): StructureNode {
             if (itemType === 'Range') {
                 children.push(parseV3Range(item, depth + 1));
             } else if (itemType === 'Canvas') {
-                const canvasId = (item.id || item['@id'] || '').split('#')[0];
-                if (canvasId) canvasIds.push(canvasId);
+                pushCanvasTarget(
+                    item.id || item['@id'] || '',
+                    canvasIds,
+                    canvasTimes,
+                );
             } else if (typeof item === 'string') {
-                const canvasId = item.split('#')[0];
-                if (canvasId) canvasIds.push(canvasId);
+                pushCanvasTarget(item, canvasIds, canvasTimes);
             }
         }
     }
 
-    return { id, label, behaviors, depth, canvasIds, children };
+    return { id, label, behaviors, depth, canvasIds, canvasTimes, children };
 }
 
 /**
@@ -78,14 +105,16 @@ function parseV2Range(
     const label = resolveLabel(range.label);
     const behaviors = getBehaviors(range);
     const canvasIds: string[] = [];
+    const canvasTimes: (IiifTemporalFragment | null)[] = [];
     const children: StructureNode[] = [];
 
     if (Array.isArray(range.canvases)) {
         for (const c of range.canvases) {
-            const cid = (
-                typeof c === 'string' ? c : c['@id'] || c.id || ''
-            ).split('#')[0];
-            if (cid) canvasIds.push(cid);
+            pushCanvasTarget(
+                typeof c === 'string' ? c : c['@id'] || c.id || '',
+                canvasIds,
+                canvasTimes,
+            );
         }
     }
 
@@ -94,8 +123,11 @@ function parseV2Range(
         for (const member of range.members) {
             const memberType = member['@type'] || member.type;
             if (memberType === 'sc:Canvas' || memberType === 'Canvas') {
-                const cid = (member['@id'] || member.id || '').split('#')[0];
-                if (cid) canvasIds.push(cid);
+                pushCanvasTarget(
+                    member['@id'] || member.id || '',
+                    canvasIds,
+                    canvasTimes,
+                );
             } else if (memberType === 'sc:Range' || memberType === 'Range') {
                 const memberId = member['@id'] || member.id;
                 const childRange = allRangesById.get(memberId) || member;
@@ -122,7 +154,7 @@ function parseV2Range(
         }
     }
 
-    return { id, label, behaviors, depth, canvasIds, children };
+    return { id, label, behaviors, depth, canvasIds, canvasTimes, children };
 }
 
 /**

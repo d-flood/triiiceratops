@@ -8,11 +8,16 @@
  */
 
 import type { ViewingDirection, ViewingMode } from '../components/canvasLayout';
+import type { ImageSource } from '../utils/resolveCanvasImage';
 
 export type { ViewingDirection, ViewingMode };
 
 /**
  * Where a canvas's pixels come from.
+ *
+ * The renderer's name for `utils/resolveCanvasImage.ImageSource`, which is where
+ * the three-branch decision that produces one is made, so the planner and the
+ * legacy tile-source path cannot disagree about which URL a canvas resolves to.
  *
  * `static` is one known URL. `service` is an image service the planner resolves
  * once its `info.json` has been fetched — into a tile pyramid when it advertises
@@ -22,9 +27,7 @@ export type { ViewingDirection, ViewingMode };
  * its declared profile: a profile can be missing, and a level0 service that
  * advertises tiles is an ordinary pyramid.
  */
-export type SourceDescriptor =
-    | { kind: 'static'; url: string }
-    | { kind: 'service'; serviceId: string; profile: string | null };
+export type SourceDescriptor = ImageSource;
 
 /**
  * One picture placed on a canvas by one painting annotation: where its pixels
@@ -93,13 +96,37 @@ export interface PlannerCanvas {
     width: number | null;
     height: number | null;
     /**
+     * The Canvas's declared `duration` in seconds, or `null` where it declares
+     * none — which is every image canvas, and so the overwhelmingly common case.
+     *
+     * Carried for one purpose: a canvas with a duration and no picture has a
+     * KNOWN shape rather than an unknown one, and `planScene.resolveGeometry`
+     * gives it a timeline-shaped rect instead of a page-shaped guess. It is
+     * consulted nowhere else, and never for a canvas that paints images — a
+     * canvas carrying both a video body and an image one is core's to paint, and
+     * its geometry is its images' (`0489-multimedia-canvas`).
+     *
+     * Not the playhead's business: the AV plugin reads the duration it plays
+     * against off the manifest itself (`plugin-av/sources.scanCanvasForAv`), and
+     * core makes no claim here about what any element will report.
+     */
+    duration?: number | null;
+    /**
      * Every picture painted on this canvas, in the manifest's own annotation
      * order — which is paint order, so a later entry paints over an earlier one.
      *
-     * Never empty: `canvasDescriptors.toPlannerCanvas` returns `null` for a
-     * canvas that paints nothing usable, so such a canvas never becomes a
-     * `PlannerCanvas` at all. The overwhelmingly common case is exactly one
-     * entry covering the whole canvas.
+     * **Empty means the unsupported presentation**, and it is the only thing it
+     * can mean. `canvasDescriptors.toPlannerCanvas` returns `null` for a canvas
+     * that paints nothing at all and for one whose image bodies resolved to
+     * nothing requestable, so the single surviving imageless case is a canvas
+     * whose painting bodies are all non-image — a film, a sound recording. Core
+     * keeps it in layout, navigation and the thumbnail strip and paints an
+     * honest placeholder over its rect (CONTEXT.md → **Unsupported
+     * presentation**; ADR 0017). Deliberately not a `CanvasErrorKind`: nothing
+     * failed, nothing was requested, and there is nothing to retry.
+     *
+     * The overwhelmingly common case is exactly one entry covering the whole
+     * canvas.
      */
     images: PlannerImage[];
     /**
@@ -125,6 +152,22 @@ export interface PlannerCanvas {
      * image's own box (see `planScene.planThumbnail`).
      */
     thumbnailUrl?: string | null;
+    /**
+     * Pictures this canvas does not paint but is about to — held **resident and
+     * unpainted**, so that whatever names them next has them already.
+     *
+     * The one producer is `companionCanvases.withCompanion`: a claimed canvas
+     * showing its `placeholderCanvas` carries its `accompanyingCanvas` here, so
+     * that pressing play selects between two pictures in hand rather than
+     * starting a fetch (user story 41). Absent everywhere else, including on
+     * every canvas of every manifest with no AV plugin registered.
+     *
+     * **One request each, and never a draw**: the base level where that is a
+     * single tile covering the whole image, and otherwise the base rung of the
+     * thumbnail ladder. A companion with no such cheap whole view is not warmed
+     * at all. `planScene` says why that is the bound it is.
+     */
+    warmImages?: PlannerImage[];
 }
 
 /** A point in canvas space. */
@@ -532,18 +575,6 @@ export interface ScenePlan {
      * be keyed on the pair and "permanently" has to come out of this sentence.
      */
     unresolvedThumbnails: string[];
-    /**
-     * Canvas ids drawn **over** `budgets.maxDecodedPixels` because every image
-     * their service offers exceeds it.
-     *
-     * The cap normally degrades to blur: a rung above it is refused and a
-     * coarser one is taken. When even the cheapest rung is over the ceiling
-     * there is no coarser one, and the choice is between a blank canvas and a
-     * decode the budget said no to. The renderer draws it — never blank wins —
-     * and reports it here rather than overriding the budget in silence, so a
-     * host can decide what to do with it.
-     */
-    overCapCanvases: string[];
     /** The derived zoom floor, in the same units as `Viewport.scale`. */
     minZoom: number;
 }

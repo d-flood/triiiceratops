@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    getDeclaredDuration,
     getDeclaredThumbnailUrl,
     toPlannerCanvas,
     toPlannerCanvases,
@@ -54,6 +55,7 @@ describe('toPlannerCanvas', () => {
             id: 'https://example.test/canvas/1',
             width: 1000,
             height: 750,
+            duration: null,
             images: [
                 {
                     key: 'https://example.test/canvas/1#0',
@@ -125,6 +127,7 @@ describe('toPlannerCanvas', () => {
             id: 'https://example.test/canvas/2',
             width: 800,
             height: 600,
+            duration: null,
             images: [
                 {
                     key: 'https://example.test/canvas/2#0',
@@ -331,6 +334,64 @@ describe('toPlannerCanvas — composite canvases', () => {
  * the branch they feed must never be replaced by a discovery fetch merely
  * because a canvas is raw JSON now (spec §Thumbnail resolution, rung 1).
  */
+describe('getDeclaredDuration', () => {
+    /** A Canvas whose only painting body is a `Sound`: duration, no dimensions. */
+    const soundCanvas = {
+        id: 'https://example.test/canvas/1',
+        type: 'Canvas',
+        duration: 180.5,
+        items: [
+            {
+                id: 'https://example.test/page/1',
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        id: 'https://example.test/anno/1',
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        body: {
+                            id: 'https://example.test/audio.mp3',
+                            type: 'Sound',
+                            format: 'audio/mp3',
+                            duration: 180.5,
+                        },
+                        target: 'https://example.test/canvas/1',
+                    },
+                ],
+            },
+        ],
+    };
+
+    it('reads a declared duration', () => {
+        expect(getDeclaredDuration(soundCanvas)).toBe(180.5);
+    });
+
+    it('reports null for a canvas that declares none, and for an unusable one', () => {
+        expect(getDeclaredDuration(v3Canvas(STATIC_BODY))).toBeNull();
+        expect(getDeclaredDuration({ duration: 0 })).toBeNull();
+        expect(getDeclaredDuration({ duration: '180' })).toBeNull();
+        expect(getDeclaredDuration(null)).toBeNull();
+    });
+
+    it('carries the duration onto the descriptor of a canvas core cannot paint', () => {
+        // The one consumer: a canvas with a duration and no images has a known
+        // shape rather than an unknown one, and the planner lays it out as a
+        // timeline rather than as a page (`planScene.placeholderBox`).
+        expect(toPlannerCanvas(soundCanvas)).toMatchObject({
+            width: null,
+            height: null,
+            duration: 180.5,
+            images: [],
+        });
+    });
+
+    it('carries null on an image canvas, which is what the planner reads it as', () => {
+        expect(toPlannerCanvas(v3Canvas(STATIC_BODY))).toMatchObject({
+            duration: null,
+        });
+    });
+});
+
 describe('getDeclaredThumbnailUrl', () => {
     it('reads a v3 canvas thumbnail — an array of resources with `id`', () => {
         const canvas = v3Canvas(STATIC_BODY, {

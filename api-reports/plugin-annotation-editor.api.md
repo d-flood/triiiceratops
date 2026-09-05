@@ -119,7 +119,7 @@ export interface W3CAnnotation<TBody = W3CAnnotationBody> {
 /**
  * Shape an adapter's `load()`/`hydrate()` may return. Beyond a stored
  * annotation it may carry the internal skeleton markers the plugin reads exactly
- * once and strips before anything enters the cache or Annotorious (ticket 03):
+ * once and strips before anything enters the cache or Annotorious:
  * `__fullBodyLoaded: false` signals a skeleton whose body must be fetched via
  * `hydrate()`. These markers are NOT part of the stored annotation contract —
  * they never round-trip — so they live here rather than on {@link W3CAnnotation}.
@@ -207,8 +207,8 @@ export declare const AnnotationEditorPlugin: SdkPlugin;
 import type { AnnotationStorageAdapter } from '../types';
 /**
  * Adapter authoring kit — a reusable conformance suite so adapter authors can
- * verify their implementation against the contract the plugin relies on (ticket
- * 10, F28 / SPEC §2.6).
+ * verify their implementation against the contract the plugin relies on (F28 /
+ * SPEC §2.6).
  *
  * An adapter is pure storage: the plugin owns display sync, caching, id
  * bookkeeping, timestamp/attribution stamping, and error handling. This suite

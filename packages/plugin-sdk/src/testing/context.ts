@@ -266,6 +266,7 @@ export function createTestViewerContext(
 
     const selectorRuntime = createSelectorRuntime(viewerState);
     let releaseRenderer: (() => void) | null = null;
+    let retirePublished: (() => void) | null = null;
 
     const context: PluginContext = {
         viewerState,
@@ -274,6 +275,15 @@ export function createTestViewerContext(
         styles,
         locale,
         ui,
+        // The real publication path against the real state, keyed by the same
+        // chrome id `runActivation` uses — so a direct `view.mount` test reads
+        // its plugin back through `viewerState.getPluginState(uiId)` exactly as
+        // a host does. Superseded on re-publish and released by `dispose`, which
+        // is what the activation lifecycle does for it in production.
+        publishState(published): void {
+            retirePublished?.();
+            retirePublished = viewerState.publishPluginState(uiId, published);
+        },
     };
 
     return {
@@ -296,6 +306,8 @@ export function createTestViewerContext(
         dispose(): void {
             releaseRenderer?.();
             releaseRenderer = null;
+            retirePublished?.();
+            retirePublished = null;
             selectorRuntime.dispose();
         },
     };

@@ -1,4 +1,5 @@
-import { getIiifCanvasId, parseIiifXywh } from './iiifTargets';
+import { getIiifCanvasId, parseIiifTime, parseIiifXywh } from './iiifTargets';
+import type { IiifTemporalFragment } from './iiifTime';
 
 export type CanvasRegion = {
     x: number;
@@ -11,6 +12,8 @@ export type ContentStateTarget = {
     manifestId: string;
     canvasId?: string;
     region?: CanvasRegion;
+    /** Media time the target selected (`#t=`), the temporal peer of `region`. */
+    time?: IiifTemporalFragment;
 };
 
 function decodeContentState(value: string): string {
@@ -28,7 +31,7 @@ function decodeContentState(value: string): string {
 
 function parseTarget(
     target: string,
-): Pick<ContentStateTarget, 'canvasId' | 'region'> {
+): Pick<ContentStateTarget, 'canvasId' | 'region' | 'time'> {
     const xywh = parseIiifXywh(target);
 
     return {
@@ -41,6 +44,7 @@ function parseTarget(
                   height: xywh[3],
               }
             : undefined,
+        time: parseIiifTime(target) || undefined,
     };
 }
 

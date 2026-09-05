@@ -2,9 +2,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
+import dropLightDomOnly from './src/packaging/dropLightDomOnly';
 import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
+import { messageCompiler } from './src/packaging/messageCompiler';
 import { minifyCssPreprocessor } from './src/packaging/minifyCss';
 import { terserElementBuilds } from './src/packaging/terserElement';
 
@@ -33,10 +34,7 @@ export default defineConfig({
             dynamicCompileOptions: customElementGuard.dynamicCompileOptions,
         }),
         customElementGuard.plugin,
-        paraglideVitePlugin({
-            project: './project.inlang',
-            outdir: './src/lib/paraglide',
-        }),
+        messageCompiler(),
         // The same second pass the IIFE gets, from the same module, so the two
         // artifacts cannot be minified to different settings.
         terserElementBuilds(),
@@ -44,6 +42,11 @@ export default defineConfig({
     esbuild: {
         pure: ['console.log', 'console.debug'],
         drop: ['debugger'],
+    },
+    css: {
+        // The same shadow-root CSS trim the IIFE gets, from the same module, so
+        // the two artifacts cannot ship different stylesheets.
+        postcss: { plugins: [dropLightDomOnly()] },
     },
     build: {
         minify: true,

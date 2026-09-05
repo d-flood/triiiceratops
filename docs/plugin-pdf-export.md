@@ -236,6 +236,35 @@ type PdfExportConfig = {
 };
 ```
 
+## Audiovisual Canvases
+
+A canvas whose painting annotations place only non-image content — audio, video, a
+3D model — has no page in the PDF. It is the canvas the viewer itself gives the
+**unsupported presentation** to, and a range covering N image canvases and M such
+canvases exports N pages, with M silently omitted. That is a contract, not an
+accident:
+
+- Omitted canvases are **not** failures. They do not appear in `failedCanvases`, and
+  the export reports no partial-success warning over them: there was never an image to
+  fetch.
+- `exportedCount`, the progress messages, and the `indices` / `canvases` handed to
+  `getFilename` all describe the pages actually produced, so a host naming the file
+  after its contents cannot name a canvas the file does not contain. The `startIndex`
+  and `endIndex` in that same context still report the range the reader asked for.
+- The panel's selected-canvas count follows the same rule: it is the number of pages
+  the export will produce, so it never promises a page the file does not contain.
+- Nothing is substituted for the missing image. A poster thumbnail, a
+  `placeholderCanvas`, or an `accompanyingCanvas` describes the media; none of them is
+  the canvas, and exporting one would hand the reader a page the manifest never said
+  was the content.
+- A range with no image canvases in it at all is refused rather than saved as an empty
+  PDF, and the panel says so in as many words — "Unable to export any canvases to
+  PDF", not a bare export failure.
+
+A **canvas claim** makes no difference. A claim is about what is rendered on screen;
+whether a page can be produced is decided by the canvas's own painting bodies, so the
+answer is the same whether or not a media plugin has taken the canvas over.
+
 ## Filename
 
 Set `filename` when the consuming application should control the downloaded PDF name with a static value. The value is passed directly to the browser download link, so include the `.pdf` extension when you want it shown in the saved file name.

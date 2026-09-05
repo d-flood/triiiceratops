@@ -28,10 +28,16 @@ import {
     type OverlayLayer,
     type RegisteredOverlayLayer,
 } from '../renderer/overlayLayers.js';
+import {
+    createTransportChromeRegistry,
+    type RegisteredTransportChrome,
+    type TransportChrome,
+} from './transportChrome.js';
 import { ZOOM_PER_CLICK as DEFAULT_ZOOM_PER_CLICK } from '../renderer/rendererDefaults.js';
 import {
     NEUTRAL_IMAGE_ADJUSTMENTS,
     ZERO_VIEWPORT_INSET,
+    type CanvasSize,
     type ContainerSize,
     type ImageAdjustments,
     type ViewportBox,
@@ -70,6 +76,8 @@ import {
     parseSearchResponse,
 } from '../utils/iiifSearch';
 import type { CanvasRegion } from '../utils/contentState';
+import { parseIiifSelectorTime, parseIiifTime } from '../utils/iiifTargets';
+import type { IiifTemporalFragment } from '../utils/iiifTime';
 import {
     findCanvasIndexById,
     getAnnotationId,
@@ -78,21 +86,40 @@ import {
 } from '../utils/iiifIds';
 import { getPagedCanvasGroups } from '../components/viewerControls';
 import { getThumbnailSrc } from '../utils/getThumbnailSrc';
+import { toBehaviorList } from '../utils/iiifParsing';
 
 /**
- * `behavior` (IIIF v3) and `viewingHint` (IIIF v2) may each be a bare string or
- * an array of them. Absent reads as no behaviors at all.
+ * The media time a navigation carried, and the canvas it belongs to.
+ *
+ * Core parses and carries it; only a claimant of that canvas interprets it, as
+ * a seek and never as autoplay. `endSeconds` — a chapter range's end — is
+ * carried but never enforced: nothing in core stops playback at it.
  */
-function asBehaviorList(value: unknown): string[] {
-    if (value === null || value === undefined || value === '') return [];
-    return (Array.isArray(value) ? [...value] : [value]) as string[];
-}
+export type TemporalOffset = IiifTemporalFragment & { canvasId: string };
 
-function normalizeIiifBehavior(value: unknown): string {
-    const normalized = String(value).trim().toLowerCase();
-    const segments = normalized.split(/[#/:]/);
-    return segments[segments.length - 1] || normalized;
-}
+/**
+ * Which companion Canvas core paints for a claimed canvas, if either.
+ *
+ * The value names a Presentation 3 property of the claimed canvas —
+ * `placeholderCanvas` or `accompanyingCanvas` — which core resolves itself; it
+ * never carries one. `'none'` is the default, so a claimant that never sets a
+ * phase leaves the claim's suppression-only semantics exactly as they are.
+ */
+export type CompanionPhase = 'none' | 'placeholder' | 'accompanying';
+
+const COMPANION_PHASES: readonly string[] = [
+    'none',
+    'placeholder',
+    'accompanying',
+];
+
+// Failure sentences that go out twice — once to the console, once as a
+// structured `ViewerError` message — so the two cannot drift apart.
+const FULLSCREEN_FAILED = 'Fullscreen request failed.';
+const FULLSCREEN_ELEMENT_MISSING =
+    'Cannot toggle fullscreen: viewer element not found.';
+const SEARCH_SERVICE_MISSING = 'No IIIF search service found in manifest.';
+const SEARCH_FAILED = 'Search request failed.';
 
 /**
  * Snapshot of viewer state for external consumers.
@@ -119,8 +146,6 @@ export interface ViewerStateSnapshot {
         | 'bottom-to-top';
     preserveCanvasScale: boolean;
     galleryExpanded: boolean;
-    galleryPosition: { x: number; y: number };
-    gallerySize: { width: number; height: number };
 }
 
 export class ViewerState {
@@ -136,6 +161,15 @@ export class ViewerState {
     showCanvasInfo = $state(false);
     showStructuresPanel = $state(false);
     initialCanvasRegion = $state<CanvasRegion | null>(null);
+
+    /**
+     * The media time the last navigation carried (a structure item's `#t=`, a
+     * manifest `start`, a content-state target), or `null` when it carried
+     * none. Replaced whole by every navigation, so a subscriber reads the
+     * current value rather than consuming a queue: there is no auto-clear and
+     * no consume-once semantics.
+     */
+    temporalOffset = $state<TemporalOffset | null>(null);
     dockSide = $state('bottom');
     /** Reactive collection declared as a plain `Set` — see the note on the `svelte/reactivity` import. */
     visibleAnnotationIds: Set<string> = new SvelteSet<string>();
@@ -300,10 +334,9 @@ export class ViewerState {
      * this is the *default* state and not a user choice: core calls it only while
      * the reader has not touched visibility themselves.
      *
-     * Distinct from {@link showCurrentCanvasAnnotations}, which is about ONE
-     * canvas and stays as it was. In `paged` the facing page's annotations would
-     * otherwise arrive hidden — drawn nowhere, and a panel row whose eye says
-     * "hidden" for something the reader never hid.
+     * Multi-canvas by design: in `paged` a single-canvas pass would leave the
+     * facing page's annotations hidden — drawn nowhere, and a panel row whose eye
+     * says "hidden" for something the reader never hid.
      */
     showVisibleCanvasAnnotations() {
         this.clearAnnotationVisibility();
@@ -328,23 +361,6 @@ export class ViewerState {
         }
     }
 
-    showCurrentCanvasAnnotations() {
-        this.clearAnnotationVisibility();
-
-        if (!this.manifestId || !this.canvasId) {
-            return;
-        }
-
-        const annotations = this.getAnnotations(this.manifestId, this.canvasId);
-
-        annotations.forEach((annotation: any) => {
-            const id = getAnnotationId(annotation);
-            if (id) {
-                this.visibleAnnotationIds.add(id);
-            }
-        });
-    }
-
     private clearAnnotationVisibility() {
         this.annotationVisibilityTouched = false;
         this.visibleAnnotationIds.clear();
@@ -355,7 +371,7 @@ export class ViewerState {
         this.clearAnnotationVisibility();
 
         if (isOpen) {
-            this.showCurrentCanvasAnnotations();
+            this.showVisibleCanvasAnnotations();
         }
     }
 
@@ -416,29 +432,47 @@ export class ViewerState {
      */
     activeLocale = $state<string>(getLocale());
 
-    // Derived configuration specific getters
+    /*
+     * Derived configuration specific getters.
+     *
+     * Each resolves through a `$derived`, which propagates only when its value
+     * actually moves. Without that interposition a reader would depend on
+     * `config` itself: these keys are all optional, and reading an absent key
+     * off a deeply reactive object subscribes to the object's shape rather than
+     * to a value, so `updateConfig` replacing the object wholesale would wake
+     * every one of these readers even when each still resolves the same. A
+     * member's notification has to follow the member (ADR 0008).
+     *
+     * Two config-backed reads are deliberately not treated this way.
+     * `getPluginUiConfig` takes an argument and returns a config sub-object
+     * whose identity legitimately changes with the config, so there is no equal
+     * value to gate on. `zoomPerClick` is read only imperatively, from the zoom
+     * commands; wire it into a reactive reader and it needs a derivation too.
+     */
+    #showToggle = $derived(this.config.showToggle ?? true);
     get showToggle() {
-        return this.config.showToggle ?? true;
+        return this.#showToggle;
     }
+    #showCanvasNav = $derived(this.config.showCanvasNav ?? true);
     get showCanvasNav() {
-        return this.config.showCanvasNav ?? true;
+        return this.#showCanvasNav;
     }
+    #showZoomControls = $derived(this.config.showZoomControls ?? true);
     get showZoomControls() {
-        return this.config.showZoomControls ?? true;
+        return this.#showZoomControls;
     }
+    #preserveCanvasScale = $derived(this.config.preserveCanvasScale ?? false);
     get preserveCanvasScale() {
-        return this.config.preserveCanvasScale ?? false;
+        return this.#preserveCanvasScale;
     }
 
     /**
      * `gallery.size` — the docked band's height or the docked rail's width, and the
      * knob every thumbnail dimension is derived from. See `galleryGeometry`.
-     *
-     * Not named `gallerySize`: that is already the floating window's width and
-     * height, which is a different thing entirely.
      */
+    #galleryExtent = $derived(this.config.gallery?.size ?? 100);
     get galleryExtent() {
-        return this.config.gallery?.size ?? 100;
+        return this.#galleryExtent;
     }
 
     // Dedicated reactive state for viewingMode to ensure proper reactivity
@@ -447,9 +481,11 @@ export class ViewerState {
         'individuals',
     );
 
-    // Track whether viewingMode was explicitly set via config (user preference)
-    // When true, manifest behavior detection is skipped to respect user configuration
-    private _viewingModeUserConfigured = $state(false);
+    // Once the host configures a viewing mode, manifest behavior detection is
+    // skipped so the configured mode stands. Non-reactive: written by
+    // `updateConfig` and read by `_applyManifestSettings`, both plain calls, so
+    // nothing re-renders off it.
+    private _viewingModeUserConfigured = false;
 
     get viewingMode() {
         return this._viewingMode;
@@ -466,17 +502,9 @@ export class ViewerState {
      * Whether the gallery is expanded to fill the viewer's center column as a
      * thumbnail grid. Orthogonal to {@link dockSide}: expanding renders the
      * gallery as an overlay layer and leaves the dock side untouched, so
-     * collapsing restores the strip/rail/window exactly where it was.
+     * collapsing restores the strip or rail exactly where it was.
      */
     galleryExpanded = $state(false);
-
-    // Gallery State (Lifted for persistence during re-docking)
-    galleryPosition = $state({ x: 20, y: 100 });
-    gallerySize = $state({ width: 300, height: 400 });
-    isGalleryDragging = $state(false);
-    galleryDragOffset = $state({ x: 0, y: 0 });
-    dragOverSide = $state<'top' | 'bottom' | 'left' | 'right' | null>(null);
-    galleryCenterPanelRect = $state<DOMRect | null>(null);
 
     // ==================== EVENT DISPATCH (Web Component Only) ====================
 
@@ -518,20 +546,12 @@ export class ViewerState {
     /**
      * Get current state as a plain object snapshot.
      * Safe to use outside Svelte's reactive system.
-     * NOTE: We calculate currentCanvasIndex inline to avoid triggering the canvases getter
-     * which can cause infinite loops when it auto-sets canvasId.
      */
     getSnapshot(): ViewerStateSnapshot {
-        let canvasIndex = -1;
-        if (this.manifestId && this.canvasId) {
-            const canvases = manifestsState.getCanvases(this.manifestId);
-            canvasIndex = findCanvasIndexById(canvases, this.canvasId);
-        }
-
         return {
             manifestId: this.manifestId,
             canvasId: this.canvasId,
-            currentCanvasIndex: canvasIndex,
+            currentCanvasIndex: this.currentCanvasIndex,
             showAnnotations: this.showAnnotations,
             showInformationPanel: this.showMetadataPanel,
             showThumbnailGallery: this.showThumbnailGallery,
@@ -545,8 +565,6 @@ export class ViewerState {
             viewingDirection: this.viewingDirection,
             preserveCanvasScale: this.preserveCanvasScale,
             galleryExpanded: this.galleryExpanded,
-            galleryPosition: this.galleryPosition,
-            gallerySize: this.gallerySize,
         };
     }
 
@@ -630,13 +648,41 @@ export class ViewerState {
         return findCanvasIndexById(this.canvases, this.canvasId);
     }
 
+    /** The spreads `paged` mode groups the current canvas list into. */
+    get #pagedGroups() {
+        return getPagedCanvasGroups(this.canvases, this.pagedOffset);
+    }
+
+    /**
+     * Land on a paged group's first canvas. An index naming no group is a
+     * no-op, which is how "there is nothing that way" is expressed.
+     */
+    #gotoGroup(groupIndex: number) {
+        const canvasId = this.#pagedGroups[groupIndex]?.entries[0]?.canvasId;
+        if (canvasId && canvasId !== this.canvasId) {
+            this.setCanvas(canvasId);
+        }
+    }
+
+    /** One canvas in `individuals`/`continuous`, one spread in `paged`. */
+    #step(delta: 1 | -1) {
+        if (this.viewingMode === 'paged') {
+            this.#gotoGroup(this.getCurrentPagedCanvasGroupIndex() + delta);
+            return;
+        }
+
+        const canvasId = getCanvasId(
+            this.canvases[this.currentCanvasIndex + delta],
+        );
+        if (canvasId) this.setCanvas(canvasId);
+    }
+
     private getCurrentPagedCanvasGroupIndex(): number {
         if (this.viewingMode !== 'paged' || this.currentCanvasIndex < 0) {
             return -1;
         }
 
-        const groups = getPagedCanvasGroups(this.canvases, this.pagedOffset);
-        return groups.findIndex(
+        return this.#pagedGroups.findIndex(
             ({ startIndex, endIndex }) =>
                 this.currentCanvasIndex >= startIndex &&
                 this.currentCanvasIndex <= endIndex,
@@ -650,11 +696,7 @@ export class ViewerState {
 
         if (this.viewingMode === 'paged') {
             const groupIndex = this.getCurrentPagedCanvasGroupIndex();
-            const groups = getPagedCanvasGroups(
-                this.canvases,
-                this.pagedOffset,
-            );
-            return groupIndex >= 0 && groupIndex < groups.length - 1;
+            return groupIndex >= 0 && groupIndex < this.#pagedGroups.length - 1;
         } else {
             return this.currentCanvasIndex < this.canvases.length - 1;
         }
@@ -673,43 +715,11 @@ export class ViewerState {
     }
 
     nextCanvas() {
-        if (this.hasNext) {
-            if (this.viewingMode === 'paged') {
-                const groups = getPagedCanvasGroups(
-                    this.canvases,
-                    this.pagedOffset,
-                );
-                const canvasId =
-                    groups[this.getCurrentPagedCanvasGroupIndex() + 1]
-                        ?.entries[0]?.canvasId;
-                if (canvasId) this.setCanvas(canvasId);
-            } else {
-                const nextIndex = this.currentCanvasIndex + 1;
-                const canvas = this.canvases[nextIndex];
-                const canvasId = getCanvasId(canvas);
-                if (canvasId) this.setCanvas(canvasId);
-            }
-        }
+        if (this.hasNext) this.#step(1);
     }
 
     previousCanvas() {
-        if (this.hasPrevious) {
-            if (this.viewingMode === 'paged') {
-                const groups = getPagedCanvasGroups(
-                    this.canvases,
-                    this.pagedOffset,
-                );
-                const canvasId =
-                    groups[this.getCurrentPagedCanvasGroupIndex() - 1]
-                        ?.entries[0]?.canvasId;
-                if (canvasId) this.setCanvas(canvasId);
-            } else {
-                const prevIndex = this.currentCanvasIndex - 1;
-                const canvas = this.canvases[prevIndex];
-                const canvasId = getCanvasId(canvas);
-                if (canvasId) this.setCanvas(canvasId);
-            }
-        }
+        if (this.hasPrevious) this.#step(-1);
     }
 
     // ==================== VIEWPORT (SPEC.md §Public API) ======================
@@ -780,17 +790,51 @@ export class ViewerState {
 
     /**
      * {@link visibleCanvasIds}, or the current canvas while no renderer has
-     * answered yet.
+     * answered yet, minus every canvas a plugin has claimed.
      *
      * The annotation panel and the shape overlay both read this, so they cannot
      * disagree about which canvases they are describing — and a viewer whose
      * surface is not sized yet still lists the annotations of the canvas it
      * opened on rather than nothing at all.
+     *
+     * A **canvas claim** takes the canvas out of the set: the claimant owns
+     * what is rendered there, so core has no painting of its own for a comment
+     * to be anchored against. Excluding it here excludes it from every
+     * annotation surface at once — including the annotation editor plugin,
+     * which gates its drawing layer on this list.
+     *
+     * The returned array is REFERENCE-STABLE while the ids are unchanged, which
+     * the selector runtime's stability contract requires of anything a host
+     * wires into a React `getSnapshot`: a fresh-but-equal array every read
+     * would re-render every annotation surface on every unrelated state change,
+     * for the whole session, on any manifest holding a claim.
      */
     get annotatableCanvasIds(): string[] {
-        if (this.visibleCanvasIds.length > 0) return this.visibleCanvasIds;
-        return this.canvasId ? [this.canvasId] : [];
+        const inScope =
+            this.visibleCanvasIds.length > 0
+                ? this.visibleCanvasIds
+                : this.canvasId
+                  ? [this.canvasId]
+                  : [];
+
+        // No claims at all: `visibleCanvasIds` is itself `$state.raw`, so it is
+        // already the stable reference and needs no memo.
+        if (this.#claimedCanvases.size === 0) return inScope;
+
+        const filtered = inScope.filter((id) => !this.#claimedCanvases.has(id));
+        const previous = this.#annotatableMemo;
+        if (
+            previous.length === filtered.length &&
+            previous.every((id, index) => id === filtered[index])
+        ) {
+            return previous;
+        }
+        this.#annotatableMemo = filtered;
+        return filtered;
     }
+
+    /** Last array {@link annotatableCanvasIds} handed out, for its memo. */
+    #annotatableMemo: string[] = [];
 
     /**
      * Whether a renderer has a sized surface and accepts viewport commands.
@@ -1150,6 +1194,337 @@ export class ViewerState {
         return this.overlayLayerRegistry.layers;
     }
 
+    // ---- Transport chrome ----------------------------------------------------
+
+    /**
+     * How many times the registered transport chrome has changed — the one
+     * notifying signal that registry needs, the same shape as
+     * {@link overlayLayerRevision} and for the same reason.
+     *
+     * @internal
+     */
+    transportChromeRevision: number = $state(0);
+
+    private transportChromeRegistry = createTransportChromeRegistry({
+        onChange: () => {
+            this.transportChromeRevision += 1;
+        },
+        onRefused: (message) => {
+            logger.warn(message);
+            this.reportError({
+                severity: 'warning',
+                scope: 'plugin',
+                code: 'transport-chrome-refused',
+                message,
+            });
+        },
+        // Answered from plugin UI state, not from the chrome records, for the
+        // reason `overlayLayerRegistry` gives above.
+        isKnownPlugin: (pluginId) => this.pluginUiState.has(pluginId),
+    });
+
+    /**
+     * Register **transport chrome**: a view model of playback facts and a port
+     * of playback commands, which core renders as playback controls inside its
+     * own control bar (CONTEXT.md **Transport chrome**).
+     *
+     * The seam is deliberately media-agnostic. Core learns about a thing that
+     * plays, pauses, seeks and may offer alternative text tracks; it renders the
+     * controls with its own primitives, in its own theme. The claimant supplies
+     * the pictures (as the sanitized {@link IconDescriptor}s its toolbar buttons
+     * already use) and every string, so its vocabulary and its locales stay its
+     * own.
+     *
+     * **`id` must be `` `${pluginId}:${name}` ``**, the same convention the
+     * plugin's chrome ids and overlay layers follow, so
+     * {@link unregisterPlugin} can release chrome a plugin forgot. Chrome whose
+     * id names no known plugin, or which is missing any of its members, or whose
+     * id is already taken, is refused and registers nothing; the returned
+     * dispose is a no-op, so a caller never has to branch. A refusal is reported
+     * on the structured `viewererror` channel with code
+     * `transport-chrome-refused`.
+     *
+     * `view()` is read on core's own cadence and its result is never held across
+     * a frame; `subscribe` is how the claimant tells core to re-read. A view
+     * with `present: false` renders no controls, which is the transient case
+     * (the reader navigated to something this claimant does not drive) and is
+     * why navigation does not churn the registration.
+     *
+     * **The bar renders one chrome.** With two live registrations the first
+     * wins and the second is inert — there is no `order` field, for the reason
+     * the overlay-layer registry gives.
+     *
+     * While chrome is registered the control bar spans its full available width
+     * so the scrubber can take the slack. `nav.align` has nowhere to align in
+     * that arrangement and is inert until the chrome deregisters; every other
+     * bar setting — `controls`, `nav.style`, `nav.edge`, the inset — goes on
+     * meaning what it meant.
+     */
+    registerTransportChrome(chrome: TransportChrome): () => void {
+        return this.transportChromeRegistry.register(chrome);
+    }
+
+    /**
+     * The registered chrome, in registration order. Read by the render site,
+     * which renders the first.
+     *
+     * @internal
+     */
+    get transportChrome(): readonly RegisteredTransportChrome[] {
+        return this.transportChromeRegistry.entries;
+    }
+
+    // ---- Canvas claims -------------------------------------------------------
+
+    /**
+     * The **canvas claim** set: canvas id → the plugin id owning that canvas's
+     * non-image content (CONTEXT.md; ADR 0017).
+     *
+     * Reactive collection declared as a plain `Map` — see the note on the
+     * `svelte/reactivity` import.
+     */
+    #claimedCanvases: Map<string, string> = new SvelteMap<string, string>();
+
+    /**
+     * Who holds which canvas, to read — never to write.
+     *
+     * Private behind a getter for the reason the overlay-layer registry is:
+     * one claimant per canvas is an invariant {@link claimCanvas} maintains, and
+     * a writable collection on the plugin-facing state object would let any
+     * plugin holding `context.state` `set` itself over a canvas another plugin
+     * is rendering into, or `clear` the lot. `ReadonlyViewerState` freezes the
+     * property, not the collection behind it. Claim and release are the only
+     * ways in.
+     */
+    get claimedCanvases(): ReadonlyMap<string, string> {
+        return this.#claimedCanvases;
+    }
+
+    /**
+     * Take ownership of one canvas's non-image content, for the plugin named by
+     * `pluginId`. Returns an idempotent release.
+     *
+     * The claim suppresses exactly the **unsupported presentation** for that
+     * canvas and its AV glyph in the thumbnail strip, leaving a clean box the
+     * claimant renders over through the overlay-layer and paint-hook
+     * substrates. It carries no payload and changes nothing else: core keeps
+     * painting the canvas's IMAGE bodies through the whole tile pipeline —
+     * which is what makes a composite image+video canvas compose — and layout,
+     * navigation, residency, and coordinate projection are untouched.
+     *
+     * **One claimant per canvas.** A second claim is refused and reported on
+     * the structured `viewererror` channel with code `canvas-claim-refused`,
+     * exactly as a refused overlay layer is; the first claimant keeps the
+     * canvas. Last-writer-wins would let a plugin silently take a canvas
+     * another one is already rendering into.
+     *
+     * A claim against a canvas id the current manifest does not carry is
+     * **inert and kept**, and applies if that id later appears: a plugin claims
+     * from inside its own `view.mount`, which may well run before the manifest
+     * it cares about is loaded.
+     *
+     * **`pluginId` must be the id this viewer knows the caller by** — the
+     * activation's `surface.id`, the same id its chrome and its overlay-layer
+     * ids are prefixed with — and a claim naming any other is refused, exactly
+     * as an overlay layer whose id names no known plugin is. It is what lets
+     * {@link unregisterPlugin} release a claim whose plugin forgot to, so a
+     * departed plugin cannot suppress a treatment for the rest of the session;
+     * a claim under a name nothing will ever unregister would outlive its
+     * activation silently, leaving a canvas with no placard and nothing
+     * rendering over it. Releasing from the plugin's own cleanup remains the
+     * primary path.
+     */
+    claimCanvas(canvasId: string, pluginId: string): () => void {
+        const claim = this.#requireClaimant('claimCanvas', canvasId, pluginId);
+        if (!claim) return () => {};
+
+        const { canvas, owner, held } = claim;
+        if (held !== undefined) {
+            this.refuseCanvasClaim(
+                `claimCanvas "${canvas}" from "${owner}": already claimed by "${held}".`,
+            );
+            return () => {};
+        }
+
+        this.#claimedCanvases.set(canvas, owner);
+
+        // Idempotent, and keyed on the claim still being THIS one: a release
+        // that arrives after the claim was dropped by `unregisterPlugin` and
+        // the canvas claimed afresh must not evict the new claimant.
+        let released = false;
+        return () => {
+            if (released) return;
+            released = true;
+            if (this.#claimedCanvases.get(canvas) === owner) {
+                this.#claimedCanvases.delete(canvas);
+                this.companionPhases.delete(canvas);
+            }
+        };
+    }
+
+    /**
+     * The refusal ladder both claim commands share: trim the id pair, refuse an
+     * empty id or one this viewer knows no plugin by, and report who currently
+     * holds the canvas (`undefined` for nobody).
+     *
+     * Membership is answered from plugin UI state for the reason the
+     * overlay-layer registry's `isKnownPlugin` is: it is seeded before a
+     * plugin's `view.mount` runs — which is where a plugin claims from — while
+     * the chrome records are not populated until after it.
+     *
+     * Refusals name the operation, the canvas, and the caller and stop there:
+     * that is what places the mistake, and the reasoning behind each rule lives
+     * in the commands' own docs rather than in shipped strings.
+     */
+    #requireClaimant(
+        op: string,
+        canvasId: string,
+        pluginId: string,
+    ): { canvas: string; owner: string; held: string | undefined } | null {
+        const canvas = typeof canvasId === 'string' ? canvasId.trim() : '';
+        const owner = typeof pluginId === 'string' ? pluginId.trim() : '';
+        if (!canvas || !owner) {
+            this.refuseCanvasClaim(`${op}: empty canvas or plugin id.`);
+            return null;
+        }
+
+        if (!this.pluginUiState.has(owner)) {
+            this.refuseCanvasClaim(
+                `${op} "${canvas}" from "${owner}": not a plugin of this viewer.`,
+            );
+            return null;
+        }
+
+        return { canvas, owner, held: this.#claimedCanvases.get(canvas) };
+    }
+
+    /** Whether a plugin owns this canvas's non-image content. */
+    isCanvasClaimed(canvasId: string): boolean {
+        return this.#claimedCanvases.has(canvasId);
+    }
+
+    /**
+     * The **companion phase** per claimed canvas: canvas id → which companion
+     * Canvas core paints for it right now.
+     *
+     * Not exposed as a collection: the phase is one claimant's instruction
+     * about one canvas, not a set hosts select over, so
+     * {@link isPaintingCompanion} is the only read and the published surface
+     * carries no getter.
+     *
+     * TS `private` rather than an ECMAScript `#` field, unlike the private
+     * fields below: an inventoried member must stay visible to the state
+     * inventory's enumerable-member reflection. So this is a compile-time
+     * privacy only — a caller willing to cast can reach the map, which
+     * `claimedCanvases` (a getter with no setter) does prevent. That is
+     * accepted here rather than worked around: reaching it needs a cast past
+     * the plugin surface's `Readonly<>`, and `setCompanionPhase` remains the
+     * only path that upholds the one-claimant rule.
+     *
+     * A `SvelteMap` so the reactive reads that select a companion descriptor
+     * re-run when the phase moves, exactly as the claim set does; the invariant
+     * is enforced by `REACTIVE_COLLECTION_MEMBERS`.
+     */
+    private companionPhases = new SvelteMap<string, CompanionPhase>();
+
+    /**
+     * Say which companion Canvas core should paint for a canvas this plugin has
+     * claimed — or neither.
+     *
+     * The phase NAMES a property of the claimed canvas and never carries one:
+     * `'placeholder'` asks for its `placeholderCanvas`, `'accompanying'` for its
+     * `accompanyingCanvas`, and core resolves the vocabulary itself. A phase
+     * naming a property the canvas does not have paints nothing; there is no
+     * fallback between the two, because only the claimant knows which it means.
+     *
+     * The default is `'none'`, so painting is opt-in: a claimant that never
+     * calls this changes nothing about what core renders and the claim keeps the
+     * suppression-only semantics {@link claimCanvas} documents.
+     *
+     * **Only the canvas's claimant may set a phase.** A call naming an empty
+     * canvas or plugin id, a plugin this viewer knows nothing of, an unclaimed
+     * canvas, or a canvas held by another plugin is refused and reported on the
+     * structured `viewererror` channel exactly as a refused claim is, and leaves
+     * the stored phase untouched. An unrecognized phase is refused too rather
+     * than coerced to `'none'`, so a typo is reported instead of silently
+     * turning painting off.
+     *
+     * **Released with the claim** — by the claim's own dispose and by the
+     * {@link unregisterPlugin}/{@link destroyAllPlugins} backstops — so there is
+     * no second release for a claimant to forget, and a departed plugin cannot
+     * leave core painting a canvas nothing owns.
+     */
+    setCompanionPhase(
+        canvasId: string,
+        pluginId: string,
+        phase: CompanionPhase,
+    ): void {
+        const claim = this.#requireClaimant(
+            'setCompanionPhase',
+            canvasId,
+            pluginId,
+        );
+        if (!claim) return;
+
+        const { canvas, owner, held } = claim;
+        if (held !== owner) {
+            this.refuseCanvasClaim(
+                `setCompanionPhase "${canvas}" from "${owner}": not the claimant (${held ?? 'unclaimed'}).`,
+            );
+            return;
+        }
+
+        if (!COMPANION_PHASES.includes(phase)) {
+            this.refuseCanvasClaim(
+                `setCompanionPhase "${canvas}": unknown phase "${String(phase)}", expected ${COMPANION_PHASES.join('|')}.`,
+            );
+            return;
+        }
+
+        this.companionPhases.set(canvas, phase);
+    }
+
+    /**
+     * Whether a claimed canvas is currently asking core to paint a companion —
+     * the boolean a host's own chrome needs to tell a recording with a picture
+     * from one without.
+     */
+    isPaintingCompanion(canvasId: string): boolean {
+        const phase = this.companionPhases.get(canvasId);
+        return phase === 'placeholder' || phase === 'accompanying';
+    }
+
+    /**
+     * Which companion a claimed canvas is asking core to paint, or `undefined`
+     * where its claimant has never said.
+     *
+     * The renderer's read, and the reason it is not {@link isPaintingCompanion}:
+     * painting needs the phase's identity, not the boolean, and `undefined` is
+     * distinct from `'none'` — a claimant that never asked changes nothing about
+     * the canvas's descriptor, while an explicit `'none'` is a claimant that
+     * asked for the companion to stop being painted and keeps the rect it had.
+     *
+     * @internal
+     */
+    companionPhaseFor(canvasId: string): CompanionPhase | undefined {
+        return this.companionPhases.get(canvasId);
+    }
+
+    /**
+     * A refused claim is an author error the developer must be told about, so
+     * it goes out on the structured channel as well as the debug log — the same
+     * shape, and for the same reason, as a refused overlay layer.
+     */
+    private refuseCanvasClaim(message: string): void {
+        logger.warn(message);
+        this.reportError({
+            severity: 'warning',
+            scope: 'plugin',
+            code: 'canvas-claim-refused',
+            message,
+        });
+    }
+
     /** Zoom in one step, about the viewport centre. The toolbar's `+`. */
     zoomIn(): void {
         this.rendererPort?.zoomBy(this.zoomPerClick);
@@ -1322,6 +1697,23 @@ export class ViewerState {
     }
 
     /**
+     * The extent of a canvas's own coordinate space — the box a canvas-space
+     * point runs from `(0, 0)` to — for the current canvas unless named, or
+     * `null` when the mounted renderer does not lay that canvas out.
+     *
+     * Usually the manifest's declared size, and the reason it is asked rather
+     * than read is the case where there is none. A Canvas may declare no
+     * `width`/`height` — a duration-only audio canvas does not — and is still
+     * laid out, from its siblings' median. Its rect is then its canvas space,
+     * and this reports it, so a plugin placing DOM over such a canvas projects
+     * the box the viewer is actually drawing instead of inventing dimensions
+     * the coordinate helpers would then disagree with.
+     */
+    canvasSize(canvasId?: string): CanvasSize | null {
+        return this.rendererPort?.getCanvasSize(canvasId) ?? null;
+    }
+
+    /**
      * The viewer surface's size in CSS pixels — what an export path asks in
      * order to request an image sized to what the reader is looking at. Zeroes
      * before the surface is measured.
@@ -1375,16 +1767,9 @@ export class ViewerState {
         manifestJson: any,
         options?: { canvasId?: string },
     ): Promise<void> {
-        this.startCanvasId = null;
-        this.selectedSequenceIndex = 0;
-        await manifestsState.registerManifest(manifestId, manifestJson);
-        this.manifestId = manifestId;
-        this.markManifestReady(manifestId);
-        if (options?.canvasId) {
-            this.setCanvas(options.canvasId);
-        }
-        this._applyManifestSettings(manifestId);
-        this.ensureInitialCanvasSelection();
+        await this._loadManifest(manifestId, options?.canvasId, {
+            json: manifestJson,
+        });
     }
 
     /**
@@ -1394,6 +1779,13 @@ export class ViewerState {
      * Only set once per manifest load; cleared when a new manifest is set.
      */
     startCanvasId: string | null = $state(null);
+
+    /**
+     * The media time the manifest's `start` named, held between parsing it and
+     * the auto-selection that navigates to {@link startCanvasId}. Rewritten by
+     * every manifest load, so it never outlives the start canvas it belongs to.
+     */
+    private startTemporalOffset: IiifTemporalFragment | null = null;
 
     async setManifest(
         manifestId: string,
@@ -1408,19 +1800,7 @@ export class ViewerState {
                 this.manifestRequestConfig,
             );
         } catch (_error: any) {
-            this.startCanvasId = null;
-            this.selectedSequenceIndex = 0;
-            await manifestsState.fetchManifest(
-                manifestId,
-                this.manifestRequestConfig,
-            );
-            this.manifestId = manifestId;
-            this.markManifestReady(manifestId);
-            if (options?.canvasId) {
-                this.setCanvas(options.canvasId);
-            }
-            this._applyManifestSettings(manifestId);
-            this.ensureInitialCanvasSelection();
+            await this._loadManifest(manifestId, options?.canvasId);
             this.dispatchStateChange('manifestchange');
             return;
         }
@@ -1472,15 +1852,28 @@ export class ViewerState {
     }
 
     /**
-     * Internal: load a manifest by ID and apply its settings.
+     * Internal: make a manifest the active one and apply its settings.
+     *
+     * `register` registers a document the caller already holds; without it the
+     * manifest is fetched through the cache. Nothing else differs between the
+     * two, which is why they are one path. The choice reads the wrapper's
+     * presence rather than the JSON's, because `setManifestData` accepts an
+     * `undefined` document and must stay a pure store — a fixture with no JSON
+     * has to register nothing, never issue a request.
      */
-    private async _loadManifest(manifestId: string, canvasId?: string) {
+    private async _loadManifest(
+        manifestId: string,
+        canvasId?: string,
+        register?: { json: any },
+    ) {
         this.startCanvasId = null;
         this.selectedSequenceIndex = 0;
-        await manifestsState.fetchManifest(
-            manifestId,
-            this.manifestRequestConfig,
-        );
+        await (register
+            ? manifestsState.registerManifest(manifestId, register.json)
+            : manifestsState.fetchManifest(
+                  manifestId,
+                  this.manifestRequestConfig,
+              ));
         this.manifestId = manifestId;
         this.markManifestReady(manifestId);
         if (canvasId) {
@@ -1504,7 +1897,7 @@ export class ViewerState {
         }
 
         if (this.startCanvasId) {
-            this.setCanvas(this.startCanvasId);
+            this.setCanvas(this.startCanvasId, this.startTemporalOffset);
             return;
         }
 
@@ -1568,12 +1961,17 @@ export class ViewerState {
         // 0. Start Canvas: the manifest-level `start` property (IIIF
         // Presentation 3.0) or the sequence-level `startCanvas` (IIIF
         // Presentation 2.x).
+        this.startTemporalOffset = null;
         try {
             let startId: string | null = null;
+            let startSelectorTime: IiifTemporalFragment | null = null;
 
             // IIIF v3 — `start` on the manifest itself.
             if (rawManifest?.start) {
                 startId = getReferenceId(rawManifest.start);
+                startSelectorTime = parseIiifSelectorTime(
+                    rawManifest.start?.selector,
+                );
             }
 
             // IIIF v2 — the start canvas hangs off the sequence.
@@ -1583,7 +1981,8 @@ export class ViewerState {
 
             if (startId) {
                 // The start property may reference a canvas directly or include
-                // a fragment selector (e.g. canvas#t=...). Extract the canvas ID.
+                // a media fragment (e.g. canvas#t=...): the canvas resolves by
+                // the stripped id, the time rides along to auto-selection.
                 const canvasIdFromStart = startId.split('#')[0];
                 // Verify this canvas exists in the manifest
                 const canvases = manifestsState.getCanvases(manifestId);
@@ -1592,6 +1991,11 @@ export class ViewerState {
                 );
                 if (exists) {
                     this.startCanvasId = canvasIdFromStart;
+                    // A SpecificResource selector and a `#t=` on the id are
+                    // alternative spellings; the selector is the explicit one
+                    // and wins in the (unattested) case of both.
+                    this.startTemporalOffset =
+                        startSelectorTime ?? parseIiifTime(startId);
                 }
             }
         } catch (e) {
@@ -1641,8 +2045,8 @@ export class ViewerState {
                 // IIIF v3 — `behavior`, on the manifest root and on the
                 // sequence.
                 behaviors = [
-                    ...asBehaviorList(rawManifest?.behavior),
-                    ...asBehaviorList(rawSequence?.behavior),
+                    ...toBehaviorList(rawManifest?.behavior),
+                    ...toBehaviorList(rawSequence?.behavior),
                 ];
 
                 // IIIF v2 — `viewingHint` is the v2 spelling of the same idea.
@@ -1652,13 +2056,11 @@ export class ViewerState {
                 // for `viewingDirection` rather than inventing a second rule:
                 // the more specific declaration wins.
                 if (behaviors.length === 0) {
-                    behaviors = asBehaviorList(rawSequence?.viewingHint);
+                    behaviors = toBehaviorList(rawSequence?.viewingHint);
                 }
                 if (behaviors.length === 0) {
-                    behaviors = asBehaviorList(rawManifest?.viewingHint);
+                    behaviors = toBehaviorList(rawManifest?.viewingHint);
                 }
-
-                behaviors = behaviors.map(normalizeIiifBehavior);
             } catch (e) {
                 logger.warn('Error parsing behavior', e);
             }
@@ -1681,8 +2083,11 @@ export class ViewerState {
         }
     }
 
-    setCanvas(canvasId: string) {
+    setCanvas(canvasId: string, temporalOffset?: IiifTemporalFragment | null) {
         this.canvasId = canvasId;
+        this.temporalOffset = temporalOffset
+            ? { canvasId, ...temporalOffset }
+            : null;
         this.tileSourceError = null;
 
         if (this.showAnnotations) {
@@ -1728,18 +2133,6 @@ export class ViewerState {
             }
             if (newConfig.gallery.dockPosition !== undefined) {
                 this.dockSide = newConfig.gallery.dockPosition;
-            }
-            if (newConfig.gallery.width !== undefined) {
-                this.gallerySize.width = newConfig.gallery.width;
-            }
-            if (newConfig.gallery.height !== undefined) {
-                this.gallerySize.height = newConfig.gallery.height;
-            }
-            if (newConfig.gallery.x !== undefined) {
-                this.galleryPosition.x = newConfig.gallery.x;
-            }
-            if (newConfig.gallery.y !== undefined) {
-                this.galleryPosition.y = newConfig.gallery.y;
             }
             // Applied after `open` so `expanded: true` wins the implication
             // regardless of key order in the host's config object.
@@ -1854,37 +2247,33 @@ export class ViewerState {
     }
 
     toggleFullScreen() {
-        if (!document.fullscreenElement) {
-            // Use stored reference if available, fallback to ID lookup (legacy/Svelte-only)
-            const el =
-                this.viewerElement ||
-                document.getElementById('triiiceratops-viewer');
-            if (el) {
-                el.requestFullscreen().catch((e) => {
-                    logger.warn('Fullscreen request failed', e);
-                    this.reportError({
-                        severity: 'warning',
-                        scope: 'viewport',
-                        code: 'fullscreen-failed',
-                        message: 'Fullscreen request failed.',
-                        error: e,
-                    });
-                });
-            } else {
-                logger.warn(
-                    'Cannot toggle fullscreen: Viewer element not found',
-                );
-                this.reportError({
-                    severity: 'warning',
-                    scope: 'viewport',
-                    code: 'fullscreen-element-missing',
-                    message:
-                        'Cannot toggle fullscreen: viewer element not found.',
-                });
-            }
-        } else {
+        if (document.fullscreenElement) {
             document.exitFullscreen();
+            return;
         }
+
+        const el = this.viewerElement;
+        if (!el) {
+            logger.warn(FULLSCREEN_ELEMENT_MISSING);
+            this.reportError({
+                severity: 'warning',
+                scope: 'viewport',
+                code: 'fullscreen-element-missing',
+                message: FULLSCREEN_ELEMENT_MISSING,
+            });
+            return;
+        }
+
+        el.requestFullscreen().catch((e) => {
+            logger.warn(FULLSCREEN_FAILED, e);
+            this.reportError({
+                severity: 'warning',
+                scope: 'viewport',
+                code: 'fullscreen-failed',
+                message: FULLSCREEN_FAILED,
+                error: e,
+            });
+        });
     }
 
     toggleMetadataPanel() {
@@ -1907,6 +2296,10 @@ export class ViewerState {
             ? firstCanvas.id || firstCanvas['@id'] || null
             : null;
         this.startCanvasId = null;
+        // A sequence switch is a navigation carrying no time. v2 sequences are
+        // alternative orderings of the same canvases, so a stale offset would
+        // often still name the canvas landed on and read as a live seek.
+        this.temporalOffset = null;
         this.dispatchStateChange();
     }
 
@@ -1945,17 +2338,7 @@ export class ViewerState {
     setViewingMode(mode: 'individuals' | 'paged' | 'continuous') {
         this.viewingMode = mode;
         if (mode === 'paged') {
-            const groupIndex = this.getCurrentPagedCanvasGroupIndex();
-            const canvasId =
-                groupIndex >= 0
-                    ? getPagedCanvasGroups(this.canvases, this.pagedOffset)[
-                          groupIndex
-                      ]?.entries[0]?.canvasId
-                    : null;
-
-            if (canvasId && this.canvasId !== canvasId) {
-                this.setCanvas(canvasId);
-            }
+            this.#gotoGroup(this.getCurrentPagedCanvasGroupIndex());
         }
         this.dispatchStateChange();
     }
@@ -1963,17 +2346,7 @@ export class ViewerState {
     togglePagedOffset() {
         this.pagedOffset = this.pagedOffset === 0 ? 1 : 0;
         this.config.pagedViewOffset = this.pagedOffset === 1;
-        const groupIndex = this.getCurrentPagedCanvasGroupIndex();
-        const canvasId =
-            groupIndex >= 0
-                ? getPagedCanvasGroups(this.canvases, this.pagedOffset)[
-                      groupIndex
-                  ]?.entries[0]?.canvasId
-                : null;
-
-        if (canvasId && this.canvasId !== canvasId) {
-            this.setCanvas(canvasId);
-        }
+        this.#gotoGroup(this.getCurrentPagedCanvasGroupIndex());
         this.dispatchStateChange();
     }
 
@@ -1993,31 +2366,6 @@ export class ViewerState {
     }
 
     searchAnnotations: any[] = $state([]);
-
-    /**
-     * This function now accounts for two-page mode when returning current canvas search annotations offset accordingly.
-     */
-    /**
-     * Search hits on the current canvas, in canvas space.
-     *
-     * Kept for callers that ask specifically about the current canvas. Core's own
-     * annotation surfaces do NOT use it: they read {@link searchAnnotations} for
-     * every canvas on screen through `collectCanvasAnnotations`, which is what
-     * puts a hit on the facing page of a spread on that page.
-     *
-     * It used to shift a facing page's hits sideways by `canvasWidth * 1.025` and
-     * hand them back as if they belonged to the current canvas — a hand-rolled
-     * offset standing in for multi-canvas layout, and wrong by construction: the
-     * renderer's inter-canvas gap is 1.25% of a page, not 2.5%, and the guess only
-     * ever covered two pages. Coordinates here are now each hit's own, unshifted,
-     * to be projected through its own canvas.
-     */
-    get currentCanvasSearchAnnotations() {
-        if (!this.canvasId) return [];
-        return this.searchAnnotations.filter(
-            (a) => a.canvasId === this.canvasId,
-        );
-    }
 
     async search(query: string) {
         this.dispatchStateChange();
@@ -2057,12 +2405,12 @@ export class ViewerState {
             const service = discoverSearchService(manifestJson);
 
             if (!service) {
-                logger.warn('No IIIF search service found in manifest');
+                logger.warn(SEARCH_SERVICE_MISSING);
                 this.reportError({
                     severity: 'warning',
                     scope: 'search',
                     code: 'search-service-missing',
-                    message: 'No IIIF search service found in manifest.',
+                    message: SEARCH_SERVICE_MISSING,
                     detail: { query },
                 });
                 this.isSearching = false;
@@ -2072,7 +2420,7 @@ export class ViewerState {
             const searchUrl = `${service.serviceId}?q=${encodeURIComponent(query)}`;
 
             const response = await fetch(searchUrl);
-            if (!response.ok) throw new Error('Search request failed');
+            if (!response.ok) throw new Error(SEARCH_FAILED);
 
             const data = await response.json();
 
@@ -2091,7 +2439,7 @@ export class ViewerState {
                 severity: 'error',
                 scope: 'search',
                 code: 'search-failed',
-                message: 'Search request failed.',
+                message: SEARCH_FAILED,
                 error: e,
                 detail: { query },
             });
@@ -2189,20 +2537,10 @@ export class ViewerState {
         this.setGalleryExpanded(!this.galleryExpanded);
     }
 
-    /** Move the floating (undocked) thumbnail gallery to an absolute position. */
-    setGalleryPosition(position: { x: number; y: number }): void {
-        this.galleryPosition = position;
-    }
-
-    /** Resize the floating (undocked) thumbnail gallery. */
-    setGallerySize(size: { width: number; height: number }): void {
-        this.gallerySize = size;
-    }
-
     /**
      * Dock the thumbnail gallery to a side ('top' | 'bottom' | 'left' |
-     * 'right') or float it ('none'), keeping the derived docked flags in sync.
-     * Maintaining that invariant is why this is a command, not a field write.
+     * 'right'), keeping the derived docked flags in sync. Maintaining that
+     * invariant is why this is a command, not a field write.
      */
     setDockSide(side: string): void {
         this.dockSide = side;
@@ -2250,11 +2588,21 @@ export class ViewerState {
         {
             open: boolean;
             visible: boolean;
+            /**
+             * Whether the plugin has anything to show on the CURRENT canvas, as
+             * declared by the plugin itself through
+             * {@link setPluginAvailable}. Plugin-owned, so unlike `visible` no
+             * config re-apply touches it.
+             */
+            available: boolean;
             target: PluginUiTarget;
             position: 'left' | 'right' | 'bottom' | 'overlay';
         }
     >();
 
+    // Unlike the value-returning config getters, this one is not memoized
+    // against `config`: it takes an argument and returns a sub-object whose
+    // identity legitimately changes when the config does.
     private getPluginUiConfig(pluginId: string): PluginUiConfig | undefined {
         return this.config.plugins?.[pluginId];
     }
@@ -2281,6 +2629,7 @@ export class ViewerState {
             this.pluginUiState.set(pluginId, {
                 open: config?.open ?? false,
                 visible: config?.visible ?? true,
+                available: true,
                 target: config?.target ?? defaultTarget,
                 position: config?.position ?? defaultPosition,
             });
@@ -2298,6 +2647,7 @@ export class ViewerState {
         this.pluginUiState.set(pluginId, {
             open: config?.open ?? current.open,
             visible: config?.visible ?? current.visible,
+            available: current.available,
             target: config?.target ?? current.target,
             position: config?.position ?? current.position,
         });
@@ -2364,6 +2714,42 @@ export class ViewerState {
         for (const pluginId of this.pluginUiState.keys()) {
             this.applyPluginUiConfig(pluginId);
         }
+    }
+
+    private isPluginAvailable(pluginId: string): boolean {
+        return this.pluginUiState.get(pluginId)?.available ?? true;
+    }
+
+    /**
+     * Declare whether a plugin has anything to show on the current canvas. Its
+     * toolbar button is hidden while it has not, so a plugin whose content is a
+     * fact about the canvas — captions, timed annotations — gets the gating
+     * core's own annotations and structures buttons have, instead of a live
+     * button over an empty panel.
+     *
+     * Becoming unavailable CLOSES an open surface, rather than leaving it open
+     * and unrendered: hiding the button alone would strand a panel with nothing
+     * left to close it, and closing is a transition every render site already
+     * handles — it is what the toolbar button does. It also has to be closed
+     * rather than hidden, because a panel that stops rendering while core still
+     * holds it open orphans the plugin's content element (an open plugin's
+     * chrome is mounted once and re-parented, never re-mounted).
+     *
+     * Plugin-facing (`PluginSurface.setAvailable`) and independent of the
+     * consumer's `config.plugins[id].visible`, which stays the hard off-switch:
+     * both must agree for the button to render. No-op (and no notification) if
+     * the plugin is unknown or already in that state.
+     */
+    setPluginAvailable(pluginId: string, available: boolean): void {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current || current.available === available) return;
+
+        this.pluginUiState.set(pluginId, {
+            ...current,
+            available,
+            open: available ? current.open : false,
+        });
+        this.dispatchStateChange();
     }
 
     /**
@@ -2469,9 +2855,10 @@ export class ViewerState {
         target: PluginUiTarget;
         dismiss: 'light' | 'explicit';
         mount: PluginMountThunk;
+        fills?: boolean;
         position?: 'left' | 'right' | 'bottom' | 'overlay';
     }): void {
-        const { id, name, label, icon, target, dismiss, mount } = config;
+        const { id, name, label, icon, target, dismiss, mount, fills } = config;
 
         this.ensurePluginUiState(id, target, config.position ?? 'left');
 
@@ -2492,7 +2879,9 @@ export class ViewerState {
                 this.togglePluginOpen(id);
             },
             isActive: () => this.isPluginOpen(id),
-            isVisible: () => this.pluginUiState.get(id)?.visible ?? true,
+            isVisible: () =>
+                (this.pluginUiState.get(id)?.visible ?? true) &&
+                this.isPluginAvailable(id),
             order: 200,
         };
 
@@ -2518,6 +2907,7 @@ export class ViewerState {
             label,
             iconDescriptor: icon,
             mount,
+            fills,
             isVisible: () =>
                 this.getPluginTarget(id) === 'panel' && this.isPluginOpen(id),
         };
@@ -2533,13 +2923,24 @@ export class ViewerState {
      * not run the plugin's own teardown — the plugin's `PluginActivation`
      * (`deactivate()`) owns that.
      *
-     * Its **overlay layers** are the exception, and are disposed here: they are
-     * DOM on the image, so a plugin whose cleanup misses its dispose would leave
-     * orphaned markers sitting over the picture with nothing left to remove them.
-     * A layer id names its plugin ({@link registerOverlayLayer}), which is what
-     * makes that possible. This is a backstop, not the documented path — a plugin
-     * releases its layer from its own `view.mount` cleanup, and doing both is
-     * safe because the dispose is idempotent.
+     * Its **overlay layers**, its **canvas claims** and its **published state**
+     * are the exception, and are released here: a layer is DOM on the image, so
+     * a plugin whose cleanup misses its dispose would leave orphaned markers
+     * sitting over the picture with nothing left to remove them; a claim left
+     * behind would suppress a canvas's unsupported presentation for the rest of
+     * the session with nothing rendering in its place; and a published state
+     * left behind would hand hosts a live command surface addressing a
+     * torn-down plugin. All three name their plugin
+     * ({@link registerOverlayLayer}, {@link claimCanvas},
+     * {@link publishPluginState}), which is what makes that possible.
+     *
+     * This is the backstop, not the documented path — a plugin releases its own
+     * layers, claims and publication from its `view.mount` cleanup — and it is
+     * where the claim's and the publication's "released when the activation
+     * ends" contract is honoured,
+     * because the viewer takes this path on deactivation, on retry, and on a
+     * failed setup or mount alike. Doing both is safe: every dispose is
+     * idempotent.
      */
     unregisterPlugin(pluginId: string): void {
         this.pluginMenuButtons = this.pluginMenuButtons.filter(
@@ -2552,21 +2953,114 @@ export class ViewerState {
             (f) => !f.id.startsWith(`${pluginId}:`),
         );
         this.overlayLayerRegistry.disposeOwnedBy(pluginId);
+        this.transportChromeRegistry.disposeOwnedBy(pluginId);
+        for (const [canvasId, owner] of [...this.#claimedCanvases]) {
+            if (owner !== pluginId) continue;
+            this.#claimedCanvases.delete(canvasId);
+            this.companionPhases.delete(canvasId);
+        }
+        this.publishedPluginStates.delete(pluginId);
         this.pluginUiState.delete(pluginId);
     }
 
     /**
      * Cleanup everything.
      *
-     * Including every overlay layer, for the reason {@link unregisterPlugin}
-     * gives: an undisposed layer is DOM left on the image.
+     * Including every overlay layer, every canvas claim and every published
+     * state, for the reason {@link unregisterPlugin} gives.
      */
     destroyAllPlugins(): void {
         this.pluginMenuButtons = [];
         this.pluginPanels = [];
         this.pluginFlyouts = [];
         this.overlayLayerRegistry.disposeAll();
+        this.transportChromeRegistry.disposeAll();
+        this.#claimedCanvases.clear();
+        this.companionPhases.clear();
+        this.publishedPluginStates.clear();
         this.pluginUiState.clear();
+    }
+
+    // ---- Published plugin state (ADR 0018) -----------------------------------
+    //
+    // A plugin whose UI performs actions must make them externally commandable —
+    // the parity rule does not stop at core's own chrome. An activation
+    // therefore publishes ONE state object here, and hosts reach it only through
+    // {@link getPluginState}: ViewerState stays the sole state surface, and core
+    // ships no commands it cannot implement. Core never reads INTO a published
+    // object — its members, their classification, and their notification are the
+    // publishing plugin's contract, checked by the SDK's conformance kit.
+
+    /**
+     * Published state by plugin id. A reactive map so publish and retire wake
+     * the batched watcher: the set of published ids is what a wrapper observes
+     * to decide whether to render a plugin's controls at all.
+     */
+    private publishedPluginStates = new SvelteMap<string, unknown>();
+
+    /**
+     * Publish this activation's state object under the plugin id this viewer
+     * knows it by (the same `<pluginId>` its chrome and overlay-layer ids carry).
+     *
+     * At most one per plugin, and the id is FIRST COME: publishing over an id
+     * that already holds someone else's object is refused, registers nothing,
+     * and returns a no-op handle, so a caller never has to branch on whether it
+     * worked. Retiring is what frees the id — which is why the SDK's own
+     * `context.publishState` retires before it publishes, and so gets the
+     * documented "publishing again replaces the previous object" for free.
+     * Without the refusal a second publication would silently orphan the first:
+     * its retire handle, being identity-based, would no-op forever and its
+     * object would stay reachable under an id it no longer owns. A refusal is
+     * reported to the host on the structured `viewererror` channel with code
+     * `plugin-state-refused` and scope `plugin`, the same way a refused overlay
+     * layer is (see {@link registerOverlayLayer}) — it is an author error whose
+     * only other symptom is a host commanding the wrong object.
+     *
+     * The returned retire handle is idempotent and identity-checked, so a plugin
+     * that re-published and later runs its original cleanup does not retire its
+     * own successor. {@link unregisterPlugin} and {@link destroyAllPlugins}
+     * retire whatever is still published, the same backstop overlay layers get —
+     * but the activation's own cleanup is the documented path, because that is
+     * what makes the state absent the moment the activation is.
+     */
+    publishPluginState(pluginId: string, published: unknown): () => void {
+        if (
+            this.publishedPluginStates.has(pluginId) &&
+            this.publishedPluginStates.get(pluginId) !== published
+        ) {
+            const message = `Plugin "${pluginId}" already has published state; this publication was refused. Retire the first before publishing again.`;
+            logger.warn(message);
+            this.reportError({
+                severity: 'warning',
+                scope: 'plugin',
+                code: 'plugin-state-refused',
+                message,
+            });
+            return () => {};
+        }
+
+        this.publishedPluginStates.set(pluginId, published);
+        let retired = false;
+        return () => {
+            if (retired) return;
+            retired = true;
+            if (this.publishedPluginStates.get(pluginId) === published) {
+                this.publishedPluginStates.delete(pluginId);
+            }
+        };
+    }
+
+    /**
+     * The state a plugin has published, or `null` when it has published none —
+     * which is the answer whenever its activation is absent, failed, or
+     * retrying, since a publication lives exactly as long as its activation.
+     *
+     * Deliberately `unknown`: the concrete interface (`AVState`, say) and a
+     * typed accessor ship in the plugin package a host commanding that plugin
+     * already depends on. Core never grows a union of every plugin's state type.
+     */
+    getPluginState(pluginId: string): unknown {
+        return this.publishedPluginStates.get(pluginId) ?? null;
     }
 
     // ==================== FRAMEWORK-NEUTRAL SUBSCRIPTIONS (ADR 0008) ==========

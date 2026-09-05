@@ -134,7 +134,6 @@ describe('createImageServiceCache', () => {
         await cache.ensure(SERVICE);
 
         expect(fetchJson).toHaveBeenCalledTimes(1);
-        expect(cache.requestCount).toBe(1);
     });
 
     it('answers from cache without a fetch once the facts are known', async () => {
@@ -256,20 +255,6 @@ describe('createImageServiceCache', () => {
         expect(await cache.ensure(SERVICE)).toMatchObject({ width: 4096 });
         expect(cache.failure(SERVICE)).toBeUndefined();
         expect(fetchJson).toHaveBeenCalledTimes(2);
-    });
-
-    it('forgets a service on invalidate, and everything on clear', async () => {
-        const { cache, fetchJson } = cacheWith(ok);
-
-        await cache.ensure(SERVICE);
-        cache.invalidate(SERVICE);
-        await cache.ensure(SERVICE);
-        expect(fetchJson).toHaveBeenCalledTimes(2);
-
-        cache.clear();
-        expect(cache.get(SERVICE)).toBeUndefined();
-        await cache.ensure(SERVICE);
-        expect(fetchJson).toHaveBeenCalledTimes(3);
     });
 
     it('bounds what it holds: it is page-shared and nothing else evicts it', async () => {

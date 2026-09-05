@@ -52,8 +52,28 @@
         };
     }
 
+    /**
+     * Whether core has anything on this canvas for a shape to be anchored
+     * against. A canvas a plugin has **claimed** — an audiovisual canvas taken
+     * over by a media plugin — is absent from `annotatableCanvasIds`, and every
+     * annotation surface (the panel, the overlay, the shape overlay) scopes
+     * through that list, so a rectangle drawn here would be persisted and then
+     * displayed by nothing.
+     *
+     * An unknown scope counts as not annotatable: offering a drawing layer over
+     * a canvas we cannot confirm core is painting is the failure worth avoiding.
+     */
+    let canvasIsAnnotatable = $derived.by(() => {
+        const canvasId = viewerState?.canvasId;
+        if (!canvasId) return false;
+        return (viewerState?.annotatableCanvasIds ?? []).includes(canvasId);
+    });
+
     let canCreateAnnotation = $derived.by(() => {
         void contextVersion;
+        // The gate precedes the host's own: a host that allows creation still
+        // cannot be given a drawing layer over a canvas core is not painting.
+        if (!canvasIsAnnotatable) return false;
         const context = getRuntimeContext();
         if (config.extension?.canCreate) {
             return config.extension.canCreate(context);
@@ -62,6 +82,11 @@
     });
     let createDisabledReason = $derived.by(() => {
         void contextVersion;
+        // No reason of our own to give — a host's reason describes the host's
+        // refusal, not this one, so showing it here would misattribute it. The
+        // panel simply renders its inactive state, as it does for any other
+        // canvas with nothing to draw on.
+        if (!canvasIsAnnotatable) return null;
         const context = getRuntimeContext();
         if (config.extension?.getCreateDisabledReason) {
             return config.extension.getCreateDisabledReason(context);

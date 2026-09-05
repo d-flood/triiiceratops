@@ -83,7 +83,6 @@ function plan(draws: TileDraw[]): ScenePlan {
         thumbnailRequests: [],
         unresolvedThumbnails: [],
         metadataRequests: [],
-        overCapCanvases: [],
         minZoom: 0.01,
     };
 }

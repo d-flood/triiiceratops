@@ -13,6 +13,7 @@
  * the point it cares about.
  */
 
+import type { CanvasSize } from '../types/viewport';
 import type { Box } from './tilePyramid';
 import type { LayoutRect, Point } from './types';
 
@@ -300,6 +301,24 @@ export function worldBoxToCanvas(box: Box, placement: CanvasPlacement): Box {
 export function canvasScaleFactor(placement: CanvasPlacement): number {
     const { rect } = placement;
     return rect.width / usableExtent(placement.width, rect.width);
+}
+
+/**
+ * The extent of a placement's canvas space — the box a canvas-space point runs
+ * from `(0, 0)` to.
+ *
+ * The declared size when the manifest gave a usable one, and the laid-out rect
+ * otherwise. It is the same {@link usableExtent} the point and box conversions
+ * divide by, named so callers outside this module can ask what canvas space a
+ * dimensionless canvas actually has: the geometry ladder's answer, not a guess
+ * of their own.
+ */
+export function canvasExtent(placement: CanvasPlacement): CanvasSize {
+    const { rect } = placement;
+    return {
+        width: usableExtent(placement.width, rect.width),
+        height: usableExtent(placement.height, rect.height),
+    };
 }
 
 /**

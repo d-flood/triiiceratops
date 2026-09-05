@@ -27,6 +27,8 @@
         class?: string;
         style?: string;
         children?: Snippet;
+        /** The rendered `<button>`, for a caller that must focus or measure it. */
+        element?: HTMLButtonElement | null;
     }
 
     let {
@@ -40,6 +42,7 @@
         class: className = '',
         style = '',
         children,
+        element = $bindable(null),
         ...rest
     }: Props = $props();
 
@@ -72,6 +75,7 @@
 </script>
 
 <button
+    bind:this={element}
     class="btn {className}"
     class:circle
     class:square

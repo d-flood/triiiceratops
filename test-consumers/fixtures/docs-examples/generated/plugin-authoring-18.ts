@@ -1,13 +1,10 @@
 // GENERATED from docs/plugin-authoring.md — do not edit by hand.
 // Regenerate with: node scripts/docs-examples.mjs
-import type { PluginContext, ViewportPoint } from 'triiiceratops';
+import { whenRendererReady } from '@triiiceratops/plugin-sdk';
+import type { PluginContext } from 'triiiceratops';
 
-function panToVisibleCentre(context: PluginContext, target: ViewportPoint) {
-    const { viewportInset: inset, viewportScale: scale } = context.viewerState;
-    if (!scale) return; // no sized surface yet
-
-    context.viewerState.panTo({
-        x: target.x - (inset.left - inset.right) / 2 / scale,
-        y: target.y - (inset.top - inset.bottom) / 2 / scale,
-    });
+async function markCentre(context: PluginContext) {
+    await whenRendererReady(context.viewerState);
+    // The surface is sized, so this answers in real screen pixels.
+    return context.viewerState.canvasToScreen({ x: 100, y: 200 });
 }

@@ -22,6 +22,7 @@ import type { RendererPort } from '../renderer/rendererPort.js';
 import { markRendererPort } from '../renderer/rendererPortBrand.js';
 import {
     NEUTRAL_IMAGE_ADJUSTMENTS,
+    type CanvasSize,
     type ContainerSize,
     type ImageAdjustments,
     type ViewportBox,
@@ -55,12 +56,19 @@ export interface StubView {
     centre: ViewportPoint;
     /** Surface size in CSS pixels. */
     container: ContainerSize;
+    /**
+     * The canvas-space extent reported for every canvas this stand-in answers
+     * for. One size for all of them: the stub lays nothing out, so it has no
+     * per-canvas geometry to vary it by.
+     */
+    canvasSize: CanvasSize;
 }
 
 export const DEFAULT_STUB_VIEW: StubView = {
     scale: 1,
     centre: { x: 0, y: 0 },
     container: { width: 800, height: 600 },
+    canvasSize: { width: 1000, height: 1000 },
 };
 
 /** A {@link RendererPort} plus the controls a test drives it with. */
@@ -179,6 +187,8 @@ export function createRendererStub(
                       height: view.container.height / view.scale,
                   }
                 : null,
+        getCanvasSize: (canvasId?: string) =>
+            answersFor(canvasId) ? { ...view.canvasSize } : null,
         getContainerSize: () => ({ ...view.container }),
 
         // The same affine map the real renderer applies, and nothing else: the

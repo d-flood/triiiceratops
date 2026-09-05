@@ -67,6 +67,18 @@ export function getCollectionThumbnail(json: any): string | undefined {
 }
 
 /**
+ * A member's declared type as one of this module's two values, reading both
+ * IIIF versions' spellings. `null` for anything else: a Collection may list
+ * resources the navigation cannot open, and those are skipped.
+ */
+function resolveItemType(item: any): CollectionItem['type'] | null {
+    const type = item?.type || item?.['@type'];
+    if (type === 'Collection' || type === 'sc:Collection') return 'Collection';
+    if (type === 'Manifest' || type === 'sc:Manifest') return 'Manifest';
+    return null;
+}
+
+/**
  * Parse a IIIF Collection JSON into a list of items.
  * Supports both v2 and v3 formats.
  */
@@ -75,68 +87,52 @@ export function parseCollection(json: any): CollectionItem[] {
 
     const items: CollectionItem[] = [];
 
-    // IIIF v3: items array
+    /**
+     * `id` is resolved per branch because the canonical spelling differs by
+     * version: a hybrid document carrying a local `id` beside a canonical `@id`
+     * must resolve to the one its own block is written in. `forcedType` is for
+     * the v2 fields that type their members by the field they sit in.
+     */
+    const pushItem = (
+        item: any,
+        id: string,
+        forcedType?: CollectionItem['type'],
+    ) => {
+        const type = forcedType ?? resolveItemType(item);
+        if (!type) return;
+
+        items.push({
+            id: id || '',
+            type,
+            label: resolveLabel(item.label),
+            thumbnail: extractThumbnail(item),
+            navDate: extractNavDate(item),
+        });
+    };
+
+    // The four spec shapes: v3's mixed `items`, v2's `manifests`/`collections`
+    // typed by the field they sit in, and v2's mixed `members`. A bare object in
+    // place of any of them is not accepted — a Collection with one entry still
+    // writes an array.
     if (Array.isArray(json.items)) {
-        for (const item of json.items) {
-            const type = item.type || item['@type'];
-            if (type === 'Manifest' || type === 'Collection') {
-                items.push({
-                    id: item.id || item['@id'] || '',
-                    type: type === 'Collection' ? 'Collection' : 'Manifest',
-                    label: resolveLabel(item.label),
-                    thumbnail: extractThumbnail(item),
-                    navDate: extractNavDate(item),
-                });
-            }
-        }
+        for (const item of json.items) pushItem(item, item.id || item['@id']);
     }
 
-    // IIIF v2: manifests and collections arrays
     if (Array.isArray(json.manifests)) {
         for (const item of json.manifests) {
-            items.push({
-                id: item['@id'] || item.id || '',
-                type: 'Manifest',
-                label: resolveLabel(item.label),
-                thumbnail: extractThumbnail(item),
-                navDate: extractNavDate(item),
-            });
+            pushItem(item, item['@id'] || item.id, 'Manifest');
         }
     }
 
     if (Array.isArray(json.collections)) {
         for (const item of json.collections) {
-            items.push({
-                id: item['@id'] || item.id || '',
-                type: 'Collection',
-                label: resolveLabel(item.label),
-                thumbnail: extractThumbnail(item),
-                navDate: extractNavDate(item),
-            });
+            pushItem(item, item['@id'] || item.id, 'Collection');
         }
     }
 
-    // IIIF v2: members array (mixed manifests and collections)
     if (Array.isArray(json.members)) {
         for (const item of json.members) {
-            const type = item['@type'] || item.type;
-            if (
-                type === 'sc:Manifest' ||
-                type === 'Manifest' ||
-                type === 'sc:Collection' ||
-                type === 'Collection'
-            ) {
-                items.push({
-                    id: item['@id'] || item.id || '',
-                    type:
-                        type === 'sc:Collection' || type === 'Collection'
-                            ? 'Collection'
-                            : 'Manifest',
-                    label: resolveLabel(item.label),
-                    thumbnail: extractThumbnail(item),
-                    navDate: extractNavDate(item),
-                });
-            }
+            pushItem(item, item['@id'] || item.id);
         }
     }
 

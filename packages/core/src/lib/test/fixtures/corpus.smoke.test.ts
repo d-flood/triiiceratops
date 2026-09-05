@@ -42,13 +42,24 @@ import { syntheticManifestCorpus } from './syntheticManifests';
 
 const CORPUS_DIR = join(import.meta.dirname, 'manifests');
 
-/** Every `.json` under `./manifests/`, as a corpus-relative path. */
+/**
+ * Every `.json` under `./manifests/`, as a corpus-relative path.
+ *
+ * The whole tree, with nothing skipped. `av/` — the Cookbook's audiovisual
+ * recipes and one waveform-linked Avalon manifest — was held out of both this
+ * file and the behavioral baseline by a `DEFERRED_DIRS` set while it was
+ * vendored ahead of the body classifier that reads it; admitting it earlier
+ * would have frozen the answer sixteen time-based manifests got from a viewer
+ * that could not read them. `plugin-av` ticket 02 landed the classifier and
+ * deleted the skip.
+ */
 function corpusPaths(dir = CORPUS_DIR, prefix = ''): string[] {
     return readdirSync(dir, { withFileTypes: true })
         .flatMap((entry) => {
             const name = `${prefix}${entry.name}`;
-            if (entry.isDirectory())
+            if (entry.isDirectory()) {
                 return corpusPaths(join(dir, entry.name), `${name}/`);
+            }
             return entry.name.endsWith('.json') ? [name] : [];
         })
         .sort((a, b) => a.localeCompare(b));
@@ -157,6 +168,13 @@ describe('manifest corpus smoke test', () => {
         expect(
             paths.filter((p) => p.startsWith('demo/')).length,
         ).toBeGreaterThan(4);
+        // The audiovisual set, floored like the others. It replaces the
+        // `DEFERRED_DIRS` guard that used to assert the skip still named
+        // something: the directory is in the corpus now, so what has to be
+        // asserted is that it is still being walked.
+        expect(paths.filter((p) => p.startsWith('av/')).length).toBeGreaterThan(
+            10,
+        );
         expect(vendored.length).toBe(Object.keys(corpusSource).length);
         expect(syntheticManifestCorpus.length).toBeGreaterThan(0);
         expect(collectionFixtures.length).toBeGreaterThan(0);

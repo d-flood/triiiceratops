@@ -8,6 +8,7 @@ import {
     getCanvasId,
     getCompositeImagePlacement,
     getVisibleCanvasEntries,
+    isUnsupportedCanvasFor,
     resolveAllCanvasImages,
     resolveExportSizeOptions,
     sanitizeFilenamePart,
@@ -195,19 +196,34 @@ type WorldLayout = {
 };
 
 /**
- * Every canvas currently laid out together in the viewer (e.g. both pages of
- * a spread in `paged` mode). Used both to build the "current view" composite
- * and to let "single image" mode target one of several visible canvases
- * instead of only ever the active one.
+ * Every canvas currently laid out together in the viewer that this plugin can
+ * actually produce an image from (e.g. both pages of a spread in `paged` mode).
+ * Used both to build the "current view" composite and to let "single image"
+ * mode target one of several visible canvases instead of only ever the active
+ * one.
+ *
+ * A canvas whose painting bodies are all non-image — the **unsupported
+ * presentation**, a video or a sound recording sharing the spread — is left out
+ * here rather than downstream. It is the difference between an export the
+ * reader is never offered and one offered, chosen, and then refused for want of
+ * a resolution to pick.
  */
 export function getVisibleCanvasesForDownload(viewerState: ViewerState): any[] {
-    return getVisibleCanvasEntries({
-        canvases: viewerState.canvases,
-        currentCanvasId: viewerState.canvasId,
-        currentCanvasIndex: viewerState.currentCanvasIndex,
-        viewingMode: viewerState.viewingMode,
-        pagedOffset: viewerState.pagedOffset,
-    }).map((entry) => entry.canvas);
+    return (
+        getVisibleCanvasEntries({
+            canvases: viewerState.canvases,
+            currentCanvasId: viewerState.canvasId,
+            currentCanvasIndex: viewerState.currentCanvasIndex,
+            viewingMode: viewerState.viewingMode,
+            pagedOffset: viewerState.pagedOffset,
+        })
+            .map((entry) => entry.canvas)
+            // Classified over the SELECTED body: a mixed Choice resting on its
+            // video alternative resolves to no image, and asking about the
+            // alternatives as authored answers `false` and offers an export that
+            // can only fall through to the poster thumbnail.
+            .filter((canvas) => !isUnsupportedCanvasFor(viewerState, canvas))
+    );
 }
 
 function buildWorldLayout(

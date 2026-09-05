@@ -25,6 +25,7 @@ import {
     getThumbnailSrc,
     isCrossOriginImageFailure,
     isLevel0ImageService,
+    isUnsupportedCanvasFor,
     loadImageElement,
     parseAnnotation,
     resolveAllCanvasImages,
@@ -475,7 +476,14 @@ function getCanvasExportResource(
     }
 
     return {
-        imageUrl: getThumbnailSrc(canvas, targetWidth) || null,
+        // Same alternative `resolveCanvasImage` just took, so the last rung
+        // cannot hand back an image the selection ruled out.
+        imageUrl:
+            getThumbnailSrc(
+                canvas,
+                targetWidth,
+                getSelectedChoice?.(getCanvasId(canvas) ?? ''),
+            ) || null,
         resolvedImage: resolved,
     };
 }
@@ -1193,9 +1201,25 @@ export async function exportCanvasRangeAsPdf({
     }
 
     // Ensure indices is a plain array (might be Svelte proxy or reactive wrapper)
-    const plainIndices = Array.isArray(range.indices)
-        ? Array.from(range.indices)
-        : [];
+    //
+    // Canvases core cannot paint any of — the **unsupported presentation** —
+    // are dropped from the range here rather than failing inside the loop:
+    // there was never an image to fetch, so they are not a partial export, and
+    // an entry in `failedCanvases` would report a manifest doing exactly what
+    // it says it does as something gone wrong. Dropping them before the loop
+    // is also what keeps the poster thumbnail out of the PDF, which the
+    // single-image path would otherwise fall through to.
+    //
+    // Classified over the SELECTED body, which is the one
+    // `getCanvasExportResource` resolves: a mixed Choice resting on its video
+    // alternative resolves to no image, so classifying it over the alternatives
+    // as authored would keep the canvas in the range and export its poster as a
+    // page.
+    const plainIndices = (
+        Array.isArray(range.indices) ? Array.from(range.indices) : []
+    ).filter(
+        (index) => !isUnsupportedCanvasFor(getSelectedChoice, canvases[index]),
+    );
 
     for (const [offset, index] of plainIndices.entries()) {
         const canvas = canvases[index];

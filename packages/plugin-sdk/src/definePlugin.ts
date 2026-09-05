@@ -58,9 +58,14 @@ export interface DefinePluginConfig {
     uiId?: string;
     /** Plugin package version. */
     version: string;
-    /** Semver range of core versions this plugin supports. */
+    /**
+     * Core versions this plugin supports, as an exact version (`1.2.3`), a caret
+     * range (`^1.2.3`), or a `>=` lower bound (`>=1.2.3`). Those three are the
+     * whole grammar the SDK implements; any other syntax fails activation with an
+     * error naming the range, rather than being read as "incompatible".
+     */
     coreRange: string;
-    /** Semver range of plugin API versions this plugin supports. */
+    /** Plugin API versions this plugin supports; same grammar as {@link coreRange}. */
     pluginApiRange: string;
     /** Capability identifiers this plugin requires. Defaults to `[]`. */
     requiredCapabilities?: readonly string[];
@@ -68,6 +73,13 @@ export interface DefinePluginConfig {
     icon: IconDescriptor;
     /** Where the plugin renders. Defaults to `panel`. */
     target?: PluginUiTarget;
+    /**
+     * This panel scrolls its own content, so core gives it the height left over
+     * in its column instead of sizing it to its content. Set it only for a panel
+     * whose body is a long list or document; a short panel would just stretch.
+     * Ignored for `flyout` targets.
+     */
+    fills?: boolean;
     /**
      * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (default) dismisses on
      * outside pointer-down / Escape; `explicit` closes only via the plugin's
@@ -102,6 +114,7 @@ export function definePlugin(config: DefinePluginConfig): SdkPlugin {
         requiredCapabilities: config.requiredCapabilities ?? [],
         icon: config.icon,
         target: config.target ?? 'panel',
+        fills: config.fills,
         dismiss: config.dismiss,
         catalog: config.catalog,
         view: config.view,

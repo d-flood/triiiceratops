@@ -64,6 +64,10 @@
                 "types": "./dist/register.d.ts",
                 "import": "./dist/register.js"
             },
+            "./register-shared": {
+                "types": "./dist/register-shared.d.ts",
+                "import": "./dist/register-shared.js"
+            },
             "./react": {
                 "types": "./dist/react.d.ts",
                 "import": "./dist/react.js"
@@ -154,6 +158,23 @@
             "./testing": {
                 "types": "./dist/testing/index.d.ts",
                 "import": "./dist/testing/index.js"
+            },
+            "./iife": "./dist/iife.js"
+        }
+    },
+    "@triiiceratops/plugin-av": {
+        "main": "./dist/index.js",
+        "module": "./dist/index.js",
+        "svelte": null,
+        "types": "./dist/index.d.ts",
+        "style": null,
+        "sideEffects": [
+            "./dist/iife.js"
+        ],
+        "exports": {
+            ".": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
             },
             "./iife": "./dist/iife.js"
         }

@@ -48,6 +48,14 @@ export {
     type TestLocaleService,
 } from './context.js';
 
+// Stub host services, for a bare `runActivation` with no viewer behind it.
+export {
+    createStubStyleService,
+    createStubLocaleService,
+    createStubUiService,
+    createStubSurfaceService,
+} from './stubs.js';
+
 // The conformance suite.
 export {
     runPluginConformance,

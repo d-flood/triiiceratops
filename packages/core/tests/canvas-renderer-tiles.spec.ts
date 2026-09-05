@@ -33,6 +33,7 @@ import {
     TILED_MANIFEST,
     TILED_V2_MANIFEST,
 } from './helpers/numberedGrid';
+import { E2E_ALIAS_ORIGIN, E2E_ORIGIN } from './helpers/origin';
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
 
@@ -46,7 +47,7 @@ const SURFACE = '[data-testid="canvas-renderer-surface"]';
  */
 const TILE_PATTERN = /\/iiif-fixture\/[^/]+\/[^/]+\/[^/]+\/0\/[^/]+\.png$/;
 const INFO_PATTERN = /\/iiif-fixture\/[^/]+\/info\.json$/;
-const NO_CORS_SERVICE = 'http://localhost:5175/iiif-fixture/no-cors';
+const NO_CORS_SERVICE = `${E2E_ALIAS_ORIGIN}/iiif-fixture/no-cors`;
 
 test.skip(
     ({ browserName }) => browserName !== 'chromium',
@@ -112,50 +113,48 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
                 requestTypes.push(request.resourceType());
             }
         });
-        await page.route(
-            'http://127.0.0.1:5175/no-cors-manifest.json',
-            (route) =>
-                route.fulfill({
-                    json: {
-                        id: 'http://127.0.0.1:5175/no-cors-manifest.json',
-                        type: 'Manifest',
-                        items: [
-                            {
-                                id: 'http://127.0.0.1:5175/no-cors/canvas',
-                                type: 'Canvas',
-                                width: 1200,
-                                height: 900,
-                                items: [
-                                    {
-                                        id: 'http://127.0.0.1:5175/no-cors/page',
-                                        type: 'AnnotationPage',
-                                        items: [
-                                            {
-                                                id: 'http://127.0.0.1:5175/no-cors/annotation',
-                                                type: 'Annotation',
-                                                motivation: 'painting',
-                                                target: 'http://127.0.0.1:5175/no-cors/canvas',
-                                                body: {
-                                                    id: `${NO_CORS_SERVICE}/full/max/0/default.png`,
-                                                    type: 'Image',
-                                                    width: 1200,
-                                                    height: 900,
-                                                    service: [
-                                                        {
-                                                            id: NO_CORS_SERVICE,
-                                                            type: 'ImageService3',
-                                                            profile: 'level2',
-                                                        },
-                                                    ],
-                                                },
+        await page.route(`${E2E_ORIGIN}/no-cors-manifest.json`, (route) =>
+            route.fulfill({
+                json: {
+                    id: `${E2E_ORIGIN}/no-cors-manifest.json`,
+                    type: 'Manifest',
+                    items: [
+                        {
+                            id: `${E2E_ORIGIN}/no-cors/canvas`,
+                            type: 'Canvas',
+                            width: 1200,
+                            height: 900,
+                            items: [
+                                {
+                                    id: `${E2E_ORIGIN}/no-cors/page`,
+                                    type: 'AnnotationPage',
+                                    items: [
+                                        {
+                                            id: `${E2E_ORIGIN}/no-cors/annotation`,
+                                            type: 'Annotation',
+                                            motivation: 'painting',
+                                            target: `${E2E_ORIGIN}/no-cors/canvas`,
+                                            body: {
+                                                id: `${NO_CORS_SERVICE}/full/max/0/default.png`,
+                                                type: 'Image',
+                                                width: 1200,
+                                                height: 900,
+                                                service: [
+                                                    {
+                                                        id: NO_CORS_SERVICE,
+                                                        type: 'ImageService3',
+                                                        profile: 'level2',
+                                                    },
+                                                ],
                                             },
-                                        ],
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                }),
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            }),
         );
 
         await page.goto('/?manifest=/no-cors-manifest.json', {
@@ -274,7 +273,7 @@ test.describe('Canvas2D renderer — tiled deep zoom', () => {
         expect(asked(tileRequests, 'choice-xray')).toHaveLength(0);
 
         await page
-            .locator('.join-desktop button[aria-label="X-Ray"]')
+            .locator('.choice-join button[aria-label="2: X-Ray"]')
             .click({ timeout: 20_000 });
 
         // Its facts are fetched — the metadata record cannot answer for a

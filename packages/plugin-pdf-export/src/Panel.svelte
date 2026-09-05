@@ -26,6 +26,7 @@
 
     import {
         getCanvasLabel,
+        isUnsupportedCanvasFor,
         resolveLanguageValue,
     } from 'triiiceratops/image-export';
     import {
@@ -142,7 +143,16 @@
         config.onSelectionChange?.(selectedRange);
     });
 
-    let selectedCount = $derived(normalizedRange?.indices.length ?? 0);
+    // Pages, not selections. A canvas whose painting bodies are all non-image —
+    // the **unsupported presentation** — produces no page (see
+    // `exportCanvasRangeAsPdf`), so counting the range would tell the reader to
+    // expect a page the file will not contain.
+    let selectedCount = $derived(
+        (normalizedRange?.indices ?? []).filter(
+            (index: number) =>
+                !isUnsupportedCanvasFor(viewerState, canvases[index]),
+        ).length,
+    );
     let disabledReason = $derived.by(() => {
         void localeTick;
 
@@ -286,11 +296,18 @@
                   });
         } catch (error) {
             progressMessage = '';
-            errorMessage =
+            // Two refusals the export states precisely enough to show as they
+            // are: an image source that forbids browser download, and a
+            // selection with nothing exportable in it — every canvas in it an
+            // **unsupported presentation**. Both would otherwise reach the
+            // reader as "Unable to export PDF", which describes neither.
+            const explained =
                 error instanceof Error &&
-                error.message === messages.errorNotAvailable()
-                    ? error.message
-                    : t('pdf_export_error_failed');
+                (error.message === messages.errorNotAvailable() ||
+                    error.message === messages.errorNoCanvasesExported());
+            errorMessage = explained
+                ? (error as Error).message
+                : t('pdf_export_error_failed');
             // Surface the failure to the host on the structured channel (in
             // addition to the panel-local message) so integrations can react
             // without scraping the browser console for diagnostics.

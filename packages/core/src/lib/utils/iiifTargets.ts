@@ -1,3 +1,7 @@
+import { parseIiifTime, type IiifTemporalFragment } from './iiifTime';
+
+export { parseIiifTime } from './iiifTime';
+
 export type IiifTargetBounds = [number, number, number, number];
 
 export type NormalizedIiifTarget = {
@@ -24,6 +28,31 @@ export function parseIiifXywh(value: string): IiifTargetBounds | null {
         Number(match[3]),
         Number(match[4]),
     ];
+}
+
+/**
+ * The media time a IIIF selector names: a `PointSelector`'s numeric `t` — the
+ * spelling the `start` property uses in Cookbook 0015 — or a
+ * `FragmentSelector`'s `t=` value. A point has no extent, so a `PointSelector`
+ * never yields an `endSeconds`.
+ */
+export function parseIiifSelectorTime(
+    selector: unknown,
+): IiifTemporalFragment | null {
+    if (!selector || typeof selector !== 'object') return null;
+
+    const record = selector as { type?: unknown; t?: unknown; value?: unknown };
+    if (
+        record.type === 'PointSelector' &&
+        typeof record.t === 'number' &&
+        Number.isFinite(record.t)
+    ) {
+        return { seconds: record.t };
+    }
+
+    return typeof record.value === 'string'
+        ? parseIiifTime(record.value)
+        : null;
 }
 
 export function getIiifCanvasId(targetId: string): string | null {

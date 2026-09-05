@@ -14,17 +14,13 @@ import type {
     PluginHost,
     PluginLocaleService,
     PluginStyleService,
+    PublishedState,
     SdkPluginMeta,
+    ViewerState,
 } from 'triiiceratops';
 
 import { negotiateCompatibility } from './compatibility.js';
-import { createSelectorRuntime } from './selectors.js';
-import {
-    createStubLocaleService,
-    createStubStyleService,
-    createStubSurfaceService,
-    createStubUiService,
-} from './services.js';
+import { createSelectorRuntime, type SelectorRuntime } from './selectors.js';
 
 /**
  * Wrap a style service so every `install` this activation performs is tracked
@@ -98,6 +94,56 @@ function trackLocale(base: PluginLocaleService): {
     };
 }
 
+/**
+ * Track this activation's published state (ADR 0018) so it is retired the moment
+ * the activation ends — the mechanism behind "`getPluginState` is null whenever
+ * the activation is absent, failed, or retrying". Publishing again supersedes
+ * the previous object, since an activation publishes at most one.
+ *
+ * The publish closure EXPIRES with the activation. `context.publishState` is
+ * handed to the plugin, which may still be holding it in an awaited
+ * continuation — a media element's `loadedmetadata`, a fetch for cues — that
+ * resolves after teardown. Publishing from there would put live state back
+ * under the id of an activation that no longer exists, and `getPluginState`
+ * would answer non-null for a plugin that is gone.
+ */
+function trackPublishedState(
+    viewerState: ViewerState,
+    pluginId: string,
+): { publish: (state: PublishedState) => void; releaseAll: () => void } {
+    let retire: (() => void) | null = null;
+    let ended = false;
+    return {
+        publish(state: PublishedState): void {
+            if (ended) return;
+            retire?.();
+            retire = viewerState.publishPluginState(pluginId, state);
+        },
+        releaseAll(): void {
+            ended = true;
+            retire?.();
+            retire = null;
+        },
+    };
+}
+
+/**
+ * The one id this viewer knows a plugin by, for a caller that has to name a
+ * plugin before there is a surface to ask. Mirrors core's `sdkPluginChromeId`:
+ * prefer the declared `uiId`, else collapse the package-qualified name to the
+ * DOM-safe form (`@scope/plugin-foo` → `scope-plugin-foo`).
+ *
+ * Duplicated rather than value-imported for the reason `definePlugin`'s
+ * `SDK_PLUGIN_KIND` is: a value import from `triiiceratops` would pull core —
+ * and its Svelte runtime — into every plugin bundle. Publishing under the raw
+ * name instead would tell authors the wrong `getPluginState` key.
+ */
+export function sdkChromeId(meta: { uiId?: string; name: string }): string {
+    if (meta.uiId) return meta.uiId;
+
+    return meta.name.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 /** An activation handle that does nothing — returned when setup fails. */
 const INERT_ACTIVATION: PluginActivation = { deactivate(): void {} };
 
@@ -112,10 +158,11 @@ const INERT_ACTIVATION: PluginActivation = { deactivate(): void {} };
  *   by the selector runtime and the `ViewerState.subscribe` listener guard.
  * - `cleanup`: a teardown cleanup threw; the remaining cleanups still run.
  *
- * When the host supplies NO `reportError` (direct SDK / test-kit use), the
- * historical behavior is preserved: a `setup` failure (e.g.
- * `PluginCompatibilityError`) or a `mount` failure throws, and
- * subscription/command/cleanup failures fall back to a console error.
+ * The host supplies every service and the report channel; there is no fallback
+ * path for a host that omits one. Core always supplies them, and a test that
+ * activates without a viewer builds a host from
+ * `@triiiceratops/plugin-sdk/testing` — so a fallback could only ever ship
+ * unreachable stub services in every plugin bundle.
  */
 export function runActivation(
     meta: SdkPluginMeta,
@@ -127,9 +174,10 @@ export function runActivation(
     // Negotiate first — no context, subscription, or DOM work happens for an
     // incompatible plugin. Then build the isolated context. Any throw here is
     // the `setup` failure; partial state is released before reporting.
-    let selectorRuntime: ReturnType<typeof createSelectorRuntime> | undefined;
+    let selectorRuntime: SelectorRuntime | undefined;
     let styles: ReturnType<typeof trackStyles> | undefined;
     let locale: ReturnType<typeof trackLocale> | undefined;
+    let published: ReturnType<typeof trackPublishedState> | undefined;
     let context: PluginContext;
     try {
         negotiateCompatibility(meta, host);
@@ -138,42 +186,40 @@ export function runActivation(
         // activation, wired so selector projection/callback failures are
         // attributed to this plugin.
         selectorRuntime = createSelectorRuntime(host.viewerState, {
-            onProjectionError: report
-                ? (error) => report({ phase: 'command', error })
-                : undefined,
-            onListenerError: report
-                ? (error) => report({ phase: 'subscription', error })
-                : undefined,
+            onProjectionError: (error) => report({ phase: 'command', error }),
+            onListenerError: (error) =>
+                report({ phase: 'subscription', error }),
         });
 
         // Wrap the host-supplied style and locale services so this activation's
         // style installs and locale subscriptions are released automatically on
         // teardown, even if the plugin's own cleanup forgot them.
-        styles = trackStyles(host.styles ?? createStubStyleService());
-        locale = trackLocale(host.locale ?? createStubLocaleService());
+        styles = trackStyles(host.styles);
+        locale = trackLocale(host.locale);
+
+        // The plugin's own panel/flyout: how it observes whether the user can
+        // currently see it. Its `id` is also the one id this viewer knows the
+        // plugin by, so it is what a publication is keyed to, exactly as an
+        // overlay layer's id is.
+        published = trackPublishedState(host.viewerState, host.surface.id);
+        const publishState = published.publish;
 
         context = {
             viewerState: host.viewerState,
             selectors: selectorRuntime.selectors,
-            // The plugin's own panel/flyout: how it observes whether the user can
-            // currently see it. Core supplies the real surface (it owns the chrome
-            // id); a chrome-less host gets the always-open stub.
-            surface:
-                host.surface ??
-                createStubSurfaceService(meta.uiId ?? meta.name),
+            surface: host.surface,
             styles: styles.service,
             locale: locale.service,
-            ui: host.ui ?? createStubUiService(),
+            ui: host.ui,
+            publishState,
         };
     } catch (error) {
         selectorRuntime?.dispose();
         styles?.releaseAll();
         locale?.releaseAll();
-        if (report) {
-            report({ phase: 'setup', error });
-            return INERT_ACTIVATION;
-        }
-        throw error;
+        published?.releaseAll();
+        report({ phase: 'setup', error });
+        return INERT_ACTIVATION;
     }
 
     // Own cleanup list per activation: the view's returned cleanup, then the
@@ -183,6 +229,7 @@ export function runActivation(
     const cleanups: Array<() => void> = [];
     const styleService = styles;
     const localeService = locale;
+    const publishedState = published;
     const runtime = selectorRuntime;
 
     // ---- mount phase --------------------------------------------------------
@@ -192,19 +239,19 @@ export function runActivation(
             cleanups.push(viewCleanup);
         }
     } catch (error) {
-        if (!report) {
-            // No host channel: release the partial activation and rethrow.
-            styleService.releaseAll();
-            localeService.releaseAll();
-            runtime.dispose();
-            throw error;
-        }
         report({ phase: 'mount', error });
+        // Retire the publication NOW rather than at teardown: a plugin that
+        // published and then threw is a FAILED activation, and published state
+        // is absent for a failed activation (ADR 0018). Everything else can
+        // wait for the handle's cleanups, because nothing else is reachable
+        // from a host.
+        publishedState.releaseAll();
         // Fall through: return a handle whose cleanups tear down the partial
         // activation on retry (drop subscriptions, release styles).
     }
     cleanups.push(() => styleService.releaseAll());
     cleanups.push(() => localeService.releaseAll());
+    cleanups.push(() => publishedState.releaseAll());
     cleanups.push(() => runtime.dispose());
 
     let deactivated = false;
@@ -218,17 +265,7 @@ export function runActivation(
                 try {
                     cleanups[i]?.();
                 } catch (error) {
-                    if (report) {
-                        report({ phase: 'cleanup', error });
-                    } else {
-                        // triiiceratops-console-allow: report-channel-first
-                        // fallback. Only reached in direct SDK / test-kit use
-                        // with no host `reportError`. Recorded in lint-allowlist.md.
-                        console.error(
-                            `[triiiceratops] Plugin "${meta.name}" cleanup threw during deactivation; teardown continues.`,
-                            error,
-                        );
-                    }
+                    report({ phase: 'cleanup', error });
                 }
             }
             cleanups.length = 0;

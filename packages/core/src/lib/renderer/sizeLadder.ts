@@ -51,6 +51,10 @@
  * asks one way.
  */
 
+import {
+    iiifImageRequestUrl,
+    iiifSizeParameter,
+} from '../utils/iiifImageRequest';
 import type { TilePyramid } from './tilePyramid';
 import type { ImageServiceFacts } from './types';
 
@@ -84,10 +88,31 @@ export interface SizeLadder {
     format: string;
 }
 
+/**
+ * The level-bearing string out of a `profile`, whatever shape it arrived in.
+ *
+ * All of these appear in the wild: the bare string, an array that mixes the
+ * profile URI with a capabilities object in either order, and an object
+ * carrying the URI under `value`, `id`, or `@id`. Lowercased because the
+ * comparisons that follow are exact, and a server that spells the URI
+ * `.../LEVEL0.json` still means level0.
+ */
 function getProfileHead(profile: unknown): string | null {
-    if (typeof profile === 'string') return profile;
-    if (Array.isArray(profile) && typeof profile[0] === 'string') {
-        return profile[0];
+    if (typeof profile === 'string') return profile.toLowerCase();
+    if (Array.isArray(profile)) {
+        for (const entry of profile) {
+            const head = getProfileHead(entry);
+            if (head) return head;
+        }
+        return null;
+    }
+    if (profile && typeof profile === 'object') {
+        const record = profile as Record<string, unknown>;
+        for (const key of ['value', 'id', '@id']) {
+            if (typeof record[key] === 'string') {
+                return (record[key] as string).toLowerCase();
+            }
+        }
     }
     return null;
 }
@@ -109,10 +134,13 @@ export function complianceLevel(profile: unknown): 0 | 1 | 2 | null {
     const head = getProfileHead(profile);
     if (!head) return null;
 
+    // Anchored, not a substring test: a path like `/level0-compat/.../level2.json`
+    // declares level2, and matching `level0` loosely anywhere read it as level0.
+    const stem = head.replace(/[?#].*$/, '');
     for (const level of [0, 1, 2] as const) {
         if (
             head === `level${level}` ||
-            head.endsWith(`/level${level}.json`) ||
+            stem.endsWith(`/level${level}.json`) ||
             head.endsWith(`#level${level}`)
         ) {
             return level;
@@ -251,16 +279,8 @@ export function ladderFromPyramid(pyramid: TilePyramid): SizeLadder {
 /**
  * The IIIF Image API request URL for one rung: a whole image, never a region.
  *
- * The full-resolution rung takes the canonical whole-image size parameter —
- * `max` in version 3, `full` in version 2 — because that, and not `1200,`, is
- * the file a level0 derivative generator writes for the original. Every other
- * rung takes the width-only form, which is what those generators write for the
- * entries in `sizes[]`.
- *
- * `quality` is `default` everywhere in the happy path (see the module comment).
- * The only caller that passes anything else is the one building the `native`
- * fallback a version 2 request carries, which is reached only after `default`
- * has failed.
+ * The full-resolution rung takes the canonical whole-image size parameter and
+ * every other rung the width-only form; `utils/iiifImageRequest` carries why.
  */
 export function rungUrl(
     ladder: SizeLadder,
@@ -274,13 +294,12 @@ export function rungUrl(
             ? rung.width === ladder.width
             : rung.width === ladder.width && rung.height === ladder.height;
 
-    const size = isFullSize
-        ? ladder.version === 3
-            ? 'max'
-            : 'full'
-        : `${rung.width},`;
-
-    return `${ladder.serviceId}/full/${size}/0/${quality}.${ladder.format}`;
+    return iiifImageRequestUrl(
+        ladder.serviceId,
+        iiifSizeParameter(rung.width, isFullSize, ladder.version),
+        quality,
+        ladder.format,
+    );
 }
 
 /**
@@ -308,10 +327,13 @@ export function rungFallback(
  * Whether even the cheapest image this service offers is over the
  * decoded-pixel ceiling.
  *
- * {@link chooseRung} degrades to that rung anyway — a blank canvas is worse
- * than one oversized decode, and there is nothing coarser to fall back to — so
- * this is how the override is made **diagnosable** instead of silent. The
- * planner reports it as `ScenePlan.overCapCanvases`.
+ * {@link chooseRung} degrades to that rung anyway for a canvas the reader is
+ * looking at — a blank canvas is worse than one oversized decode, and there is
+ * nothing coarser to fall back to. It is asked here so the **thumbnail** ladder
+ * can refuse instead: a thumbnail is one of fifty on screen at the zoom floor,
+ * where the same decode is not a considered trade but fifty of them
+ * (`thumbnailLadder`, which reports the refusal as
+ * `ScenePlan.unresolvedThumbnails`).
  */
 export function exceedsDecodedPixelCap(
     ladder: SizeLadder,

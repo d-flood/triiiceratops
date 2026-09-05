@@ -2,7 +2,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { paraglideVitePlugin } from '@inlang/paraglide-js';
+
+import { messageCompiler } from './src/packaging/messageCompiler';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -18,10 +19,7 @@ export default defineConfig({
             emitCss: false,
             compilerOptions: { customElement: true },
         }),
-        paraglideVitePlugin({
-            project: './project.inlang',
-            outdir: './src/lib/paraglide',
-        }),
+        messageCompiler(),
     ],
     esbuild: {
         pure: ['console.log', 'console.debug'],

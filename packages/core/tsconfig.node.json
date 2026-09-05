@@ -21,5 +21,9 @@
         "noUncheckedSideEffectImports": true,
         "composite": true
     },
-    "include": ["vite.config.ts", "scripts/check-contrast.ts"]
+    "include": [
+        "vite.config.ts",
+        "src/packaging/messageCompiler.ts",
+        "scripts/check-contrast.ts"
+    ]
 }

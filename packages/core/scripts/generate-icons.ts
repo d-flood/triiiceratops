@@ -66,6 +66,46 @@ function extractInner(svg: string, source: string): string {
     return match[1].trim();
 }
 
+/** One number in path data. Arc flags are bare integers and round to themselves. */
+const PATH_NUMBER = /-?(?:\d+\.\d+|\.\d+|\d+)/g;
+
+/**
+ * Round to one decimal, which is ~0.4% of Phosphor's 256-unit viewBox — well
+ * under a pixel at the sizes the chrome renders at. `String` drops a trailing
+ * `.0` and prints -0 as 0, and always emits a leading digit.
+ */
+function roundCoordinate(literal: string): string {
+    return String(Math.round(Number(literal) * 10) / 10);
+}
+
+/**
+ * Round the coordinates in one `d` attribute value. Path data may separate two
+ * numbers with nothing but the second one's sign or decimal point (`-.26.25`,
+ * `c.35.79`); since a rounded number can lose either, adjacent numbers get an
+ * explicit comma so no pair can merge into one.
+ */
+function roundPathData(d: string): string {
+    let out = '';
+    let cut = 0;
+    for (const match of d.matchAll(PATH_NUMBER)) {
+        const gap = d.slice(cut, match.index);
+        const rounded = roundCoordinate(match[0]);
+        out += gap;
+        if (gap === '' && cut > 0 && !rounded.startsWith('-')) out += ',';
+        out += rounded;
+        cut = match.index + match[0].length;
+    }
+    return out + d.slice(cut);
+}
+
+/** Shrink the markup by rounding coordinates, scoped to `d` attribute values. */
+function roundCoordinates(inner: string): string {
+    return inner.replace(
+        /\bd="([^"]*)"/g,
+        (_, d: string) => `d="${roundPathData(d)}"`,
+    );
+}
+
 const coreNames = Object.keys(CORE_ICONS) as (keyof typeof CORE_ICONS)[];
 
 /** Names to generate for one weight: everything at `regular`, declarers elsewhere. */
@@ -114,7 +154,9 @@ for (const weight of ICON_WEIGHTS) {
                 `Missing Phosphor asset for ${name} (${weight}): expected @phosphor-icons/core/assets/${weight}/${assetFile(name, weight)}`,
             );
         }
-        const inner = extractInner(readFileSync(file, 'utf8'), file);
+        const inner = roundCoordinates(
+            extractInner(readFileSync(file, 'utf8'), file),
+        );
         lines.push(
             `        ${JSON.stringify(name)}: ${JSON.stringify(inner)},`,
         );

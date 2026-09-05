@@ -1,0 +1,5 @@
+WEBVTT
+
+NOTE
+Valid, and empty: a caption file whose cues were never authored. It loads
+perfectly and captions nothing, which is the state the plugin must not offer.

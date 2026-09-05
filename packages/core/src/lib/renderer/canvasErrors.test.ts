@@ -3,13 +3,15 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     createTileSourceErrorMirror,
     errorPlacements,
-    samePlacements,
     viewerLevelErrorKind,
-    MIN_LABEL_HEIGHT,
-    MIN_LABEL_WIDTH,
     type CanvasErrorPlacement,
     type CanvasErrors,
 } from './canvasErrors';
+import {
+    samePlacements,
+    MIN_LABEL_HEIGHT,
+    MIN_LABEL_WIDTH,
+} from './canvasPlacements';
 import type { LayoutRect, Viewport } from './types';
 
 function rect(

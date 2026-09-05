@@ -1,0 +1,75 @@
+{
+    "name": "@triiiceratops/plugin-av",
+    "version": "1.0.0-rc.0",
+    "type": "module",
+    "description": "Audiovisual plugin for the triiiceratops IIIF viewer, authored on @triiiceratops/plugin-sdk. Claims time-based-media canvases and renders their media over the canvas rect.",
+    "license": "MIT",
+    "author": "David Flood",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/d-flood/triiiceratops.git",
+        "directory": "packages/plugin-av"
+    },
+    "homepage": "https://d-flood.github.io/triiiceratops/",
+    "publishConfig": {
+        "access": "public",
+        "provenance": true
+    },
+    "private": false,
+    "engines": {
+        "node": ">=22"
+    },
+    "sideEffects": [
+        "./dist/iife.js"
+    ],
+    "files": [
+        "dist",
+        "LICENSE"
+    ],
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./iife": "./dist/iife.js"
+    },
+    "scripts": {
+        "build": "pnpm clean && pnpm build:esm && pnpm build:iife && pnpm build:iife-chunks && pnpm build:types && pnpm check:shared-runtime",
+        "build:esm": "BUILD_FORMAT=es vite build",
+        "build:iife": "BUILD_FORMAT=iife vite build",
+        "build:iife-chunks": "BUILD_FORMAT=iife-chunks vite build",
+        "build:types": "tsc -p tsconfig.build.json",
+        "check:shared-runtime": "node ./scripts/check-shared-runtime.mjs",
+        "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p tsconfig.build.json --noEmit",
+        "test": "vitest run",
+        "clean": "rm -rf dist",
+        "test:coverage": "vitest run --coverage",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0"
+    },
+    "peerDependencies": {
+        "@triiiceratops/plugin-sdk": "workspace:^",
+        "svelte": "^5.0.0",
+        "triiiceratops": "workspace:^"
+    },
+    "devDependencies": {
+        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "@triiiceratops/plugin-sdk": "workspace:*",
+        "@triiiceratops/ui": "workspace:*",
+        "@types/node": "^24.10.1",
+        "@vitest/coverage-v8": "4.0.15",
+        "happy-dom": "^20.0.11",
+        "svelte": "5.45.5",
+        "svelte-check": "^4.3.4",
+        "triiiceratops": "workspace:*",
+        "typescript": "~5.9.3",
+        "vite": "^6.0.0",
+        "vitest": "^4.0.15"
+    },
+    "dependencies": {
+        "hls.js": "^1.7.0"
+    }
+}

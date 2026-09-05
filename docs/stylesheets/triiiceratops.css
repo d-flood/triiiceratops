@@ -141,3 +141,93 @@ body[data-md-color-scheme] {
         display: none;
     }
 }
+
+/* Bar chart on docs/bundle-size-comparison.md. Each row is its own grid and
+   every cell is placed by an explicit `grid-column`/`grid-row`, so nothing
+   depends on grid auto-placement — the bar is the last sibling but sits in the
+   middle column, which sparse placement cannot do and dense placement gets
+   wrong on the stacked layout. The label column is a fixed width rather than
+   `max-content` precisely because the rows are separate grids: a content-sized
+   column would resolve per row and the labels would not line up.
+
+   Bar lengths are inline `width` percentages, each the viewer's gzip bytes as a
+   share of the largest row, so the markup carries the data and this file only
+   carries the appearance. The chart is aria-hidden; the table immediately after
+   it holds the same figures in an accessible form. */
+
+/* The caption block wraps the chart in a `figure`, which the theme sizes as
+   `width: fit-content` — leaving the `1fr` bar column nothing to expand into
+   and collapsing every bar to a stub. */
+.md-typeset figure:has(> .tri-chart) {
+    width: 100%;
+}
+
+.tri-chart {
+    margin: 1.4rem 0;
+    font-size: 0.72rem;
+    text-align: start;
+}
+
+.tri-chart-row {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr 4rem;
+    align-items: center;
+    column-gap: 0.8rem;
+    margin-bottom: 0.35rem;
+}
+
+.tri-chart-row > * {
+    grid-row: 1;
+}
+
+.tri-chart-label {
+    grid-column: 1;
+}
+
+.tri-chart-track {
+    grid-column: 2;
+    height: 1.15rem;
+    border-radius: var(--tri-radius-box);
+    background: var(--md-default-fg-color--lightest);
+}
+
+.tri-chart-value {
+    grid-column: 3;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.tri-chart-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--md-default-fg-color--light);
+}
+
+.tri-chart-label--self {
+    font-weight: 700;
+}
+
+.tri-chart-fill--self {
+    background: var(--tri-primary);
+}
+
+/* Phone widths: a fixed label column plus a value column leaves under 120 px of
+   track on a 320 px screen, too little for the bars to compare anything. The
+   label and value share the top line and the bar spans the full width below. */
+@media screen and (max-width: 30em) {
+    .tri-chart-row {
+        grid-template-columns: 1fr max-content;
+        margin-bottom: 0.6rem;
+    }
+
+    .tri-chart-value {
+        grid-column: 2;
+    }
+
+    .tri-chart-track {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        height: 0.9rem;
+    }
+}
