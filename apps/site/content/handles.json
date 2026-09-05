@@ -41,6 +41,12 @@
 			]
 		},
 		{
+			"type": "materialClasses",
+			"attrs": {
+				"id": "handles-material-classes"
+			}
+		},
+		{
 			"type": "heading",
 			"attrs": {
 				"id": "placeholder-section-two",

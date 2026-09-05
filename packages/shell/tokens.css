@@ -205,6 +205,11 @@
     --s8: 64px;
     --s9: 96px;
     --measure: 62ch;
+    /* The upper bound on the content of any full-bleed strip of a page. Prose
+       stops at --measure; a table, a chart or a figure is allowed past it and
+       stops here. Chosen so the widest figure on the site (the 860px scatter)
+       still sits inside a column that reads as a column. */
+    --content-max: 1120px;
     --rail-w: 290px;
     /* Both schemes are supported, so form controls and scrollbars follow the
        one in force rather than being darkened by a browser heuristic. */

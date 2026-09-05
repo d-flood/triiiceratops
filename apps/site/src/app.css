@@ -105,6 +105,27 @@ code {
     top: var(--s4);
 }
 
+/* ---- The page frame's horizontal padding ----------------------------
+   Every full-bleed strip of the main column — the hero, a page's heading, a
+   band, the next-page link, the footer — paints its ground, its top rule and
+   its tint across the whole column, and stops the content it lays out at
+   --content-max. The stop is trailing padding rather than a max-width on an
+   inner wrapper: no strip needs a wrapper element, and block margins between a
+   band's children still collapse the way they do at narrow widths.
+
+   Percentages inside a custom property resolve where the property is used, so
+   --frame-end measures against the strip it pads, not against the root. Below
+   --content-max it collapses to --frame-pad and the strip is padded as it
+   always was.
+   -------------------------------------------------------------------- */
+:root {
+    --frame-pad: clamp(var(--s5), 4vw, var(--s8));
+    --frame-end: max(
+        var(--frame-pad),
+        100% - var(--frame-pad) - var(--content-max)
+    );
+}
+
 /* ---- Shell ---------------------------------------------------------- */
 .shell {
     display: grid;
@@ -419,7 +440,7 @@ code {
 
 /* ---- Page frame ----------------------------------------------------- */
 .pagehead {
-    padding: var(--s7) clamp(var(--s5), 4vw, var(--s8)) var(--s6);
+    padding: var(--s7) var(--frame-end) var(--s6) var(--frame-pad);
 }
 .pagehead h1 {
     max-width: 24ch;
@@ -431,7 +452,7 @@ code {
     font-size: 1.08rem;
 }
 .band {
-    padding: var(--s7) clamp(var(--s5), 4vw, var(--s8));
+    padding: var(--s7) var(--frame-end) var(--s7) var(--frame-pad);
     border-top: 1px solid var(--rule);
 }
 .band--paper {
@@ -782,7 +803,7 @@ code {
     justify-content: space-between;
     align-items: baseline;
     gap: var(--s4);
-    padding: var(--s6) clamp(var(--s5), 4vw, var(--s8));
+    padding: var(--s6) var(--frame-end) var(--s6) var(--frame-pad);
     border-top: 1px solid var(--rule-2);
     text-decoration: none;
 }
@@ -808,7 +829,7 @@ code {
 }
 
 .sitefoot {
-    padding: var(--s6) clamp(var(--s5), 4vw, var(--s8));
+    padding: var(--s6) var(--frame-end) var(--s6) var(--frame-pad);
     border-top: 1px solid var(--rule);
     display: flex;
     flex-wrap: wrap;
@@ -1011,6 +1032,11 @@ code {
     display: block;
     width: 100%;
     min-width: 480px;
+    /* The plot's type is sized in viewBox units, so the svg is capped at the
+       width of its own viewBox: stretching it wider scales the tick and point
+       labels up with it, and on a wide column 13px type would paint at twice
+       that. Keep this figure in step with `SCATTER.width`. */
+    max-width: 860px;
     height: auto;
 }
 .scatter__axis {
@@ -1176,7 +1202,7 @@ code {
 
 /* ---- The front page: hero ------------------------------------------- */
 .hero {
-    padding: clamp(var(--s5), 4vw, var(--s8));
+    padding: var(--frame-pad) var(--frame-end) var(--frame-pad) var(--frame-pad);
     background: radial-gradient(
         120% 90% at 12% 0%,
         var(--paper) 0%,
@@ -1460,27 +1486,67 @@ code {
     color: var(--paper);
 }
 
-/* ---- The front page: production strip -------------------------------- */
+/* ---- Material classes, each with its own viewer -----------------------
+   One ruled row per kind of material: what it is, the viewer running on it,
+   and who publishes the material. The row's rule sits above the heading so the
+   five read as one list rather than as five sections of the page around them.
+   -------------------------------------------------------------------- */
+.mat {
+    margin-top: var(--s6);
+    padding-top: var(--s5);
+    border-top: 1px solid var(--rule-2);
+}
+.mat h2 {
+    margin: 0;
+}
+/* A tall page is still a page. Portrait material at its own ratio makes a box
+   a screen and a half deep, so the box is capped: the ratio then gives way and
+   the viewer fits the material inside itself, which is what it does with any
+   box. The height stays deterministic from the stylesheet alone, which is the
+   property the reserved box exists for. */
+.mat .vw {
+    max-height: 72svh;
+}
+.mat__say {
+    margin: var(--s2) 0 var(--s4);
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+.mat__from {
+    margin-top: var(--s3);
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+
+/* ---- Deployments, as ruled rows --------------------------------------- */
 .prod__say {
+    /*
+     * The site's aside style, less its italic. Two sentences are not worth
+     * making the italic serif a first-paint dependency of `/`, which loads it
+     * for nothing else: the score gate measures that as a page that loads
+     * slower than its own copy claims.
+     */
     margin-top: var(--s2);
+    color: var(--ink-2);
+    font-size: var(--t-small);
 }
 .prod {
     margin-top: var(--s5);
     border-top: 1px solid var(--rule-2);
 }
-.prod a {
+.prod__row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--s4);
     align-items: baseline;
     padding: var(--s4) 0;
     border-bottom: 1px solid var(--rule);
-    text-decoration: none;
 }
 .prod .who {
     font-size: 1.2rem;
+    text-decoration: none;
 }
-.prod a:hover .who {
+.prod .who:hover {
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 3px;
@@ -1504,4 +1570,232 @@ code {
     .hero h1 {
         font-size: clamp(2.2rem, 9vw, 3rem);
     }
+}
+
+/* ---- The configuration builder ---------------------------------------
+   Here rather than in the route's own `<style>`, as with every other page's
+   rules: a scoped block on this route emits a second stylesheet, and a second
+   render-blocking request costs the page a Lighthouse point it is gated on.
+
+   Every selector is under `.builder`, which is the route's own section. The
+   names inside it — a row, a group, a button — are too general to be safe
+   loose in a stylesheet the whole site shares.
+   -------------------------------------------------------------------- */
+.builder {
+    padding-bottom: var(--s6);
+}
+.builder .bd {
+    display: grid;
+    gap: var(--s6);
+    align-items: start;
+}
+@media (width >= 1024px) {
+    .builder .bd {
+        grid-template-columns: minmax(0, 1fr) 22rem;
+    }
+    /* The viewer stays in view while the controls scroll past it: watching a
+       change land is the whole point of the page. */
+    .builder .bd__show {
+        position: sticky;
+        top: var(--s5);
+    }
+}
+.builder .bd__frame {
+    margin-top: var(--s4);
+}
+
+.builder .pick__label {
+    display: block;
+    font-size: var(--t-small);
+    font-weight: 600;
+    margin-bottom: var(--s2);
+}
+.builder .pick__row {
+    display: flex;
+    gap: var(--s2);
+}
+.builder .pick__url {
+    flex: 1 1 0%;
+    min-width: 0;
+    font: inherit;
+    font-size: var(--t-small);
+    padding: var(--s2) var(--s3);
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+}
+.builder .pick__note {
+    margin-top: var(--s2);
+}
+
+/* The panel's microcopy is not an editorial aside, and must not be set in the
+   italic: this route's notes sit above the fold, and `.aside` would make the
+   italic face a first-paint dependency on the page whose own claim is that it
+   loads fast. */
+.builder .note {
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+.builder .grp__note {
+    font-size: var(--t-tiny);
+}
+
+.builder .btn {
+    font-size: var(--t-small);
+    padding: var(--s2) var(--s4);
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+    background: var(--paper);
+    white-space: nowrap;
+}
+.builder .btn--go {
+    background: var(--cta);
+    color: var(--cta-ink);
+    border-color: var(--cta);
+}
+.builder .linkish {
+    padding: 0;
+    color: var(--link);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font: inherit;
+}
+
+.builder .bd__setHead {
+    display: grid;
+    justify-items: start;
+    gap: var(--s3);
+    margin-bottom: var(--s4);
+}
+
+.builder .grp {
+    margin: 0 0 var(--s4);
+    padding: var(--s3) var(--s4) var(--s4);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: var(--paper);
+}
+.builder .grp legend {
+    padding: 0 var(--s2);
+    font-size: var(--t-small);
+    font-weight: 600;
+}
+.builder .grp__note {
+    margin-bottom: var(--s3);
+}
+.builder .grp__body {
+    display: grid;
+    gap: var(--s2);
+}
+
+/* Label over control. The column is narrow enough that a two-column row clips a
+   select's own text, which is the one thing a control naming a real key must
+   not do. */
+.builder .row {
+    display: grid;
+    gap: var(--s1);
+    font-size: var(--t-small);
+}
+.builder .row--check {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+}
+.builder .row__value {
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.builder .row__token {
+    display: block;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.builder .row select,
+.builder .row input[type='range'] {
+    font: inherit;
+    font-size: var(--t-tiny);
+    width: 100%;
+    min-width: 0;
+}
+.builder .row select {
+    padding: var(--s1) var(--s2);
+    color: var(--ink);
+    background: var(--bone);
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+}
+.builder .row input[type='color'] {
+    width: 4rem;
+    height: 1.9rem;
+    padding: 0;
+    border: 1px solid var(--rule-2);
+    background: var(--paper);
+}
+
+/* ---- The builder's live viewer ---------------------------------------
+   The box holds its own height from the first paint, so nothing moves when the
+   viewer arrives or when a pasted manifest replaces the plate.
+   -------------------------------------------------------------------- */
+.builder .pv {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    min-height: 22rem;
+    border: 1px solid var(--rule-2);
+    background: var(--bench);
+    overflow: hidden;
+}
+.builder .pv__wait {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--s4);
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+/* Read from, never seen. It is the viewer's theme in scope and nothing else,
+   untouched by the overrides, which are inline style on the viewer root. */
+.builder .pv__probe {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+.builder .pv__live {
+    position: absolute;
+    inset: 0;
+}
+
+/* ---- The builder's three handoffs ------------------------------------
+   The share link and the configuration object sit side by side because they
+   are alternatives to each other; the snippet takes the full width because it
+   is the longest of the three and the one that is read rather than skimmed.
+   -------------------------------------------------------------------- */
+.handoff .hand {
+    display: grid;
+    gap: var(--s6);
+    margin-top: var(--s5);
+}
+@media (width >= 900px) {
+    .handoff .hand {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .handoff .hand__one--wide {
+        grid-column: 1 / -1;
+    }
+}
+.handoff .hand__one h3 {
+    margin: 0 0 var(--s2);
+}
+.handoff .note {
+    margin: 0 0 var(--s3);
+    max-width: var(--measure);
+    color: var(--ink-soft);
+    font-size: var(--t-small);
+}
+.handoff .cmd + .note {
+    margin: var(--s3) 0 0;
 }

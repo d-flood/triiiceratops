@@ -9,27 +9,87 @@
  * deployment with no openable link does not belong here, and the list is never
  * padded: if only a few real deployments exist, the page lists a few. A dead
  * link on the page whose whole job is proof is worse than an absent entry, so
- * the links are checked by request rather than assumed — see the check in
- * ticket 11's acceptance.
+ * the links are checked by request rather than assumed.
  */
+
+/**
+ * What kind of adoption an entry is.
+ *
+ * A reading room is a collection a curator publishes and a reader browses. A
+ * tool is software that emits the viewer into somebody else's pages — adoption
+ * of the embed rather than a collection, and the page must not imply otherwise.
+ */
+export type DeploymentKind = 'reading-room' | 'tool';
 
 export type Deployment = {
     /** The institution or project, named as it names itself. */
     readonly who: string;
     /** What the viewer is doing there, in one clause. */
     readonly what: string;
-    /** A working link into the running deployment, not to a home page. */
+    /** Who runs it: the landing page a reader lands on. */
     readonly href: string;
+    /**
+     * The evidence: one page where the viewer is actually running.
+     *
+     * Absent only where no such page can honestly be linked yet.
+     */
+    readonly example?: string;
+    readonly kind: DeploymentKind;
 };
 
 /**
- * Empty until the maintainer supplies the real entries.
+ * Every deployment, verified by request on 2026-08-31, landing page and viewer
+ * example each.
  *
- * The design record records that the viewer is deployed in several projects
- * including a university library, but no URL for any of them exists anywhere in
- * this repository, and inventing or padding the list is explicitly out of scope.
- * The strip and the route both render nothing while this is empty rather than
- * showing a placeholder, because a placeholder deployment is exactly the claim
- * the section exists to make honestly.
+ * Paleo Bench is the maintainer's own project, so it is the entry a sceptical
+ * reader discounts: it stays, and it does not lead.
+ *
+ * mkiiif carries no example link. Its generated pages load the viewer from the
+ * CDN unpinned, and the published version still renders a level-0 tile pyramid
+ * blank, so every page it has generated is blank until the fix is released. A
+ * link labelled as evidence that shows nothing is worse than no link.
  */
-export const DEPLOYMENTS: readonly Deployment[] = [];
+export const DEPLOYMENTS: readonly Deployment[] = [
+    {
+        who: 'CSNTM',
+        what: 'The Center for the Study of New Testament Manuscripts’ photographed manuscript collection.',
+        href: 'https://collections.csntm.org/',
+        example: 'https://collections.csntm.org/manuscripts/MNTGRCP1',
+        kind: 'reading-room',
+    },
+    {
+        who: 'Mapping Color in History',
+        what: 'Harvard’s pigment-analysis database, where the viewer shows the works the analyses are of.',
+        href: 'https://mappingcolor.fas.harvard.edu/',
+        example:
+            'https://mappingcolor.fas.harvard.edu/works/chitra-darshana-nayika-the-heroine-who-gazes-at-a-picture-of-her-absent-beloved',
+        kind: 'reading-room',
+    },
+    {
+        who: 'Digital Giza',
+        what: 'Harvard’s archive of the Giza Necropolis, reading excavation photography site by site.',
+        href: 'https://giza.fas.harvard.edu/',
+        example: 'https://giza.fas.harvard.edu/sites/5274/full/',
+        kind: 'reading-room',
+    },
+    {
+        who: 'Black Teacher Archive',
+        what: 'The Harvard Graduate School of Education’s archive of the Colored Teachers Associations’ journals.',
+        href: 'https://bta.gse.harvard.edu/',
+        example: 'https://bta.gse.harvard.edu/collection/gut50000c05777',
+        kind: 'reading-room',
+    },
+    {
+        who: 'Paleo Bench',
+        what: 'Palaeographic comparison of manuscript hands, side by side.',
+        href: 'https://d-flood.github.io/paleo-bench/',
+        example: 'https://d-flood.github.io/paleo-bench/compare',
+        kind: 'reading-room',
+    },
+    {
+        who: 'mkiiif',
+        what: 'Raffaele Messuti’s Go command-line tool: it tiles an image, writes a IIIF v3 manifest, and emits a page carrying the viewer from the CDN.',
+        href: 'https://github.com/atomotic/iiif',
+        kind: 'tool',
+    },
+];

@@ -3,6 +3,12 @@
 	"version": 2,
 	"content": [
 		{
+			"type": "deployments",
+			"attrs": {
+				"id": "production-deployments"
+			}
+		},
+		{
 			"type": "heading",
 			"attrs": {
 				"id": "7155b28e-951c-51c5-a05e-155d131d9756",

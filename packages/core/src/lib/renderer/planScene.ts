@@ -116,6 +116,7 @@ import {
     chooseLevel,
     DERIVED_TILE_SIZE,
     tileCanvasRect,
+    tileFallback,
     tileKey,
     tilesIntersecting,
     tileUrl,
@@ -770,6 +771,7 @@ function planPyramid(
                 row,
             );
             const tileBox = tileCanvasRect(pyramid, level, column, row, box);
+            const fallback = tileFallback(pyramid, level, column, row);
 
             requests.push({
                 key,
@@ -777,6 +779,7 @@ function planPyramid(
                 level: level.level,
                 url: tileUrl(pyramid, level, column, row),
                 priority: distanceToBox(viewport.centre, tileBox),
+                ...(fallback ? { fallback } : {}),
             });
 
             // Drawn only if held AND actually on screen: the margin exists to
@@ -1227,6 +1230,7 @@ function baseLevelTile(
         if (level.columns !== 1 || level.rows !== 1) return null;
         if (level.width * level.height > maxDecodedPixels) return null;
         url = tileUrl(pyramid, level, 0, 0);
+        fallback = tileFallback(pyramid, level, 0, 0);
     } else if (ladder) {
         const rung = ladder.rungs[0];
         if (rung.width * rung.height > maxDecodedPixels) return null;

@@ -72,7 +72,12 @@ import {
     rungUrl,
     type SizeLadder,
 } from './sizeLadder';
-import { buildPyramid, tileUrl, type TilePyramid } from './tilePyramid';
+import {
+    buildPyramid,
+    tileFallback,
+    tileUrl,
+    type TilePyramid,
+} from './tilePyramid';
 import {
     iiifImageRequestUrl,
     iiifSizeParameter,
@@ -313,13 +318,16 @@ function fromLadder(
         // what keeps this tier on URLs the tile tier is already painting from,
         // which is the whole point of {@link ladderFromSingleTileLevels}.
         //
-        // No `fallback`: the second spelling `rungFallback` offers is version
-        // 2's deprecated `native` quality, and tile requests do not carry one
-        // either (see `planScene.planPyramid`), so a tile that 404s here answers
-        // the same way it would there.
+        // The fallback is `tileFallback`'s, not `rungFallback`'s: a whole-image
+        // tile is exactly the request two static trees spell differently, and
+        // its group is the service, so the answer the tile tier bought is the
+        // one this tier uses.
+        const level = tiles.levels[chosen.index];
+        const fallback = tileFallback(tiles, level, 0, 0);
         return {
             kind: 'url',
-            url: tileUrl(tiles, tiles.levels[chosen.index], 0, 0),
+            url: tileUrl(tiles, level, 0, 0),
+            ...(fallback ? { fallback } : {}),
         };
     }
 

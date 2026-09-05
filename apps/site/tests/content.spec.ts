@@ -52,11 +52,25 @@ async function caretAtEndOf(page: Page, block: Locator): Promise<void> {
     await page.mouse.click(box.x + box.width - 1, box.y + box.height - 4);
 }
 
-/** The editor's rich-text surface, once it holds the loaded document. */
+/**
+ * The editor's rich-text surface, once it holds the loaded document.
+ *
+ * The wait is on the document's own first line of prose, read from the file, so
+ * it stays a wait for the load however the page's copy is rewritten.
+ */
 async function editor(page: Page): Promise<Locator> {
     const surface = page.locator('uncial-editor .ProseMirror');
-    await expect(surface).toContainText('Placeholder section');
+    await expect(surface).toContainText(firstProse());
     return surface;
+}
+
+/** The first text the document carries, which is what the surface shows first. */
+function firstProse(): string {
+    for (const node of document().content) {
+        const text = nodeText(node).trim();
+        if (text) return text;
+    }
+    throw new Error('the document carries no text, so nothing marks it loaded');
 }
 
 const committed = readFileSync(DOCUMENT, 'utf8');

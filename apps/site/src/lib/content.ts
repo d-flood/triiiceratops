@@ -24,6 +24,7 @@ import ContentStateFixtureTable from './ContentStateFixtureTable.svelte';
 import CssTokenTable from './CssTokenTable.svelte';
 import DeploymentsList from './DeploymentsList.svelte';
 import InstallBlock from './InstallBlock.svelte';
+import MaterialClasses from './MaterialClasses.svelte';
 import OnwardList from './OnwardList.svelte';
 
 export const siteConfig: UncialCmsSiteConfig = {
@@ -101,7 +102,7 @@ export const CALLOUT_KINDS = [
  * Derived blocks: placed in a document, rendered from code, with nothing
  * editable inside them.
  *
- * The four that carry no attributes at all each import the data module they
+ * The five that carry no attributes at all each import the data module they
  * render, so there is no copy of that data in the document to drift from it.
  *
  * `contentStateFixtures` is the other kind: its attributes are written by
@@ -134,7 +135,7 @@ export const blocks = createBlockRegistry([
             },
         },
         component: Tabs as SvelteBlockComponent,
-        content: { kind: 'flow' },
+        content: { kind: 'flow', allowedBlocks: ['tab'] },
     }),
     defineSvelteBlock({
         id: 'tab',
@@ -207,6 +208,16 @@ export const blocks = createBlockRegistry([
         readOnly: true,
         attributes: {},
         component: InstallBlock as SvelteBlockComponent,
+        content: false,
+    }),
+    defineSvelteBlock({
+        id: 'materialClasses',
+        label: 'Material classes',
+        description:
+            'Every kind of material the viewer copes with, each running on a real manifest.',
+        readOnly: true,
+        attributes: {},
+        component: MaterialClasses as SvelteBlockComponent,
         content: false,
     }),
     defineSvelteBlock({

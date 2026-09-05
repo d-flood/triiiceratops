@@ -3431,6 +3431,71 @@
 									"content": [
 										{
 											"type": "text",
+											"text": "triiiceratops/image-export",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "419b67b5-c0f0-4dc5-bf18-fcba6e5e47d6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c40d9d7e-d178-4163-a8b8-3644c0ad9392"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Version-neutral IIIF canvas helpers — see "
+										},
+										{
+											"type": "text",
+											"text": "the canvas contract",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/plugin-authoring/#the-canvas-contract"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "81dfd110-9855-4a1d-ae70-f815be59deed"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d18dbebe-d74c-433f-b439-e1497f9f7ee7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6136007d-d23c-4bdf-a8ee-f46f02d8dc5d"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
 											"text": "triiiceratops/svelte",
 											"marks": [
 												{

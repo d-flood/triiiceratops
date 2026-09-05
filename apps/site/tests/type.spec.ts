@@ -72,7 +72,21 @@ test.describe('the unicode-range split', () => {
         test(`${route.path} fetches slices only`, async ({ page }) => {
             const requests = recordRequests(page);
             await page.goto(route.path);
-            await page.waitForLoadState('networkidle');
+            /*
+             * `/handles/` is the one route whose content is other people's
+             * material, and a collection that needs this viewer is exactly the
+             * one whose labels are in Ge'ez, Japanese or Arabic — so an embed
+             * that has loaded reaches past the slices to the full face,
+             * correctly, and that is the deferral working rather than a defect.
+             * What must stay true there is that the page itself costs slices
+             * only, so it is measured at load rather than at network idle: the
+             * embeds start only once the page has loaded, so everything
+             * recorded by then is what a reader pays for before scrolling to
+             * one. That also holds the deferral itself — an embed that started
+             * during load would show up here as a full face.
+             */
+            if (route.path !== '/handles/')
+                await page.waitForLoadState('networkidle');
 
             expect(
                 requests.filter(isFullFace),

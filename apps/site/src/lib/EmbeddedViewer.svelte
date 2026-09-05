@@ -9,11 +9,11 @@
      * A viewer embedded in a marketing page.
      *
      * The box reserves its own height from the first canvas's aspect ratio,
-     * the first canvas is painted into it as an image, and the viewer's chrome
-     * is drawn around that as plain markup — so the page is complete and stable
-     * before any viewer code has run. Nothing moves when the viewer arrives, it
-     * lands its controls where they already appeared to be, and a reader whose
-     * script never runs still sees the material in a viewer.
+     * the first canvas is painted into it as an image where the site has one to
+     * serve, and the viewer's chrome is drawn around that as plain markup — so
+     * the page is complete and stable before any viewer code has run. Nothing
+     * moves when the viewer arrives, it lands its controls where they already
+     * appeared to be, and a reader whose script never runs still sees a viewer.
      *
      * The viewer itself — its code, its stylesheet and its manifest — is
      * fetched after the page has loaded, and for an embed below the fold only
@@ -43,6 +43,8 @@
         (typeof import('triiiceratops/svelte'))['TriiiceratopsViewer'];
 
     const first = $derived(example.firstCanvas);
+    const prerender = $derived(first.prerender);
+    const reserved = $derived(example.reserve ?? first);
 
     /**
      * The viewer draws on the host's ground rather than its own.
@@ -73,6 +75,20 @@
     }
 
     onMount(() => {
+        /*
+         * Nothing starts inside the editor. The same document is rendered
+         * there for whoever is writing its prose, and an embed is read-only to
+         * them: five viewers fetching somebody else's material buy an author
+         * nothing, and cost them an editing surface that stutters under the
+         * keystrokes it exists to take. The reserved box and the chrome stay,
+         * so the shape of the page is still what they are editing.
+         *
+         * The editing surface is a shadow root and the published page is the
+         * document, which is the only thing that tells one rendering of one
+         * document from the other.
+         */
+        if (box.getRootNode() !== document) return;
+
         if (eager) return afterLoad(() => void start());
 
         const observer = new IntersectionObserver(
@@ -99,20 +115,22 @@
 <div
     class="vw"
     bind:this={box}
-    style="aspect-ratio: {first.width} / {first.height}"
+    style="aspect-ratio: {reserved.width} / {reserved.height}"
     role="group"
     aria-label={label}
 >
-    <img
-        class="vw__first"
-        src={first.src}
-        alt={first.alt}
-        width={first.width}
-        height={first.height}
-        decoding="async"
-        fetchpriority={eager ? 'high' : 'auto'}
-        loading={eager ? 'eager' : 'lazy'}
-    />
+    {#if prerender}
+        <img
+            class="vw__first"
+            src={prerender.src}
+            alt={prerender.alt}
+            width={first.width}
+            height={first.height}
+            decoding="async"
+            fetchpriority={eager ? 'high' : 'auto'}
+            loading={eager ? 'eager' : 'lazy'}
+        />
+    {/if}
     {#if Viewer === undefined}
         <ChromeSkeleton canvases={example.canvases} />
     {:else}
