@@ -8,6 +8,10 @@
 // already created before the snippet runs.
 declare const viewer: any;
 
+// A host-owned range input the AV guide's `subscribeFrame` example drives from
+// the playhead ("your own scrubber").
+declare const scrubber: HTMLInputElement;
+
 // The browser plugin registry (also declared by the packed core types at
 // runtime; declared loosely here for no-bundler snippets).
 interface Window {

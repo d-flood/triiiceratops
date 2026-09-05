@@ -1,0 +1,38 @@
+{
+    "name": "@triiiceratops/app-examples",
+    "version": "0.0.0",
+    "type": "module",
+    "private": true,
+    "description": "Framework consumer examples published inside the documentation version directory. A private workspace application that consumes the viewer only through its published entrypoints; never published.",
+    "license": "MIT",
+    "author": "David Flood",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/d-flood/triiiceratops.git",
+        "directory": "apps/examples"
+    },
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build && pnpm build:static && pnpm build:bundles",
+        "build:static": "rm -rf dist/examples/web-component dist/examples/plain-html && mkdir -p dist/examples && cp -r src/web-component dist/examples/web-component && cp -r src/plain-html dist/examples/plain-html",
+        "build:bundles": "rm -rf dist/dist && cp -rL node_modules/triiiceratops/dist dist/dist && mkdir -p dist/dist/plugin-av && cp -rL node_modules/@triiiceratops/plugin-av/dist/. dist/dist/plugin-av/",
+        "preview": "vite preview",
+        "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0"
+    },
+    "dependencies": {
+        "@triiiceratops/plugin-av": "workspace:*",
+        "triiiceratops": "workspace:*"
+    },
+    "devDependencies": {
+        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "@tsconfig/svelte": "^5.0.6",
+        "@types/node": "^24.10.1",
+        "eslint": "^9.39.2",
+        "svelte": "^5.43.8",
+        "svelte-check": "^4.3.4",
+        "typescript": "~5.9.3",
+        "vite": "^6.0.0"
+    }
+}

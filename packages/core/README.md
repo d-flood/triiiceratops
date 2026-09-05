@@ -24,7 +24,7 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
 - **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
 - **Multi-image Canvases**: Canvases with multiple painting annotations (e.g., compositions, foldouts, maps) are composited correctly with per-image positioning
 - **IIIF Search**: Full Content Search API support with hit highlighting
-- **Content State API**: Accepts the `iiif-content` URL parameter (base64-encoded JSON or plain URL) to open a manifest at a specific canvas and region
+- **Content State API**: Accepts a content state — a bare IIIF URI or an Annotation, base64url-encoded or not — as the `content-state` input, and will read the `iiif-content` URL parameter itself when the host opts in
 - **Direct Manifest Injection**: Svelte and web component consumers can pass manifest JSON directly instead of loading over HTTP
 - **Custom Search Providers**: Svelte consumers can supply local or app-backed search results without exposing an HTTP IIIF Search endpoint
 - **Metadata Display**: Shows manifest metadata, description, attribution, rights/license, `homepage`, `rendering` (alternative format links), `seeAlso`, and `provider` (with logo and homepage)

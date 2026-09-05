@@ -516,10 +516,30 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
             DEFAULT_BUDGETS.boxThreshold * 2,
         );
 
-        // Nothing is above the pyramid threshold down here, so nothing is being
-        // asked for.
+        // Which tier a folio sits in is decided by its PROJECTED size against
+        // `pyramidThreshold`, so the floor's residency follows from the scale
+        // above and the viewport, not from any one window size. Every folio in
+        // this fixture is identical, so at the floor they are all on the same
+        // side of the threshold:
+        //
+        //   below it — the tier is empty, because nothing is large enough to
+        //   hold a pyramid at all;
+        //   at or above it — the folios on screen legitimately hold one, and
+        //   the claim that carries the "no request storm" title is that the tier
+        //   stays the width of the residency window (the folios the viewport
+        //   spans, plus the ±1 neighbours that make turning the page instant)
+        //   rather than growing with the manifest.
         const residency = await getResidency(page);
-        expect(residency.pyramid).toEqual([]);
+        const projectedExtent = view.scale * medianCanvasExtent;
+        if (projectedExtent < DEFAULT_BUDGETS.pyramidThreshold) {
+            expect(residency.pyramid).toEqual([]);
+        } else {
+            const foliosOnScreen = Math.ceil(view.width / (view.scale * PITCH));
+            expect(
+                residency.pyramid.length,
+                `${residency.pyramid.length} folios in the pyramid tier at the floor, spanning ${foliosOnScreen} on screen, on an ${CONTINUOUS_CANVAS_COUNT}-canvas manifest`,
+            ).toBeLessThanOrEqual(foliosOnScreen + 2);
+        }
 
         // Two things make "no request storm" true, and they are different
         // claims. The TRANSIT never widens into one: zooming out grows the

@@ -1,0 +1,11 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "https://example.org/content-state/string-target-region",
+    "type": "Annotation",
+    "motivation": ["contentState"],
+    "target": "https://iiif.io/api/cookbook/recipe/0299-region/canvas/p1#xywh=265,661,1260,1239",
+    "partOf": {
+        "id": "https://iiif.io/api/cookbook/recipe/0299-region/manifest.json",
+        "type": "Manifest"
+    }
+}

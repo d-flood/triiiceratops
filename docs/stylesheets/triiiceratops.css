@@ -231,3 +231,57 @@ body[data-md-color-scheme] {
         height: 0.9rem;
     }
 }
+
+/* Scatter plot on docs/bundle-size-comparison.md, plotting recipe coverage
+   against gzip bytes. The geometry lives in the SVG's own coordinates so the
+   markup carries the data; this block only supplies colour and type, both of
+   which have to come from the theme's variables to survive the dark-mode swap.
+   Like the bar chart it is aria-hidden, with the same figures tabulated below
+   it. */
+.md-typeset figure:has(> .tri-scatter) {
+    width: 100%;
+}
+
+.tri-scatter {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 1.4rem 0;
+}
+
+.tri-scatter-axis {
+    stroke: var(--md-default-fg-color--light);
+    stroke-width: 1;
+}
+
+.tri-scatter-grid {
+    stroke: var(--md-default-fg-color--lightest);
+    stroke-width: 1;
+}
+
+.tri-scatter-tick,
+.tri-scatter-point-label {
+    fill: var(--md-default-fg-color--light);
+    font-size: 13px;
+}
+
+.tri-scatter-axis-label {
+    fill: var(--md-default-fg-color--light);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.tri-scatter-point {
+    fill: var(--md-default-fg-color--light);
+}
+
+.tri-scatter-point--self {
+    fill: var(--tri-primary);
+    stroke: var(--md-default-fg-color--light);
+    stroke-width: 1;
+}
+
+.tri-scatter-point-label--self {
+    fill: var(--md-default-fg-color);
+    font-weight: 700;
+}

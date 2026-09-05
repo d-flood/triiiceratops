@@ -166,11 +166,10 @@ whether the toolbar is open" plugin, mounted five ways:
 
     !!! note "Svelte hosts use the same SDK path"
 
-        There is no Svelte-only shortcut. The Svelte-component plugin path
-        (`PluginDef`, `createPanelPlugin`, `createFlyoutPlugin`) was removed in
-        1.0, because it put Svelte component types into every consumer's type
-        graph. Mount your Svelte component from `mount()` exactly as above; set a
-        stable `uiId` if you plan to control the plugin through `config.plugins`.
+        There is no Svelte-only shortcut — a dedicated one would put Svelte
+        component types into every consumer's type graph. Mount your Svelte
+        component from `mount()` exactly as above; set a stable `uiId` if you plan
+        to control the plugin through `config.plugins`.
 
 === "Lit"
 
@@ -228,7 +227,7 @@ export function createExamplePlugin() {
         // like 'Example' works too. Omit it and the toolbar shows `name`.
         uiId: 'my-plugin', // stable, DOM-safe key for config.plugins[uiId]
         version: '1.0.0',
-        coreRange: '>=1.0.0-rc.0', // core versions this plugin supports
+        coreRange: '>=1.0.0', // core versions this plugin supports
         pluginApiRange: '^1.0.0', // plugin API versions supported
         requiredCapabilities: [], // normally empty; see "Capabilities" below
         icon,
@@ -777,9 +776,11 @@ async function markCentre(context: PluginContext) {
 ```
 
 `whenRendererReady` resolves `void`: there is no object to hand over. It means
-"the renderer has a sized surface and accepts commands", and it is not the old
-readiness helper renamed — that one promised a third-party viewer instance,
-which no longer exists.
+"the renderer has a sized surface and accepts commands" — nothing more, and in
+particular not a renderer instance. The renderer is first-party and unexposed
+([ADR 0012](adr/0012-the-renderer-is-first-party-with-no-pass-through.md)); the
+commands, the query-only viewport values, and the coordinate helpers on
+`ViewerState` are the whole of what a plugin gets.
 
 #### Reserving space for your own UI: the viewport inset
 
@@ -1126,10 +1127,10 @@ composite image+video canvas compose), and layout, navigation, residency, and
 `canvasToScreen` never learn a claim exists.
 
 The one thing beyond the placard that a claim moves is the annotation scope: a
-claimed canvas leaves `annotatableCanvasIds`, because core is no longer painting
-anything there for a comment to be anchored against. Every annotation surface
-reads that list — the panel, the overlays, and the annotation editor's drawing
-layer — so the reader is not offered a rectangle tool over your video.
+claimed canvas leaves `annotatableCanvasIds`, because core paints nothing there for
+a comment to be anchored against. Every annotation surface reads that list — the
+panel and the overlays included — so the reader is not offered a rectangle tool
+over your video.
 
 **Pass `context.surface.id` as `pluginId` — never a literal, and never your
 package name.** It is the id the viewer knows you by, the same value your overlay
@@ -1272,8 +1273,8 @@ genuinely optional runtime features, not for versions: a plugin states which
 
 Declare one only if your plugin calls that seam, so it fails closed on a viewer
 that predates it instead of silently doing nothing. A plugin requiring a
-capability the host does not declare fails activation — which is what happens to
-anything still asking for the retired `osd@5`.
+capability the host does not declare fails activation with a
+`PluginCompatibilityError` that names the capability.
 
 ## Services
 

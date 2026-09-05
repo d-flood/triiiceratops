@@ -144,6 +144,15 @@ const viewerProps = {
     manifestId: { type: String, required: false },
     canvasId: { type: String, required: false },
     theme: { type: String, required: false },
+    contentState: { type: String, required: false },
+    // Off by default (ADR 0006): Vue's own Boolean casting makes an absent prop
+    // `false`, and `viewerElementAttributes` omits the attribute for `false`
+    // and `undefined` alike, so an opted-out host emits nothing either way.
+    // That synthesized `false` is also why the published `DefineComponent`
+    // carries a defaults type argument whose expansion is on the
+    // `dts-any-allowlist.txt`: a `Boolean` prop gets one whether or not a
+    // `default` is declared here.
+    readContentStateFromUrl: { type: Boolean, required: false },
     manifestJson: {
         type: [String, Object] as PropType<string | Record<string, any>>,
         required: false,

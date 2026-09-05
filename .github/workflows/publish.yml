@@ -2,7 +2,7 @@
 #
 # Publishing PROMOTES the exact tarballs required CI already built and verified —
 # it never rebuilds. The required "Run Tests" workflow packs one `.tgz` per
-# publishable package (five today, with a SHA256SUMS manifest) and uploads them as
+# publishable package (with a SHA256SUMS manifest) and uploads them as
 # a workflow artifact; this workflow downloads that SHA-matched artifact,
 # re-verifies the checksums, and runs `npm publish <tgz>` per package. There is
 # deliberately NO build/compile step here (see SPEC "Publishing promotes verified
@@ -16,7 +16,7 @@
 # in the list aborts the job after core is already on the registry — published,
 # unsmoked, and with no GitHub release. Keeping a package off npm therefore means
 # dropping it from that list, which is why the paused
-# `@triiiceratops/plugin-annotation-editor` is absent from it and from the five
+# `@triiiceratops/plugin-annotation-editor` is absent from it and from the
 # tarballs above.
 #
 # Graph:  promote  →  registry smoke  →  GitHub release
@@ -108,8 +108,8 @@ jobs:
                   PUBLISHED=()
                   CORE_VERSION=""
                   # release-manifest.json (from pack-artifacts.mjs) lists the exact
-                  # name/version/dist-tag/tarball for each publishable package
-                  # (five today). COUNT is read from the manifest, never hardcoded.
+                  # name/version/dist-tag/tarball for each publishable package.
+                  # COUNT is read from the manifest, never hardcoded.
                   COUNT=$(node -p "require('./release-manifest.json').packages.length")
                   for i in $(seq 0 $((COUNT - 1))); do
                     NAME=$(node -p "require('./release-manifest.json').packages[$i].name")

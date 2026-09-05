@@ -2,8 +2,8 @@
 #
 # On every push to main, Changesets maintains a "Version Packages" pull request
 # that applies `changeset version` (rc bumps while in pre mode). Merging that PR
-# lands a commit where every affected package version is ALREADY bumped (the five
-# publishable packages, plus the paused annotation-editor plugin, which Changesets
+# lands a commit where every affected package version is ALREADY bumped (every
+# publishable package, plus the paused annotation-editor plugin, which Changesets
 # still versions even though it is no longer published) — required CI
 # then packs correctly-versioned tarballs and publish.yml promotes those exact
 # bytes. This is what keeps a build step out of publication: the version is baked

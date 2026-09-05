@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Page not found — Triiiceratops</title>
+        <meta name="robots" content="noindex" />
+        <!--
+            No redirect of any kind here, by decision: legacy versioned
+            documentation URLs are not forwarded, so an http-equiv meta tag, a
+            client-side redirect or a path-rewriting shim would each be guessing
+            at a destination. A dead link gets a link home and nothing else.
+
+            No social tags either: a not-found page is not a page anyone shares.
+        -->
+        <style>
+            /* Declared so a browser's own auto-dark-mode heuristic leaves the
+               page alone: without it, Chrome darkens a page it thinks has no
+               dark support, on top of the dark rules below. */
+            :root {
+                color-scheme: light dark;
+            }
+            body {
+                font-family: system-ui, sans-serif;
+                max-width: 34rem;
+                margin: 6rem auto;
+                padding: 0 1rem;
+                line-height: 1.6;
+            }
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+            p {
+                margin-top: 0;
+            }
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background: #111;
+                    color: #eee;
+                }
+                a {
+                    color: #7ab7ff;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Page not found</h1>
+        <p>That page is not here. Nothing is broken on your end.</p>
+        <!-- Absolute, not `/` or `./`: `./` is relative to the requested path,
+             which for a 404 is any path at any depth, and `/` reaches the
+             landing page only on a host that serves this tree at its root —
+             the same artifact is also served under a path prefix. An absolute
+             URL is the only form correct from every host and every depth. -->
+        <p>
+            <a href="https://triiiceratops.org/"
+                >Go to the Triiiceratops home page</a
+            >
+        </p>
+    </body>
+</html>

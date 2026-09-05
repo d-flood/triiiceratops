@@ -7,7 +7,7 @@ search:
 
 Plugins and framework wrappers receive one live object — the per-viewer `ViewerState` —
 and reach everything through it: manifest and canvas data, annotations, chrome state,
-the OSD instance. Framework wrappers translate that same object into framework-native
+the viewport. Framework wrappers translate that same object into framework-native
 selectors; they do not own a parallel state surface. The page-shared manifest cache
 (`manifestsState`) stays an internal caching optimization reached only via `ViewerState`
 queries and subscriptions, and plugin-written display state (`userAnnotations`) moves

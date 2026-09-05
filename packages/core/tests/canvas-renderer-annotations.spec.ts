@@ -126,7 +126,7 @@ async function openAnnotatedManifest(
         JSON.stringify({ annotations: { open: true } }),
     );
     await page.goto(
-        `/?manifest=/annotation-geometry-manifest.json&config=${config}`,
+        `/e2e/harness.html?manifest=/annotation-geometry-manifest.json&config=${config}`,
         { waitUntil: 'domcontentloaded' },
     );
     await page.locator(SURFACE).waitFor({ state: 'visible', timeout: 20_000 });

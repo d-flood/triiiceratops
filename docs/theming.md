@@ -143,9 +143,12 @@ additionally setting `metadataPanelBg: 'white'` overrides just the metadata pane
 | `structuresPanel…`           | Table-of-contents panel      | `--tri-structures-panel-…`          |
 | `collectionPanel…`           | Collection panel             | `--tri-collection-panel-…`          |
 
-Plugin panels follow `panelBg` too, and can be overridden via [`cssVars`](#raw-css-variables)
-or raw CSS variables: `--tri-pdf-export-panel-bg` and `--tri-annotation-editor-panel-bg` (and
-their `-content` counterparts).
+Plugin panels have no per-panel token of their own: they take `panelBg` /
+`panelContent` like every other panel. First-party plugin CSS reads the public
+`--tri-*` tokens above (`--tri-input-bg`, `--tri-surface-border`,
+`--tri-radius-panels`, and the palette), so retinting those retints the plugin
+panels with them. A plugin that defines its own custom property can be fed through
+the [`cssVars`](#raw-css-variables) escape hatch.
 
 ### Border radius
 
@@ -380,16 +383,17 @@ and must be set through [`cssVars`](#raw-css-variables) or plain CSS.
 
 #### Raw CSS variables
 
-For tokens without a typed key (e.g. plugin-panel overrides), use the `cssVars`
-escape hatch. Keys are CSS variable names **without** the leading `--`, and values are
-applied verbatim (no color normalization):
+For tokens without a typed key — `--tri-color-primary-text`, or a custom property
+a plugin reads — use the `cssVars` escape hatch. Keys are CSS variable names
+**without** the leading `--`, and values are applied verbatim (no color
+normalization), so a name nothing reads simply has no effect:
 
 ```js
 viewer.themeConfig = {
     panelBg: 'oklch(20% 0.02 277)',
     cssVars: {
-        'tri-image-manipulation-panel-bg': '#11182f',
-        'tri-pdf-export-panel-bg': '#0b1020',
+        'tri-color-primary-text': '#c7d2fe',
+        'my-plugin-accent': '#0b1020',
     },
 };
 ```

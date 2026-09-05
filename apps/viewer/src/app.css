@@ -1,0 +1,26 @@
+/*
+ * The bare viewer's page-level stylesheet: the page shell only. The viewer's
+ * appearance comes from `triiiceratops/style.css` and the viewer's own inputs —
+ * the page never styles the viewer's internals and never reads its tokens.
+ */
+html,
+body,
+#app {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    /* The window behind the viewer follows the reader's system setting, so a
+       dark-mode page does not flash white before the viewer paints. */
+    background-color: #ffffff;
+    color: #1a1a1a;
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1a1a1a;
+        color: #f2f2f2;
+    }
+}

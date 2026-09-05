@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops — Plain HTML example</title>
+        <link rel="stylesheet" href="app.css" />
+
+        <!-- Load the viewer (self-contained IIFE bundle with all dependencies) -->
+        <script src="../../dist/triiiceratops-element.iife.js"></script>
+    </head>
+    <body>
+        <!-- The Viewer Component -->
+        <triiiceratops-viewer
+            theme="dark"
+            manifest-id="https://iiif.wellcomecollection.org/presentation/v3/b18035723"
+            canvas-id="https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0001.JP2"
+        ></triiiceratops-viewer>
+
+        <!--
+            The smallest possible consumer: one script tag and one element, no
+            bundler and no plugins. To add a plugin, load its own IIFE after
+            core's and activate it via `window.Triiiceratops.plugins` — see the
+            web-component example, which does exactly that.
+        -->
+    </body>
+</html>

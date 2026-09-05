@@ -161,10 +161,10 @@ runPluginConformance(() => createExamplePlugin());
 
 ## Renderer-dependent behavior
 
-The kit ships **no** Annotorious fake, but it does ship a headless renderer
-stand-in — the renderer is first-party now, so there is one right answer to what
-a stand-in reports. Mount it with `attachRenderer(...)` to exercise the readiness
-path, the viewport queries, and the `frame` selector cadence with no DOM:
+The kit ships a headless renderer stand-in. The renderer is first-party, so there
+is exactly one right answer to what a stand-in reports. Mount it with
+`attachRenderer(...)` to exercise the readiness path, the viewport queries, and the
+`frame` selector cadence with no DOM:
 
 ```ts
 import {
@@ -200,38 +200,8 @@ from geometry the subscriber holds.
 
 Genuine pixel behaviour still belongs at the browser seam.
 
-## Testing an annotation storage adapter
-
-!!! warning "Paused with the plugin"
-
-    `@triiiceratops/plugin-annotation-editor` is
-    [paused and no longer published](plugin-annotation-editor.md) in this release
-    line, so this subpath is only installable from `1.0.0-rc.7` (which needs
-    `triiiceratops@1.0.0-rc.36`). The API below is unaffected by the pause and is
-    what returns with the phase-2 drawing layer.
-
-Annotation-editor adapters have their own conformance API in
-`@triiiceratops/plugin-annotation-editor/testing`. It checks
-load/create/update/delete round-trips, verbatim body preservation, manifest and
-canvas isolation, and — when you opt in — server-assigned ids and hydrate. It too
-registers its own `describe`/`it` blocks:
-
-```ts
-import { runAdapterContractTests } from '@triiiceratops/plugin-annotation-editor/testing';
-import { LocalStorageAdapter } from '@triiiceratops/plugin-annotation-editor';
-
-runAdapterContractTests(() => new LocalStorageAdapter(), {
-    supportsIdReconciliation: false,
-    supportsHydrate: false,
-});
-```
-
-`vitest` is the only extra requirement, pulled in through the `testing` subpath —
-it never becomes a runtime dependency of your plugin.
-
 ## Verified against the packed packages
 
-CI runs the `vitest-kit` fixture (the SDK test kit against the compiled
-`triiiceratops/testing` entry in a plain vitest project) and the
-`plugin-annotation-conformance` fixture (the adapter conformance suite from the
-packed `@triiiceratops/plugin-annotation-editor/testing` subpath).
+CI runs the `vitest-kit` fixture: the SDK test kit against the compiled
+`triiiceratops/testing` entry in a plain vitest project, installed from the packed
+tarballs the way a consumer installs it.

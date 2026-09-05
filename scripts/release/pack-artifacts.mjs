@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Build + pack every publishable package (`PUBLISHABLE_PACKAGES`, five today)
+// Build + pack every publishable package (`PUBLISHABLE_PACKAGES` is the list)
 // into a single artifact directory, then write a `SHA256SUMS` checksum manifest
 // over the produced tarballs.
 //

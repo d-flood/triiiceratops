@@ -52,8 +52,8 @@ packages/core/tests/media/
 # ours (not a copy) and stays formatted.
 overrides/partials/
 
-# Docs prose and docs build artifacts (docs/viewer, docs/demo, docs/svelte);
-# eslint ignores docs/ as well. Not source files this gate should reflow.
+# Docs prose and hand-authored assets; eslint ignores docs/ as well. Not source
+# files this gate should reflow.
 docs/
 
 # Changeset tooling state (managed by @changesets/cli — pre.json/config.json).

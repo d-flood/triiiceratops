@@ -100,7 +100,7 @@ async function open(
         JSON.stringify({ annotations: { open: true }, ...config }),
     );
     await page.goto(
-        `/?manifest=/multicanvas-annotations.json&config=${query}`,
+        `/e2e/harness.html?manifest=/multicanvas-annotations.json&config=${query}`,
         {
             waitUntil: 'domcontentloaded',
         },

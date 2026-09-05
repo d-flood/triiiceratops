@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops content-state fixture</title>
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            #v {
+                display: block;
+                width: 800px;
+                height: 600px;
+            }
+        </style>
+    </head>
+    <body>
+        <script type="module">
+            /*
+                Content-state ingestion (ADR 0006) on the web-component
+                surface, driven by nothing but the element's own inputs.
+
+                The page sets `content-state`, `read-content-state-from-url` and
+                `manifest-id` from its own query string and then gets out of the
+                way: it never reads `iiif-content` itself, so a spec that sees
+                the right view has watched the VIEWER read it.
+
+                The two BUILT artifacts a consumer loads, in the order a real
+                page loads them (see `av-plugin.html` for why the plugin is
+                injected from script rather than written as a second tag):
+                `pnpm build:all` must have run, and the plugin's dist is served
+                under `/plugin-av/` by `helpers/avPluginDist.ts`. The AV plugin
+                is here because without it an audio or video canvas does not
+                render at all — which is half of what this fixture is for.
+            */
+            await loadScript('/dist/triiiceratops-element.iife.js');
+            await loadScript('/plugin-av/iife.js');
+
+            const params = new URLSearchParams(location.search);
+            const viewer = document.createElement('triiiceratops-viewer');
+            viewer.id = 'v';
+            viewer.setAttribute('theme', 'light');
+
+            const contentState = params.get('content-state');
+            if (contentState !== null) {
+                viewer.setAttribute('content-state', contentState);
+            }
+            if (params.has('read-url')) {
+                viewer.setAttribute('read-content-state-from-url', '');
+            }
+            const manifest = params.get('manifest');
+            if (manifest !== null) {
+                viewer.setAttribute('manifest-id', manifest);
+            }
+
+            viewer.plugins = [
+                window.Triiiceratops.plugins.get('@triiiceratops/plugin-av'),
+            ];
+            document.body.append(viewer);
+
+            function loadScript(src) {
+                return new Promise((resolve, reject) => {
+                    const element = document.createElement('script');
+                    element.src = src;
+                    element.onload = resolve;
+                    element.onerror = reject;
+                    document.head.append(element);
+                });
+            }
+        </script>
+    </body>
+</html>
