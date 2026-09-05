@@ -1,6 +1,6 @@
 /**
  * The three faces in their nine files, and the one thing that makes them "the
- * same faces on both surfaces": the marketing site's stylesheet, its head
+ * same faces on every surface": the shared shell's stylesheet, the site's head
  * preloads, and the documentation generator's font override all have to name
  * the same files and slice them the same way.
  *
@@ -14,6 +14,8 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+
+import { TOKENS_CSS } from '@triiiceratops/shell/paths';
 
 import { describe, expect, it } from 'vitest';
 
@@ -56,11 +58,6 @@ const FONT_FILES = FACES.flatMap((face) =>
     })),
 );
 
-/** The `latin` slice of each face: what a page of western text fetches. */
-const LATIN_SLICES = FONT_FILES.filter(({ slice }) => slice === 'Latin');
-
-const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
-
 function read(relative: string): string {
     return readFileSync(
         fileURLToPath(new URL(relative, import.meta.url)),
@@ -68,10 +65,8 @@ function read(relative: string): string {
     );
 }
 
-const APP_CSS = read('../../src/app.css');
+const TOKENS_CSS_TEXT = readFileSync(TOKENS_CSS, 'utf8');
 const APP_HTML = read('../../src/app.html');
-const DOCS_FONTS = read('../../../../overrides/partials/fonts.html');
-const ZENSICAL = read('../../../../zensical.toml');
 
 /** The body of every `@font-face` rule in a stylesheet, in source order. */
 function faceRules(css: string): string[] {
@@ -140,8 +135,8 @@ describe('the font files', () => {
     });
 });
 
-describe('app.css', () => {
-    const rules = faceRules(APP_CSS);
+describe('tokens.css', () => {
+    const rules = faceRules(TOKENS_CSS_TEXT);
 
     it('declares one rule per file, and no others', () => {
         expect(rules).toHaveLength(FONT_FILES.length);
@@ -212,8 +207,8 @@ describe('app.css', () => {
     });
 
     it('names each family ahead of a system fallback in its token', () => {
-        const face = /--face:([^;]*);/.exec(APP_CSS)?.[1] ?? '';
-        const mono = /--mono:([^;]*);/.exec(APP_CSS)?.[1] ?? '';
+        const face = /--face:([^;]*);/.exec(TOKENS_CSS_TEXT)?.[1] ?? '';
+        const mono = /--mono:([^;]*);/.exec(TOKENS_CSS_TEXT)?.[1] ?? '';
         expect(face.trimStart()).toMatch(/^'Source Serif 4',/);
         expect(face).toContain('serif');
         expect(mono.trimStart()).toMatch(/^'Source Code Pro',/);
@@ -272,7 +267,7 @@ describe('the design-system appendix', () => {
      * its first paint needed both full serif faces; the split retired that, and
      * the special case is gone from `tests/score.spec.ts` along with it.
      */
-    const SYSTEM_PAGE = read('../../src/routes/system/+page.svelte');
+    const SYSTEM_PAGE = read('../../src/routes/(chrome)/system/+page.svelte');
 
     it('preloads the italic slice for itself, in its own head', () => {
         const head = SYSTEM_PAGE.slice(
@@ -288,28 +283,33 @@ describe('the design-system appendix', () => {
     });
 });
 
-describe('the front page', () => {
+describe('the install block', () => {
     /*
-     * The one route that preloads the mono. It is the first marketing route to
-     * carry code: the install block is the call to action, D36 requires that
-     * command to be set in Source Code Pro so it renders identically here and
-     * in the documentation, and code above the fold is what makes that face a
-     * first-paint dependency of this route and no other.
+     * The one thing that preloads the mono, and it preloads it wherever it is
+     * placed. The install block is the call to action, D36 requires that command
+     * to be set in Source Code Pro so it renders identically here and in the
+     * documentation, and code above the fold is what makes that face a
+     * first-paint dependency of the page carrying it.
+     *
+     * The preload travels with the block rather than with a route, because the
+     * block is placed in a content document: a route that gains one gains
+     * the dependency, and a route that loses one loses it, with no second place
+     * to remember.
      *
      * It preloads the `latin` slice, 28 KB rather than the full 88 KB. Worth
      * recording alongside it: measured before the split, the preload bought
      * 80 ms of first contentful paint and nothing at all of largest contentful
-     * paint, which was the metric this route was short on — the face's cost was
-     * bytes on a throttled link, not late discovery. The split is what fixed
+     * paint, which was the metric the front page was short on — the face's cost
+     * was bytes on a throttled link, not late discovery. The split is what fixed
      * that; the preload is kept because it is still 37 ms of first paint for
      * nothing.
      */
-    const FRONT_PAGE = read('../../src/routes/+page.svelte');
+    const INSTALL_BLOCK = read('../../src/lib/InstallBlock.svelte');
 
-    it('preloads the mono slice for itself, in its own head', () => {
-        const head = FRONT_PAGE.slice(
-            FRONT_PAGE.indexOf('<svelte:head>'),
-            FRONT_PAGE.indexOf('</svelte:head>'),
+    it('preloads the mono slice in its own head', () => {
+        const head = INSTALL_BLOCK.slice(
+            INSTALL_BLOCK.indexOf('<svelte:head>'),
+            INSTALL_BLOCK.indexOf('</svelte:head>'),
         );
         expect(head, 'a <svelte:head> block').not.toBe('');
         expect(head).toContain('rel="preload"');
@@ -320,52 +320,72 @@ describe('the front page', () => {
     });
 });
 
-describe('the route-level preloads', () => {
+describe('the component-level preloads', () => {
     /*
-     * This file is the record of which route preloads what, so it has to be
-     * able to say "and no others". A stray preload on a third route is the
-     * failure the two blocks above cannot see: each asserts its own route and
-     * would stay green while a fourth face went onto some other route's
-     * critical path, costing that route points in a gate that is a whole site
-     * build away.
+     * This file is the record of what preloads what, so it has to be able to say
+     * "and no others". A stray preload in a third component is the failure the
+     * two blocks above cannot see: each asserts its own source and would stay
+     * green while a fourth face went onto some route's critical path, costing
+     * that route points in a gate that is a whole site build away.
      */
-    const ROUTES_DIR = fileURLToPath(
-        new URL('../../src/routes', import.meta.url),
-    );
+    const SRC_DIR = fileURLToPath(new URL('../../src', import.meta.url));
 
-    /** Every route's page component, keyed by the path it serves. */
-    function pages(): Map<string, string> {
+    /**
+     * Every component that can put a tag in a page's head, keyed by what it is:
+     * a route's page component by the path it serves, and everything else by its
+     * path within `src`.
+     */
+    function components(): Map<string, string> {
         const found = new Map<string, string>();
-        const walk = (directory: string, prefix: string) => {
+        const walk = (directory: string, prefix: string, inRoutes: boolean) => {
             for (const entry of readdirSync(directory, {
                 withFileTypes: true,
             })) {
                 const at = `${directory}/${entry.name}`;
-                if (entry.isDirectory()) walk(at, `${prefix}${entry.name}/`);
-                else if (entry.name === '+page.svelte')
-                    found.set(`/${prefix}`, readFileSync(at, 'utf8'));
+                if (entry.isDirectory()) {
+                    // A layout group names no path segment of its own: the
+                    // marketing routes live under `(chrome)` and serve `/size/`,
+                    // not `/(chrome)/size/`.
+                    walk(
+                        at,
+                        inRoutes && /^\(.*\)$/.test(entry.name)
+                            ? prefix
+                            : `${prefix}${entry.name}/`,
+                        inRoutes || entry.name === 'routes',
+                    );
+                } else if (inRoutes && entry.name === '+page.svelte') {
+                    found.set(
+                        `/${prefix.replace(/^routes\//, '')}`,
+                        readFileSync(at, 'utf8'),
+                    );
+                } else if (!inRoutes && entry.name.endsWith('.svelte')) {
+                    found.set(
+                        `src/${prefix}${entry.name}`,
+                        readFileSync(at, 'utf8'),
+                    );
+                }
             }
         };
-        walk(ROUTES_DIR, '');
+        walk(SRC_DIR, '', false);
         return found;
     }
 
     /**
-     * The whole of it: route path to the file that route preloads.
+     * The whole of it: what preloads a face, and which file it preloads.
      *
-     * Both are `latin` slices. A route preloading a FULL face would be putting
-     * hundreds of kilobytes on its critical path for glyphs it does not paint,
-     * so the declared set records the slice and the sweep compares file names
-     * exactly rather than by face.
+     * Both are `latin` slices. Preloading a FULL face would be putting hundreds
+     * of kilobytes on a critical path for glyphs the page does not paint, so the
+     * declared set records the slice and the sweep compares file names exactly
+     * rather than by face.
      */
     const DECLARED = new Map([
-        ['/', 'SourceCodeVariable-Roman-Latin.woff2'],
+        ['src/lib/InstallBlock.svelte', 'SourceCodeVariable-Roman-Latin.woff2'],
         ['/system/', 'SourceSerif4Variable-Italic-Latin.woff2'],
     ]);
 
     it('are exactly the two declared here, and are slices', () => {
         const preloading = new Map<string, string[]>();
-        for (const [path, source] of pages()) {
+        for (const [path, source] of components()) {
             const files = FONT_FILES.map(({ file }) => file).filter(
                 (file) =>
                     // Longest first: every full face's name is a prefix of its
@@ -377,47 +397,11 @@ describe('the route-level preloads', () => {
         }
         expect(
             Object.fromEntries(preloading),
-            'a route preloading a face must be declared here, with its reason',
+            'anything preloading a face must be declared here, with its reason',
         ).toEqual(
             Object.fromEntries(
                 [...DECLARED].map(([path, file]) => [path, [file]]),
             ),
         );
-    });
-});
-
-describe('the documentation', () => {
-    it('fetches no font from a third party', () => {
-        // `font = false` is what switches off the generator's default, which
-        // names a text and a code family and fetches both from Google Fonts on
-        // every page. The override that replaces it must reach no font host of
-        // its own.
-        expect(ZENSICAL).toMatch(/^font = false$/m);
-        for (const host of FONT_HOSTS) {
-            expect(DOCS_FONTS).not.toContain(host);
-        }
-    });
-
-    it('serves the same three faces as the site, per version directory', () => {
-        for (const { file, family, style } of FONT_FILES) {
-            expect(DOCS_FONTS).toContain(`'fonts/${file}' | url`);
-            expect(DOCS_FONTS).toContain(`font-family: "${family}"`);
-            expect(DOCS_FONTS).toContain(`font-style: ${style}`);
-        }
-        expect(faceRules(DOCS_FONTS)).toHaveLength(FONT_FILES.length);
-        // The documentation preloads all three `latin` slices, unlike the
-        // marketing site, which preloads the roman alone: a reference page sets
-        // prose, captions and code at once, so all three are first-paint faces
-        // on that surface. Slices, not full faces — the same argument as the
-        // site's, and the reason the split is worth doing on both.
-        expect(DOCS_FONTS).toContain('rel="preload"');
-        for (const { file } of LATIN_SLICES) {
-            expect(DOCS_FONTS).toContain(`'fonts/${file}' | url`);
-        }
-    });
-
-    it('points the theme’s own family variables at them', () => {
-        expect(DOCS_FONTS).toContain('--md-text-font: "Source Serif 4"');
-        expect(DOCS_FONTS).toContain('--md-code-font: "Source Code Pro"');
     });
 });

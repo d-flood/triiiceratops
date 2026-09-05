@@ -1,0 +1,43 @@
+{
+    "name": "@triiiceratops/shell",
+    "version": "0.0.0",
+    "type": "module",
+    "description": "Internal, unpublished design tokens and control skin for the site published at this origin: the marketing routes, the documentation, the playground at /demo/ and the bare viewer at /viewer/ are one build and wear the same skin. Not published; imported as source and bundled into that build.",
+    "license": "MIT",
+    "author": "David Flood",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/d-flood/triiiceratops.git",
+        "directory": "packages/shell"
+    },
+    "private": true,
+    "sideEffects": [
+        "*.css"
+    ],
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "default": "./src/index.ts"
+        },
+        "./paths": {
+            "types": "./src/paths.ts",
+            "default": "./src/paths.ts"
+        },
+        "./tokens.css": "./tokens.css",
+        "./controls.css": "./controls.css"
+    },
+    "scripts": {
+        "check": "tsc -p tsconfig.json --noEmit",
+        "test": "vitest run",
+        "test:coverage": "vitest run --coverage",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0"
+    },
+    "devDependencies": {
+        "@types/node": "^24.10.1",
+        "@vitest/coverage-v8": "4.0.15",
+        "eslint": "^9.39.2",
+        "typescript": "~5.9.3",
+        "vitest": "^4.0.15"
+    }
+}

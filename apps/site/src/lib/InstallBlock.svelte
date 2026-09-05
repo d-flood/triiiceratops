@@ -1,6 +1,12 @@
 <script lang="ts">
+    import { Tab, Tabs } from 'uncial/render';
+
     import CopyLine from './CopyLine.svelte';
-    import { CDN_SNIPPET, PACKAGE_MANAGERS } from './install';
+    import {
+        CDN_SNIPPET,
+        PACKAGE_MANAGER_GROUP,
+        PACKAGE_MANAGERS,
+    } from './install';
 
     /**
      * Both install forms, side by side: the package-manager line for a project
@@ -9,35 +15,54 @@
      * hero and there is nothing else being asked for on this page.
      *
      * A tablist rather than four visible lines: four commands that differ by one
-     * word invite copying the wrong one.
+     * word invite copying the wrong one. The tabs are Uncial's, on the
+     * package-manager group, so the reader's choice here is the one they see in
+     * every other package-manager tab group on the site.
      */
-    let chosen = $state(PACKAGE_MANAGERS[0].id);
+    const labels = PACKAGE_MANAGERS.map((manager) => manager.id);
 
-    const command = $derived(
-        (PACKAGE_MANAGERS.find((manager) => manager.id === chosen) ??
-            PACKAGE_MANAGERS[0]).command,
-    );
+    // `Tabs` takes its labels from the tab nodes of a document, and this block's
+    // panels come from a data module rather than from one. The nodes it would
+    // have read are what it is given instead, so the group's selection logic is
+    // shared rather than reimplemented alongside it.
+    const tabNodes = labels.map((label) => ({ type: 'tab', attrs: { label } }));
 </script>
+
+<!--
+    The install block preloads the mono. D36 requires the install command to be
+    set in the self-hosted Source Code Pro so it renders identically here and in
+    the documentation, and code above the fold is what makes that 90 KB face a
+    first-paint dependency — so the pages carrying this block pay for it rather
+    than every route preloading it. The global head (src/app.html) stays
+    roman-only.
+-->
+<svelte:head>
+    <link
+        rel="preload"
+        href="/fonts/SourceCodeVariable-Roman-Latin.woff2"
+        as="font"
+        type="font/woff2"
+        crossorigin="anonymous"
+    />
+</svelte:head>
 
 <div class="install">
     <section>
         <h2>Add it to your project</h2>
-        <div class="pmtabs" role="tablist" aria-label="Package manager">
+        <Tabs group={PACKAGE_MANAGER_GROUP} content={tabNodes}>
             {#each PACKAGE_MANAGERS as manager (manager.id)}
-                <button
-                    type="button"
-                    role="tab"
-                    id="pmtab-{manager.id}"
-                    aria-selected={manager.id === chosen}
-                    aria-controls="pmline"
-                    tabindex={manager.id === chosen ? 0 : -1}
-                    onclick={() => (chosen = manager.id)}>{manager.id}</button
+                <Tab
+                    label={manager.id}
+                    tabsGroup={PACKAGE_MANAGER_GROUP}
+                    tabsLabels={labels}
                 >
+                    <CopyLine
+                        text={manager.command}
+                        label="{manager.id} install command"
+                    />
+                </Tab>
             {/each}
-        </div>
-        <div id="pmline" role="tabpanel" aria-labelledby="pmtab-{chosen}">
-            <CopyLine text={command} label="{chosen} install command" />
-        </div>
+        </Tabs>
         <p class="install__note">
             Then import the component for React, Vue or Svelte. The <a
                 class="link"

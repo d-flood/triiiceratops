@@ -55,7 +55,7 @@ test.describe('the hero', () => {
 
     test('keeps the viewer out of the page’s own payload', async ({ page }) => {
         /*
-         * The assembled tree rather than the development server, and the
+         * The built tree rather than the development server, and the
          * document as served rather than the live DOM: this is a statement
          * about what a reader pays for before anything has run, and by the
          * time the page is interactive the viewer has injected its own
@@ -268,9 +268,11 @@ test.describe('the install block', () => {
                 await expect(tab).toHaveAttribute('aria-selected', 'true');
             }).toPass();
 
-            await expect(page.locator('#pmline code')).toHaveText(
-                manager.command,
-            );
+            await expect(
+                page
+                    .getByRole('tabpanel', { name: manager.id })
+                    .locator('code'),
+            ).toHaveText(manager.command);
             expect(
                 await copied(
                     page,

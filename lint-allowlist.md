@@ -480,7 +480,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   ONE file, a hand-curated list of the helpers core already uses (never
   `export *`, which measured +8,837 gzip on core), consumed only by first-party
   plugins released from this repo at this Svelte version and gated by their
-  `coreRange` at activation. `docs/plugin-authoring.md` continues to tell
+  `coreRange` at activation. The `/docs/plugin-authoring/` page continues to tell
   third-party authors to bundle their own runtime, which is the audience the rule
   is right about. When Svelte 6 moves or removes these helpers, this one file is
   what has to change, and the plugin build fails loudly rather than silently.
@@ -521,3 +521,50 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   if the built IIFE ever ships without the gate.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-13 · **Review by:** 2027-02-13
+
+### 14. `svelte/no-at-html-tags` — `apps/site/src/lib/Search.svelte` (the Pagefind excerpt)
+
+- **Code:** `svelte/no-at-html-tags` (eslint, `eslint-plugin-svelte`)
+- **Mechanism:** one rule-named `eslint-disable-next-line` on the single
+  `{@html result.excerpt}` in the results list. Nothing else in the application
+  uses `{@html}`.
+- **Rationale:** the rule's hazard is untrusted markup reaching an HTML sink.
+  There is no untrusted markup here: the excerpt is Pagefind's, built at build
+  time from this site's own pages, and Pagefind escapes the page text it draws
+  from and adds exactly one element of its own — the `<mark>` around the matched
+  words. Rendering it as text instead would print those tags at the reader; the
+  highlight is the only reason an excerpt is shown rather than a title. The
+  index is a build artefact of this repository, so a hostile excerpt would mean
+  a hostile page already in the tree.
+- **Behavior test:** `apps/site/tests/search.spec.ts` drives the real field
+  against the served built tree; its spec "searching reaches nothing but this
+  origin" pins that a query fetches only same-origin index files, and "a result
+  lands on a page that exists" pins where a result leads.
+  `apps/site/tests/unit/search-index.test.ts` pins what the indexer is allowed
+  to put in the index in the first place.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-08-28 · **Review by:** 2027-02-28
+
+### 15. `@ts-expect-error` (TS2307) — `apps/site/src/lib/playground/Demo.svelte`
+
+- **Code:** `ts(2307)` "Cannot find module `triiiceratops/element/register`",
+  suppressed by a single inline `@ts-expect-error` with a description.
+- **File / target:** the one `import('triiiceratops/element/register')` that
+  defines `<triiiceratops-viewer>` for the playground. Distinct from entry 5,
+  which suppresses the same code inside core for a different import.
+- **Mechanism:** inline `@ts-expect-error` — the narrowest possible scope, and
+  self-invalidating: if the subpath ever gains types, TypeScript reports the
+  unused directive and `pnpm --filter @triiiceratops/app-site check` fails.
+- **Rationale:** the playground must define the element the way a consumer does,
+  through the published subpath, so a packaging mistake surfaces here rather
+  than in someone else's install. That subpath resolves to the self-contained
+  element bundle, which is emitted by `build:element` and declares no exports
+  and no types, so TypeScript reads the JavaScript and reports it as not a
+  module. Alternatives were rejected: importing the Svelte component instead
+  would stop exercising the published entrypoint, and a hand-written `.d.ts`
+  shim would ship a declaration for an artifact that deliberately has none.
+- **Behavior test:** `apps/site/tests/shell.spec.ts`, spec "the playground
+  mounts its viewer and the site’s one toggle": it loads `/demo/` in a real
+  browser and requires the custom element to have upgraded and rendered.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-08-28 · **Review by:** 2027-02-28

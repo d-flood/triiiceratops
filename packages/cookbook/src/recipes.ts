@@ -16,7 +16,7 @@ export type RecipeGroup =
     | 'content-state'
     | 'audiovisual';
 
-export type RecipeSupport = 'supported' | 'partial' | 'unsupported';
+export type RecipeSupport = 'supported' | 'unsupported';
 
 export interface CookbookRecipe {
     /** Cookbook recipe id, e.g. `0489-multimedia-canvas`. Its numeric prefix is the recipe number. */
@@ -36,8 +36,10 @@ export interface CookbookRecipe {
      */
     group: RecipeGroup;
     /**
-     * `'partial'` is a distinct claim, not a weaker `'supported'`: a recipe that
-     * renders but whose own feature is not honoured.
+     * Binary by policy: a recipe whose own feature does not happen is
+     * `'unsupported'`, however much of its manifest still renders. There is no
+     * degraded middle claim, so a support figure counted from here never needs a
+     * footnote to be read correctly.
      */
     support: RecipeSupport;
     /** True for a recipe that needs `@triiiceratops/plugin-av` to reach its `support` level. */
@@ -48,7 +50,7 @@ export interface CookbookRecipe {
      * attributing our own `support` status to it; the two can legitimately differ.
      */
     matrixSupport: boolean;
-    /** Why the recipe is not fully supported. Required whenever `support` is not `'supported'`. */
+    /** Why the recipe is unsupported. Required whenever `support` is not `'supported'`. */
     reason?: string;
 }
 
@@ -731,10 +733,10 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0489-multimedia-canvas/manifest.json',
         group: 'audiovisual',
-        support: 'partial',
+        support: 'unsupported',
         requiresPluginAv: true,
         matrixSupport: false,
-        reason: 'A painting body targeted at `#xywh=` is not placed within the canvas: the canvas plays under `plugin-av`, but degrades to its image body with a developer-console warning. Documented degradation — see the spatial-placement fence in `docs/plugin-av.md`.',
+        reason: 'The canvas composites a video body with image bodies placed at `#xywh=` regions. No painting body is placed within a time-based canvas, so the canvas renders its image body alone and warns on the developer console: the recipe’s own feature does not happen. See the spatial-placement fence on the `/docs/plugin-av/` page.',
     },
     {
         id: '0540-link-for-opening-multiple-canvases',

@@ -9,22 +9,29 @@
 node_modules/
 pnpm-lock.yaml
 
-# Build outputs (every package's dist/, the SvelteKit + demo build dirs)
+# Build outputs (every package's dist/, the SvelteKit build dirs)
 dist/
 build/
 .svelte-kit/
-site/
 storybook-static/
 
 # Generated code (ticket 22 generated-code policy; mirrors eslint ignores):
 # the paraglide message runtime, generated icons/tokens, and the committed
-# docs-example fixtures compiled from docs/ by scripts/docs-examples.mjs
+# docs-example fixtures extracted from the site's content by
+# scripts/docs-examples.mjs
 # ("do not edit by hand"). Bare names match these dirs in every package.
 paraglide/
 generated/
 
 # Generated API snapshots (scripts/api-report.ts) — regenerated & checked in CI.
 api-reports/
+
+# Uncial content documents (apps/site/content/*.json): the editor writes these
+# back on every keystroke in its own normalized form, so anything this gate
+# reflowed would be undone by the next edit and show up as a diff nobody made.
+# Machine-written, on the same rule as the generated output above. The nested
+# `content/docs/` is already covered by the bare `docs/` entry below.
+apps/site/content/
 
 # Vendored IIIF manifests (packages/core/src/lib/test/fixtures/manifests/*):
 # third-party manifests copied from IIIF Cookbook recipes, public institutional
@@ -35,6 +42,10 @@ api-reports/
 # formatted.
 packages/core/src/lib/test/fixtures/manifests/
 
+# The playground's vendored IIIF manifest, same rule: fetched from upstream
+# rather than authored here.
+apps/site/static/material/plate/manifest.json
+
 # Generated e2e media (packages/core/tests/media/*): a tone, colour bars, an HLS
 # rendition and real `audiowaveform` output, produced by that directory's
 # `regenerate.sh`. Same generated-output rule. Beyond diff noise there is a hard
@@ -43,24 +54,12 @@ packages/core/src/lib/test/fixtures/manifests/
 # in the same house style as the vendored ones above.
 packages/core/tests/media/
 
-# Vendored theme partials: overrides/partials/* are verbatim copies of
-# Zensical's own templates carrying one local hunk each, so they fall under the
-# vendored-output rule above — reflowing them destroys the diff against
-# upstream. Prettier also misreads Jinja `{#- ... -#}` comments as markup and
-# has emitted stray closing tags into them. `overrides/main.html` is genuinely
-# ours (not a copy) and stays formatted.
-overrides/partials/
-
 # Docs prose and hand-authored assets; eslint ignores docs/ as well. Not source
 # files this gate should reflow.
 docs/
 
 # Changeset tooling state (managed by @changesets/cli — pre.json/config.json).
 .changeset/
-
-# Python / tooling caches
-.venv/
-__pycache__/
 
 # Test, coverage, perf, and release output (mostly gitignored, but ignore here
 # too so a local run doesn't trip the check on uncommitted artifacts).
@@ -71,6 +70,11 @@ playwright-report/
 test-results/
 perf-results/
 release-artifacts/
+
+# The Uncial submodule: a separate repository with its own Prettier config and
+# its own format gate. Same vendored-output rule as above — reflowing it here
+# would put every file permanently out of step with upstream.
+vendor/
 
 # Local tooling state / agent worktrees (nested full checkouts must never be format-gated)
 .claude/

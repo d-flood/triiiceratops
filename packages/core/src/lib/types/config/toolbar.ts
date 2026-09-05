@@ -61,6 +61,12 @@ export interface ToolbarConfig {
      */
     showStructures?: boolean;
     /**
+     * Whether the Language button/menu is shown in this menu.
+     * Only visible when the manifest is authored in more than one language.
+     * @default true
+     */
+    showLocalePicker?: boolean;
+    /**
      * Whether the Collection button is shown in this menu.
      * Only visible when a collection is loaded.
      * @default true

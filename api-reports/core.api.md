@@ -105,7 +105,7 @@ export interface PluginFactoryRegistry {
  *    missing (see `sharedRuntimeGate.ts` in `@triiiceratops/plugin-av`).
  *    This is a FIRST-PARTY-ONLY privilege: a third-party plugin is released
  *    independently of core and must keep bundling its own runtime, which is what
- *    `docs/plugin-authoring.md` goes on telling external authors to do.
+ *    the `/docs/plugin-authoring/` page goes on telling external authors to do.
  *
  * A plugin consuming this reads it before it can do anything else, so its script
  * must load AFTER core's — the one ordering constraint in an otherwise
@@ -152,8 +152,8 @@ export interface SharedSvelteRuntime {
  *
  * This is a FIRST-PARTY-ONLY privilege, as the Svelte runtime is, and for the
  * same reason: it holds only because core and plugin are built and released from
- * one repository at one version. `docs/plugin-authoring.md` goes on telling
- * third-party authors to bundle their own copies.
+ * one repository at one version. The `/docs/plugin-authoring/` page goes on
+ * telling third-party authors to bundle their own copies.
  */
 export type SharedCoreUtils = Readonly<Record<string, unknown>>;
 /**
@@ -3734,6 +3734,14 @@ export declare class ViewerState {
      * runs.
      */
     activeLocale: string;
+    /**
+     * The locale chosen through the viewer's own language picker, or `null`
+     * while the viewer is still following its host. It outranks `config.locale`
+     * so a user's pick survives unrelated config churn, and `updateConfig`
+     * drops it when the host names a different `locale` — an explicit new
+     * instruction from the embedder, like `viewingMode`'s.
+     */
+    _localeOverride: string | null;
     get showToggle(): boolean;
     get showCanvasNav(): boolean;
     get showZoomControls(): boolean;
@@ -4489,6 +4497,18 @@ export declare class ViewerState {
      * Returns an empty array if no structures exist.
      */
     get structures(): StructureNode[];
+    /**
+     * Every language this manifest's descriptive properties are authored in,
+     * sorted. Empty or single-entry for the overwhelming majority of manifests,
+     * which is what lets the language picker hide itself.
+     */
+    get availableLocales(): string[];
+    /**
+     * Choose the locale this viewer renders in — its chrome and its resolution
+     * of IIIF language maps alike. `null` hands the choice back to the host's
+     * `config.locale`, or to the page locale when it sets none.
+     */
+    setLocale(locale: string | null): void;
     setViewingMode(mode: 'individuals' | 'paged' | 'continuous'): void;
     togglePagedOffset(): void;
     searchQuery: string;
@@ -5684,6 +5704,12 @@ export interface ToolbarConfig {
      */
     showStructures?: boolean;
     /**
+     * Whether the Language button/menu is shown in this menu.
+     * Only visible when the manifest is authored in more than one language.
+     * @default true
+     */
+    showLocalePicker?: boolean;
+    /**
      * Whether the Collection button is shown in this menu.
      * Only visible when a collection is loaded.
      * @default true
@@ -5858,8 +5884,10 @@ export interface RendererConfig {
 }
 export interface ViewerConfig {
     /**
-     * Preferred locale for resolving IIIF language maps.
-     * When unset, the viewer follows the app locale.
+     * Preferred locale for the viewer's chrome and for resolving IIIF language
+     * maps. When unset, the viewer follows the app locale. The toolbar's
+     * language picker outranks this for as long as the host leaves it alone;
+     * naming a different `locale` here hands control back.
      */
     locale?: string;
     /**

@@ -30,9 +30,7 @@ export default [
             // non-empty `paths.base`. This application's base is empty and
             // fixed: it is published at the domain root, and site-urls.json
             // promises these paths verbatim, so a base could not change without
-            // breaking the URL contract first. The rail also links paths that
-            // are not routes of this application at all — the sibling subtrees
-            // the publish job assembles — which no route resolver can express.
+            // breaking the URL contract first.
             'svelte/no-navigation-without-resolve': 'off',
         },
     },

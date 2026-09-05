@@ -1,0 +1,2936 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Exports a flat range of canvases as a browser-generated PDF, with one PDF page per selected canvas."
+				}
+			],
+			"attrs": {
+				"id": "d4b7e950-085f-4294-b227-180db088c251"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Feature summary:"
+				}
+			],
+			"attrs": {
+				"id": "bbea7384-f6e6-4d6b-8bb0-522522582611"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "range-based export from the plugin panel"
+								}
+							],
+							"attrs": {
+								"id": "90f89ddb-9190-4e29-8086-c391b99ade7e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c23c3e3c-19ef-4675-a921-56f9c87c3ff5"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "one PDF page per selected canvas"
+								}
+							],
+							"attrs": {
+								"id": "b0a3c422-f00e-4c12-90c2-8fe67b2bc1b6"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3d1f2b7a-e831-4099-a2b4-ce33b2185cbc"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "optional static or dynamic consumer-provided download filename"
+								}
+							],
+							"attrs": {
+								"id": "0f03823e-a46d-4be4-adfb-42a4d2913d9d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "27d8d42b-6a14-4865-87d6-fb4809ddce31"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "optional cover sheet with consumer-provided label/value metadata"
+								}
+							],
+							"attrs": {
+								"id": "76b6dea8-3996-4a87-a3db-cb3bd2d284f1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d0fe777f-daf0-43ad-8352-328b4d3e40c1"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "selectable OCR text when the canvas exposes IIIF OCR annotations"
+								}
+							],
+							"attrs": {
+								"id": "0309876a-98f4-4f1c-83fb-603249e7e959"
+							}
+						}
+					],
+					"attrs": {
+						"id": "20079bce-00d7-4e0a-a69f-4302b7f76abd"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "configurable browser image request settings for public or authenticated image services"
+								}
+							],
+							"attrs": {
+								"id": "9431b9c3-27e1-49ad-9633-a7f05367ac4a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a374fe87-515b-47f6-8435-52cb94d0dd7d"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "optional consumer callback for the currently selected start and end canvases"
+								}
+							],
+							"attrs": {
+								"id": "becaffc4-d996-4545-bf61-22851eea5295"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f699e194-44c6-4a8c-b2e9-970ea9d871a1"
+					}
+				}
+			],
+			"attrs": {
+				"id": "1855ccf5-fb1e-4fea-a04d-951e26c6eb34"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "By default, "
+				},
+				{
+					"type": "text",
+					"text": "PdfExportPlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " uses:"
+				}
+			],
+			"attrs": {
+				"id": "045e1753-1e15-4b57-acdd-0574b6e2f6b1"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "an automatically generated filename based on the manifest and selected canvas range"
+								}
+							],
+							"attrs": {
+								"id": "ce127c8c-3fae-4d60-ae21-0ce328fdbc84"
+							}
+						}
+					],
+					"attrs": {
+						"id": "eb202b89-8772-450d-b1d9-7782cdf6a104"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "no cover sheet"
+								}
+							],
+							"attrs": {
+								"id": "29448b41-7960-4a42-b6ea-70c7d588a35b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3d42c238-576a-4d71-ba46-f141551f5cfc"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "public-friendly image fetching with "
+								},
+								{
+									"type": "text",
+									"text": "credentials: \"same-origin\"",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "0e77af80-cd93-47a3-9675-82e86c1a14f8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "3adc74a4-ee90-4162-8af0-8b06b3e43f49"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "OCR text embedding only when suitable IIIF OCR annotations are present"
+								}
+							],
+							"attrs": {
+								"id": "27c5f4e5-c51c-4fa4-9551-91ebeccb8016"
+							}
+						}
+					],
+					"attrs": {
+						"id": "93d36bf8-5c0a-47f5-bd5c-c9ecb8105cf1"
+					}
+				}
+			],
+			"attrs": {
+				"id": "8c32a4d8-73ee-4937-93c6-8eebf37c1a60"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "setup",
+				"id": "089f45f8-d2b2-45d8-9b99-869b3af7c7f1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Setup"
+				}
+			]
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "package-manager",
+				"id": "1edd3315-ebee-48ae-9273-bfad1fa4e78d"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "pnpm",
+						"id": "5e521491-36da-478b-a931-51d53ecde296"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "ea43bbc4-9f17-473c-83d0-804309e6e22d"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pnpm add @triiiceratops/plugin-pdf-export"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "npm",
+						"id": "bd1b97a0-078a-4c28-9cf5-e3a8b9ce94b0"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "63e2e66b-d182-4501-82b3-8d1b770fd511"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "npm install @triiiceratops/plugin-pdf-export"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "bun",
+						"id": "d16f9ab7-7758-4b7d-802a-11a3988590fd"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "462ffee5-f8c4-4f42-85c9-149c68aca6a1"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "bun add @triiiceratops/plugin-pdf-export"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "basic-usage",
+				"id": "765fe982-8da5-4f81-88ac-80c8d2924ab3"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Basic Usage"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "PdfExportPlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the default, preconfigured export; add it like any plugin (see "
+				},
+				{
+					"type": "text",
+					"text": "using plugins",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#adding-a-plugin-to-your-viewer"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "). For a configured instance, call "
+				},
+				{
+					"type": "text",
+					"text": "createPdfExportPlugin(...)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and pass the result instead — in the browser registry, the factory is exposed on the plugin the registry returns."
+				}
+			],
+			"attrs": {
+				"id": "e045a808-43bb-4056-913f-4c786578c40e"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "configuring-the-plugin",
+				"id": "fbca85f0-77d1-4800-bef8-0604737bf68d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Configuring The Plugin"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Use "
+				},
+				{
+					"type": "text",
+					"text": "createPdfExportPlugin(...)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " when you want a custom filename, a cover sheet, a specific OCR annotation source, export-only OCR overlays, or custom image request behavior."
+				}
+			],
+			"attrs": {
+				"id": "9306c13c-ab67-420b-9523-e856fd781fa3"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "d295c2cf-5362-40fa-975a-2b4c1d0e742e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';\n\nconst pdfExportPlugin = createPdfExportPlugin({\n    getFilename: ({ manifestLabel, startIndex, endIndex, defaultFilename }) =>\n        manifestLabel\n            ? `${manifestLabel}-${startIndex + 1}-${endIndex + 1}.pdf`\n            : defaultFilename,\n    coverSheet: {\n        title: 'Digitization Summary',\n        fields: [\n            { label: 'Repository', value: 'Example Library' },\n            { label: 'Call Number', value: 'MS 123' },\n        ],\n    },\n    ocrAnnotationSource: 'https://example.org/canvas/1/ocr',\n    async getCanvasOcrOverlays({ canvasId }) {\n        const response = await fetch(\n            `/api/ocr-overlays?canvas=${encodeURIComponent(canvasId)}`,\n        );\n        if (!response.ok) {\n            return [];\n        }\n\n        const overlays = await response.json();\n\n        return overlays.map((overlay: Record<string, unknown>) => ({\n            ...overlay,\n            // Use 'image' when your OCR API returns coordinates in the\n            // selected source image's pixel space instead of canvas pixels.\n            coordinateSpace: 'image',\n        }));\n    },\n    imageRequest: {\n        credentials: 'same-origin',\n    },\n    onSelectionChange({ startCanvas, endCanvas, startIndex, endIndex }) {\n        console.log('Selected PDF export range', {\n            startCanvas,\n            endCanvas,\n            startIndex,\n            endIndex,\n        });\n    },\n});"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "For script-tag/web component hosts, use the factory exposed on the IIFE plugin global when you need configuration callbacks:"
+				}
+			],
+			"attrs": {
+				"id": "c6e0a1ca-e72e-4ed5-8184-fdbfb0b0d363"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "61282916-615c-4ccd-9cb3-7c3c258aad24"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script>\n    viewer.plugins = [\n        window.Triiiceratops.plugins.get('@triiiceratops/plugin-pdf-export').createPdfExportPlugin({\n            onSelectionChange({\n                startCanvas,\n                endCanvas,\n                startIndex,\n                endIndex,\n            }) {\n                console.log('Selected PDF export range', {\n                    startCanvas,\n                    endCanvas,\n                    startIndex,\n                    endIndex,\n                });\n            },\n        }),\n    ];\n</script>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "For image services that cannot be fetched directly by the browser, you can also provide a custom image loader:"
+				}
+			],
+			"attrs": {
+				"id": "f89ffffe-577f-42fd-a703-c681e207de73"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "59d8fc6c-f44e-4d61-81f7-e5656c958a1d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';\n\nconst pdfExportPlugin = createPdfExportPlugin({\n    loadImageBlob: async ({ imageUrl }) => {\n        const response = await fetch(\n            `/api/pdf-image?url=${encodeURIComponent(imageUrl)}`,\n        );\n        if (!response.ok) {\n            throw new Error('Unable to load image for PDF export.');\n        }\n\n        return response.blob();\n    },\n});"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "You can use that configured plugin in either a Svelte app or a bundler-based host app that assigns plugins to the web component:"
+				}
+			],
+			"attrs": {
+				"id": "0847d08e-7f77-42ee-843b-0d410f6d2226"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "1626cd9e-31a1-4c4a-8d39-bdcbfcc5635f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';\n\nconst pdfExportPlugin = createPdfExportPlugin({\n    coverSheet: {\n        title: 'Export Summary',\n        fields: [{ label: 'Collection', value: 'Example collection' }],\n    },\n});\n\nviewer.plugins = [pdfExportPlugin];"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Configuration shape:"
+				}
+			],
+			"attrs": {
+				"id": "c462ddfd-025d-40b3-bf2a-aac0d9020e6c"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "1c274373-fc41-4b98-a373-2db8f563fc1a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "type PdfExportConfig = {\n    filename?: string;\n    getFilename?: (context: {\n        manifestId: string | null;\n        manifestLabel?: string | null;\n        startIndex: number;\n        endIndex: number;\n        indices: number[];\n        canvases: any[];\n        exportedCount: number;\n        failedCanvases: string[];\n        defaultFilename: string;\n    }) => Promise<string | null | undefined> | string | null | undefined;\n    coverSheet?: {\n        title?: string;\n        fields: { label: string; value: string }[];\n    };\n    ocrAnnotationSource?: string;\n    ocrPlacementMode?: 'fit-box' | 'word-anchor';\n    ocrSizingMode?: 'fit-box' | 'height-only';\n    ocrVisibilityMode?: 'transparent' | 'invisible' | 'debug';\n    onSelectionChange?: (selection: {\n        startIndex: number | null;\n        endIndex: number | null;\n        startCanvas: any | null;\n        endCanvas: any | null;\n    }) => void;\n    getCanvasOcrOverlays?: (context: {\n        manifestId: string | null;\n        canvasId: string;\n        canvas: any;\n        canvasIndex: number;\n    }) =>\n        | Promise<\n              | {\n                    text: string;\n                    x: number;\n                    y: number;\n                    width: number;\n                    height: number;\n                    coordinateSpace?: 'canvas' | 'image';\n                }[]\n              | null\n              | undefined\n          >\n        | {\n              text: string;\n              x: number;\n              y: number;\n              width: number;\n              height: number;\n              coordinateSpace?: 'canvas' | 'image';\n          }[]\n        | null\n        | undefined;\n    imageRequest?: {\n        credentials?: RequestCredentials;\n        headers?: HeadersInit;\n        mode?: RequestMode;\n        referrerPolicy?: ReferrerPolicy;\n    };\n    loadImageBlob?: (params: {\n        canvas: any;\n        canvasId: string;\n        imageUrl: string;\n        manifestId: string | null;\n        targetWidth: number;\n        imageRequest: RequestInit;\n        resolvedImage: any | null;\n    }) => Promise<Blob> | Blob;\n};"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "audiovisual-canvases",
+				"id": "59f9367e-3c4c-404f-9019-99b0461831f7"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Audiovisual Canvases"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A canvas whose painting annotations place only non-image content — audio, video, a 3D model — has no page in the PDF. It is the canvas the viewer itself gives the "
+				},
+				{
+					"type": "text",
+					"text": "unsupported presentation",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to, and a range covering N image canvases and M such canvases exports N pages, with M silently omitted. That is a contract, not an accident:"
+				}
+			],
+			"attrs": {
+				"id": "9bc0adbd-d3c9-4ef9-895b-b32a7e7dc4bc"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Omitted canvases are "
+								},
+								{
+									"type": "text",
+									"text": "not",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " failures. They do not appear in "
+								},
+								{
+									"type": "text",
+									"text": "failedCanvases",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and the export reports no partial-success warning over them: there was never an image to fetch."
+								}
+							],
+							"attrs": {
+								"id": "bb1df93c-07eb-4665-9e92-f168b237bb61"
+							}
+						}
+					],
+					"attrs": {
+						"id": "5fbc4fcb-03f5-433f-b14e-ee7e93d2d235"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "exportedCount",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", the progress messages, and the "
+								},
+								{
+									"type": "text",
+									"text": "indices",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " / "
+								},
+								{
+									"type": "text",
+									"text": "canvases",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " handed to "
+								},
+								{
+									"type": "text",
+									"text": "getFilename",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " all describe the pages actually produced, so a host naming the file after its contents cannot name a canvas the file does not contain. The "
+								},
+								{
+									"type": "text",
+									"text": "startIndex",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "endIndex",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " in that same context still report the range the reader asked for."
+								}
+							],
+							"attrs": {
+								"id": "1f748a93-5154-4afe-b823-8bfc0f51f884"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ef21b44a-7c8a-4bc0-a555-5008e99ca01b"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "The panel's selected-canvas count follows the same rule: it is the number of pages the export will produce, so it never promises a page the file does not contain."
+								}
+							],
+							"attrs": {
+								"id": "f79ae1d5-45f9-4143-8268-44d5cebb7b3e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9f36d6e7-ff87-46e6-b05b-bb6ba9312c31"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Nothing is substituted for the missing image. A poster thumbnail, a "
+								},
+								{
+									"type": "text",
+									"text": "placeholderCanvas",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", or an "
+								},
+								{
+									"type": "text",
+									"text": "accompanyingCanvas",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " describes the media; none of them is the canvas, and exporting one would hand the reader a page the manifest never said was the content."
+								}
+							],
+							"attrs": {
+								"id": "79378a44-fb36-481a-aade-ab031255f614"
+							}
+						}
+					],
+					"attrs": {
+						"id": "01317753-25f6-469b-895e-cb9f7f0d823b"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A range with no image canvases in it at all is refused rather than saved as an empty PDF, and the panel says so in as many words — \"Unable to export any canvases to PDF\", not a bare export failure."
+								}
+							],
+							"attrs": {
+								"id": "6ec3e368-6e21-4a52-9c91-713d0581f528"
+							}
+						}
+					],
+					"attrs": {
+						"id": "099d3308-30c0-4a6b-9781-f543bf668c35"
+					}
+				}
+			],
+			"attrs": {
+				"id": "528d7af3-dbeb-4d23-a21f-191e0a85c389"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A "
+				},
+				{
+					"type": "text",
+					"text": "canvas claim",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " makes no difference. A claim is about what is rendered on screen; whether a page can be produced is decided by the canvas's own painting bodies, so the answer is the same whether or not a media plugin has taken the canvas over."
+				}
+			],
+			"attrs": {
+				"id": "166fd1d3-ae3d-4ddd-8130-35c302082360"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "filename",
+				"id": "c7d09a4d-4dc2-484b-a90e-e89b23fac2fc"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Filename"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Set "
+				},
+				{
+					"type": "text",
+					"text": "filename",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " when the consuming application should control the downloaded PDF name with a static value. The value is passed directly to the browser download link, so include the "
+				},
+				{
+					"type": "text",
+					"text": ".pdf",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " extension when you want it shown in the saved file name."
+				}
+			],
+			"attrs": {
+				"id": "3c13249f-b673-481c-b28a-7279a09f3b09"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Set "
+				},
+				{
+					"type": "text",
+					"text": "getFilename",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " when the consuming application should compute the downloaded PDF name for each export. The callback receives the manifest identifier and label, normalized selected range, selected canvases, export counts, failed canvas labels, and the generated "
+				},
+				{
+					"type": "text",
+					"text": "defaultFilename",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "f8d3d4f4-5629-4b23-a288-6e340caed4f9"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "If both "
+				},
+				{
+					"type": "text",
+					"text": "filename",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "getFilename",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are configured, "
+				},
+				{
+					"type": "text",
+					"text": "filename",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " takes precedence and "
+				},
+				{
+					"type": "text",
+					"text": "getFilename",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is not called. If "
+				},
+				{
+					"type": "text",
+					"text": "getFilename",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " returns "
+				},
+				{
+					"type": "text",
+					"text": "null",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "undefined",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", or an empty string, the plugin uses the generated filename fallback."
+				}
+			],
+			"attrs": {
+				"id": "291c7630-06a6-4ef8-b4ab-b2aab2854ad8"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "When both "
+				},
+				{
+					"type": "text",
+					"text": "filename",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "getFilename",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are omitted, the plugin generates a PDF filename from the manifest label or identifier and the selected canvas range."
+				}
+			],
+			"attrs": {
+				"id": "d6b93f49-391a-4902-9663-af58f0847279"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "cover-sheet",
+				"id": "8f8ad581-0ef2-4229-b01b-74d5adfc3bd9"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Cover Sheet"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "When "
+				},
+				{
+					"type": "text",
+					"text": "coverSheet",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is configured, the exported PDF begins with a generated summary page."
+				}
+			],
+			"attrs": {
+				"id": "8b377299-d47b-46ae-998f-7bfec80324d1"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The cover sheet includes:"
+				}
+			],
+			"attrs": {
+				"id": "4776d19e-b60b-4c81-a2ad-762be327c4e5"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "each consumer-provided "
+								},
+								{
+									"type": "text",
+									"text": "label",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " / "
+								},
+								{
+									"type": "text",
+									"text": "value",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " pair"
+								}
+							],
+							"attrs": {
+								"id": "629746d4-6e30-48f7-9c5b-c500a1324085"
+							}
+						}
+					],
+					"attrs": {
+						"id": "650e48e3-b819-488c-8259-e2393e1bcaba"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "the PDF creation date and time"
+								}
+							],
+							"attrs": {
+								"id": "8f1b7e10-73cf-418f-85a8-04deb8e9b8db"
+							}
+						}
+					],
+					"attrs": {
+						"id": "08d1f524-c258-433c-827a-236e61cfa72e"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "the current page URL, when available in the browser"
+								}
+							],
+							"attrs": {
+								"id": "20ddc3d2-327a-4d83-8883-9adff3175ada"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c1149b24-ba65-4960-b9d3-b82d079a09ce"
+					}
+				}
+			],
+			"attrs": {
+				"id": "9d6d7494-55bd-4d49-90c9-9cce2c1b356e"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The export UI does not ask end users to edit these fields. They are supplied by the consuming application at plugin creation time."
+				}
+			],
+			"attrs": {
+				"id": "d2a7fe06-1bdd-444e-8100-d8a0a1ba55a0"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "ocr-support",
+				"id": "71a32231-9045-4606-8f26-086ab126e020"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "OCR Support"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "When a canvas includes IIIF OCR annotations, the plugin embeds selectable text into the exported PDF."
+				}
+			],
+			"attrs": {
+				"id": "a536bdc6-40ba-4e9e-a139-479922b201fd"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The plugin reads OCR from IIIF annotation data, not from IIIF Search responses. Search hits alone are not enough because the PDF export needs stable text plus canvas-relative bounding boxes."
+				}
+			],
+			"attrs": {
+				"id": "9550ef9d-fd74-4dc7-b526-eb8b65cd605a"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Manifest OCR annotations are normalized automatically when their "
+				},
+				{
+					"type": "text",
+					"text": "xywh",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " boxes are in the selected source image's pixel space instead of the canvas pixel space."
+				}
+			],
+			"attrs": {
+				"id": "4f0fb766-0903-4dd0-9519-86da5e1cf188"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "If your app stores OCR outside the IIIF manifest, configure "
+				},
+				{
+					"type": "text",
+					"text": "getCanvasOcrOverlays",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to supply PDF text overlays directly during export. This callback runs only for canvases included in the selected PDF export range. It is not used during normal canvas navigation, search, thumbnail rendering, or viewer startup."
+				}
+			],
+			"attrs": {
+				"id": "a70cf9c6-4e40-46c0-bfc7-922b0995fbbd"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Provider overlay coordinates default to canvas space for backward compatibility. If your provider returns original image pixel coordinates, set "
+				},
+				{
+					"type": "text",
+					"text": "coordinateSpace: 'image'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " on each overlay so the exporter can normalize them before PDF placement."
+				}
+			],
+			"attrs": {
+				"id": "c979133f-cf0b-4996-8ac0-42ac73dd0a50"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Supported OCR annotation patterns include:"
+				}
+			],
+			"attrs": {
+				"id": "ffcf9cdf-50f3-46bb-b1ee-4621147406f8"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "IIIF Presentation 3 annotations using "
+								},
+								{
+									"type": "text",
+									"text": "TextualBody",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " plus "
+								},
+								{
+									"type": "text",
+									"text": "motivation: \"supplementing\"",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "74d3d6c6-6976-4741-9f1a-ccb387378f2c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8eea0d62-bbc5-40ff-8102-2cfb05433081"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "legacy IIIF Presentation 2 text annotation lists in "
+								},
+								{
+									"type": "text",
+									"text": "otherContent",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", including "
+								},
+								{
+									"type": "text",
+									"text": "cnt:ContentAsText",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " bodies that use "
+								},
+								{
+									"type": "text",
+									"text": "sc:painting",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " for line text"
+								}
+							],
+							"attrs": {
+								"id": "75c80522-2fae-4c53-b292-df8de8f1ae73"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8ee4dbcb-8554-4f0d-ad8e-32a8c83684ce"
+					}
+				}
+			],
+			"attrs": {
+				"id": "3a823172-e4a8-4dbb-8f32-1cbe54f19878"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "OCR is resolved in this order during export:"
+				}
+			],
+			"attrs": {
+				"id": "fdb1da71-cf99-4a79-b63c-b96212b38d89"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "if "
+								},
+								{
+									"type": "text",
+									"text": "getCanvasOcrOverlays",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " returns a non-null value, that result is used and manifest OCR is skipped for that canvas"
+								}
+							],
+							"attrs": {
+								"id": "719dd5cd-ffaa-4a15-bbd9-8c0069e9e0f2"
+							}
+						}
+					],
+					"attrs": {
+						"id": "264c52fb-0cde-4d69-a0ad-2d2f1a31c0ad"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "otherwise, if "
+								},
+								{
+									"type": "text",
+									"text": "ocrAnnotationSource",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is set, the plugin loads OCR from that specific annotation page/list "
+								},
+								{
+									"type": "text",
+									"text": "id",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "bab56cb8-8f08-4cc7-83ab-82c5e30c7ed9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "42fe4700-e6d6-4fcd-b95c-c1b1f2d45c2c"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "otherwise, the plugin reads OCR-compatible annotations from every available canvas annotation source"
+								}
+							],
+							"attrs": {
+								"id": "0ee8a45e-8117-4ac4-8ee8-8b6ed39c783b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f3f7fbac-663f-4254-bca4-47227d9afbcf"
+					}
+				}
+			],
+			"attrs": {
+				"id": "c85327f6-fcb9-4699-ba3d-1bb29c4ac170"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Callback result semantics:"
+				}
+			],
+			"attrs": {
+				"id": "d5802d93-4fad-4e17-8100-c4654dce4f7a"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "return "
+								},
+								{
+									"type": "text",
+									"text": "[]",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " to mark the canvas as handled and export it without OCR text"
+								}
+							],
+							"attrs": {
+								"id": "bb4c65ee-f4de-4998-bb89-16a3cf2a599b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "85f4aacd-7979-4e68-bb08-f4cbb9bb5a42"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "return "
+								},
+								{
+									"type": "text",
+									"text": "null",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " or "
+								},
+								{
+									"type": "text",
+									"text": "undefined",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " to fall back to manifest-based OCR loading"
+								}
+							],
+							"attrs": {
+								"id": "b5905b9c-e701-41cf-95ff-a7d95d04f62e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d01b4e6b-dfcc-48bd-bd8d-86bc2bdc4f95"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "if the callback throws, the export logs a PDF-scoped warning and falls back to manifest-based OCR loading"
+								}
+							],
+							"attrs": {
+								"id": "074f6de3-52bf-45a4-a74f-50d2ac2f40f3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "07c41cdb-e517-4162-b8ab-02f4a6fafc81"
+					}
+				}
+			],
+			"attrs": {
+				"id": "1c4c3c63-9bf7-44f3-8180-bfbdac9fd5e6"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "OCR rendering options:"
+				}
+			],
+			"attrs": {
+				"id": "95f3303a-8899-4e87-941f-1b55c7f837f1"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ocrPlacementMode: 'fit-box'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " preserves the existing box-fitting behavior"
+								}
+							],
+							"attrs": {
+								"id": "b1735fd1-a6e6-44bb-b1ee-6775a7c61110"
+							}
+						}
+					],
+					"attrs": {
+						"id": "37987bf0-4cb5-4890-9b31-304ca102d394"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ocrPlacementMode: 'word-anchor'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " keeps each word anchored to its supplied "
+								},
+								{
+									"type": "text",
+									"text": "x",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and top-origin "
+								},
+								{
+									"type": "text",
+									"text": "y",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " position without vertical recentering"
+								}
+							],
+							"attrs": {
+								"id": "2f543c17-3f58-418d-8395-e93dc49378ce"
+							}
+						}
+					],
+					"attrs": {
+						"id": "0c57cfbf-8275-4bb3-8a23-fe34abc8b606"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ocrSizingMode: 'fit-box'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " uses both overlay width and height to size the text"
+								}
+							],
+							"attrs": {
+								"id": "b3e9358c-6ad7-4ae8-82d7-38f755c11c01"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8424dba6-92a2-4a4e-85e3-39874e71e118"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ocrSizingMode: 'height-only'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " sizes from overlay height only and does not stretch words to fill the OCR width"
+								}
+							],
+							"attrs": {
+								"id": "28777c10-1995-4a57-93b8-1d1f8fa8d3cb"
+							}
+						}
+					],
+					"attrs": {
+						"id": "227defda-9d73-498d-964c-e9057c683966"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ocrVisibilityMode: 'transparent'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " uses the existing near-transparent text layer behavior"
+								}
+							],
+							"attrs": {
+								"id": "af554ff8-6ed2-4ba1-abc3-97b1edcb8f2f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b3d511fd-ca37-43e3-a3f3-b7e4a75c6526"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ocrVisibilityMode: 'invisible'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " prefers PDF invisible text rendering semantics when supported by the PDF layer"
+								}
+							],
+							"attrs": {
+								"id": "b8088570-8596-4039-806d-9a41f4c1c2c9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "50673944-e6dc-4f56-9248-c6d409a4d2ce"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ocrVisibilityMode: 'debug'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " draws OCR text visibly for placement checks"
+								}
+							],
+							"attrs": {
+								"id": "1c9d5b5e-ecde-47f3-8c37-e72a0a848608"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6357a9f7-3976-4ee6-baad-7ee49f151aae"
+					}
+				}
+			],
+			"attrs": {
+				"id": "83d34743-3b65-4baa-8588-4aba704936da"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Default OCR rendering behavior remains backward-compatible:"
+				}
+			],
+			"attrs": {
+				"id": "91fadec3-e687-459f-84e6-110ea3a887ae"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "ef9599a5-d030-47d0-979b-ec37f0f7155b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "{\n    ocrPlacementMode: 'fit-box',\n    ocrSizingMode: 'fit-box',\n    ocrVisibilityMode: 'transparent',\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Recommended settings for word-level OCR overlays:"
+				}
+			],
+			"attrs": {
+				"id": "44fdde58-eb3f-4460-90c8-7cc5d1304453"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "bc19813f-2dda-43e4-96c1-c423c41db2cc"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "{\n    ocrPlacementMode: 'word-anchor',\n    ocrSizingMode: 'height-only',\n    ocrVisibilityMode: 'invisible',\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "To make exported PDF text selectable, provide OCR as canvas-linked IIIF annotations with these properties:"
+				}
+			],
+			"attrs": {
+				"id": "f5cef65a-2ace-4c77-b425-5bb950b4423d"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "the canvas "
+								},
+								{
+									"type": "text",
+									"text": "width",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "height",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " must use the same coordinate space as the OCR bounding boxes"
+								}
+							],
+							"attrs": {
+								"id": "3595af8d-a835-4248-87ab-d1b5a6c6ee6a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "fbb140e2-146c-44af-9967-52cced8f6dc0"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "each OCR annotation should target a rectangle using "
+								},
+								{
+									"type": "text",
+									"text": "#xywh=x,y,w,h",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " or a "
+								},
+								{
+									"type": "text",
+									"text": "FragmentSelector",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " with "
+								},
+								{
+									"type": "text",
+									"text": "xywh=...",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "45b373ce-43bf-4486-8580-356cac015a0e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "99111e5b-a856-44c6-b19e-9bcbffea3c68"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "each OCR annotation should use "
+								},
+								{
+									"type": "text",
+									"text": "motivation: \"supplementing\"",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "0eed8fb9-3ee2-4109-9356-30699756a367"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e1be79dc-ff8e-41bb-8dfa-d73fe75e55da"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "each OCR annotation body should be a "
+								},
+								{
+									"type": "text",
+									"text": "TextualBody",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " with plain text in "
+								},
+								{
+									"type": "text",
+									"text": "value",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "6fa390ad-eb54-46ee-bd9b-d22d93f42f98"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6bfdba1f-b8c2-4c44-8822-1e126bbb4d69"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "embedded and external "
+								},
+								{
+									"type": "text",
+									"text": "AnnotationPage",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " resources are both supported"
+								}
+							],
+							"attrs": {
+								"id": "e6b7d4f2-f685-4524-b8b0-2289468e35a6"
+							}
+						}
+					],
+					"attrs": {
+						"id": "cbce668d-fe85-4f9f-bfb4-9acd80c7cec4"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "the original ALTO, hOCR, or other OCR file can also be linked via "
+								},
+								{
+									"type": "text",
+									"text": "seeAlso",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", but the plugin reads the IIIF annotations directly"
+								}
+							],
+							"attrs": {
+								"id": "64feee7d-c40f-4a49-ad7c-faeb88b07e17"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2e9d4370-525d-4914-8beb-ca869d2ce688"
+					}
+				}
+			],
+			"attrs": {
+				"id": "c039788a-c9ea-4163-ace4-91ea026153ee"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Example canvas with an external OCR page:"
+				}
+			],
+			"attrs": {
+				"id": "a6ff25f8-4a8b-40ba-98fc-eb0804bd3508"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "json",
+				"id": "ef3fee61-b45b-4911-8166-40fe69315c1c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "{\n    \"id\": \"https://example.org/canvas/1\",\n    \"type\": \"Canvas\",\n    \"width\": 3000,\n    \"height\": 4000,\n    \"annotations\": [\n        {\n            \"id\": \"https://example.org/canvas/1/ocr\",\n            \"type\": \"AnnotationPage\"\n        }\n    ],\n    \"seeAlso\": [\n        {\n            \"id\": \"https://example.org/canvas/1/ocr/alto.xml\",\n            \"type\": \"Dataset\",\n            \"format\": \"application/xml\",\n            \"label\": {\n                \"en\": [\"ALTO OCR\"]\n            }\n        }\n    ]\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Example OCR annotation page:"
+				}
+			],
+			"attrs": {
+				"id": "71deb167-8137-4a1c-a184-9b68613837e6"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "json",
+				"id": "76da923a-17d4-43a5-ba85-d3e992f4efb3"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "{\n    \"id\": \"https://example.org/canvas/1/ocr\",\n    \"type\": \"AnnotationPage\",\n    \"items\": [\n        {\n            \"id\": \"https://example.org/canvas/1/ocr/line/1\",\n            \"type\": \"Annotation\",\n            \"motivation\": \"supplementing\",\n            \"body\": {\n                \"type\": \"TextualBody\",\n                \"value\": \"This is one OCR line.\",\n                \"format\": \"text/plain\"\n            },\n            \"target\": \"https://example.org/canvas/1#xywh=240,380,1620,52\"\n        }\n    ]\n}"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Tesseract guidance:"
+				}
+			],
+			"attrs": {
+				"id": "2e7e4232-978b-4f48-b788-80aa602dfa9f"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "convert each OCR line or word into one IIIF annotation item"
+								}
+							],
+							"attrs": {
+								"id": "6b257c38-d05d-45b2-b417-bf8e147d973b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d52d345b-e4bf-494e-ac60-4a21bf7b2cef"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "line-level annotations are the easiest starting point for usable PDF text selection, but word-level overlays are also supported"
+								}
+							],
+							"attrs": {
+								"id": "5f430900-23ab-473b-97d8-bba642b88915"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4929610b-3ecb-46a7-a347-4d8e05725949"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "if your Tesseract boxes are in raw image pixels, make sure the canvas "
+								},
+								{
+									"type": "text",
+									"text": "width",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "height",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " match that same pixel space, or scale the boxes during annotation generation"
+								}
+							],
+							"attrs": {
+								"id": "3eb2feba-e5d4-49e1-8f8b-2107dc1a5360"
+							}
+						}
+					],
+					"attrs": {
+						"id": "cd723460-2a75-4f62-a2c3-56a07b831650"
+					}
+				}
+			],
+			"attrs": {
+				"id": "eb567354-7958-431b-9224-a538779c5282"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "image-request-notes",
+				"id": "46acd4bd-f47c-4911-9956-fde8bf68eb77"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Image Request Notes"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The plugin fetches canvas images with "
+				},
+				{
+					"type": "text",
+					"text": "credentials: \"same-origin\"",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " by default. This avoids common CORS failures on public IIIF servers that respond with "
+				},
+				{
+					"type": "text",
+					"text": "Access-Control-Allow-Origin: *",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "7d876012-78e5-4752-a977-3d408d8da701"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "For IIIF-backed exports, the plugin automatically requests wide or spread canvases by height instead of width so landscape pages are not capped by the viewer-width-derived export size. Portrait and square canvases continue to use width-constrained requests."
+				}
+			],
+			"attrs": {
+				"id": "b4ce4ff1-48f7-494b-a71d-0857d1693867"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "For IIIF Image API level 0 services, the plugin prefers the painting body's declared image URL instead of synthesizing an arbitrary sized IIIF image request. This is more compatible with services that expose only a fixed image URL alongside a level 0 service description."
+				}
+			],
+			"attrs": {
+				"id": "4b0b66f8-5bcd-47f9-be6e-c6a60ec9085c"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Some IIIF image services block browser access entirely. Typical symptoms are:"
+				}
+			],
+			"attrs": {
+				"id": "ea7f952d-07ef-44e9-a825-d67fc0afafd9"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "no "
+								},
+								{
+									"type": "text",
+									"text": "Access-Control-Allow-Origin",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " response header"
+								}
+							],
+							"attrs": {
+								"id": "7def33b4-2aac-4ee2-bc46-5a3c92c0a21a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e9ecab7c-00aa-4d3d-a71d-ca52b12ef7d5"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "401",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " or "
+								},
+								{
+									"type": "text",
+									"text": "403",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " responses for cross-origin image fetches"
+								}
+							],
+							"attrs": {
+								"id": "eb2eae93-3064-461b-ab65-491854968b6f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1868233a-be99-457e-99d8-b1cfaa0881a0"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "browser errors such as "
+								},
+								{
+									"type": "text",
+									"text": "TypeError: Failed to fetch",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "a1c60689-bedf-4290-a277-03fa37d836f3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "dc504dae-3d02-4911-b854-26884797861e"
+					}
+				}
+			],
+			"attrs": {
+				"id": "fc3ab96e-9b88-44a1-aab1-88dd1f843f6b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "In those cases, a purely client-side export is not possible from a different origin. Configure "
+				},
+				{
+					"type": "text",
+					"text": "loadImageBlob",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " so your application can fetch the image through a same-origin proxy, a backend endpoint, or another authenticated path that the browser is allowed to read."
+				}
+			],
+			"attrs": {
+				"id": "23d69e51-1174-4f53-9d19-a43ef4c6f8be"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "If your image service requires cookies or another authenticated browser session, configure the plugin explicitly:"
+				}
+			],
+			"attrs": {
+				"id": "d2daf228-7422-40e8-b129-99a0ccb12d71"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "6f445f31-4400-4584-977c-802a4bf9145a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';\n\nconst plugin = createPdfExportPlugin({\n    imageRequest: {\n        credentials: 'include',\n        mode: 'cors',\n        headers: {\n            Authorization: 'Bearer <token>',\n        },\n    },\n});"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Supported "
+				},
+				{
+					"type": "text",
+					"text": "imageRequest",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " fields are passed directly to "
+				},
+				{
+					"type": "text",
+					"text": "fetch(...)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ":"
+				}
+			],
+			"attrs": {
+				"id": "5982777d-f97c-434e-845c-0ecbd5ae071f"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "credentials",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "b0cc1be4-387d-4a64-b592-5abe75ee5a69"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1b4e4e7f-c4c0-4f2a-9b85-6a9810018322"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "headers",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "4fc41916-0df7-4ece-a6e6-c7ad429f71a3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "41257725-f914-4bb3-867b-d37cdd98f1cd"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "mode",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "b784cc2d-813a-4cf9-8ce3-3311d040fa5d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "16cd76d1-2e7c-4d79-8a99-4d44f7084c83"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "referrerPolicy",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								}
+							],
+							"attrs": {
+								"id": "1e328f40-d3d4-4188-9f50-064d6f676b2b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e9627731-eb8c-4de9-a693-e9c332719ae9"
+					}
+				}
+			],
+			"attrs": {
+				"id": "0b2f4c50-dc08-44bd-b85e-5f40198662d4"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Use "
+				},
+				{
+					"type": "text",
+					"text": "loadImageBlob",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " when "
+				},
+				{
+					"type": "text",
+					"text": "imageRequest",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is still not enough because the remote service does not allow browser access at all."
+				}
+			],
+			"attrs": {
+				"id": "6f683e07-43be-4781-b00a-1513e8f1db35"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Only use "
+				},
+				{
+					"type": "text",
+					"text": "credentials: \"include\"",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " when the IIIF image service is configured for credentialed CORS."
+				}
+			],
+			"attrs": {
+				"id": "0db5a8c5-539f-422f-b8b7-68354a415f21"
+			}
+		}
+	],
+	"meta": {
+		"title": "PDF Export",
+		"shortTitle": "PDF export",
+		"intro": "Export a flat range of IIIF canvases as a browser-generated PDF, one PDF page per selected canvas."
+	}
+}

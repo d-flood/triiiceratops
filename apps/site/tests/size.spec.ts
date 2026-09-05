@@ -114,7 +114,9 @@ test.describe('the scatter', () => {
     });
 
     test('tabulates the same points beneath it', async ({ page }) => {
-        const rows = page.locator('table', { hasText: 'Bytes per recipe' }).locator('tbody tr');
+        const rows = page
+            .locator('table', { hasText: 'Bytes per recipe' })
+            .locator('tbody tr');
         await expect(rows).toHaveCount(CAPABILITY_ROWS.length);
         for (const [index, row] of CAPABILITY_ROWS.entries()) {
             await expect(rows.nth(index)).toContainText(
@@ -128,11 +130,16 @@ test.describe('the data table', () => {
     test('carries every viewer, its version and all three compression levels', async ({
         page,
     }) => {
-        const rows = page.locator('table', { hasText: 'vs. core' }).locator('tbody tr');
+        const rows = page
+            .locator('table', { hasText: 'vs. core' })
+            .locator('tbody tr');
         await expect(rows).toHaveCount(SIZE_ROWS.length);
 
         for (const [index, expected] of SIZE_ROWS.entries()) {
-            const cells = await rows.nth(index).locator('th, td').allInnerTexts();
+            const cells = await rows
+                .nth(index)
+                .locator('th, td')
+                .allInnerTexts();
             expect(cells.slice(0, 5), expected.id).toEqual([
                 expected.name,
                 expected.version,
@@ -168,7 +175,9 @@ test.describe('the checking material', () => {
 
         // The rail is route-based, but the argument above the fold is not: the
         // checking material contributes no section heading to it.
-        const headings = await page.getByRole('heading', { level: 2 }).allInnerTexts();
+        const headings = await page
+            .getByRole('heading', { level: 2 })
+            .allInnerTexts();
         expect(headings).toEqual([
             'Capability against size',
             'Size',

@@ -407,7 +407,8 @@ export function assertCoreOptionalPeers(tarballPath, pkgName) {
  *
  * Any `@font-face` at all is the failure, embedded or linked: the viewer names
  * two font custom properties and falls back to the reader's system faces (see
- * docs/theming.md), so a consumer's page carries only the type it chose.
+ * the theming guide at `/docs/theming/`), so a consumer's page carries only the
+ * type it chose.
  */
 export function findFontFaceRules(css) {
     const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');

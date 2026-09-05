@@ -1,17 +1,13 @@
----
-search:
-  exclude: true
----
-
 # Content Security Policy (CSP) recipe
 
 > **Internal note.** This is the supported-CSP recipe reference introduced with
 > the CSP test matrix (ticket 24). Its per-distribution recipes and Trusted
 > Types walkthrough have since been folded into the public
-> [Content Security Policy](../csp.md) guide (ticket 26). Kept here, excluded
-> from the public nav and search, as the terse working reference this file was
-> checked against while writing that page. What is below is verified end-to-end
-> by the packed-consumer CSP fixtures (`test-consumers/fixtures/csp-*`).
+> Content Security Policy guide at `/docs/csp/` (ticket 26). Kept here as the
+> terse working reference that page was checked against while it was written; no
+> route declares this directory, so nothing here is published. What is below is
+> verified end-to-end by the packed-consumer CSP fixtures
+> (`test-consumers/fixtures/csp-*`).
 
 Triiiceratops runs under a strict Content Security Policy. The security-critical
 control is **`script-src`**: the viewer needs **no `unsafe-eval`** and **no
@@ -69,14 +65,17 @@ base-uri 'none';
   ```
 
   The value must be a fresh random string per response.
-- **Trusted Types.** To run under `require-trusted-types-for 'script'`, allow the
-  viewer's default policy name. Core installs a pass-through **`default`** Trusted
-  Types policy (untrusted HTML is sanitized upstream before it reaches any DOM
-  sink), so add:
+- **Trusted Types.** To run under `require-trusted-types-for 'script'`, allow two
+  policy names. Core installs a pass-through **`default`** Trusted Types policy
+  (untrusted HTML is sanitized upstream before it reaches any DOM sink), and
+  Svelte creates its own **`svelte-trusted-html`** at module load with no opt-out,
+  so a policy naming only `default` throws there and nothing mounts. Every bundle
+  embedding Svelte creates that name again — the element IIFE and a plugin IIFE
+  are two — and a repeated name throws without `'allow-duplicates'`:
 
   ```
   require-trusted-types-for 'script';
-  trusted-types default;
+  trusted-types default svelte-trusted-html 'allow-duplicates';
   ```
 
   If your app already installs its own `default` policy, core defers to it.

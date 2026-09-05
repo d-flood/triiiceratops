@@ -4,6 +4,7 @@ import { getContext, setContext } from 'svelte';
 import { m } from '../paraglide/messages.js';
 import {
     getLocale,
+    isLocale,
     setLocale as baseSetLocale,
     overwriteSetLocale,
 } from '../paraglide/runtime.js';
@@ -32,13 +33,18 @@ export const language = {
 // ==================== PER-VIEWER ACTIVE LOCALE ====================
 //
 // Locale is a per-viewer contract (CONTEXT.md **Active locale**): a viewer's
-// active locale is its typed `config.locale` if set, otherwise the page default.
-// All of that viewer's chrome renders in it, and two viewers on one page may
-// differ. The mechanism is uniform: the viewer root publishes its active locale
-// into Svelte context via {@link provideActiveLocale}, and every chrome
-// component renders messages through {@link getMessages}, which injects that
-// active locale into each Paraglide `m.*()` call. There is no second mechanism —
+// active locale is the language its own picker chose if the user chose one,
+// otherwise its typed `config.locale`, otherwise the page default. Two viewers
+// on one page may differ. The mechanism is uniform: the viewer root publishes
+// its active locale into Svelte context via {@link provideActiveLocale}, and
+// every chrome component renders messages through {@link getMessages}, which
+// injects it into each Paraglide `m.*()` call. There is no second mechanism —
 // chrome never calls the raw global `m` (whose implicit locale is page-global).
+//
+// The active locale is a CONTENT locale: it is what IIIF language maps resolve
+// against, and it ranges over whatever languages a manifest is authored in.
+// Core's chrome translations are a much smaller set, so {@link getMessages}
+// clamps it to a catalog core actually ships.
 
 /**
  * A reactive holder for one viewer's active locale, shared through Svelte
@@ -70,8 +76,15 @@ function useActiveLocaleSource(): ActiveLocaleSource | null {
  * Wrap the Paraglide `m` namespace so every message call renders in a resolved
  * locale. Each message function accepts `{ locale }` as its final options
  * argument (Paraglide v2); the wrapper forwards the caller's inputs unchanged
- * and always supplies the resolved locale, so missing translations still fall
- * back to English (Paraglide default behavior).
+ * and always supplies the resolved locale.
+ *
+ * The locale is clamped to one core ships a catalog for. A viewer's active
+ * locale is a *content* locale — the language picker offers whatever the
+ * manifest is authored in, which is routinely a language core has no chrome
+ * translation for — and Paraglide compiles its dispatch as a chain of
+ * `if (locale === "en") … return de_…`, so an untranslated tag does not fall
+ * back to the base locale: it renders as whichever catalog compiled last.
+ * Picking French would silently render the chrome in German.
  *
  * The Proxy target is a fresh, extensible object — never `m` itself. In the
  * bundled/SSR build Paraglide defines each message as a non-configurable,
@@ -86,6 +99,13 @@ function createLocalizedMessages(resolveLocale: () => string): typeof m {
         string,
         (i: unknown, o: { locale: string }) => string
     >;
+    // The page-global locale is always one Paraglide has, so it is the safe
+    // stand-in: chrome stays in the surrounding application's language rather
+    // than jumping to English when the content locale is one core cannot render.
+    const chromeLocale = () => {
+        const locale = resolveLocale();
+        return isLocale(locale) ? locale : getLocale();
+    };
     return new Proxy(
         {},
         {
@@ -95,7 +115,7 @@ function createLocalizedMessages(resolveLocale: () => string): typeof m {
                     return value;
                 }
                 return (inputs?: Record<string, unknown>) =>
-                    value(inputs ?? {}, { locale: resolveLocale() });
+                    value(inputs ?? {}, { locale: chromeLocale() });
             },
             has(_target, prop) {
                 return prop in messages;

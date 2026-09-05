@@ -1,56 +1,34 @@
 #!/usr/bin/env node
 // The site's public URL gate.
 //
-// Asserts the fully assembled publish tree against `site-urls.json`, the
-// committed manifest of the site's public URLs. Without this the assembled tree
-// first exists at the moment it goes live: each subtree is built by its own job
-// and merged into the storage branch, so no single build ever produces the whole
-// site until the deploy does.
+// Asserts the built tree against `site-urls.json`, the committed manifest of the
+// site's public URLs. One build emits the whole published tree, so the tree this
+// reads is the tree that ships.
 //
 // FATAL checks (exit 1) — a broken promise about a public URL:
 //
 //   1. Every URL in the manifest resolves to a non-empty regular file. A path
 //      nobody meant to move cannot move silently. A manifest URL whose
 //      normalized form escapes the publish root is itself an error.
-//   2. Every relative `href`/`src` in the four pages the publish job itself
-//      owns — the site root, 404, /latest/ and /versions/ — resolves inside
-//      the tree. These are hand-written or generated at a depth their source
-//      does not show, which is exactly how a link that reads correctly in the
-//      editor emits broken.
-//   3. The two application paths serve the application their `owner` builds.
+//   2. Every relative `href`/`src` in the two pages emitted at a depth their
+//      source does not show — the site root and 404 — resolves inside the tree.
+//      That is exactly how a link that reads correctly in the editor emits
+//      broken: the not-found page is rendered at `/404/` and served from the
+//      root.
+//   3. The two application paths serve the application their `app` field names.
 //      `/viewer/` and `/demo/` both resolve to a non-empty index.html whichever
-//      way round they are assembled, so check 1 is blind to the swap — and the
+//      way round they are built, so check 1 is blind to the swap — and the
 //      swap breaks roughly thirty-four IIIF Cookbook recipes, which link
 //      `/viewer/` directly through the cookbook's own `_includes/viewer_link.html`.
-//      That path was preserved rather than moved for those links; see the
+//      That path was kept rather than moved for those links; see the
 //      `/viewer/` entry's note in the manifest. It has gone wrong on the
 //      deployed host once already.
 //
-//   4. Every relative `href`/`src` in the assembled documentation version
-//      directory that RESOLVES OUTSIDE that directory points at something real
-//      within the publish root. Links that stay inside the version directory
-//      are not checked here: `zensical build --strict` already fails on those,
-//      and re-checking them would be theatre.
-//
-//      Check 4 exists because this class of break has escaped three times in
-//      one epic. Five example links shipped resolving outside the version
-//      directory; separately, `overrides/main.html` emitted the versions-switcher
-//      href as a verbatim `../../versions/` on pages at every depth, resolving to
-//      a 404 from all but one of them. Zensical resolves a relative link against
-//      the source Markdown's directory and strict mode does not validate
-//      non-`.md` targets, so such a link is correct in source, passes strict
-//      mode, serves fine locally, and still 404s at its published depth. Only
-//      the assembled tree can catch it.
-//
 // ADVISORY check (warning, exit 0):
 //
-//   5. Top-level entries the manifest and the ownership table do not account
-//      for are REPORTED, never removed. The storage branch accumulates: the
-//      first deploy under this layout leaves the previously published top-level
-//      `/1.0/` documentation directory orphaned there — still served, absent
-//      from `versions.json` and `/versions/`. Published content is never
-//      deleted by a script, and whether it should stay is a human's call, so
-//      this one never fails the build.
+//   4. Top-level entries the manifest does not account for are REPORTED, never
+//      removed. Whether a served path outside the contract should stay is a
+//      human's call, so this one never fails the build.
 //
 // The link checks read `href`/`src` with a regex rather than an HTML parser:
 // these documents are small and machine- or hand-written in this repo, and an
@@ -60,11 +38,9 @@
 // by script, say — is invisible to this check.
 //
 // Usage:
-//   node scripts/url-contract.mjs [--tree <dir>] [--version X.Y]
+//   node scripts/url-contract.mjs [--tree <dir>]
 //
-// `--tree` defaults to `published/`, the directory CI assembles into. `--version`
-// substitutes the `{version}` token in manifest URLs and names the version
-// directory check 4 crawls; it defaults to the current docs version.
+// `--tree` defaults to `apps/site/build`, the tree the site's own build emits.
 
 import {
     existsSync,
@@ -74,28 +50,25 @@ import {
     statSync,
 } from 'node:fs';
 import { dirname, join, normalize, relative, resolve, sep } from 'node:path';
-import { REPO_ROOT, docsVersion } from './docs-version.mjs';
+import { REPO_ROOT } from './package-version.mjs';
 
 const MANIFEST = join(REPO_ROOT, 'site-urls.json');
 
 /**
- * How to produce each owner's subtree, quoted back in failure output so the
- * reader knows which job to look at rather than which file to create by hand.
+ * How to produce each owner's part of the tree, quoted back in failure output so
+ * the reader knows which build to run rather than which file to create by hand.
  * The keys are the manifest's `owner` vocabulary.
  */
 const OWNER_HINTS = {
     site: 'run `pnpm build:site`',
-    demo: 'run `pnpm build:demo`',
-    viewer: 'run `pnpm build:viewer`',
-    docs: 'built by scripts/docs-publish.mjs (zensical build)',
-    examples: 'run `pnpm build:examples`',
-    publish: 'generated by scripts/docs-publish.mjs on every publish',
+    examples:
+        'run `pnpm build:examples`, then `pnpm build:site` — the site build places its output',
 };
 
 /**
  * Served out of the publish root but not public URLs, and so not manifest
  * entries. A manifest entry is a promise about a URL somebody can link; nothing
- * here is linkable, which is the same category as the dotfiles check 5 skips.
+ * here is linkable, which is the same category as the dotfiles check 4 skips.
  *
  *   CNAME  host configuration, describing the domain rather than a path on it.
  *   _app   the static adapter's asset directory for the marketing site: hashed
@@ -109,17 +82,16 @@ const OWNER_HINTS = {
  *          markup and from the manifests themselves, and never a URL a reader
  *          is offered. Promising them would freeze fixture paths that exist to
  *          be swapped for better material.
- *   fonts  the self-hosted typefaces the marketing site's stylesheet names in
+ *   fonts  the self-hosted typefaces the site's stylesheet names in
  *          `@font-face` and its head preloads. Served, referenced only from CSS
  *          and from a `rel=preload`, and never a page anyone could link. The
- *          documentation's copies live inside each version directory, which the
- *          `docs` owner already accounts for.
+ *          documentation is part of the same build and reads the same copies.
  */
 const HOST_CONTROL_FILES = new Set(['CNAME', '_app', 'fonts', 'material']);
 
 /**
- * The meta name every application page carries, whose content is the `owner`
- * that built it.
+ * The meta name every application page carries, whose content is the `app` the
+ * page declares itself to be.
  *
  * A marker tag rather than a title or a body string, because the two titles are
  * not distinguishable in both directions: the playground's
@@ -132,38 +104,35 @@ const HOST_CONTROL_FILES = new Set(['CNAME', '_app', 'fonts', 'material']);
 export const APP_MARKER = 'triiiceratops:app';
 
 /**
- * The manifest owners whose subtree is a single-page application competing for
- * the same shape of URL, and so the entries check 3 asserts identity for. Any
- * other owner's page is not confusable with another owner's and is left alone.
+ * The manifest field naming which application a path serves.
+ *
+ * Keyed on the entry rather than on its `owner`: the playground and the bare
+ * viewer are both routes of the site application, so one owner builds both and
+ * `owner` cannot tell them apart. An entry without this field is not confusable
+ * with another application's page and is left alone.
  */
-export const APPLICATION_OWNERS = Object.freeze(['viewer', 'demo']);
+const APPLICATION_FIELD = 'app';
 
-/** The publish job's own hand-written and generated pages, relative to the tree. */
-const OWNED_PAGES = [
-    'index.html',
-    '404.html',
-    join('latest', 'index.html'),
-    join('versions', 'index.html'),
-];
+/**
+ * The pages check 2 walks: the ones served at a depth their source does not
+ * show, relative to the tree.
+ */
+const OWNED_PAGES = ['index.html', '404.html'];
 
 function parseArgs(argv) {
-    const args = { tree: join(REPO_ROOT, 'published') };
+    const args = { tree: join(REPO_ROOT, 'apps', 'site', 'build') };
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
         if (a === '--tree') args.tree = argv[++i];
-        else if (a === '--version') args.version = argv[++i];
         else throw new Error(`unknown argument: ${a}`);
     }
     if (!args.tree) throw new Error('--tree <dir> requires a value');
     return args;
 }
 
-/** A manifest URL becomes a path within the tree: token substituted, dir → index.html. */
-function resolveUrl(url, version) {
-    const withVersion = url.replaceAll('{version}', version);
-    const path = withVersion.endsWith('/')
-        ? `${withVersion}index.html`
-        : withVersion;
+/** A manifest URL becomes a path within the tree: a trailing `/` → index.html. */
+function resolveUrl(url) {
+    const path = url.endsWith('/') ? `${url}index.html` : url;
     return normalize(path.replace(/^\/+/, ''));
 }
 
@@ -173,11 +142,9 @@ function resolveUrl(url, version) {
  * manifest is the whole of what it takes to account for its top-level name, and
  * the two can never disagree.
  */
-function ownedTopLevel(manifest, version) {
+function ownedTopLevel(manifest) {
     return new Set(
-        manifest.urls.map(
-            (entry) => resolveUrl(entry.url, version).split(sep)[0],
-        ),
+        manifest.urls.map((entry) => resolveUrl(entry.url).split(sep)[0]),
     );
 }
 
@@ -243,6 +210,28 @@ function linkTarget(tree, pagePath, target) {
 }
 
 /**
+ * The references on the page at `pagePath` that land on nothing served inside
+ * `tree`, each as `{ page, target, landing }`. `skip` opts a target out before
+ * it is tested, for the links a caller has decided are somebody else's business.
+ *
+ * Exported because two callers ask the same question of two different sets of
+ * pages — check 2 below, and the consumer examples' placement in
+ * `apps/site/scripts/place-examples.mjs`. A link check spelled differently in
+ * each is a link check that only partly exists.
+ */
+export function unresolvedTargets(tree, pagePath, html, { skip } = {}) {
+    const broken = [];
+    for (const target of relativeTargets(html)) {
+        const landing = linkTarget(tree, pagePath, target);
+        if (skip?.(target, landing)) continue;
+        if (!isInside(tree, landing) || !targetResolves(landing)) {
+            broken.push({ page: pagePath, target, landing });
+        }
+    }
+    return broken;
+}
+
+/**
  * Which application `html` declares itself to be, or `null` if it declares
  * nothing.
  *
@@ -270,55 +259,36 @@ export function appMarker(html) {
 
 /**
  * Application paths in `tree` serving somebody else's application, as
- * `{ url, path, owner, found }`. Empty means each application path serves the
- * application its owner builds.
+ * `{ url, path, app, found }`. Empty means each application path serves the
+ * application the manifest names.
  *
  * A path that is absent is not reported here: check 1 already names it as a
  * missing promise, and saying it twice buries the identity failures this exists
  * to surface.
  */
-export function applicationMismatches(tree, manifest, version) {
+export function applicationMismatches(tree, manifest) {
     const mismatches = [];
     for (const entry of manifest.urls) {
-        if (!APPLICATION_OWNERS.includes(entry.owner)) continue;
-        const path = resolveUrl(entry.url, version);
+        const app = entry[APPLICATION_FIELD];
+        if (!app) continue;
+        const path = resolveUrl(entry.url);
         const absolute = join(tree, path);
         if (!isInside(tree, absolute) || !isNonEmptyFile(absolute)) continue;
         const found = appMarker(readFileSync(absolute, 'utf8'));
-        if (found !== entry.owner) {
-            mismatches.push({
-                url: entry.url,
-                path,
-                owner: entry.owner,
-                found,
-            });
+        if (found !== app) {
+            mismatches.push({ url: entry.url, path, app, found });
         }
     }
     return mismatches;
 }
 
-/** Every `.html` file under `dir`, as paths relative to `tree`. */
-function htmlPages(tree, dir) {
-    const found = [];
-    for (const entry of readdirSync(dir, {
-        withFileTypes: true,
-        recursive: true,
-    })) {
-        if (!entry.isFile() || !entry.name.endsWith('.html')) continue;
-        found.push(relative(tree, join(entry.parentPath, entry.name)));
-    }
-    return found.sort();
-}
-
 function main() {
     const args = parseArgs(process.argv.slice(2));
     const tree = resolve(args.tree);
-    const version = args.version ?? docsVersion();
 
     if (!existsSync(tree)) {
         console.error(
-            `url-contract: no assembled tree at ${tree} — ` +
-                'run `pnpm build:all` then `node scripts/docs-publish.mjs --dest <dir>` first.',
+            `url-contract: no built tree at ${tree} — run \`pnpm build:all\` first.`,
         );
         process.exit(1);
     }
@@ -335,7 +305,7 @@ function main() {
     const missing = [];
     const escapingUrls = [];
     for (const entry of manifest.urls) {
-        const path = resolveUrl(entry.url, version);
+        const path = resolveUrl(entry.url);
         const absolute = join(tree, path);
         if (!isInside(tree, absolute)) {
             escapingUrls.push({ ...entry, path });
@@ -347,46 +317,23 @@ function main() {
         console.log(`  ${entry.url} -> ${path} [${ok ? 'ok' : 'MISSING'}]`);
     }
 
-    // ---- 2. Relative links in the publish job's own pages ---------------
+    // ---- 2. Relative links in the pages served below their source -------
     const brokenLinks = [];
     for (const page of OWNED_PAGES) {
         const absolute = join(tree, page);
         if (!existsSync(absolute)) continue; // already reported by check 1
         const html = readFileSync(absolute, 'utf8');
-        for (const target of relativeTargets(html)) {
-            const landing = linkTarget(tree, page, target);
-            if (!isInside(tree, landing) || !targetResolves(landing)) {
-                brokenLinks.push({ page, target, landing });
-            }
-        }
+        brokenLinks.push(...unresolvedTargets(tree, page, html));
     }
 
     // ---- 3. The application paths serve their own application ----------
-    const wrongApplication = applicationMismatches(tree, manifest, version);
-
-    // ---- 4. Links escaping the documentation version directory ----------
-    const versionDir = join(tree, 'docs', version);
-    const escapingLinks = [];
-    if (existsSync(versionDir)) {
-        for (const page of htmlPages(tree, versionDir)) {
-            const html = readFileSync(join(tree, page), 'utf8');
-            for (const target of relativeTargets(html)) {
-                if (target.startsWith('/')) continue; // not a relative link
-                const landing = linkTarget(tree, page, target);
-                if (isInside(versionDir, landing)) continue; // zensical's business
-                if (!isInside(tree, landing) || !targetResolves(landing)) {
-                    escapingLinks.push({ page, target, landing });
-                }
-            }
-        }
-    }
+    const wrongApplication = applicationMismatches(tree, manifest);
 
     const fatal =
         missing.length +
         escapingUrls.length +
         wrongApplication.length +
-        brokenLinks.length +
-        escapingLinks.length;
+        brokenLinks.length;
     if (fatal > 0) {
         if (escapingUrls.length > 0) {
             console.error(
@@ -416,24 +363,21 @@ function main() {
             for (const w of wrongApplication) {
                 const found = w.found ?? 'no application marker';
                 console.error(
-                    `  ${w.url}  (${w.path}) promises ${w.owner}, found ${found}`,
-                );
-                console.error(
-                    `    owner: ${w.owner} — ${OWNER_HINTS[w.owner] ?? `owned by ${w.owner}`}`,
+                    `  ${w.url}  (${w.path}) promises ${w.app}, found ${found}`,
                 );
             }
             console.error(
                 '    Both applications publish an index.html, so every other check ' +
                     'passes on a tree with them exchanged. /viewer/ is linked directly ' +
                     'by the IIIF Cookbook from roughly thirty-four recipes; serving the ' +
-                    'playground there breaks all of them. Check which build was copied ' +
-                    'to which path in scripts/docs-publish.mjs.',
+                    'playground there breaks all of them. Check which route ' +
+                    'declares which marker in apps/site/src/routes.',
             );
         }
         if (brokenLinks.length > 0) {
             console.error(
                 `\nurl-contract: ${brokenLinks.length} unresolvable relative link(s) ` +
-                    'in the pages the publish job owns:',
+                    'in the pages served below their source:',
             );
             for (const b of brokenLinks) {
                 console.error(
@@ -445,23 +389,6 @@ function main() {
                     'Check the link against its published location, not its source location.',
             );
         }
-        if (escapingLinks.length > 0) {
-            console.error(
-                `\nurl-contract: ${escapingLinks.length} link(s) in docs/${version}/ leave the ` +
-                    'version directory and resolve to nothing:',
-            );
-            for (const e of escapingLinks) {
-                console.error(
-                    `  ${e.page}: "${e.target}" -> ${relative(tree, e.landing) || '.'}`,
-                );
-            }
-            console.error(
-                '    Zensical resolves a relative link against its source directory and ' +
-                    'strict mode does not validate non-Markdown targets, so a link like ' +
-                    'this passes the docs build and 404s once published. Count the ' +
-                    'segments from the PUBLISHED page, not from the source file.',
-            );
-        }
         console.error(
             `\nThe published site would not honour ${MANIFEST}. ` +
                 'Fix the tree, or edit the manifest in a reviewed commit if the URL ' +
@@ -470,10 +397,10 @@ function main() {
         process.exit(1);
     }
 
-    // ---- 5. Unowned top-level entries: report, never remove --------------
+    // ---- 4. Unowned top-level entries: report, never remove --------------
     // Dotfiles are skipped for the same reason as HOST_CONTROL_FILES: they are
     // host and tooling control files (`.nojekyll` and the like), never public URLs.
-    const owned = ownedTopLevel(manifest, version);
+    const owned = ownedTopLevel(manifest);
     const unowned = readdirSync(tree).filter(
         (name) =>
             !name.startsWith('.') &&
@@ -484,13 +411,13 @@ function main() {
         console.warn(
             `\nurl-contract: WARNING ${unowned.length} top-level entr(ies) no owner ` +
                 `accounts for: ${unowned.join(', ')}\n` +
-                '  Still served, but outside the URL contract and not regenerated by any ' +
-                'job. Nothing is deleted here — decide by hand whether it should stay.',
+                '  Still served, but outside the URL contract. Nothing is deleted ' +
+                'here — decide by hand whether it should stay.',
         );
     }
 
     console.log(
-        `\nURL contract OK: ${manifest.urls.length} URL(s) resolve in ${tree} (docs v${version}).`,
+        `\nURL contract OK: ${manifest.urls.length} URL(s) resolve in ${tree}.`,
     );
 }
 

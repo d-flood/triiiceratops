@@ -2,7 +2,7 @@
     "name": "@triiiceratops/config",
     "version": "0.0.0",
     "type": "module",
-    "description": "Internal, unpublished configuration algebra for the share URL: the sparse-config merge/diff, the IIIF content state encoding, and the URL/sessionStorage resolution. Consumed as TypeScript source by the playground and the marketing site; never shipped to a consumer.",
+    "description": "Internal, unpublished configuration algebra for the share URL: the sparse-config merge/diff, the IIIF content state encoding, and the URL/sessionStorage resolution. Consumed as TypeScript source by the site application, so the playground and the configuration builder cannot disagree about what a shared link means; never shipped to a consumer.",
     "license": "MIT",
     "author": "David Flood",
     "repository": {

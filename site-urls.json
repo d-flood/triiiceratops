@@ -1,5 +1,5 @@
 {
-    "$comment": "The published site's public URL contract. Asserted against the fully assembled tree by `pnpm urls:check` (scripts/url-contract.mjs) as a required merge gate. `{version}` is substituted with the current docs major.minor; a trailing `/` resolves to that directory's index.html. `owner` names the subtree owner from the publishing ownership table: the job permitted to write that path. Adding, moving or retiring a public URL is an edit to this file, reviewed as such.",
+    "$comment": "The published site's public URL contract. Asserted against the built tree by `pnpm urls:check` (scripts/url-contract.mjs) as a required merge gate. One build emits the whole published tree, so the tree asserted is the tree that ships. A trailing `/` resolves to that directory's index.html. `owner` names the build that emits the path: `site` for the site application's own output, `examples` for the consumer examples the site build places. `app` names which single-page application a path must serve, for the two paths that are indistinguishable by existence alone. Adding, moving or retiring a public URL is an edit to this file, reviewed as such.",
     "urls": [
         {
             "url": "/",
@@ -48,53 +48,40 @@
         },
         {
             "url": "/demo/",
-            "owner": "demo",
-            "note": "The playground: the full-featured interactive application for trying manifests, plugins and settings. Unversioned — always the current build of the workspace."
+            "owner": "site",
+            "app": "demo",
+            "note": "The playground: the full-featured interactive application for trying manifests, plugins and settings. A route of the site application, prerendered to a shell that mounts the playground client-side. Unversioned — always the current build of the workspace."
         },
         {
             "url": "/viewer/",
-            "owner": "viewer",
-            "note": "The bare content-state viewer application: a viewer with no playground chrome, driven entirely by the content state in the URL. This path previously served the playground, which now lives at /demo/. The path is preserved rather than moved because IIIF cookbook recipes link it directly, so the URL must keep resolving even though what it serves has changed."
+            "owner": "site",
+            "app": "viewer",
+            "note": "The bare content-state viewer: a viewer with no playground chrome, driven entirely by the content state in the URL. A route of the site application, prerendered to a shell that mounts the viewer client-side. This path previously served the playground, which now lives at /demo/. The path is preserved rather than moved because IIIF cookbook recipes link it directly, so the URL must keep resolving even though what it serves has changed."
         },
         {
-            "url": "/docs/{version}/",
-            "owner": "docs",
-            "note": "The documentation home for one major.minor line. Published version directories are immutable: a later release publishes alongside this one rather than over it."
+            "url": "/docs/",
+            "owner": "site",
+            "note": "The documentation home. A route of the site application: the documentation is prose of this site, declared in src/lib/routes.ts and prerendered by the same content route as the marketing pages. One tree, no version segment, no version alias at /latest/, no version index at /versions/ and no version manifest at /versions.json — a retired versioned URL lands on /404.html, which is where the previously published /docs/1.0/ went."
         },
         {
-            "url": "/docs/{version}/examples/svelte/",
+            "url": "/examples/svelte/",
             "owner": "examples",
-            "note": "The Svelte consumer example for this release, proving the framework component's packaging works in a browser."
+            "note": "The Svelte consumer example, proving the framework component's packaging works in a browser. Unversioned — always the current build of the workspace, like the two examples below it."
         },
         {
-            "url": "/docs/{version}/examples/web-component/",
+            "url": "/examples/web-component/",
             "owner": "examples",
-            "note": "The web-component consumer example for this release, loading the element bundle from the sibling dist/ directory."
+            "note": "The web-component consumer example, loading the element bundle and the audiovisual plugin's own bundle directory from the sibling /dist/ directory."
         },
         {
-            "url": "/docs/{version}/examples/plain-html/",
+            "url": "/examples/plain-html/",
             "owner": "examples",
-            "note": "The no-build, plain-HTML consumer example for this release; its relative ../dist/ reference is what pins the bundle location below."
+            "note": "The no-build, plain-HTML consumer example; it has no bundler at all, so its relative ../../dist/ reference is the only thing pinning the bundle location below. apps/site/scripts/place-examples.mjs asserts it resolves in the built tree."
         },
         {
-            "url": "/docs/{version}/dist/triiiceratops-element.iife.js",
+            "url": "/dist/triiiceratops-element.iife.js",
             "owner": "examples",
-            "note": "The self-contained element bundle for this release, inside the version directory so an example page always loads the build its own documentation describes."
-        },
-        {
-            "url": "/latest/",
-            "owner": "publish",
-            "note": "A stable alias forwarding to the newest documentation version. Safe to share in prose that should not name a version."
-        },
-        {
-            "url": "/versions/",
-            "owner": "publish",
-            "note": "The human-browsable index of every published documentation version, regenerated on each publish from the version directories present in the tree."
-        },
-        {
-            "url": "/versions.json",
-            "owner": "publish",
-            "note": "The machine-readable version index the documentation's version switcher reads. Newest first, with the latest release carrying the \"latest\" alias."
+            "note": "The self-contained element bundle, at the sibling path the two no-bundler example pages load it from. This is the real published output of the triiiceratops package, copied out of the module tree by the examples build with no aliasing: the examples exist to consume what a reader installs."
         },
         {
             "url": "/favicon.ico",
@@ -103,28 +90,33 @@
         },
         {
             "url": "/sitemap.xml",
-            "owner": "publish",
-            "note": "The site-wide sitemap. It names the landing page, the playground, the bare viewer and the current documentation version only; archived versions are absent here and carry a noindex in the directory itself, so what is offered for indexing and what is allowed to be indexed say the same thing."
+            "owner": "site",
+            "note": "The site's sitemap, prerendered by src/routes/sitemap.xml/+server.ts from the same route declaration the rail and each page's robots meta derive from. It names the rail's pages and every documentation page. The design-token appendix is absent because it carries noindex, and the playground and the bare viewer are absent because a canvas application is not prose a crawler has any use for."
         },
         {
             "url": "/robots.txt",
-            "owner": "publish",
-            "note": "The crawl policy. It points crawlers at the sitemap and disallows nothing on purpose: a Disallow on an archived version directory would stop crawlers reading the noindex inside it, which is the only thing that gets an already-indexed archived page out of the results."
+            "owner": "site",
+            "note": "The crawl policy, prerendered by src/routes/robots.txt/+server.ts. It points crawlers at the sitemap and disallows nothing on purpose: a Disallow would stop the crawl, which would stop a crawler ever reading the noindex on the one page that must not compete for a query."
+        },
+        {
+            "url": "/pagefind/pagefind.js",
+            "owner": "site",
+            "note": "The search bundle's entry, which the rail's search field fetches on the first keystroke. Written by apps/site/scripts/search-index.mjs after the tree is built, from the built HTML: it indexes every page whose body region carries `data-pagefind-body` — the marketing routes and the documentation — and so never the playground or the bare viewer. Promised here because a page loads it by URL rather than importing it, and its siblings in the directory (the WebAssembly, the fragments and the index chunks) are content-hashed names this entry deliberately does not freeze."
         },
         {
             "url": "/social/og-docs-v1.png",
-            "owner": "publish",
+            "owner": "site",
             "note": "The social preview image every documentation page's og:image points at. Unversioned and suffix-stamped because scrapers cache preview images by URL for weeks; renaming it invalidates that cache, moving it breaks every card already in circulation."
         },
         {
             "url": "/social/og-landing-v1.png",
-            "owner": "publish",
-            "note": "The social preview image the landing page's og:image points at. Same cache contract as the documentation card, and hardcoded absolutely in apps/site/index.html."
+            "owner": "site",
+            "note": "The social preview image the landing page's og:image points at. Same cache contract as the documentation card, and declared by the site's marketing-chrome layout."
         },
         {
             "url": "/social/og-viewer-v1.png",
-            "owner": "publish",
-            "note": "The social preview image the playground's og:image points at, showing the viewer actually running. Same cache contract as the other two cards, and hardcoded absolutely in apps/demo/index.html."
+            "owner": "site",
+            "note": "The social preview image the playground's og:image points at, showing the viewer actually running. Same cache contract as the other two cards, and declared by the /demo/ route."
         }
     ]
 }

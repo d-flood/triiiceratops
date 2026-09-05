@@ -161,3 +161,70 @@ describe('MetadataPanel manifest scalars, v2 and v3', () => {
         expect(text).toContain('Bild 6');
     });
 });
+
+/**
+ * Cookbook recipe 0118 — multiple values per metadata entry, in more than one
+ * language. The panel resolves against the viewer's ACTIVE locale, so the
+ * toolbar's language picker moves these values; reading `config.locale`
+ * directly would leave them pinned to the host's choice.
+ */
+describe('MetadataPanel multilingual values', () => {
+    let mounted: ReturnType<typeof mount> | null = null;
+
+    // The descriptive half of the 0118 manifest, as authored.
+    const multivalue = {
+        '@context': 'http://iiif.io/api/presentation/3/context.json',
+        id: 'https://iiif.io/api/cookbook/recipe/0118-multivalue/manifest.json',
+        type: 'Manifest',
+        label: { fr: ['Arrangement en gris et noir no 1'] },
+        metadata: [
+            {
+                label: { en: ['Alternative titles'] },
+                value: {
+                    en: [
+                        "Whistler's Mother",
+                        'Arrangement in Grey and Black No. 1',
+                    ],
+                    fr: [
+                        "Portrait de la mère de l'artiste",
+                        'La Mère de Whistler',
+                    ],
+                },
+            },
+        ],
+        items: [],
+    };
+
+    function mountAt(locale: string) {
+        mounted = mount(MetadataPanelTestHost, {
+            target: document.body,
+            props: { manifest: multivalue, locale },
+        });
+        flushSync();
+        return document.body.textContent ?? '';
+    }
+
+    afterEach(async () => {
+        if (mounted) {
+            await unmount(mounted);
+            mounted = null;
+        }
+        document.body.innerHTML = '';
+    });
+
+    it('renders every value of the active locale, and only that locale', () => {
+        const text = mountAt('en');
+
+        expect(text).toContain("Whistler's Mother");
+        expect(text).toContain('Arrangement in Grey and Black No. 1');
+        expect(text).not.toContain('La Mère de Whistler');
+    });
+
+    it('switches the values when the active locale changes', () => {
+        const text = mountAt('fr');
+
+        expect(text).toContain("Portrait de la mère de l'artiste");
+        expect(text).toContain('La Mère de Whistler');
+        expect(text).not.toContain("Whistler's Mother");
+    });
+});

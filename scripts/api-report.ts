@@ -33,6 +33,7 @@ import { fileURLToPath } from 'node:url';
 
 import { renderDeclarationReport } from './api-report/dts.mjs';
 import { STATE_INVENTORY } from '../packages/core/src/lib/state/state-inventory.ts';
+import { CSS_VAR_MAP } from '../packages/core/src/lib/theme/cssVarMap.ts';
 import { PUBLIC_TOKENS } from '../packages/core/src/lib/theme/publicTokens.ts';
 import {
     pluginApiVersion,
@@ -153,7 +154,14 @@ function emitStateInventory(): void {
 }
 
 // ── Public CSS tokens ────────────────────────────────────────────────────────
+// `themeConfigKey` is the friendly key that sets the token, or null where the
+// token can only be written as raw CSS. It is here so that the theming
+// documentation's token table can be derived from this report rather than
+// transcribed into a document and gated against drift.
 function emitCssTokens(): void {
+    const keyByVar = new Map(
+        Object.entries(CSS_VAR_MAP).map(([key, cssVar]) => [cssVar, key]),
+    );
     writeFileSync(
         resolve(OUT, 'css-tokens.json'),
         stableJson({
@@ -162,6 +170,7 @@ function emitCssTokens(): void {
             tokens: PUBLIC_TOKENS.map((t) => ({
                 name: t.name,
                 category: t.category,
+                themeConfigKey: keyByVar.get(t.name) ?? null,
             })),
         }),
     );

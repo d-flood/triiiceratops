@@ -1200,7 +1200,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * — winning over a plugin's request, which is the right way round: the
      * alternative is a viewer whose zoom range a plugin can collapse. Reserving
      * more than half an axis is documented as unsupported rather than fixed
-     * (`docs/plugin-authoring.md`).
+     * (`/docs/plugin-authoring/`).
      */
     function homeScale(limits: ReturnType<typeof viewportLimits>): number {
         const bounds = fitBoundsTarget(limits);

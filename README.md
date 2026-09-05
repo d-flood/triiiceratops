@@ -50,11 +50,11 @@ This project is actively developed. The following IIIF features are not yet supp
 
 - **Annotation creation**: Core viewer is read-only; editing is available through optional plugins such as `annotation-editor`
 
-The `annotation-editor` plugin supports custom storage adapters plus extension hooks for host apps that need to inject create rules, draft enrichment, lazy body hydration, or selection-linked workflows without forking the plugin. See `docs/plugins.md`.
+The `annotation-editor` plugin supports custom storage adapters plus extension hooks for host apps that need to inject create rules, draft enrichment, lazy body hydration, or selection-linked workflows without forking the plugin. See the plugins guide at `/docs/plugins/`.
 
-There is also an optional `pdf-export` plugin for downloading a selected flat range of canvases as a client-side PDF, with optional consumer-configured cover-sheet metadata and an optional OCR annotation-source selector for PDF text. When canvases include IIIF OCR annotations with `supplementing` text bodies and `xywh` targets, the plugin embeds that OCR as selectable PDF text. For private or non-CORS image services, consumers can supply their own image loader/proxy path. See `docs/plugins.md`.
+There is also an optional `pdf-export` plugin for downloading a selected flat range of canvases as a client-side PDF, with optional consumer-configured cover-sheet metadata and an optional OCR annotation-source selector for PDF text. When canvases include IIIF OCR annotations with `supplementing` text bodies and `xywh` targets, the plugin embeds that OCR as selectable PDF text. For private or non-CORS image services, consumers can supply their own image loader/proxy path. See the plugins guide at `/docs/plugins/`.
 
-For downloading raster images instead of a PDF, the optional `image-download` plugin handles composite canvases (canvases painted with more than one image) correctly, offering composite-canvas, single-image, and current-view (e.g. a paged two-canvas spread) download modes, each with a resolution picker that respects IIIF `level0` services' fixed size lists. See `docs/plugins.md`.
+For downloading raster images instead of a PDF, the optional `image-download` plugin handles composite canvases (canvases painted with more than one image) correctly, offering composite-canvas, single-image, and current-view (e.g. a paged two-canvas spread) download modes, each with a resolution picker that respects IIIF `level0` services' fixed size lists. See the plugins guide at `/docs/plugins/`.
 
 ### Other
 
@@ -169,18 +169,19 @@ The web component can also load manifest JSON directly via the `manifestJson` pr
 
 ## Development
 
-The documentation is built by [Zensical](https://zensical.org/), a globally
-installed Python tool. Install it once, alongside the workspace dependencies:
+The whole published site — the marketing routes, the documentation, the
+playground and the bare viewer — is one SvelteKit application, so the workspace
+dependencies are the only install:
 
 ```bash
 pnpm install
-pip install zensical   # global tool; needed by `pnpm site` and `pnpm docs:build`
 ```
 
 ```bash
-pnpm build:all     # Build the packages, the playground, and the example pages
-pnpm dev           # Serve the playground (consumes the built packages)
-pnpm site          # Build, assemble and serve the whole published site on one origin
+pnpm build:all     # Build the packages, the site and the example pages
+pnpm dev           # Serve the whole site (resolves the packages to source)
+pnpm site          # Build and serve the whole published site on one origin
+pnpm cms           # Serve it with an editor on every page's /edit/ variant
 pnpm test          # Run unit tests
 pnpm test:e2e      # Run end-to-end tests
 ```

@@ -1,27 +1,33 @@
 /**
  * The marketing site's shell, in a browser: what only a browser can see.
  *
- * The rail on every route a reader is offered, the mobile bar and its
- * full-screen sheet, the footer's four institutional facts, and — the assertion
- * this ticket exists for — a route still carrying filler being absent from the
- * rail and marked `noindex`.
+ * The rail on every route it carries, the mobile bar and its full-screen sheet,
+ * the footer's four institutional facts, the appendix's absence from a crawler's
+ * reach, and which application each of the two application routes declares
+ * itself to be.
  *
- * The filler policy's other two halves are asserted where they are visible:
- * absence from the sitemap in `tests/unit/routes.test.ts`, and the route still
- * resolving in the published tree by `pnpm urls:check`.
+ * The crawl policy's other half is asserted where it is visible: absence from
+ * the sitemap in `tests/unit/routes.test.ts`.
  */
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { LISTED, ROUTES, isListed } from '../src/lib/routes';
+import {
+    APP_MARKER,
+    BARE_VIEWER_APP,
+    PLAYGROUND_APP,
+} from '../src/lib/applications';
+import { NAV, ROUTES, isNavigable } from '../src/lib/routes';
+import {
+    DOCUMENTATION_PATH,
+    HOSTED_VIEWER_PATH,
+    PLAYGROUND_PATH,
+} from '../src/lib/site';
 
 const PHONE = { width: 390, height: 844 };
 
-const listedPaths = LISTED.map((route) => route.path);
-const fillerPaths = ROUTES.filter(
-    (route) => route.copy === 'filler' && route.group !== null,
-).map((route) => route.path);
-const unlistedPaths = ROUTES.filter((route) => !isListed(route)).map(
+const navPaths = NAV.map((route) => route.path);
+const unindexedPaths = ROUTES.filter((route) => !isNavigable(route)).map(
     (route) => route.path,
 );
 
@@ -84,15 +90,17 @@ test.describe('every route', () => {
 });
 
 test.describe('the rail', () => {
-    test('lists exactly the routes a reader is offered, on every one of them', async ({
+    test('lists exactly the routes it carries, on every one of them', async ({
         page,
     }) => {
-        for (const path of listedPaths) {
+        for (const path of navPaths) {
             await page.goto(path);
-            await expect(railPageLinks(page)).toHaveCount(listedPaths.length);
-            for (const listed of listedPaths) {
+            await expect(railPageLinks(page)).toHaveCount(navPaths.length);
+            for (const carried of navPaths) {
                 await expect(
-                    railPageLinks(page).and(page.locator(`[href="${listed}"]`)),
+                    railPageLinks(page).and(
+                        page.locator(`[href="${carried}"]`),
+                    ),
                 ).toHaveCount(1);
             }
         }
@@ -107,12 +115,18 @@ test.describe('the rail', () => {
         ).toHaveCount(1);
     });
 
-    test('points at the sibling subtrees and the repository', async ({
+    test('points at the application routes, the documentation and the repository', async ({
         page,
     }) => {
         await page.goto('/');
-        for (const href of ['/viewer/', '/demo/', '/latest/']) {
-            await expect(rail(page).locator(`a[href="${href}"]`)).toHaveCount(1);
+        for (const href of [
+            HOSTED_VIEWER_PATH,
+            PLAYGROUND_PATH,
+            DOCUMENTATION_PATH,
+        ]) {
+            await expect(rail(page).locator(`a[href="${href}"]`)).toHaveCount(
+                1,
+            );
         }
         await expect(
             rail(page).locator('a[href*="github.com/d-flood/triiiceratops"]'),
@@ -120,33 +134,82 @@ test.describe('the rail', () => {
     });
 });
 
-test.describe('a route whose prose has not landed', () => {
-    test('is absent from the rail', async ({ page }) => {
-        test.skip(
-            fillerPaths.length === 0,
-            'every route’s prose has landed, so the policy has nothing to hide',
-        );
-        await page.goto('/');
-        for (const path of fillerPaths) {
+/*
+ * Which application each path serves, asserted where it is observable: in the
+ * served page's head.
+ *
+ * Both paths resolve and both render a viewer, so nothing else in the tree tells
+ * them apart — and a swap breaks every published IIIF Cookbook recipe, which link
+ * `/viewer/` directly. `scripts/url-contract.mjs` makes the same assertion over
+ * the built tree; this one holds the routes to it as they are authored.
+ */
+test.describe('the application routes', () => {
+    const identities = [
+        { path: HOSTED_VIEWER_PATH, app: BARE_VIEWER_APP },
+        { path: PLAYGROUND_PATH, app: PLAYGROUND_APP },
+    ];
+
+    for (const { path, app } of identities) {
+        test(`${path} declares itself as ${app}`, async ({ page }) => {
+            await page.goto(path);
             await expect(
-                railPageLinks(page).and(page.locator(`[href="${path}"]`)),
-            ).toHaveCount(0);
+                page.locator(`head meta[name="${APP_MARKER}"]`),
+            ).toHaveAttribute('content', app);
+        });
+    }
+
+    test('do not carry the marketing rail', async ({ page }) => {
+        // They fill the window and draw their own chrome, which is why they sit
+        // outside the group layout that carries the rail.
+        for (const { path } of identities) {
+            await page.goto(path);
+            await expect(rail(page)).toHaveCount(0);
         }
     });
 
-    test('is still served, and says why it is not yet linked', async ({
+    test('the playground mounts its viewer and the site’s one toggle', async ({
         page,
     }) => {
-        test.skip(fillerPaths.length === 0, 'no route is carrying filler');
-        const response = await page.goto(fillerPaths[0]);
-        expect(response?.ok()).toBe(true);
-        await expect(page.locator('.pending')).toContainText('noindex');
+        await page.goto(PLAYGROUND_PATH);
+        await expect(page.locator('.themebtn')).toBeVisible();
+        await expect(
+            page.locator('[data-testid="canvas-renderer-surface"]'),
+        ).toBeVisible({ timeout: 60_000 });
+    });
+
+    /*
+     * No viewer in the rendered document.
+     *
+     * Both routes render server-side under `strict` prerendering, and a canvas
+     * renderer must never run there. With script off, what is left is exactly
+     * what the static adapter wrote to disk — so an eagerly imported viewer
+     * would show up here as a surface in a document that ran no client code.
+     */
+    test.describe('rendered without script', () => {
+        test.use({ javaScriptEnabled: false });
+
+        for (const { path } of [
+            { path: HOSTED_VIEWER_PATH },
+            { path: PLAYGROUND_PATH },
+        ]) {
+            test(`${path} carries no viewer, and says what it needs`, async ({
+                page,
+            }) => {
+                await page.goto(path);
+                await expect(
+                    page.locator('[data-testid="canvas-renderer-surface"]'),
+                ).toHaveCount(0);
+                await expect(page.locator('.appwait')).toContainText(
+                    'It needs JavaScript',
+                );
+            });
+        }
     });
 });
 
-test.describe('a route out of the rail', () => {
+test.describe('a route not offered to a crawler', () => {
     test('carries noindex', async ({ page }) => {
-        for (const path of unlistedPaths) {
+        for (const path of unindexedPaths) {
             await page.goto(path);
             await expect(
                 page.locator('head meta[name="robots"][content="noindex"]'),
@@ -155,9 +218,11 @@ test.describe('a route out of the rail', () => {
     });
 });
 
-test.describe('a route in the rail', () => {
-    test('carries no robots directive and a canonical URL', async ({ page }) => {
-        for (const path of listedPaths) {
+test.describe('a route offered to a crawler', () => {
+    test('carries no robots directive and a canonical URL', async ({
+        page,
+    }) => {
+        for (const path of navPaths) {
             await page.goto(path);
             await expect(page.locator('head meta[name="robots"]')).toHaveCount(
                 0,
@@ -185,23 +250,23 @@ test.describe('a route in the rail', () => {
 });
 
 test.describe('the next-page link', () => {
-    test('sends the reader to a route whose prose has landed', async ({
-        page,
-    }) => {
+    test('sends the reader to a route the rail carries', async ({ page }) => {
         test.skip(
-            LISTED.length < 2,
-            'only one route is listed, so there is nowhere for the argument to continue',
+            NAV.length < 2,
+            'only one route is navigable, so there is nowhere for the argument to continue',
         );
-        for (const path of listedPaths) {
+        for (const path of navPaths) {
             await page.goto(path);
             const href = await page.locator('a.next').getAttribute('href');
-            expect(listedPaths).toContain(href);
+            expect(navPaths).toContain(href);
             expect(href).not.toBe(path);
         }
     });
 
-    test('is absent while there is nowhere to continue to', async ({ page }) => {
-        test.skip(LISTED.length >= 2, 'more than one route is listed');
+    test('is absent while there is nowhere to continue to', async ({
+        page,
+    }) => {
+        test.skip(NAV.length >= 2, 'more than one route is navigable');
         await page.goto('/');
         await expect(page.locator('a.next')).toHaveCount(0);
     });
@@ -227,7 +292,7 @@ test.describe('at phone size', () => {
 
         const sheet = await openSheet(page);
         await expect(sheet.locator('.rail__list a')).toHaveCount(
-            listedPaths.length,
+            navPaths.length,
         );
 
         await sheet.getByRole('button', { name: 'Close' }).click();

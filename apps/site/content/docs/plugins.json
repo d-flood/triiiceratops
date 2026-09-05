@@ -1,0 +1,4566 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Triiiceratops has a component-based plugin system for extending the viewer. A plugin renders its UI either as a "
+				},
+				{
+					"type": "text",
+					"text": "panel",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — docked to a sidebar, banded below the image, or floated over it — or as a compact "
+				},
+				{
+					"type": "text",
+					"text": "flyout",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " popover anchored to its toolbar button."
+				}
+			],
+			"attrs": {
+				"id": "6b6b8397-fab7-4b21-af76-259e6200a30b"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "how-the-plugin-system-works",
+				"id": "632ad893-0a7b-460c-9680-521e49587822"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "How the Plugin System Works"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Each first-party plugin is its own independently versioned npm package under the "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " scope, and ships in two delivery formats."
+				}
+			],
+			"attrs": {
+				"id": "ac889c4b-c2b9-4133-a48b-e007cbca5e72"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Format"
+										}
+									],
+									"attrs": {
+										"id": "1cf69da3-88c8-46a6-93ae-ea227b373f38"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0175cb87-585e-4d09-bd1c-9837f5b9294d"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Use case"
+										}
+									],
+									"attrs": {
+										"id": "598af52f-8c9b-4d26-a925-6bc0fbb0db94"
+									}
+								}
+							],
+							"attrs": {
+								"id": "606cf741-9139-4248-8a5c-6dc0bd790776"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Plugins delivered via"
+										}
+									],
+									"attrs": {
+										"id": "a1c5c6c3-e38e-42f4-ba5d-307a4712fc65"
+									}
+								}
+							],
+							"attrs": {
+								"id": "705738a3-7215-4a64-bfc1-2811e5008e6c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "dd3f093e-ec66-43a9-878b-d1bd9343ced4"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "IIFE",
+											"marks": [
+												{
+													"type": "bold"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "88835a5a-dacc-40e4-8619-b91d9dc3f22e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "34a08cfe-ced2-4f59-b1b6-6a56ef596e3e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Static HTML pages, no build step"
+										}
+									],
+									"attrs": {
+										"id": "12a71e8d-ebc8-40fd-b59d-f2341c07e9f5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "100e0285-9bc6-4ad0-96ee-e5e44220435d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Script tags + the "
+										},
+										{
+											"type": "text",
+											"text": "window.Triiiceratops",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " registry"
+										}
+									],
+									"attrs": {
+										"id": "166a49c4-130c-406e-b2d1-c29328550cec"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8ec6e757-6816-48ea-8cbb-be829b4cb444"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e739352b-ee42-46c6-85ce-f22a420ea923"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ES Modules",
+											"marks": [
+												{
+													"type": "bold"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "1720f307-a1d4-4229-b3a4-5bcaa7a8654f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "79b62bc5-54eb-4dd3-95f8-d9d9736a940b"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Front-end framework projects (any bundler)"
+										}
+									],
+									"attrs": {
+										"id": "d71f4661-ad92-4daa-aff4-b59332912f04"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1832fc45-2327-4fa7-8d58-e5b54d953de6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "import",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " statements"
+										}
+									],
+									"attrs": {
+										"id": "fa7b9191-a0f1-4292-8666-902453e31383"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c458b7dd-e8e3-4592-a852-e8db5542ae47"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ad46068f-5b9e-407e-bf40-df925877df33"
+					}
+				}
+			],
+			"attrs": {
+				"id": "324190b7-5bf3-4b1e-b63b-cf2cf03db49f"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ES Modules",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — for bundler projects (React, Vue, Svelte, Lit, or any other framework — Vite, webpack, Rollup, …), import the plugin's factory from its scoped package and pass it to the viewer. Plugins run in the page's realm and receive the live "
+								},
+								{
+									"type": "text",
+									"text": "ViewerState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " directly. Every plugin's ESM build leaves "
+								},
+								{
+									"type": "text",
+									"text": "svelte",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " external as an ordinary peer, so your bundler dedupes it against core's copy the way it dedupes any other shared dependency."
+								}
+							],
+							"attrs": {
+								"id": "35649687-5423-4264-acf1-adb428433795"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ec0a8e53-84a5-4bb5-8162-9bc6e43a25c0"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "IIFE",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — each plugin's IIFE ("
+								},
+								{
+									"type": "text",
+									"text": "@triiiceratops/plugin-*/dist/iife.js",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ") registers a factory into the shared, order-independent "
+								},
+								{
+									"type": "text",
+									"text": "window.Triiiceratops.plugins",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " registry. Loading a script does "
+								},
+								{
+									"type": "text",
+									"text": "not",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " activate the plugin; activation is explicit and per-viewer. Scripts may load in any order, "
+								},
+								{
+									"type": "text",
+									"text": "except ",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "@triiiceratops/plugin-av",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — see below."
+								}
+							],
+							"attrs": {
+								"id": "7e1156d1-e514-42fc-852e-9280c22bb9ee"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2653a730-8098-4ac0-a43c-b8c7a347fcb0"
+					}
+				}
+			],
+			"attrs": {
+				"id": "cabf1219-9e66-4a4f-9d7a-f9666a1d21b5"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "script-order-triiiceratops-plugin-av-loads-after-core",
+				"id": "2eeb53a4-b44c-4281-8f13-7dc30b3ae29a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Script order: "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " loads after core"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every plugin IIFE but one bundles its own Svelte runtime, and may therefore load before or after the core script. "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the exception: it reads core's Svelte runtime off "
+				},
+				{
+					"type": "text",
+					"text": "window.Triiiceratops",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " instead of shipping a second copy of it, which keeps roughly 12 KB gzip off every page that loads it. So core's script must run first:"
+				}
+			],
+			"attrs": {
+				"id": "96a2088f-7368-483e-a8e0-37cfe35a7004"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "7eba18d8-948e-4249-ab02-1ee7d727124e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script src=\"triiiceratops-element.iife.js\"></script>\n<script src=\"triiiceratops-plugin-av.iife.js\"></script>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Getting it wrong is a named diagnostic, not a broken page: the plugin's bundle checks the namespace before it evaluates anything, logs one "
+				},
+				{
+					"type": "text",
+					"text": "console.error",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " saying which half is missing, and does not register — so "
+				},
+				{
+					"type": "text",
+					"text": "window.Triiiceratops.plugins.get('@triiiceratops/plugin-av')",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " returns "
+				},
+				{
+					"type": "text",
+					"text": "undefined",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". A core too old to share a runtime is refused the same way, and a core that shares a runtime but does not declare the "
+				},
+				{
+					"type": "text",
+					"text": "shared-svelte-runtime",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " capability is refused at activation with a "
+				},
+				{
+					"type": "text",
+					"text": "PluginCompatibilityError",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "58af7504-d032-4127-b928-a7c876c2b5eb"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "This is a "
+				},
+				{
+					"type": "text",
+					"text": "first-party-only",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " arrangement. "
+				},
+				{
+					"type": "text",
+					"text": "svelte/internal",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is private, unversioned API, and the guarantee behind sharing it is that core and the plugin are built and released from one repository at one Svelte version — which is why the plugin pins "
+				},
+				{
+					"type": "text",
+					"text": "coreRange",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to an exact core version. A third-party plugin is released on its own schedule, so it must "
+				},
+				{
+					"type": "text",
+					"text": "bundle its own Svelte runtime",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", as "
+				},
+				{
+					"type": "text",
+					"text": "the plugin authoring guide",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-authoring/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " describes."
+				}
+			],
+			"attrs": {
+				"id": "a195ad1f-1eb1-449d-aab7-5982a4671436"
+			}
+		},
+		{
+			"type": "horizontalRule",
+			"attrs": {
+				"id": "a61fcb4e-8c32-43f6-b5cc-d5373b2053b5"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "adding-a-plugin-to-your-viewer",
+				"id": "12f7d8b1-831f-4020-9a4c-cd8889b485e9"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Adding a plugin to your viewer"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A plugin is handed to the viewer through its "
+				},
+				{
+					"type": "text",
+					"text": "plugins",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " list",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". How you set that list depends on how the viewer is embedded:"
+				}
+			],
+			"attrs": {
+				"id": "4981bf22-641d-47c2-82a2-f9e66fdc6a82"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "React",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — the "
+								},
+								{
+									"type": "text",
+									"text": "plugins",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " prop of "
+								},
+								{
+									"type": "text",
+									"text": "<TriiiceratopsViewer>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " from "
+								},
+								{
+									"type": "text",
+									"text": "triiiceratops/react",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "fc2fce64-3362-4998-8d64-7aa719425d37"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ce1faa71-8e64-4d0b-8c7a-4a56adc7d4a3"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Vue",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — the "
+								},
+								{
+									"type": "text",
+									"text": ":plugins",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " prop of "
+								},
+								{
+									"type": "text",
+									"text": "<TriiiceratopsViewer>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " from "
+								},
+								{
+									"type": "text",
+									"text": "triiiceratops/vue",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "05716c2a-06fa-45bc-a0be-8d96becc77c0"
+							}
+						}
+					],
+					"attrs": {
+						"id": "38b04c88-9497-436e-a7ac-de566f336a9f"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Svelte",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — the "
+								},
+								{
+									"type": "text",
+									"text": "plugins",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " prop of "
+								},
+								{
+									"type": "text",
+									"text": "<TriiiceratopsViewer>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "7a3f20a7-e292-4461-873d-d0098b96137f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "1872e879-e568-4145-8e52-0b250a4c26e3"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Everything else",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " (vanilla JS, plain HTML, other frameworks) — the "
+								},
+								{
+									"type": "text",
+									"text": ".plugins",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " "
+								},
+								{
+									"type": "text",
+									"text": "property",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " of the "
+								},
+								{
+									"type": "text",
+									"text": "<triiiceratops-viewer>",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " web component."
+								}
+							],
+							"attrs": {
+								"id": "828cf025-83d4-4457-a94a-947a8338f22e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4c99252e-02b9-4063-8fff-e34fa584b354"
+					}
+				}
+			],
+			"attrs": {
+				"id": "ce6dbf41-effa-4d6d-8eba-30003f17ce11"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Plugins are plain objects, so they cannot go through an HTML attribute; the web component always receives them as a JavaScript property. (The React and Vue wrappers do that assignment for you, and do it correctly whether or not the element has upgraded yet.) Registering a plugin package does not activate it — activation is per-viewer and happens when the list is assigned."
+				}
+			],
+			"attrs": {
+				"id": "a590d579-af63-420e-82e2-350e3d4923d1"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Activation lifetime is keyed to "
+				},
+				{
+					"type": "text",
+					"text": "plugin identity",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", not to the identity of the list: re-supplying an equal list leaves running plugins completely untouched, so a parent re-render never tears down and restarts your plugins."
+				}
+			],
+			"attrs": {
+				"id": "ee029638-ca3b-4bd2-9762-df0a2d13f7b4"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every example below adds "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-image-manipulation",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "; each plugin is added the same way."
+				}
+			],
+			"attrs": {
+				"id": "91b9de7b-d2dd-4b13-83e6-8364d030f2a7"
+			}
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "framework",
+				"id": "b28353db-7e15-422b-abe4-ab80d23e6b4b"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "HTML",
+						"id": "c9a1e2e9-5de3-41d3-a8a9-cf9775987dd7"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "With a bundler, import the registration entry once to define the element, then set "
+								},
+								{
+									"type": "text",
+									"text": ".plugins",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " on it:"
+								}
+							],
+							"attrs": {
+								"id": "8a226089-de09-4925-8eab-42e87c1ad845"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "ts",
+								"id": "6576bed8-6939-4e7e-9f74-b932d1bc4166"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import 'triiiceratops/element/register';\nimport { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';\n\n// `viewer` is your <triiiceratops-viewer> element.\nviewer.plugins = [ImageManipulationPlugin];"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "With no bundler at all, plugin IIFEs register a factory into the shared, order-independent "
+								},
+								{
+									"type": "text",
+									"text": "window.Triiiceratops.plugins",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " registry; the scripts may load in any order:"
+								}
+							],
+							"attrs": {
+								"id": "0112db4c-6942-46fd-80a7-04b14ef2516f"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "6dd566f8-c593-4939-8652-bee5c2376df8"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script src=\"https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js\"></script>\n<script src=\"https://unpkg.com/@triiiceratops/plugin-image-manipulation/dist/iife.js\"></script>\n\n<triiiceratops-viewer manifest-id=\"https://example.org/manifest.json\"></triiiceratops-viewer>\n\n<script>\n    customElements.whenDefined('triiiceratops-viewer').then(() => {\n        const viewer = document.querySelector('triiiceratops-viewer');\n        viewer.plugins = [\n            window.Triiiceratops.plugins.get(\n                '@triiiceratops/plugin-image-manipulation',\n            ),\n        ];\n    });\n</script>"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "React",
+						"id": "25ca7cef-73d4-4262-88ac-4666a0562221"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A typed prop on the "
+								},
+								{
+									"type": "text",
+									"text": "React wrapper",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/react/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". Build the list once — a hoisted constant or a "
+								},
+								{
+									"type": "text",
+									"text": "useMemo",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — so its contents keep their identity."
+								}
+							],
+							"attrs": {
+								"id": "337da382-1cba-4d3e-9d72-2bf56d5cfb5e"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "tsx",
+								"id": "01895846-c965-44e3-988e-a2619ae148ed"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import { TriiiceratopsViewer } from 'triiiceratops/react';\nimport { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';\n\nconst plugins = [ImageManipulationPlugin];\n\nexport function Viewer() {\n    return (\n        <TriiiceratopsViewer\n            manifestId=\"https://example.org/manifest.json\"\n            plugins={plugins}\n            style={{ display: 'block', height: '600px' }}\n        />\n    );\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Vue",
+						"id": "cde72e43-27bc-4787-910e-4a54c6766d83"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A typed prop on the "
+								},
+								{
+									"type": "text",
+									"text": "Vue wrapper",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/vue/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — no "
+								},
+								{
+									"type": "text",
+									"text": "isCustomElement",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " compiler option and no "
+								},
+								{
+									"type": "text",
+									"text": "onMounted",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " assignment."
+								}
+							],
+							"attrs": {
+								"id": "58975948-8f22-4523-b598-0509f312dd75"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "vue",
+								"id": "c4b10979-c76f-4f1c-b26e-fd3a7128e893"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script setup lang=\"ts\">\nimport { TriiiceratopsViewer, type SdkPlugin } from 'triiiceratops/vue';\nimport { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';\n\nconst plugins: readonly SdkPlugin[] = [ImageManipulationPlugin];\n</script>\n\n<template>\n    <TriiiceratopsViewer\n        manifest-id=\"https://example.org/manifest.json\"\n        :plugins=\"plugins\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Svelte",
+						"id": "d106cb14-3628-4921-9db5-08cf3b6683ef"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "37333a8b-04ed-4284-b532-1b7d04eb2820"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script>\n    import { TriiiceratopsViewer } from 'triiiceratops/svelte';\n    import 'triiiceratops/style.css';\n    import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';\n</script>\n\n<TriiiceratopsViewer\n    manifestId=\"https://example.org/manifest.json\"\n    plugins={[ImageManipulationPlugin]}\n/>"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "multiple-and-configured-plugins",
+				"id": "b7409dbf-bffe-45d4-98ed-67007d59b37f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Multiple and configured plugins"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "plugins",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a list — add as many as you like. A plugin that takes options exposes a "
+				},
+				{
+					"type": "text",
+					"text": "create*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " factory (PDF export is the one first-party plugin that does); call it and pass the result. See the "
+				},
+				{
+					"type": "text",
+					"text": "available plugins reference",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#available-plugins"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "d0792112-14b8-483b-ae17-0d10f0c36f45"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "6f2de650-8ba9-43ea-afc0-1c8849a4f8c8"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-export';\nimport { createPdfExportPlugin } from '@triiiceratops/plugin-pdf-export';\n\nviewer.plugins = [ImageDownloadPlugin, createPdfExportPlugin()];"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "panels-and-flyouts",
+				"id": "5e603b3c-1cc0-4634-9085-4f9351847b0b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Panels and flyouts"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A "
+				},
+				{
+					"type": "text",
+					"text": "panel",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " docks at one of four positions. "
+				},
+				{
+					"type": "text",
+					"text": "left",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "right",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " put it in that sidebar stack, where panels on the same side stack vertically and the side's width is set once by "
+				},
+				{
+					"type": "text",
+					"text": "leftPanelWidth",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "rightPanelWidth",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — there is no per-plugin width. "
+				},
+				{
+					"type": "text",
+					"text": "bottom",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a full-width band below the image in the center column. "
+				},
+				{
+					"type": "text",
+					"text": "overlay",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " floats the panel over the image itself, inside the viewer area."
+				}
+			],
+			"attrs": {
+				"id": "43c91112-9e9c-46fe-82c3-6940133745d6"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A "
+				},
+				{
+					"type": "text",
+					"text": "flyout",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a compact popover anchored to the plugin's toolbar button. It opens on click (click-outside / "
+				},
+				{
+					"type": "text",
+					"text": "Esc",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to dismiss) and grows toward the canvas so it never opens off-screen. It stays mounted while closed, so background work keeps running. Use a flyout for a few compact controls; use a panel when the UI needs more room."
+				}
+			],
+			"attrs": {
+				"id": "5ae48b4d-cdb4-40ef-9671-5cdfebd53d4b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Panels behave the same way: a plugin is mounted once per viewer and stays mounted while its surface is closed. A plugin that "
+				},
+				{
+					"type": "text",
+					"text": "wants",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to pause while it is not visible reads "
+				},
+				{
+					"type": "text",
+					"text": "context.surface.isOpen",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — see "
+				},
+				{
+					"type": "text",
+					"text": "knowing whether your panel or flyout is open",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-authoring/#knowing-whether-your-panel-or-flyout-is-open"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "63dafa72-157a-4436-a2e8-ba777d3b25e2"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The authored "
+				},
+				{
+					"type": "text",
+					"text": "target",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is only a "
+				},
+				{
+					"type": "text",
+					"text": "default",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Every plugin registers both a panel and a flyout entry, so the effective target is switchable at runtime — like "
+				},
+				{
+					"type": "text",
+					"text": "visible",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "/"
+				},
+				{
+					"type": "text",
+					"text": "open",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — via "
+				},
+				{
+					"type": "text",
+					"text": "config.plugins[id].target",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.setPluginTarget(id, target)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". A panel's dock position works the same way: "
+				},
+				{
+					"type": "text",
+					"text": "config.plugins[id].position",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or "
+				},
+				{
+					"type": "text",
+					"text": "viewerState.setPluginPosition(id, position)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " sets it for any plugin as a consumer-only decision; "
+				},
+				{
+					"type": "text",
+					"text": "definePlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " itself has no "
+				},
+				{
+					"type": "text",
+					"text": "position",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " field, so a plugin author cannot fix one. This lets one plugin render as a panel on desktop and a flyout on a narrow viewport; see "
+				},
+				{
+					"type": "text",
+					"text": "controlling plugin UI at runtime",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#controlling-plugin-ui-at-runtime"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " below for the per-framework code. Switching remounts the plugin UI in the new container, so a plugin that must survive the switch keeps its state in viewer state or its own store, not in local component state."
+				}
+			],
+			"attrs": {
+				"id": "0f62a51b-1315-4761-a2f4-0e453e87e0a7"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "controlling-plugin-ui-through-config",
+				"id": "31cc564e-0ba4-469c-a448-2fe4864fbbce"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Controlling Plugin UI Through Config"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Plugin toolbar button visibility and plugin panel open/closed state can be controlled through the same "
+				},
+				{
+					"type": "text",
+					"text": "config",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " object used for built-in panes."
+				}
+			],
+			"attrs": {
+				"id": "08fe3226-f12d-4a83-b716-fb2cd632a2ea"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Configuration shape:"
+				}
+			],
+			"attrs": {
+				"id": "9eaeb279-1a48-44c1-bc02-3942b00908fe"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "84e3ee68-9361-46f5-9d2e-92ab0c93d7ff"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "type ViewerConfig = {\n    plugins?: Record<\n        string,\n        {\n            visible?: boolean; // show/hide the plugin toolbar button\n            open?: boolean; // open/close the plugin panel\n            showCloseButton?: boolean; // Default: true\n            target?: 'panel' | 'flyout'; // override where the plugin renders\n            position?: 'left' | 'right' | 'bottom' | 'overlay'; // override the panel's dock position\n        }\n    >;\n};"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The record key is the plugin's stable id — its "
+				},
+				{
+					"type": "text",
+					"text": "uiId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". First-party plugins set short, documented ids ("
+				},
+				{
+					"type": "text",
+					"text": "av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "pdf-export",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "image-download",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "image-manipulation",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "). If a plugin omits "
+				},
+				{
+					"type": "text",
+					"text": "uiId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", core derives a stable id from its package name by replacing every run of unsafe characters with "
+				},
+				{
+					"type": "text",
+					"text": "-",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (e.g. "
+				},
+				{
+					"type": "text",
+					"text": "@scope/plugin-foo",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " → "
+				},
+				{
+					"type": "text",
+					"text": "scope-plugin-foo",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ")."
+				}
+			],
+			"attrs": {
+				"id": "62f61c07-bb43-456b-a7a3-a4da3c5f0886"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Every field is a sparse override applied on top of the plugin's authored defaults; omitting a field leaves the current live value untouched:"
+				}
+			],
+			"attrs": {
+				"id": "aa59b341-abb8-4d2e-9659-81c82b2d6f58"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "visible: false",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " hides only the plugin's toolbar button. A plugin can also hide its own button on a canvas it has nothing for ("
+								},
+								{
+									"type": "text",
+									"text": "surface.setAvailable",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", which closes an open surface as it goes); both must agree for the button to render."
+								}
+							],
+							"attrs": {
+								"id": "0b3e7306-3be0-4d00-909e-4aae96da73de"
+							}
+						}
+					],
+					"attrs": {
+						"id": "416d4612-35bf-49f7-b645-9c21bdb2a470"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "open: true",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " opens the plugin's surface if it is registered."
+								}
+							],
+							"attrs": {
+								"id": "29b6ac83-cd5e-49b0-87c6-ff79a3d67061"
+							}
+						}
+					],
+					"attrs": {
+						"id": "41c9a34f-5b61-44d3-b72a-08dc51bfc439"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "showCloseButton: false",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " removes the close button from the plugin's docked panel header, and with it the Escape-to-close path — one flag, not two. The default is "
+								},
+								{
+									"type": "text",
+									"text": "true",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", matching every core panel."
+								}
+							],
+							"attrs": {
+								"id": "e9aa19fb-7ac1-4da4-b8d9-3c3ac7b02e84"
+							}
+						}
+					],
+					"attrs": {
+						"id": "aa7ccb87-330d-4833-9844-a2e6171a0b58"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "target: 'flyout' | 'panel'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " moves the plugin between its docked panel and its anchored flyout; the switch remounts the plugin UI."
+								}
+							],
+							"attrs": {
+								"id": "70a315f7-87eb-4705-94a2-e598ea0681b7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "eeb774b6-85e4-4154-938e-1f1cbfc51d20"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "position: 'left' | 'right' | 'bottom' | 'overlay'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " docks the panel somewhere else — a consuming app's own choice, independent of whatever the plugin was authored with. Ignored while the effective "
+								},
+								{
+									"type": "text",
+									"text": "target",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is "
+								},
+								{
+									"type": "text",
+									"text": "'flyout'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", since a flyout is anchored to its toolbar button rather than docked."
+								}
+							],
+							"attrs": {
+								"id": "82e1e345-b4aa-4d4c-a3e7-86084457c8de"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6317911a-f301-4038-937c-ba01241ee3f2"
+					}
+				}
+			],
+			"attrs": {
+				"id": "bdccd929-757e-4aae-b2e1-1538c7384068"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Update "
+				},
+				{
+					"type": "text",
+					"text": "config",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and the change applies reactively."
+				}
+			],
+			"attrs": {
+				"id": "873a9b20-6d5e-419d-9033-24c45dbb67c4"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "controlling-plugin-ui-at-runtime",
+				"id": "0cd53aa6-33d1-442d-8209-f07aec340511"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Controlling plugin UI at runtime"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A common use is switching a plugin to a flyout on narrow viewports, or docking it to whichever side fits your layout:"
+				}
+			],
+			"attrs": {
+				"id": "aabec087-f777-469d-9873-11ea83c3e953"
+			}
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "framework",
+				"id": "9e937eea-bb84-4f8b-bafe-1140a80875c7"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "HTML",
+						"id": "98cc8b1e-cbed-4b19-9fc7-e3cb96da3675"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Assign a new "
+								},
+								{
+									"type": "text",
+									"text": "config",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " object on the element:"
+								}
+							],
+							"attrs": {
+								"id": "e2431073-e082-45de-be54-c3eba5f594e2"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "ts",
+								"id": "bdb460a1-95cc-427d-a54c-971e46d4e667"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "const mq = window.matchMedia('(max-width: 640px)');\nconst sync = () => {\n    viewer.config = {\n        plugins: {\n            'image-manipulation': { target: mq.matches ? 'flyout' : 'panel' },\n        },\n    };\n};\nsync();\nmq.addEventListener('change', sync);"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "The element also exposes its live viewer state through the getter-only "
+								},
+								{
+									"type": "text",
+									"text": "viewerState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " property (see "
+								},
+								{
+									"type": "text",
+									"text": "the state bridge",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/integration/#the-state-bridge"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "), so "
+								},
+								{
+									"type": "text",
+									"text": "el.viewerState?.setPluginTarget(id, target)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is available too. "
+								},
+								{
+									"type": "text",
+									"text": "config",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is the declarative option; the bridge is the imperative one."
+								}
+							],
+							"attrs": {
+								"id": "66bcf8b2-e39e-40b8-a7bc-28f1926e5e61"
+							}
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "React",
+						"id": "a9ab6c92-f750-4304-96a6-359ddc8eb8d2"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Either pass a new "
+								},
+								{
+									"type": "text",
+									"text": "config",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " object, or call the command through the handle:"
+								}
+							],
+							"attrs": {
+								"id": "73ebc324-8cb3-4e38-a031-6014e9f80034"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "tsx",
+								"id": "90d50595-96d5-4551-83bb-d67a7179214d"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import { useEffect, useState } from 'react';\nimport {\n    TriiiceratopsViewer,\n    useViewer,\n    useViewerHandle,\n} from 'triiiceratops/react';\n\nexport function Viewer() {\n    const handle = useViewerHandle();\n    const viewer = useViewer(handle);\n    const [narrow, setNarrow] = useState(false);\n\n    useEffect(() => {\n        const mq = window.matchMedia('(max-width: 640px)');\n        const sync = () => setNarrow(mq.matches);\n        sync();\n        mq.addEventListener('change', sync);\n        return () => mq.removeEventListener('change', sync);\n    }, []);\n\n    useEffect(() => {\n        viewer?.setPluginTarget(\n            'image-manipulation',\n            narrow ? 'flyout' : 'panel',\n        );\n    }, [viewer, narrow]);\n\n    return (\n        <TriiiceratopsViewer\n            handle={handle}\n            manifestId=\"https://example.org/manifest.json\"\n            style={{ display: 'block', height: '600px' }}\n        />\n    );\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Vue",
+						"id": "0a6cb3db-2ded-4a6f-bc68-2a4b28118f07"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Either pass a new "
+								},
+								{
+									"type": "text",
+									"text": "config",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " object, or call the command through the template ref:"
+								}
+							],
+							"attrs": {
+								"id": "ce9712b4-44f0-460b-baef-6e74fa289d4c"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "vue",
+								"id": "91019424-2e99-4422-8142-b4e2f7c18f63"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script setup lang=\"ts\">\nimport { computed, useTemplateRef, watchEffect } from 'vue';\nimport {\n    TriiiceratopsViewer,\n    useViewer,\n    type TriiiceratopsViewerInstance,\n} from 'triiiceratops/vue';\n\nconst viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');\nconst state = useViewer(viewer);\n\nconst mq = window.matchMedia('(max-width: 640px)');\nconst target = computed(() => (mq.matches ? 'flyout' : 'panel'));\n\nwatchEffect(() => {\n    state.value?.setPluginTarget('image-manipulation', target.value);\n});\n</script>\n\n<template>\n    <TriiiceratopsViewer\n        ref=\"viewer\"\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Svelte",
+						"id": "2bd8801c-a282-4827-8af0-c81ed866ab65"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Reassign the reactive "
+								},
+								{
+									"type": "text",
+									"text": "config",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " prop:"
+								}
+							],
+							"attrs": {
+								"id": "fd7c912e-3780-4580-ae86-2be5b153ca83"
+							}
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "b63947ea-4ae1-42b6-bdad-97b609267c1d"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script>\n    import { TriiiceratopsViewer } from 'triiiceratops/svelte';\n    import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';\n\n    let narrow = $state(false);\n    $effect(() => {\n        const mq = window.matchMedia('(max-width: 640px)');\n        const sync = () => (narrow = mq.matches);\n        sync();\n        mq.addEventListener('change', sync);\n        return () => mq.removeEventListener('change', sync);\n    });\n\n    let config = $derived({\n        plugins: {\n            'image-manipulation': { target: narrow ? 'flyout' : 'panel' },\n        },\n    });\n</script>\n\n<TriiiceratopsViewer manifestId=\"…\" plugins={[ImageManipulationPlugin]} {config} />"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Svelte hosts that capture "
+								},
+								{
+									"type": "text",
+									"text": "viewerState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " (via "
+								},
+								{
+									"type": "text",
+									"text": "bind:viewerState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ") can also call "
+								},
+								{
+									"type": "text",
+									"text": "viewerState.setPluginTarget(id, target)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "setPluginPosition(id, position)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and "
+								},
+								{
+									"type": "text",
+									"text": "setPluginOpen(id, open)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " imperatively."
+								}
+							],
+							"attrs": {
+								"id": "9f4a24b6-bf62-4388-941e-a11bafabd02a"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "horizontalRule",
+			"attrs": {
+				"id": "d98c9402-db2b-4214-992a-7f3eb7863a01"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "defining-a-plugin",
+				"id": "398e9a59-591a-4f0d-bf4b-2aed4f0c910c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Defining a plugin"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Plugins are "
+				},
+				{
+					"type": "text",
+					"text": "framework-agnostic",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Author new plugins with the framework-neutral SDK ("
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-sdk",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") and "
+				},
+				{
+					"type": "text",
+					"text": "definePlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": a plugin mounts into a plain "
+				},
+				{
+					"type": "text",
+					"text": "HTMLElement",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so you can render it with vanilla JavaScript, React, Vue, Svelte, Lit, or a custom element, and it behaves the same in every host. "
+				},
+				{
+					"type": "text",
+					"text": "definePlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " gives you a mount contract; the live "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for reads and supported commands; root-aware style, locale, and UI services; failure isolation; and a conformance test kit."
+				}
+			],
+			"attrs": {
+				"id": "fd2aada0-636b-4fe0-8834-06db780e77fe"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "See the "
+				},
+				{
+					"type": "text",
+					"text": "plugin authoring guide",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-authoring/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and the "
+				},
+				{
+					"type": "text",
+					"text": "plugin testing guide",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-testing/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the full API and examples."
+				}
+			],
+			"attrs": {
+				"id": "a51a5843-cb54-41b5-aa3e-b34b3ba3977b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "definePlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the only plugin path — there is no Svelte-only shortcut, and a Svelte host mounts its component from the SDK's "
+				},
+				{
+					"type": "text",
+					"text": "mount()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " like every other framework. See the Svelte tab in "
+				},
+				{
+					"type": "text",
+					"text": "rendering UI in your framework",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-authoring/#rendering-ui-in-your-framework"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "58aab894-d991-44f0-91e1-4cc779e84598"
+			}
+		},
+		{
+			"type": "horizontalRule",
+			"attrs": {
+				"id": "db522f9c-fc99-43c3-9451-de8277314229"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "available-plugins",
+				"id": "078d45d0-1339-4822-b008-93f7466a1a38"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Available Plugins"
+				}
+			]
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Plugin"
+										}
+									],
+									"attrs": {
+										"id": "768ac4c9-c844-4f6f-b886-f6babdc3f45e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9f9900ba-66ab-4b1c-bc04-a8dd52377068"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "What it does"
+										}
+									],
+									"attrs": {
+										"id": "28ccca88-cada-44f3-852c-b48fa9c40dad"
+									}
+								}
+							],
+							"attrs": {
+								"id": "14f4f819-faf9-4547-b4be-74d4db362747"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Renders as"
+										}
+									],
+									"attrs": {
+										"id": "befaeed9-2a5f-4171-9f02-f9e77c9d6759"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7e96c99a-07df-4689-b41e-57b9db6d0e83"
+							}
+						}
+					],
+					"attrs": {
+						"id": "07813140-762b-447a-afc3-01802abca9af"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Audio & Video",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/plugin-av/"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "319be9ba-9580-4bd6-85d2-a8569f465688"
+									}
+								}
+							],
+							"attrs": {
+								"id": "094f3d82-f259-4bd1-921e-850a0f73da8a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Plays a canvas's "
+										},
+										{
+											"type": "text",
+											"text": "Sound",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " and "
+										},
+										{
+											"type": "text",
+											"text": "Video",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " bodies — media stage over the canvas rect, transport in the control bar, waveforms, captions, transcript"
+										}
+									],
+									"attrs": {
+										"id": "be3c7e7e-18b5-47fe-baf3-70c8f143871c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d99dbab3-f385-40f0-b029-9f7d12d1bc07"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Panel (transcript) + canvas stage"
+										}
+									],
+									"attrs": {
+										"id": "73f1d0a0-6105-4143-9ad8-dbcf4abc539a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5d75256a-4008-4c2e-889d-74d2f5a89ea9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8afbd420-c0fd-4c5d-97a8-2897521d29d8"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Image Manipulation",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/plugin-image-manipulation/"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "383bf60c-5640-4cd3-b582-e4f0be8d87c8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "56f3d30e-b55a-4ef6-9bb4-45a392bfe8dd"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Brightness, contrast, saturation, invert, and grayscale controls for the displayed image"
+										}
+									],
+									"attrs": {
+										"id": "ea5fb094-85c9-442b-9caf-dec8edba25a5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "296c1f13-d806-4619-9bcd-9d1050619065"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Flyout"
+										}
+									],
+									"attrs": {
+										"id": "faecf622-c654-4915-9ea2-5912d1ab2af3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ce4ea8b8-067c-4609-8a13-c39e9f81904b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e9277e3e-fa8a-4880-8270-3c538f62bf0b"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Image Download",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/plugin-image-export/"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "1f0c3789-a987-41c1-998c-52259cd9d080"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f9a9f97e-ed9a-43f2-aa56-8a6bc64b1ace"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Downloads the current canvas (composite, single image, or current view) as a raster image"
+										}
+									],
+									"attrs": {
+										"id": "46d9e5a3-6932-4be3-9bf2-9adfa01f82ae"
+									}
+								}
+							],
+							"attrs": {
+								"id": "381886eb-7113-4838-bf34-9852833036d0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Panel"
+										}
+									],
+									"attrs": {
+										"id": "a03afb2b-6e9e-4558-ae25-176617a10702"
+									}
+								}
+							],
+							"attrs": {
+								"id": "796b1576-2f5a-4a9b-afbe-4924d14d8cf5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "58212321-965f-43c5-8e36-5c1ad03acbf7"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "PDF Export",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/plugin-pdf-export/"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "6e0b6d40-99a7-466d-97a2-9eb4c7086a99"
+									}
+								}
+							],
+							"attrs": {
+								"id": "594a9fe2-19f6-473e-8647-23acdabafd0d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Exports a range of canvases as a browser-generated PDF, with optional OCR text and a cover sheet"
+										}
+									],
+									"attrs": {
+										"id": "cb442fa0-28d8-4d91-b555-cb2345794caa"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7f61c566-17b9-4741-9581-f57015014a3f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Panel"
+										}
+									],
+									"attrs": {
+										"id": "8b86c4a6-d83f-4fbc-be69-bc8b53e64abf"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f7fc9c4b-b2f2-4a76-b393-6e9eb157e533"
+							}
+						}
+					],
+					"attrs": {
+						"id": "0cd05133-89f7-4772-b15a-7e84f3922ff8"
+					}
+				}
+			],
+			"attrs": {
+				"id": "588b661e-8261-4e75-aeb6-d155a61ef619"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Each page above has its own install command, setup snippet, and configuration reference."
+				}
+			],
+			"attrs": {
+				"id": "92bc0de3-6432-4d65-8f4f-90fd2e53d02e"
+			}
+		},
+		{
+			"type": "horizontalRule",
+			"attrs": {
+				"id": "22a295cf-c02d-4a69-970f-344e29dee468"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "package-exports-reference",
+				"id": "6afc791b-ade0-4251-b565-07c73bddeeb9"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Package Exports Reference"
+				}
+			]
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Export path"
+										}
+									],
+									"attrs": {
+										"id": "d29baffd-48b5-4404-935e-8b933f432bb6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "15c8f2e6-a0ba-4a72-b138-582238768195"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Description"
+										}
+									],
+									"attrs": {
+										"id": "c18d2b6e-b1e8-4c6c-aaba-722011224a7d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d35b9fa4-5513-4501-92cf-805ef3b462c3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "55b26ec3-66dd-4a4d-9a21-7ae434d67cf2"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "50f16dba-beb5-4027-9843-30048b54370e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "27e3b016-9243-43f4-92ae-52a757e3010a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Core Svelte component and utilities"
+										}
+									],
+									"attrs": {
+										"id": "f424efbc-7068-413e-966b-d85499d027b0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "793b8162-ecce-4219-9d56-f0f89fa7efaf"
+							}
+						}
+					],
+					"attrs": {
+						"id": "004e3e02-bbaa-4c7e-8a86-4a8d530fcd0a"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/style.css",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e6b961a9-6c4b-4fac-8167-cfef6baf7b96"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3a7519f6-6975-4e88-abde-ff2fb61d9402"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Core stylesheet (Svelte usage)"
+										}
+									],
+									"attrs": {
+										"id": "a7c7204a-4664-4270-9316-94655a9aa765"
+									}
+								}
+							],
+							"attrs": {
+								"id": "35087cac-77df-4f4b-861b-759f38a140e4"
+							}
+						}
+					],
+					"attrs": {
+						"id": "84ca538b-5094-48cd-979e-b7b32bf76ff6"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/svelte",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a824b64e-43b1-462b-8aab-3806cb5a8a8d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d02000cc-aeeb-443e-ad71-7214510ce64b"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Svelte 5 component",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/svelte/"
+													}
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " — a superset of the root entry"
+										}
+									],
+									"attrs": {
+										"id": "6d87144f-5b77-48ac-9f37-2f653c776416"
+									}
+								}
+							],
+							"attrs": {
+								"id": "9ed7346b-4c04-49dd-8bad-98843fd9fb1f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "771bda63-fc50-4154-a54b-388837ef74fb"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/react",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "bdb1ae5d-3a56-4666-8be0-f45a1bd0ec97"
+									}
+								}
+							],
+							"attrs": {
+								"id": "cbf85fa2-7661-4957-8485-8bf23a26dda1"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "React 19 framework wrapper",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/react/"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e64dc249-2c50-43f4-9a08-0c481512ff72"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ed997ab2-b34e-4cb9-b589-c2577562efe4"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4feec348-8c79-4953-b3b7-6c32277bcdec"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/vue",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7242b116-fbd4-49a3-b1fe-cf650f670f7e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6f0f10d7-c1f5-4854-8644-1f14b3028283"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Vue 3.5 framework wrapper",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/vue/"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "154796d0-0961-4e52-9980-a663d468083d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "313d26cf-7d82-4f2f-a7de-dc0e0a22315f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "bd83a5a1-de28-40f0-951c-06d7fdcfd6b2"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/selectors",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c49563dc-2aa3-4fcf-b079-87628cd25bbe"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2188768e-e9a7-4a29-9ea1-e2e92a78132c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Framework-neutral selector runtime"
+										}
+									],
+									"attrs": {
+										"id": "a015b40e-2e29-459c-9e62-50dfb55550c2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d6489d1a-f400-4d8f-b86d-31514206ac19"
+							}
+						}
+					],
+					"attrs": {
+						"id": "21d6e1a5-61bd-414e-aca3-609c0959fce9"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/testing",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "1b432c56-3bf4-4b66-bf7d-754f800dfe16"
+									}
+								}
+							],
+							"attrs": {
+								"id": "53ba6dce-b6a8-4e45-b004-7f34316513a7"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Headless viewer state + "
+										},
+										{
+											"type": "text",
+											"text": "createTestViewerHandle()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e21f4171-22f9-4b1e-a303-8a8c69cb2adc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "96f8595a-f594-4d3e-b9f2-f9c0adceeb5a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a42e70f4-ebc9-40af-b7c3-b6878a026c8a"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/element",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c45466ac-262c-4f46-aba3-b044e96db69f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8c4e88e0-8f1b-4dc2-b353-0c0d59f7d4c7"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Web Component self-contained IIFE"
+										}
+									],
+									"attrs": {
+										"id": "fd7630c5-7f1e-4218-a1d9-75e1996cf759"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a9d4bae3-adce-4166-b279-f47933d26e42"
+							}
+						}
+					],
+					"attrs": {
+						"id": "61e631a3-8412-44c9-bd3c-8dee45ea7203"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "triiiceratops/element/register",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "01259fbf-3b13-4c47-8c20-73e7c40350f4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "380878c3-f94a-41f8-a52a-79020edf859e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Web Component ESM registration"
+										}
+									],
+									"attrs": {
+										"id": "d25120ad-21e9-4e98-8e8b-4f9dd37d7481"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5b9c9c04-a2d8-40e6-aa74-9a43ab407db9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "36da21b9-fa6b-49e9-949a-28d220c7dc01"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-sdk",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f1c4d5d4-1c77-40d0-a7db-bf11062970a6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f0667fc6-d3e7-4d20-974d-2350a8120ddb"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Plugin SDK (base)"
+										}
+									],
+									"attrs": {
+										"id": "b911fc8b-8f6c-43dd-a463-dbbf504876ad"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a774f0b8-1f33-4387-a40d-9dd42b0698d0"
+							}
+						}
+					],
+					"attrs": {
+						"id": "01d92450-db3c-43ce-baa8-3822faa5bda5"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-sdk/register",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d3ec87ec-b92f-4652-b808-946100f80c63"
+									}
+								}
+							],
+							"attrs": {
+								"id": "dc7ccb9b-7475-4cd5-9b6e-72897d536949"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Browser/IIFE registration ("
+										},
+										{
+											"type": "text",
+											"text": "registerBrowserPlugin",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "fd9c4824-f8a1-4334-b7ac-6537b89a24b6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8d1e2995-b37b-4016-923c-92b6a0382ea3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "64982101-af35-4b40-8830-9a7be121b5b0"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-sdk/register-shared",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "93e742ca-b20c-4a11-9f87-25ae8bb05df4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c6574bbb-9a19-49bf-8a41-1b8ed0e5b27f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Browser/IIFE registration for a plugin that cannot load before core — without a shared-runtime load-order gate it silently no-ops with no diagnostic, so third-party plugins should keep using "
+										},
+										{
+											"type": "text",
+											"text": "/register",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2f0c2757-1f49-412d-a338-60f57c824966"
+									}
+								}
+							],
+							"attrs": {
+								"id": "61449bd8-b1a2-4422-91af-69c12102c9a0"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d1eada2e-7fce-49db-9290-41f3a2f4e3af"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-sdk/{svelte,react,vue,lit}",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "16fa3e7f-cdcf-4e67-8a76-0897042c4387"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f944b225-d9c2-44e4-8b95-98b9126b5b2f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "SDK framework adapters"
+										}
+									],
+									"attrs": {
+										"id": "026857d6-732d-40fa-ae94-b6c17e551f2c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f263f4eb-80d0-4065-82cc-e36ffc550d67"
+							}
+						}
+					],
+					"attrs": {
+						"id": "309c6379-b459-4e6b-9ae6-e0a341382533"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-sdk/testing",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "1320955c-2a5d-4016-b8f2-d165b3be0b64"
+									}
+								}
+							],
+							"attrs": {
+								"id": "35e26e70-be61-4cc7-9b9d-604b39ad7e1f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "SDK plugin test kit"
+										}
+									],
+									"attrs": {
+										"id": "2862955e-a290-4a9b-bdec-650e712f6fbe"
+									}
+								}
+							],
+							"attrs": {
+								"id": "84d15637-8ba6-4ca2-b138-d8154cee361a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c7f29dbf-b92a-4afa-835e-08aab15eccd2"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-av",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e6675125-b206-42d1-ad94-25ece73e2d4f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "49c8882f-baa9-4c6e-9b21-bad1b5fe77e0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Audio & video plugin (ES module)"
+										}
+									],
+									"attrs": {
+										"id": "d0e6eee3-4098-414c-83d7-4ae32c735238"
+									}
+								}
+							],
+							"attrs": {
+								"id": "21b7dc97-9ca2-4912-8b9a-fdd3ee235089"
+							}
+						}
+					],
+					"attrs": {
+						"id": "287c5a01-e621-4277-9ec8-a42372d9d880"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-av/iife",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3170a4ad-7a40-4a39-9952-8eada24dac9d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d9095c11-3d27-45de-a543-39bf64b4d24e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Audio & video plugin (IIFE — serve the whole "
+										},
+										{
+											"type": "text",
+											"text": "dist/",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " directory, and load it after core)"
+										}
+									],
+									"attrs": {
+										"id": "a6af6c91-77ac-48b2-a9b6-4db90fc7fbfb"
+									}
+								}
+							],
+							"attrs": {
+								"id": "379cbf11-0444-484a-8d28-c5dd1fa5d03e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "254fe241-5ae5-43b6-861e-c8917da9484c"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-image-manipulation",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f6503f04-737a-4088-9604-661ad7d6e782"
+									}
+								}
+							],
+							"attrs": {
+								"id": "43b58847-af61-4d1f-a3df-213952d1bae7"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Image manipulation plugin (ES module)"
+										}
+									],
+									"attrs": {
+										"id": "cc2ef5c7-9455-4747-a601-69f32da9e95e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2605551f-e02d-4a03-b7fc-83a3f44e050e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "25886ce5-2b07-4647-9305-17e8a85bb05d"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-image-manipulation/iife",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2eae3f37-cca4-40e0-a308-342ae233de1c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7b8a4c31-0e42-42f3-9f10-eca30fac55f4"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Image manipulation plugin (IIFE)"
+										}
+									],
+									"attrs": {
+										"id": "28655cea-a970-4086-b822-8b2851aab4a9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ef8e9d86-e1ec-4775-932e-c38080038dc3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "858ff4c9-b0b3-4da1-af7a-faa258c9eca4"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-image-export",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "58edc4ba-673f-43eb-ac7c-96371f9ca464"
+									}
+								}
+							],
+							"attrs": {
+								"id": "90530d84-673b-4757-8c05-461044a6afaa"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Image download plugin (ES module)"
+										}
+									],
+									"attrs": {
+										"id": "ece2813c-8454-4a76-ac5e-ce3242f396f2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7de3a3b0-e9e3-4cc9-812d-bed400353086"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2f01f545-e725-4796-8ae7-76f9d42e67a0"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-image-export/iife",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a81953bb-030a-4222-923c-699f6ad57f95"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3bb8ab27-6bf4-406e-831a-fd0b9504f213"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Image download plugin (IIFE)"
+										}
+									],
+									"attrs": {
+										"id": "451983ea-6797-4e20-97b8-ca8c9b2ffc73"
+									}
+								}
+							],
+							"attrs": {
+								"id": "152ba304-b32c-4988-88f4-7c0c19986436"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d6796457-7a92-4fb3-993e-81d80af4d8c5"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-pdf-export",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ab8a8317-7a70-4c4e-a734-cbb09ded2fc9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0c3b2452-4b1d-4392-b9da-be36785154a2"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "PDF export plugin (ES module)"
+										}
+									],
+									"attrs": {
+										"id": "37021b41-c187-498b-ab27-420b8641d104"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5d78aa01-037f-4393-8c0f-ba5867c9baa0"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2ee0ba12-a5f7-4ef4-b8f6-7a13582b84a6"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-pdf-export/iife",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "30d4bb4d-b890-4725-98de-683ac0052d3d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "61362270-9166-4fab-a8ef-9ea2e3395b27"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "PDF export plugin (IIFE)"
+										}
+									],
+									"attrs": {
+										"id": "27fe4978-94d9-4c49-a2d2-562c0f0da40d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8d6fe3b1-c71e-4f1d-bc84-860602d80435"
+							}
+						}
+					],
+					"attrs": {
+						"id": "89503c0f-ebfd-4f05-8ee7-24c398d4dbf3"
+					}
+				}
+			],
+			"attrs": {
+				"id": "d63f7cdb-e6ed-44a2-a52d-07f39968b599"
+			}
+		}
+	],
+	"meta": {
+		"title": "Plugin System",
+		"shortTitle": "Plugin system",
+		"intro": "The Triiiceratops plugin system: component-based extensions that render as docked sidebar panels or as flyouts over the canvas."
+	}
+}

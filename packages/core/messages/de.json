@@ -34,6 +34,7 @@
     "error_prefix": "Fehler: ",
     "no_image_found": "Kein Bild verfügbar",
     "viewing_mode_label": "Ansichtsmodus",
+    "locale_label": "Sprache",
     "viewing_mode_individuals": "Einzelseiten",
     "viewing_mode_paged": "Doppelseiten",
     "viewing_mode_continuous": "Kontinuierlich",

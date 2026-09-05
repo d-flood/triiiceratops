@@ -68,9 +68,15 @@ describe('the data table', () => {
         for (const row of SIZE_ROWS) {
             const measured = viewers.find((viewer) => viewer.id === row.id);
             const image = measured?.sessions.find((s) => s.kind === 'image');
-            expect({ raw: row.raw, gzip: row.gzip, brotli: row.brotli }).toEqual(
-                { raw: image?.raw, gzip: image?.gzip, brotli: image?.brotli },
-            );
+            expect({
+                raw: row.raw,
+                gzip: row.gzip,
+                brotli: row.brotli,
+            }).toEqual({
+                raw: image?.raw,
+                gzip: image?.gzip,
+                brotli: image?.brotli,
+            });
             expect(row.version, row.id).toBe(measured?.version);
         }
     });
@@ -106,17 +112,14 @@ describe('the capability axis', () => {
             ).length,
         );
         expect(RECIPES.core + RECIPES.pluginOnly).toBe(RECIPES.withPlugin);
-        expect(RECIPES.partial.map((r) => r.id)).toEqual(
-            COOKBOOK_RECIPES.filter((r) => r.support === 'partial').map(
-                (r) => r.id,
-            ),
+        expect(RECIPES.matrix).toBe(
+            COOKBOOK_RECIPES.filter((r) => r.matrixSupport).length,
         );
     });
 
-    it('gives every partial recipe the reason it is partial', () => {
-        for (const recipe of RECIPES.partial) {
-            expect(recipe.reason?.trim(), recipe.id).toBeTruthy();
-        }
+    it('carries no partial for the viewer it is the site of', () => {
+        const self = CAPABILITY_ROWS.find((row) => row.isSelf);
+        expect(self?.partial).toBe(0);
     });
 
     it('plots our own point at the catalog’s count', () => {
@@ -145,7 +148,8 @@ describe('the scatter', () => {
         const yMaxKb = SCATTER.yMaxKb;
         for (const point of SCATTER.points) {
             expect(point.x, point.id).toBeCloseTo(
-                plot.left + (point.recipes / RECIPES.total) * (plot.right - plot.left),
+                plot.left +
+                    (point.recipes / RECIPES.total) * (plot.right - plot.left),
                 1,
             );
             expect(point.y, point.id).toBeCloseTo(
@@ -184,9 +188,7 @@ describe('the audiovisual disclosure', () => {
     it('states both sessions for every viewer that has both', () => {
         for (const row of AV_ROWS) {
             expect(row.image, row.id).toBe(gzipOf(row.id, 'image'));
-            expect(row.audiovisual, row.id).toBe(
-                gzipOf(row.id, 'audiovisual'),
-            );
+            expect(row.audiovisual, row.id).toBe(gzipOf(row.id, 'audiovisual'));
         }
     });
 
@@ -215,7 +217,10 @@ describe('the audiovisual disclosure', () => {
         for (const entry of COUNTED) {
             expect(entry.files.length, entry.id).toBeGreaterThan(0);
             for (const file of entry.files) {
-                expect(file.url.trim(), `${entry.id}/${file.name}`).toBeTruthy();
+                expect(
+                    file.url.trim(),
+                    `${entry.id}/${file.name}`,
+                ).toBeTruthy();
             }
         }
     });

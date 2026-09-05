@@ -1,5 +1,5 @@
 {
-    "$comment": "Provenance and expectations for the content-state fixtures beside this file. Read by contentStateFixtures.ts (tests) and scripts/docs-content-state.mjs (the generated conformance table in docs/content-state.md). JSON rather than TypeScript so both readers can load it with no build step. Adding an entry adds test coverage and requires regenerating the docs table.",
+    "$comment": "Provenance and expectations for the content-state fixtures beside this file. Read by contentStateFixtures.ts (tests) and scripts/docs-content-state.mjs (the read-only conformance-table block in apps/site/content/docs/content-state.json). JSON rather than TypeScript so both readers can load it with no build step. Adding an entry adds test coverage and requires regenerating the docs table.",
     "capturedAt": "2026-08-20",
     "fixtures": [
         {

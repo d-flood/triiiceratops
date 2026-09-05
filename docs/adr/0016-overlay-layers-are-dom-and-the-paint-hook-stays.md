@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # Overlay layers are DOM, the paint hook is pixels, and both exist because the substrates differ
 
 Anything a reader must perceive or operate on the image is a real element in an **overlay

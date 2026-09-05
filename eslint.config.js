@@ -32,15 +32,13 @@ export default ts.config(
         ignores: [
             'dist/',
             '.svelte-kit/',
-            '.venv/',
-            'site/',
             'node_modules/',
             'src/paraglide/',
             'src/lib/paraglide/',
             'src/lib/generated/',
             'docs/',
-            // Doc snippets extracted verbatim from docs/*.md by
-            // scripts/docs-examples.mjs — generated, never hand-edited, and
+            // Doc snippets extracted verbatim from the site's content documents
+            // by scripts/docs-examples.mjs — generated, never hand-edited, and
             // gated by `tsc` in the packed docs-examples consumer instead. A
             // teaching snippet legitimately declares a function it never calls,
             // which is a lint warning here but correct in the docs. Linting them
@@ -85,8 +83,8 @@ export default ts.config(
     // package's own config is `export default base`, and `**/src/**` matches its
     // `src` tree whether ESLint runs from the repo root (`scripts/pre-commit.sh`
     // lints staged paths from here) or from the package directory. `apps/**`
-    // only matches from the root, so `apps/demo` calls the factory again for its
-    // own anchor. `**/src/**` also matches `apps/demo/src/**`; see the ordering
+    // only matches from the root, so `apps/site` calls the factory again for its
+    // own anchor. `**/src/**` also matches `apps/site/src/**`; see the ordering
     // invariant in eslint.boundaries.js for why that is harmless.
     ...workspaceBoundaries({
         apps: ['apps/**'],

@@ -4,175 +4,218 @@
     "tokens": [
         {
             "name": "--tri-color-primary",
-            "category": "palette"
+            "category": "palette",
+            "themeConfigKey": "primary"
         },
         {
             "name": "--tri-color-primary-content",
-            "category": "palette"
+            "category": "palette",
+            "themeConfigKey": "primaryContent"
         },
         {
             "name": "--tri-color-primary-text",
-            "category": "palette"
+            "category": "palette",
+            "themeConfigKey": null
         },
         {
             "name": "--tri-color-neutral",
-            "category": "palette"
+            "category": "palette",
+            "themeConfigKey": "neutral"
         },
         {
             "name": "--tri-color-neutral-content",
-            "category": "palette"
+            "category": "palette",
+            "themeConfigKey": "neutralContent"
         },
         {
             "name": "--tri-color-success",
-            "category": "palette"
+            "category": "palette",
+            "themeConfigKey": "success"
         },
         {
             "name": "--tri-color-success-content",
-            "category": "palette"
+            "category": "palette",
+            "themeConfigKey": "successContent"
         },
         {
             "name": "--tri-color-warning",
-            "category": "palette"
+            "category": "palette",
+            "themeConfigKey": "warning"
         },
         {
             "name": "--tri-color-warning-content",
-            "category": "palette"
+            "category": "palette",
+            "themeConfigKey": "warningContent"
         },
         {
             "name": "--tri-color-error",
-            "category": "palette"
+            "category": "palette",
+            "themeConfigKey": "error"
         },
         {
             "name": "--tri-color-error-content",
-            "category": "palette"
+            "category": "palette",
+            "themeConfigKey": "errorContent"
         },
         {
             "name": "--tri-viewer-bg",
-            "category": "surface"
+            "category": "surface",
+            "themeConfigKey": "viewerBg"
         },
         {
             "name": "--tri-toolbar-bg",
-            "category": "surface"
+            "category": "surface",
+            "themeConfigKey": "toolbarBg"
         },
         {
             "name": "--tri-panel-bg",
-            "category": "surface"
+            "category": "surface",
+            "themeConfigKey": "panelBg"
         },
         {
             "name": "--tri-gallery-bg",
-            "category": "surface"
+            "category": "surface",
+            "themeConfigKey": "galleryBg"
         },
         {
             "name": "--tri-input-bg",
-            "category": "surface"
+            "category": "surface",
+            "themeConfigKey": "inputBg"
         },
         {
             "name": "--tri-surface-border",
-            "category": "surface"
+            "category": "surface",
+            "themeConfigKey": "surfaceBorder"
         },
         {
             "name": "--tri-content",
-            "category": "content"
+            "category": "content",
+            "themeConfigKey": "content"
         },
         {
             "name": "--tri-panel-content",
-            "category": "content"
+            "category": "content",
+            "themeConfigKey": "panelContent"
         },
         {
             "name": "--tri-toolbar-content",
-            "category": "content"
+            "category": "content",
+            "themeConfigKey": "toolbarContent"
         },
         {
             "name": "--tri-viewer-content",
-            "category": "content"
+            "category": "content",
+            "themeConfigKey": "viewerContent"
         },
         {
             "name": "--tri-gallery-content",
-            "category": "content"
+            "category": "content",
+            "themeConfigKey": "galleryContent"
         },
         {
             "name": "--tri-metadata-panel-bg",
-            "category": "panel"
+            "category": "panel",
+            "themeConfigKey": "metadataPanelBg"
         },
         {
             "name": "--tri-metadata-panel-content",
-            "category": "panel"
+            "category": "panel",
+            "themeConfigKey": "metadataPanelContent"
         },
         {
             "name": "--tri-annotations-panel-bg",
-            "category": "panel"
+            "category": "panel",
+            "themeConfigKey": "annotationsPanelBg"
         },
         {
             "name": "--tri-annotations-panel-content",
-            "category": "panel"
+            "category": "panel",
+            "themeConfigKey": "annotationsPanelContent"
         },
         {
             "name": "--tri-search-panel-bg",
-            "category": "panel"
+            "category": "panel",
+            "themeConfigKey": "searchPanelBg"
         },
         {
             "name": "--tri-search-panel-content",
-            "category": "panel"
+            "category": "panel",
+            "themeConfigKey": "searchPanelContent"
         },
         {
             "name": "--tri-structures-panel-bg",
-            "category": "panel"
+            "category": "panel",
+            "themeConfigKey": "structuresPanelBg"
         },
         {
             "name": "--tri-structures-panel-content",
-            "category": "panel"
+            "category": "panel",
+            "themeConfigKey": "structuresPanelContent"
         },
         {
             "name": "--tri-collection-panel-bg",
-            "category": "panel"
+            "category": "panel",
+            "themeConfigKey": "collectionPanelBg"
         },
         {
             "name": "--tri-collection-panel-content",
-            "category": "panel"
+            "category": "panel",
+            "themeConfigKey": "collectionPanelContent"
         },
         {
             "name": "--tri-radius-selector",
-            "category": "radius"
+            "category": "radius",
+            "themeConfigKey": "radiusSelector"
         },
         {
             "name": "--tri-radius-buttons",
-            "category": "radius"
+            "category": "radius",
+            "themeConfigKey": "radiusButtons"
         },
         {
             "name": "--tri-radius-box",
-            "category": "radius"
+            "category": "radius",
+            "themeConfigKey": "radiusBox"
         },
         {
             "name": "--tri-radius-toolbar",
-            "category": "radius"
+            "category": "radius",
+            "themeConfigKey": "radiusToolbar"
         },
         {
             "name": "--tri-radius-panels",
-            "category": "radius"
+            "category": "radius",
+            "themeConfigKey": "radiusPanels"
         },
         {
             "name": "--tri-radius-controls",
-            "category": "radius"
+            "category": "radius",
+            "themeConfigKey": "radiusControls"
         },
         {
             "name": "--tri-radius-controls-buttons",
-            "category": "radius"
+            "category": "radius",
+            "themeConfigKey": "radiusControlsButtons"
         },
         {
             "name": "--tri-size-selector",
-            "category": "sizing"
+            "category": "sizing",
+            "themeConfigKey": "sizeSelector"
         },
         {
             "name": "--tri-size-field",
-            "category": "sizing"
+            "category": "sizing",
+            "themeConfigKey": "sizeField"
         },
         {
             "name": "--tri-border",
-            "category": "effect"
+            "category": "effect",
+            "themeConfigKey": "border"
         },
         {
             "name": "--tri-depth",
-            "category": "effect"
+            "category": "effect",
+            "themeConfigKey": "depth"
         }
     ]
 }

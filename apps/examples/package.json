@@ -3,7 +3,7 @@
     "version": "0.0.0",
     "type": "module",
     "private": true,
-    "description": "Framework consumer examples published inside the documentation version directory. A private workspace application that consumes the viewer only through its published entrypoints; never published.",
+    "description": "Framework consumer examples, built here and carried into the site's build output by @triiiceratops/app-site. A private workspace application that consumes the viewer only through its published entrypoints; never published.",
     "license": "MIT",
     "author": "David Flood",
     "repository": {
@@ -26,11 +26,11 @@
         "triiiceratops": "workspace:*"
     },
     "devDependencies": {
-        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "@sveltejs/vite-plugin-svelte": "^6.2.4",
         "@tsconfig/svelte": "^5.0.6",
         "@types/node": "^24.10.1",
         "eslint": "^9.39.2",
-        "svelte": "^5.43.8",
+        "svelte": "^5.56.10",
         "svelte-check": "^4.3.4",
         "typescript": "~5.9.3",
         "vite": "^6.0.0"

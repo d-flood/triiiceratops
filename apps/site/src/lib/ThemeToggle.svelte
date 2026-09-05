@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { chooseTheme, currentTheme } from './theme';
+    import { chooseTheme, currentTheme, type Theme } from './theme';
 
     /**
      * The colour-scheme toggle: a small round control in the rail's brand row.
@@ -15,8 +15,17 @@
      * icon on the page whose whole point is not flashing.
      */
 
+    /**
+     * `onchange` is for a surface that has to *follow* the scheme rather than
+     * only be painted by it: the playground hands the viewer component a theme
+     * input, which CSS cannot reach.
+     */
+    let { onchange }: { onchange?: (theme: Theme) => void } = $props();
+
     function toggle() {
-        chooseTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+        const chosen = currentTheme() === 'dark' ? 'light' : 'dark';
+        chooseTheme(chosen);
+        onchange?.(chosen);
     }
 </script>
 

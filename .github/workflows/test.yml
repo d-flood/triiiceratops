@@ -30,6 +30,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
+              with:
+                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -70,6 +72,7 @@ jobs:
         steps:
             - uses: actions/checkout@v7
               with:
+                  submodules: recursive
                   # Full history so the changed-lines coverage report (ticket 34)
                   # can resolve the merge-base with the PR base branch.
                   fetch-depth: 0
@@ -172,6 +175,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
+              with:
+                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -212,12 +217,10 @@ jobs:
     # Ticket 06: the marketing site's browser suite, including the score gate.
     #
     # The suite serves TWO origins: the development server for the screens that
-    # ask what the application renders, and the assembled `published/` tree for
-    # the score gate. That is why this job assembles the whole tree — and why it
-    # installs zensical, since assembly builds the documentation subtree. A gate
-    # run against the application's own output could be green while the published
-    # site is broken, because the SEO category reads the publish-owned crawl
-    # files at the tree's root.
+    # ask what the application renders, and the built tree for the score gate.
+    # That is why this job builds everything: the score gate reads the crawl
+    # files at the tree's root, the search bundle written after the bundler
+    # finishes, and the consumer examples placed after that.
     #
     # Same trigger as the site's other checks. Required.
     site:
@@ -228,6 +231,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
+              with:
+                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -241,22 +246,13 @@ jobs:
             - name: Install dependencies
               run: pnpm install
 
-            - uses: actions/setup-python@v7
-              with:
-                  python-version: 3.x
-
-            # Assembly builds the documentation subtree with this generator; see
-            # docs.yml, which installs it the same way.
-            - name: Install zensical
-              run: pip install zensical
-
             - name: Install Playwright Browser
               run: pnpm --filter @triiiceratops/app-site exec playwright install --with-deps chromium
 
-            # Build every workspace application and assemble the published tree,
-            # which is what the score gate measures.
-            - name: Build and assemble the published tree
-              run: pnpm site:build
+            # Build every workspace application. The site's own build output IS
+            # the published tree, and it is what the score gate measures.
+            - name: Build the published tree
+              run: pnpm build:all
 
             - name: Run the site's browser suite (includes the score gate)
               run: pnpm --filter @triiiceratops/app-site test:e2e
@@ -278,6 +274,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
+              with:
+                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -335,6 +333,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
+              with:
+                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -379,6 +379,7 @@ jobs:
         steps:
             - uses: actions/checkout@v7
               with:
+                  submodules: recursive
                   # Full history so the base SHA is available for the worktree
                   # build the comparison performs.
                   fetch-depth: 0
@@ -461,6 +462,7 @@ jobs:
         steps:
             - uses: actions/checkout@v7
               with:
+                  submodules: recursive
                   # Full history so the Changeset guard can diff against the PR base.
                   fetch-depth: 0
 
@@ -528,6 +530,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
+              with:
+                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -561,6 +565,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
+              with:
+                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:

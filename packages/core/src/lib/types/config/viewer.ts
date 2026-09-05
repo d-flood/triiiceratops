@@ -186,8 +186,10 @@ export interface RendererConfig {
 
 export interface ViewerConfig {
     /**
-     * Preferred locale for resolving IIIF language maps.
-     * When unset, the viewer follows the app locale.
+     * Preferred locale for the viewer's chrome and for resolving IIIF language
+     * maps. When unset, the viewer follows the app locale. The toolbar's
+     * language picker outranks this for as long as the host leaves it alone;
+     * naming a different `locale` here hands control back.
      */
     locale?: string;
 

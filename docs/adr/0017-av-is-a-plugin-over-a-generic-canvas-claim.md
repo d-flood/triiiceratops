@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # AV is a plugin over a generic canvas claim, and core classifies what it will never render
 
 Time-based media (canvases with `duration`, painting bodies of type Video or Sound, HLS

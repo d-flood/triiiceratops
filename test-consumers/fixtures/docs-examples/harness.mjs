@@ -1,5 +1,5 @@
-// docs-examples: compiles every fenced `ts` / `tsx` / `js` example that imports
-// package code (extracted from `docs/**/*.md` into `generated/` by
+// docs-examples: compiles every `ts` / `tsx` / `js` example that imports
+// package code (extracted from the site's content documents into `generated/` by
 // `scripts/docs-examples.mjs`) against the PACKED tarballs of every package the
 // documentation imports from. `buildScript: 'check'` runs `tsc --noEmit`; a
 // non-zero exit (a broken import path or a wrong public-API/plugin-config shape in

@@ -1,12 +1,17 @@
 {
-    "count": 83,
+    "count": 84,
     "byClassification": {
-        "command": 37,
-        "observable": 14,
-        "internal": 28,
+        "command": 38,
+        "observable": 13,
+        "internal": 29,
         "query-only": 4
     },
     "entries": [
+        {
+            "member": "_localeOverride",
+            "classification": "internal",
+            "commands": null
+        },
         {
             "member": "_viewingDirection",
             "classification": "internal",
@@ -31,8 +36,11 @@
         },
         {
             "member": "activeLocale",
-            "classification": "observable",
-            "commands": null
+            "classification": "command",
+            "commands": [
+                "setLocale",
+                "updateConfig"
+            ]
         },
         {
             "member": "annotationEditBus",
