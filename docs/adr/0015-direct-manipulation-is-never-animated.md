@@ -3,7 +3,7 @@
 One rule governs every viewport motion. **Continuous input is direct**: a drag updates
 the transform in the pointer-move handler, 1:1, with no smoothing; a pinch scales and
 translates about the gesture midpoint the same way; releasing a drag or pinch throws
-momentum computed from the recent pointer samples, decaying under friction and cancelled
+momentum computed from the recent pointer samples, decaying under friction and canceled
 instantly by the next pointer-down. **Discrete and programmatic input is animated**: the
 wheel, double-click and double-tap, the toolbar zoom buttons, fit-bounds, fit-canvas, and
 canvas navigation all approach their target as a frame-rate-independent exponential, with
@@ -13,7 +13,7 @@ same short time constant, because the usual heuristics are unreliable and that b
 a permanent source of hardware-specific bugs — and input is **Pointer Events only**, one
 path with no parallel mouse, touch, or legacy branches. Under
 `prefers-reduced-motion: reduce` every animated case becomes instant and momentum is
-disabled, which the previous renderer never honoured because its easing was JS-driven
+disabled, which the previous renderer never honored because its easing was JS-driven
 while the only check in place observed CSS durations.
 
 **This is the decision most likely to be "fixed" back, and it must not be.** The

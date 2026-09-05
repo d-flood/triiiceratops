@@ -9,7 +9,7 @@ announces, or a card they tab to cannot be drawn on the canvas at all. The **pai
 (`registerPaintLayer`) is the other half of the pair and is for decoration, or for a second
 rendering of geometry the DOM already carries — a heat map under the pins, a thousand tick
 marks nobody clicks. Core's own annotation shape overlay is built this way: geometry
-projected once into pixels and once into focusable, labelled elements.
+projected once into pixels and once into focusable, labeled elements.
 
 The consequences a plugin author sees follow from that split rather than from performance.
 A layer's container origin is `canvasToScreen`'s origin, so a projected point is already

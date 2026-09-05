@@ -2490,7 +2490,7 @@
 				},
 				{
 					"type": "text",
-					"text": " cadence is the one selector mistake that fails silently — the projection simply appears frozen, because the viewport's scale, centre, and bounds change every frame and deliberately never wake the batched watcher. With "
+					"text": " cadence is the one selector mistake that fails silently — the projection simply appears frozen, because the viewport's scale, center, and bounds change every frame and deliberately never wake the batched watcher. With "
 				},
 				{
 					"type": "text",
@@ -6397,7 +6397,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", which wins over the URL parameter. A content state's region is honoured when the canvas it names opens, so supply it with the content state rather than assigning "
+					"text": ", which wins over the URL parameter. A content state's region is honored when the canvas it names opens, so supply it with the content state rather than assigning "
 				},
 				{
 					"type": "text",

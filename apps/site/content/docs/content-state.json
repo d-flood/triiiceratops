@@ -1906,7 +1906,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "node scripts/recipe-drift.mjs                        # all 67 catalogued recipes\nnode scripts/recipe-drift.mjs --recipe 0009-book-1   # spot-check one"
+					"text": "node scripts/recipe-drift.mjs                        # all 67 cataloged recipes\nnode scripts/recipe-drift.mjs --recipe 0009-book-1   # spot-check one"
 				}
 			]
 		}
