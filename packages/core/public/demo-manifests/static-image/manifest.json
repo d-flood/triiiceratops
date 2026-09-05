@@ -1,0 +1,71 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/demo-manifests/static-image/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Static-image renderer fixture"]
+    },
+    "summary": {
+        "en": [
+            "A manifest whose canvases paint plain static images with no image service at all (spec, user story 29). Canvas 1 is the numbered-grid image the geometric e2e assertions locate features in; its Canvas dimensions deliberately equal the image's pixel dimensions, so canvas space and image space coincide and an expected screen coordinate can be written down by hand."
+        ]
+    },
+    "items": [
+        {
+            "id": "/demo-manifests/static-image/canvas/grid",
+            "type": "Canvas",
+            "label": { "en": ["Numbered grid"] },
+            "width": 1200,
+            "height": 900,
+            "items": [
+                {
+                    "id": "/demo-manifests/static-image/page/grid",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/static-image/annotation/grid",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/demo-manifests/static-image/numbered-grid.png",
+                                "type": "Image",
+                                "format": "image/png",
+                                "width": 1200,
+                                "height": 900
+                            },
+                            "target": "/demo-manifests/static-image/canvas/grid"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/demo-manifests/static-image/canvas/plain",
+            "type": "Canvas",
+            "label": { "en": ["Plain static image"] },
+            "width": 400,
+            "height": 300,
+            "items": [
+                {
+                    "id": "/demo-manifests/static-image/page/plain",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/demo-manifests/static-image/annotation/plain",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23fef3c7'/%3E%3Crect x='40' y='40' width='320' height='220' fill='%23b45309'/%3E%3C/svg%3E",
+                                "type": "Image",
+                                "format": "image/svg+xml",
+                                "width": 400,
+                                "height": 300
+                            },
+                            "target": "/demo-manifests/static-image/canvas/plain"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

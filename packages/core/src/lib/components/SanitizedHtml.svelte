@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { sanitizeHtml, sanitizeHtmlSync } from '../utils/sanitizeHtml';
+    import { renderIiifRichText } from '../utils/sanitizeHtml';
     import type { ClassValue, SvelteHTMLElements } from 'svelte/elements';
 
     interface Props {
@@ -14,47 +14,29 @@
         tag = 'div',
     }: Props = $props();
 
-    let sanitizedHtml = $state('');
+    let host: Element | undefined = $state();
 
+    /*
+     * Rich text is rendered as nodes, not markup: `renderIiifRichText` returns a
+     * fragment it built itself from IIIF's allowlist, and it goes into the host
+     * element by replacement. There is no `{@html}` here and no string that
+     * needs certifying, so this path no longer depends on the Trusted Types
+     * default policy.
+     *
+     * The host owns no Svelte-managed children, so `replaceChildren` is not
+     * fighting the compiler over the same DOM. It is also the reset: a new
+     * `html` prop clears the previous render in the same call.
+     */
     $effect(() => {
-        const content = html || '';
-        const syncSanitized = sanitizeHtmlSync(content);
-
-        if (syncSanitized !== null) {
-            sanitizedHtml = syncSanitized;
-            return;
-        }
-
-        sanitizedHtml = '';
-
-        if (!content) {
-            return;
-        }
-
-        let cancelled = false;
-
-        sanitizeHtml(content)
-            .then((result) => {
-                if (!cancelled && html === content) {
-                    sanitizedHtml = result;
-                }
-            })
-            .catch(() => {
-                if (!cancelled && html === content) {
-                    sanitizedHtml = '';
-                }
-            });
-
-        return () => {
-            cancelled = true;
-        };
+        const fragment = renderIiifRichText(html || '');
+        // The host's children are ours alone; the template declares none. See
+        // lint-allowlist.md entry 9.
+        // eslint-disable-next-line svelte/no-dom-manipulating
+        host?.replaceChildren(fragment);
     });
 </script>
 
-<svelte:element this={tag} class={className}>
-    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-    {@html sanitizedHtml}
-</svelte:element>
+<svelte:element this={tag} bind:this={host} class={className}></svelte:element>
 
 <style>
     :global(.viewer-html) {

@@ -19,12 +19,15 @@ export { svgIcon, SvgIconError } from './svgIcon.js';
 // Shape a plugin's global stylesheet + install id for the SDK style service.
 export { definePluginStyles } from './pluginStyles.js';
 
-// Await OSD readiness before touching the raw OpenSeadragon viewer.
-export { whenOsdReady } from './osd.js';
-export type { WhenOsdReadyOptions } from './osd.js';
+// Await renderer readiness before asking the viewport for coordinates.
+export { whenRendererReady } from './renderer.js';
+export type { WhenRendererReadyOptions } from './renderer.js';
 
 // Report user-driven command failures through the structured host channel.
-export { dispatchPluginCommandError } from './reportError.js';
+export {
+    createCommandErrorReporter,
+    dispatchPluginCommandError,
+} from './reportError.js';
 
 // Activation (per viewer, isolated context).
 export { activatePlugin, runActivation } from './activate.js';
@@ -42,7 +45,7 @@ export {
 } from './compatibility.js';
 export type { PluginCompatibilityReason } from './compatibility.js';
 
-// Stub services (ticket 08 supplies real, host-owned implementations).
+// Stub services; core supplies the real, host-owned implementations.
 export {
     createStubStyleService,
     createStubLocaleService,

@@ -26,7 +26,7 @@ export const CSS_VAR_MAP: Record<
     error: '--tri-color-error',
     errorContent: '--tri-color-error-content',
 
-    // Surfaces (region-named; replace the old base-100/200/300 scale)
+    // Surfaces
     viewerBg: '--tri-viewer-bg',
     toolbarBg: '--tri-toolbar-bg',
     panelBg: '--tri-panel-bg',

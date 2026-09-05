@@ -3,11 +3,22 @@ import {
     getRegionString,
     type ResolvedCanvasImage,
 } from './resolveCanvasImage';
+import { parseImageService } from '../renderer/imageService';
 import {
-    createIiifTileSource,
-    isIiifLevel0Profile,
-    getFullImageUrlForLevel,
-} from '../components/osdTileSources';
+    buildSizeLadder,
+    isLevel0Profile,
+    ladderFromPyramid,
+    rungUrl,
+    type LadderRung,
+    type SizeLadder,
+} from '../renderer/sizeLadder';
+import {
+    buildPyramid,
+    tileRegion,
+    tileUrl,
+    type PyramidLevel,
+    type TilePyramid,
+} from '../renderer/tilePyramid';
 
 // Browsers cap 2D canvas dimensions/area (commonly ~16k px per side and/or
 // ~268MP total). Stay well under that so composite/world exports never
@@ -74,7 +85,65 @@ export async function fetchImageBlob(
     return response.blob();
 }
 
-async function loadImageElement(blob: Blob): Promise<HTMLImageElement> {
+/**
+ * How a browser reports that an image server declined to let this page read its
+ * images. Matched on the message as well as the type, because a bare
+ * `instanceof TypeError` would also swallow ordinary programming mistakes and
+ * report them to the reader as somebody else's policy.
+ */
+const CROSS_ORIGIN_FETCH_MESSAGE =
+    /failed to fetch|networkerror|load failed|cross-origin|cors/i;
+
+/**
+ * Whether a failed export was the image server refusing this page permission to
+ * read its images, rather than anything the viewer did wrong.
+ *
+ * Worth telling apart because the two need opposite responses. A 404 or a
+ * malformed manifest is a defect somebody can fix; this is a deliberate policy
+ * decision by whoever runs the image server, and the only honest thing a viewer
+ * can do is say so and stop. There is no retry, and no workaround that would not
+ * be a circumvention.
+ *
+ * The distinction is invisible to script by design: a browser reports a blocked
+ * cross-origin read as an opaque network failure precisely so a page cannot
+ * learn anything from it. So this recognises the *shapes* browsers use — a
+ * `TypeError` from `fetch` in each engine's wording, and the `SecurityError` a
+ * canvas raises when asked to hand back pixels drawn from an image it was not
+ * allowed to read.
+ *
+ * One reader for every export path: a plugin that matched only the `fetch`
+ * shapes reported a canvas taint as a generic failure and offered no proxy hint.
+ */
+export function isCrossOriginImageFailure(error: unknown): boolean {
+    if (
+        typeof DOMException !== 'undefined' &&
+        error instanceof DOMException &&
+        error.name === 'SecurityError'
+    ) {
+        return true;
+    }
+
+    return (
+        error instanceof Error &&
+        error.name === 'TypeError' &&
+        CROSS_ORIGIN_FETCH_MESSAGE.test(error.message)
+    );
+}
+
+/**
+ * One segment of a download filename, reduced to what every filesystem accepts.
+ */
+export function sanitizeFilenamePart(value: string): string {
+    return value
+        .replace(/[^a-z0-9-_]+/gi, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+}
+
+/**
+ * Decode a blob into an `<img>`, revoking the object URL either way.
+ */
+export async function loadImageElement(blob: Blob): Promise<HTMLImageElement> {
     const objectUrl = URL.createObjectURL(blob);
     try {
         return await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -165,15 +234,20 @@ export function clampCompositeSize(
 
 /**
  * Builds the export request URL for a single resolved image at an optional
- * target pixel size. Level0 services can only be requested at their native
- * size (or one of the fixed sizes surfaced by `resolveExportSizeOptions`),
- * so any explicit width/height is ignored for them.
+ * target pixel size.
+ *
+ * A level0 service has no request URL derivable from the manifest at all: what
+ * it will answer is only knowable from `info.json`, and the base URI those
+ * requests go to can differ from the one that fetched the document (see
+ * {@link fetchExportImageBlob}). So this reports the published resource — the
+ * one image such a manifest guarantees without asking — and callers that can
+ * afford a fetch should go through `fetchExportImageBlob` instead of this.
  */
 export function getResolvedImageExportUrl(
     resolved: ResolvedCanvasImage,
     options: { width?: number; height?: number } = {},
 ): string | null {
-    if (isIiifLevel0Profile(resolved.serviceProfile)) {
+    if (isLevel0Profile(resolved.serviceProfile)) {
         return resolved.resourceId ?? null;
     }
 
@@ -194,60 +268,303 @@ export function getResolvedImageExportUrl(
     return resolved.resourceId ?? null;
 }
 
+/**
+ * Whether a manifest's declared image-service profile is level0 — the one fact
+ * that decides whether an exporter may build a request URL from the manifest at
+ * all, or has to read `info.json` first (see {@link fetchExportImageBlob}).
+ *
+ * A thin alias over `renderer/sizeLadder.isLevel0Profile`, exported so both
+ * export plugins can ask it without the renderer's whole source model becoming
+ * public API. What it saves a caller is the three spellings a profile uses in the
+ * wild — the bare version 3 token, the version 2 profile URI, and the version 1
+ * `#level0` fragment — the last of which hand-rolled checks reliably miss.
+ */
+export function isLevel0ImageService(profile: unknown): boolean {
+    return isLevel0Profile(profile);
+}
+
+/**
+ * A level0 service's exportable resolutions, read from its own `info.json`.
+ *
+ * A level0 service serves only precomputed derivatives, so an export ladder for
+ * one is not a set of fractions of the original — it is the list of images that
+ * actually exist. Derived through the renderer's own source model
+ * (`renderer/tilePyramid` and `renderer/sizeLadder`), which is the second
+ * consumer that model has: what export offers and what the renderer requests
+ * are the same list, built by the same code.
+ *
+ * `pyramid` is the distinction between the two level0 shapes, and it decides how
+ * a resolution is fetched rather than merely which ones exist — see
+ * {@link level0RungUrl}.
+ */
+type Level0Export = {
+    ladder: SizeLadder;
+    /** Non-null exactly when the service advertises a tile grid. */
+    pyramid: TilePyramid | null;
+};
+
+/**
+ * `info.json` for a service, or `null` if it did not arrive or is not one.
+ *
+ * Deliberately its own fetch rather than the renderer's page-shared
+ * `imageServiceCache`: an auth gateway that signs `info.json`'s `id` signs it
+ * with an expiry, and the cache's whole point is that it never refetches. A
+ * download that reused a base URI captured when the canvas first came into view
+ * would 401 in exactly the sessions the signing exists for.
+ */
+async function fetchServiceFacts(serviceId: string) {
+    try {
+        const response = await fetch(`${serviceId}/info.json`);
+        if (!response.ok) return null;
+        return parseImageService(await response.json());
+    } catch {
+        return null;
+    }
+}
+
+async function resolveLevel0Export(
+    resolved: ResolvedCanvasImage,
+): Promise<Level0Export | null> {
+    if (!resolved.serviceId) return null;
+
+    // `resolveCanvasImage` already strips this, but a caller may hand us a
+    // `ResolvedCanvasImage` it built itself.
+    const serviceId = resolved.serviceId.endsWith('/info.json')
+        ? resolved.serviceId.slice(0, -'/info.json'.length)
+        : resolved.serviceId;
+
+    const facts = await fetchServiceFacts(serviceId);
+    if (!facts) return null;
+
+    const pyramid = buildPyramid(serviceId, facts);
+    const ladder = pyramid
+        ? ladderFromPyramid(pyramid)
+        : buildSizeLadder(serviceId, facts);
+    if (!ladder) return null;
+
+    return { ladder, pyramid };
+}
+
+/**
+ * The whole-image request URL for one rung, or `null` when the service holds no
+ * single file for it.
+ *
+ * A service advertising only `sizes[]` has nothing but whole images, so every
+ * rung is one request. A **static tile tree** is different, and the difference
+ * is the bug this function exists to state: the files it holds are its tiles,
+ * plus the full-size whole image that level0 compliance requires at the
+ * canonical whole-image URL. It need not hold a whole-image derivative at every
+ * scale factor, and the trees in the wild do not — asking for one 404s, which is
+ * what a size picker offering six resolutions and delivering one looked like.
+ * `null` sends the caller to {@link composePyramidLevel}, which asks for the
+ * tiles instead: the exact URLs the renderer paints that level with.
+ */
+function level0RungUrl(
+    { ladder, pyramid }: Level0Export,
+    rung: LadderRung,
+): string | null {
+    if (!pyramid) return rungUrl(ladder, rung);
+
+    const isFullSize =
+        rung.width === ladder.width && rung.height === ladder.height;
+    return isFullSize ? rungUrl(ladder, rung) : null;
+}
+
+/** Whether `composeImages` can hold an image this large. */
+function canCompose(width: number, height: number): boolean {
+    return (
+        width <= MAX_CANVAS_DIMENSION &&
+        height <= MAX_CANVAS_DIMENSION &&
+        width * height <= MAX_CANVAS_AREA
+    );
+}
+
+/** Whether an export can produce this rung at all, by either route. */
+function isRungExportable(
+    source: Level0Export,
+    rung: LadderRung,
+    level: PyramidLevel | undefined,
+): boolean {
+    if (level0RungUrl(source, rung)) return true;
+    return Boolean(level) && canCompose(rung.width, rung.height);
+}
+
+/**
+ * One pyramid level as a single image, stitched from its tiles.
+ *
+ * The tile URLs and the tile geometry both come from `renderer/tilePyramid`, so
+ * this asks for precisely the files the viewer is already displaying — including
+ * the partial tiles at the right and bottom edges, and including the request
+ * spelling a static version 3 tree needs (`tileUrl` owns that, and this must not
+ * learn it a second time). Each tile is drawn at the size it was requested at,
+ * so the composite is exact and not resampled.
+ */
+async function composePyramidLevel(
+    pyramid: TilePyramid,
+    level: PyramidLevel,
+    format: 'image/png' | 'image/jpeg',
+    imageRequest: RequestInit | undefined,
+): Promise<Blob> {
+    const entries: ComposeImageEntry[] = [];
+
+    for (let row = 0; row < level.rows; row += 1) {
+        for (let column = 0; column < level.columns; column += 1) {
+            const region = tileRegion(pyramid, level, column, row);
+            entries.push({
+                blob: await fetchImageBlob(
+                    tileUrl(pyramid, level, column, row),
+                    imageRequest,
+                ),
+                // Region offsets are whole multiples of the tile span, so this
+                // is exact: no seam can open up from rounding.
+                x: column * pyramid.tileSize,
+                y: row * pyramid.tileSize,
+                width: Math.max(1, Math.ceil(region.width / level.scaleFactor)),
+                height: Math.max(
+                    1,
+                    Math.ceil(region.height / level.scaleFactor),
+                ),
+            });
+        }
+    }
+
+    return composeImages(entries, level.width, level.height, format);
+}
+
+/**
+ * The rung to serve a request for `width` from: the smallest that is at least as
+ * wide, so the caller downsamples rather than upscales, and the largest
+ * available when none is big enough. With no width asked for, the largest —
+ * "Original".
+ */
+function pickRung(ladder: SizeLadder, width?: number): LadderRung {
+    const rungs = ladder.rungs;
+    const largest = rungs[rungs.length - 1];
+    if (!width) return largest;
+    return rungs.find((rung) => rung.width >= width) ?? largest;
+}
+
+async function fetchLevel0Blob(
+    source: Level0Export,
+    width: number | undefined,
+    format: 'image/png' | 'image/jpeg',
+    imageRequest: RequestInit | undefined,
+): Promise<Blob> {
+    const { ladder, pyramid } = source;
+    const rung = pickRung(ladder, width);
+    const url = level0RungUrl(source, rung);
+    if (url) return fetchImageBlob(url, imageRequest);
+
+    const level = pyramid?.levels[rung.index];
+    // A level too large to stitch onto one canvas falls back to the full-size
+    // whole image, which is a single request and always exists. That is more
+    // pixels than were asked for, never fewer, so a caller drawing it into a
+    // placement box still gets the right picture.
+    if (!level || !canCompose(rung.width, rung.height)) {
+        return fetchImageBlob(
+            rungUrl(ladder, ladder.rungs[ladder.rungs.length - 1]),
+            imageRequest,
+        );
+    }
+
+    return composePyramidLevel(pyramid!, level, format, imageRequest);
+}
+
+/**
+ * The pixels for one resolved image at (about) a target width — however many
+ * requests that takes.
+ *
+ * The seam an exporter should reach for instead of
+ * {@link getResolvedImageExportUrl}, because for a level0 source no single URL
+ * is the answer: the base URI to request from is only in `info.json` (an auth
+ * gateway can sign it), and a static tile tree may hold the wanted resolution
+ * only as tiles. Both are handled here so that every export mode — one image, a
+ * composited canvas, the whole current view — gets them by construction rather
+ * than each reimplementing the parts it happens to need.
+ *
+ * `target.url` is the fast path: an {@link ExportSizeOption} that carries one is
+ * already a single canonical request, so passing the option straight through
+ * spends no extra fetch.
+ *
+ * `target.imageRequest` is merged into every image request this makes — a
+ * resolution assembled from tiles carries it on each tile — so a service behind
+ * authentication is reached the same way whatever its compliance level. It
+ * cannot make a service that withholds `Access-Control-Allow-Origin` readable;
+ * nothing in the browser can, and an export against one fails.
+ */
+export async function fetchExportImageBlob(
+    resolved: ResolvedCanvasImage,
+    target: {
+        url?: string;
+        width?: number;
+        height?: number;
+        format?: 'image/png' | 'image/jpeg';
+        imageRequest?: RequestInit;
+    } = {},
+): Promise<Blob> {
+    const { imageRequest } = target;
+
+    if (target.url) return fetchImageBlob(target.url, imageRequest);
+
+    if (isLevel0Profile(resolved.serviceProfile)) {
+        const source = await resolveLevel0Export(resolved);
+        if (source) {
+            return fetchLevel0Blob(
+                source,
+                target.width,
+                target.format ??
+                    (source.ladder.format === 'png'
+                        ? 'image/png'
+                        : 'image/jpeg'),
+                imageRequest,
+            );
+        }
+        // `info.json` never arrived. The published resource is all that is left,
+        // and it is what this path returned unconditionally before.
+    }
+
+    const url = getResolvedImageExportUrl(resolved, {
+        width: target.width,
+        height: target.height,
+    });
+    if (!url) {
+        throw new Error('No exportable image found for this canvas.');
+    }
+    return fetchImageBlob(url, imageRequest);
+}
+
 async function resolveLevel0SizeOptions(
     resolved: ResolvedCanvasImage,
 ): Promise<ExportSizeOption[]> {
-    if (!resolved.serviceId) return [];
+    const source = await resolveLevel0Export(resolved);
+    if (!source) return [];
 
-    const infoUrl = resolved.serviceId.endsWith('/info.json')
-        ? resolved.serviceId
-        : `${resolved.serviceId}/info.json`;
+    const { ladder, pyramid } = source;
+    const seen = new Set<string>();
+    const options: ExportSizeOption[] = [];
 
-    try {
-        const response = await fetch(infoUrl);
-        if (!response.ok) return [];
-        const data = await response.json();
+    for (const rung of ladder.rungs) {
+        const key = `${rung.width}x${rung.height}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
 
-        const osdModule = await import('openseadragon');
-        const OSD = (osdModule as any).default || osdModule;
-        const tileSource = createIiifTileSource(OSD, data, infoUrl);
-
-        if (
-            !tileSource ||
-            typeof tileSource.minLevel !== 'number' ||
-            typeof tileSource.maxLevel !== 'number' ||
-            typeof tileSource.getLevelScale !== 'function'
-        ) {
-            return [];
+        // Only offer what can actually be delivered. A picker listing a
+        // resolution the service will not answer is worse than a shorter list.
+        if (!isRungExportable(source, rung, pyramid?.levels[rung.index])) {
+            continue;
         }
 
-        const seen = new Set<string>();
-        const options: ExportSizeOption[] = [];
-
-        for (
-            let level = tileSource.minLevel;
-            level <= tileSource.maxLevel;
-            level += 1
-        ) {
-            const scale = tileSource.getLevelScale(level);
-            const width = Math.ceil(tileSource.width * scale);
-            const height = Math.ceil(tileSource.height * scale);
-            const key = `${width}x${height}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-
-            options.push({
-                width,
-                height,
-                label: `${width} × ${height}px`,
-                url: getFullImageUrlForLevel(tileSource, level),
-            });
-        }
-
-        return options.sort((a, b) => b.width - a.width);
-    } catch {
-        return [];
+        options.push({
+            width: rung.width,
+            height: rung.height,
+            label: `${rung.width} × ${rung.height}px`,
+            // Omitted for a rung that has to be stitched from tiles: there is
+            // no one URL for it, which is exactly what `url` documents.
+            url: level0RungUrl(source, rung) ?? undefined,
+        });
     }
+
+    return options.sort((a, b) => b.width - a.width);
 }
 
 export const EXPORT_RESOLUTION_PRESETS = [
@@ -325,7 +642,7 @@ function resolvePresetSizeOptions(
 export async function resolveExportSizeOptions(
     resolved: ResolvedCanvasImage,
 ): Promise<ExportSizeOption[]> {
-    if (isIiifLevel0Profile(resolved.serviceProfile)) {
+    if (isLevel0Profile(resolved.serviceProfile)) {
         const levelOptions = await resolveLevel0SizeOptions(resolved);
         if (levelOptions.length) return levelOptions;
 

@@ -87,14 +87,16 @@
         "dev": "vite",
         "build": "vite build",
         "gen:icons": "node ./scripts/generate-icons.ts",
-        "predev": "pnpm gen:icons",
-        "pretest": "pnpm gen:icons",
-        "precheck": "pnpm gen:icons",
-        "build:lib": "pnpm gen:icons && paraglide-js compile --project ./project.inlang --outdir ./src/paraglide && rm -rf ./src/lib/paraglide && cp -r ./src/paraglide ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && node ./src/packaging/pruneDist.ts && node ./src/packaging/inlineUi.ts && vite build --config vite.config.lib.ts && vite build --config vite.config.styles.ts && rm -f dist/triiiceratops-styles.js && pnpm check:dts-svelte-types",
+        "predev": "pnpm gen:icons && pnpm gen:state",
+        "pretest": "pnpm gen:icons && pnpm gen:state",
+        "precheck": "pnpm gen:icons && pnpm gen:state",
+        "build:lib": "pnpm gen:icons && pnpm gen:state && paraglide-js compile --project ./project.inlang --outdir ./src/paraglide && rm -rf ./src/lib/paraglide && cp -r ./src/paraglide ./src/lib/paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && node ./src/packaging/pruneDist.ts && node ./src/packaging/inlineUi.ts && vite build --config vite.config.lib.ts && vite build --config vite.config.styles.ts && rm -f dist/triiiceratops-styles.js && pnpm check:dts-svelte-types",
         "build:testing": "vite build --config vite.config.testing.ts && pnpm check:testing-entry",
         "check:testing-entry": "node ./scripts/check-testing-entry.mjs",
-        "build:element": "vite build --config vite.config.element.ts && vite build --config vite.config.element-esm.ts && pnpm check:element-artifact && pnpm check:framework-entries",
+        "build:element": "pnpm gen:icons && pnpm gen:state && pnpm check:icon-coverage && vite build --config vite.config.element.ts && vite build --config vite.config.element-esm.ts && pnpm check:element-artifact && pnpm check:framework-entries && pnpm check:element-size",
+        "check:icon-coverage": "node ./scripts/check-icon-coverage.mjs",
         "check:element-artifact": "node ./scripts/check-element-artifact.mjs",
+        "check:element-size": "node ../../scripts/size-check.mjs",
         "check:framework-entries": "node ./scripts/check-framework-entries.mjs",
         "build:demo": "vite build --config vite.config.demo.ts && mkdir -p ../../docs/demo && cp -r ../../docs/viewer/. ../../docs/demo/.",
         "build:svelte-demo": "vite build --config vite.config.svelte-demo.ts",
@@ -112,7 +114,8 @@
         "lint:fix": "eslint . --fix --max-warnings 0",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "test:coverage": "vitest run --coverage"
+        "test:coverage": "vitest run --coverage",
+        "gen:state": "node ./scripts/generate-state-members.ts"
     },
     "devDependencies": {
         "@axe-core/playwright": "^4.12.1",
@@ -146,16 +149,12 @@
         "react-dom": "19.2.7",
         "svelte": "^5.43.8",
         "svelte-check": "^4.3.4",
+        "terser": "^5.49.2",
         "typescript": "~5.9.3",
         "typescript-eslint": "^8.53.1",
         "vite": "^6.0.0",
         "vite-plugin-dts": "^4.5.4",
         "vitest": "^4.0.15",
         "vue": "3.5.40"
-    },
-    "dependencies": {
-        "@types/openseadragon": "^5.0.1",
-        "dompurify": "^3.4.11",
-        "openseadragon": "^5.0.1"
     }
 }

@@ -1,5 +1,5 @@
 /**
- * Per-viewer plugin locale service (ticket 08).
+ * Per-viewer plugin locale service.
  *
  * Combines the owning viewer's active-locale source (CONTEXT.md **Active
  * locale**) with the plugin's own package-owned {@link LocaleCatalog} to produce
@@ -10,7 +10,7 @@
  * Core builds this because it owns both the active locale (an inventoried
  * observable member) and the resolution algorithm; the catalog is plugin-owned
  * data that reaches core through `SdkPluginMeta.catalog`. The SDK's test kit
- * (ticket 14) supplies a recording double of this service instead.
+ * supplies a recording double of this service instead.
  */
 
 import type { LocaleCatalog, PluginLocaleService } from '../types/plugin';

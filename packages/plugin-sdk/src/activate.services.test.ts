@@ -1,10 +1,9 @@
-// Activation service wiring + auto-cleanup tests (ticket 08).
+// Activation service wiring + auto-cleanup tests.
 //
 // The SDK passes the host's style/locale/ui services through to the plugin
 // context, and — regardless of whether the plugin cleaned up after itself —
 // releases every style install and locale subscription it made when the
-// activation is deactivated. These are the seams ticket 14 replaces with
-// recording doubles.
+// activation is deactivated.
 
 import { describe, expect, it, vi } from 'vitest';
 

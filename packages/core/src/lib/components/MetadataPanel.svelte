@@ -4,12 +4,7 @@
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages, language } from '../state/i18n.svelte';
     import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
-    import {
-        normalizeIiifLinks,
-        normalizeMetadataEntries,
-        resolveHtmlValues,
-    } from '../utils/metadataNormalization';
-    import { resolveLanguageValue } from '../utils/languageMap';
+    import { normalizeDescriptiveMetadata } from '../utils/metadataNormalization';
     import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
@@ -17,105 +12,31 @@
     let { embedded = false }: { embedded?: boolean } = $props();
     let viewerLocale = $derived(viewerState.config.locale ?? language.current);
 
-    // Raw IIIF Manifest JSON, v2 or v3 as the publisher authored it. Every read
-    // below covers BOTH versions: the `manifesto.js` accessors this panel used
-    // to fall back to (`getLabel`, `getDescription`, `getMetadata`,
-    // `getRequiredStatement`, `getLicense`) were the ONLY reader of the v2
-    // spelling for four of them, so deleting them without adding the v2
-    // property read would have blanked the panel on every v2 manifest
-    // (SPEC → "The governing rule for the whole epic").
+    // Raw IIIF Manifest JSON, v2 or v3 as the publisher authored it. The
+    // version mapping lives in `normalizeDescriptiveMetadata`; this panel only
+    // supplies the display fallbacks, which are locale-dependent and so cannot.
     let json = $derived(viewerState.manifestEntry?.json);
+    let described = $derived(normalizeDescriptiveMetadata(json, viewerLocale));
 
-    // --- Title ---
-    // v2 and v3 both spell it `label`; v2 may write a bare string or a
-    // `[{"@value","@language"}]` array, which `resolveLanguageValue` reads.
-    let title = $derived.by(() => {
-        if (!json) return m.loading();
-        const resolved = resolveLanguageValue(json.label, viewerLocale);
-        return resolved || m.metadata_label_fallback();
-    });
+    let title = $derived(
+        !json ? m.loading() : described.title || m.metadata_label_fallback(),
+    );
+    let attributionLabel = $derived(
+        described.attributionLabel || m.attribution(),
+    );
 
-    let manifestThumbnail = $derived.by(() => {
-        return resolveThumbnailResourceSrc(json?.thumbnail);
-    });
+    let manifestThumbnail = $derived(
+        resolveThumbnailResourceSrc(json?.thumbnail),
+    );
 
-    // --- Summary (v3) or Description (v2) ---
-    let summary = $derived.by(() => {
-        if (!json) return '';
-        return resolveLanguageValue(
-            json.summary ?? json.description,
-            viewerLocale,
-        );
-    });
-
-    // --- Metadata entries ---
-    // `metadata` is the same property name in both versions.
-    let metadata = $derived.by(() => {
-        return normalizeMetadataEntries(json?.metadata, viewerLocale);
-    });
-
-    // --- Attribution (requiredStatement) ---
-    let attributionLabel = $derived.by(() => {
-        const statement = json?.requiredStatement;
-        if (!statement?.label) return m.attribution();
-        return (
-            resolveLanguageValue(statement.label, viewerLocale) ||
-            m.attribution()
-        );
-    });
-
-    let attribution = $derived.by(() => {
-        // v3 `requiredStatement.value`; v2 spells the same idea `attribution`,
-        // as a bare value with no label of its own.
-        const statement = json?.requiredStatement;
-        if (statement?.value) {
-            return resolveHtmlValues(statement.value, viewerLocale);
-        }
-
-        return resolveHtmlValues(json?.attribution, viewerLocale);
-    });
-
-    // --- License / Rights ---
-    let license = $derived.by(() => {
-        // v3 uses `rights`, v2 uses `license`. v2 permits several; the panel
-        // renders one link, so take the first and ignore any non-URI shape
-        // rather than rendering `[object Object]`.
-        const raw = json?.rights || json?.license;
-        const value = Array.isArray(raw) ? raw[0] : raw;
-        return typeof value === 'string' ? value : '';
-    });
-
-    // --- Provider (0234) ---
-    let providers = $derived.by(() => {
-        if (!json?.provider) return [];
-        const raw = Array.isArray(json.provider)
-            ? json.provider
-            : [json.provider];
-        return raw.map((p: any) => {
-            const label = resolveLanguageValue(p.label, viewerLocale) || '';
-            const links = [
-                ...normalizeIiifLinks(p.homepage, viewerLocale),
-                ...normalizeIiifLinks(p.seeAlso, viewerLocale),
-            ];
-            const logos = (
-                Array.isArray(p.logo) ? p.logo : p.logo ? [p.logo] : []
-            )
-                .map((logo: any) =>
-                    typeof logo === 'string' ? logo : logo?.id || logo?.['@id'],
-                )
-                .filter(Boolean);
-            return { label, links, logos };
-        });
-    });
-
-    // --- Homepage (0047) ---
-    let homepages = $derived(normalizeIiifLinks(json?.homepage, viewerLocale));
-
-    // --- Rendering (0046) ---
-    let rendering = $derived(normalizeIiifLinks(json?.rendering, viewerLocale));
-
-    // --- See Also (0053) ---
-    let seeAlso = $derived(normalizeIiifLinks(json?.seeAlso, viewerLocale));
+    let summary = $derived(described.summary);
+    let metadata = $derived(described.metadata);
+    let attribution = $derived(described.attribution);
+    let license = $derived(described.license);
+    let providers = $derived(described.providers);
+    let homepages = $derived(described.homepages);
+    let rendering = $derived(described.rendering);
+    let seeAlso = $derived(described.seeAlso);
 
     let position = $derived(
         viewerState.config.information?.position ?? 'right',

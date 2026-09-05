@@ -1,8 +1,8 @@
 /**
- * Deterministic test double for the adapter unit tests (ticket 13).
+ * Deterministic test double for the adapter unit tests.
  *
- * Adapters bind to the SDK's real selector runtime (`createSelectorRuntime`,
- * ticket 07); the runtime's only dependency on `ViewerState` is `subscribe` plus
+ * Adapters bind to the SDK's real selector runtime (`createSelectorRuntime`);
+ * the runtime's only dependency on `ViewerState` is `subscribe` plus
  * synchronous property reads. This fake supplies exactly that with SYNCHRONOUS
  * notification, so an adapter test can drive a "command" and assert the reaction
  * without Svelte's batched flush timing. High-fidelity exercise against a real,

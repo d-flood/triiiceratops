@@ -773,10 +773,9 @@
         inset-inline-end: 0;
     }
 
-    /* Settings dropdown is a <div> trigger revealed via :focus-within
-       (mirrors the original group-focus-within:visible behavior). The manifest
-       dropdown is a native <details> and is intentionally NOT covered here —
-       it opens/closes through the browser's <details>[open] mechanism. */
+    /* Settings dropdown is a <div> trigger revealed via :focus-within. The
+       manifest dropdown is a native <details> and is intentionally NOT covered
+       here — it opens/closes through the browser's <details>[open] mechanism. */
     .settings-dropdown {
         display: none;
     }

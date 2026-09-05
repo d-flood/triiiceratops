@@ -1,4 +1,4 @@
-// Shared helpers for the API snapshot tooling (ticket 21).
+// Shared helpers for the API snapshot tooling.
 //
 // The declaration mechanism is a d.ts SNAPSHOT (not api-extractor): starting from
 // each package's public entry `.d.ts` files (the `types` targets in its

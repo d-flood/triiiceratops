@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops search excerpts — XSS fixture</title>
+        <!--
+            A hostile `SearchProvider`, in a real browser.
+
+            `SearchHit.before`, `match` and `after` are public API: any host
+            provider, and any remote IIIF Content Search service, fills them.
+            They used to reach four raw `{@html}` sinks, so a search service
+            could execute script in the host page. This fixture returns script
+            and event-handler payloads in every field of both hit shapes; the
+            spec asserts the globals they would set stay unset and that the
+            legitimate excerpt text around them still rendered.
+
+            Loaded from SOURCE through the dev server (like
+            canvas-renderer-wc.html) so the spec needs no build step.
+        -->
+        <!-- Dev-only: installs the renderer e2e handle (see src/devtools). -->
+        <script type="module" src="/src/devtools/register.ts"></script>
+        <script type="module" src="/src/lib/custom-element.ts"></script>
+        <script>
+            // Anything the payloads manage to execute lands here. It must stay
+            // empty.
+            window.__xssFired = [];
+            window.__providerReady = false;
+
+            // Assign the provider only after the element upgrades: a property
+            // set on a not-yet-upgraded element would shadow the accessor.
+            customElements.whenDefined('triiiceratops-viewer').then(() => {
+                const payload =
+                    '<script>window.__xssFired.push("script")<\/script>' +
+                    '<img src="x" onerror="window.__xssFired.push(\'img\')">';
+                document.getElementById('v').searchProvider = async () => [
+                    {
+                        canvasIndex: 0,
+                        canvasLabel: 'Page 1',
+                        hits: [
+                            {
+                                type: 'hit',
+                                before: `legit-before ${payload} `,
+                                match: `${payload}<mark>legit-match</mark>`,
+                                after: ` ${payload} legit-after`,
+                            },
+                            {
+                                type: 'resource',
+                                match: `legit-resource ${payload}`,
+                            },
+                        ],
+                    },
+                ];
+                window.__providerReady = true;
+            });
+        </script>
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            #v {
+                display: block;
+                width: 900px;
+                height: 600px;
+            }
+        </style>
+    </head>
+    <body>
+        <triiiceratops-viewer
+            id="v"
+            manifest-id="/demo-manifests/e2e/manifest.json"
+            theme="dark"
+        ></triiiceratops-viewer>
+    </body>
+</html>

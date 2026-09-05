@@ -5,26 +5,57 @@ description: "Add annotation authoring to the read-only viewer: rectangle, polyg
 
 # Annotation Editor
 
+!!! warning "Paused: unavailable in this release line, and no longer published"
+
+    Annotation editing does not work against this version of the viewer, and
+    `@triiiceratops/plugin-annotation-editor` is no longer published to npm. The
+    viewer's renderer is first-party now, and this plugin's editing surface
+    (`@annotorious/openseadragon`) is built from the raw OpenSeadragon viewer
+    instance that core no longer exposes. Registering the plugin fails closed: it
+    produces a structured `PluginCompatibilityError` naming the retired `osd@5`
+    capability on core's `pluginerror` channel, and the plugin is simply absent —
+    no toolbar button that does nothing. Nothing is thrown and nothing is shown to
+    the reader, so watch that channel (or the debug-gated logger) rather than
+    expecting a visible error. See [ADR 0010](adr/0010-plugin-activation-failures-degrade-silently.md).
+
+    The last working combination is
+    `@triiiceratops/plugin-annotation-editor@1.0.0-rc.7` against
+    `triiiceratops@1.0.0-rc.36`. That plugin version is still on npm and declares
+    a `triiiceratops` peer range (`^1.0.0-rc.33`) that npm will happily satisfy
+    with a core that cannot run it — so if you need annotation editing today, hold
+    core at `1.0.0-rc.36`. Everything below describes that combination.
+
+    The pluggable persistence layer is unaffected: `AnnotationStore`, the
+    `AnnotationStorageAdapter` seam, `LocalStorageAdapter`, the v1 LocalStorage
+    namespace, the persisted W3C annotation format, and the adapter conformance
+    suite at `@triiiceratops/plugin-annotation-editor/testing` all carry forward.
+    Editing returns with the phase-2 drawing layer, built on core's paint hook and
+    input-claim API.
+
 Provides optional annotation authoring on top of the read-only viewer. The plugin supports rectangle, polygon, and point drawing tools, pluggable persistence, and host-provided extension hooks for app-specific workflows.
 
 ## Setup
 
+The commands below pin the last working combination: plugin `1.0.0-rc.7` with
+core held at `1.0.0-rc.36`. Installing the plugin unpinned, or letting core float,
+gets you a viewer the plugin cannot attach to.
+
 === "pnpm"
 
     ```bash
-    pnpm add @triiiceratops/plugin-annotation-editor
+    pnpm add @triiiceratops/plugin-annotation-editor@1.0.0-rc.7 triiiceratops@1.0.0-rc.36
     ```
 
 === "npm"
 
     ```bash
-    npm install @triiiceratops/plugin-annotation-editor
+    npm install @triiiceratops/plugin-annotation-editor@1.0.0-rc.7 triiiceratops@1.0.0-rc.36
     ```
 
 === "bun"
 
     ```bash
-    bun add @triiiceratops/plugin-annotation-editor
+    bun add @triiiceratops/plugin-annotation-editor@1.0.0-rc.7 triiiceratops@1.0.0-rc.36
     ```
 
 Out of the box, `AnnotationEditorPlugin` uses a `LocalStorageAdapter`; add it

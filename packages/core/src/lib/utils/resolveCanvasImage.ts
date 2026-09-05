@@ -22,13 +22,36 @@ export type RegionRect = {
 export type PositionedTileSource = {
     canvasId: string;
     tileSource: TileSource;
+    /** Position and PAINTED extent, normalized by the Canvas's own width. */
     x: number;
     y: number;
     width: number;
+    /**
+     * The whole Canvas box in the same normalized units — 1 unit wide by
+     * construction, and as many tall as the Canvas's aspect ratio. Distinct
+     * from `width` for a source that paints a sub-region, and it is what layout
+     * advances the next canvas past (see `components/canvasLayout`).
+     */
+    canvasBoxWidth: number;
+    canvasBoxHeight: number | null;
 };
 
 type ResolveCanvasImageOptions = {
     getSelectedChoice?: (canvasId: string) => string | undefined;
+    /**
+     * Dimensions to stand in for a Canvas that declares none, instead of
+     * refusing to resolve it at all.
+     *
+     * Opt-in, and deliberately: every caller but one wants a spec-violating
+     * canvas dropped, because it has no geometry to place an image or an
+     * annotation in. The Canvas2D renderer is the exception — it must still lay
+     * such a canvas out, from a median of its siblings, and reflow it if an
+     * image service later reports real dimensions. It reads the
+     * declared dimensions separately, through
+     * {@link getDeclaredCanvasDimensions}, so what it gets back here is only
+     * ever the source descriptor; the placeholder never reaches layout.
+     */
+    fallbackCanvasDimensions?: CanvasDimensions;
 };
 
 type GetViewerTileSourcesParams = {
@@ -54,9 +77,19 @@ export type ResolvedCanvasImage = {
     serviceId: string | null;
     serviceProfile: string | null;
     imageApiRegion: RegionRect | null;
+    /**
+     * The box this image paints on its canvas, in manifest Canvas coordinates
+     * normalized by the canvas's *width* on both axes — the vertical axis
+     * included, so that one vertical unit equals one horizontal unit. A
+     * canvas-filling image is `x: 0, y: 0, width: 1`, making `height` the
+     * canvas's aspect ratio; a region-targeted image gets its target's own box.
+     * This is the authoritative geometry for laying the image out — the image
+     * service's own dimensions describe the pixels, not the placement.
+     */
     x: number;
     y: number;
     width: number;
+    height: number;
 };
 
 type CanvasDimensions = {
@@ -109,15 +142,23 @@ function getCanvasDimensions(canvas: any): CanvasDimensions | null {
     return { width, height };
 }
 
+/**
+ * The `#xywh=` fragment a painting annotation targets, if it targets one.
+ *
+ * `target` is the v3 spelling and `on` the v2 one, and both are read here.
+ * Reading only `target` would silently drop the region of every raw v2
+ * composite canvas — an image painting a sub-rectangle of its canvas would
+ * land at the origin at full size, on top of its siblings.
+ */
 function parseTargetRegion(annotation: any): {
     x: number;
     y: number;
     width: number;
     height: number;
 } | null {
-    const region = normalizeIiifTargets(annotation?.target).find(
-        (target) => target.xywh,
-    )?.xywh;
+    const region = normalizeIiifTargets(
+        annotation?.target ?? annotation?.on,
+    ).find((target) => target.xywh)?.xywh;
 
     if (!region) return null;
 
@@ -198,8 +239,8 @@ function getAnnotationResource(
 ): any | null {
     let resource: any = null;
 
-    // The raw-JSON path, and now the only one. `getPaintingBody` reads the v2
-    // `resource` spelling as well as the v3 `body` one, and
+    // `getPaintingBody` reads the v2 `resource` spelling as well as the v3
+    // `body` one, and
     // `getChoiceAlternatives` recognizes the v2 `oa:Choice`/`default`+`item`
     // spelling as well as v3's `Choice`/`items`, with its array access guarded.
     let body = getPaintingBody(annotation);
@@ -326,6 +367,23 @@ function getHeuristicServiceId(resourceId: string | null): string | null {
 
 export { getCanvasLabel, getCanvasId };
 
+/**
+ * The dimensions a raw Canvas actually declares, or `null` where it declares
+ * none usable.
+ *
+ * Exported so a caller can tell "the manifest says 1200x900" apart from "the
+ * manifest says nothing and something guessed for it" — a distinction
+ * {@link ResolvedCanvasImage} cannot carry, because its `canvasWidth`/
+ * `canvasHeight` are always numbers. The renderer needs it: a declared
+ * dimension is authoritative forever, while a missing one is a placeholder to
+ * be replaced the moment an image service reports the truth.
+ */
+export function getDeclaredCanvasDimensions(
+    canvas: unknown,
+): CanvasDimensions | null {
+    return getCanvasDimensions(canvas);
+}
+
 export function resolveCanvasImage(
     canvas: any,
     options: ResolveCanvasImageOptions = {},
@@ -343,7 +401,8 @@ export function resolveAllCanvasImages(
         return [];
     }
 
-    const canvasDimensions = getCanvasDimensions(canvas);
+    const canvasDimensions =
+        getCanvasDimensions(canvas) ?? options.fallbackCanvasDimensions ?? null;
     if (!canvasDimensions) {
         return [];
     }
@@ -394,12 +453,18 @@ export function resolveAllCanvasImages(
                 serviceProfile: serviceDetails.serviceProfile,
                 imageApiRegion,
                 x: region ? region.x / canvasDimensions.width : 0,
-                // OSD viewport coordinates normalize BOTH axes to the reference
-                // image's width (aspect ratio preserved: 1 vertical unit = 1
-                // horizontal unit = the base image width in px). So the y offset
-                // is divided by width, exactly like x and width — not by height.
+                // This world normalizes BOTH axes by the Canvas's width (aspect
+                // ratio preserved: 1 vertical unit = 1 horizontal unit = the
+                // Canvas's width). So the y offset is divided by width, exactly
+                // like x and width — not by height. The rule outlived the
+                // renderer that introduced it: it is the normalized world the
+                // export path still lays out in (see `components/canvasLayout`,
+                // whose `canvasBoxWidth` is 1 unit wide for the same reason).
                 y: region ? region.y / canvasDimensions.width : 0,
                 width: region ? region.width / canvasDimensions.width : 1,
+                height: region
+                    ? region.height / canvasDimensions.width
+                    : canvasDimensions.height / canvasDimensions.width,
             } satisfies ResolvedCanvasImage;
         })
         .filter((result): result is ResolvedCanvasImage => result !== null);
@@ -467,6 +532,18 @@ export function getCanvasTileSources(
                 x: resolved.x,
                 y: resolved.y,
                 width: resolved.width,
+                // The whole Canvas, in this world's normalized units: `x`,
+                // `y` and `width` above are all divided by the Canvas's own
+                // width, so the Canvas box is 1 unit wide by construction and
+                // as many tall as its aspect ratio. Layout advances by this
+                // rather than by `width`, which is the PAINTED extent and is
+                // less than a whole page whenever the painting annotation
+                // targets a sub-region.
+                canvasBoxWidth: 1,
+                canvasBoxHeight:
+                    resolved.canvasWidth > 0
+                        ? resolved.canvasHeight / resolved.canvasWidth
+                        : null,
             } satisfies PositionedTileSource;
         })
         .filter((result): result is PositionedTileSource => result !== null);

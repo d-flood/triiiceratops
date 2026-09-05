@@ -49,8 +49,8 @@ triiiceratops :: dist/types/config/search.d.ts :: canvases: any[];
 triiiceratops :: dist/types/config/search.d.ts :: manifestJson: any;
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function extractBody(annotation: any): {
 triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function isFullCanvasAnnotation(annotation: any): boolean;
-triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean): ParsedAnnotation | null;
-triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function parseAnnotations(annotations: any[], searchHitIds?: Set<string>): ParsedAnnotation[];
+triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function parseAnnotation(annotation: any, index: number, isSearchHit?: boolean, canvasId?: string | null): ParsedAnnotation | null;
+triiiceratops :: dist/utils/annotationAdapter.d.ts :: export declare function parseAnnotations(annotations: any[], searchHitIds?: Set<string>, canvasId?: string | null): ParsedAnnotation[];
 triiiceratops :: dist/utils/canvasImageSpace.d.ts :: on?: any;
 triiiceratops :: dist/utils/canvasImageSpace.d.ts :: target?: any;
 triiiceratops :: dist/utils/canvasLabels.d.ts :: export declare function getCanvasLabel(canvas: any, fallbackIndex?: number, preferredLocale?: string): string;

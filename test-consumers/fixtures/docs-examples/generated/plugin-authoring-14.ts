@@ -10,7 +10,7 @@ function surfaceAware(context: PluginContext) {
 
     const render = (isOpen: boolean) => {
         if (isOpen) {
-            // Start polling, attach an expensive OSD handler, resume an
+            // Start polling, attach an expensive frame handler, resume an
             // animation — whatever is wasted while nobody can see it.
         } else {
             // Pause it. Keep your state: the plugin is still activated.

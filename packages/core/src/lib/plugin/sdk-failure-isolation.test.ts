@@ -1,5 +1,5 @@
-// Plugin failure isolation & retry (ticket 09), tested at the SDK contract
-// against a LIVE `ViewerState` (real commands, real batched notifications).
+// Plugin failure isolation & retry, tested at the SDK contract against a LIVE
+// `ViewerState` (real commands, real batched notifications).
 //
 // For every guarded phase — setup, mount, command, subscription, cleanup — a
 // failing plugin A is isolated: plugin B and core stay fully functional, and the
@@ -63,7 +63,7 @@ function makePlugin(opts: {
         version: '1.2.3',
         coreRange: opts.coreRange ?? '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
+        requiredCapabilities: [],
         icon: ICON,
         target: 'panel',
         view: {

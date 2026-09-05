@@ -217,8 +217,7 @@
     --tri-color-warning: oklch(79% 0.184 86.047);
     --tri-color-warning-content: oklch(28% 0.066 53.813);
     --tri-color-error: oklch(64% 0.246 16.439);
-    /* Darkened from L27% to L22% so error text meets WCAG AA (4.5:1) on the
-       error fill — the RC teal value was 4.12:1 (ticket 23 contrast fix). */
+    /* L22% so error text meets WCAG AA (4.5:1) contrast on the error fill. */
     --tri-color-error-content: oklch(22% 0.105 12.094);
 
     --tri-viewer-bg: oklch(97.788% 0.004 56.375);

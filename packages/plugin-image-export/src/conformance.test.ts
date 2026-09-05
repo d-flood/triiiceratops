@@ -1,5 +1,5 @@
 /**
- * Plugin conformance suite (ticket 14 test kit).
+ * Plugin conformance suite.
  *
  * `runPluginConformance` mounts the plugin against a REAL test viewer context
  * (real `ViewerState`, real batched notifications) with recording-double

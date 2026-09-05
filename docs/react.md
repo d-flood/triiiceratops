@@ -232,9 +232,10 @@ read. It is never swallowed, never converted into a `viewererror` or
 ### Selector cadence
 
 The `cadence` option chooses which notification wakes a projection: the default
-`state` for anything in the viewer's state inventory, and `frame` for continuous
-OpenSeadragon viewport values (zoom, pan, rotation, bounds) that are deliberately
-not mirrored into viewer state. [Selector cadence](configuration.md#selector-cadence)
+`state` for anything in the viewer's state inventory, and `frame` for the
+query-only viewport values (scale, centre, bounds, container size) that the
+renderer answers per frame and that are deliberately not mirrored into viewer
+state. [Selector cadence](configuration.md#selector-cadence)
 explains the split and why it exists; the React call is one option:
 
 ```tsx
@@ -244,7 +245,7 @@ import type { ViewerHandleSlot } from 'triiiceratops/react';
 export function ZoomReadout({ handle }: { handle: ViewerHandleSlot }) {
     const zoom = useViewerSelector(
         handle,
-        (state) => state.osdViewer?.viewport.getZoom() ?? 1,
+        (state) => state.viewportScale,
         { cadence: 'frame' },
     );
     if (zoom === undefined) return null;
@@ -252,7 +253,8 @@ export function ZoomReadout({ handle }: { handle: ViewerHandleSlot }) {
 }
 ```
 
-Reading *through* `state.osdViewer` at the default `state` cadence is the one
+Reading a query-only viewport value (`viewportScale`, `viewportCentre`,
+`viewportBounds`) at the default `state` cadence is the one
 selector mistake that fails silently — the projection simply appears frozen. See
 [what notifies](configuration.md#what-notifies) for the inventory that decides
 which members a `state`-cadence projection may read.
@@ -524,7 +526,7 @@ nothing is registered.
 On the server, `<TriiiceratopsViewer>` renders an **inert host** — the
 `<triiiceratops-viewer>` tag carrying the attribute tier (`manifest-id`,
 `canvas-id`, `theme`) and your forwarded host attributes, and nothing else. No
-shadow-DOM internals, no property-tier values, no OpenSeadragon. The client's
+shadow-DOM internals, no property-tier values, no renderer. The client's
 first render emits the identical attribute set, so hydration reuses and upgrades
 the same host with no mismatch, and viewer internals initialize only in the
 browser.
@@ -565,13 +567,13 @@ fails fast instead of hanging.
 Three further failure modes are silent by design and surface only under
 `config: { debug: true }` — an unmemoized property-tier prop, a handle created and
 never passed to a viewer, and a `state`-cadence projection reading through
-`osdViewer`. See [debug diagnostics](configuration.md#debug-diagnostics).
+a query-only viewport value. See [debug diagnostics](configuration.md#debug-diagnostics).
 
 ## Testing your own components
 
 `triiiceratops/testing` builds a handle backed by a **real** `ViewerState` — real
 commands, real batched notifications, the real selector runtime `useViewerSelector()`
-consults — with no DOM viewer, no custom element, no OpenSeadragon, and no
+consults — with no DOM viewer, no custom element, no renderer surface, and no
 network. Run it under `jsdom` or `happy-dom` — which a React test runner already
 provides — because the published entry bundles a `fetch` polyfill that reaches for
 a `self` global, so bare Node fails with `ReferenceError: self is not defined`
@@ -627,9 +629,11 @@ command plus `await flush()` is how you drive it.
 
 `createTestViewerHandle()` accepts `{ fixtures }` to seed a config, an active
 locale, or already-parsed manifest JSON (through the real `setManifestData`
-command — still no network). `handle.setOsdViewer(stub)` injects your own
-OpenSeadragon stand-in and fires the real readiness path, which is how a
-`cadence: 'frame'` projection is exercised headlessly; no OSD fake ships with it.
+command — still no network). `handle.attachRenderer()` mounts core's headless
+renderer stand-in and fires the real readiness path, which is how a
+`cadence: 'frame'` projection and the query-only viewport values are exercised
+headlessly. It returns the stand-in, which is also the controller: `setView`
+moves the viewport and `emitFrame` fires one animation event, synchronously.
 
 ## What the wrapper does not do
 

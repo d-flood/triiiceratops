@@ -1,12 +1,7 @@
 /**
- * Utility for parsing IIIF Presentation 3.0 `structures` (Ranges)
- * into a flat tree suitable for rendering a table of contents.
- *
- * IIIF v3 structures are an array of Range objects at the manifest root.
- * Each Range has `items` which may be Canvases or nested Ranges.
- *
- * IIIF v2 structures use `structures` with `@type: "sc:Range"` and
- * `canvases` / `ranges` arrays.
+ * Parses a manifest's `structures` (Ranges) into a flat tree for a table of
+ * contents. IIIF v3 Ranges nest via `items`; IIIF v2 Ranges use `@type:
+ * "sc:Range"` with `canvases` / `ranges` arrays.
  */
 
 import { resolveLanguageValue } from './languageMap';
@@ -43,9 +38,6 @@ function getBehaviors(resource: any): string[] {
     return behaviors.map(normalizeBehavior).filter(Boolean);
 }
 
-/**
- * Parse a single IIIF v3 Range object into a StructureNode.
- */
 function parseV3Range(range: any, depth: number): StructureNode {
     const id = range.id || range['@id'] || '';
     const label = resolveLabel(range.label);
@@ -64,7 +56,6 @@ function parseV3Range(range: any, depth: number): StructureNode {
                 const canvasId = (item.id || item['@id'] || '').split('#')[0];
                 if (canvasId) canvasIds.push(canvasId);
             } else if (typeof item === 'string') {
-                // String reference to a canvas URI
                 const canvasId = item.split('#')[0];
                 if (canvasId) canvasIds.push(canvasId);
             }
@@ -75,8 +66,8 @@ function parseV3Range(range: any, depth: number): StructureNode {
 }
 
 /**
- * Parse a IIIF v2 Range object (`sc:Range`).
- * v2 ranges have `canvases` (array of canvas URIs) and `ranges` (array of range URIs or embedded ranges).
+ * v2 ranges have `canvases` (array of canvas URIs) and `ranges` (array of
+ * range URIs or embedded ranges).
  */
 function parseV2Range(
     range: any,
@@ -89,7 +80,6 @@ function parseV2Range(
     const canvasIds: string[] = [];
     const children: StructureNode[] = [];
 
-    // Canvases
     if (Array.isArray(range.canvases)) {
         for (const c of range.canvases) {
             const cid = (
@@ -175,10 +165,6 @@ export function parseStructures(manifest: any): StructureNode[] {
     return structures.map((r: any) => parseV3Range(r, 0));
 }
 
-/**
- * Given a canvas ID and a list of structure nodes, find the first
- * range node that directly contains the given canvas.
- */
 export function findRangeForCanvas(
     canvasId: string,
     nodes: StructureNode[],
@@ -191,9 +177,6 @@ export function findRangeForCanvas(
     return null;
 }
 
-/**
- * Whether a structure node directly contains the given canvas.
- */
 export function isStructureNodeActive(
     node: StructureNode,
     canvasId: string | null,
@@ -202,9 +185,6 @@ export function isStructureNodeActive(
     return node.canvasIds.includes(canvasId);
 }
 
-/**
- * Get the top-level sequence node index for a structure node id.
- */
 export function getSequenceNodeIndexById(
     nodes: StructureNode[],
     nodeId: string,

@@ -1,11 +1,11 @@
 /**
- * Minimal stub service implementations (ticket 07).
+ * Minimal stub service implementations.
  *
  * The plugin context always exposes `styles`, `locale`, and `ui`. When the host
  * omits them, the SDK fills these harmless stubs so a plugin can be authored and
  * activated end-to-end (e.g. bare `runActivation` with no host services). In
- * production core supplies the real, per-viewer, root-aware services (ticket 08)
- * on the {@link PluginHost}; the SDK only reaches for a stub as a fallback.
+ * production core supplies the real, per-viewer, root-aware services on the
+ * {@link PluginHost}; the SDK only reaches for a stub as a fallback.
  */
 
 import type {

@@ -612,6 +612,58 @@ describe('ViewerState manifest behavior', () => {
         expect(state.annotationVisibilityTouched).toBe(true);
     });
 
+    it('setAllAnnotationsVisible(true) reaches the whole spread, not just the current canvas', async () => {
+        await load(
+            annotatedManifest('http://example.org/manifest/annotations-paged', {
+                [CANVAS_1]: [{ id: 'anno-1' }],
+                [CANVAS_2]: [{ id: 'anno-2' }],
+            }),
+        );
+        state.viewingMode = 'paged';
+        // What the renderer publishes once the spread is on screen; without it
+        // `annotatableCanvasIds` falls back to the current canvas alone.
+        state.visibleCanvasIds = [CANVAS_1, CANVAS_2];
+
+        state.setAllAnnotationsVisible(true);
+
+        // The facing page's annotation is toggleable in the panel, so "all"
+        // has to include it — reading only `canvasId` left it behind.
+        expect([...state.visibleAnnotationIds].sort()).toEqual([
+            'anno-1',
+            'anno-2',
+        ]);
+    });
+
+    it('setAllAnnotationsVisible(true) leaves search hits out of the visibility set', async () => {
+        await load(
+            annotatedManifest('http://example.org/manifest/annotations-hits', {
+                [CANVAS_1]: [{ id: 'anno-1' }],
+            }),
+        );
+        await state.search('anything');
+
+        state.setAllAnnotationsVisible(true);
+
+        // A search hit is always drawn and never toggled.
+        for (const hit of state.searchAnnotations) {
+            expect(state.visibleAnnotationIds.has(hit['@id'])).toBe(false);
+        }
+    });
+
+    it('setDockSide keeps the derived docked flags in step', () => {
+        state.setDockSide('bottom');
+        expect(state.isGalleryDockedBottom).toBe(true);
+        expect(state.isGalleryDockedRight).toBe(false);
+
+        state.setDockSide('right');
+        expect(state.isGalleryDockedBottom).toBe(false);
+        expect(state.isGalleryDockedRight).toBe(true);
+
+        state.setDockSide('none');
+        expect(state.isGalleryDockedBottom).toBe(false);
+        expect(state.isGalleryDockedRight).toBe(false);
+    });
+
     it('setGalleryPosition and setGallerySize replace their values', () => {
         state.setGalleryPosition({ x: 42, y: 84 });
         expect(state.galleryPosition).toEqual({ x: 42, y: 84 });

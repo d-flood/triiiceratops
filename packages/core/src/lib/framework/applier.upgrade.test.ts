@@ -22,12 +22,6 @@ import { createViewerPropApplier } from './applier.js';
 import { viewerElementAttributes } from './props.js';
 import type { TriiiceratopsViewerElement } from './types.js';
 
-vi.mock('openseadragon', async () => {
-    const { createOsdModuleMock } =
-        await import('../test/utils/realViewerElement.js');
-    return createOsdModuleMock();
-});
-
 const { defineRealViewerElement, installInertAnimations, settle, VIEWER_TAG } =
     await import('../test/utils/realViewerElement.js');
 

@@ -14,16 +14,24 @@ import { PUBLIC_CSS_TOKENS } from '../lib/theme/publicTokens';
  * layout — so `import 'triiiceratops/style.css'` produced an unstyled viewer.
  */
 
-// src/build → repo root
-const REPO = resolve(__dirname, '..', '..');
-const dist = (f: string) => resolve(REPO, 'dist', f);
+// src/packaging → package root
+const PACKAGE_ROOT = resolve(__dirname, '..', '..');
+const dist = (f: string) => resolve(PACKAGE_ROOT, 'dist', f);
 
 const THEMES = ['light', 'dark', 'teal', 'dracula'] as const;
 
 function build(config: string) {
     execSync(`pnpm exec vite build --config ${config}`, {
-        cwd: REPO,
+        cwd: PACKAGE_ROOT,
         stdio: 'pipe',
+        // vitest sets NODE_ENV=test, and vite only defaults NODE_ENV when it is
+        // unset — so an inherited environment makes `isProduction` false and
+        // vite-plugin-svelte compile `dev: true`. These builds write into the
+        // real `dist/` with `emptyOutDir: false`, so that dev artifact would sit
+        // there afterwards, in exactly the place `scripts/size-check.mjs` and
+        // `pnpm size:baseline` read: running `pnpm test` and then
+        // `pnpm size:baseline` would re-record a ~1.4 MB bundle as the budget.
+        env: { ...process.env, NODE_ENV: 'production' },
     });
 }
 
@@ -99,8 +107,8 @@ const ROOT_ONLY = /^(?::where\()?\.viewer-root(?:\[[^\]]*\]|\.[\w-]+)*\)?$/;
  *
  * Base tokens must land on the root ALONE. Declared on a descendant they beat
  * the root's `[data-theme=…]` block and `themeConfig` inline styles by cascade,
- * so that subtree silently reverts to the stock light theme — the OSDViewer
- * `class="viewer-root"` regression, from the other end (see
+ * so that subtree silently reverts to the stock light theme — the renderer
+ * wrapper's `class="viewer-root"` regression, from the other end (see
  * viewerRootUnique.test.ts, which guards the markup side).
  */
 function findNonRootTokenDeclarations(css: string): string[] {
@@ -128,8 +136,9 @@ beforeAll(() => {
     // styles MUST run last — the same order as the `build:lib` script.
     build('vite.config.lib.ts');
     build('vite.config.element.ts');
+    build('vite.config.element-esm.ts');
     build('vite.config.styles.ts');
-}, 240_000);
+}, 300_000);
 
 describe('published distributions ship styles + themes', () => {
     describe("Svelte package — 'triiiceratops/style.css' (dist/triiiceratops.css)", () => {
@@ -222,11 +231,123 @@ describe('published distributions ship styles + themes', () => {
                 expect(js, `theme "${theme}" missing`).toContain(theme);
             }
         });
+
+        /*
+         * The end of the chain the other guards check in pieces: whatever the
+         * compile options did, does loading this file put <triiiceratops-viewer>
+         * in the registry, and nothing else?
+         *
+         * Worth running rather than grepping. The entry point hands
+         * `customElements.define` a constructor it read off the compiled
+         * component through an `as unknown as { element: … }` cast, so an
+         * element that was never generated type-checks exactly like one that
+         * was, and reaches `define` as `undefined`. Executing the bundle is also
+         * the one assertion no minifier can mislead.
+         */
+        it('defines exactly the one custom element when loaded', () => {
+            const js = readFileSync(
+                dist('triiiceratops-element.iife.js'),
+                'utf8',
+            );
+            const defined: string[] = [];
+            const define = customElements.define.bind(customElements);
+            customElements.define = (tag, ctor, options) => {
+                defined.push(tag);
+                define(tag, ctor, options);
+            };
+            try {
+                new Function(js)();
+            } finally {
+                customElements.define = define;
+            }
+
+            expect(defined).toEqual(['triiiceratops-viewer']);
+            expect(customElements.get('triiiceratops-viewer')).toBeTypeOf(
+                'function',
+            );
+        });
     });
 
-    // The Annotorious single-source CSS rule moved to
-    // `@triiiceratops/plugin-annotation-editor` with the plugin (ticket 17); its
-    // `styles.ts` now imports `annotorious-openseadragon.css?inline` and installs
-    // it through the SDK style service. Core's own "no Annotorious layer" rule
-    // (above) is what stays here.
+    describe('web component ESM entry — dist/triiiceratops-element.js', () => {
+        /*
+         * The same end-of-chain check for the OTHER artifact. It needs its own
+         * run: the two bundles come out of two different Vite configs and two
+         * different esbuild transpile settings (Vite leaves `minifyWhitespace`
+         * off for an ES lib build), so "the IIFE executes" says nothing about
+         * this one. Nothing else executes it — every other guard on it is a
+         * regex over the text — which is exactly the wrong shape of evidence
+         * for `compress.pure_getters`, whose licence is to delete member
+         * expressions whose value is unused.
+         *
+         * The registration path is idempotent and first-wins
+         * (`defineViewerElement` returns early when the tag is taken), so the
+         * IIFE test above having really defined the tag would make this one
+         * observe nothing. Stub `get` as well as `define`, and the two tests
+         * stop depending on each other's order.
+         */
+        function loadAndCollectDefinitions(js: string): {
+            tags: string[];
+            ctor: CustomElementConstructor | undefined;
+        } {
+            const tags: string[] = [];
+            let ctor: CustomElementConstructor | undefined;
+            const define = customElements.define.bind(customElements);
+            const get = customElements.get.bind(customElements);
+            customElements.define = (tag, c) => {
+                tags.push(tag);
+                ctor = c;
+            };
+            customElements.get = () => undefined;
+            try {
+                new Function(js)();
+            } finally {
+                customElements.define = define;
+                customElements.get = get;
+            }
+            return { tags, ctor };
+        }
+
+        it('defines exactly the one custom element when executed', () => {
+            const js = readFileSync(dist('triiiceratops-element.js'), 'utf8');
+            const { tags, ctor } = loadAndCollectDefinitions(js);
+
+            expect(tags).toEqual(['triiiceratops-viewer']);
+            expect(ctor).toBeTypeOf('function');
+        });
+
+        it('observes every attribute the wrapper declares', () => {
+            // `observedAttributes` is a static getter on Svelte's
+            // custom-element base class, reading the compiled props
+            // definition. Asking the live constructor for it — rather than
+            // grepping the text, which is all the other guards on this
+            // artifact do — is what makes the attribute contract survive the
+            // round trip through two minifiers. Expected values come from the
+            // wrapper source, so the two cannot drift.
+            const wrapper = readFileSync(
+                resolve(
+                    PACKAGE_ROOT,
+                    'src/lib/components/TriiiceratopsViewerElement.svelte',
+                ),
+                'utf8',
+            );
+            const declared = [
+                ...wrapper.matchAll(/attribute:\s*'([a-z-]+)'/g),
+            ].map((m) => m[1]);
+            expect(declared.length).toBeGreaterThan(0);
+
+            const js = readFileSync(dist('triiiceratops-element.js'), 'utf8');
+            const { ctor } = loadAndCollectDefinitions(js);
+            const observed = (
+                ctor as unknown as { observedAttributes: string[] }
+            ).observedAttributes;
+
+            expect(observed).toEqual(expect.arrayContaining(declared));
+        });
+    });
+
+    // The Annotorious single-source CSS rule lives in
+    // `@triiiceratops/plugin-annotation-editor`, whose `styles.ts` imports the
+    // Annotorious stylesheet with `?inline` and installs it through the SDK
+    // style service. Core's own "no Annotorious layer" rule (above) is what
+    // stays here.
 });

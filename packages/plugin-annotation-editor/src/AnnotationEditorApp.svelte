@@ -1,9 +1,9 @@
 <script lang="ts">
     /*
-     * The plugin's mount root. Core owns the chrome (epic
-     * restore-plugin-toolbar-chrome): it renders the toolbar button from the
-     * plugin metadata and the docked-panel / anchored-flyout surface, and hands
-     * `view.mount` a content-only container. This wrapper therefore renders ONLY
+     * The plugin's mount root. Core owns the chrome: it renders the toolbar
+     * button from the plugin metadata and the docked-panel / anchored-flyout
+     * surface, and hands `view.mount` a content-only container. This wrapper
+     * therefore renders ONLY
      * the panel content (the controller) — no toggle button, no `open` state, no
      * self-positioning. Open/close is owned by core, which places (and removes)
      * this content element in its surface.

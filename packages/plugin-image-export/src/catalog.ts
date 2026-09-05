@@ -2,12 +2,11 @@ import type { LocaleCatalog } from '@triiiceratops/plugin-sdk';
 
 /**
  * The plugin's package-owned localization catalog (CONTEXT.md **Active
- * locale**). These strings previously lived in core's `messages/en.json` /
- * `messages/de.json`; migrating the plugin out of core moves them here so the
- * catalog ships with (and evolves with) the plugin, and core's catalogs carry
- * no plugin keys. `en` is the required fallback; a missing key resolves to `en`
- * and then to the key itself. `image_download_result_downloaded` interpolates a
- * `{filename}` param through the locale service.
+ * locale**): ships with the plugin rather than living in core's catalogs, so
+ * core carries no plugin keys. `en` is the required fallback; a missing key
+ * resolves to `en` and then to the key itself.
+ * `image_download_result_downloaded` interpolates a `{filename}` param
+ * through the locale service.
  */
 export const catalog: LocaleCatalog = {
     en: {
@@ -36,6 +35,10 @@ export const catalog: LocaleCatalog = {
         image_download_result_downloaded: 'Downloaded {filename}.',
         image_download_error_failed:
             'Unable to download image. Check the browser console for details.',
+        image_download_error_not_allowed:
+            'This image cannot be downloaded here: {host} does not permit downloads from other websites. Try viewing the image on its own site.',
+        image_download_error_not_allowed_unknown_host:
+            'This image cannot be downloaded here: the image server does not permit downloads from other websites. Try viewing the image on its own site.',
     },
     de: {
         image_download_title: 'Bild herunterladen',
@@ -64,5 +67,9 @@ export const catalog: LocaleCatalog = {
         image_download_result_downloaded: '{filename} heruntergeladen.',
         image_download_error_failed:
             'Bild kann nicht heruntergeladen werden. Details in der Browserkonsole.',
+        image_download_error_not_allowed:
+            'Dieses Bild kann hier nicht heruntergeladen werden: {host} erlaubt keine Downloads von anderen Websites. Rufen Sie das Bild auf der Website des Anbieters auf.',
+        image_download_error_not_allowed_unknown_host:
+            'Dieses Bild kann hier nicht heruntergeladen werden: Der Bildserver erlaubt keine Downloads von anderen Websites. Rufen Sie das Bild auf der Website des Anbieters auf.',
     },
 };

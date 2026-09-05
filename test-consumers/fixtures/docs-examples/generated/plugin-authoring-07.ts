@@ -15,7 +15,7 @@ export function createExamplePlugin() {
         version: '1.0.0',
         coreRange: '>=1.0.0-rc.0', // core versions this plugin supports
         pluginApiRange: '^1.0.0', // plugin API versions supported
-        requiredCapabilities: [], // e.g. ['osd@5']
+        requiredCapabilities: [], // normally empty; see "Capabilities" below
         icon,
         target: 'panel', // default target; or 'flyout'. Host can override at
         // runtime via config.plugins[uiId].target / setPluginTarget.

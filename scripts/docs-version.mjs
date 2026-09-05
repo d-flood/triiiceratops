@@ -1,11 +1,9 @@
 #!/usr/bin/env node
-// Single source of truth for the published documentation version (ticket 39).
+// Single source of truth for the published documentation version.
 //
 // The version shown in the site chrome and the version subdirectory a release
 // publishes into are both DERIVED from the core `package.json` version — never
-// hand-maintained. Ticket 26 shipped a version-stamped single site using a
-// hardcoded "1.0 release line" string; this replaces that string with a value
-// computed at the docs build.
+// hand-maintained.
 //
 // Usage:
 //   node scripts/docs-version.mjs            # prints the docs version (e.g. 1.0)

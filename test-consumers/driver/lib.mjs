@@ -203,11 +203,34 @@ const MIME = {
 /**
  * Serve a directory over HTTP on an ephemeral port. Returns { baseURL, close }.
  * SPA-style: unknown paths without an extension fall back to index.html.
+ *
+ * `middleware` is an optional `(req, res, next)` handler consulted BEFORE the
+ * filesystem, so a caller can mount generated endpoints alongside the static
+ * dist — the performance harness uses it for the 800-canvas IIIF fixture, which
+ * is generated rather than checked in and therefore has no file to serve.
+ *
+ * It must call `next()` **synchronously** for anything it does not answer. This is
+ * not a style preference: fall-through is decided by whether `next()` has run by
+ * the time the handler returns, so a middleware that awaits anything before
+ * calling `next()` leaves the request neither answered nor served from disk, and
+ * it hangs until the client times out. A middleware needing async work must take
+ * ownership of the response itself (answer it, or 404/500 it) rather than
+ * deferring `next()`.
  */
-export function serveDir(rootDir) {
+export function serveDir(rootDir, { middleware } = {}) {
     return new Promise((resolvePromise) => {
         const server = createServer((req, res) => {
             try {
+                if (middleware) {
+                    // Synchronous by contract (see the JSDoc): `handled` is read
+                    // the instant the handler returns, so a deferred `next()`
+                    // arrives too late to fall through.
+                    let handled = true;
+                    middleware(req, res, () => {
+                        handled = false;
+                    });
+                    if (handled) return;
+                }
                 const url = new URL(req.url, 'http://localhost');
                 let pathname = decodeURIComponent(url.pathname);
                 if (pathname.endsWith('/')) pathname += 'index.html';
@@ -246,8 +269,8 @@ export function serveDir(rootDir) {
     });
 }
 
-// Headless Chromium has no real GPU, so OpenSeadragon's WebGL drawer can emit
-// environment-specific context/param warnings (e.g. MAX_TEXTURE_IMAGE_UNITS
+// Headless Chromium has no real GPU, so any WebGL a fixture's graph touches can
+// emit environment-specific context/param warnings (e.g. MAX_TEXTURE_IMAGE_UNITS
 // null). These are not consumer-facing defects in the packed artifact — the
 // canvas still renders — so they are filtered from the page-error assertion.
 const BENIGN_BROWSER_ERROR =

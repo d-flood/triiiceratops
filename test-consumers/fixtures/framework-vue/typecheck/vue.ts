@@ -1,5 +1,5 @@
 /**
- * The epic's headline promise, compiled rather than asserted: a Vue consumer
+ * The headline promise, compiled rather than asserted: a Vue consumer
  * type-checks against `triiiceratops/vue` with **no Svelte installed** and
  * **`skipLibCheck: false`**, so any Svelte type reaching the published
  * declaration graph of this subpath fails the packed run.
@@ -221,8 +221,7 @@ const Readouts = defineComponent({
             useViewerSelector(props.viewer, projection);
         const zoom: ComputedRef<number | undefined> = useViewerSelector(
             props.viewer,
-            (viewer: ReadonlyViewerState) =>
-                viewer.osdViewer?.viewport.getZoom() ?? 1,
+            (viewer: ReadonlyViewerState) => viewer.viewportScale,
             selectorOptions,
         );
         // Context form: no handle argument at all.

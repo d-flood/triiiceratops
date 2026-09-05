@@ -6,7 +6,7 @@ import { definePluginStyles } from '@triiiceratops/plugin-sdk';
  * activation installs. Class names are namespaced `tri-id-*` since these rules
  * are not Svelte-scoped (they are installed globally into the viewer root).
  *
- * Core-owned-chrome path (ticket 04): core renders the toolbar button and the
+ * Core-owned-chrome path: core renders the toolbar button and the
  * docked panel's header/title and owns open/close + docking, so this stylesheet
  * carries NO toggle button and NO `position: absolute` — only the layout of the
  * panel *content* (body + footer). The controls themselves are themed by the
@@ -86,6 +86,28 @@ export const { STYLES, STYLE_ID } = definePluginStyles(
  * The color variant sets --alert-color (drives bg/border) and overrides the
  * text color to the variant's *-content token.
  */
+/*
+ * A soft alert: the accent tints the fill and the border, and the text is the
+ * panel foreground pulled part-way toward the accent.
+ *
+ * The text colour is derived rather than taken from the --tri-color-*-content
+ * tokens, and that is the whole point. Those are ON-ACCENT foregrounds -- Button
+ * and Badge pair them with the accent as the BACKGROUND -- so they are dark in
+ * every theme, light and dark alike. Against a fill that is only 8% accent over
+ * the panel surface they are dark-on-light in a light theme (fine, by luck) and
+ * dark-on-dark in a dark one: measured at 1.11:1 in the dark theme and 1.57:1 in
+ * dracula, i.e. invisible.
+ *
+ * Mixing toward --panel-fg instead is correct in both polarities by
+ * construction, because --panel-fg is the colour the theme already guarantees
+ * against --panel-bg: the text lightens in a dark theme and darkens in a light
+ * one, on its own. 45% keeps the hue clearly readable as error or success while
+ * measuring at worst 5.8:1 across the four shipped themes, so it clears AA for
+ * body text with margin rather than sitting on the threshold.
+ *
+ * It also makes the neutral alert free: its --alert-color IS --panel-fg, so the
+ * mix collapses to plain panel foreground with no special case.
+ */
 .tri-id-alert {
     --alert-color: var(--panel-fg, currentColor);
     display: grid;
@@ -99,24 +121,32 @@ export const { STYLES, STYLE_ID } = definePluginStyles(
     padding-inline: 1rem;
     font-size: 0.875rem;
     line-height: 1.25rem;
+    /* transparent, not #fff: a missing surface token must fall back to the
+       panel showing through, not to a white card in a dark theme. */
     border: 1px solid
-        color-mix(in oklab, var(--alert-color) 10%, var(--tri-input-bg, #fff));
+        color-mix(
+            in oklab,
+            var(--alert-color) 10%,
+            var(--tri-input-bg, transparent)
+        );
     border-radius: var(--tri-radius-panels, 0.75rem);
-    color: var(--panel-fg, currentColor);
+    color: color-mix(
+        in oklab,
+        var(--alert-color) 45%,
+        var(--panel-fg, currentColor)
+    );
     background: color-mix(
         in oklab,
         var(--alert-color) 8%,
-        var(--tri-input-bg, #fff)
+        var(--tri-input-bg, transparent)
     );
     box-shadow: none;
 }
 .tri-id-alert.is-success {
     --alert-color: var(--tri-color-success, #16a34a);
-    color: var(--tri-color-success-content, currentColor);
 }
 .tri-id-alert.is-error {
     --alert-color: var(--tri-color-error, #dc2626);
-    color: var(--tri-color-error-content, currentColor);
 }
 
 .tri-id-footer {

@@ -28,6 +28,8 @@
         "test:coverage": "pnpm --filter @triiiceratops/ui test:coverage && pnpm --filter triiiceratops test:coverage && pnpm --filter @triiiceratops/plugin-sdk test:coverage && pnpm --filter @triiiceratops/plugin-image-manipulation test:coverage && pnpm --filter @triiiceratops/plugin-image-export test:coverage && pnpm --filter @triiiceratops/plugin-pdf-export test:coverage && pnpm --filter @triiiceratops/plugin-annotation-editor test:coverage",
         "coverage:check": "node scripts/coverage-check.mjs",
         "coverage:baseline": "node scripts/coverage-check.mjs --update",
+        "size:check": "node scripts/size-check.mjs",
+        "size:baseline": "node scripts/size-check.mjs --update",
         "coverage:changed": "node scripts/coverage-changed-lines.mjs",
         "audit:prod": "node scripts/audit-prod.mjs",
         "perf:compare": "node scripts/perf/compare.mjs",

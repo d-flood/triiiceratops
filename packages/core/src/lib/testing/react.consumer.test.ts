@@ -4,7 +4,7 @@
  * This is the user story the helper exists for (SPEC user story 66): a
  * `<Sidebar>` that reads `useViewerSelector()` and calls a command should be
  * testable like any other store-consuming component — no custom element, no
- * OpenSeadragon, no manifest fetch, no shadow root.
+ * renderer, no manifest fetch, no shadow root.
  *
  * So nothing here is stubbed: the component is real React, the hooks are the
  * shipped `triiiceratops/react` hooks, the command is a real `ViewerState`
@@ -143,37 +143,31 @@ describe('a React consumer component reading the headless handle', () => {
     });
 
     it("reads continuous viewport values with cadence: 'frame'", async () => {
-        let zoomValue = 1;
-        const handlers = new Set<() => void>();
-        const osd = {
-            addHandler: (_event: string, handler: () => void) =>
-                handlers.add(handler),
-            removeHandler: (_event: string, handler: () => void) =>
-                handlers.delete(handler),
-            viewport: { getZoom: () => zoomValue },
-        };
-
         function Zoom(): ReactNode {
             const zoom = useViewerSelector(
                 handle,
-                (state) => state.osdViewer?.viewport.getZoom() ?? 0,
+                (state) => state.viewportScale,
                 { cadence: 'frame' },
             );
             return createElement('span', { id: 'zoom' }, String(zoom));
         }
         await render(createElement(Zoom));
+        // No renderer yet: the viewport queries answer with zero rather than
+        // making a consumer guard every read.
         expect(text('zoom')).toBe('0');
 
+        let renderer!: ReturnType<TestViewerHandle['attachRenderer']>;
         await act(async () => {
-            handle.setOsdViewer(osd);
+            renderer = handle.attachRenderer({ scale: 1 });
             await flush();
         });
         expect(text('zoom')).toBe('1');
 
-        // OpenSeadragon's own animation event — nothing in viewer state moved.
+        // The renderer's own animation event — nothing in viewer state moved,
+        // and no state notification was delivered.
         await act(async () => {
-            zoomValue = 3.5;
-            for (const handler of [...handlers]) handler();
+            renderer.setView({ scale: 3.5 });
+            renderer.emitFrame();
         });
 
         expect(text('zoom')).toBe('3.5');

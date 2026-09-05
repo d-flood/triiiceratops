@@ -37,7 +37,7 @@
         "./iife": "./dist/iife.js"
     },
     "scripts": {
-        "build": "pnpm build:esm && pnpm build:iife && pnpm build:types",
+        "build": "pnpm clean && pnpm build:esm && pnpm build:iife && pnpm build:types",
         "build:esm": "BUILD_FORMAT=es vite build",
         "build:iife": "BUILD_FORMAT=iife vite build",
         "build:types": "tsc -p tsconfig.build.json",

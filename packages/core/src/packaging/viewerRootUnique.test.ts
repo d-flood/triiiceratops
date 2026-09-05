@@ -13,8 +13,8 @@ import { resolve, relative, sep } from 'node:path';
  * shadows the real root's `[data-theme=…]` block and its `themeConfig` inline
  * styles — the whole subtree silently falls back to the stock light theme.
  *
- * That is exactly the bug this test guards: OSDViewer's wrapper used to render
- * `class="viewer-root"`, so the canvas surface painted the light
+ * That is exactly the bug this test guards: the renderer's wrapper used to
+ * render `class="viewer-root"`, so the canvas surface painted the light
  * `--tri-viewer-bg` no matter what theme the consumer asked for. Only visible
  * in the packaged light-DOM build (dev/source and the shadow-DOM element build
  * never run the scoping transform), so a static source guard is the cheapest

@@ -9,8 +9,8 @@ import {
 
 /*
  * Asserts the public CSS-token table in `docs/theming.md` is GENERATED from
- * `publicTokens.ts` and never drifts from it (ticket 26). The docs must not
- * hand-copy the token list.
+ * `publicTokens.ts` and never drifts from it. The docs must not hand-copy the
+ * token list.
  *
  * To regenerate after changing the token set:
  *   UPDATE_DOCS=1 pnpm --filter triiiceratops exec vitest run src/lib/theme/themingDocsTable

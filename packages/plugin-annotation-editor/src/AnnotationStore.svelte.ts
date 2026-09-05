@@ -38,17 +38,14 @@ type UndoableOp =
     | { kind: 'delete'; annotation: W3CAnnotation };
 
 /**
- * Plugin-internal persistence core. Owns everything the manager used to do "to
- * storage": the annotation cache, per-annotation hydration state, create-vs-update
+ * Plugin-internal persistence core. Owns everything "to storage": the
+ * annotation cache, per-annotation hydration state, create-vs-update
  * resolution, the per-id save queue, the load-race token, and the raw adapter.
  *
  * `AnnotationManager` talks only to this store for persistence and keeps the
  * Annotorious/OpenSeadragon mechanics (selection, tools, coordinate transforms).
  * The store deals exclusively in **canvas-space** W3C annotations — transforms
  * live at the manager/store boundary.
- *
- * This class is a refactor of code previously inlined in `AnnotationManager`
- * (issues 01–04); behavior is intentionally unchanged (issue 05).
  */
 export class AnnotationStore {
     private static readonly W3C_CONTEXT = 'http://www.w3.org/ns/anno.jsonld';
@@ -103,8 +100,7 @@ export class AnnotationStore {
     // Canvas keys (`manifestId::canvasId`) whose overlay this store has pushed
     // into the owning viewer's display state. The plugin — not the adapter —
     // owns display sync (F10), so the store both injects on every successful
-    // read/write and clears what it injected on destroy (F11). Bookkeeping that
-    // used to live in `LocalStorageAdapter` moved here.
+    // read/write and clears what it injected on destroy (F11).
     private injectedCanvases = new SvelteSet<string>();
 
     // Persistence-aware undo/redo (F6). Each stack holds inverse-able operation
@@ -198,8 +194,8 @@ export class AnnotationStore {
 
     /**
      * Point the store at a canvas and drop the previous canvas's cache. Does
-     * not load — the manager drives load timing (and, from issue 06, display
-     * sync) around this call.
+     * not load — the manager drives load timing and display sync around this
+     * call.
      */
     setCanvas(manifestId: string | null, canvasId: string | null): void {
         this.manifestId = manifestId;
