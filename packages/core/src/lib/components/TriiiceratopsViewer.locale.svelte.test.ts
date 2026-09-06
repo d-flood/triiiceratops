@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, beforeAll } from 'vitest';
 import { mount, unmount, tick } from 'svelte';
 
 import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
+import ActiveLocaleMessagesTestHost from './ActiveLocaleMessagesTestHost.svelte';
 // The runtime `setLocale` binding is live: importing TriiiceratopsViewer runs
 // i18n.svelte.ts's `overwriteSetLocale`, so this reference is the wrapped
 // setter that also updates the reactive page-global `language.current`.
@@ -262,5 +263,74 @@ describe('TriiiceratopsViewer per-viewer active locale', () => {
 
         expect(searchPanelTitle(target)).toBe('Suche');
         expect(props.viewerState?.activeLocale).toBe('de');
+    });
+});
+
+/**
+ * The message accessor itself, at the seam a viewer root publishes into. The
+ * suite above proves the locale a viewer resolves; these prove what the chrome
+ * accessor does with it — interpolated inputs, lookup by message name, and a
+ * locale read at call time rather than captured when the accessor was made.
+ */
+describe('per-viewer active locale message dispatch', () => {
+    const targets: HTMLElement[] = [];
+    const apps: Array<ReturnType<typeof mount>> = [];
+
+    afterEach(async () => {
+        for (const app of apps.splice(0)) {
+            await unmount(app);
+        }
+        for (const target of targets.splice(0)) {
+            target.remove();
+        }
+        setLocale('en', { reload: false });
+    });
+
+    function mountHost(locale: string, messageKey = 'close') {
+        const target = document.createElement('div');
+        document.body.appendChild(target);
+        targets.push(target);
+        const props = $state({ locale, messageKey });
+        apps.push(mount(ActiveLocaleMessagesTestHost, { target, props }));
+        return {
+            props,
+            text: (id: string) =>
+                target
+                    .querySelector(`[data-testid="${id}"]`)
+                    ?.textContent?.trim() ?? null,
+        };
+    }
+
+    it('interpolates inputs and resolves a message named at runtime', async () => {
+        const host = mountHost('de', 'close');
+        await settle();
+
+        expect(host.text('interpolated')).toBe('3 Annotationen');
+        expect(host.text('dynamic')).toBe('Schließen');
+    });
+
+    it('renders a later active locale rather than the one it was made in', async () => {
+        // The accessor is built once during initialization; every call must ask
+        // the active-locale source again, so a locale change reaches messages
+        // already handed to a component.
+        const host = mountHost('en', 'close');
+        await settle();
+        expect(host.text('interpolated')).toBe('3 Annotations');
+        expect(host.text('dynamic')).toBe('Close');
+
+        host.props.locale = 'de';
+        await settle();
+
+        expect(host.text('interpolated')).toBe('3 Annotationen');
+        expect(host.text('dynamic')).toBe('Schließen');
+    });
+
+    it('keeps a content locale core has no catalog for on the page default', async () => {
+        setLocale('de', { reload: false });
+        const host = mountHost('fr', 'close');
+        await settle();
+
+        expect(host.text('interpolated')).toBe('3 Annotationen');
+        expect(host.text('dynamic')).toBe('Schließen');
     });
 });

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops WC companion-refit fixture</title>
+        <!--
+            Both BUILT Web Component entries, selected by `?entry=`, over one
+            page so the ESM artifact is driven through exactly the harness the
+            IIFE is. Requires `pnpm build:element` (or build:all).
+
+            This fixture exists for what only a built artifact can show: the
+            refit effect in `CanvasHost.svelte` names its dependency as a read
+            of `renderer.paintedGeometry`, and a minifier that believes a
+            property read is pure deletes the statement — leaving the effect
+            registered and permanently blind to a companion whose geometry
+            arrives after the world did. Nothing loaded from source can see
+            that, because nothing loaded from source has been minified.
+        -->
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            #v {
+                display: block;
+                width: 600px;
+                height: 400px;
+            }
+        </style>
+    </head>
+    <body>
+        <triiiceratops-viewer id="v" theme="dark"></triiiceratops-viewer>
+        <script type="module">
+            const params = new URLSearchParams(location.search);
+            const entry = params.get('entry') === 'iife' ? 'iife' : 'esm';
+            window.__wcEntry = entry;
+
+            if (entry === 'esm') {
+                await import('/dist/triiiceratops-element.js');
+            } else {
+                // A classic script, because that is what the IIFE is; a module
+                // import of it would evaluate it in module scope, which is the
+                // one thing the two artifacts are built NOT to share.
+                await new Promise((resolve, reject) => {
+                    const element = document.createElement('script');
+                    element.src = '/dist/triiiceratops-element.iife.js';
+                    element.onload = resolve;
+                    element.onerror = reject;
+                    document.head.append(element);
+                });
+            }
+
+            document.getElementById('v').manifestId = params.get('manifest');
+        </script>
+    </body>
+</html>

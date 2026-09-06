@@ -772,12 +772,22 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
     );
     /** The tracks the playing body carries — `null` while every one qualifies. */
     let eligibleCaptions: ReadonlySet<string> | null = null;
+    /**
+     * The filtered result, held until one of its two inputs actually moves.
+     *
+     * The transport reads this on the frame cadence and decides whether to
+     * rebuild its caption options from the array's identity, so filtering afresh
+     * per read would both repeat the work and defeat that check. Only a track
+     * settling into the set and an eligibility change can alter the answer, so
+     * those two are where it is dropped.
+     */
+    let captionCache: CaptionTrack[] | null = null;
     const loadedCaptions = (): CaptionTrack[] =>
-        settledCaptions.filter(
+        (captionCache ??= settledCaptions.filter(
             (track): track is CaptionTrack =>
                 track !== null &&
                 (eligibleCaptions === null || eligibleCaptions.has(track.url)),
-        );
+        ));
     let activeCaption: string | null = null;
 
     /**
@@ -832,6 +842,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         const keep = (): void => {
             detach();
             settledCaptions[index] = caption;
+            captionCache = null;
             options.onCaptionTracksChange?.();
         };
         /** A track that cannot caption anything: dropped, with one warning. */
@@ -932,6 +943,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         setCaptionTrack: selectCaptionTrack,
         setEligibleCaptions(urls: readonly string[] | null): void {
             eligibleCaptions = urls === null ? null : new Set(urls);
+            captionCache = null;
             // Re-selecting the showing track drops it if the new body does not
             // carry it, by the same "cannot select what is not on offer" rule.
             selectCaptionTrack(activeCaption);

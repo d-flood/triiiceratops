@@ -2,7 +2,7 @@
     import Icon from './Icon.svelte';
     import PluginIcon from './PluginIcon.svelte';
     import PluginMountHost from './PluginMountHost.svelte';
-    import { getContext, onMount } from 'svelte';
+    import { getContext, onMount, type Snippet } from 'svelte';
     import type { IconName } from '../generated/icons';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages, language } from '../state/i18n.svelte';
@@ -325,9 +325,10 @@
     });
 
     /**
-     * One row per built-in toolbar entry. A row naming a `flyout` has its own
-     * hand-written markup in the list below, because each menu is bespoke;
-     * every other row is rendered by the one shared button template.
+     * One row per built-in toolbar entry. A row naming a `flyout` is rendered by
+     * the shared `flyoutMenu` snippet, which its branch below supplies with the
+     * menu's identity, label, glyph and rows; every other row is rendered by the
+     * one shared button template.
      */
     type ToolbarEntry =
         | {
@@ -352,8 +353,8 @@
           };
 
     // The built-in toolbar entries in render order. A new flyout entry belongs in
-    // this list, with its menu markup in the matching `{:else if}` branch of the
-    // `{#each}` below.
+    // this list, with a matching `{:else if}` branch of the `{#each}` below
+    // rendering `flyoutMenu` with its own rows snippet.
     const toolbarEntries: ToolbarEntry[] = $derived([
         {
             key: 'collection',
@@ -452,6 +453,15 @@
     // against the union at compile time.
     const hasBuiltInActions = $derived(
         visibleEntries.some((entry) => entry.flyout !== 'sequence'),
+    );
+
+    /** The glyph the viewing-mode toggle wears: the mode currently in effect. */
+    const viewingModeGlyph: IconName = $derived(
+        viewerState.viewingMode === 'paged'
+            ? 'BookOpen'
+            : viewerState.viewingMode === 'continuous'
+              ? 'Scroll'
+              : 'File',
     );
 
     // [mode, glyph, label] for the viewing-mode menu's radio items.
@@ -669,6 +679,142 @@
     onkeydown={handleWindowKeydown}
 />
 
+<!-- ===== Shared built-in flyout markup =====
+     The four built-in menus differ only in their data, so their shell and their
+     rows are written once here. `name` is the single identity a menu carries:
+     the open-menu key, the panel's DOM id (`tri-flyout-<name>`) and its CSS
+     anchor (`--anchor-<name>`) are all derived from it, so they cannot drift
+     apart. Menu-specific behavior stays at the call sites: the viewing-mode
+     menu's pairing checkbox, the sequence picker's count badge and wide panel,
+     and the locale menu's per-item `lang` with no leading glyph. -->
+{#snippet flyoutMenu(
+    name: string,
+    label: string,
+    glyph: IconName,
+    badge: string | number | undefined,
+    wide: boolean,
+    rows: Snippet,
+)}
+    <li>
+        <button
+            class="menu-item tooltip {tooltipPlacement}"
+            class:indicator={badge !== undefined}
+            class:menu-active={openMenu === name}
+            data-tip={label}
+            data-flyout-toggle
+            aria-label={label}
+            aria-haspopup="menu"
+            aria-controls="tri-flyout-{name}"
+            aria-expanded={openMenu === name}
+            style="anchor-name:--anchor-{name}"
+            onclick={() => toggleMenu(name)}
+        >
+            {#if badge !== undefined}
+                <span class="indicator-item count-badge">{badge}</span>
+            {/if}
+            <Icon name={glyph} size={24} />
+        </button>
+        <ul
+            id="tri-flyout-{name}"
+            data-flyout-panel
+            role="menu"
+            tabindex="-1"
+            aria-label={label}
+            class="menu popover-menu menu-flyout {flyoutPlacement}"
+            class:wide
+            class:open={openMenu === name}
+            style="position-anchor: --anchor-{name};"
+            onkeydown={onFlyoutMenuKeydown}
+        >
+            {@render rows()}
+        </ul>
+    </li>
+{/snippet}
+
+<!-- One selectable row of a built-in menu. `role` is a parameter because the
+     shift-pairing row is a checkbox among radios; `lang` because the locale
+     menu names each language in that language and a screen reader needs the
+     switch; `icon` is optional because those endonyms carry no glyph. -->
+{#snippet menuRow(
+    icon: IconName | undefined,
+    label: string,
+    checked: boolean,
+    onclick: () => void,
+    lang: string | undefined = undefined,
+    role: 'menuitemradio' | 'menuitemcheckbox' = 'menuitemradio',
+    textStart = false,
+)}
+    <li role="none">
+        <button
+            class="menu-item"
+            class:text-start={textStart}
+            {role}
+            {lang}
+            aria-checked={checked}
+            class:menu-active={checked}
+            {onclick}
+        >
+            {#if icon}
+                <Icon name={icon} size={16} />
+            {/if}
+            <span>{label}</span>
+            {#if checked}
+                <Icon name="Check" size={16} />
+            {/if}
+        </button>
+    </li>
+{/snippet}
+
+{#snippet viewingModeRows()}
+    {#each viewingModeItems as [mode, icon, label] (mode)}
+        {@render menuRow(icon, label, viewerState.viewingMode === mode, () =>
+            viewerState.setViewingMode(mode),
+        )}
+    {/each}
+    {#if viewerState.viewingMode === 'paged'}
+        {@render menuRow(
+            'ArrowsLeftRight',
+            m.viewing_mode_shift_pairing(),
+            viewerState.pagedOffset === 1,
+            () => viewerState.togglePagedOffset(),
+            undefined,
+            'menuitemcheckbox',
+            true,
+        )}
+    {/if}
+{/snippet}
+
+{#snippet galleryRows()}
+    {#each galleryPlacementItems as [placement, icon, label] (placement)}
+        {@render menuRow(icon, label, galleryPlacement === placement, () =>
+            setGalleryPlacement(placement),
+        )}
+    {/each}
+{/snippet}
+
+{#snippet sequenceRows()}
+    {#each sequenceOptions as option (option.index)}
+        {@render menuRow(
+            'Stack',
+            option.label,
+            viewerState.selectedSequenceIndex === option.index,
+            () => viewerState.setSequenceIndex(option.index),
+        )}
+    {/each}
+{/snippet}
+
+{#snippet localeRows()}
+    {#each localeItems as [tag, name] (tag)}
+        {@render menuRow(
+            undefined,
+            name,
+            viewerState.activeLocale === tag,
+            () => viewerState.setLocale(tag),
+            tag,
+        )}
+    {/each}
+{/snippet}
+
 <div
     bind:this={toolbarRootEl}
     class="toolbar-root"
@@ -731,9 +877,10 @@
 
             <!-- --- Standard Actions ---
                  One shared button per `toolbarEntries` row. A row naming a
-                 flyout takes a branch of its own instead, because each menu is
-                 bespoke: a further flyout adds a row to the descriptor and one
-                 more `else if` branch here. -->
+                 flyout takes a branch of its own instead, naming which menu the
+                 shared `flyoutMenu` snippet should render: a further flyout adds
+                 a row to the descriptor, one more `else if` branch here, and a
+                 rows snippet. -->
             {#each visibleEntries as entry (entry.key)}
                 {#if !entry.flyout}
                     <!-- The glyph name goes through a local binding because
@@ -757,239 +904,43 @@
                         </button>
                     </li>
                 {:else if entry.flyout === 'viewing-mode'}
-                    <li>
-                        <button
-                            class="menu-item tooltip {tooltipPlacement}"
-                            class:menu-active={openMenu === 'viewing-mode'}
-                            data-tip={m.viewing_mode_label()}
-                            data-flyout-toggle
-                            aria-label={m.viewing_mode_label()}
-                            aria-haspopup="menu"
-                            aria-controls="tri-flyout-viewing-mode"
-                            aria-expanded={openMenu === 'viewing-mode'}
-                            style="anchor-name:--anchor-viewing-mode"
-                            onclick={() => toggleMenu('viewing-mode')}
-                        >
-                            {#if viewerState.viewingMode === 'paged'}
-                                <Icon name="BookOpen" size={24} />
-                            {:else if viewerState.viewingMode === 'continuous'}
-                                <Icon name="Scroll" size={24} />
-                            {:else}
-                                <Icon name="File" size={24} />
-                            {/if}
-                        </button>
-                        <ul
-                            id="tri-flyout-viewing-mode"
-                            data-flyout-panel
-                            role="menu"
-                            tabindex="-1"
-                            aria-label={m.viewing_mode_label()}
-                            class="menu popover-menu menu-flyout {flyoutPlacement}"
-                            class:open={openMenu === 'viewing-mode'}
-                            style="position-anchor: --anchor-viewing-mode;"
-                            onkeydown={onFlyoutMenuKeydown}
-                        >
-                            {#each viewingModeItems as [mode, icon, label] (mode)}
-                                <li role="none">
-                                    <button
-                                        class="menu-item"
-                                        role="menuitemradio"
-                                        aria-checked={viewerState.viewingMode ===
-                                            mode}
-                                        class:menu-active={viewerState.viewingMode ===
-                                            mode}
-                                        onclick={() =>
-                                            viewerState.setViewingMode(mode)}
-                                    >
-                                        <Icon name={icon} size={16} />
-                                        <span>{label}</span>
-                                        {#if viewerState.viewingMode === mode}
-                                            <Icon name="Check" size={16} />
-                                        {/if}
-                                    </button>
-                                </li>
-                            {/each}
-                            {#if viewerState.viewingMode === 'paged'}
-                                <li role="none">
-                                    <button
-                                        class="menu-item text-start"
-                                        role="menuitemcheckbox"
-                                        aria-checked={viewerState.pagedOffset ===
-                                            1}
-                                        class:menu-active={viewerState.pagedOffset ===
-                                            1}
-                                        onclick={() =>
-                                            viewerState.togglePagedOffset()}
-                                    >
-                                        <Icon
-                                            name="ArrowsLeftRight"
-                                            size={16}
-                                        />
-                                        <span
-                                            >{m.viewing_mode_shift_pairing()}</span
-                                        >
-                                        {#if viewerState.pagedOffset === 1}
-                                            <Icon name="Check" size={16} />
-                                        {/if}
-                                    </button>
-                                </li>
-                            {/if}
-                        </ul>
-                    </li>
+                    {@render flyoutMenu(
+                        'viewing-mode',
+                        m.viewing_mode_label(),
+                        viewingModeGlyph,
+                        undefined,
+                        false,
+                        viewingModeRows,
+                    )}
                 {:else if entry.flyout === 'gallery'}
-                    <li>
-                        <button
-                            class="menu-item tooltip {tooltipPlacement}"
-                            class:menu-active={openMenu === 'gallery'}
-                            data-tip={m.gallery_label()}
-                            data-flyout-toggle
-                            aria-label={m.gallery_label()}
-                            aria-haspopup="menu"
-                            aria-controls="tri-flyout-gallery"
-                            aria-expanded={openMenu === 'gallery'}
-                            style="anchor-name:--anchor-gallery"
-                            onclick={() => toggleMenu('gallery')}
-                        >
-                            <Icon name="Slideshow" size={24} />
-                        </button>
-                        <ul
-                            id="tri-flyout-gallery"
-                            data-flyout-panel
-                            role="menu"
-                            tabindex="-1"
-                            aria-label={m.gallery_label()}
-                            class="menu popover-menu menu-flyout {flyoutPlacement}"
-                            class:open={openMenu === 'gallery'}
-                            style="position-anchor: --anchor-gallery;"
-                            onkeydown={onFlyoutMenuKeydown}
-                        >
-                            {#each galleryPlacementItems as [placement, icon, label] (placement)}
-                                <li role="none">
-                                    <button
-                                        class="menu-item"
-                                        role="menuitemradio"
-                                        aria-checked={galleryPlacement ===
-                                            placement}
-                                        class:menu-active={galleryPlacement ===
-                                            placement}
-                                        onclick={() =>
-                                            setGalleryPlacement(placement)}
-                                    >
-                                        <Icon name={icon} size={16} />
-                                        <span>{label}</span>
-                                        {#if galleryPlacement === placement}
-                                            <Icon name="Check" size={16} />
-                                        {/if}
-                                    </button>
-                                </li>
-                            {/each}
-                        </ul>
-                    </li>
+                    {@render flyoutMenu(
+                        'gallery',
+                        m.gallery_label(),
+                        'Slideshow',
+                        undefined,
+                        false,
+                        galleryRows,
+                    )}
                 {:else if entry.flyout === 'sequence'}
-                    <li>
-                        <button
-                            class="menu-item tooltip indicator {tooltipPlacement}"
-                            class:menu-active={openMenu === 'sequence-picker'}
-                            data-tip={m.sequence_label()}
-                            data-flyout-toggle
-                            aria-label={m.sequence_label()}
-                            aria-haspopup="menu"
-                            aria-controls="tri-flyout-sequence-picker"
-                            aria-expanded={openMenu === 'sequence-picker'}
-                            style="anchor-name:--anchor-sequence-picker"
-                            onclick={() => toggleMenu('sequence-picker')}
-                        >
-                            <span class="indicator-item count-badge">
-                                {viewerState.sequenceCount > 99
-                                    ? '99+'
-                                    : viewerState.sequenceCount}
-                            </span>
-                            <Icon name="Stack" size={24} />
-                        </button>
-                        <ul
-                            id="tri-flyout-sequence-picker"
-                            data-flyout-panel
-                            role="menu"
-                            tabindex="-1"
-                            aria-label={m.sequence_label()}
-                            class="menu popover-menu wide menu-flyout {flyoutPlacement}"
-                            class:open={openMenu === 'sequence-picker'}
-                            style="position-anchor: --anchor-sequence-picker;"
-                            onkeydown={onFlyoutMenuKeydown}
-                        >
-                            {#each sequenceOptions as option (option.index)}
-                                <li role="none">
-                                    <button
-                                        class="menu-item"
-                                        role="menuitemradio"
-                                        aria-checked={viewerState.selectedSequenceIndex ===
-                                            option.index}
-                                        class:menu-active={viewerState.selectedSequenceIndex ===
-                                            option.index}
-                                        onclick={() =>
-                                            viewerState.setSequenceIndex(
-                                                option.index,
-                                            )}
-                                    >
-                                        <Icon name="Stack" size={16} />
-                                        <span>{option.label}</span>
-                                        {#if viewerState.selectedSequenceIndex === option.index}
-                                            <Icon name="Check" size={16} />
-                                        {/if}
-                                    </button>
-                                </li>
-                            {/each}
-                        </ul>
-                    </li>
+                    {@render flyoutMenu(
+                        'sequence-picker',
+                        m.sequence_label(),
+                        'Stack',
+                        viewerState.sequenceCount > 99
+                            ? '99+'
+                            : viewerState.sequenceCount,
+                        true,
+                        sequenceRows,
+                    )}
                 {:else if entry.flyout === 'locale'}
-                    <li>
-                        <button
-                            class="menu-item tooltip {tooltipPlacement}"
-                            class:menu-active={openMenu === 'locale'}
-                            data-tip={m.locale_label()}
-                            data-flyout-toggle
-                            aria-label={m.locale_label()}
-                            aria-haspopup="menu"
-                            aria-controls="tri-flyout-locale"
-                            aria-expanded={openMenu === 'locale'}
-                            style="anchor-name:--anchor-locale"
-                            onclick={() => toggleMenu('locale')}
-                        >
-                            <Icon name="Translate" size={24} />
-                        </button>
-                        <ul
-                            id="tri-flyout-locale"
-                            data-flyout-panel
-                            role="menu"
-                            tabindex="-1"
-                            aria-label={m.locale_label()}
-                            class="menu popover-menu wide menu-flyout {flyoutPlacement}"
-                            class:open={openMenu === 'locale'}
-                            style="position-anchor: --anchor-locale;"
-                            onkeydown={onFlyoutMenuKeydown}
-                        >
-                            {#each localeItems as [tag, name] (tag)}
-                                <li role="none">
-                                    <button
-                                        class="menu-item"
-                                        role="menuitemradio"
-                                        lang={tag}
-                                        aria-checked={viewerState.activeLocale ===
-                                            tag}
-                                        class:menu-active={viewerState.activeLocale ===
-                                            tag}
-                                        onclick={() =>
-                                            viewerState.setLocale(tag)}
-                                    >
-                                        <span>{name}</span>
-                                        {#if viewerState.activeLocale === tag}
-                                            <Icon name="Check" size={16} />
-                                        {/if}
-                                    </button>
-                                </li>
-                            {/each}
-                        </ul>
-                    </li>
+                    {@render flyoutMenu(
+                        'locale',
+                        m.locale_label(),
+                        'Translate',
+                        undefined,
+                        true,
+                        localeRows,
+                    )}
                 {/if}
             {/each}
 

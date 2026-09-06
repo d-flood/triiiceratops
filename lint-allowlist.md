@@ -173,11 +173,20 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   justified the boundary by `manifesto.js` (retired 2026-08-07) and cross-
   referenced a section title that no longer exists; regenerating had been
   reverting the checked-in file to that stale prose.
+  **2026-09-05 (`triiiceratops-core-leaner` ticket 02):** THREE lines REMOVED and
+  TWO ADDED, no new boundary. Removing the obsolete positioned tile-source payload
+  deleted `getCanvasTileSource` and `getCanvasTileSources`, and replaced them with
+  `canvasPaintsImage(canvas: any)` — the same raw-canvas argument, now answering
+  the renderability gate with a boolean. `getVisibleViewerCanvases` is rewritten in
+  place only because its params type was renamed with the function that named it
+  (`GetViewerTileSourcesParams` → `VisibleViewerCanvasesParams`) and lost the
+  `getSelectedChoice` member that only the deleted function took, so the signature
+  no longer spells an `Omit`; its `any[]` return is unchanged.
 - **Behavior test / gate:** `scripts/check-public-api.mjs` (run via
   `pnpm api:check` in required CI) — fails the build on any non-allowlisted
   public `any`.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
-- **Recorded:** 2026-07-19 · **Updated:** 2026-08-13 · **Review by:** 2027-01-19
+- **Recorded:** 2026-07-19 · **Updated:** 2026-09-05 · **Review by:** 2027-01-19
 
 ### 5. `@ts-expect-error` (TS2307) — `packages/core/src/lib/framework/registration.ts`
 
@@ -319,6 +328,11 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
       inside one call.
     - `packages/core/src/lib/state/viewer.svelte.ts` — `frameListeners`, the same
       listener set on the state side.
+    - `packages/core/src/lib/state/manifests.svelte.ts` — `inFlightAnnotationLists`
+      (the in-flight annotation-list guard, which nothing renders from) and two
+      function-local scratch lookups: `canvasById` in `getStructureSequences` and
+      `ids` in `getCanvasAnnotationListRefs`, each built and consumed inside one
+      synchronous call.
     - `packages/core/src/lib/components/TriiiceratopsViewer.svelte` — a
       function-local `Set` of live plugin instances, used for one diff.
     - `packages/plugin-annotation-editor/src/mount.svelte.ts` — the one-time
@@ -348,7 +362,12 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   load-bearing; `packages/core/tests/canvas-renderer-paint-hook.spec.ts` covers
   the diagnostic set's effect (a throwing layer is reported once and never stops a
   frame). The function-local temporaries have no observable behaviour to pin: they
-  do not outlive the call.
+  do not outlive the call. `ManifestsState`'s two scratch lookups are pinned
+  through the query seam instead:
+  `packages/core/src/lib/state/manifests.test.ts` (structure-sequence order,
+  duplicate canvas ids, and re-derivation after the source JSON is replaced) and
+  `packages/core/src/lib/state/manifests.annotationLists.test.ts` (duplicate and
+  v2/v3 annotation-list refs).
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-08 · **Review by:** 2027-02-08
 

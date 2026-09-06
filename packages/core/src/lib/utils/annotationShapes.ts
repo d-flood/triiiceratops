@@ -111,38 +111,48 @@ export interface ProjectShapesOptions {
 }
 
 /**
- * Project every annotation onto the screen, dropping the ones the renderer
- * cannot place.
+ * One annotation reduced to everything about its shape the viewport cannot
+ * change: the tooltip text, and the geometry already in canvas space.
  *
- * Called once per painted frame. It allocates a fresh array each time, which is
- * the same cost the derived value it replaces had, and is what lets the caller
- * compare nothing and simply render the answer.
+ * The split exists because those two are the expensive half and the still half
+ * at once. Panning and zooming move a shape on screen without touching its body
+ * text or its canvas-space coordinates, so a frame that recomputed them would
+ * be joining the same strings and rescaling the same numbers to the same
+ * answers many times a second.
  */
-export function projectAnnotationShapes(
-    annotations: readonly ParsedAnnotation[],
-    options: ProjectShapesOptions,
-): AnnotationShape[] {
-    const shapes: AnnotationShape[] = [];
-
-    for (const annotation of annotations) {
-        const shape = projectAnnotationShape(annotation, options);
-        if (shape) shapes.push(shape);
-    }
-
-    return shapes;
+export interface PreparedShape {
+    common: ShapeCommon;
+    /** The parsed geometry, converted out of image space where it was in it. */
+    geometry: ParsedAnnotation['geometry'];
 }
 
-function projectAnnotationShape(
+/**
+ * Assemble every annotation's tooltip text and canvas-space geometry.
+ *
+ * Depends only on the annotations, their active-locale body text and the
+ * canvases' image dimensions, so the caller recomputes this when those change
+ * and not on the frame tick.
+ */
+export function prepareAnnotationShapes(
+    annotations: readonly ParsedAnnotation[],
+    imageDimensions: (
+        canvasId: string | null,
+    ) => CanvasImageSpaceDimensions | null,
+): PreparedShape[] {
+    return annotations.map((annotation) =>
+        prepareAnnotationShape(annotation, imageDimensions),
+    );
+}
+
+function prepareAnnotationShape(
     annotation: ParsedAnnotation,
-    options: ProjectShapesOptions,
-): AnnotationShape | null {
-    const canvasId = annotation.canvasId;
-    const toScreen = (point: ScreenPoint) => options.toScreen(point, canvasId);
-    const imageDimensions = options.imageDimensions(canvasId);
-    const inImageSpace = annotation.coordinateSpace === 'image';
+    lookupImageDimensions: (
+        canvasId: string | null,
+    ) => CanvasImageSpaceDimensions | null,
+): PreparedShape {
     const common: ShapeCommon = {
         id: annotation.renderId,
-        canvasId,
+        canvasId: annotation.canvasId,
         annotationId: annotation.sourceAnnotationId,
         isSearchHit: annotation.isSearchHit,
         isFullCanvasTarget: annotation.isFullCanvasTarget,
@@ -156,33 +166,114 @@ function projectAnnotationShape(
     };
 
     const geometry = annotation.geometry;
+    // A canvas-space target is already in the space projection wants, so it is
+    // carried through rather than copied.
+    if (annotation.coordinateSpace !== 'image') return { common, geometry };
+
+    const dimensions = lookupImageDimensions(annotation.canvasId);
 
     if (geometry.type === 'RECTANGLE') {
-        const rect = inImageSpace
-            ? imageRectToCanvasRect(
-                  {
-                      x: geometry.x,
-                      y: geometry.y,
-                      width: geometry.w,
-                      height: geometry.h,
-                  },
-                  imageDimensions,
-              )
-            : {
-                  x: geometry.x,
-                  y: geometry.y,
-                  width: geometry.w,
-                  height: geometry.h,
-              };
+        const rect = imageRectToCanvasRect(
+            {
+                x: geometry.x,
+                y: geometry.y,
+                width: geometry.w,
+                height: geometry.h,
+            },
+            dimensions,
+        );
+        return {
+            common,
+            geometry: {
+                type: 'RECTANGLE',
+                x: rect.x,
+                y: rect.y,
+                w: rect.width,
+                h: rect.height,
+            },
+        };
+    }
 
+    if (geometry.type === 'POINT') {
+        const point = imagePointToCanvasPoint(
+            { x: geometry.x, y: geometry.y },
+            dimensions,
+        );
+        return { common, geometry: { type: 'POINT', x: point.x, y: point.y } };
+    }
+
+    return {
+        common,
+        geometry: {
+            type: 'POLYGON',
+            points: geometry.points.map(([x, y]) => {
+                const point = imagePointToCanvasPoint({ x, y }, dimensions);
+                return [point.x, point.y];
+            }),
+        },
+    };
+}
+
+/**
+ * Place prepared shapes on screen, dropping the ones the renderer cannot place.
+ *
+ * The per-frame half: every number it produces depends on the viewport, and
+ * nothing it reads does. It allocates a fresh array each time, which is what
+ * lets the caller compare nothing and simply render the answer.
+ */
+export function projectPreparedShapes(
+    prepared: readonly PreparedShape[],
+    toScreen: (
+        point: ScreenPoint,
+        canvasId: string | null,
+    ) => ScreenPoint | null,
+): AnnotationShape[] {
+    const shapes: AnnotationShape[] = [];
+
+    for (const entry of prepared) {
+        const shape = projectPreparedShape(entry, toScreen);
+        if (shape) shapes.push(shape);
+    }
+
+    return shapes;
+}
+
+/**
+ * Project every annotation onto the screen, dropping the ones the renderer
+ * cannot place.
+ *
+ * Preparation and projection in one call, for a caller with no reason to keep
+ * the two apart.
+ */
+export function projectAnnotationShapes(
+    annotations: readonly ParsedAnnotation[],
+    options: ProjectShapesOptions,
+): AnnotationShape[] {
+    return projectPreparedShapes(
+        prepareAnnotationShapes(annotations, options.imageDimensions),
+        options.toScreen,
+    );
+}
+
+function projectPreparedShape(
+    prepared: PreparedShape,
+    project: (
+        point: ScreenPoint,
+        canvasId: string | null,
+    ) => ScreenPoint | null,
+): AnnotationShape | null {
+    const { common, geometry } = prepared;
+    const toScreen = (point: ScreenPoint) => project(point, common.canvasId);
+
+    if (geometry.type === 'RECTANGLE') {
         // Both corners are projected, rather than one corner plus a scale: the
         // size on screen is then whatever the transform makes it, which is the
         // only formulation that stays correct when layout has normalized this
         // canvas's rect for a facing-page spread.
-        const topLeft = toScreen({ x: rect.x, y: rect.y });
+        const topLeft = toScreen({ x: geometry.x, y: geometry.y });
         const bottomRight = toScreen({
-            x: rect.x + rect.width,
-            y: rect.y + rect.height,
+            x: geometry.x + geometry.w,
+            y: geometry.y + geometry.h,
         });
         if (!topLeft || !bottomRight) return null;
 
@@ -199,13 +290,7 @@ function projectAnnotationShape(
     }
 
     if (geometry.type === 'POINT') {
-        const canvasPoint = inImageSpace
-            ? imagePointToCanvasPoint(
-                  { x: geometry.x, y: geometry.y },
-                  imageDimensions,
-              )
-            : { x: geometry.x, y: geometry.y };
-        const point = toScreen(canvasPoint);
+        const point = toScreen({ x: geometry.x, y: geometry.y });
         if (!point) return null;
 
         return { ...common, type: 'POINT', point };
@@ -213,10 +298,7 @@ function projectAnnotationShape(
 
     const projected: ScreenPoint[] = [];
     for (const [x, y] of geometry.points) {
-        const canvasPoint = inImageSpace
-            ? imagePointToCanvasPoint({ x, y }, imageDimensions)
-            : { x, y };
-        const point = toScreen(canvasPoint);
+        const point = toScreen({ x, y });
         // One unplaceable vertex makes the whole polygon wrong, not partly
         // wrong: a shape missing a corner is a different shape.
         if (!point) return null;

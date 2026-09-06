@@ -5,8 +5,8 @@
  * overwrites the reader's centre and scale. The component effect's tracked reads
  * are its change signals, but nothing stops a future dependency — or a host
  * pattern nobody predicted — from running that effect when none of them moved.
- * When that happens the reader must keep their place: an unchanged world,
- * unchanged tile sources and unchanged painted geometry are no reason to move
+ * When that happens the reader must keep their place: an unchanged world, an
+ * unchanged refit signal and unchanged painted geometry are no reason to move
  * the image.
  *
  * Driven against the renderer directly rather than through a mounted viewer,
@@ -114,13 +114,13 @@ describe('the renderer’s world-refit', () => {
     });
 
     /**
-     * A renderer attached to a measurable surface, with the tile sources under
-     * the test's control — the guard reads them through `getTileSources`, so
-     * this is how a change of world is staged without a manifest swap.
+     * A renderer attached to a measurable surface, with the refit signal under
+     * the test's control — the guard reads it through `getRefitSignal`, so this
+     * is how a change of world is staged without a manifest swap.
      */
     async function attachRenderer() {
         const viewerState = new ViewerState(MANIFEST_ID, FIRST_CANVAS);
-        let sources: unknown = { canvas: FIRST_CANVAS };
+        let signal: string | null = `0|${FIRST_CANVAS}|0|`;
         await settle();
 
         let renderer!: ReturnType<typeof createCanvasRenderer>;
@@ -130,7 +130,7 @@ describe('the renderer’s world-refit', () => {
                 messages: m as unknown as Parameters<
                     typeof createCanvasRenderer
                 >[0]['messages'],
-                getTileSources: () => sources,
+                getRefitSignal: () => signal,
             });
             detach = renderer.mount(root, canvas);
         });
@@ -147,8 +147,8 @@ describe('the renderer’s world-refit', () => {
         return {
             viewerState,
             renderer,
-            setSources(next: unknown) {
-                sources = next;
+            setSignal(next: string | null) {
+                signal = next;
             },
         };
     }
@@ -164,7 +164,7 @@ describe('the renderer’s world-refit', () => {
         return settledView(viewerState);
     }
 
-    it('leaves the reader alone when the world, the sources and the geometry are all unchanged', async () => {
+    it('leaves the reader alone when the world, the signal and the geometry are all unchanged', async () => {
         const { viewerState, renderer } = await attachRenderer();
         const chosen = await zoomAndPan(viewerState);
         expect(chosen.scale).toBeGreaterThan(0);
@@ -188,16 +188,49 @@ describe('the renderer’s world-refit', () => {
         expect(later.scale).toBeCloseTo(chosen.scale, 6);
     });
 
-    it('still refits when the tile sources change', async () => {
-        const { viewerState, renderer, setSources } = await attachRenderer();
+    it('still refits when the refit signal changes', async () => {
+        const { viewerState, renderer, setSignal } = await attachRenderer();
         const fitted = viewerState.viewportScale;
         const chosen = await zoomAndPan(viewerState);
         expect(chosen.scale).toBeGreaterThan(fitted * 2);
 
         // What navigation looks like from the renderer's side: the viewer
-        // re-derives the tile sources, and their identity is the guard's signal
-        // that the world under the reader has been replaced.
-        setSources({ canvas: SECOND_CANVAS });
+        // re-derives its world signal, and a different value is the guard's
+        // statement that the world under the reader has been replaced.
+        setSignal(`1|${SECOND_CANVAS}|0|`);
+        renderer.refitForCurrentWorld();
+        const after = await settledView(viewerState);
+
+        expect(after.scale).toBeCloseTo(fitted, 4);
+    });
+
+    it('leaves the reader alone when an equal signal is re-derived', async () => {
+        const { viewerState, renderer, setSignal } = await attachRenderer();
+        const chosen = await zoomAndPan(viewerState);
+
+        // A host replacing its configuration object, or any other re-derivation
+        // that lands on the same world, produces an EQUAL signal rather than the
+        // same one. Keying the guard by VALUE rather than by identity is what
+        // makes an equal replacement cost the reader nothing; a signal compared
+        // by identity could not tell the two apart.
+        setSignal(`0|${FIRST_CANVAS}|0|`);
+        renderer.refitForCurrentWorld();
+        const after = await settledView(viewerState);
+
+        expect(after.scale).toBeCloseTo(chosen.scale, 6);
+        expect(after.centre.x).toBeCloseTo(chosen.centre.x, 4);
+        expect(after.centre.y).toBeCloseTo(chosen.centre.y, 4);
+    });
+
+    it('still refits when a Choice is selected on the canvas on screen', async () => {
+        const { viewerState, renderer, setSignal } = await attachRenderer();
+        const fitted = viewerState.viewportScale;
+        const chosen = await zoomAndPan(viewerState);
+        expect(chosen.scale).toBeGreaterThan(fitted * 2);
+
+        // Same canvas, same rects, different picture in them. Geometry cannot
+        // carry this, so the signal has to: the Choice is the last field of it.
+        setSignal(`0|${FIRST_CANVAS}|0|${FIRST_CANVAS}=http://example.org/alt`);
         renderer.refitForCurrentWorld();
         const after = await settledView(viewerState);
 

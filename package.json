@@ -23,7 +23,7 @@
         "build:examples": "pnpm --filter @triiiceratops/app-examples build",
         "build:site": "pnpm --filter @triiiceratops/app-site build",
         "build:uncial": "pnpm --filter uncial --filter uncial-cms package",
-        "build:packages": "pnpm build:uncial && pnpm --filter @triiiceratops/ui build && pnpm --filter triiiceratops build:lib && pnpm --filter @triiiceratops/plugin-sdk build && pnpm --filter '@triiiceratops/plugin-*' --filter '!@triiiceratops/plugin-sdk' build && pnpm --filter triiiceratops build:testing && pnpm --filter triiiceratops build:element && pnpm size:check:pair",
+        "build:packages": "pnpm build:uncial && pnpm --filter @triiiceratops/ui build && pnpm --filter triiiceratops build:lib && pnpm --filter @triiiceratops/plugin-sdk build && pnpm --filter @triiiceratops/plugin-image-manipulation build && pnpm --filter @triiiceratops/plugin-image-export build && pnpm --filter @triiiceratops/plugin-pdf-export build && pnpm --filter @triiiceratops/plugin-annotation-editor build && pnpm --filter @triiiceratops/plugin-av build && pnpm --filter triiiceratops build:testing && pnpm --filter triiiceratops build:element && pnpm size:check:pair",
         "build:all": "pnpm build:packages && pnpm --filter './apps/*' build",
         "build:plugin-sdk": "pnpm --filter @triiiceratops/plugin-sdk build",
         "check": "node scripts/assert-no-nested-store.mjs && pnpm -r --filter './packages/*' --filter './apps/*' check",

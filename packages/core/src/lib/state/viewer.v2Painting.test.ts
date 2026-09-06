@@ -10,7 +10,10 @@ import {
 import { getThumbnailSrc } from '../utils/getThumbnailSrc';
 import { getCanvasId } from '../utils/iiifIds';
 import { getPaintingAnnotations } from '../utils/iiifParsing';
-import { getCanvasTileSources } from '../utils/resolveCanvasImage';
+import {
+    resolveAllCanvasImages,
+    toImageSource,
+} from '../utils/resolveCanvasImage';
 
 /**
  * IIIF v2 painting annotations end-to-end, through the epic's one seam — a real
@@ -27,8 +30,8 @@ import { getCanvasTileSources } from '../utils/resolveCanvasImage';
  * It exists because the failure it guards is silent. The two deep raw-JSON
  * fallback paths read only the v3 `body` spelling of a painting resource and
  * never the v2 `resource` one; the moment ticket 06 handed them raw v2
- * annotations, both would have fallen through to a `logger.debug` line and
- * rendered nothing at all.
+ * annotations, both would have rendered nothing at all, with nothing at
+ * runtime reporting it. These tests are the only guard.
  */
 
 describe('IIIF v2 painting annotations through the viewer', () => {
@@ -59,9 +62,13 @@ describe('IIIF v2 painting annotations through the viewer', () => {
             const canvasId = getCanvasId(canvas);
 
             expect(getPaintingAnnotations(canvas)).toHaveLength(1);
-            expect(
-                getCanvasTileSources(canvas).map((source) => source.tileSource),
-            ).toEqual([`${canvasId}/image/info.json`]);
+            expect(resolveAllCanvasImages(canvas).map(toImageSource)).toEqual([
+                {
+                    kind: 'service',
+                    serviceId: `${canvasId}/image`,
+                    profile: 'http://iiif.io/api/image/2/level2.json',
+                },
+            ]);
             expect(getThumbnailSrc(canvas)).toBe(
                 `${canvasId}/image/full/200,/0/default.jpg`,
             );
@@ -89,9 +96,14 @@ describe('IIIF v2 painting annotations through the viewer', () => {
         expect(getCanvasChoices(plainCanvas)).toEqual([]);
 
         const urlFor = (canvas: any) =>
-            getCanvasTileSources(canvas, {
+            resolveAllCanvasImages(canvas, {
                 getSelectedChoice: (id: string) => state.getSelectedChoice(id),
-            }).map((source: any) => source.tileSource.url);
+            }).map((resolved) => {
+                const source = toImageSource(resolved);
+                // Every alternative in this fixture is a plain image body, so a
+                // service source here would itself be the regression.
+                return source?.kind === 'static' ? source.url : null;
+            });
 
         // Nothing selected: the v2 `default` renders.
         expect(urlFor(choiceCanvas)).toEqual([
@@ -146,10 +158,8 @@ describe('IIIF v2 painting annotations through the viewer', () => {
         const [canvas] = state.canvases;
 
         expect(getPaintingAnnotations(canvas)).toHaveLength(1);
-        expect(getCanvasTileSources(canvas)).toEqual([
-            expect.objectContaining({
-                tileSource: { type: 'image', url: `${canvasId}/image.jpg` },
-            }),
+        expect(resolveAllCanvasImages(canvas).map(toImageSource)).toEqual([
+            { kind: 'static', url: `${canvasId}/image.jpg` },
         ]);
     });
 });

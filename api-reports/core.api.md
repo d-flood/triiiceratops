@@ -370,6 +370,21 @@ export type PositionedTileSource = CanvasGeometry & {
 export type DisplayPositionedTileSource = PlacedRect & {
     tileSource: unknown;
 };
+export interface CanvasLayoutOptions {
+    mode: ViewingMode;
+    direction: ViewingDirection;
+    preserveCanvasScale?: boolean;
+    /**
+     * Absolute inter-canvas spacing, in the caller's own units. Defaults to the
+     * spacing the viewer itself lays out with.
+     */
+    gap?: number;
+    /**
+     * Inter-canvas spacing as a fraction of the median laid-out canvas extent
+     * along the flow axis. Ignored when `gap` is given.
+     */
+    gapFraction?: number;
+}
 export interface CanvasDisplayLayout {
     canvasId: string;
     x: number;
@@ -417,21 +432,16 @@ interface CanvasLayoutResult {
  * itself would be a fraction of the *unnormalized* extents, on an axis it had
  * to guess a second time.
  */
-export declare function getCanvasDisplayLayouts(sources: PositionedTileSource[], options: {
-    mode: ViewingMode;
-    direction: ViewingDirection;
-    preserveCanvasScale?: boolean;
-    /**
-     * Absolute inter-canvas spacing, in the caller's own units. Defaults to
-     * the spacing the viewer itself lays out with.
-     */
-    gap?: number;
-    /**
-     * Inter-canvas spacing as a fraction of the median laid-out canvas
-     * extent along the flow axis. Ignored when `gap` is given.
-     */
-    gapFraction?: number;
-}): CanvasLayoutResult;
+export declare function layoutCanvasGeometry(sources: readonly CanvasGeometry[], options: CanvasLayoutOptions): CanvasDisplayLayout[];
+/**
+ * Lay out canvases and place each caller payload within its canvas.
+ *
+ * The same arrangement as `layoutCanvasGeometry`, from the same code, with the
+ * `sources` output the export path composes from. Only a caller that has
+ * payloads to place reaches this, which is what keeps payload placement out of
+ * the viewer's own bundle.
+ */
+export declare function getCanvasDisplayLayouts(sources: PositionedTileSource[], options: CanvasLayoutOptions): CanvasLayoutResult;
 export declare function getContinuousTargetPosition(indexOrCanvasId: number | string, layouts: CanvasDisplayLayout[], direction: ViewingDirection): number | null;
 export {};
 
@@ -1211,8 +1221,8 @@ export type { TriiiceratopsViewerElement };
  * shared package is introduced."). The closure imports no Svelte and no viewer
  * state, so a plugin bundling this seam into its self-contained IIFE pulls in no
  * `svelte/internal`. Re-exports are explicit (not `export *`) because the source
- * modules share some symbol names (`getCanvasId`, `PositionedTileSource`), which
- * a wildcard would make ambiguous.
+ * modules share some symbol names (`getCanvasId`), which a wildcard would make
+ * ambiguous.
  */
 export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, getDeclaredCanvasDimensions, resolveAllCanvasImages, resolveCanvasImage, type ResolvedCanvasImage, } from './utils/resolveCanvasImage';
 export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchExportImageBlob, fetchImageBlob, getCompositeImagePlacement, getResolvedImageExportUrl, isCrossOriginImageFailure, isLevel0ImageService, loadImageElement, resolveExportSizeOptions, sanitizeFilenamePart, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
@@ -2473,8 +2483,9 @@ export type SourceDescriptor = ImageSource;
  * every use and would be wrong the moment it was not.
  *
  * This is deliberately the same normalization the export path already lays out
- * in (`utils/resolveCanvasImage.PositionedTileSource`), so a composite canvas
- * cannot compose one way on screen and another way in an export.
+ * in (`utils/resolveCanvasImage.ResolvedCanvasImage`, whose `x`/`y`/`width` are
+ * carried here unchanged), so a composite canvas cannot compose one way on
+ * screen and another way in an export.
  */
 export interface PlannerImage {
     /**
@@ -3813,6 +3824,11 @@ export declare class ViewerState {
     get canvases(): any[];
     get sequenceCount(): number;
     get currentCanvasIndex(): number;
+    /**
+     * `currentCanvasIndex` is a linear search of the canvas list, so callers
+     * that already hold it pass it in: read from inside the group predicate it
+     * would search the whole list again for every group.
+     */
     private getCurrentPagedCanvasGroupIndex;
     get hasNext(): boolean;
     get hasPrevious(): boolean;
@@ -7255,7 +7271,7 @@ export declare function isChoiceBody(body: any): boolean;
  *
  * Guarded against a bare object in place of the array, per the spec's failure
  * contract — an unguarded `items.find(...)` on one throws all the way out
- * through `getViewerTileSources`, which has no `try`/`catch` anywhere on its
+ * through `resolveAllCanvasImages`, which has no `try`/`catch` anywhere on its
  * path.
  *
  * Returns `[]` for anything that is not a Choice-shaped object.
@@ -7700,10 +7716,6 @@ export declare function resolvePointRadius(pointStyle?: PointStyle | null): numb
 // ======================================================================
 import { getCanvasLabel } from './canvasLabels';
 import { getCanvasId } from './iiifIds';
-export type TileSource = string | {
-    type: 'image';
-    url: string;
-};
 /**
  * Where a canvas's pixels come from.
  *
@@ -7731,22 +7743,6 @@ export type RegionRect = {
     width: number;
     height: number;
 };
-export type PositionedTileSource = {
-    canvasId: string;
-    tileSource: TileSource;
-    /** Position and PAINTED extent, normalized by the Canvas's own width. */
-    x: number;
-    y: number;
-    width: number;
-    /**
-     * The whole Canvas box in the same normalized units — 1 unit wide by
-     * construction, and as many tall as the Canvas's aspect ratio. Distinct
-     * from `width` for a source that paints a sub-region, and it is what layout
-     * advances the next canvas past (see `components/canvasLayout`).
-     */
-    canvasBoxWidth: number;
-    canvasBoxHeight: number | null;
-};
 type ResolveCanvasImageOptions = {
     getSelectedChoice?: (canvasId: string) => string | undefined;
     /**
@@ -7764,13 +7760,12 @@ type ResolveCanvasImageOptions = {
      */
     fallbackCanvasDimensions?: CanvasDimensions;
 };
-type GetViewerTileSourcesParams = {
+type VisibleViewerCanvasesParams = {
     canvases: any[];
     currentCanvasIndex: number;
     currentCanvasId: string | null;
     viewingMode: 'individuals' | 'paged' | 'continuous';
     pagedOffset: number;
-    getSelectedChoice?: (canvasId: string) => string | undefined;
 };
 export type ResolvedCanvasImage = {
     canvasId: string;
@@ -7837,8 +7832,23 @@ export declare function resolveAllCanvasImages(canvas: any, options?: ResolveCan
  * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function toImageSource(resolved: ResolvedCanvasImage): ImageSource | null;
-export declare function getCanvasTileSource(canvas: any, options?: ResolveCanvasImageOptions): TileSource | null;
-export declare function getCanvasTileSources(canvas: any, options?: ResolveCanvasImageOptions): PositionedTileSource[];
+/**
+ * Whether a canvas paints at least one image core could actually request.
+ *
+ * The viewer's **renderability** gate, and the same decision painting makes:
+ * {@link resolveAllCanvasImages} for the painting bodies, {@link toImageSource}
+ * for whether each names a source. Existence only — it stops at the first image
+ * that does — because the gate asks whether to mount the renderer at all and
+ * nothing downstream of it reads a list.
+ *
+ * Deliberately WITHOUT `fallbackCanvasDimensions`, unlike the renderer's own
+ * descriptors: a canvas declaring no usable dimensions resolves nothing here,
+ * which is the gate's long-standing answer for it. The renderer's placeholder
+ * exists so such a canvas can still be laid out once the gate has let it
+ * through, and threading it in here would change what the viewer says about a
+ * dimensionless canvas rather than what it does with a rendered one.
+ */
+export declare function canvasPaintsImage(canvas: any, options?: ResolveCanvasImageOptions): boolean;
 export declare function buildIiifImageRequestUrl(serviceId: string, options?: {
     region?: string;
     size?: string;
@@ -7852,13 +7862,11 @@ export declare function buildIiifImageRequestUrl(serviceId: string, options?: {
  * paged mode, or all of them in continuous mode.
  *
  * Exists so that "which canvases resolved an image" and "which canvases core
- * cannot render" are answered over the same set. `getViewerTileSources`
- * flattens across all of them, so a null answer means *nothing visible*
- * resolved — and anything gating on that null has to ask about the same
- * canvases or it will disagree with it on a spread.
+ * cannot render" are answered over the same set: the viewer asks both of this
+ * one list, so on a spread they cannot disagree about which canvases were
+ * being talked about.
  */
-export declare function getVisibleViewerCanvases({ canvases, currentCanvasIndex, currentCanvasId, viewingMode, pagedOffset, }: Omit<GetViewerTileSourcesParams, 'getSelectedChoice'>): any[];
-export declare function getViewerTileSources({ canvases, currentCanvasIndex, currentCanvasId, viewingMode, pagedOffset, getSelectedChoice, }: GetViewerTileSourcesParams): PositionedTileSource[] | null;
+export declare function getVisibleViewerCanvases({ canvases, currentCanvasIndex, currentCanvasId, viewingMode, pagedOffset, }: VisibleViewerCanvasesParams): any[];
 
 // ======================================================================
 // FILE: dist/utils/structures.d.ts

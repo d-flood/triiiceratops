@@ -57,7 +57,7 @@ function makeCanvas(manifestId: string, index: number) {
  * non-sequence range for the table of contents, and two sequences for the
  * sequence picker.
  */
-function makeManifest() {
+function makeManifest(sequenceCount = 2) {
     const manifestId = `http://example.org/manifest/toolbar-${++manifestCounter}`;
     return {
         manifestId,
@@ -83,18 +83,21 @@ function makeManifest() {
                         makeCanvas(manifestId, 2),
                     ],
                 },
-                {
-                    '@id': `${manifestId}/sequence/2`,
-                    '@type': 'sc:Sequence',
-                    canvases: [makeCanvas(manifestId, 3)],
-                },
+                ...Array.from(
+                    { length: sequenceCount - 1 },
+                    (_unused, offset) => ({
+                        '@id': `${manifestId}/sequence/${offset + 2}`,
+                        '@type': 'sc:Sequence',
+                        canvases: [makeCanvas(manifestId, offset + 3)],
+                    }),
+                ),
             ],
         },
     };
 }
 
-async function mountToolbar(config: ViewerConfig = {}) {
-    const { manifestId, json } = makeManifest();
+async function mountToolbar(config: ViewerConfig = {}, sequenceCount = 2) {
+    const { manifestId, json } = makeManifest(sequenceCount);
     const viewerState = new ViewerState();
     await viewerState.setManifestData(manifestId, json);
     loadedManifests.push(manifestId);
@@ -210,6 +213,36 @@ function menuItems(flyoutId: string) {
         // The trailing check mark, which is the visual half of `aria-checked`.
         check: item.querySelectorAll('svg').length === 2,
     }));
+}
+
+/**
+ * The shell every built-in flyout shares: the toggle's popup wiring and the
+ * panel's own attributes. `name` is the menu's single identity — its DOM id and
+ * its CSS anchor are both derived from it, so a shell that drifts on one menu
+ * shows up here as a mismatch between the two.
+ */
+function flyoutShell(name: string) {
+    const toggle = document.querySelector<HTMLButtonElement>(
+        `[aria-controls="tri-flyout-${name}"]`,
+    )!;
+    const panel = document.querySelector<HTMLElement>(`#tri-flyout-${name}`)!;
+    return {
+        toggleLabel: toggle.getAttribute('aria-label'),
+        toggleAnchor: toggle.getAttribute('style'),
+        badge: toggle.querySelector('.indicator-item.count-badge')?.textContent,
+        panelLabel: panel.getAttribute('aria-label'),
+        panelRole: panel.getAttribute('role'),
+        // Focusable so the open-menu effect can park focus on the panel itself
+        // when it has no items to move to.
+        panelTabIndex: panel.getAttribute('tabindex'),
+        panelAnchor: panel.getAttribute('style'),
+        dismissible: panel.hasAttribute('data-flyout-panel'),
+        // The Svelte scope class is a build hash, not a contract.
+        classes: [...panel.classList]
+            .filter((name) => !name.startsWith('svelte-'))
+            .sort()
+            .join(' '),
+    };
 }
 
 describe('Toolbar attribute matrix', () => {
@@ -538,6 +571,92 @@ describe('Toolbar attribute matrix', () => {
         ).toBe(true);
     });
 
+    /**
+     * Every built-in flyout is rendered by one shared shell, so the shell's own
+     * attributes are asserted for all of them at once: a drift that reaches only
+     * one menu is a drift in what its branch passes, and a drift that reaches
+     * all of them is a drift in the shell.
+     *
+     * Anchor and id both derive from the menu's name, which is what keeps
+     * `anchor-name` on the toggle and `position-anchor` on the panel pointing at
+     * each other.
+     */
+    it('renders every built-in flyout through the same anchored menu shell', async () => {
+        await mountToolbar();
+
+        expect(flyoutShell('viewing-mode')).toEqual({
+            toggleLabel: 'Viewing Mode',
+            toggleAnchor: 'anchor-name: --anchor-viewing-mode;',
+            badge: undefined,
+            panelLabel: 'Viewing Mode',
+            panelRole: 'menu',
+            panelTabIndex: '-1',
+            panelAnchor: 'position-anchor: --anchor-viewing-mode;',
+            dismissible: true,
+            classes: 'menu menu-flyout popover-menu right',
+        });
+        expect(flyoutShell('gallery')).toEqual({
+            toggleLabel: 'Gallery',
+            toggleAnchor: 'anchor-name: --anchor-gallery;',
+            badge: undefined,
+            panelLabel: 'Gallery',
+            panelRole: 'menu',
+            panelTabIndex: '-1',
+            panelAnchor: 'position-anchor: --anchor-gallery;',
+            dismissible: true,
+            classes: 'menu menu-flyout popover-menu right',
+        });
+        // The sequence picker is the one menu with a count badge, and one of the
+        // two whose long labels need the wide panel.
+        expect(flyoutShell('sequence-picker')).toEqual({
+            toggleLabel: 'Sequence',
+            toggleAnchor: 'anchor-name: --anchor-sequence-picker;',
+            badge: '2',
+            panelLabel: 'Sequence',
+            panelRole: 'menu',
+            panelTabIndex: '-1',
+            panelAnchor: 'position-anchor: --anchor-sequence-picker;',
+            dismissible: true,
+            classes: 'menu menu-flyout popover-menu right wide',
+        });
+    });
+
+    /**
+     * The panel grows toward the canvas, so its placement class is the toolbar's
+     * side read backwards — the same value the plugin flyouts use, and the only
+     * part of the shell that is not fixed per menu.
+     */
+    it('grows every built-in flyout away from the toolbar edge', async () => {
+        await mountToolbar({ toolbar: { anchor: 'top' } });
+
+        expect([
+            flyoutShell('viewing-mode').classes,
+            flyoutShell('gallery').classes,
+            flyoutShell('sequence-picker').classes,
+        ]).toEqual([
+            'down menu menu-flyout popover-menu',
+            'down menu menu-flyout popover-menu',
+            'down menu menu-flyout popover-menu wide',
+        ]);
+    });
+
+    /**
+     * The badge is a fixed-width pill, so a four-digit count would burst it. It
+     * caps at '99+' while the menu below still lists every sequence.
+     */
+    it('caps the sequence count badge at 99+ without capping the menu', async () => {
+        await mountToolbar({}, 100);
+        expect(flyoutShell('sequence-picker').badge).toBe('99+');
+        expect(menuItems('tri-flyout-sequence-picker')).toHaveLength(100);
+
+        await unmount(mounted!);
+        mounted = null;
+        document.body.innerHTML = '';
+
+        await mountToolbar({}, 99);
+        expect(flyoutShell('sequence-picker').badge).toBe('99');
+    });
+
     it('renders one radio item per viewing mode, checked from the current mode', async () => {
         const viewerState = await mountToolbar();
 
@@ -591,6 +710,13 @@ describe('Toolbar attribute matrix', () => {
         const items = menuItems('tri-flyout-viewing-mode');
         expect(items).toHaveLength(4);
         expect(items[1].checked).toBe('true');
+        // It is the one row whose label runs long enough to need the start
+        // alignment the radio rows above it do not carry.
+        expect(
+            document
+                .querySelectorAll('#tri-flyout-viewing-mode > li > button')[3]
+                .classList.contains('text-start'),
+        ).toBe(true);
         expect(items[3]).toEqual({
             role: 'menuitemcheckbox',
             text: 'Shift Page Pairing',

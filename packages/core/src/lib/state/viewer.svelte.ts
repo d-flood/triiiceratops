@@ -500,7 +500,7 @@ export class ViewerState {
     }
 
     // Dedicated reactive state for viewingMode to ensure proper reactivity
-    // when accessed in $derived expressions (tileSources computation)
+    // when accessed in $derived expressions.
     private _viewingMode = $state<'individuals' | 'paged' | 'continuous'>(
         'individuals',
     );
@@ -701,41 +701,51 @@ export class ViewerState {
         if (canvasId) this.setCanvas(canvasId);
     }
 
-    private getCurrentPagedCanvasGroupIndex(): number {
-        if (this.viewingMode !== 'paged' || this.currentCanvasIndex < 0) {
+    /**
+     * `currentCanvasIndex` is a linear search of the canvas list, so callers
+     * that already hold it pass it in: read from inside the group predicate it
+     * would search the whole list again for every group.
+     */
+    private getCurrentPagedCanvasGroupIndex(
+        currentCanvasIndex: number = this.currentCanvasIndex,
+    ): number {
+        if (this.viewingMode !== 'paged' || currentCanvasIndex < 0) {
             return -1;
         }
 
         return this.#pagedGroups.findIndex(
             ({ startIndex, endIndex }) =>
-                this.currentCanvasIndex >= startIndex &&
-                this.currentCanvasIndex <= endIndex,
+                currentCanvasIndex >= startIndex &&
+                currentCanvasIndex <= endIndex,
         );
     }
 
     get hasNext() {
-        if (this.currentCanvasIndex < 0) {
+        const currentCanvasIndex = this.currentCanvasIndex;
+        if (currentCanvasIndex < 0) {
             return false;
         }
 
         if (this.viewingMode === 'paged') {
-            const groupIndex = this.getCurrentPagedCanvasGroupIndex();
+            const groupIndex =
+                this.getCurrentPagedCanvasGroupIndex(currentCanvasIndex);
             return groupIndex >= 0 && groupIndex < this.#pagedGroups.length - 1;
         } else {
-            return this.currentCanvasIndex < this.canvases.length - 1;
+            return currentCanvasIndex < this.canvases.length - 1;
         }
     }
 
     get hasPrevious() {
-        if (this.currentCanvasIndex < 0) {
+        const currentCanvasIndex = this.currentCanvasIndex;
+        if (currentCanvasIndex < 0) {
             return false;
         }
 
         if (this.viewingMode === 'paged') {
-            return this.getCurrentPagedCanvasGroupIndex() > 0;
+            return this.getCurrentPagedCanvasGroupIndex(currentCanvasIndex) > 0;
         }
 
-        return this.currentCanvasIndex > 0;
+        return currentCanvasIndex > 0;
     }
 
     nextCanvas() {
