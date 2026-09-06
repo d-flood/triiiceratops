@@ -36,7 +36,7 @@ import { getThumbnailSrc } from '../utils/getThumbnailSrc';
 import { getCanvasesForSequence } from '../utils/iiifParsing';
 import { isUnsupportedCanvas } from '../utils/paintingBodies';
 import {
-    getCanvasTileSources,
+    canvasPaintsImage,
     getVisibleViewerCanvases,
 } from '../utils/resolveCanvasImage';
 
@@ -145,8 +145,8 @@ describe('a video canvas', () => {
         expect(descriptor!.images).toEqual([]);
     });
 
-    it('resolves no tile source and no thumbnail src', () => {
-        expect(getCanvasTileSources(canvases[0])).toEqual([]);
+    it('resolves no image and no thumbnail src', () => {
+        expect(canvasPaintsImage(canvases[0])).toBe(false);
         expect(getThumbnailSrc(canvases[0])).toBe('');
     });
 });
@@ -331,7 +331,7 @@ describe('the viewer-wide "no image found" cover', () => {
         const canvases = canvasesOf(COOKBOOK_DIR, '0283-missing-image.json');
         const index = 1;
 
-        expect(getCanvasTileSources(canvases[index])).toEqual([]);
+        expect(canvasPaintsImage(canvases[index])).toBe(false);
         expect(yieldsToUnsupported(canvases, index, 'individuals')).toBe(false);
     });
 
@@ -345,7 +345,7 @@ describe('the viewer-wide "no image found" cover', () => {
 
         expect(canvases.length).toBeGreaterThan(0);
         for (const [index] of canvases.entries()) {
-            expect(getCanvasTileSources(canvases[index])).toEqual([]);
+            expect(canvasPaintsImage(canvases[index])).toBe(false);
             expect(yieldsToUnsupported(canvases, index, 'individuals')).toBe(
                 false,
             );

@@ -46,8 +46,11 @@ export default defineConfig({
         messageCompiler(),
         // Second minification pass, over what esbuild writes. Deliberately not
         // `build.minify: 'terser'`: replacing esbuild rather than following it
-        // measures thousands of gzip bytes worse. See src/packaging/terserElement.ts.
-        terserElementBuilds(),
+        // measures thousands of gzip bytes worse. `'iife'` keeps terser in
+        // script semantics — Vite's IIFE wrapper is not a module, so the
+        // module-only licences the ESM config takes are unsound here. See
+        // src/packaging/terserElement.ts.
+        terserElementBuilds('iife'),
     ],
     esbuild: {
         pure: ['console.log', 'console.debug'],

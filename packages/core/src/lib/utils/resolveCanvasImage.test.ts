@@ -5,10 +5,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
     buildIiifImageRequestUrl,
-    getCanvasTileSources,
-    getCanvasTileSource,
     resolveAllCanvasImages,
     resolveCanvasImage,
+    toImageSource,
 } from './resolveCanvasImage';
 
 /**
@@ -119,9 +118,11 @@ describe('resolveCanvasImage', () => {
             }),
         );
 
-        expect(getCanvasTileSource(canvas)).toBe(
-            'https://example.org/iiif/image-1/info.json',
-        );
+        expect(toImageSource(resolveCanvasImage(canvas)!)).toEqual({
+            kind: 'service',
+            serviceId: 'https://example.org/iiif/image-1',
+            profile: null,
+        });
     });
 
     it('uses the selected Choice item when provided, on a raw IIIF v2 canvas', () => {
@@ -196,9 +197,11 @@ describe('resolveCanvasImage', () => {
             }),
         );
 
-        expect(getCanvasTileSource(canvas)).toBe(
-            'https://example.org/iiif/natural/info.json',
-        );
+        expect(toImageSource(resolveCanvasImage(canvas)!)).toEqual({
+            kind: 'service',
+            serviceId: 'https://example.org/iiif/natural',
+            profile: 'level1',
+        });
     });
 
     it('uses the selected Choice item on a raw IIIF v3 canvas', () => {
@@ -216,10 +219,16 @@ describe('resolveCanvasImage', () => {
 
         // A Choice contributes exactly ONE image to the canvas, not one per
         // alternative — otherwise every alternative would be tiled at once.
-        expect(getCanvasTileSources(canvas, { getSelectedChoice })).toEqual([
-            expect.objectContaining({
-                tileSource: 'https://example.org/iiif/xray/info.json',
-            }),
+        expect(
+            resolveAllCanvasImages(canvas, { getSelectedChoice }).map(
+                toImageSource,
+            ),
+        ).toEqual([
+            {
+                kind: 'service',
+                serviceId: 'https://example.org/iiif/xray',
+                profile: 'level1',
+            },
         ]);
     });
 
@@ -287,10 +296,12 @@ describe('resolveCanvasImage', () => {
         );
 
         expect(
-            getCanvasTileSource(canvas, {
-                getSelectedChoice: () => `${xray}/full/max/0/default.jpg`,
-            }),
-        ).toBe(`${xray}/info.json`);
+            toImageSource(
+                resolveCanvasImage(canvas, {
+                    getSelectedChoice: () => `${xray}/full/max/0/default.jpg`,
+                })!,
+            ),
+        ).toEqual({ kind: 'service', serviceId: xray, profile: 'level1' });
     });
 
     it('falls back to a direct image URL when no IIIF service exists', () => {
@@ -313,8 +324,8 @@ describe('resolveCanvasImage', () => {
             ],
         };
 
-        expect(getCanvasTileSource(canvas)).toEqual({
-            type: 'image',
+        expect(toImageSource(resolveCanvasImage(canvas)!)).toEqual({
+            kind: 'static',
             url: 'https://example.org/static/image.png',
         });
     });
@@ -401,13 +412,24 @@ describe('resolveCanvasImage', () => {
             }),
         );
 
-        expect(getCanvasTileSources(canvas)).toEqual([
-            expect.objectContaining({
-                tileSource: 'https://example.org/iiif/crop-image/info.json',
+        expect(
+            resolveAllCanvasImages(canvas).map((resolved) => ({
+                source: toImageSource(resolved),
+                x: resolved.x,
+                y: resolved.y,
+                width: resolved.width,
+            })),
+        ).toEqual([
+            {
+                source: {
+                    kind: 'service',
+                    serviceId: 'https://example.org/iiif/crop-image',
+                    profile: null,
+                },
                 x: 0.1,
                 y: 0.25,
                 width: 0.4,
-            }),
+            },
         ]);
     });
 
@@ -452,8 +474,8 @@ describe('resolveCanvasImage', () => {
             }),
         );
 
-        expect(getCanvasTileSource(canvas)).toEqual({
-            type: 'image',
+        expect(toImageSource(resolveCanvasImage(canvas)!)).toEqual({
+            kind: 'static',
             url: 'https://example.org/iiif/newspaper/1768,2423,1768,2080/max/0/default.jpg',
         });
     });
@@ -626,8 +648,8 @@ describe('resolveAllCanvasImages', () => {
     it('does not throw when a Choice writes its items as a bare object', () => {
         // Invalid per the spec and the same shape the corpus already carries
         // for `sequences`. Unguarded, `items.find(...)` threw a TypeError out
-        // through `getCanvasTileSources` and `getViewerTileSources`, neither of
-        // which has a try/catch anywhere on the path to the viewer.
+        // through `resolveAllCanvasImages`, which has no try/catch anywhere on
+        // its path to the viewer.
         const canvas = {
             id: 'canvas-bare-choice',
             type: 'Canvas',

@@ -95,7 +95,7 @@
 #
 #   Per canvas: id, label, size, thumbnail URL, the number of painting
 #   annotations enumerated on it, the image URLs the viewer would paint (via the
-#   same `getCanvasTileSources` the viewer calls) each with its position
+#   same `resolveAllCanvasImages` the renderer paints from) each with its position
 #   `at=x,y,width` in viewport units, and the Choice alternatives on offer.
 #   Where a canvas has choices, the resolved images are re-recorded once per
 #   selection, driven through `ViewerState.selectChoice` — so this file pins

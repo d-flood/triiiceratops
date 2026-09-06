@@ -74,7 +74,7 @@
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
     import {
-        getViewerTileSources,
+        canvasPaintsImage,
         getVisibleViewerCanvases,
     } from '../utils/resolveCanvasImage';
     import { getCanvasId } from './viewerControls';
@@ -1375,63 +1375,107 @@
         );
     });
 
-    let tileSources = $derived.by(() => {
-        if (
-            !canvases ||
-            currentCanvasIndex === -1 ||
-            !canvases[currentCanvasIndex]
-        ) {
-            if (!manifestData?.isFetching) {
-                logger.debug('No canvas found');
-            }
-            return null;
-        }
-
-        const tileSourcesArray = getViewerTileSources({
-            canvases,
-            currentCanvasIndex,
-            currentCanvasId: internalViewerState.canvasId,
-            viewingMode: internalViewerState.viewingMode,
-            pagedOffset: internalViewerState.pagedOffset,
-            getSelectedChoice: (canvasId) =>
-                internalViewerState.getSelectedChoice(canvasId),
-        });
-
-        if (!tileSourcesArray) {
-            if (!manifestData?.isFetching) {
-                logger.debug('No images/content in canvas');
-            }
-            return null;
-        }
-
-        logger.debug('Derived tileSources:', tileSourcesArray);
-        return tileSourcesArray;
-    });
-
     /**
-     * Whether any canvas on screen paints something core cannot render — a
-     * film, a sound recording.
+     * The canvases on screen this frame — the current one, its spread mate, or
+     * the whole manifest in continuous mode.
      *
-     * Such a canvas resolves NO tile source, which used to mean the viewer
-     * covered the whole surface with "no image found" and never mounted the
-     * renderer at all. It has to: the canvas keeps its layout rect and gets the
-     * **unsupported presentation** painted over it by the renderer, which is a
-     * per-canvas treatment and not a viewer-wide cover (CONTEXT.md; ADR 0017).
-     *
-     * Asked of the whole visible set rather than of the current canvas, because
-     * that is the set `tileSources` was flattened over: in a spread or in
-     * continuous mode the current canvas may paint nothing at all while a
-     * sibling on screen is the audio one, and asking only about the current
-     * canvas would take the viewer-wide cover and lose the sibling's treatment.
+     * Derived ONCE and asked two questions below, which is what keeps
+     * "something here paints" and "something here cannot be painted" answers
+     * about the same set. In continuous mode this is `canvases` itself, so
+     * navigating re-runs this derivation and hands back the identical array —
+     * and the two derivations that read it do not re-run at all.
      */
-    let visibleCanvasUnsupported = $derived.by(() =>
+    let visibleCanvases = $derived(
         getVisibleViewerCanvases({
             canvases: canvases ?? [],
             currentCanvasIndex,
             currentCanvasId: internalViewerState.canvasId,
             viewingMode: internalViewerState.viewingMode,
             pagedOffset: internalViewerState.pagedOffset,
-        }).some((canvas) =>
+        }),
+    );
+
+    /**
+     * Whether anything on screen resolves an image core can request — the
+     * renderability half of the gate below.
+     *
+     * A BOOLEAN rather than the resolved images, because nothing downstream
+     * wants a list: painting resolves its own descriptors
+     * (`renderer/canvasDescriptors.ts`), and the only questions asked here are
+     * whether to mount the renderer at all and — through {@link refitSignal} —
+     * whether the world under the reader has anything to fit. Existence is
+     * therefore all that is computed: {@link canvasPaintsImage} stops at the
+     * first canvas that paints anything, so a long continuous manifest does not
+     * resolve every folio's images to answer it (user story 7).
+     */
+    let canvasesRenderable = $derived(
+        visibleCanvases.some((canvas) =>
+            canvasPaintsImage(canvas, {
+                getSelectedChoice: (canvasId) =>
+                    internalViewerState.getSelectedChoice(canvasId),
+            }),
+        ),
+    );
+
+    /**
+     * The Choice selected on each visible canvas, joined.
+     *
+     * Its own derivation rather than part of {@link refitSignal}, and that is
+     * the whole reason navigation is cheap in continuous mode: `visibleCanvases`
+     * is the same array before and after a move there, so this does not re-run
+     * and the signal below is a string concatenation over a value already in
+     * hand. Selecting a different Choice is a different picture in the same
+     * rects, which the renderer cannot see in its geometry — so it has to
+     * arrive as a change signal.
+     */
+    let visibleChoiceKey = $derived(
+        visibleCanvases
+            .map((canvas) => {
+                const canvasId = getCanvasId(canvas) ?? '';
+                return `${canvasId}=${internalViewerState.getSelectedChoice(canvasId) ?? ''}`;
+            })
+            .join('|'),
+    );
+
+    /**
+     * What the renderer refits on: the world under the reader, as a value.
+     *
+     * The renderer keys its idempotence guard on this (`refitForCurrentWorld`),
+     * so it carries exactly the changes a refit is owed and nothing else — the
+     * current canvas and its spread offset, which is how navigation arrives,
+     * and the selected Choices. Mode, direction, manifest and pairing scale
+     * reach the renderer through its own world key, and geometry through
+     * `paintedGeometry`; none of them are repeated here.
+     *
+     * `null` when nothing paints, and that nullness is load-bearing: an
+     * unsupported-presentation manifest mounts the renderer with no image in
+     * it, and a constant null is what keeps navigating such a manifest from
+     * refitting a view that has nothing to fit.
+     */
+    let refitSignal = $derived(
+        canvasesRenderable
+            ? `${currentCanvasIndex}|${internalViewerState.canvasId ?? ''}|${internalViewerState.pagedOffset}|${visibleChoiceKey}`
+            : null,
+    );
+
+    /**
+     * Whether any canvas on screen paints something core cannot render — a
+     * film, a sound recording.
+     *
+     * Such a canvas resolves NO image, which used to mean the viewer covered the
+     * whole surface with "no image found" and never mounted the renderer at all.
+     * It has to: the canvas keeps its layout rect and gets the **unsupported
+     * presentation** painted over it by the renderer, which is a per-canvas
+     * treatment and not a viewer-wide cover (CONTEXT.md; ADR 0017).
+     *
+     * Asked of the whole visible set rather than of the current canvas, for the
+     * reason {@link visibleCanvases} exists: in a spread or in continuous mode
+     * the current canvas may paint nothing at all while a sibling on screen is
+     * the audio one, and asking only about the current canvas would take the
+     * viewer-wide cover and lose the sibling's treatment.
+     */
+    let visibleCanvasUnsupported = $derived(
+        visibleCanvases.some((canvas) =>
             isUnsupportedCanvasFor(internalViewerState, canvas),
         ),
     );
@@ -1647,7 +1691,7 @@
                     {m.error_prefix()}
                     {manifestData.error}
                 </div>
-            {:else if tileSources || visibleCanvasUnsupported}
+            {:else if canvasesRenderable || visibleCanvasUnsupported}
                 {#if tileSourceError}
                     {@const auth = tileSourceError.type === 'auth'}
                     {@render cover(
@@ -1664,7 +1708,7 @@
                         that (ADR 0012).
                     -->
                     <CanvasHost
-                        {tileSources}
+                        {refitSignal}
                         viewerState={internalViewerState}
                         dockedChrome={dockedChromeColumns}
                     />

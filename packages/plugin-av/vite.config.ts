@@ -11,6 +11,7 @@ import { defineConfig, type Plugin } from 'vite';
 // it by. `scripts/check-shared-runtime.mjs` reads core's source the same way and
 // for the same reason — both are monorepo build tooling, never shipped.
 import { minifyCss } from '../core/src/packaging/minifyCss';
+import { terserPass } from '../core/src/packaging/terserPass';
 import { sharedRuntimeGateSource } from './src/sharedRuntimeGate';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -30,8 +31,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *
  * Every other first-party plugin ships one file per format, because
  * `inlineDynamicImports` folds its lazy code into the entry. This plugin does
- * not: hls.js is roughly 225 KB gzip of Media Source machinery that a manifest
- * of progressive MP4s never needs, and the waveform parsers are another 2.4 KB
+ * not: hls.js is roughly 178 KB gzip of Media Source machinery that a manifest
+ * of progressive MP4s never needs, and the waveform parsers are another 2 KB
  * that only a canvas linking waveform data needs. Inlining either would spend
  * the competitive pair budget (`scripts/size-check.mjs`) on bytes most readers
  * never use.
@@ -107,6 +108,63 @@ const LAZY_CHUNKS: Record<string, string> = {
     './hls/index': 'av-hls.js',
     './sequencer/index': 'av-sequencer.js',
     './transcript/index': 'av-transcript.js',
+};
+
+/**
+ * A second, conservative terser pass over what Vite's own minifier produced,
+ * registered for every format. Core's element artifacts have run the same
+ * two-pass pipeline since it measured better than swapping esbuild out
+ * (`../core/src/packaging/terserElement.ts` carries those measurements and the
+ * reasons `pure_getters`, `unsafe*` and property mangling stay off — Svelte's
+ * compiled signal plumbing is this bundle's too, so the same three stay off
+ * here).
+ *
+ * What this build needs that core's does not is that its three outputs are not
+ * all read by the same kind of consumer, and Vite's default minification
+ * already reflects that: `build.minify` skips WHITESPACE for an ES library
+ * output, because collapsing it would strip the `@__PURE__` annotations a
+ * downstream bundler tree-shakes with. That is why `dist/index.js` and its
+ * hashed chunks ship pretty-printed today, and it is most of what this pass
+ * recovers — but only if the annotations survive it. So:
+ *
+ *   - `preserve_annotations` is ON for the `es` build, whose output a
+ *     consumer's bundler still has to tree-shake, and OFF for the two IIFE-side
+ *     builds, whose output goes to a browser with no bundler after it. A test
+ *     asserts the annotations are still in the built ESM entry and chunks, and
+ *     `consumer-bundles.guard.test.ts` bundles three consumers against them.
+ *   - `module` follows the OUTPUT format rather than the build: true for the
+ *     ES entry AND for the lazy chunks, which are ES modules a `<script>` page
+ *     `import()`s, and false only for the IIFE, whose body is script scope.
+ *   - `comments: 'some'` keeps `@license`, `@preserve` and `/*!` banners, so a
+ *     vendor notice that reaches this pass leaves in the artifact. hls.js marks
+ *     none of its bundled third-party notices that way and Vite's esbuild pass
+ *     drops them long before this one, so today nothing survives to be kept;
+ *     this setting is what stops the second pass from being the reason.
+ *   - `mangle` is OFF for the IIFE, and it is the one place this pass is
+ *     deliberately left un-maximal. esbuild has already mangled that artifact;
+ *     re-mangling it measures a further 448 gzip bytes, and it spends them
+ *     renaming two-character locals to single letters. That is what
+ *     `scripts/check-shared-runtime.mjs` cannot survive: it finds the locals
+ *     holding `window.Triiiceratops.svelteInternal` and `.core` by name and
+ *     then follows aliases of them textually, so once `p` is a namespace local
+ *     the unrelated `s=p` and `c=f(p)` in every other function scope in the
+ *     bundle join the set, and the gate reports 400 unpublished "helpers"
+ *     instead of the real handful. That gate is the only thing standing between
+ *     a compiled component reaching a helper core does not publish and a
+ *     browser throwing "is not a function" at mount, so it is not weakened to
+ *     collect the 448 bytes; making it scope-aware means parsing the artifact,
+ *     which is its own change. The other three artifacts have no globals wiring
+ *     and no such gate, and keep full mangling — which is where this ticket's
+ *     bytes are anyway.
+ */
+const terserOptions = {
+    compress: { passes: 3 },
+    mangle: format !== 'iife',
+    module: format !== 'iife',
+    format: {
+        comments: 'some' as const,
+        preserve_annotations: format === 'es',
+    },
 };
 
 const lib =
@@ -296,6 +354,7 @@ export default defineConfig({
         bundledCss(),
         minifiedRawCss(),
         ...(format === 'iife' ? [chunkedIife()] : []),
+        terserPass('tri-av-terser', terserOptions),
     ],
     build: {
         // Lowering private fields leaks helpers outside Vite's generated IIFE.

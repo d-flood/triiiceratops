@@ -570,6 +570,179 @@ describe('createTransport', () => {
         transport.destroy();
     });
 
+    /*
+        User stories 28 and 29. The transport is re-read on the frame cadence,
+        so the values whose inputs did not move must not be rebuilt on every
+        one of them — and the ones that did must still be rebuilt at once,
+        including on a paused canvas that ticks no frames at all.
+    */
+    describe('work reused across frames', () => {
+        /** A transport whose clock, caption set and fallback name are movable. */
+        function frameCountingTransport() {
+            const media = document.createElement('audio');
+            const { state, frame } = fakeAvState();
+            let tracks: readonly CaptionTrack[] = [];
+            let fallback = 'Captions';
+            let announcements = 0;
+            // AVState publishes both as read-only; the stand-in is the thing
+            // moving them, which is what a playing element does for real.
+            const writable = state as unknown as {
+                currentTime: number;
+                duration: number | null;
+            };
+
+            const transport = createTransport({
+                avState: state,
+                currentMedia: () => media,
+                bufferedSpans: elementSpans,
+                prefs: createAudioPrefs(),
+                labels: () => ({ ...LABELS, trackFallback: fallback }),
+                peaksStrip: () => null,
+                captions: () => ({ tracks, active: null }),
+                setCaptionTrack: () => {},
+                hasTranscript: () => false,
+                panelOpen: () => false,
+                setPanelOpen: () => {},
+                t: (key, params) => {
+                    announcements += 1;
+                    return `${key}:${String(params?.current)}/${String(params?.total)}`;
+                },
+            });
+
+            return {
+                transport,
+                frame,
+                announcements: () => announcements,
+                setTime: (seconds: number) => {
+                    writable.currentTime = seconds;
+                },
+                setDuration: (seconds: number | null) => {
+                    writable.duration = seconds;
+                },
+                setTracks: (next: readonly CaptionTrack[]) => {
+                    tracks = next;
+                },
+                setFallback: (next: string) => {
+                    fallback = next;
+                },
+            };
+        }
+
+        it('re-announces the clock once a second while the scrubber keeps moving', () => {
+            const harness = frameCountingTransport();
+            harness.setDuration(120);
+
+            // One at construction. Everything below is measured from there.
+            const start = harness.announcements();
+
+            harness.setTime(3.1);
+            harness.frame();
+            const announced = harness.announcements();
+            expect(announced).toBe(start + 1);
+            expect(harness.transport.view().elapsedText).toBe('0:03');
+
+            // Four more frames inside the same second: the reading and the
+            // announcement are unchanged, so neither is rebuilt...
+            for (const seconds of [3.3, 3.5, 3.7, 3.9]) {
+                harness.setTime(seconds);
+                harness.frame();
+            }
+            expect(harness.announcements()).toBe(announced);
+            // ...but the scrubber has moved on every one of them, which is the
+            // whole reason the transport runs on the frame cadence.
+            expect(harness.transport.view().fraction).toBeCloseTo(3.9 / 120);
+
+            harness.setTime(4.05);
+            harness.frame();
+            expect(harness.announcements()).toBe(announced + 1);
+            expect(harness.transport.view().elapsedText).toBe('0:04');
+
+            harness.transport.destroy();
+        });
+
+        it('reformats the clock when the duration changes the hour display', () => {
+            const harness = frameCountingTransport();
+            harness.setDuration(120);
+            harness.setTime(3.2);
+            harness.frame();
+            expect(harness.transport.view().elapsedText).toBe('0:03');
+
+            // Metadata for an hour-long piece lands, on a paused canvas: the
+            // same second now reads in the wider shape.
+            harness.setDuration(7200);
+            harness.transport.refresh();
+            const view = harness.transport.view();
+            expect(view.elapsedText).toBe('0:00:03');
+            expect(view.durationText).toBe('2:00:00');
+
+            harness.transport.destroy();
+        });
+
+        it('reuses the caption options until the loaded set or its fallback moves', () => {
+            const harness = frameCountingTransport();
+            const nameless: CaptionTrack = {
+                url: 'unnamed.vtt',
+                language: null,
+                label: null,
+                annotation: 0,
+            };
+            const loaded: readonly CaptionTrack[] = [nameless];
+            harness.setTracks(loaded);
+            harness.frame();
+
+            const options = harness.transport.view().tracks;
+            expect(options).toEqual([{ id: 'unnamed.vtt', label: 'Captions' }]);
+
+            // The stage hands back the same loaded set between settlements, so
+            // repeated frames must hand core back the same options.
+            for (let index = 0; index < 5; index += 1) {
+                harness.setTime(index / 10);
+                harness.frame();
+            }
+            expect(harness.transport.view().tracks).toBe(options);
+
+            // A track arriving late is a new set, and is listed at once.
+            harness.setTracks([
+                nameless,
+                { url: 'it.vtt', language: 'it', label: null, annotation: 0 },
+            ]);
+            harness.frame();
+            const grown = harness.transport.view().tracks;
+            expect(grown).not.toBe(options);
+            expect(grown).toEqual([
+                { id: 'unnamed.vtt', label: 'Captions' },
+                { id: 'it.vtt', label: 'it' },
+            ]);
+
+            // A locale change renames the nameless track, on a canvas whose
+            // loaded set has not moved and which is running no frames.
+            harness.setFallback('Sous-titres');
+            harness.transport.relabel();
+            expect(harness.transport.view().tracks).toEqual([
+                { id: 'unnamed.vtt', label: 'Sous-titres' },
+                { id: 'it.vtt', label: 'it' },
+            ]);
+
+            harness.transport.destroy();
+        });
+
+        it('hands core a fresh top-level object even when nothing was rebuilt', () => {
+            const harness = frameCountingTransport();
+            harness.frame();
+
+            const first = harness.transport.view();
+            harness.frame();
+            const second = harness.transport.view();
+
+            // Core keeps the result in `$state.raw` and `===`-compares it, so
+            // reusing the nested data must never reuse the object holding it.
+            expect(second).not.toBe(first);
+            expect(second.tracks).toBe(first.tracks);
+
+            harness.transport.destroy();
+        });
+    });
+
     it('renames the control when the canvas gains a transcript late', () => {
         // Cookbook 0017 links its transcript from the canvas, which is not
         // read until a stage is built — long after the transport is. A control

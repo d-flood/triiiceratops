@@ -26,7 +26,9 @@
  *     artifact only, while the dev server shows it centred. Nothing in the
  *     source can defend against it, and no unit test can see it; only an e2e
  *     spec driving the BUILT element does (`tests/av-audio.spec.ts`, the
- *     companion drag and wheel).
+ *     companion drag and wheel; `tests/wc-parity.spec.ts` drives the same
+ *     late-geometry refit against the built ESM entry, which is the artifact
+ *     that gets the extra licence below).
  *   - `unsafe*` compression is OFF for the same class of reason. It was
  *     measured and gains 468 further bytes over a ~122 KB artifact, which does
  *     not buy the risk of terser assuming things about coercion and prototypes
@@ -42,12 +44,25 @@
  *     `attribute:` key is gone. `scripts/check-element-artifact.mjs` catches
  *     exactly that, and only that.
  *
- * `mangle.toplevel` is left at its default `false`, as is `module`, so terser
- * renames nothing at the top level of either artifact. Both are single
- * self-contained bundles whose top-level names esbuild has already shortened.
+ * Terser's `module` flag is the ONE setting that differs between the two
+ * artifacts, which is why every caller names the format it is minifying rather
+ * than reaching for one shared options constant. `module: true` asserts the
+ * code is an ES module: strict mode throughout, and nothing outside the file
+ * can reach a top-level binding. That licenses `mangle.toplevel` and the
+ * cross-statement compression `compress.module` turns on. It is TRUE for the
+ * ESM artifact and must stay FALSE for the IIFE: Vite wraps the IIFE in a
+ * function whose body is not a module, so telling terser otherwise would apply
+ * strict-mode and unreachable-binding assumptions to script-scope code.
+ * Neither artifact exports anything a consumer names — both are registration
+ * side effects, single self-contained bundles — so on the ESM side the whole
+ * top level is genuinely private and renameable.
  *
  * Neither element config enables `sourcemap`, so there is no map to chain and
  * none is generated here.
+ *
+ * The pass itself — the rollup hook, its ordering and its did-nothing guard —
+ * is `terserPass.ts`, shared with the AV plugin's build. This module is the
+ * element artifacts' OPTIONS and the measurements behind them.
  *
  * Registered ONLY in `vite.config.element.ts` and `vite.config.element-esm.ts`.
  * The `svelte-package` library path must not get it: Svelte, React and Vue
@@ -55,12 +70,23 @@
  * bundler, and byte-for-byte that path is unchanged by this module's existence.
  */
 
-import { minify, type MinifyOptions } from 'terser';
+import type { MinifyOptions } from 'terser';
 import type { Plugin } from 'vite';
 
+import { minifyChunk, terserPass } from './terserPass';
+
 /**
- * The measured terser configuration for the element artifacts. Exported so the
- * two configs share one copy and a test can hold the contract still.
+ * Which of the two element artifacts is being minified, in Vite's own
+ * `build.lib.formats` spelling so a config cannot name one thing and build
+ * another.
+ */
+export type ElementFormat = 'iife' | 'es';
+
+/**
+ * The measured terser configuration shared by both element artifacts —
+ * everything that is NOT format-dependent. Exported so a test can hold the
+ * contract still; builds call {@link elementTerserOptions} instead, because
+ * these options alone are the conservative script-scope half.
  */
 export const ELEMENT_TERSER_OPTIONS: MinifyOptions = {
     compress: { passes: 3 },
@@ -69,78 +95,32 @@ export const ELEMENT_TERSER_OPTIONS: MinifyOptions = {
 };
 
 /**
- * Minify one already-esbuild-minified chunk with {@link ELEMENT_TERSER_OPTIONS}.
- *
- * `fileName` only names the artifact in the failure message. Terser reports a
- * parse error as a bare line/column into a single-line 400 KB bundle, which is
- * unreadable without knowing which of the two artifacts it came from.
+ * {@link ELEMENT_TERSER_OPTIONS} with the module semantics `format` earns. See
+ * this module's header for why only `'es'` gets them.
  */
-export async function minifyElementChunk(
-    code: string,
-    fileName = 'chunk',
-): Promise<string> {
-    let result;
-    try {
-        result = await minify(code, ELEMENT_TERSER_OPTIONS);
-    } catch (cause) {
-        throw new Error(
-            `terser failed on ${fileName}: ${(cause as Error).message}`,
-            { cause },
-        );
-    }
-    if (typeof result.code !== 'string') {
-        throw new Error(`terser produced no code for ${fileName}.`);
-    }
-    return result.code;
+export function elementTerserOptions(format: ElementFormat): MinifyOptions {
+    return { ...ELEMENT_TERSER_OPTIONS, module: format === 'es' };
 }
 
 /**
- * Rollup plugin running {@link minifyElementChunk} over every JS chunk Vite
- * renders.
- *
- * `renderChunk` with `order: 'post'`, because esbuild's minifier is itself a
- * `renderChunk` hook (`vite:esbuild-transpile`) and this pass has to be the
- * second one. `renderChunk` is one of Rollup's SEQUENTIAL hooks and honours
- * `order`, so `'post'` is an actual guarantee of running last rather than a
- * plugin-array coincidence. `writeBundle`, the obvious alternative, is a
- * PARALLEL hook: it would be less ordered, not more, and minifying there means
- * rewriting the file behind Rollup's back — the in-memory bundle would keep the
- * pre-terser code, so `vite:reporter` would print sizes the shipped file does
- * not have and any other `writeBundle` post-processor touching the same file
- * would race this one.
- *
- * A build in which this plugin never minified anything throws from
- * `writeBundle`. This plugin's whole output is bytes that nothing else observes
- * — `scripts/size-check.mjs` only fails on GROWTH, so an artifact that silently
- * stopped being terser-processed reads to the gate as a change to re-baseline,
- * and the saving would be handed back without a single failing check. The
- * plugin is typed as Vite's `Plugin` for the other half of that: a renamed or
- * re-signatured hook is a compile error here rather than a plugin that
- * type-checks clean and quietly does nothing.
+ * Minify one already-esbuild-minified element chunk with the options
+ * {@link elementTerserOptions} gives `format`.
  */
-export function terserElementBuilds(): Plugin {
-    let minified = 0;
-    return {
-        name: 'triiiceratops:terser-element',
-        renderChunk: {
-            order: 'post',
-            async handler(code, chunk) {
-                minified += 1;
-                return {
-                    code: await minifyElementChunk(code, chunk.fileName),
-                    map: null,
-                };
-            },
-        },
-        writeBundle(_options, bundle) {
-            if (minified > 0) return;
-            throw new Error(
-                `triiiceratops:terser-element found no JavaScript chunk to ` +
-                    `minify. The element build emitted only ` +
-                    `[${Object.keys(bundle).join(', ')}], so the terser pass ` +
-                    `ran over nothing and the shipped artifact is ` +
-                    `esbuild-minified only.`,
-            );
-        },
-    };
+export function minifyElementChunk(
+    code: string,
+    format: ElementFormat,
+    fileName = 'chunk',
+): Promise<string> {
+    return minifyChunk(code, elementTerserOptions(format), fileName);
+}
+
+/**
+ * The {@link terserPass} registered by both element configs, at the semantics
+ * `format` earns.
+ */
+export function terserElementBuilds(format: ElementFormat): Plugin {
+    return terserPass(
+        'triiiceratops:terser-element',
+        elementTerserOptions(format),
+    );
 }

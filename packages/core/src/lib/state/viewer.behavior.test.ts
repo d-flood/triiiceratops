@@ -75,6 +75,24 @@ function v3Manifest(
     };
 }
 
+/**
+ * A canvas whose id read is counted. `getResourceId` reads `id` first, so this
+ * counter observes every canvas-id resolution the viewer performs over the
+ * canvas list — the unit paged-lookup work is measured in.
+ */
+function countingV3Canvas(id: string, reads: { count: number }) {
+    const canvas = v3Canvas(id);
+    Object.defineProperty(canvas, 'id', {
+        get() {
+            reads.count += 1;
+            return id;
+        },
+        enumerable: true,
+        configurable: true,
+    });
+    return canvas;
+}
+
 function v2Canvas(id: string, extra: Record<string, unknown> = {}) {
     return {
         '@id': id,
@@ -393,6 +411,66 @@ describe('ViewerState manifest behavior', () => {
 
         state.previousCanvas();
         expect(state.canvasId).toBe(CANVAS_2);
+    });
+
+    it('resolves the current canvas index once per paged group lookup', async () => {
+        const CANVAS_COUNT = 200;
+        const reads = { count: 0 };
+        const ids = Array.from(
+            { length: CANVAS_COUNT },
+            (_, index) => `http://example.org/canvas/large/${index}`,
+        );
+
+        await load(
+            v3Manifest('http://example.org/manifest/large-paged', {
+                canvases: ids.map((id) => countingV3Canvas(id, reads)),
+            }),
+        );
+
+        state.viewingMode = 'paged';
+        state.canvasId = ids[CANVAS_COUNT - 1];
+
+        // A paged lookup resolves the current canvas index (one scan of the
+        // list) and builds the groups (one pass, two id reads per group). Both
+        // are linear, so the whole lookup is a small multiple of the canvas
+        // count. Resolving the index inside the group predicate instead makes
+        // it quadratic — over 40,000 reads at this size.
+        const linearBudget = CANVAS_COUNT * 12;
+
+        reads.count = 0;
+        expect(state.hasNext).toBe(false);
+        expect(reads.count).toBeLessThan(linearBudget);
+
+        reads.count = 0;
+        expect(state.hasPrevious).toBe(true);
+        expect(reads.count).toBeLessThan(linearBudget);
+
+        // Last and first spread still bound navigation, and stepping still
+        // moves a spread at a time. The default offset leaves the first canvas
+        // alone in its own group, so the last one ends up alone in its own too.
+        expect(state.pagedOffset).toBe(1);
+
+        state.previousCanvas();
+        expect(state.canvasId).toBe(ids[CANVAS_COUNT - 3]);
+
+        state.canvasId = ids[0];
+        expect(state.hasPrevious).toBe(false);
+        expect(state.hasNext).toBe(true);
+        state.nextCanvas();
+        expect(state.canvasId).toBe(ids[1]);
+
+        // Dropping the pairing offset repairs the spreads without
+        // reintroducing the nested scan.
+        state.togglePagedOffset();
+        expect(state.pagedOffset).toBe(0);
+        expect(state.canvasId).toBe(ids[0]);
+
+        reads.count = 0;
+        expect(state.hasPrevious).toBe(false);
+        expect(reads.count).toBeLessThan(linearBudget);
+
+        state.nextCanvas();
+        expect(state.canvasId).toBe(ids[2]);
     });
 
     it('auto-loads the earliest manifest when opening a chronology collection', async () => {

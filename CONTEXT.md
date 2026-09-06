@@ -324,11 +324,11 @@ trigger one is a thing that can move the reader. A change of _state_ is not a ch
 world. Opening a panel, docking a band, toggling the toolbar, or a host replacing its
 configuration object leave the framed world exactly where it was; the surface some of them
 take is answered by **surface compensation** instead. The renderer remembers what it last
-fitted — not one key but three reads, since the current canvas reaches it as the tile
-sources' identity rather than as a member — and returns without fitting when none of them
-moved, so a stray dependency on the effect that calls it costs a wasted call rather than
-the reader's place — that guard is the backstop, and member-level notification (ADR 0008)
-is what keeps such runs rare in the first place.
+fitted — not one key but three reads, since the current canvas reaches it inside a refit
+signal the viewer derives, rather than as a member — and returns without fitting when
+none of them moved, so a stray dependency on the effect that calls it costs a wasted call
+rather than the reader's place — that guard is the backstop, and member-level
+notification (ADR 0008) is what keeps such runs rare in the first place.
 _Avoid_: reset, snap back (the symptom of an unwanted refit, not the operation), refresh
 (suggests repainting, which a refit is not)
 

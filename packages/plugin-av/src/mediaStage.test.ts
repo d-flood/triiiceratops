@@ -1133,6 +1133,54 @@ describe('the stage — caption tracks', () => {
         track?.dispatchEvent(new Event(event));
     }
 
+    /*
+        User story 28: the transport reads this set on the frame cadence and
+        rebuilds its caption options when the array's identity changes, so a
+        stage that filtered afresh per read would repeat the work AND make every
+        frame look like a caption change.
+    */
+    it('hands back the same loaded set until a track actually settles', () => {
+        const stage = captionedStage(VIDEO, [EN, IT]);
+
+        const empty = stage.captionTracks;
+        expect(stage.captionTracks).toBe(empty);
+
+        settle(stage, EN.url, 'load');
+        const afterEn = stage.captionTracks;
+        expect(afterEn).not.toBe(empty);
+        expect(afterEn).toEqual([EN]);
+        expect(stage.captionTracks).toBe(afterEn);
+
+        // A refusal removes nothing from the set, so the answer — and with it
+        // the transport's options — is genuinely unchanged.
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        settle(stage, IT.url, 'error');
+        expect(stage.captionTracks).toBe(afterEn);
+        expect(warn).toHaveBeenCalledTimes(1);
+
+        stage.destroy();
+    });
+
+    /* User story 29: a segment seam changes the answer, so it must invalidate. */
+    it('rebuilds the loaded set when eligibility changes', () => {
+        const stage = captionedStage(VIDEO, [EN, IT]);
+        settle(stage, EN.url, 'load');
+        settle(stage, IT.url, 'load');
+
+        const both = stage.captionTracks;
+        expect(both).toEqual([EN, IT]);
+
+        stage.setEligibleCaptions([IT.url]);
+        const narrowed = stage.captionTracks;
+        expect(narrowed).not.toBe(both);
+        expect(narrowed).toEqual([IT]);
+
+        stage.setEligibleCaptions(null);
+        expect(stage.captionTracks).toEqual([EN, IT]);
+
+        stage.destroy();
+    });
+
     it('attaches every authored track with its language and label', () => {
         const stage = captionedStage(VIDEO, [EN, IT]);
 

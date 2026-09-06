@@ -6,11 +6,18 @@
     import type { ViewerState } from '../state/viewer.svelte';
 
     let {
-        tileSources,
+        refitSignal,
         viewerState,
         dockedChrome = '',
     }: {
-        tileSources: unknown;
+        /**
+         * The world under the reader, as a value the renderer compares for
+         * CHANGE — the current canvas, its spread offset, and the Choices
+         * selected on what is on screen. `null` when nothing on screen paints
+         * an image, which is a world with nothing to fit rather than a new one.
+         * See `TriiiceratopsViewer`'s own derivation for what it carries.
+         */
+        refitSignal: string | null;
         viewerState: ViewerState;
         /**
          * An opaque identity for the chrome core currently has docked beside
@@ -44,16 +51,16 @@
     const renderer = createCanvasRenderer({
         viewerState,
         messages: m,
-        getTileSources: () => tileSources,
+        getRefitSignal: () => refitSignal,
     });
 
     onMount(() => renderer.mount(root!, surface!));
 
     $effect(() => {
-        // `tileSources` is read purely as the change signal the viewer already
-        // computes: a new canvas, mode, or direction produces new sources, and
+        // Read purely as the change signal the viewer already computes: a new
+        // canvas, spread offset, or Choice is a new world under the reader, and
         // that is when the view must be refitted.
-        void tileSources;
+        void refitSignal;
         // Read so the effect re-runs when the manifest or the mode changes and
         // the world has to be refitted; the images themselves are reconciled in
         // the frame loop, where the tier that gates them is known. Geometry

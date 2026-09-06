@@ -12,7 +12,10 @@ import { isCollection, parseCollection } from '../utils/collections';
 import { getThumbnailSrc } from '../utils/getThumbnailSrc';
 import { getCanvasId, getResourceId } from '../utils/iiifIds';
 import { getPaintingAnnotations } from '../utils/iiifParsing';
-import { getCanvasTileSources } from '../utils/resolveCanvasImage';
+import {
+    resolveAllCanvasImages,
+    toImageSource,
+} from '../utils/resolveCanvasImage';
 import type { StructureNode } from '../utils/structures';
 
 /**
@@ -314,27 +317,39 @@ function num(value: number): string {
     return String(Number(value.toFixed(6)));
 }
 
-/** A `TileSource` is a bare info.json URL or a `{type:'image', url}` record. */
-function tileSourceUrl(tileSource: any): string {
-    return typeof tileSource === 'string' ? tileSource : tileSource?.url || '';
+/**
+ * One resolved image source as this golden spells it: a service by its
+ * `info.json`, anything else by its own URL.
+ *
+ * The spelling is the GOLDEN's, not the product's, and lives here so the record
+ * stays comparable with every earlier run of it. Core resolves an image service
+ * to its base id and builds tiles, sizes and `info.json` from that as it needs
+ * them (`toImageSource`); what this file is recording is which image a canvas
+ * paints, and a service's `info.json` is the stable name for one.
+ */
+function imageSourceUrl(source: ReturnType<typeof toImageSource>): string {
+    if (!source) return '';
+    return source.kind === 'service'
+        ? `${source.serviceId}/info.json`
+        : source.url;
 }
 
 /**
- * The URLs the viewer would paint for one canvas, in document order, with the
- * position each occupies. Reached through `getCanvasTileSources` — the same
- * function `getViewerTileSources` calls — so this is the rendered result, not a
- * parsing internal.
+ * The images the viewer would paint for one canvas, in document order, with the
+ * position each occupies. Reached through `resolveAllCanvasImages` and
+ * `toImageSource` — the same two the renderer's descriptors paint from — so this
+ * is the rendered result, not a parsing internal.
  */
 function resolvedImages(
     canvas: any,
     getSelectedChoice: (canvasId: string) => string | undefined,
 ): string[] {
-    let sources;
+    let resolved;
     try {
-        sources = getCanvasTileSources(canvas, { getSelectedChoice });
+        resolved = resolveAllCanvasImages(canvas, { getSelectedChoice });
     } catch (error: any) {
-        // Unreached by the corpus, and kept anyway. `getCanvasTileSources` has
-        // no try/catch anywhere on its path to the viewer, so a throw here
+        // Unreached by the corpus, and kept anyway. `resolveAllCanvasImages`
+        // has no try/catch anywhere on its path to the viewer, so a throw here
         // would be a blank page in production; catching it is what makes that
         // legible in a diff rather than a failed test run with no record.
         // Rendered through `renderThrow` so the golden never pins an engine's
@@ -342,10 +357,13 @@ function resolvedImages(
         return [`<THROWS: ${renderThrow(error)}>`];
     }
 
-    return sources.map(
-        (source, index) =>
-            `[${index}] url=${tileSourceUrl(source.tileSource)} at=${num(source.x)},${num(source.y)},${num(source.width)}`,
-    );
+    return resolved
+        .map((image) => ({ url: imageSourceUrl(toImageSource(image)), image }))
+        .filter((entry) => entry.url !== '')
+        .map(
+            (entry, index) =>
+                `[${index}] url=${entry.url} at=${num(entry.image.x)},${num(entry.image.y)},${num(entry.image.width)}`,
+        );
 }
 
 /** Choice alternatives the viewer would offer for one canvas, as ids. */
@@ -515,8 +533,8 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 # HOW TO READ A DIFF
 #   Each manifest gets one six-field record. The dominant failure mode of this
 #   epic is the silent empty result, and it reads here as \`withPainting=154\`
-#   becoming \`withPainting=0\` — the viewer would render blank pages and log at
-#   debug level.
+#   becoming \`withPainting=0\` — the viewer would render blank pages with no
+#   diagnostic at all.
 #
 #     canvases         canvases enumerated, summed over EVERY sequence
 #     withPainting     of those, the ones the viewer resolved >=1 image for
@@ -700,7 +718,7 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 #
 #   Per canvas: id, label, size, thumbnail URL, the number of painting
 #   annotations enumerated on it, the image URLs the viewer would paint (via the
-#   same \`getCanvasTileSources\` the viewer calls) each with its position
+#   same \`resolveAllCanvasImages\` the renderer paints from) each with its position
 #   \`at=x,y,width\` in viewport units, and the Choice alternatives on offer.
 #   Where a canvas has choices, the resolved images are re-recorded once per
 #   selection, driven through \`ViewerState.selectChoice\` — so this file pins

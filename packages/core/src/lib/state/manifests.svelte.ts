@@ -1,4 +1,4 @@
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteMap } from 'svelte/reactivity';
 
 import type { RequestConfig } from '../types/config';
 import { fetchJson } from '../utils/fetchJson';
@@ -157,7 +157,13 @@ export class ManifestsState {
         // Every canvas the manifest declares, keyed by id, so that a range's
         // canvas references can be resolved to the canvases themselves. Walks
         // the raw JSON through the first-party enumerator.
-        const canvasById = new SvelteMap<string, any>();
+        //
+        // Plain `Map`: this lookup is built and consumed inside this call and
+        // never escapes it, so nothing can observe its mutation. Reactivity
+        // here comes from the `manifests` reads above, which register the
+        // dependency on the source JSON.
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
+        const canvasById = new Map<string, any>();
         const sequenceCount = countSequences(manifestJson);
 
         for (let index = 0; index < sequenceCount; index++) {
@@ -220,7 +226,11 @@ export class ManifestsState {
     }
 
     private getCanvasAnnotationListRefs(canvasJson: any): string[] {
-        const ids = new SvelteSet<string>();
+        // Plain `Set`: deduplicates the refs of one canvas and is spread into
+        // the returned array before this call ends, so its mutation is never
+        // observed.
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
+        const ids = new Set<string>();
 
         canvasJson?.otherContent?.forEach((content: any) => {
             const id = content['@id'] || content.id;

@@ -84,7 +84,7 @@
  * required set.
  */
 
-import { getCanvasDisplayLayouts } from '../components/canvasLayout';
+import { layoutCanvasGeometry } from '../components/canvasLayout';
 import {
     DURATION_ONLY_CANVAS_PLACEHOLDER,
     UNSIZED_CANVAS_PLACEHOLDER,
@@ -418,17 +418,15 @@ function layoutCanvases(
 ): LayoutRect[] {
     if (sized.length === 0) return [];
 
-    return getCanvasDisplayLayouts(
+    // The geometry-only entry point: the renderer looks its canvases up by id,
+    // so it has no payload to place and never builds the positioned-source
+    // output the export path composes from.
+    return layoutCanvasGeometry(
         sized.map((entry) => ({
             canvasId: entry.canvas.id,
-            x: 0,
-            y: 0,
             width: entry.width,
             sourceWidth: entry.width,
             sourceHeight: entry.height,
-            // Layout carries a payload through untouched; the renderer needs
-            // none, because it looks its canvases up by id.
-            tileSource: null,
         })),
         {
             mode: input.mode,
@@ -436,7 +434,7 @@ function layoutCanvases(
             preserveCanvasScale: input.preserveCanvasScale,
             gapFraction: input.gapFraction,
         },
-    ).layouts;
+    );
 }
 
 /**

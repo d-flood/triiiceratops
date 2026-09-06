@@ -46,9 +46,35 @@ describe('a claimed canvas in a mounted viewer', () => {
     let target: HTMLElement;
     const apps: Array<ReturnType<typeof mount>> = [];
     let surface: ReturnType<typeof installViewerSurface>;
+    let originalAnimate: typeof Element.prototype.animate;
 
     beforeEach(() => {
         vi.stubGlobal('fetch', mockFetch);
+
+        // happy-dom ships an incomplete Web Animations API, and the docked
+        // thumbnail strip arrives with a Svelte transition on it. The missing
+        // `element.animate` throws mid-flush, which aborts effects scheduled
+        // after the throw and surfaces as an unhandled error rather than a
+        // failed assertion. A minimal inert animation keeps the transition out
+        // of the way; the same double as
+        // `TriiiceratopsViewer.locale.svelte.test.ts`, saved and restored here
+        // because this file installs it per test rather than once per module.
+        originalAnimate = Element.prototype.animate;
+        Element.prototype.animate = function () {
+            return {
+                onfinish: null,
+                oncancel: null,
+                cancel() {},
+                finish() {},
+                play() {},
+                pause() {},
+                addEventListener() {},
+                removeEventListener() {},
+                finished: Promise.resolve(),
+                currentTime: 0,
+                playState: 'finished',
+            } as unknown as Animation;
+        };
         mockFetch.mockImplementation(async () => ({
             ok: true,
             json: async () => MANIFEST,
@@ -67,6 +93,7 @@ describe('a claimed canvas in a mounted viewer', () => {
         for (const app of apps.splice(0)) await unmount(app);
         target.remove();
         surface.restore();
+        Element.prototype.animate = originalAnimate;
         vi.restoreAllMocks();
     });
 

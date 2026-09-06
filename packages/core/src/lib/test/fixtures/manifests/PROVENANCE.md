@@ -209,7 +209,7 @@ the site's capability axis counts with.
 - **Every caption and annotation page in this set is embedded**, so nothing here
   needs a network fetch to enumerate.
 - **Most of these DID resolve a "paintable image", and that was the bug.**
-  Measured through the baseline's own seam — `getCanvasTileSources` on a real
+  Measured through the baseline's own seam — `resolveAllCanvasImages` on a real
   `ViewerState` — immediately before ticket 02's classifier landed, **11 of the
   16 read `withPainting >= 1`**: `0003`, `0013`, `0017`, `0026`, `0064`, `0065`
   (2, one per canvas), `0074`, `0219`, `0229`, `0489` and the Avalon file. Only

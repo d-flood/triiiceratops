@@ -46,8 +46,8 @@ const warnedCanvases = new WeakSet<object>();
  * annotations.
  *
  * Without this, a canvas that enumerates no painting annotations renders
- * blank and only logs at debug level, so the loss looks like the manifest
- * rather than a bug.
+ * blank with no diagnostic at all, so the loss looks like the manifest rather
+ * than a bug.
  *
  * Deliberately a developer warning and **not** an observable viewer error: a
  * degraded render should stay degraded rather than become a surfaced
@@ -251,7 +251,7 @@ export function getPaintingAnnotations(canvas: any): any[] {
  *
  * **IIIF v2 spells this `resource`; IIIF v3 spells it `body`.** Reading only
  * `body` leaves a v2 annotation yielding nothing, so the viewer renders a
- * blank canvas with only a `logger.debug` line and no other signal.
+ * blank canvas with no diagnostic of any kind.
  *
  * Takes a **raw JSON** annotation, as `getPaintingAnnotations` returns.
  *
@@ -292,7 +292,7 @@ export function isChoiceBody(body: any): boolean {
  *
  * Guarded against a bare object in place of the array, per the spec's failure
  * contract — an unguarded `items.find(...)` on one throws all the way out
- * through `getViewerTileSources`, which has no `try`/`catch` anywhere on its
+ * through `resolveAllCanvasImages`, which has no `try`/`catch` anywhere on its
  * path.
  *
  * Returns `[]` for anything that is not a Choice-shaped object.
