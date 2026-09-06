@@ -596,3 +596,186 @@ describe('AnnotationShapeOverlay — selection', () => {
         expect(selected()).toBeNull();
     });
 });
+
+/**
+ * Every shape type, in both states, through the rendered overlay.
+ *
+ * All three types share one wrapper implementation, so what distinguishes a
+ * rectangle from a polygon from a point — its class, its children, and the box
+ * it is positioned by — is only true by construction until something asserts
+ * it. These are the settled values: the geometry is arithmetic on the identity
+ * projection the host supplies, and the pointer-events reading is the
+ * pan-versus-tap contract, which is a rule of the component's own stylesheet
+ * rather than of any one branch of its markup.
+ */
+describe('AnnotationShapeOverlay — every shape type in both states', () => {
+    let mounted: ReturnType<typeof mount> | null = null;
+
+    afterEach(async () => {
+        if (mounted) {
+            await unmount(mounted);
+            mounted = null;
+        }
+        document.body.innerHTML = '';
+    });
+
+    function render(editorOpen: boolean): void {
+        mounted = mount(AnnotationShapeOverlayTestHost, {
+            target: document.body,
+            props: {
+                annotations: [RECTANGLE, POLYGON, POINT],
+                editorOpen,
+            },
+        });
+        flushSync();
+    }
+
+    function wrapper(annotationId: string): HTMLElement {
+        const element = document.querySelector<HTMLElement>(
+            `[data-testid="annotation-shapes"] [data-annotation-id="${annotationId}"]`,
+        );
+        expect(element, `no shape for ${annotationId}`).not.toBeNull();
+        return element!;
+    }
+
+    /** The box a shape was positioned by, as the browser settled it. */
+    function box(annotationId: string): Record<string, string> {
+        const { style } = wrapper(annotationId);
+        return {
+            left: style.left,
+            top: style.top,
+            width: style.width,
+            height: style.height,
+        };
+    }
+
+    /**
+     * The projection is the identity, so these ARE the canvas-space numbers: the
+     * rectangle's `xywh`, the polygon's bounding box, and a point drawn at the
+     * fixed 10px screen diameter centred on (60, 80).
+     */
+    const GEOMETRY = {
+        'anno-rectangle': {
+            left: '10px',
+            top: '20px',
+            width: '30px',
+            height: '40px',
+        },
+        'anno-polygon': {
+            left: '10px',
+            top: '10px',
+            width: '30px',
+            height: '40px',
+        },
+        'anno-point': {
+            left: '55px',
+            top: '75px',
+            width: '10px',
+            height: '10px',
+        },
+    };
+
+    it('positions each shape by its own geometry when read-only', () => {
+        render(false);
+
+        for (const [annotationId, expected] of Object.entries(GEOMETRY)) {
+            expect(box(annotationId), annotationId).toEqual(expected);
+        }
+    });
+
+    it('positions each shape by the same geometry when editable', () => {
+        render(true);
+
+        for (const [annotationId, expected] of Object.entries(GEOMETRY)) {
+            expect(box(annotationId), annotationId).toEqual(expected);
+        }
+    });
+
+    it('gives a read-only shape an inert wrapper and its own fill', () => {
+        render(false);
+
+        for (const annotationId of Object.keys(GEOMETRY)) {
+            const element = wrapper(annotationId);
+            expect(element.tagName, annotationId).toBe('DIV');
+            expect(element.classList.contains('anno-readonly-wrap')).toBe(true);
+            // A drag that starts on top of an annotation must still pan.
+            expect(getComputedStyle(element).pointerEvents, annotationId).toBe(
+                'none',
+            );
+        }
+
+        expect(
+            wrapper('anno-rectangle').querySelector('.anno-rect-fill'),
+        ).not.toBeNull();
+        expect(
+            wrapper('anno-point').querySelector('.anno-point-fill'),
+        ).not.toBeNull();
+        // The polygon draws itself, in both states, and its SVG opts out of
+        // pointer events only while the shape is read-only.
+        expect(
+            wrapper('anno-polygon')
+                .querySelector('.anno-polygon-svg')!
+                .classList.contains('readonly'),
+        ).toBe(true);
+        expect(
+            wrapper('anno-polygon')
+                .querySelector('polygon')!
+                .getAttribute('points'),
+        ).toBe('0,0 30,0 30,40');
+    });
+
+    it('gives an editable shape its own operable wrapper', () => {
+        render(true);
+
+        const classes = {
+            'anno-rectangle': 'anno-rect',
+            'anno-polygon': 'anno-polygon-btn',
+            'anno-point': 'anno-point',
+        };
+        for (const [annotationId, expected] of Object.entries(classes)) {
+            const element = wrapper(annotationId);
+            expect(element.tagName, annotationId).toBe('BUTTON');
+            expect(element.getAttribute('type'), annotationId).toBe('button');
+            expect(element.className.split(' '), annotationId).toContain(
+                expected,
+            );
+            expect(element.getAttribute('id'), annotationId).toMatch(
+                /^annotation-visual-/,
+            );
+            expect(getComputedStyle(element).pointerEvents, annotationId).toBe(
+                'auto',
+            );
+        }
+
+        // The editable arm wears its own treatment: no read-only fill child.
+        expect(
+            wrapper('anno-rectangle').querySelector('.anno-rect-fill'),
+        ).toBeNull();
+        expect(
+            wrapper('anno-point').querySelector('.anno-point-fill'),
+        ).toBeNull();
+        expect(
+            wrapper('anno-polygon')
+                .querySelector('.anno-polygon-shape')!
+                .classList.contains('interactive'),
+        ).toBe(true);
+    });
+
+    it('marks the selected shape of every type on the image', () => {
+        mounted = mount(AnnotationShapeOverlayTestHost, {
+            target: document.body,
+            props: { annotations: [RECTANGLE, POLYGON, POINT] },
+        });
+        flushSync();
+
+        // Inside the point's marker, which is drawn last and so is on top.
+        (
+            mounted as never as { tapAt(p: { x: number; y: number }): void }
+        ).tapAt({ x: 60, y: 80 });
+        flushSync();
+
+        expect(
+            wrapper('anno-point').querySelector('.anno-point-fill.active'),
+        ).not.toBeNull();
+    });
+});

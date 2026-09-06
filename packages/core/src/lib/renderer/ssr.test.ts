@@ -60,7 +60,7 @@ describe('server-rendering the canvas host', () => {
     it('emits inert markup with no DOM access', () => {
         const { body } = render(CanvasHost, {
             props: {
-                tileSources: null,
+                refitSignal: null,
                 viewerState: viewerState as any,
             },
         });
@@ -73,7 +73,7 @@ describe('server-rendering the canvas host', () => {
     it('renders with a transparent background configured', () => {
         const { body } = render(CanvasHost, {
             props: {
-                tileSources: null,
+                refitSignal: null,
                 viewerState: {
                     ...viewerState,
                     config: { transparentBackground: true },

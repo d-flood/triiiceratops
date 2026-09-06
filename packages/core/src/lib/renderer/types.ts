@@ -51,8 +51,9 @@ export type SourceDescriptor = ImageSource;
  * every use and would be wrong the moment it was not.
  *
  * This is deliberately the same normalization the export path already lays out
- * in (`utils/resolveCanvasImage.PositionedTileSource`), so a composite canvas
- * cannot compose one way on screen and another way in an export.
+ * in (`utils/resolveCanvasImage.ResolvedCanvasImage`, whose `x`/`y`/`width` are
+ * carried here unchanged), so a composite canvas cannot compose one way on
+ * screen and another way in an export.
  */
 export interface PlannerImage {
     /**

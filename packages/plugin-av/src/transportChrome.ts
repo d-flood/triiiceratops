@@ -279,6 +279,22 @@ export function createTransport(options: TransportOptions): Transport {
     // element rather than once per frame.
     let probed: HTMLMediaElement | null = null;
 
+    /**
+     * The formatting inputs behind the values `refresh` would otherwise rebuild
+     * sixty times a second for a reading that changes once.
+     *
+     * The clock readings and the announcement built out of them move only when
+     * the whole second the playhead sits in does, or when the duration that
+     * decides `h:mm:ss` versus `m:ss` does — so one key covers all three. The
+     * caption options are the stage's loaded set, a stable array between load,
+     * failure and eligibility changes, under a fallback name only `relabel`
+     * changes. Everything else on the view — `currentTime`, `fraction`, the
+     * buffered ranges — is still recomputed per frame, which is the cadence's
+     * whole point.
+     */
+    let clockKey = '';
+    let listedTracks: readonly CaptionTrack[] | null = null;
+
     /** Who core tells when to re-read: one callback, the render site's. */
     const listeners = new Set<() => void>();
 
@@ -313,20 +329,34 @@ export function createTransport(options: TransportOptions): Transport {
         state.muted = prefs.muted;
         state.volume = prefs.volume;
         // The two clock readings and the announced position are one formatting
-        // job rather than three: the announcement is built out of the readings.
-        state.elapsedText = formatMediaTime(state.currentTime, state.duration);
-        state.durationText = formatMediaTime(state.duration, state.duration);
-        state.positionText = options.t('av_position', {
-            current: state.elapsedText,
-            total: state.durationText,
-        });
+        // job rather than three: the announcement is built out of the readings,
+        // so they share the key. A non-finite position keys as `NaN` or
+        // `Infinity`, which are as stable as the `--:--` they format to.
+        const clock = `${Math.floor(state.currentTime)}/${state.duration}`;
+        if (clock !== clockKey) {
+            clockKey = clock;
+            state.elapsedText = formatMediaTime(
+                state.currentTime,
+                state.duration,
+            );
+            state.durationText = formatMediaTime(state.duration);
+            state.positionText = options.t('av_position', {
+                current: state.elapsedText,
+                total: state.durationText,
+            });
+        }
         state.strip = options.peaksStrip();
 
         const captions = options.captions();
-        state.tracks = captionOptions(
-            captions.tracks,
-            state.labels.trackFallback,
-        );
+        // The fallback name is localized, so `relabel` is what invalidates it;
+        // the rest of the answer is the loaded set the stage hands back.
+        if (captions.tracks !== listedTracks) {
+            listedTracks = captions.tracks;
+            state.tracks = captionOptions(
+                captions.tracks,
+                state.labels.trackFallback,
+            );
+        }
         state.activeTrack = captions.active;
 
         state.transcript = options.hasTranscript();
@@ -394,6 +424,11 @@ export function createTransport(options: TransportOptions): Transport {
         refresh,
         relabel(): void {
             state.labels = options.labels();
+            // Both memos are keyed on inputs that a locale change does not
+            // move, so the labels are what drop them: no clock formats to the
+            // empty string and no loaded set is `null`.
+            clockKey = '';
+            listedTracks = null;
             // `refresh` is what rebuilds everything the labels reach: the
             // options a nameless track is listed under, and the announced
             // position.

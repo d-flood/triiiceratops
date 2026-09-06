@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import type { ParsedAnnotation } from './annotationAdapter';
 import {
+    prepareAnnotationShapes,
     projectAnnotationShapes,
+    projectPreparedShapes,
     shapeContainsPoint,
     type AnnotationShape,
 } from './annotationShapes';
@@ -153,6 +155,131 @@ describe('projectAnnotationShapes', () => {
                 { toScreen: placeable, imageDimensions: noImageDimensions },
             ).map((shape) => shape.type),
         ).toEqual(['RECTANGLE']);
+    });
+});
+
+describe('projectAnnotationShapes — preparation and projection apart', () => {
+    /** Half-size canvas, so an image-space target is halved into canvas space. */
+    const halfSize = () => ({
+        canvasWidth: 50,
+        canvasHeight: 50,
+        imageWidth: 100,
+        imageHeight: 100,
+    });
+
+    it('projects prepared shapes for a moving viewport without re-preparing', () => {
+        const prepared = prepareAnnotationShapes(
+            [
+                annotation(
+                    { type: 'RECTANGLE', x: 20, y: 40, w: 60, h: 80 },
+                    { coordinateSpace: 'image' },
+                ),
+            ],
+            halfSize,
+        );
+
+        // The still half: canvas-space geometry and the tooltip, once.
+        expect(prepared).toEqual([
+            expect.objectContaining({
+                geometry: { type: 'RECTANGLE', x: 10, y: 20, w: 30, h: 40 },
+            }),
+        ]);
+        expect(prepared[0].common).toMatchObject({
+            canvasId: 'canvas-1',
+            tooltip: 'A note',
+        });
+
+        // The moving half: three frames at three zoom levels, each projecting
+        // the SAME prepared array, each answering where the shape now is.
+        const frames = [1, 2, 4].map(
+            (scale) =>
+                projectPreparedShapes(prepared, (point) => ({
+                    x: point.x * scale,
+                    y: point.y * scale,
+                }))[0],
+        );
+
+        expect(frames.map((shape) => shape.type)).toEqual([
+            'RECTANGLE',
+            'RECTANGLE',
+            'RECTANGLE',
+        ]);
+        expect(frames.map((shape) => (shape as any).rect)).toEqual([
+            { x: 10, y: 20, width: 30, height: 40 },
+            { x: 20, y: 40, width: 60, height: 80 },
+            { x: 40, y: 80, width: 120, height: 160 },
+        ]);
+        for (const shape of frames) expect(shape.tooltip).toBe('A note');
+    });
+
+    it('prepares polygon and point geometry in canvas space too', () => {
+        const [polygon, point] = prepareAnnotationShapes(
+            [
+                annotation(
+                    {
+                        type: 'POLYGON',
+                        points: [
+                            [20, 20],
+                            [80, 20],
+                        ],
+                    },
+                    { coordinateSpace: 'image' },
+                ),
+                annotation(
+                    { type: 'POINT', x: 10, y: 30 },
+                    { coordinateSpace: 'image' },
+                ),
+            ],
+            halfSize,
+        );
+
+        expect(polygon.geometry).toEqual({
+            type: 'POLYGON',
+            points: [
+                [10, 10],
+                [40, 10],
+            ],
+        });
+        expect(point.geometry).toEqual({ type: 'POINT', x: 5, y: 15 });
+    });
+
+    it('re-prepares to new output when the body text changes', () => {
+        const [before] = prepareAnnotationShapes(
+            [annotation({ type: 'POINT', x: 0, y: 0 })],
+            noImageDimensions,
+        );
+        const [after] = prepareAnnotationShapes(
+            [
+                annotation(
+                    { type: 'POINT', x: 0, y: 0 },
+                    { body: [{ value: 'Une note', isHtml: false }] },
+                ),
+            ],
+            noImageDimensions,
+        );
+
+        expect(before.common.tooltip).toBe('A note');
+        expect(after.common.tooltip).toBe('Une note');
+    });
+
+    it('re-prepares to new geometry when the image dimensions change', () => {
+        const geometry = { type: 'POINT', x: 20, y: 40 } as const;
+        const [before] = prepareAnnotationShapes(
+            [annotation(geometry, { coordinateSpace: 'image' })],
+            halfSize,
+        );
+        const [after] = prepareAnnotationShapes(
+            [annotation(geometry, { coordinateSpace: 'image' })],
+            () => ({
+                canvasWidth: 25,
+                canvasHeight: 25,
+                imageWidth: 100,
+                imageHeight: 100,
+            }),
+        );
+
+        expect(before.geometry).toEqual({ type: 'POINT', x: 10, y: 20 });
+        expect(after.geometry).toEqual({ type: 'POINT', x: 5, y: 10 });
     });
 });
 

@@ -370,6 +370,33 @@ describe('published distributions ship styles + themes', () => {
             expect(ctor).toBeTypeOf('function');
         });
 
+        /*
+         * The IIFE guard above, for the artifact with the EXTRA licence. This
+         * one is minified with terser's `module: true`
+         * (`src/packaging/terserElement.ts`), which turns on cross-statement
+         * compression and top-level mangling the IIFE does not get — so "the
+         * IIFE kept its reads" is not evidence that this file did.
+         * Property names are not mangled in either artifact, which is what
+         * makes the counting argument hold for both.
+         */
+        it('keeps the overlay, paint and transport revision reads through minification', () => {
+            const js = readFileSync(dist('triiiceratops-element.js'), 'utf8');
+
+            for (const revision of [
+                'overlayLayerRevision',
+                'paintLayerRevision',
+                'transportChromeRevision',
+            ]) {
+                const occurrences = js.split(revision).length - 1;
+                expect(
+                    occurrences,
+                    `${revision} is written 3 times and read at least once; ` +
+                        `${occurrences} occurrence(s) means the render site's ` +
+                        `read was dropped and the layer will never render`,
+                ).toBeGreaterThan(3);
+            }
+        });
+
         it('observes every attribute the wrapper declares', () => {
             // `observedAttributes` is a static getter on Svelte's
             // custom-element base class, reading the compiled props

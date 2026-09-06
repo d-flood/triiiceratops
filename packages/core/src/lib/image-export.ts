@@ -14,8 +14,8 @@
  * shared package is introduced."). The closure imports no Svelte and no viewer
  * state, so a plugin bundling this seam into its self-contained IIFE pulls in no
  * `svelte/internal`. Re-exports are explicit (not `export *`) because the source
- * modules share some symbol names (`getCanvasId`, `PositionedTileSource`), which
- * a wildcard would make ambiguous.
+ * modules share some symbol names (`getCanvasId`), which a wildcard would make
+ * ambiguous.
  */
 
 // Canvas → image URL resolution, IIIF image requests, and canvas id/label.

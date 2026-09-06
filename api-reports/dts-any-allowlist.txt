@@ -87,9 +87,8 @@ triiiceratops :: dist/utils/paintingBodies.d.ts :: export declare function getIm
 triiiceratops :: dist/utils/paintingBodies.d.ts :: export declare function unwrapSpecificResource(resource: any): any;
 triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: annotation: any;
 triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: canvases: any[];
-triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: export declare function getCanvasTileSource(canvas: any, options?: ResolveCanvasImageOptions): TileSource | null;
-triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: export declare function getCanvasTileSources(canvas: any, options?: ResolveCanvasImageOptions): PositionedTileSource[];
-triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: export declare function getVisibleViewerCanvases({ canvases, currentCanvasIndex, currentCanvasId, viewingMode, pagedOffset, }: Omit<GetViewerTileSourcesParams, 'getSelectedChoice'>): any[];
+triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: export declare function canvasPaintsImage(canvas: any, options?: ResolveCanvasImageOptions): boolean;
+triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: export declare function getVisibleViewerCanvases({ canvases, currentCanvasIndex, currentCanvasId, viewingMode, pagedOffset, }: VisibleViewerCanvasesParams): any[];
 triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: export declare function resolveAllCanvasImages(canvas: any, options?: ResolveCanvasImageOptions): ResolvedCanvasImage[];
 triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: export declare function resolveCanvasImage(canvas: any, options?: ResolveCanvasImageOptions): ResolvedCanvasImage | null;
 triiiceratops :: dist/utils/resolveCanvasImage.d.ts :: resource: any;

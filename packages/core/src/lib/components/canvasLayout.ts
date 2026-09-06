@@ -80,6 +80,22 @@ export type PositionedTileSource = CanvasGeometry & { tileSource: unknown };
 
 export type DisplayPositionedTileSource = PlacedRect & { tileSource: unknown };
 
+export interface CanvasLayoutOptions {
+    mode: ViewingMode;
+    direction: ViewingDirection;
+    preserveCanvasScale?: boolean;
+    /**
+     * Absolute inter-canvas spacing, in the caller's own units. Defaults to the
+     * spacing the viewer itself lays out with.
+     */
+    gap?: number;
+    /**
+     * Inter-canvas spacing as a fraction of the median laid-out canvas extent
+     * along the flow axis. Ignored when `gap` is given.
+     */
+    gapFraction?: number;
+}
+
 export interface CanvasDisplayLayout {
     canvasId: string;
     x: number;
@@ -88,14 +104,21 @@ export interface CanvasDisplayLayout {
     height: number;
 }
 
-/** The caller's payload for one source, carried through layout unread. */
-type SourcePayload = Pick<PositionedTileSource, 'tileSource'>;
-
-interface GroupedSource extends SourcePayload {
+/**
+ * One source's placement within its canvas, plus its position in the caller's
+ * input array.
+ *
+ * The index, rather than the source itself, is what keeps the payload out of
+ * the geometry algorithm: a caller that has no payload to place (the scene
+ * planner) runs exactly the same grouping and positioning without a
+ * payload-bearing record ever being built, and the one caller that does have
+ * one reads it back off its own input.
+ */
+interface GroupedSource {
+    index: number;
     localX: number;
     localY: number;
     localWidth: number;
-    localHeight: number | null;
 }
 
 interface CanvasGroup {
@@ -112,6 +135,20 @@ interface CanvasGroup {
 interface CanvasLayoutResult {
     sources: DisplayPositionedTileSource[];
     layouts: CanvasDisplayLayout[];
+}
+
+/**
+ * What the shared algorithm produces: one layout per canvas group, in group
+ * order, and the normalization scale each group was laid out at.
+ *
+ * The scale is returned rather than folded into the layouts because placing a
+ * payload needs it and reading a canvas's box does not — and because recovering
+ * it from `layout.width / group.width` would reintroduce a rounding difference
+ * into coordinates that two consumers must agree on exactly.
+ */
+interface PlacedGroups {
+    layouts: CanvasDisplayLayout[];
+    scales: number[];
 }
 
 function getDimension(value: number | null | undefined) {
@@ -150,7 +187,7 @@ function resolveGap(
     return DEFAULT_MULTI_CANVAS_GAP;
 }
 
-function groupSources(sources: PositionedTileSource[]): CanvasGroup[] {
+function groupSources(sources: readonly CanvasGeometry[]): CanvasGroup[] {
     const groups = new Map<string, CanvasGroup>();
 
     sources.forEach((source, index) => {
@@ -178,13 +215,7 @@ function groupSources(sources: PositionedTileSource[]): CanvasGroup[] {
             groups.set(canvasId, group);
         }
 
-        group.sources.push({
-            tileSource: source.tileSource,
-            localX,
-            localY,
-            localWidth,
-            localHeight,
-        });
+        group.sources.push({ index, localX, localY, localWidth });
         group.width = Math.max(group.width, localX + localWidth);
         group.height =
             localHeight === null
@@ -209,7 +240,7 @@ function groupSources(sources: PositionedTileSource[]): CanvasGroup[] {
     return [...groups.values()];
 }
 
-function useOriginalPositions(groups: CanvasGroup[]): CanvasLayoutResult {
+function useOriginalPositions(groups: CanvasGroup[]): PlacedGroups {
     return {
         layouts: groups.map((group) => ({
             canvasId: group.canvasId,
@@ -218,15 +249,7 @@ function useOriginalPositions(groups: CanvasGroup[]): CanvasLayoutResult {
             width: group.width,
             height: group.height ?? 1,
         })),
-        sources: groups.flatMap((group) =>
-            group.sources.map((placed) => ({
-                tileSource: placed.tileSource,
-                x: placed.localX,
-                y: placed.localY,
-                width: placed.localWidth,
-                canvasId: group.canvasId,
-            })),
-        ),
+        scales: groups.map(() => 1),
     };
 }
 
@@ -266,26 +289,17 @@ function useOriginalPositions(groups: CanvasGroup[]): CanvasLayoutResult {
  * itself would be a fraction of the *unnormalized* extents, on an axis it had
  * to guess a second time.
  */
-export function getCanvasDisplayLayouts(
-    sources: PositionedTileSource[],
-    options: {
-        mode: ViewingMode;
-        direction: ViewingDirection;
-        preserveCanvasScale?: boolean;
-        /**
-         * Absolute inter-canvas spacing, in the caller's own units. Defaults to
-         * the spacing the viewer itself lays out with.
-         */
-        gap?: number;
-        /**
-         * Inter-canvas spacing as a fraction of the median laid-out canvas
-         * extent along the flow axis. Ignored when `gap` is given.
-         */
-        gapFraction?: number;
-    },
-): CanvasLayoutResult {
-    const groups = groupSources(sources);
+export function layoutCanvasGeometry(
+    sources: readonly CanvasGeometry[],
+    options: CanvasLayoutOptions,
+): CanvasDisplayLayout[] {
+    return placeGroups(groupSources(sources), options).layouts;
+}
 
+function placeGroups(
+    groups: CanvasGroup[],
+    options: CanvasLayoutOptions,
+): PlacedGroups {
     if (options.mode === 'individuals' || groups.length <= 1) {
         return useOriginalPositions(groups);
     }
@@ -368,15 +382,38 @@ export function getCanvasDisplayLayouts(
             width: layout.width,
             height: layout.height,
         })),
-        sources: scaled.flatMap((layout) =>
-            layout.group.sources.map((placed) => ({
-                tileSource: placed.tileSource,
-                x: layout.x + placed.localX * layout.scale,
-                y: layout.y + placed.localY * layout.scale,
-                width: placed.localWidth * layout.scale,
-                canvasId: layout.group.canvasId,
-            })),
-        ),
+        scales: scaled.map((layout) => layout.scale),
+    };
+}
+
+/**
+ * Lay out canvases and place each caller payload within its canvas.
+ *
+ * The same arrangement as `layoutCanvasGeometry`, from the same code, with the
+ * `sources` output the export path composes from. Only a caller that has
+ * payloads to place reaches this, which is what keeps payload placement out of
+ * the viewer's own bundle.
+ */
+export function getCanvasDisplayLayouts(
+    sources: PositionedTileSource[],
+    options: CanvasLayoutOptions,
+): CanvasLayoutResult {
+    const groups = groupSources(sources);
+    const { layouts, scales } = placeGroups(groups, options);
+
+    return {
+        layouts,
+        sources: groups.flatMap((group, index) => {
+            const layout = layouts[index];
+            const scale = scales[index];
+            return group.sources.map((placed) => ({
+                tileSource: sources[placed.index].tileSource,
+                x: layout.x + placed.localX * scale,
+                y: layout.y + placed.localY * scale,
+                width: placed.localWidth * scale,
+                canvasId: group.canvasId,
+            }));
+        }),
     };
 }
 

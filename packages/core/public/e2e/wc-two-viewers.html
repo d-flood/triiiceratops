@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops WC two-viewer isolation fixture</title>
+        <!--
+            Both BUILT Web Component entries, selected by `?entry=`, driving TWO
+            viewers on one page. Requires `pnpm build:element` (or build:all).
+
+            One viewer per page cannot show what ADR 0007/0008 actually promise a
+            plugin or framework wrapper: that each element owns its own
+            ViewerState, that a listener hears only its own viewer, and that
+            same-tick changes collapse into one payload-free notification. Those
+            semantics live in reactivity the minifier rewrites, so they are
+            asserted here against the shipped artifacts rather than only against
+            source-compiled state.
+        -->
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            triiiceratops-viewer {
+                display: block;
+                width: 400px;
+                height: 300px;
+            }
+        </style>
+    </head>
+    <body>
+        <triiiceratops-viewer
+            id="a"
+            manifest-id="/demo-manifests/e2e/manifest.json"
+            theme="dark"
+        ></triiiceratops-viewer>
+        <triiiceratops-viewer
+            id="b"
+            manifest-id="/demo-manifests/e2e/manifest.json"
+            theme="light"
+        ></triiiceratops-viewer>
+        <script type="module">
+            const params = new URLSearchParams(location.search);
+            const entry = params.get('entry') === 'iife' ? 'iife' : 'esm';
+            window.__wcEntry = entry;
+
+            if (entry === 'esm') {
+                await import('/dist/triiiceratops-element.js');
+            } else {
+                // A classic script, because that is what the IIFE is; a module
+                // import of it would evaluate it in module scope, which is the
+                // one thing the two artifacts are built NOT to share.
+                await new Promise((resolve, reject) => {
+                    const element = document.createElement('script');
+                    element.src = '/dist/triiiceratops-element.iife.js';
+                    element.onload = resolve;
+                    element.onerror = reject;
+                    document.head.append(element);
+                });
+            }
+        </script>
+    </body>
+</html>

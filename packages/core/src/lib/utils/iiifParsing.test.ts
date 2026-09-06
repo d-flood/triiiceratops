@@ -584,7 +584,7 @@ describe('getChoiceAlternatives', () => {
 
     it('returns an array when items is a bare object rather than an array', () => {
         // Unguarded, `items.find(...)` on a bare object throws all the way out
-        // through `getViewerTileSources`, which has no try/catch on its path.
+        // through `resolveAllCanvasImages`, which has no try/catch on its path.
         expect(
             getChoiceAlternatives({ type: 'Choice', items: { id: 'only' } }),
         ).toEqual([{ id: 'only' }]);
@@ -599,7 +599,7 @@ describe('getChoiceAlternatives', () => {
 describe('the unreadable-canvas warning', () => {
     // A canvas that is recognized but cannot be read emits a developer
     // warning rather than failing silently; without it, enumeration
-    // returning nothing renders a blank canvas and logs at debug level only.
+    // returning nothing renders a blank canvas with no diagnostic at all.
 
     let warn: ReturnType<typeof vi.spyOn>;
 

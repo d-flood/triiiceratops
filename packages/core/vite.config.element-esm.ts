@@ -36,8 +36,10 @@ export default defineConfig({
         customElementGuard.plugin,
         messageCompiler(),
         // The same second pass the IIFE gets, from the same module, so the two
-        // artifacts cannot be minified to different settings.
-        terserElementBuilds(),
+        // artifacts cannot be minified to different settings by accident.
+        // `'es'` is the one deliberate difference: this artifact really is a
+        // module, so terser may mangle its top level and compress across it.
+        terserElementBuilds('es'),
     ],
     esbuild: {
         pure: ['console.log', 'console.debug'],
@@ -49,6 +51,12 @@ export default defineConfig({
         postcss: { plugins: [dropLightDomOnly()] },
     },
     build: {
+        // No `target` on purpose, unlike the IIFE's pinned `es2022`: this one
+        // keeps Vite's default `'modules'` floor (es2020 / safari14). Raising
+        // it to match measured 4,020 further gzip bytes here, but es2022 needs
+        // Safari 16.4, and nothing in this repository declares a supported
+        // browser floor that would say whether dropping Safari 14-16.3 is
+        // allowed. Deferred rather than taken.
         minify: true,
         lib: {
             entry: resolve(__dirname, 'src/lib/element.ts'),

@@ -260,6 +260,122 @@ describe('ManifestsState', () => {
             const canvases = state.getCanvases('http://example.org/missing');
             expect(canvases).toEqual([]);
         });
+
+        it('resolves a repeated canvas reference to the canvas enumerated first', async () => {
+            await state.registerManifest(
+                MANIFEST_ID,
+                v3Manifest(
+                    MANIFEST_ID,
+                    [
+                        v3Canvas(CANVAS_1, { label: { en: ['first'] } }),
+                        // A manifest may enumerate the same id twice. The
+                        // sequence range below references it twice as well.
+                        v3Canvas(CANVAS_1, { label: { en: ['shadow'] } }),
+                        v3Canvas(CANVAS_2),
+                    ],
+                    {
+                        structures: [
+                            {
+                                id: 'range-repeats',
+                                type: 'Range',
+                                behavior: ['sequence'],
+                                items: [
+                                    { id: CANVAS_1, type: 'Canvas' },
+                                    { id: CANVAS_2, type: 'Canvas' },
+                                    { id: CANVAS_1, type: 'Canvas' },
+                                ],
+                            },
+                        ],
+                    },
+                ),
+            );
+
+            const sequence = state.getCanvases(MANIFEST_ID, 0);
+
+            // The reference resolves both times, and both times to the FIRST
+            // canvas carrying that id — the duplicate never wins.
+            expect(sequence.map(getCanvasId)).toEqual([
+                CANVAS_1,
+                CANVAS_2,
+                CANVAS_1,
+            ]);
+            expect(sequence[0].label).toEqual({ en: ['first'] });
+            expect(sequence[2]).toBe(sequence[0]);
+        });
+
+        it('re-derives structure sequences when the manifest source JSON is replaced', async () => {
+            const withOneRange = (ranges: unknown[]) =>
+                v3Manifest(
+                    MANIFEST_ID,
+                    [v3Canvas(CANVAS_1), v3Canvas(CANVAS_2)],
+                    { structures: ranges },
+                );
+
+            await state.registerManifest(
+                MANIFEST_ID,
+                withOneRange([
+                    {
+                        id: 'range-physical',
+                        type: 'Range',
+                        behavior: ['sequence'],
+                        items: [{ id: CANVAS_1, type: 'Canvas' }],
+                    },
+                ]),
+            );
+
+            expect(state.getSequenceCount(MANIFEST_ID)).toBe(1);
+            expect(state.getCanvases(MANIFEST_ID, 0).map(getCanvasId)).toEqual([
+                CANVAS_1,
+            ]);
+
+            // Replacing the source document must be visible to the very next
+            // read: the enumeration is derived from the raw JSON each time, not
+            // held in a lookup that outlives the call.
+            await state.registerManifest(
+                MANIFEST_ID,
+                withOneRange([
+                    {
+                        id: 'range-physical',
+                        type: 'Range',
+                        behavior: ['sequence'],
+                        items: [{ id: CANVAS_2, type: 'Canvas' }],
+                    },
+                    {
+                        id: 'range-author',
+                        type: 'Range',
+                        behavior: ['sequence'],
+                        items: [
+                            { id: CANVAS_2, type: 'Canvas' },
+                            { id: CANVAS_1, type: 'Canvas' },
+                        ],
+                    },
+                ]),
+            );
+
+            expect(state.getSequenceCount(MANIFEST_ID)).toBe(2);
+            expect(state.getCanvases(MANIFEST_ID, 0).map(getCanvasId)).toEqual([
+                CANVAS_2,
+            ]);
+            expect(state.getCanvases(MANIFEST_ID, 1).map(getCanvasId)).toEqual([
+                CANVAS_2,
+                CANVAS_1,
+            ]);
+
+            // And dropping the ranges falls back to the manifest's own order.
+            await state.registerManifest(
+                MANIFEST_ID,
+                v3Manifest(MANIFEST_ID, [
+                    v3Canvas(CANVAS_1),
+                    v3Canvas(CANVAS_2),
+                ]),
+            );
+
+            expect(state.getSequenceCount(MANIFEST_ID)).toBe(1);
+            expect(state.getCanvases(MANIFEST_ID, 0).map(getCanvasId)).toEqual([
+                CANVAS_1,
+                CANVAS_2,
+            ]);
+        });
     });
 
     describe('getAnnotations', () => {
@@ -427,6 +543,49 @@ describe('ManifestsState', () => {
             );
             expect(annotations).toHaveLength(1);
             expect(annotations[0].id).toBe('ocr-1');
+        });
+
+        it('fetches each distinct v2 and v3 list ref once however often the canvas repeats it', async () => {
+            await state.registerManifest(
+                MANIFEST_ID,
+                v3Manifest(MANIFEST_ID, [
+                    v3Canvas(CANVAS_1, {
+                        // v3 spelling, the same page named twice.
+                        annotations: [
+                            {
+                                id: 'http://example.org/ocr-page',
+                                type: 'AnnotationPage',
+                            },
+                            {
+                                id: 'http://example.org/ocr-page',
+                                type: 'AnnotationPage',
+                            },
+                        ],
+                        // v2 spelling on the same canvas, one repeat of the v3
+                        // ref and one list of its own.
+                        otherContent: [
+                            { '@id': 'http://example.org/ocr-page' },
+                            { '@id': 'http://example.org/notes-list' },
+                        ],
+                    }),
+                ]),
+            );
+
+            mockFetch.mockResolvedValue({
+                ok: true,
+                json: async () => ({ items: [] }),
+            } as Response);
+
+            await state.ensureCanvasAnnotations(MANIFEST_ID, CANVAS_1);
+
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+            expect(mockFetch.mock.calls.map(([url]) => url)).toEqual([
+                // v2 `otherContent` is read first, so the shared ref is
+                // requested under that spelling and the v3 repeats collapse
+                // into it.
+                'http://example.org/ocr-page',
+                'http://example.org/notes-list',
+            ]);
         });
     });
 });

@@ -72,8 +72,9 @@ describe('resolveThumbnailResourceSrc', () => {
  *
  * The v2 cases are the point: reading only the v3 `body` spelling of an
  * annotation's painting resource and never the v2 `resource` one would
- * produce a blank thumbnail for every v2 canvas — silently, with nothing but
- * a `logger.debug` line. The v3 case is here as the control.
+ * produce a blank thumbnail for every v2 canvas — silently, with no
+ * diagnostic at all, so these tests are the only guard. The v3 case is here
+ * as the control.
  */
 describe('getThumbnailSrc', () => {
     const V2_CANVAS = 'https://example.org/v2/canvas/1';

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { getCanvasDisplayLayouts } from './canvasLayout';
+import {
+    getCanvasDisplayLayouts,
+    layoutCanvasGeometry,
+    type CanvasLayoutOptions,
+    type PositionedTileSource,
+} from './canvasLayout';
 
 const gap = 0.0125;
 
@@ -502,5 +507,129 @@ describe('getCanvasDisplayLayouts', () => {
         );
 
         expect(result.layouts[1].x).toBeCloseTo(1.5);
+    });
+});
+
+describe('getCanvasDisplayLayouts and its geometry-only entry point', () => {
+    // Every input the two entry points must agree on: normalization and its
+    // clamp, preserved scale, an unsized sibling, a source painting a
+    // sub-region of a larger Canvas box, and a source offset within its canvas.
+    const geometry = [
+        { canvasId: 'a', width: 1, sourceWidth: 1000, sourceHeight: 1000 },
+        { canvasId: 'b', width: 1, sourceWidth: 1000, sourceHeight: 4000 },
+        {
+            canvasId: 'c',
+            x: 0.25,
+            y: 0.1,
+            width: 0.5,
+            sourceWidth: 600,
+            sourceHeight: 900,
+            canvasBoxWidth: 1,
+            canvasBoxHeight: 1.5,
+        },
+    ];
+    const unsized = [...geometry, { canvasId: 'd', width: 1 }];
+
+    const cases: [string, CanvasLayoutOptions][] = [
+        ['individuals', { mode: 'individuals', direction: 'left-to-right' }],
+        ['paged LTR', { mode: 'paged', direction: 'left-to-right' }],
+        ['paged RTL', { mode: 'paged', direction: 'right-to-left' }],
+        ['continuous LTR', { mode: 'continuous', direction: 'left-to-right' }],
+        ['continuous RTL', { mode: 'continuous', direction: 'right-to-left' }],
+        ['continuous TTB', { mode: 'continuous', direction: 'top-to-bottom' }],
+        ['continuous BTT', { mode: 'continuous', direction: 'bottom-to-top' }],
+        [
+            'preserved scale',
+            {
+                mode: 'continuous',
+                direction: 'left-to-right',
+                preserveCanvasScale: true,
+            },
+        ],
+        [
+            'a fractional gap',
+            {
+                mode: 'continuous',
+                direction: 'left-to-right',
+                gapFraction: 0.02,
+            },
+        ],
+        [
+            'an explicit gap',
+            { mode: 'paged', direction: 'left-to-right', gap: 0.5 },
+        ],
+    ];
+
+    it.each(cases)(
+        'places canvases identically from geometry alone: %s',
+        (_name, options) => {
+            for (const inputs of [geometry, unsized]) {
+                const withPayloads = inputs.map((entry) => ({
+                    ...entry,
+                    tileSource: `${entry.canvasId}-source`,
+                }));
+
+                expect(layoutCanvasGeometry(inputs, options)).toEqual(
+                    getCanvasDisplayLayouts(withPayloads, options).layouts,
+                );
+            }
+        },
+    );
+
+    it('reads no payload when only the canvas geometry is asked for', () => {
+        // The saving is the positioned-source output itself, so the seam that
+        // proves it is the payload never being touched: a caller with no
+        // payload to place builds no placed-source record at all.
+        let payloadReads = 0;
+        const counted = geometry.map((entry) => ({
+            ...entry,
+            get tileSource() {
+                payloadReads += 1;
+                return `${entry.canvasId}-source`;
+            },
+        })) as PositionedTileSource[];
+        const options: CanvasLayoutOptions = {
+            mode: 'paged',
+            direction: 'left-to-right',
+        };
+
+        expect(layoutCanvasGeometry(counted, options)).toHaveLength(3);
+        expect(payloadReads).toBe(0);
+
+        expect(getCanvasDisplayLayouts(counted, options).sources).toHaveLength(
+            3,
+        );
+        expect(payloadReads).toBe(3);
+    });
+
+    it('keeps each payload with its own source when canvases interleave', () => {
+        // Placement reaches back into the caller's array by index, so an
+        // input whose sources are not contiguous per canvas is the case that
+        // would mispair them.
+        const result = getCanvasDisplayLayouts(
+            [
+                { ...source('a', 1000, 1000), tileSource: 'a1' },
+                { ...source('b', 1000, 1000), tileSource: 'b1' },
+                {
+                    ...source('a', 1000, 1000),
+                    x: 0.5,
+                    width: 0.5,
+                    tileSource: 'a2',
+                },
+            ],
+            { mode: 'paged', direction: 'left-to-right', gap },
+        );
+
+        expect(result.sources).toEqual([
+            { tileSource: 'a1', canvasId: 'a', x: 0, y: 0, width: 1 },
+            {
+                tileSource: 'a2',
+                canvasId: 'a',
+                x: 0.5,
+                y: 0,
+                width: 0.5,
+            },
+            { tileSource: 'b1', canvasId: 'b', x: 1 + gap, y: 0, width: 1 },
+        ]);
     });
 });

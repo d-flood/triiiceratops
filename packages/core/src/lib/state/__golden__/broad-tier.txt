@@ -68,8 +68,8 @@
 # HOW TO READ A DIFF
 #   Each manifest gets one six-field record. The dominant failure mode of this
 #   epic is the silent empty result, and it reads here as `withPainting=154`
-#   becoming `withPainting=0` — the viewer would render blank pages and log at
-#   debug level.
+#   becoming `withPainting=0` — the viewer would render blank pages with no
+#   diagnostic at all.
 #
 #     canvases         canvases enumerated, summed over EVERY sequence
 #     withPainting     of those, the ones the viewer resolved >=1 image for

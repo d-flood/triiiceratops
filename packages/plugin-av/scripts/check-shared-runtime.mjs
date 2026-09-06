@@ -198,7 +198,12 @@ function requiredCoreUtils() {
  *   so the binding is positional: the parameter name is read by matching the
  *   `.svelteInternal` argument at the call site against the parameter list.
  *   Both wrapper shapes are accepted (`function(a,b,c){…}` and `(a,b,c)=>{…}`)
- *   and an argument may be parenthesised.
+ *   and an argument may be parenthesised. Both CALL shapes are accepted too:
+ *   rollup writes `(function(…){…})(…)`, and the terser pass rewrites it to the
+ *   shorter `!function(…){…}(…)` — the parentheses move from around the
+ *   function to a leading unary operator. Missing that second shape does not
+ *   fail loudly; it silently resolves no parameter, and the helpers the
+ *   compiled components read off it stop being checked at all.
  * - an `x = <obj>.svelteInternal` binding, whether it is a `const`/`let`/`var`
  *   declarator, a later declarator in a comma chain, or a bare assignment. The
  *   comma chain is not hypothetical: `output.intro`'s skew gate holds the
@@ -209,7 +214,10 @@ function requiredCoreUtils() {
  *   to reach for `window.Triiiceratops` in source.
  * - an alias of either: rollup's ESM-interop wrapper (`const r = _interop(x)`)
  *   is what the compiled components actually dereference, and a plain
- *   `const y = x` would do the same job.
+ *   `const y = x` would do the same job. The wrapper is a single-use function
+ *   declaration, which the terser pass inlines into its one call site, leaving
+ *   `const r = function(e){…}(x)` — the same alias with a whole function body
+ *   where the name was. `inlinedWrapperAliases` reads that shape.
  *
  * `ASSIGNED` deliberately forbids `,` `;` and a second `=` between the name and
  * `.svelteInternal`, so that in `var a=1,b=x.svelteInternal` it binds `b` and
@@ -228,11 +236,47 @@ function escapeLocal(local) {
     return local.replace(/\$/g, String.raw`\$`);
 }
 
+/**
+ * The names bound by `X = <function expression>(<local>)`.
+ *
+ * No bounded regex can step over the inlined wrapper's body to reach `X`, so
+ * the body is stepped over by counting braces backwards from the call and the
+ * assignment is read off what precedes it.
+ *
+ * Counting braces over minified source can be misled by one inside a string or
+ * a regex literal. That finds the wrong opening brace and then no assignment,
+ * so this can only FAIL to report an alias, never invent one — and a resolution
+ * that has stopped working altogether is what the caller's "resolves only N
+ * runtime helpers" floor is for.
+ */
+function inlinedWrapperAliases(source, local) {
+    const names = [];
+    const call = new RegExp(
+        String.raw`\}\s*\(\s*${escapeLocal(local)}\s*\)(?![\w$.([])`,
+        'g',
+    );
+    for (const match of source.matchAll(call)) {
+        let depth = 0;
+        let index = match.index;
+        for (; index >= 0; index--) {
+            if (source[index] === '}') depth += 1;
+            else if (source[index] === '{' && --depth === 0) break;
+        }
+        if (index < 0) continue;
+        const opening = new RegExp(
+            ASSIGNED +
+                String.raw`(?:function\s*)?\(?[\w$,\s]*\)?\s*(?:=>\s*)?$`,
+        ).exec(source.slice(Math.max(0, index - 200), index));
+        if (opening) names.push(opening[1]);
+    }
+    return names;
+}
+
 function runtimeLocals(source, member = 'svelteInternal') {
     const locals = new Set();
 
-    const call = /\}\s*\)\s*\(((?:[^()]|\([^()]*\))*)\)\s*;?\s*$/.exec(source);
-    const head = /^\(?(?:function\s*)?\(([^)]*)\)/.exec(source);
+    const call = /\}\s*\)?\s*\(((?:[^()]|\([^()]*\))*)\)\s*;?\s*$/.exec(source);
+    const head = /^[!+~-]?\(?(?:function\s*)?\(([^)]*)\)/.exec(source);
     if (call && head) {
         const params = head[1].split(',').map((name) => name.trim());
         call[1].split(',').forEach((argument, index) => {
@@ -273,6 +317,12 @@ function runtimeLocals(source, member = 'svelteInternal') {
             for (const match of source.matchAll(alias)) {
                 if (!locals.has(match[1])) {
                     locals.add(match[1]);
+                    added = true;
+                }
+            }
+            for (const name of inlinedWrapperAliases(source, local)) {
+                if (!locals.has(name)) {
+                    locals.add(name);
                     added = true;
                 }
             }
@@ -432,8 +482,8 @@ const REQUIRED_GLOBALS = [
  * A ratchet a few bytes above the recorded actual, not a budget to spend: it is
  * set from a measurement and moved only by a change that is worth its bytes.
  * Re-derive the actual with `pnpm build`, then gzip `dist/iife.js` at level 9 —
- * the same level this script uses — which currently reads **15,495**. The head
- * over it is ~17 bytes, and can be that tight because this artifact is
+ * the same level this script uses — which currently reads **15,237**. The head
+ * over it is ~23 bytes, and can be that tight because this artifact is
  * path-independent. Svelte's scoped-CSS class name is a variable-length hash of
  * the filename the compiler is handed, and that filename is ABSOLUTE — so the
  * hash, and with it the byte count, moves with the checkout directory — only
@@ -496,13 +546,12 @@ const REQUIRED_GLOBALS = [
  *   involved, the remedy, and a docs pointer. The explanation of why the term
  *   means what it does is in the docs, not in bytes on every page.
  *
- * **The lazy chunks must never enter this number.** `dist/av-waveform.js`
- * (2,584 gzip), `dist/av-sequencer.js` (2,094 gzip), `dist/av-transcript.js`
- * (3,216 gzip) and `dist/av-hls.js` (223,530 gzip) are fetched on demand, and
- * the marker checks below are what prove they are still out. A chunk folded back
- * into the entry would show up here as a jump of roughly its standalone size
- * less what the minifier saves by sharing scope — for the waveform that was
- * about 1,755 rather than its full 2,584 — so this ceiling alone is not a
+ * **The lazy chunks must never enter this number.** They are fetched on demand,
+ * they have ceilings of their own in {@link MAX_CHUNK_GZIP}, and the marker
+ * checks below are what prove they are still out. A chunk folded back into the
+ * entry would show up here as a jump of roughly its standalone size less what
+ * the minifier saves by sharing scope — for the waveform that was about 1,755
+ * rather than its full standalone figure — so this ceiling alone is not a
  * reliable detector of it, and the markers are.
  *
  * Nor does this number discriminate a bundled Svelte runtime any more: that is
@@ -510,7 +559,31 @@ const REQUIRED_GLOBALS = [
  * required globals above detect that exactly. The real ceiling on total shipped
  * weight is the competitive pair budget in `scripts/size-check.mjs`.
  */
-const MAX_IIFE_GZIP = 15_512;
+const MAX_IIFE_GZIP = 15_260;
+
+/**
+ * Gzip ceilings for the lazy chunks, in bytes, by emitted file name.
+ *
+ * The same ratchet as {@link MAX_IIFE_GZIP}, for the bytes a reader pays only
+ * on the canvas that needs them. They are ratcheted separately and reported
+ * separately BECAUSE they are separate downloads: hls.js's ~178 KB is what a
+ * reader of an HLS manifest fetches and what a reader of progressive MP4s never
+ * does, so folding it into one figure with the entry would describe a payload
+ * nobody receives.
+ *
+ * These sit a few bytes above the measured actual for the same reason the entry
+ * ceiling can: nothing here compiles from an absolute path, so a worktree build
+ * and a mainline build agree to the byte. Their whole job is to fail if the
+ * terser pass in `vite.config.ts` silently stops running over a chunk, which is
+ * otherwise invisible — the chunk still works, it is just three times its size.
+ * A chunk with no entry here is not checked; add one when a chunk is added.
+ */
+const MAX_CHUNK_GZIP = {
+    'av-waveform.js': 2_041,
+    'av-sequencer.js': 1_837,
+    'av-transcript.js': 2_698,
+    'av-hls.js': 178_022,
+};
 
 /**
  * Floor on the number of runtime helpers the IIFE entry must be seen to
@@ -592,6 +665,20 @@ if (iife !== null) {
                     `dist/iife.js contains "${marker}", which only dist/${name} ` +
                         `can have put there: that chunk has been inlined back ` +
                         `into the entry.`,
+                );
+            }
+        }
+        const ceiling = MAX_CHUNK_GZIP[name];
+        if (ceiling !== undefined) {
+            const size = gzipSync(Buffer.from(chunk), { level: 9 }).length;
+            if (size > ceiling) {
+                failures.push(
+                    `dist/${name} is ${size} bytes gzip, over the ${ceiling} ` +
+                        `ceiling. Check whether the terser pass in ` +
+                        `vite.config.ts still runs over this build, then ` +
+                        `whether the chunk has taken on code that belongs in ` +
+                        `another one. If the growth is real and worth its ` +
+                        `bytes, raise this ceiling deliberately.`,
                 );
             }
         }

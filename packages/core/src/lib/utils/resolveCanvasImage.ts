@@ -11,8 +11,6 @@ import {
 import { normalizeIiifTargets } from './iiifTargets';
 import { resolveLanguageValue } from './languageMap';
 
-export type TileSource = string | { type: 'image'; url: string };
-
 /**
  * Where a canvas's pixels come from.
  *
@@ -37,23 +35,6 @@ export type RegionRect = {
     height: number;
 };
 
-export type PositionedTileSource = {
-    canvasId: string;
-    tileSource: TileSource;
-    /** Position and PAINTED extent, normalized by the Canvas's own width. */
-    x: number;
-    y: number;
-    width: number;
-    /**
-     * The whole Canvas box in the same normalized units — 1 unit wide by
-     * construction, and as many tall as the Canvas's aspect ratio. Distinct
-     * from `width` for a source that paints a sub-region, and it is what layout
-     * advances the next canvas past (see `components/canvasLayout`).
-     */
-    canvasBoxWidth: number;
-    canvasBoxHeight: number | null;
-};
-
 type ResolveCanvasImageOptions = {
     getSelectedChoice?: (canvasId: string) => string | undefined;
     /**
@@ -72,13 +53,12 @@ type ResolveCanvasImageOptions = {
     fallbackCanvasDimensions?: CanvasDimensions;
 };
 
-type GetViewerTileSourcesParams = {
+type VisibleViewerCanvasesParams = {
     canvases: any[];
     currentCanvasIndex: number;
     currentCanvasId: string | null;
     viewingMode: 'individuals' | 'paged' | 'continuous';
     pagedOffset: number;
-    getSelectedChoice?: (canvasId: string) => string | undefined;
 };
 
 export type ResolvedCanvasImage = {
@@ -475,56 +455,29 @@ export function toImageSource(
     return null;
 }
 
-/** The same decision as a {@link TileSource}, which spells a service as its `info.json`. */
-function toTileSource(resolved: ResolvedCanvasImage): TileSource | null {
-    const source = toImageSource(resolved);
-    if (!source) return null;
-
-    return source.kind === 'service'
-        ? `${source.serviceId}/info.json`
-        : { type: 'image', url: source.url };
-}
-
-export function getCanvasTileSource(
+/**
+ * Whether a canvas paints at least one image core could actually request.
+ *
+ * The viewer's **renderability** gate, and the same decision painting makes:
+ * {@link resolveAllCanvasImages} for the painting bodies, {@link toImageSource}
+ * for whether each names a source. Existence only — it stops at the first image
+ * that does — because the gate asks whether to mount the renderer at all and
+ * nothing downstream of it reads a list.
+ *
+ * Deliberately WITHOUT `fallbackCanvasDimensions`, unlike the renderer's own
+ * descriptors: a canvas declaring no usable dimensions resolves nothing here,
+ * which is the gate's long-standing answer for it. The renderer's placeholder
+ * exists so such a canvas can still be laid out once the gate has let it
+ * through, and threading it in here would change what the viewer says about a
+ * dimensionless canvas rather than what it does with a rendered one.
+ */
+export function canvasPaintsImage(
     canvas: any,
     options: ResolveCanvasImageOptions = {},
-): TileSource | null {
-    const resolved = resolveCanvasImage(canvas, options);
-    return resolved ? toTileSource(resolved) : null;
-}
-
-export function getCanvasTileSources(
-    canvas: any,
-    options: ResolveCanvasImageOptions = {},
-): PositionedTileSource[] {
-    return resolveAllCanvasImages(canvas, options)
-        .map((resolved) => {
-            const tileSource = toTileSource(resolved);
-            if (!tileSource) {
-                return null;
-            }
-
-            return {
-                canvasId: resolved.canvasId,
-                tileSource,
-                x: resolved.x,
-                y: resolved.y,
-                width: resolved.width,
-                // The whole Canvas, in this world's normalized units: `x`,
-                // `y` and `width` above are all divided by the Canvas's own
-                // width, so the Canvas box is 1 unit wide by construction and
-                // as many tall as its aspect ratio. Layout advances by this
-                // rather than by `width`, which is the PAINTED extent and is
-                // less than a whole page whenever the painting annotation
-                // targets a sub-region.
-                canvasBoxWidth: 1,
-                canvasBoxHeight:
-                    resolved.canvasWidth > 0
-                        ? resolved.canvasHeight / resolved.canvasWidth
-                        : null,
-            } satisfies PositionedTileSource;
-        })
-        .filter((result): result is PositionedTileSource => result !== null);
+): boolean {
+    return resolveAllCanvasImages(canvas, options).some(
+        (resolved) => toImageSource(resolved) !== null,
+    );
 }
 
 export function buildIiifImageRequestUrl(
@@ -563,10 +516,9 @@ export function buildIiifImageRequestUrl(
  * paged mode, or all of them in continuous mode.
  *
  * Exists so that "which canvases resolved an image" and "which canvases core
- * cannot render" are answered over the same set. `getViewerTileSources`
- * flattens across all of them, so a null answer means *nothing visible*
- * resolved — and anything gating on that null has to ask about the same
- * canvases or it will disagree with it on a spread.
+ * cannot render" are answered over the same set: the viewer asks both of this
+ * one list, so on a spread they cannot disagree about which canvases were
+ * being talked about.
  */
 export function getVisibleViewerCanvases({
     canvases,
@@ -574,7 +526,7 @@ export function getVisibleViewerCanvases({
     currentCanvasId,
     viewingMode,
     pagedOffset,
-}: Omit<GetViewerTileSourcesParams, 'getSelectedChoice'>): any[] {
+}: VisibleViewerCanvasesParams): any[] {
     if (
         !canvases.length ||
         currentCanvasIndex < 0 ||
@@ -596,29 +548,4 @@ export function getVisibleViewerCanvases({
     }
 
     return [canvases[currentCanvasIndex]];
-}
-
-export function getViewerTileSources({
-    canvases,
-    currentCanvasIndex,
-    currentCanvasId,
-    viewingMode,
-    pagedOffset,
-    getSelectedChoice,
-}: GetViewerTileSourcesParams): PositionedTileSource[] | null {
-    const visibleCanvases = getVisibleViewerCanvases({
-        canvases,
-        currentCanvasIndex,
-        currentCanvasId,
-        viewingMode,
-        pagedOffset,
-    });
-
-    if (!visibleCanvases.length) return null;
-
-    const tileSources = visibleCanvases.flatMap((canvas) =>
-        getCanvasTileSources(canvas, { getSelectedChoice }),
-    );
-
-    return tileSources.length ? tileSources : null;
 }

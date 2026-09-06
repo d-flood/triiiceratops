@@ -112,6 +112,15 @@ interface StageEntry {
     readonly textTranscript: TextTranscript | null;
 }
 
+/**
+ * The answer for a stage that offers no caption toggle, held once.
+ *
+ * The transport rebuilds its caption options when this array's identity changes,
+ * and a fresh `[]` per frame would make "no tracks" look like a change on every
+ * one of them.
+ */
+const NO_CAPTION_TRACKS: readonly CaptionTrack[] = [];
+
 function canvasIdOf(canvas: unknown): string {
     const record = (canvas ?? {}) as Record<string, unknown>;
     const id = record.id ?? record['@id'];
@@ -273,7 +282,9 @@ export function createAvStageManager(
                 // attaches its tracks for the transcript panel to read, and
                 // offering a toggle over them would be the dead control user
                 // story 46 forbids.
-                tracks: stage?.rendersCaptions ? stage.captionTracks : [],
+                tracks: stage?.rendersCaptions
+                    ? stage.captionTracks
+                    : NO_CAPTION_TRACKS,
                 active: stage?.activeCaptionTrack ?? null,
             };
         },

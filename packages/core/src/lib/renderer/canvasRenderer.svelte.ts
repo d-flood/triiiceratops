@@ -194,8 +194,13 @@ export interface CanvasRendererOptions {
     viewerState: ViewerState;
     /** Localized messages, resolved by the component (they need its context). */
     messages: ReturnType<typeof import('../state/i18n.svelte').getMessages>;
-    /** The viewer's tile sources, read as a change signal for refitting. */
-    getTileSources: () => unknown;
+    /**
+     * The world under the reader, as a value read for CHANGE when refitting —
+     * the current canvas, its spread offset, and the Choices selected on what
+     * is on screen; `null` when nothing on screen paints an image. Built by
+     * `TriiiceratopsViewer`, which is where what it carries is documented.
+     */
+    getRefitSignal: () => string | null;
 }
 
 export function createCanvasRenderer(options: CanvasRendererOptions) {
@@ -1085,20 +1090,22 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      *   obvious key and is useless here: `plannerCanvases` re-derives on every
      *   canvas change, so a new layout object is exactly what navigation
      *   produces.
-     * - `sources` — the viewer's tile sources by IDENTITY. This is how
-     *   navigation reaches the refit: another canvas re-derives them.
+     * - `refit` — the viewer's world signal by VALUE. This is how navigation
+     *   and a Choice reach the refit; by value rather than by identity, so a
+     *   host replacing its configuration with an equal one re-derives the same
+     *   string and the reader keeps their place.
      * - `geometry` — the painted canvases' ids and their INTRINSIC sizes, not
      *   their laid-out rects: a canvas resolving its real dimensions refits,
      *   while a phase change under unchanged dimensions does not. The
      *   arrangement of those canvases reaches this record through `world` and
-     *   `sources` instead, which is why the rects themselves are absent here.
+     *   `refit` instead, which is why the rects themselves are absent here.
      *
      * One record rather than two on purpose: the eased-travel decision and the
      * guard are asking about the same fact, and two memories of it could drift.
      */
     let lastFit: {
         world: string;
-        sources: unknown;
+        refit: string | null;
         geometry: string;
     } | null = null;
 
@@ -3530,20 +3537,20 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * nothing fits nothing. The effect above is free to re-run for a reason
      * that turns out not to be one — a host replacing its configuration object,
      * a dependency someone adds later — and the reader keeps their place
-     * through it. The tile sources and the geometry are read UNTRACKED because
+     * through it. The refit signal and the geometry are read UNTRACKED because
      * they are a memo check rather than a subscription; the four world members
      * stay tracked because they are how a mode or direction change arrives here
      * at all.
      */
     function refitForCurrentWorld() {
         const world = worldKey();
-        const sources = untrack(() => options.getTileSources());
+        const refit = untrack(() => options.getRefitSignal());
         const geometry = untrack(() => paintedGeometry);
 
         if (
             lastFit !== null &&
             lastFit.world === world &&
-            lastFit.sources === sources &&
+            lastFit.refit === refit &&
             lastFit.geometry === geometry
         ) {
             // Before `requestFrame`, not after: a run that fits nothing needs
@@ -3554,7 +3561,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         const travelling =
             viewerState.viewingMode === 'continuous' &&
             lastFit?.world === world;
-        lastFit = { world, sources, geometry };
+        lastFit = { world, refit, geometry };
 
         untrack(() => fitCurrentCanvas(travelling));
         requestFrame();

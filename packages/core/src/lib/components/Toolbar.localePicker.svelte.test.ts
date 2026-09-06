@@ -152,6 +152,44 @@ describe('Toolbar language picker', () => {
         ]);
     });
 
+    /**
+     * The picker is rendered by the same shared flyout shell as the other
+     * built-in menus, wide (endonyms run long) and with no leading glyph on its
+     * rows — the language's own name is the whole item.
+     */
+    it('renders the language menu in the shared wide menu shell', async () => {
+        await mountToolbar({ en: ['Book'], fr: ['Livre'] });
+        localeButton()!.click();
+        flushSync();
+
+        const panel =
+            document.querySelector<HTMLElement>('#tri-flyout-locale')!;
+        expect(
+            [...panel.classList]
+                .filter((name) => !name.startsWith('svelte-'))
+                .sort()
+                .join(' '),
+        ).toBe('menu menu-flyout open popover-menu right wide');
+        expect(panel.getAttribute('role')).toBe('menu');
+        expect(panel.getAttribute('tabindex')).toBe('-1');
+        expect(panel.getAttribute('aria-label')).toBe('Language');
+        expect(panel.hasAttribute('data-flyout-panel')).toBe(true);
+        expect(panel.getAttribute('style')).toBe(
+            'position-anchor: --anchor-locale;',
+        );
+        expect(localeButton()!.getAttribute('style')).toBe(
+            'anchor-name: --anchor-locale;',
+        );
+        // No count badge here: the badge belongs to the sequence picker alone.
+        expect(localeButton()!.classList.contains('indicator')).toBe(false);
+
+        // One glyph per row and it is the check mark on the active locale only,
+        // so an endonym is never prefixed by an icon.
+        expect(
+            localeItems().map((item) => item.querySelectorAll('svg').length),
+        ).toEqual([1, 0]);
+    });
+
     it('checks the active locale and sets it when another is chosen', async () => {
         const viewerState = await mountToolbar({
             en: ['Book'],

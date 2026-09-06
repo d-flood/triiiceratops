@@ -25,6 +25,7 @@
         searchAnnotations = [],
         canvases = [],
         editorOpen = false,
+        activeLocale = 'en',
         requestEdit,
         canvasToScreen = (point: { x: number; y: number }) => point,
     }: {
@@ -51,6 +52,8 @@
         canvases?: any[];
         /** Whether the stub annotation-editor button reports itself active. */
         editorOpen?: boolean;
+        /** The viewer's active locale, which picks a `Choice` body's item. */
+        activeLocale?: string;
         /** Told which annotation the overlay asked to edit. */
         requestEdit?: (annotationId: string) => void;
         /**
@@ -90,9 +93,29 @@
         return activeAnnotationId;
     }
 
+    /**
+     * The renderer's frame cadence, driven by the test.
+     *
+     * `frameSubscriptions` counts how often the overlay attached at all, which
+     * is what an idle overlay is supposed to keep at zero.
+     */
+    let frameListeners: (() => void)[] = [];
+    let frameSubscriptions = 0;
+
+    export function tickFrame() {
+        for (const listener of [...frameListeners]) listener();
+    }
+
+    export function frameSubscriptionCount(): number {
+        return frameSubscriptions;
+    }
+
     const viewerState = {
         config: {},
         manifestId: 'manifest-1',
+        get activeLocale() {
+            return activeLocale;
+        },
         get canvasId() {
             return canvasIds[0] ?? null;
         },
@@ -146,7 +169,15 @@
         getCanvases: () => canvases,
         canvasToScreen: (point: { x: number; y: number }, canvasId?: string) =>
             canvasToScreen(point, canvasId),
-        subscribeFrame: () => () => {},
+        subscribeFrame: (listener: () => void) => {
+            frameSubscriptions += 1;
+            frameListeners.push(listener);
+            return () => {
+                frameListeners = frameListeners.filter(
+                    (entry) => entry !== listener,
+                );
+            };
+        },
     };
 
     setContext(VIEWER_STATE_KEY, viewerState);
