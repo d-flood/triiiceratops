@@ -879,9 +879,21 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             const canvas = canvasesById.get(canvasId);
             if (!canvas) continue;
 
+            // Placement boxes are handed on as what the MANIFEST says these
+            // pictures' shapes are — but only for a canvas the manifest really
+            // sized. An unsized one is placed from the renderer's own
+            // placeholder, and offering that as evidence would convict a
+            // truthful service of disagreeing with a number nobody stated.
+            const sized = Boolean(canvas.width && canvas.height);
+
             for (const image of canvas.images) {
                 if (image.source.kind !== 'service') continue;
-                ensureImageService(canvasId, image.source.serviceId);
+                ensureImageService(
+                    canvasId,
+                    image.source.serviceId,
+                    false,
+                    sized ? image : undefined,
+                );
             }
 
             // Warmed companions too: a picture with no facts has no ladder and
@@ -889,7 +901,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             // Asked for as WARM, because this canvas does not paint from them.
             for (const image of canvas.warmImages ?? []) {
                 if (image.source.kind !== 'service') continue;
-                ensureImageService(canvasId, image.source.serviceId, true);
+                ensureImageService(
+                    canvasId,
+                    image.source.serviceId,
+                    true,
+                    sized ? image : undefined,
+                );
             }
         }
     }
@@ -910,13 +927,18 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * not painting-gated), and a successful warm would clear the message a
      * genuinely broken painting service had earned. Warming is best-effort and
      * invisible: it costs the reader nothing and says nothing.
+     *
+     * `declared` is this placement's manifest-declared box, which the cache
+     * uses to judge an `info.json` that disagrees with it — see
+     * `imageService.verifyDimensions`.
      */
     function ensureImageService(
         canvasId: string,
         serviceId: string,
         warm = false,
+        declared?: { width: number; height: number },
     ): void {
-        void imageServiceCache.ensure(serviceId).then((facts) => {
+        void imageServiceCache.ensure(serviceId, declared).then((facts) => {
             if (!facts) {
                 if (warm) return;
                 // A canvas that will never have pixels. Recorded against

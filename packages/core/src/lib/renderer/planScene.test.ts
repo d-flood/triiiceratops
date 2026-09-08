@@ -1346,6 +1346,23 @@ describe('planScene — size-ladder sources', () => {
         ]);
     });
 
+    it('falls to one whole image for a service whose declared extent was disproved', () => {
+        // It advertises tiling AND sizes, and both were derived from dimensions
+        // it does not honour (`imageService.verifyDimensions`). Only the
+        // canonical whole-image request survives, and the corrected dimensions
+        // are the measured raster, so that one rung IS the whole picture.
+        const result = ladderPlan(8, {}, undefined, {
+            width: 357,
+            height: 524,
+            version: 3,
+            regionsUntrusted: true,
+        });
+
+        expect(result.tileRequests.map((request) => request.url)).toEqual([
+            'https://images.test/c1/full/max/0/default.jpg',
+        ]);
+    });
+
     it('spells the full-resolution rung `max`, which is the file a level0 service holds', () => {
         const urls = ladderPlan(8).tileRequests.map((request) => request.url);
 

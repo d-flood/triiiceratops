@@ -2665,6 +2665,17 @@ export interface ImageServiceFacts {
      * whole-image requests must be snapped to a size it actually generated.
      */
     level0?: boolean;
+    /**
+     * Set when the service's declared dimensions were contradicted by the
+     * pixels it actually served (`imageService.verifyDimensions`).
+     *
+     * `width`/`height` are then the MEASURED raster, and every advertised
+     * `sizes`, tile size, and scale factor has been dropped: all of them
+     * describe an extent the service does not honour, so any region request
+     * derived from them falls outside the real image. `buildPyramid` declines
+     * such a service and it renders from whole-image requests instead.
+     */
+    regionsUntrusted?: true;
     /** IIIF Image API major version, which decides `quality` in a tile URL. */
     version?: 2 | 3;
     /** Image format extension for tile requests. Defaults to `jpg`. */
@@ -7238,7 +7249,7 @@ export declare function getPaintingAnnotations(canvas: any): any[];
  *
  * **IIIF v2 spells this `resource`; IIIF v3 spells it `body`.** Reading only
  * `body` leaves a v2 annotation yielding nothing, so the viewer renders a
- * blank canvas with only a `logger.debug` line and no other signal.
+ * blank canvas with no diagnostic of any kind.
  *
  * Takes a **raw JSON** annotation, as `getPaintingAnnotations` returns.
  *

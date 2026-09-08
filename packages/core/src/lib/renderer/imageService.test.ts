@@ -393,3 +393,135 @@ describe('createImageServiceCache', () => {
         });
     });
 });
+
+/**
+ * A service caught serving a different extent than it declares.
+ *
+ * The numbers are Harvard MPS's, which derives `info.json` from a file's EXIF
+ * header rather than its raster: this asset's header says 900x610 landscape and
+ * its pixels are 357x524 portrait, so every region request past 357,524 errors
+ * and the canvas falls apart as soon as it is zoomed in.
+ */
+describe('dimensions the service will not honour', () => {
+    const LYING = {
+        '@context': 'http://iiif.io/api/image/2/context.json',
+        '@id': SERVICE,
+        profile: ['http://iiif.io/api/image/2/level2.json'],
+        width: 900,
+        height: 610,
+        tiles: [{ width: 512, scaleFactors: [1, 2, 4, 8] }],
+        sizes: [{ width: 450, height: 305 }],
+    };
+
+    /** The Canvas box the manifest declares for this picture. */
+    const CANVAS = { width: 357, height: 524 };
+
+    function cacheThatMeasures(
+        raster: { width: number; height: number } | null,
+        json: unknown = LYING,
+    ) {
+        const measureImage = vi.fn(async () => raster);
+        return {
+            cache: createImageServiceCache({
+                fetchJson: async () => ({ status: 200, json }),
+                measureImage,
+            }),
+            measureImage,
+        };
+    }
+
+    it('measures nothing while the manifest and info.json agree', async () => {
+        const { cache, measureImage } = cacheThatMeasures(null, LEVEL2_V3);
+
+        // 4096x3072 is 4:3, and so is the Canvas.
+        await cache.ensure(SERVICE, { width: 1024, height: 768 });
+
+        expect(measureImage).not.toHaveBeenCalled();
+    });
+
+    it('measures nothing for a canvas the manifest never sized', async () => {
+        const { cache, measureImage } = cacheThatMeasures(CANVAS);
+
+        await cache.ensure(SERVICE);
+
+        expect(measureImage).not.toHaveBeenCalled();
+        expect(cache.get(SERVICE)?.width).toBe(900);
+    });
+
+    it('asks the service for its own whole image, spelled for its version', async () => {
+        const { cache, measureImage } = cacheThatMeasures(CANVAS);
+
+        await cache.ensure(SERVICE, CANVAS);
+
+        // `full` rather than `max`: this is a version 2 service.
+        expect(measureImage).toHaveBeenCalledWith(
+            `${SERVICE}/full/full/0/default.jpg`,
+        );
+    });
+
+    it('takes the measured raster and drops every request derived from the lie', async () => {
+        const { cache } = cacheThatMeasures(CANVAS);
+
+        const facts = await cache.ensure(SERVICE, CANVAS);
+
+        expect(facts).toEqual({
+            requestBaseUri: SERVICE,
+            width: 357,
+            height: 524,
+            version: 2,
+            regionsUntrusted: true,
+        });
+    });
+
+    it('holds the corrected facts, so nothing refetches to rediscover the lie', async () => {
+        const { cache, measureImage } = cacheThatMeasures(CANVAS);
+
+        await cache.ensure(SERVICE, CANVAS);
+        await cache.ensure(SERVICE, CANVAS);
+
+        expect(measureImage).toHaveBeenCalledTimes(1);
+        expect(cache.get(SERVICE)?.regionsUntrusted).toBe(true);
+    });
+
+    it('acquits the service when the raster sides with it — the manifest is the wrong one', async () => {
+        const { cache } = cacheThatMeasures({ width: 900, height: 610 });
+
+        const facts = await cache.ensure(SERVICE, CANVAS);
+
+        // Geometry already ignores these dimensions, so the disagreement is
+        // harmless and the pyramid stays.
+        expect(facts?.width).toBe(900);
+        expect(facts?.tileSize).toBe(512);
+        expect(facts?.regionsUntrusted).toBeUndefined();
+    });
+
+    it('convicts nobody when the whole image will not decode', async () => {
+        const { cache } = cacheThatMeasures(null);
+
+        const facts = await cache.ensure(SERVICE, CANVAS);
+
+        expect(facts?.width).toBe(900);
+        expect(facts?.regionsUntrusted).toBeUndefined();
+    });
+
+    it('compares aspect and not size, so a maxWidth-capped whole image acquits', async () => {
+        const { cache } = cacheThatMeasures({ width: 450, height: 305 });
+
+        const facts = await cache.ensure(SERVICE, CANVAS);
+
+        expect(facts?.width).toBe(900);
+        expect(facts?.regionsUntrusted).toBeUndefined();
+    });
+
+    it("tolerates the rounding a publisher's own pipeline introduces", async () => {
+        const { cache, measureImage } = cacheThatMeasures(CANVAS, {
+            ...LYING,
+            width: 357,
+            height: 523,
+        });
+
+        await cache.ensure(SERVICE, CANVAS);
+
+        expect(measureImage).not.toHaveBeenCalled();
+    });
+});

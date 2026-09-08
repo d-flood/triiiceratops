@@ -1315,6 +1315,10 @@ function baseLevelTile(
  * from a missing key turns every tile-less level 1/2 service into a
  * whole-master download (see the call site).
  *
+ * A service whose declared dimensions were caught contradicting the pixels it
+ * serves is one too, and for the strongest form of the same reason: whole
+ * images are the only requests left that it answers correctly.
+ *
  * Advertised `sizes[]` counts as that evidence on its own. A service that
  * publishes a list of prepared whole images can always be asked for one of
  * them, whatever its compliance level, and preferring that list to a derived
@@ -1328,6 +1332,7 @@ function isSizeLadderSource(
     profile: string | null,
 ): boolean {
     return (
+        facts.regionsUntrusted === true ||
         (facts.sizes?.length ?? 0) > 0 ||
         facts.level0 === true ||
         isLevel0Profile(profile)

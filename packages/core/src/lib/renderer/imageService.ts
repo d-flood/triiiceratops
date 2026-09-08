@@ -33,6 +33,12 @@
  * says it needs it.
  */
 
+import { logger } from '../logging/logger';
+import {
+    iiifImageRequestUrl,
+    iiifSizeParameter,
+} from '../utils/iiifImageRequest';
+
 import { METADATA_IN_FLIGHT_LIMIT } from './rendererDefaults';
 import { isLevel0Profile } from './sizeLadder';
 import type { ImageServiceFacts } from './types';
@@ -154,6 +160,124 @@ export function parseImageService(json: unknown): ImageServiceFacts | null {
     return facts;
 }
 
+/** A decoded image's real dimensions, or `null` if it would not decode. */
+export type MeasureImage = (
+    url: string,
+) => Promise<{ width: number; height: number } | null>;
+
+/**
+ * How far two aspect ratios may differ and still describe the same picture.
+ * Wide enough for a publisher's own rounding, far narrower than the
+ * disagreement a wrong pair of dimensions produces.
+ */
+const ASPECT_TOLERANCE = 0.01;
+
+function aspectsAgree(one: number, other: number): boolean {
+    return Math.abs(one - other) <= ASPECT_TOLERANCE * Math.max(one, other);
+}
+
+function defaultMeasureImage(url: string): ReturnType<MeasureImage> {
+    return new Promise((resolve) => {
+        // No `crossOrigin`: nothing reads these pixels back, and demanding CORS
+        // would fail the probe on the very services it exists to judge.
+        const image = new Image();
+        image.onload = () =>
+            resolve(
+                image.naturalWidth > 0 && image.naturalHeight > 0
+                    ? { width: image.naturalWidth, height: image.naturalHeight }
+                    : null,
+            );
+        image.onerror = () => resolve(null);
+        image.src = url;
+    });
+}
+
+/**
+ * The facts a service can be held to, given what the manifest says the same
+ * picture's shape is.
+ *
+ * A service whose dimensions disagree with its Canvas's is ordinary and
+ * harmless for geometry — the manifest wins there permanently. It is not
+ * harmless for TILING, which is built from these dimensions: if they are the
+ * wrong ones, every region request beyond the real image's extent errors, and
+ * the reader sees a canvas that looks right zoomed out and falls apart zoomed
+ * in. (Harvard's MPS derives `info.json` from a file's EXIF header rather than
+ * its raster, so an asset whose header disagrees advertises a size — and an
+ * orientation — it will not serve.)
+ *
+ * Which side is wrong is measurable rather than a guess: the service's own
+ * whole-image request returns the pixels it really holds, and whichever
+ * declared aspect matches that raster is the truthful one. Only `declared`'s
+ * RATIO is read, never its units: a placement box is normalized to the canvas's
+ * width, so it carries the manifest's shape but not its pixel count. So the probe runs
+ * only once the two already disagree — no request at all on a healthy manifest
+ * — and convicts the service only when the raster sides with the manifest.
+ *
+ * Only the raster's ASPECT is evidence. A whole-image request may be capped by
+ * the service's `maxWidth`, so its absolute size proves nothing about the
+ * declared one and is never compared to it.
+ *
+ * The repair keeps only what a lying service can still be asked for: `sizes`,
+ * tiling, and scale factors all describe an extent it does not honour, so they
+ * are dropped rather than corrected, and `width`/`height` become the measured
+ * raster — the right aspect for the reflow, and the true extent of the one
+ * request left.
+ */
+async function verifyDimensions(
+    facts: ImageServiceFacts,
+    serviceId: string,
+    declared: { width: number; height: number } | undefined,
+    measure: MeasureImage,
+): Promise<ImageServiceFacts> {
+    if (!declared) return facts;
+
+    const serviceAspect = facts.width / facts.height;
+    const declaredAspect = declared.width / declared.height;
+    if (aspectsAgree(serviceAspect, declaredAspect)) return facts;
+
+    const measured = await measure(
+        iiifImageRequestUrl(
+            facts.requestBaseUri ?? serviceId,
+            iiifSizeParameter(facts.width, true, facts.version === 2 ? 2 : 3),
+            'default',
+            facts.format || 'jpg',
+        ),
+    );
+
+    // The verdict is composed before it is acted on so the three outcomes
+    // share one message: every byte of English here ships.
+    const convicted =
+        measured !== null &&
+        !aspectsAgree(measured.width / measured.height, serviceAspect);
+
+    logger.warn(
+        `${serviceId}: aspect ${serviceAspect.toFixed(3)} in info.json ` +
+            `(${facts.width}x${facts.height}), ` +
+            `${declaredAspect.toFixed(3)} in the manifest, ` +
+            `${measured ? `${measured.width}x${measured.height} served` : 'nothing served'}` +
+            // Unmeasurable: the disagreement is real but unattributable, and
+            // the declared facts are the only ones there are.
+            (!measured
+                ? ' — undecidable'
+                : convicted
+                  ? ' — info.json is wrong, whole images only'
+                  : ' — the manifest is wrong, which tiling survives'),
+    );
+
+    if (!measured || !convicted) return facts;
+
+    const repaired: ImageServiceFacts = {
+        width: measured.width,
+        height: measured.height,
+        regionsUntrusted: true,
+    };
+    if (facts.requestBaseUri) repaired.requestBaseUri = facts.requestBaseUri;
+    if (facts.version) repaired.version = facts.version;
+    if (facts.format) repaired.format = facts.format;
+    if (facts.level0) repaired.level0 = true;
+    return repaired;
+}
+
 /** Why a service has no facts, when it has none. */
 export type ImageServiceFailure = 'auth' | 'load';
 
@@ -195,8 +319,17 @@ export interface ImageServiceCache {
      * queued rather than in flight. The planner emits its list centre-out and
      * re-emits it every frame, so the queue drains in the order the reader
      * cares about.
+     *
+     * `declared` is what the manifest says the shape of the picture this
+     * service paints is — the only thing that can contradict an `info.json`
+     * (see {@link verifyDimensions}). Omitted where the manifest never said,
+     * and read only from the caller that starts the request: a second caller
+     * joining one in flight has the same service and therefore the same answer.
      */
-    ensure(serviceId: string): Promise<ImageServiceFacts | null>;
+    ensure(
+        serviceId: string,
+        declared?: { width: number; height: number },
+    ): Promise<ImageServiceFacts | null>;
     /**
      * Forget every failure that was **not** deterministic, keeping the facts.
      *
@@ -217,6 +350,8 @@ export interface ImageServiceCacheOptions {
      * no fetch polyfill at module scope.
      */
     fetchJson?: (url: string) => Promise<{ status: number; json: unknown }>;
+    /** Seam for tests, reached lazily for the same reason as `fetchJson`. */
+    measureImage?: MeasureImage;
     /**
      * How many times a transient failure may be attempted before the service is
      * left alone until the next mount. Two is one retry, matching the tile
@@ -267,6 +402,7 @@ export function createImageServiceCache(
     options: ImageServiceCacheOptions = {},
 ): ImageServiceCache {
     const fetchJson = options.fetchJson ?? defaultFetchJson;
+    const measureImage = options.measureImage ?? defaultMeasureImage;
     const maxAttempts = Math.max(1, Math.floor(options.maxAttempts ?? 2));
     const maxEntries = Math.max(1, Math.floor(options.maxEntries ?? 512));
     const maxConcurrent = Math.max(
@@ -285,6 +421,7 @@ export function createImageServiceCache(
     /** Admitted to the window but not started, oldest first. */
     const waiting: Array<{
         serviceId: string;
+        declared?: { width: number; height: number };
         settle: (facts: ImageServiceFacts | null) => void;
     }> = [];
     let active = 0;
@@ -309,7 +446,10 @@ export function createImageServiceCache(
         return null;
     }
 
-    async function load(serviceId: string): Promise<ImageServiceFacts | null> {
+    async function load(
+        serviceId: string,
+        declared: { width: number; height: number } | undefined,
+    ): Promise<ImageServiceFacts | null> {
         try {
             const { status, json } = await fetchJson(`${serviceId}/info.json`);
             // The authentication/load distinction is preserved from the
@@ -332,10 +472,20 @@ export function createImageServiceCache(
             // gets the same document.
             if (!parsed) return fail(serviceId, 'load', true);
 
+            // Inside the slot deliberately: the probe's own request is then
+            // under the same concurrency cap as the document's, and a manifest
+            // of broken services cannot outrun it.
+            const verified = await verifyDimensions(
+                parsed,
+                serviceId,
+                declared,
+                measureImage,
+            );
+
             failures.delete(serviceId);
-            facts.set(serviceId, parsed);
+            facts.set(serviceId, verified);
             bound(facts);
-            return parsed;
+            return verified;
         } catch {
             // A thrown fetch is a dropped connection or a CORS rejection —
             // never an answer about the service.
@@ -356,7 +506,7 @@ export function createImageServiceCache(
         while (active < maxConcurrent && waiting.length > 0) {
             const next = waiting.shift()!;
             active += 1;
-            void load(next.serviceId).then((result) => {
+            void load(next.serviceId, next.declared).then((result) => {
                 active -= 1;
                 next.settle(result);
                 pump();
@@ -383,7 +533,7 @@ export function createImageServiceCache(
         get: (serviceId) => facts.get(serviceId),
         failure: (serviceId) => failures.get(serviceId)?.kind,
         spent: isSpent,
-        ensure(serviceId) {
+        ensure(serviceId, declared) {
             const known = facts.get(serviceId);
             if (known) return Promise.resolve(known);
 
@@ -393,7 +543,11 @@ export function createImageServiceCache(
             if (pending) return pending;
 
             const queued = new Promise<ImageServiceFacts | null>((resolve) => {
-                waiting.push({ serviceId, settle: resolve });
+                waiting.push({
+                    serviceId,
+                    ...(declared ? { declared } : {}),
+                    settle: resolve,
+                });
             });
             inFlight.set(serviceId, queued);
             pump();
