@@ -15,6 +15,7 @@ import { COOKBOOK_RECIPES } from '@triiiceratops/cookbook';
 import { describe, expect, it } from 'vitest';
 
 import {
+    AV_PREMIUM,
     AV_ROWS,
     CAPABILITY_ROWS,
     COUNTED,
@@ -25,6 +26,7 @@ import {
     SCATTER,
     SIZE_BARS,
     SIZE_ROWS,
+    TAKEAWAY,
 } from '$lib/comparison';
 
 const { viewers } = MEASURED_COMPARISON;
@@ -92,11 +94,15 @@ describe('the data table', () => {
         }
     });
 
-    it('states the pair’s headroom over the next row up', () => {
+    it('states the pair’s headroom over the next row up, in bytes and percent', () => {
         const pair = gzipOf('triiiceratops-av', 'image');
         const above = SIZE_BARS.filter((bar) => bar.gzip > pair);
         expect(HEADROOM.competitor).toBe(above[0].name);
         expect(HEADROOM.bytes).toBe(above[0].gzip - pair);
+        expect(HEADROOM.percent).toBeCloseTo(
+            ((above[0].gzip - pair) / above[0].gzip) * 100,
+            1,
+        );
     });
 });
 
@@ -182,6 +188,28 @@ describe('the scatter', () => {
             );
         }
     });
+
+    it('sets our own audiovisual point against the most capable rival', () => {
+        expect(TAKEAWAY.selfRecipes).toBe(
+            COOKBOOK_RECIPES.filter((r) => r.support === 'supported').length,
+        );
+        expect(TAKEAWAY.selfKb).toBe(
+            (gzipOf('triiiceratops-av', 'audiovisual') / 1000).toFixed(1),
+        );
+
+        const best = [...CAPABILITY_ROWS]
+            .filter((row) => !row.isSelf)
+            .sort((a, b) => b.recipes - a.recipes || a.gzip - b.gzip)[0];
+        expect(TAKEAWAY.rivalName).toBe(best.name);
+        expect(TAKEAWAY.rivalRecipes).toBe(best.recipes);
+        expect(TAKEAWAY.rivalKb).toBe((best.gzip / 1000).toFixed(1));
+
+        const self = CAPABILITY_ROWS.find((row) => row.isSelf);
+        expect(TAKEAWAY.perRecipeMultiple).toBeCloseTo(
+            best.bytesPerRecipe / self!.bytesPerRecipe,
+            1,
+        );
+    });
 });
 
 describe('the audiovisual disclosure', () => {
@@ -198,6 +226,29 @@ describe('the audiovisual disclosure', () => {
         for (const row of splits) {
             expect(row.split, row.id).toMatch(/\d+ files for an image canvas/);
         }
+    });
+
+    it('names what code-splitting costs the viewer it costs most', () => {
+        const extras = viewers.flatMap((viewer) => {
+            const image = viewer.sessions.find((s) => s.kind === 'image')?.gzip;
+            const audiovisual = viewer.sessions.find(
+                (s) => s.kind === 'audiovisual',
+            )?.gzip;
+            return image !== undefined &&
+                audiovisual !== undefined &&
+                audiovisual > image
+                ? [{ name: viewer.name, extra: audiovisual - image }]
+                : [];
+        });
+        const costliest = extras.sort((a, b) => b.extra - a.extra)[0];
+        expect(AV_PREMIUM.name).toBe(costliest.name);
+        expect(AV_PREMIUM.extra).toBe(costliest.extra);
+    });
+
+    it('costs our own pair the same either way', () => {
+        expect(gzipOf('triiiceratops-av', 'audiovisual')).toBe(
+            gzipOf('triiiceratops-av', 'image'),
+        );
     });
 
     it('lists our deferred chunks at their measured size', () => {

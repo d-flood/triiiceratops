@@ -13,6 +13,7 @@
 import { expect, test } from '@playwright/test';
 
 import {
+    AV_PREMIUM,
     AV_ROWS,
     CAPABILITY_ROWS,
     HEADROOM,
@@ -23,6 +24,7 @@ import {
     SCATTER,
     SIZE_BARS,
     SIZE_ROWS,
+    TAKEAWAY,
     grouped,
     kilobytes,
 } from '../src/lib/comparison';
@@ -60,12 +62,23 @@ test.describe('the size bars', () => {
         );
     });
 
-    test('states the headroom the paired size gate protects', async ({
+    test('states the pair’s headroom over the next smallest in KB and percent', async ({
         page,
     }) => {
-        await expect(
-            page.locator('.band', { has: page.locator('.chart') }),
-        ).toContainText(`${grouped(HEADROOM.bytes)} gzip bytes`);
+        const band = page.locator('.band', { has: page.locator('.chart') });
+        await expect(band).toContainText(HEADROOM.competitor);
+        await expect(band).toContainText(
+            `by ${kilobytes(HEADROOM.bytes)} KB — about ${HEADROOM.percent}%`,
+        );
+    });
+
+    test('sets code-splitting against the pair’s flat cost', async ({
+        page,
+    }) => {
+        const band = page.locator('.band', { has: page.locator('.chart') });
+        await expect(band).toContainText(
+            `${AV_PREMIUM.name}’s audiovisual session costs ${kilobytes(AV_PREMIUM.extra)} KB more`,
+        );
     });
 });
 
@@ -111,6 +124,27 @@ test.describe('the scatter', () => {
         await expect(
             definition.getByRole('link', { name: 'official support matrix' }),
         ).toHaveAttribute('href', MATRIX_URL);
+    });
+
+    test('names the winning corner inside the plot', async ({ page }) => {
+        await expect(page.locator('.scatter .scatter__note')).toHaveText(
+            'Bottom right wins: more recipes, fewer bytes',
+        );
+    });
+
+    test('states the takeaway beneath the plot', async ({ page }) => {
+        const band = page.locator('.band', {
+            has: page.locator('.scatter'),
+        });
+        await expect(band).toContainText(
+            `${TAKEAWAY.selfRecipes} of ${RECIPES.total} recipes at ${TAKEAWAY.selfKb} KB`,
+        );
+        await expect(band).toContainText(
+            `${TAKEAWAY.rivalRecipes} at ${TAKEAWAY.rivalKb} KB for ${TAKEAWAY.rivalName}`,
+        );
+        await expect(band).toContainText(
+            `about ${TAKEAWAY.perRecipeMultiple}× as many bytes per recipe`,
+        );
     });
 
     test('tabulates the same points beneath it', async ({ page }) => {

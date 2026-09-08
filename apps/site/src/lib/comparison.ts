@@ -191,20 +191,27 @@ export const SIZE_ROWS: readonly SizeRow[] = byImageGzip.map((viewer) => {
 
 /**
  * The gzip bytes between the audiovisual pair and the next row above it — the
- * margin `pnpm size:check:pair` fails the build for losing.
+ * margin `pnpm size:check:pair` fails the build for losing — and that margin
+ * as a percentage of the rival row, which is how the page states it.
  */
-export const HEADROOM: { readonly competitor: string; readonly bytes: number } =
-    (() => {
-        const at = SIZE_BARS.findIndex((bar) => bar.id === PAIR_ID);
-        const next = SIZE_BARS[at + 1];
-        if (next === undefined) {
-            throw new Error('The audiovisual pair is the largest row');
-        }
-        return {
-            competitor: next.name,
-            bytes: next.gzip - SIZE_BARS[at].gzip,
-        };
-    })();
+export const HEADROOM: {
+    readonly competitor: string;
+    readonly bytes: number;
+    readonly percent: number;
+} = (() => {
+    const at = SIZE_BARS.findIndex((bar) => bar.id === PAIR_ID);
+    const pair = SIZE_BARS[at];
+    const next = SIZE_BARS[at + 1];
+    if (pair === undefined || next === undefined) {
+        throw new Error('The audiovisual pair is the largest row');
+    }
+    const bytes = next.gzip - pair.gzip;
+    return {
+        competitor: next.name,
+        bytes,
+        percent: Math.round((bytes / next.gzip) * 1000) / 10,
+    };
+})();
 
 // ---- The scatter ----------------------------------------------------------
 
@@ -359,6 +366,40 @@ export const CAPABILITY_ROWS: readonly CapabilityRow[] = plotted
     }))
     .sort((a, b) => a.gzip - b.gzip);
 
+/**
+ * The scatter's one-sentence takeaway, derived from the capability table: our
+ * own point against the most capable rival (the most recipes, ties broken by
+ * the smaller session), and how many times more bytes per recipe that rival
+ * costs.
+ */
+export const TAKEAWAY: {
+    readonly selfRecipes: number;
+    readonly selfKb: string;
+    readonly rivalName: string;
+    readonly rivalRecipes: number;
+    readonly rivalKb: string;
+    /** The rival's bytes per recipe over ours, to one decimal. */
+    readonly perRecipeMultiple: number;
+} = (() => {
+    const self = CAPABILITY_ROWS.find((row) => row.isSelf);
+    const rivals = CAPABILITY_ROWS.filter((row) => !row.isSelf);
+    const best = rivals.sort(
+        (a, b) => b.recipes - a.recipes || a.gzip - b.gzip,
+    )[0];
+    if (self === undefined || best === undefined) {
+        throw new Error('The capability table has no point to take away');
+    }
+    return {
+        selfRecipes: self.recipes,
+        selfKb: kilobytes(self.gzip),
+        rivalName: best.name,
+        rivalRecipes: best.recipes,
+        rivalKb: kilobytes(best.gzip),
+        perRecipeMultiple:
+            Math.round((best.bytesPerRecipe / self.bytesPerRecipe) * 10) / 10,
+    };
+})();
+
 // ---- The audiovisual code-split table -------------------------------------
 
 export type AvRow = {
@@ -396,6 +437,32 @@ export const AV_ROWS: readonly AvRow[] = byImageGzip
         split: describeSplit(viewer),
     }))
     .sort((a, b) => a.audiovisual - b.audiovisual);
+
+/**
+ * What code-splitting costs the viewer it costs most: the largest positive gap
+ * between an audiovisual session and that viewer's own image session. The page
+ * sets it against our own pair, whose two sessions fetch the same bytes.
+ */
+export const AV_PREMIUM: {
+    readonly name: string;
+    readonly image: number;
+    readonly audiovisual: number;
+    readonly extra: number;
+} = (() => {
+    const premiums = AV_ROWS.filter((row) => row.audiovisual > row.image)
+        .map((row) => ({ ...row, extra: row.audiovisual - row.image }))
+        .sort((a, b) => b.extra - a.extra);
+    const costliest = premiums[0];
+    if (costliest === undefined) {
+        throw new Error('No viewer pays more for an audiovisual session');
+    }
+    return {
+        name: costliest.name,
+        image: costliest.image,
+        audiovisual: costliest.audiovisual,
+        extra: costliest.extra,
+    };
+})();
 
 /**
  * The competitors with no audiovisual session at all, which get no row above.

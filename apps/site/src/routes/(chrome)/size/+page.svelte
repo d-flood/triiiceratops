@@ -1,6 +1,7 @@
 <script lang="ts">
     import PageHead from '$lib/PageHead.svelte';
     import {
+        AV_PREMIUM,
         AV_ROWS,
         CAPABILITY_ROWS,
         COMPRESSION,
@@ -15,6 +16,7 @@
         SESSION_MANIFESTS,
         SIZE_BARS,
         SIZE_ROWS,
+        TAKEAWAY,
         grouped,
         kilobytes,
     } from '$lib/comparison';
@@ -117,11 +119,24 @@
                     y={point.labelY}>{point.name}</text
                 >
             {/each}
+            <!-- The plot's own reading cue, inside the winning corner it names:
+                 the corner is empty at every committed measurement, and the
+                 surrounding `.scatter` scrolls rather than clips on narrow
+                 screens, so this sits clear of every point and label. -->
+            <text class="scatter__note" x={plot.right - 10} y={plot.bottom - 12}
+                >Bottom right wins: more recipes, fewer bytes</text
+            >
         </svg>
     </div>
     <p class="figcap">
-        Recipe coverage against the gzip bytes of an audiovisual session. Down
-        and to the right is better.
+        Recipe coverage against the gzip bytes of an audiovisual session.
+    </p>
+    <p class="explain">
+        The bottom-right point is Triiiceratops + plugin-av: {TAKEAWAY.selfRecipes}
+        of {RECIPES.total} recipes at {TAKEAWAY.selfKb} KB, against {TAKEAWAY.rivalRecipes}
+        at {TAKEAWAY.rivalKb} KB for {TAKEAWAY.rivalName}, the most capable
+        rival — which costs about {TAKEAWAY.perRecipeMultiple}× as many bytes
+        per recipe.
     </p>
 
     <div class="ratios ratios--roman">
@@ -184,11 +199,20 @@
         better. The same figures are tabulated below.
     </p>
     <p class="explain">
-        Triiiceratops is the smallest of these viewers at all three compression
-        levels at once, as a single file with no code splitting. The audiovisual
-        pair still beats {HEADROOM.competitor}, the nearest row above it, by
-        {grouped(HEADROOM.bytes)} gzip bytes, and the paired size gate fails the build
-        if that stops being true.
+        Triiiceratops appears twice here: core alone, which plays no time-based
+        media, is the smallest of these viewers at all three compression levels
+        at once, as a single file with no code splitting. Core with the
+        audiovisual plugin is the like-for-like row against the viewers here
+        that do play time-based media, and it still comes in under {HEADROOM.competitor},
+        the next smallest, by {kilobytes(HEADROOM.bytes)} KB — about {HEADROOM.percent}%
+        less.
+    </p>
+    <p class="explain">
+        A viewer that code-splits pays again for video: {AV_PREMIUM.name}'s
+        audiovisual session costs {kilobytes(AV_PREMIUM.extra)} KB more than its image
+        one. The pair costs the same either way; the audiovisual chunks beside the
+        plugin arrive only when a canvas needs them, and no session on this page fetches
+        one.
     </p>
 </section>
 

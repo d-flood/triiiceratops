@@ -552,6 +552,32 @@ code {
     margin-bottom: var(--s5);
 }
 
+/* ---- The read view's guard against the edit variant's chrome -------------
+   The edit variant loads Uncial's chrome stylesheet from inside its DEV-only
+   route, and Vite keeps dynamically imported CSS for the life of the page: on
+   the dev server, visiting an edit variant and then navigating client-side to
+   a read view leaves that chrome in the document, where its card rules for the
+   shared renderer wrapper (ground, border, shadow) and its content box
+   (minimum height, padding) restyle the read view into something centred and
+   dark that a refresh clears. A production build never loads that stylesheet,
+   so this reset is a no-op there: it only out-specifies the leaked rules while
+   developing. Scoped to bands outside the edit variant, so the editing surface
+   itself is untouched. */
+.band:not(.band--editing) .uncial-renderer {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    color: inherit;
+    font: inherit;
+    line-height: inherit;
+}
+.band:not(.band--editing) .uncial-renderer > .uncial-content {
+    min-height: 0;
+    padding: 0;
+    line-height: inherit;
+}
+
 /* ---- The documentation: the site's chrome, plus a sidebar and contents ----
    Uncial's own tokens are scoped custom properties on its renderer, and this
    application loads none of its stylesheets, so a documentation page inherits
@@ -1081,6 +1107,14 @@ code {
 .scatter__label--self {
     fill: var(--ink);
     font-weight: 600;
+}
+/* The plot's own reading cue, set inside the winning corner it names. Roman
+   like the rest of the comparison's type: the italic face is 164 KB this
+   page's first paint otherwise has no use for. */
+.scatter__note {
+    fill: var(--ink-2);
+    font-size: 12px;
+    text-anchor: end;
 }
 
 /* A table with no italic in it. The comparison's two lead tables sit near the
