@@ -308,6 +308,50 @@ describe('an initial canvas region in a mounted viewer', () => {
         expect(after.centre!.y).toBeCloseTo(CANVAS_SIZE.height / 2, 0);
     });
 
+    it('frames a region carried to the canvas already showing', async () => {
+        const props = mountViewer({
+            manifestId: MANIFEST_ID,
+            manifestJson: makeManifest(),
+        });
+        await settle();
+        const state = props.viewerState;
+        const moved = await panAndZoomAway(state);
+        expect(moved.scale).toBeGreaterThan(0);
+
+        // A IIIF Content State dropped onto the viewer, or a table-of-contents
+        // entry pointing into the open leaf: the navigation names the canvas
+        // that is already current, so it changes no canvas, no spread and no
+        // Choice. The region it carries is the only thing that moved, and it is
+        // owed a fit regardless — an unnavigated canvas is not an unchanged
+        // world when the reader has been sent to part of it.
+        state.setCanvas(state.canvasId, null, REGION);
+        await settle();
+
+        expectFramed(await settledView(state));
+        expect(state.navigationRegion).toBeNull();
+    });
+
+    it('leaves the reader alone when the canvas already showing is re-selected', async () => {
+        const props = mountViewer({
+            manifestId: MANIFEST_ID,
+            manifestJson: makeManifest(),
+        });
+        await settle();
+        const state = props.viewerState;
+        const chosen = await panAndZoomAway(state);
+
+        // The other side of the case above: a navigation carrying NO region to
+        // the canvas already showing has nothing to say about the view, so the
+        // reader keeps the one they chose.
+        state.setCanvas(state.canvasId);
+        await settle();
+        const after = await settledView(state);
+
+        expect(after.scale).toBeCloseTo(chosen.scale, 4);
+        expect(after.centre!.x).toBeCloseTo(chosen.centre!.x, 0);
+        expect(after.centre!.y).toBeCloseTo(chosen.centre!.y, 0);
+    });
+
     it('re-frames the region only when the canvas resolves different dimensions', async () => {
         const props = mountViewer({
             manifestId: MANIFEST_ID,

@@ -18,6 +18,9 @@ const MANIFEST = '/demo-manifests/a11y/manifest.json';
 /** The gap the flyout keeps from its toggle, from `.menu-flyout`'s margin. */
 const SAFE_GAP = 24;
 
+/** The panel's inner padding, from `.menu`. */
+const PANEL_PAD = 8;
+
 // CSS anchor positioning is unimplemented in Firefox, which places these panels
 // somewhere else entirely; the rest of the desktop matrix and both mobile
 // projects cover the shell.
@@ -61,6 +64,7 @@ interface Settled {
         flexDirection: string;
         borderRadius: string;
         margin: string;
+        padding: string;
     };
     items: Box[];
 }
@@ -117,6 +121,7 @@ async function settled(page: Page, menu: string): Promise<Settled> {
                     flexDirection: panelStyle.flexDirection,
                     borderRadius: panelStyle.borderRadius,
                     margin: panelStyle.margin,
+                    padding: panelStyle.padding,
                 },
                 items: [...panel.querySelectorAll(':scope > li > button')].map(
                     box,
@@ -155,9 +160,14 @@ function assertStackedRows(view: Settled): void {
     );
     expect(pitches.size).toBe(1);
     expect([...pitches][0]).toBe(view.items[0].h);
-    // The rows fill the panel: it is sized by them, not by a fixed height.
+    // The rows fill the panel: it is sized by them plus its own padding, not by
+    // a fixed height. The 1px slack is the panel's border.
     const last = view.items[view.items.length - 1];
-    expect(view.panel.y + view.panel.h - (last.y + last.h)).toBeLessThanOrEqual(
+    expect(
+        view.panel.y + view.panel.h - (last.y + last.h) - PANEL_PAD,
+    ).toBeLessThanOrEqual(2);
+    // No row is squeezed into wrapping: the panel is as wide as its widest.
+    expect(view.panel.w - view.items[0].w - 2 * PANEL_PAD).toBeLessThanOrEqual(
         2,
     );
 }
@@ -179,8 +189,9 @@ function assertSharedShell(view: Settled): void {
     expect(view.panel.display).toBe('flex');
     expect(view.panel.flexDirection).toBe('column');
     expect(view.panel.borderRadius).toBe('16px');
-    expect(view.panel.classes).toContain('menu');
-    expect(view.panel.classes).toContain('popover-menu');
+    expect(view.panel.padding).toBe(`${PANEL_PAD}px`);
+    expect(view.panel.classes).toContain('tri-menu');
+    expect(view.panel.classes).toContain('tri-menu-surface');
     expect(view.panel.classes).toContain('menu-flyout');
     expect(view.panel.classes).toContain('open');
 }
@@ -193,7 +204,7 @@ test('toolbar flyout shells keep their settled placement and styles @mobile', as
     // --- Floating: the default overlay rail on the left edge. -------------
     await loadViewer(page);
     const floating = await settled(page, 'gallery');
-    expect(floating.actions.classes).toEqual(['actions', 'left', 'menu']);
+    expect(floating.actions.classes).toEqual(['actions', 'left', 'tri-menu']);
     expect(floating.actions.flexDirection).toBe('column');
     expect(floating.actions.columns).toBe(1);
     expect(floating.actions.rows).toBe(floating.actions.buttons);
@@ -218,7 +229,7 @@ test('toolbar flyout shells keep their settled placement and styles @mobile', as
         'actions',
         'docked',
         'left',
-        'menu',
+        'tri-menu',
     ]);
     // The docked rail is a solid column that never wraps.
     expect(docked.actions.flexWrap).toBe('nowrap');
@@ -237,7 +248,7 @@ test('toolbar flyout shells keep their settled placement and styles @mobile', as
         'actions',
         'horizontal',
         'inline',
-        'menu',
+        'tri-menu',
     ]);
     expect(inline.actions.flexDirection).toBe('row');
     // One row, and one fewer button than the rail: inline drops the collapse

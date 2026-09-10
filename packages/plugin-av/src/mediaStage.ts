@@ -14,18 +14,21 @@
 
 import type { CaptionTrack } from './captions';
 import { warnAboutUnloadableCaptionTrack } from './degradation';
+import { formatMediaTime } from './transport';
 import type { HlsAttachment } from './hls/index';
 import { hasNativeHlsSupport, isHlsSource, loadHls } from './hlsLink';
 import type { AvSource } from './sources';
 import {
     laneFraction,
     stageClip,
-    stageLanes,
+    stageFill,
     type StageLayoutKind,
 } from './stageLayout';
-import type { Peaks } from './waveform/peaks';
-import type { VisibleBox, WaveformSurface } from './waveform/surface';
-import type { WaveformModule } from './waveformLink';
+import type { VisibleBox } from './timeline/lane';
+import type { Peaks } from './timeline/peaks';
+import type { RulerSurface } from './timeline/ruler';
+import type { WaveformSurface } from './timeline/surface';
+import type { TimelineModule } from './timelineLink';
 
 /** Where a stage sits, in the overlay container's coordinates. */
 export interface StageRect {
@@ -108,6 +111,20 @@ export interface SourceResume {
     readonly play: boolean;
 }
 
+/**
+ * A little more than the chrome's own height, so a caption clears the bar
+ * rather than resting on it. A percentage of the picture, like the lift it is
+ * added to.
+ */
+const CAPTION_GAP_PERCENT = 2;
+
+/**
+ * The most of the picture a lift may take. A short canvas under a wrapped
+ * two-row bar would otherwise push its captions off the top, which is the
+ * obscured caption again with the other edge doing it.
+ */
+const MAX_CAPTION_LIFT_PERCENT = 40;
+
 export interface MediaStage {
     readonly canvasId: string;
     /** The alternative currently attached — what a swap is compared against. */
@@ -140,6 +157,16 @@ export interface MediaStage {
      * so its backing store stays viewport-sized at any zoom.
      */
     place(rect: StageRect | null, visible: VisibleBox): void;
+    /**
+     * How many pixels of the overlay container's BOTTOM core's control bar is
+     * covering right now (`ViewerState.chromeInset`), so the captions this
+     * stage shows can be kept out from under it.
+     *
+     * Only the bottom edge, because only the bottom edge can be in the way: an
+     * auto-placed WebVTT cue lands at the foot of the picture, so a bar
+     * anchored to the top is beside the captions rather than over them.
+     */
+    setChromeBottom(pixels: number): void;
     /** Retranslate the "can't play" treatment after a locale change. */
     setCannotPlayMessage(message: string): void;
     /**
@@ -188,12 +215,20 @@ export interface MediaStage {
      * first call; a layout with no timeline lane keeps the data for the
      * scrubber strip and draws nothing here.
      */
-    adoptWaveform(module: WaveformModule, peaks: Peaks): void;
+    adoptWaveform(module: TimelineModule, peaks: Peaks): void;
     /**
-     * Redraw the waveform and its playhead. Cheap and idempotent when there is
-     * no waveform, because it is called on the playback frame cadence.
+     * Adopt the loaded timeline chunk and draw the ruler with it. Ignored by a
+     * layout with no lane, and by one whose waveform already got there: the
+     * waveform graduates the same window and says more.
      */
-    paintWaveform(): void;
+    adoptRuler(module: TimelineModule): void;
+    /**
+     * Redraw whatever graduates this lane — the waveform, or the ruler a lane
+     * with no peaks draws instead — and its playhead. Cheap and idempotent when
+     * the layout has neither, because it is called on the playback frame
+     * cadence.
+     */
+    paintTimeline(): void;
     destroy(): void;
 }
 
@@ -676,6 +711,14 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         return options.duration ?? null;
     };
 
+    /**
+     * The ruler's surface, built when the timeline chunk arrives — which for a
+     * bare audio canvas is unconditional, since the graduations are the only
+     * thing there is to look at. Its own field rather than the waveform's,
+     * because the two can both be resolved and only one of them draws.
+     */
+    let ruler: RulerSurface | null = null;
+
     /** The last placement, so a late-arriving waveform can be drawn at once. */
     let placement: { lane: StageRect; visible: VisibleBox } | null = null;
     /**
@@ -689,10 +732,10 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
     function place(rect: StageRect | null, visible: VisibleBox): void {
         lastPlace = { rect, visible };
         // A stage whose rect overhangs the container stays the size of its
-        // rect — the lanes divide the canvas, not the viewport — and is
-        // CLIPPED to what falls inside, which takes the overhanging part out
+        // rect — it is the canvas's projection, not a box in the viewport — and
+        // is CLIPPED to what falls inside, which takes the overhanging part out
         // of hit testing as well as out of the picture (see `stageClip`).
-        // Without that, an audio canvas's lane, which fills its whole rect,
+        // Without that, an audio canvas's timeline, which fills its whole rect,
         // reaches over the columns beside the container and swallows taps
         // aimed at the chrome there.
         const clip = rect ? stageClip(rect, visible) : null;
@@ -700,6 +743,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         if (!rect || !clip || clip.hidden) {
             placement = null;
             waveform?.place(null, { width: 0, height: 0 });
+            ruler?.place(null, { width: 0, height: 0 });
             return;
         }
         root.style.left = `${rect.left}px`;
@@ -708,31 +752,31 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         root.style.height = `${rect.height}px`;
         root.style.clipPath = clip.clipPath;
 
-        // The lanes divide the rect in the ROOT's own coordinates, which
-        // is why the split is computed from an origin-anchored copy: the
-        // root already carries the projection.
+        // Whatever fills the rect fills all of it, in the ROOT's own
+        // coordinates — the root already carries the projection.
         const current = laneLayout();
-        const lanes = stageLanes(
-            { left: 0, top: 0, width: rect.width, height: rect.height },
-            current,
-        );
-        placeLane(visualLane, lanes.visual);
-        placeLane(timelineLane, lanes.timeline);
+        const fill = stageFill(current);
+        const box = { left: 0, top: 0, width: rect.width, height: rect.height };
+        placeLane(visualLane, fill === 'visual' ? box : null);
+        placeLane(timelineLane, fill === 'timeline' ? box : null);
+        // The picture just changed size or moved under the bar, so how much of
+        // it the bar covers has changed with it.
+        liftCaptionCues();
         if (tapTarget) tapTarget.hidden = current !== 'audio-with-image';
 
-        if (lanes.timeline) {
-            // The surface clips against the CONTAINER's box, so the lane
-            // goes back into container coordinates the root already carries.
-            placement = {
-                lane: {
-                    ...lanes.timeline,
-                    left: rect.left + lanes.timeline.left,
-                    top: rect.top + lanes.timeline.top,
-                },
-                visible,
-            };
+        // The surface clips against the CONTAINER's box, and the lane fills the
+        // rect, so in container coordinates the lane IS the rect.
+        placement = fill === 'timeline' ? { lane: rect, visible } : null;
+        if (placement) {
             waveform?.place(placement.lane, placement.visible);
             waveform?.paint(media.currentTime);
+            // Painted here as well as on the playback cadence: a lane that is
+            // paused gets no frames from AVState, and a ruler that only drew
+            // while something was playing would be blank on arrival.
+            ruler?.place(placement.lane, rulerVisible(placement.visible));
+            ruler?.paint(media.currentTime);
+        } else {
+            ruler?.place(null, { width: 0, height: 0 });
         }
     }
 
@@ -843,6 +887,9 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
             detach();
             settledCaptions[index] = caption;
             captionCache = null;
+            // The cues exist only now, so a track that loads while it is
+            // already the showing one has never been lifted.
+            liftCaptionCues();
             options.onCaptionTracksChange?.();
         };
         /** A track that cannot caption anything: dropped, with one warning. */
@@ -891,6 +938,126 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
                 entry.caption.url === activeCaption ? 'showing' : 'hidden',
             );
         }
+        liftCaptionCues();
+    }
+
+    /**
+     * The cues whose placement this stage has taken over.
+     *
+     * Held so an authored placement is never overwritten and an adopted one can
+     * be put back: once a cue has been lifted its `line` is no longer `'auto'`,
+     * so the "did the curator place this?" test can only be asked once. A weak
+     * set because the cues belong to the track element, which outlives nothing
+     * here and may be dropped at any time.
+     */
+    const liftedCues = new WeakSet<TextTrackCue>();
+    /** Pixels of the container's bottom edge core's chrome is covering. */
+    let chromeBottom = 0;
+
+    /**
+     * How much of THIS stage's picture the chrome is covering, in pixels of the
+     * stage's own box.
+     *
+     * The chrome band is stated against the overlay container, and the stage's
+     * rect is in that container's coordinates, so the overlap is arithmetic. A
+     * stage the bar does not reach — a small canvas high in a tall viewer —
+     * answers zero and keeps its captions where the browser puts them.
+     */
+    /**
+     * The box the RULER clips against: the container's, with the chrome band
+     * taken off the bottom.
+     *
+     * The ruler draws along the FOOT of its surface — the baseline, the ticks
+     * and the clock labels all measure up from it — because that is where a
+     * reader of any ruler looks for them. A lane fills its canvas's whole rect,
+     * and on a bare audio canvas that rect runs to the bottom of the viewer,
+     * which is exactly where the control bar sits: clipped only against the
+     * container, every graduation would be drawn underneath the bar and the
+     * lane would read as the empty rectangle the ruler exists to replace. It is
+     * the same answer the captions get a few lines below — theirs through
+     * WebVTT's own `line`, because a cue box is painted in the user agent's
+     * shadow DOM and cannot be clipped from here.
+     *
+     * The waveform is deliberately NOT shortened: it is drawn about a centre
+     * line rather than off a baseline, so the bar crosses it without hiding
+     * anything it says, and a lane world's waveform fills the viewer top to
+     * bottom (`av-waveform.spec.ts`).
+     *
+     * Only the height moves. The time window is read off the left and right
+     * edges, so a shorter surface graduates the same span of the recording.
+     */
+    function rulerVisible(visible: VisibleBox): VisibleBox {
+        if (chromeBottom <= 0) return visible;
+        return {
+            width: visible.width,
+            height: Math.max(0, visible.height - chromeBottom),
+        };
+    }
+
+    function chromeOverPicture(): number {
+        const rect = lastPlace?.rect;
+        const visible = lastPlace?.visible;
+        if (!rect || !visible || chromeBottom <= 0) return 0;
+        const bandTop = visible.height - chromeBottom;
+        const overlap = rect.top + rect.height - bandTop;
+        return Math.max(0, Math.min(overlap, rect.height));
+    }
+
+    /**
+     * Lift the showing track's cues clear of the chrome, and put them back down
+     * when it goes.
+     *
+     * WebVTT's own positioning, not CSS: a cue box is painted inside the user
+     * agent's shadow DOM, where no stylesheet of ours reaches and no
+     * measurement of ours can look. `line` with `snapToLines` off is a
+     * percentage of the picture's height and `lineAlign: 'end'` measures it
+     * from the cue's own bottom, which together say exactly "leave this much
+     * of the foot of the picture clear" however many lines the cue runs to.
+     *
+     * Only cues the WebVTT file left unplaced. A cue that names its own `line`
+     * is a curator positioning a caption against the picture — a sign, a
+     * speaker, a corner the shot leaves empty — and moving it would be this
+     * viewer overruling the material. Such a cue is also unlikely to be at the
+     * foot of the picture, which is the only place the bar can reach.
+     */
+    function liftCaptionCues(): void {
+        if (!rendersCaptions) return;
+        const showing = captionElements.find(
+            (entry) => entry.caption.url === activeCaption,
+        );
+        const cues = (showing?.element.track as TextTrack | undefined)?.cues;
+        if (!cues) return;
+
+        const height = lastPlace?.rect?.height ?? 0;
+        const clear =
+            height > 0
+                ? Math.min(
+                      (chromeOverPicture() / height) * 100 +
+                          CAPTION_GAP_PERCENT,
+                      MAX_CAPTION_LIFT_PERCENT,
+                  )
+                : 0;
+
+        // Indexed rather than iterated: `TextTrackCueList` is a legacy platform
+        // object with a length and an indexed getter, and not every engine has
+        // since given it a `Symbol.iterator`.
+        const covered = chromeOverPicture() > 0;
+        for (let at = 0; at < cues.length; at += 1) {
+            const cue = cues[at];
+            if (!cue) continue;
+            const placed = cue as VTTCue;
+            if (!covered) {
+                if (!liftedCues.delete(cue)) continue;
+                placed.snapToLines = true;
+                placed.line = 'auto';
+                continue;
+            }
+            if (!liftedCues.has(cue) && placed.line !== 'auto') continue;
+            liftedCues.add(cue);
+            placed.snapToLines = false;
+            placed.lineAlign = 'end';
+            placed.line = 100 - clear;
+        }
     }
 
     return {
@@ -901,7 +1068,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
             return current;
         },
         setSource,
-        adoptWaveform(module: WaveformModule, peaks: Peaks): void {
+        adoptWaveform(module: TimelineModule, peaks: Peaks): void {
             // Only the `audio` layout has a timeline lane to draw into. Every
             // other layout's peaks go to the scrubber strip in the control bar
             // instead, which is the caller's own path.
@@ -913,14 +1080,53 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
                 timelineLane,
                 timelineDuration,
             );
+            // The waveform graduates the same window and says more about the
+            // recording, so the ruler stands down rather than showing through
+            // — and `waveform` being set is what stops `adoptRuler` building
+            // one afterwards, whichever of the two resolves first.
+            ruler?.yieldToWaveform();
+            ruler = null;
             waveform.setPeaks(peaks);
-            if (placement) waveform.place(placement.lane, placement.visible);
+            if (placement) {
+                waveform.place(placement.lane, placement.visible);
+            }
             waveform.paint(media.currentTime);
         },
-        paintWaveform(): void {
+        adoptRuler(module: TimelineModule): void {
+            // Only the `audio` layout has a lane to graduate, and only a canvas
+            // with no waveform needs graduating: everything else reaches the
+            // timeline through the control bar's scrubber.
+            if (options.layout !== 'audio' || waveform || ruler) return;
+            // The factory comes from the loaded chunk rather than from an
+            // import here, and the clock goes the other way: the chunk is built
+            // self-contained, so it takes no value out of the eager graph.
+            ruler = module.createRulerSurface(
+                timelineLane,
+                timelineDuration,
+                formatMediaTime,
+            );
+            if (placement) {
+                ruler.place(placement.lane, rulerVisible(placement.visible));
+                ruler.paint(media.currentTime);
+            }
+        },
+        paintTimeline(): void {
             waveform?.paint(media.currentTime);
+            ruler?.paint(media.currentTime);
         },
         place,
+        setChromeBottom(pixels: number): void {
+            const next = Number.isFinite(pixels) ? Math.max(0, pixels) : 0;
+            if (next === chromeBottom) return;
+            chromeBottom = next;
+            liftCaptionCues();
+            // The ruler is clipped against the band, so a bar that changed
+            // height without the stage moving would leave it at the old one.
+            if (placement) {
+                ruler?.place(placement.lane, rulerVisible(placement.visible));
+                ruler?.paint(media.currentTime);
+            }
+        },
         setCannotPlayMessage(message: string): void {
             unplayableNotice.textContent = message;
         },
@@ -963,6 +1169,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
             for (const entry of captionElements) entry.detach();
             unbindTaps();
             waveform?.destroy();
+            ruler?.destroy();
             media.pause();
             // Drop the source before detaching so the browser stops any
             // transfer still in flight for a canvas nobody is looking at any

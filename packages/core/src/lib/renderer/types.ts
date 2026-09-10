@@ -234,6 +234,17 @@ export interface ImageServiceFacts {
      * whole-image requests must be snapped to a size it actually generated.
      */
     level0?: boolean;
+    /**
+     * Set when the service's declared dimensions were contradicted by the
+     * pixels it actually served (`imageService.verifyDimensions`).
+     *
+     * `width`/`height` are then the MEASURED raster, and every advertised
+     * `sizes`, tile size, and scale factor has been dropped: all of them
+     * describe an extent the service does not honour, so any region request
+     * derived from them falls outside the real image. `buildPyramid` declines
+     * such a service and it renders from whole-image requests instead.
+     */
+    regionsUntrusted?: true;
     /** IIIF Image API major version, which decides `quality` in a tile URL. */
     version?: 2 | 3;
     /** Image format extension for tile requests. Defaults to `jpg`. */
@@ -488,6 +499,22 @@ export interface PlanWorldInput {
      */
     knownMetadata: Record<string, ImageServiceFacts>;
     budgets: PlannerBudgets;
+    /**
+     * The surface's height divided by its width — the container's SHAPE, not
+     * the view within it.
+     *
+     * The one viewport-derived input to world layout, and it reaches exactly
+     * one rung: the box a duration-only canvas takes when nothing else offers
+     * one (`planScene.placeholderBox`). A recording has no spatial extent at
+     * all, so shaping its rect like the surface is what lets a lone one open as
+     * a timeline filling the viewer rather than as a band across the middle.
+     * Every canvas whose geometry means anything is laid out above that rung
+     * and cannot be reshaped by a resize.
+     *
+     * `undefined` — the server, and the frame before the first measure — falls
+     * back to `rendererDefaults.DURATION_ONLY_CANVAS_ASPECT`.
+     */
+    surfaceAspect?: number;
 }
 
 export interface PlanSceneInput extends PlanWorldInput {

@@ -289,19 +289,13 @@ code {
     min-height: 46px;
     text-decoration: none;
     border-bottom: 1px solid rgba(0, 0, 0, 0.055);
-    transition:
-        background 0.2s,
-        padding 0.2s;
 }
 .rail__item .n {
     font-size: var(--t-tiny);
     color: var(--ink-2);
     width: 15px;
     flex: none;
-}
-.rail__item:hover {
-    background: var(--paper);
-    padding-left: 30px;
+    transition: color 0.15s;
 }
 .rail__item.g1 {
     background: var(--band-1);
@@ -311,6 +305,17 @@ code {
 }
 .rail__item.g3 {
     background: var(--band-3);
+}
+/* Hover: an underlined title, never a change of ground. Paper is the
+   selected marker in light mode and near-invisible against the bands in
+   dark mode, so a ground shift either collides or vanishes. */
+.rail__item:hover span:not(.n) {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+.rail__item:hover .n {
+    color: var(--ink);
 }
 /* Current page: a change of ground and of weight, never a left accent bar. */
 .rail__item[aria-current='page'] {
@@ -552,6 +557,32 @@ code {
     margin-bottom: var(--s5);
 }
 
+/* ---- The read view's guard against the edit variant's chrome -------------
+   The edit variant loads Uncial's chrome stylesheet from inside its DEV-only
+   route, and Vite keeps dynamically imported CSS for the life of the page: on
+   the dev server, visiting an edit variant and then navigating client-side to
+   a read view leaves that chrome in the document, where its card rules for the
+   shared renderer wrapper (ground, border, shadow) and its content box
+   (minimum height, padding) restyle the read view into something centred and
+   dark that a refresh clears. A production build never loads that stylesheet,
+   so this reset is a no-op there: it only out-specifies the leaked rules while
+   developing. Scoped to bands outside the edit variant, so the editing surface
+   itself is untouched. */
+.band:not(.band--editing) .uncial-renderer {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    color: inherit;
+    font: inherit;
+    line-height: inherit;
+}
+.band:not(.band--editing) .uncial-renderer > .uncial-content {
+    min-height: 0;
+    padding: 0;
+    line-height: inherit;
+}
+
 /* ---- The documentation: the site's chrome, plus a sidebar and contents ----
    Uncial's own tokens are scoped custom properties on its renderer, and this
    application loads none of its stylesheets, so a documentation page inherits
@@ -590,8 +621,6 @@ code {
 .docsnav__list a {
     display: block;
     padding: var(--s2) var(--s3);
-    margin-left: -1px;
-    border-left: 2px solid transparent;
     color: var(--ink-soft);
     text-decoration: none;
 }
@@ -599,7 +628,6 @@ code {
     background: var(--bench);
 }
 .docsnav__list a[aria-current='page'] {
-    border-left-color: var(--link);
     color: var(--ink);
     font-weight: 600;
 }
@@ -985,102 +1013,134 @@ code {
     font-size: var(--t-tiny);
 }
 
-/* Bar lengths are inline `width` percentages, each row's gzip as a share of the
-   largest, so the markup carries the data and this block only carries the
-   appearance. Every cell is placed by an explicit `grid-column`, because the
-   bar is the last sibling but sits in the middle column. */
-.chart {
-    margin: var(--s5) 0 0;
+/* ---- The comparison's two figures ------------------------------------
+   One figure per axis, the same viewers in the same order in both, so a reader
+   compares a row's position between them rather than holding two scales in
+   mind at once. Each encoding takes the whole width it is given and scales with
+   it: no fixed minimum, so nothing scrolls sideways at any width.
+
+   Cell states are three and none is colour alone: worked is solid, partial is
+   half, and the rest is the track colour. Every row is labelled with its own
+   figure, and the table under both carries all of it.
+   -------------------------------------------------------------------- */
+.figtitle {
+    margin: var(--s6) 0 var(--s3);
+    font-size: var(--t-h3);
+    font-weight: 400;
+}
+.figtitle__hint {
+    /* The direction that is better, said once per figure rather than trusted to
+       be obvious from a bar. */
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.figtitle__hint::before {
+    content: '— ';
+}
+.cov {
     font-size: var(--t-small);
 }
-.chart__row {
-    display: grid;
-    grid-template-columns: 13ch 1fr 7ch;
+.cov__row {
+    display: flex;
     align-items: center;
-    column-gap: var(--s4);
-    padding: var(--s2) 0;
+    gap: var(--s2);
+    padding: 0.3rem 0;
 }
-.chart__row > * {
-    grid-row: 1;
+.cov__row + .cov__row {
+    border-top: 1px solid var(--rule);
 }
-.chart__label {
-    grid-column: 1;
+.cov__name {
+    flex: 0 0 11rem;
     color: var(--ink-2);
+    /* A name that wraps would break the rows' alignment. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
-.chart__label.self {
+.cov__row.self .cov__name {
     color: var(--ink);
     font-weight: 600;
 }
-.chart__track {
-    grid-column: 2;
-    height: 1.1rem;
+/* The two encodings, each taking whatever width is left. */
+.cov__cells,
+.cov__size {
+    flex: 1 1 0;
+    min-width: 0;
+}
+.cov__cells {
+    display: flex;
+    gap: 1px;
+}
+.cov__cell {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 0.62rem;
     background: var(--grid);
 }
-.chart__fill {
+.cov__cell--on {
+    background: var(--mark);
+}
+.cov__row.self .cov__cell--on {
+    background: var(--mark-emphasis);
+}
+.cov__cell--partial {
+    /* Half a cell, on the side the reader is already scanning from. */
+    background: linear-gradient(
+        to right,
+        var(--mark) 0 50%,
+        var(--grid) 50% 100%
+    );
+}
+.cov__track {
+    display: block;
+    height: 0.7rem;
+    background: var(--grid);
+}
+.cov__fill {
     display: block;
     height: 100%;
     background: var(--mark);
 }
-.chart__fill.self {
+.cov__row.self .cov__fill {
     background: var(--mark-emphasis);
 }
-.chart__value {
-    grid-column: 3;
-    text-align: right;
+/* Left-justified and no wider than its widest value: right-aligning it in a
+   roomy box opened a gap between a row and its own total while crowding
+   whatever came next. */
+.cov__value {
+    flex: 0 0 5rem;
     font-variant-numeric: tabular-nums;
     color: var(--ink);
 }
-
-/* Wide content scrolls in its own box: the page body never scrolls sideways. */
-.scatter {
-    overflow-x: auto;
-    margin: var(--s5) 0 0;
-}
-.scatter svg {
-    display: block;
-    width: 100%;
-    min-width: 480px;
-    /* The plot's type is sized in viewBox units, so the svg is capped at the
-       width of its own viewBox: stretching it wider scales the tick and point
-       labels up with it, and on a wide column 13px type would paint at twice
-       that. Keep this figure in step with `SCATTER.width`. */
-    max-width: 860px;
-    height: auto;
-    margin-inline: auto;
-}
-.scatter__axis {
-    stroke: var(--rule-2);
-    stroke-width: 1;
-}
-.scatter__grid {
-    stroke: var(--grid);
-    stroke-width: 1;
-}
-.scatter__tick,
-.scatter__label {
-    fill: var(--ink-2);
-    font-size: 13px;
-}
-.scatter__tick {
-    text-anchor: end;
-}
-.scatter__tick--x {
-    text-anchor: middle;
-}
-.scatter__axislabel {
-    fill: var(--ink-2);
-    font-size: 13px;
-    text-anchor: middle;
-}
-.scatter__point {
-    fill: var(--mark);
-}
-.scatter__point--self {
-    fill: var(--mark-emphasis);
-}
-.scatter__label--self {
-    fill: var(--ink);
+.cov__row.self .cov__value {
     font-weight: 600;
+}
+.cov__plus {
+    color: var(--ink-2);
+}
+.cov__key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2) var(--s4);
+    margin: var(--s4) 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.cov__key li {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+}
+.cov__key .cov__cell {
+    flex: 0 0 auto;
+    width: 9px;
+    height: 9px;
+}
+.cov__key .cov__cell--off {
+    /* On its own beside a label, an empty cell needs an edge to be a cell. */
+    box-shadow: inset 0 0 0 1px var(--rule);
 }
 
 /* A table with no italic in it. The comparison's two lead tables sit near the
@@ -1170,20 +1230,23 @@ code {
     .rows .say {
         grid-column: 2 / 4;
     }
-    /* A fixed label column plus a value column leaves too little track on a
-       phone for the bars to compare anything, so the label and the value share
-       the top line and the bar spans the width below. */
-    .chart__row {
-        grid-template-columns: 1fr max-content;
+    /* Side by side there is not enough width left for 67 countable cells, so
+       the name and the value share the top line and the encoding spans the
+       whole row beneath them — which is the widest either figure can be. */
+    .cov__row {
+        flex-wrap: wrap;
         row-gap: var(--s1);
     }
-    .chart__value {
-        grid-column: 2;
+    .cov__name {
+        flex: 1 1 auto;
     }
-    .chart__track {
-        grid-column: 1 / -1;
-        grid-row: 2;
-        height: 0.9rem;
+    .cov__value {
+        flex: 0 0 auto;
+    }
+    .cov__cells,
+    .cov__size {
+        flex: 1 1 100%;
+        order: 3;
     }
     /* The documentation sidebar is a column only while there is a column to
        spare; on a phone it is a block of links above the page. */
@@ -1238,7 +1301,10 @@ code {
 }
 .hero h1 {
     font-size: var(--t-display);
-    line-height: 0.96;
+    /* The display face has long extenders: tighter than this and a descender
+       lands on the ascender of the line below, which the headline's wrap puts
+       in a different place at every width. */
+    line-height: 1.08;
     /* Wide enough that the headline sets in three lines rather than five. */
     max-width: 26ch;
 }
@@ -1876,36 +1942,115 @@ code {
     color: var(--paper);
 }
 
-/* ---- Material classes, each with its own viewer -----------------------
-   One ruled row per kind of material: what it is, the viewer running on it,
-   and who publishes the material. The row's rule sits above the heading so the
-   five read as one list rather than as five sections of the page around them.
+/* ---- Material classes, one stage --------------------------------------
+   One viewer and the five kinds of material it is switched between: the rail
+   of materials and the arrangement each one is shown in on the left, the stage
+   on the right, sharing the full width between them. The stage keeps a fixed
+   height owned by this stylesheet, so manifests with different aspects —
+   including the double-width paged opening — letterbox inside it rather than
+   resizing the page. The switcher stays outside the viewer chrome: the
+   viewer's own pager turns the leaves of the material showing, the rail turns
+   the materials.
    -------------------------------------------------------------------- */
-.mat {
-    margin-top: var(--s6);
-    padding-top: var(--s5);
-    border-top: 1px solid var(--rule-2);
+.featstage {
+    display: grid;
+    /* Wide enough for the rail's material names beside their descriptions, and
+       a different width from the site rail it sits next to, so the two do not
+       read as one sidebar. */
+    grid-template-columns: 360px minmax(0, 1fr);
+    height: 720px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bench);
 }
-.mat h2 {
-    margin: 0;
+.featstage__viewer {
+    display: grid;
+    min-height: 0;
+    padding: var(--s5);
 }
-/* A tall page is still a page. Portrait material at its own ratio makes a box
-   a screen and a half deep, so the box is capped: the ratio then gives way and
-   the viewer fits the material inside itself, which is what it does with any
-   box. The height stays deterministic from the stylesheet alone, which is the
-   property the reserved box exists for. */
-.mat .vw {
-    max-height: 72svh;
+.featstage__rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s3);
+    min-height: 0;
+    padding: var(--s5) var(--s4) var(--s5) var(--s5);
+    border-right: 1px solid var(--rule);
+    overflow-y: auto;
 }
-.mat__say {
-    margin: var(--s2) 0 var(--s4);
-    color: var(--ink-2);
-    font-size: var(--t-small);
-}
-.mat__from {
+.featstage__head {
     margin-top: var(--s3);
+    padding-bottom: var(--s1);
+    border-bottom: 1px solid var(--rule-2);
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.featstage__head:first-child {
+    margin-top: 0;
+}
+.featstage__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+}
+.featstage__opt {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--s2) var(--s3);
+    border: 1px solid var(--rule-2);
+    text-align: left;
+    cursor: pointer;
+}
+.featstage__opt:hover {
+    background: var(--paper);
+}
+.featstage__opt.on {
+    border-color: var(--cta);
+    background: var(--paper);
+}
+.featstage__opt:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+}
+.featstage__name {
+    font-weight: 600;
+}
+.featstage__say {
     color: var(--ink-2);
     font-size: var(--t-small);
+}
+/* The one control in the rail that is dragged rather than pressed. It sits
+   under the option that offers it, and says so with the grab cursor and the
+   handle glyph — a reader has to know it can be picked up before they will
+   try. */
+.featstage__chip {
+    display: flex;
+    gap: var(--s2);
+    align-items: center;
+    align-self: start;
+    margin: 2px 0 var(--s2) var(--s3);
+    padding: var(--s1) var(--s3);
+    border: 1px dashed var(--cta);
+    border-radius: 999px;
+    background: var(--paper);
+    font-size: var(--t-small);
+    cursor: grab;
+}
+.featstage__chip:active {
+    cursor: grabbing;
+}
+.featstage__chip:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+}
+/* Where the chip is going. The stage is the drop target, and a drag needs to
+   be told which box will take it. */
+.featstage__viewer.over {
+    outline: 2px dashed var(--cta);
+    outline-offset: -6px;
 }
 
 /* ---- Link rows: a ruled list of links ---------------------------------- */
@@ -1992,6 +2137,27 @@ code {
         border-top: 1px solid var(--rule);
         overflow: visible;
     }
+    /* The stage stacks the same way: the rail first, then the viewer at a
+       fixed height of its own, each full width. */
+    .featstage {
+        display: block;
+        height: auto;
+    }
+    .featstage__viewer {
+        height: 62svh;
+        min-height: 420px;
+    }
+    /* The rail keeps a scroll of its own here rather than growing the page,
+       which it does not need on the wide layout and does need on this one: the
+       viewer is BELOW it when stacked, and a rail as long as the feature list
+       would put four screens of options between a phone reader and the thing
+       every one of them is about. Half the viewport, so the stage's own top is
+       on screen from the start. */
+    .featstage__rail {
+        max-height: 50svh;
+        border-right: 0;
+        border-bottom: 1px solid var(--rule);
+    }
 }
 
 /* Room for a label beside its control is the one thing a phone has none of, so
@@ -2040,44 +2206,88 @@ code {
    rules: a scoped block on this route emits a second stylesheet, and a second
    render-blocking request costs the page a Lighthouse point it is gated on.
 
-   Every selector is under `.builder`, which is the route's own section. The
-   names inside it — a row, a group, a button — are too general to be safe
-   loose in a stylesheet the whole site shares.
+   Every selector is under `.bstage`, which is the route's own section. The
+   names inside it — a row, a pane, a button — are too general to be safe loose
+   in a stylesheet the whole site shares.
+
+   The stage spans the whole column rather than stopping at the content
+   measure, which is `/handles/`'s treatment of its own running viewer and for
+   the same reason: the material gets the width, and prose is what the measure
+   is for. It keeps a fixed height on desktop so the editor beside the viewer
+   can scroll inside itself — the viewer stays where it is, which is what makes
+   a change watchable as it lands.
    -------------------------------------------------------------------- */
-.builder {
-    padding-bottom: var(--s6);
-}
-.builder .bd {
+.bstage {
     display: grid;
-    gap: var(--s6);
-    align-items: start;
+    /* `minmax(0, …)` rather than the implicit `auto`: the preview's aspect
+       ratio and minimum height give it a min-content width wider than a phone,
+       and an `auto` column cannot shrink below that — the page body would
+       scroll sideways, which no strip of this column may do. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bench);
 }
-@media (width >= 1024px) {
-    .builder .bd {
-        grid-template-columns: minmax(0, 1fr) 22rem;
-    }
-    /* The viewer stays in view while the controls scroll past it: watching a
-       change land is the whole point of the page. */
-    .builder .bd__show {
-        position: sticky;
-        top: var(--s5);
+@media (width >= 1280px) {
+    /* The same threshold, and the same reasoning, as the front page's band:
+       with the rail taking its width and the editor 30rem of what is left, a
+       narrower window leaves the viewer too little to be worth watching. So
+       the stage divides only where the column can be divided, and stacks
+       below that. */
+    .bstage {
+        grid-template-columns: minmax(0, 1fr) 30rem;
+        height: 760px;
     }
 }
-.builder .bd__frame {
+/* The picker sits above the viewer, and the viewer takes what is left. */
+.bstage__show {
+    display: grid;
+    /* The column is stated for the reason the stage's own is: an implicit
+       `auto` track takes the preview's min-content width, which its aspect
+       ratio makes wider than a phone. */
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    padding: var(--s5);
+}
+.bstage__frame {
     margin-top: var(--s4);
+    /* The preview's aspect ratio and minimum height give it a min-content
+       width, and a grid item's automatic minimum size is that width. Zeroed, so
+       the box takes the column's width and the minimum height raises its
+       height instead of widening it. */
+    min-width: 0;
+    min-height: 0;
+}
+.bstage__set {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    padding: var(--s5) var(--s5) var(--s4);
+    border-top: 1px solid var(--rule);
+}
+@media (width >= 1280px) {
+    .bstage__set {
+        border-top: 0;
+        border-left: 1px solid var(--rule);
+    }
 }
 
-.builder .pick__label {
+.bstage .pick__label {
     display: block;
     font-size: var(--t-small);
     font-weight: 600;
     margin-bottom: var(--s2);
 }
-.builder .pick__row {
+.bstage .pick__row {
     display: flex;
     gap: var(--s2);
 }
-.builder .pick__url {
+.bstage .pick__url {
     flex: 1 1 0%;
     min-width: 0;
     font: inherit;
@@ -2088,7 +2298,7 @@ code {
     border: 1px solid var(--rule-2);
     border-radius: 2px;
 }
-.builder .pick__note {
+.bstage .pick__note {
     margin-top: var(--s2);
 }
 
@@ -2096,15 +2306,12 @@ code {
    italic: this route's notes sit above the fold, and `.aside` would make the
    italic face a first-paint dependency on the page whose own claim is that it
    loads fast. */
-.builder .note {
+.bstage .note {
     color: var(--ink-2);
     font-size: var(--t-small);
 }
-.builder .grp__note {
-    font-size: var(--t-tiny);
-}
 
-.builder .btn {
+.bstage .btn {
     font-size: var(--t-small);
     padding: var(--s2) var(--s4);
     border: 1px solid var(--rule-2);
@@ -2112,12 +2319,12 @@ code {
     background: var(--paper);
     white-space: nowrap;
 }
-.builder .btn--go {
+.bstage .btn--go {
     background: var(--cta);
     color: var(--cta-ink);
     border-color: var(--cta);
 }
-.builder .linkish {
+.bstage .linkish {
     padding: 0;
     color: var(--link);
     text-decoration: underline;
@@ -2125,29 +2332,56 @@ code {
     font: inherit;
 }
 
-.builder .bd__setHead {
-    display: grid;
-    justify-items: start;
-    gap: var(--s3);
-    margin-bottom: var(--s4);
-}
-
-.builder .grp {
-    margin: 0 0 var(--s4);
-    padding: var(--s3) var(--s4) var(--s4);
-    border: 1px solid var(--rule);
-    border-radius: 2px;
-    background: var(--paper);
-}
-.builder .grp legend {
-    padding: 0 var(--s2);
-    font-size: var(--t-small);
-    font-weight: 600;
-}
-.builder .grp__note {
+.bstage .bd__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--s4);
     margin-bottom: var(--s3);
 }
-.builder .grp__body {
+.bstage .bd__head .note {
+    margin: 0;
+}
+
+/* The site's own tab hand — a ruled row of labels rather than a strip of
+   buttons — wrapped, because this group has eleven labels and the column it
+   sits in is a column rather than a page. */
+.bstage .bd__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--rule);
+}
+.bstage .bd__tabs button {
+    padding: var(--s2);
+    color: var(--ink-2);
+    font-size: var(--t-small);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.bstage .bd__tabs button:hover {
+    color: var(--ink);
+}
+.bstage .bd__tabs button[aria-selected='true'] {
+    color: var(--ink);
+    font-weight: 600;
+    border-bottom-color: var(--ink);
+}
+.bstage .bd__tabs button:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: -2px;
+}
+
+/* Only the pane in view is in flow, so the scroller measures one group. */
+.bstage .bd__panes {
+    min-height: 0;
+    padding-top: var(--s4);
+    overflow-y: auto;
+}
+.bstage .pane__note {
+    margin: 0 0 var(--s3);
+    font-size: var(--t-tiny);
+}
+.bstage .pane__body {
     display: grid;
     gap: var(--s2);
 }
@@ -2155,40 +2389,56 @@ code {
 /* Label over control. The column is narrow enough that a two-column row clips a
    select's own text, which is the one thing a control naming a real key must
    not do. */
-.builder .row {
+.bstage .row {
     display: grid;
     gap: var(--s1);
     font-size: var(--t-small);
 }
-.builder .row--check {
+.bstage .row--check {
     display: flex;
     align-items: center;
     gap: var(--s2);
 }
-.builder .row__value {
-    color: var(--ink-2);
-    font-size: var(--t-tiny);
+/* A plugin carries a sentence and a package name under its name, so its box
+   aligns with the first line rather than with the middle of the block. */
+.bstage .row--plug {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s2);
+    padding-bottom: var(--s2);
 }
-.builder .row__token {
+.bstage .row--plug input {
+    margin-top: 0.2em;
+}
+.bstage .row__say {
     display: block;
     color: var(--ink-2);
     font-size: var(--t-tiny);
 }
-.builder .row select,
-.builder .row input[type='range'] {
+.bstage .row__value {
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.bstage .row__token {
+    display: block;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.bstage .row select,
+.bstage .row input[type='range'] {
     font: inherit;
     font-size: var(--t-tiny);
     width: 100%;
     min-width: 0;
 }
-.builder .row select {
+.bstage .row select {
     padding: var(--s1) var(--s2);
     color: var(--ink);
     background: var(--bone);
     border: 1px solid var(--rule-2);
     border-radius: 2px;
 }
-.builder .row input[type='color'] {
+.bstage .row input[type='color'] {
     width: 4rem;
     height: 1.9rem;
     padding: 0;
@@ -2198,17 +2448,30 @@ code {
 
 /* ---- The builder's live viewer ---------------------------------------
    The box holds its own height from the first paint, so nothing moves when the
-   viewer arrives or when a pasted manifest replaces the plate.
+   viewer arrives or when a pasted manifest replaces the plate. Below the
+   stage's own breakpoint that height comes from an aspect ratio; at and above
+   it, from the row the stage gives it.
    -------------------------------------------------------------------- */
-.builder .pv {
+.bstage .pv {
     position: relative;
+    /* The inline size is stated rather than left to `auto`. With an aspect
+       ratio and a minimum height, an automatic width is transferred from the
+       height the minimum forces — 22rem at 4/3 is wider than a phone — and the
+       box would push the page sideways instead of getting taller. */
+    width: 100%;
     aspect-ratio: 4 / 3;
     min-height: 22rem;
     border: 1px solid var(--rule-2);
     background: var(--bench);
     overflow: hidden;
 }
-.builder .pv__wait {
+@media (width >= 1280px) {
+    .bstage .pv {
+        aspect-ratio: auto;
+        height: 100%;
+    }
+}
+.bstage .pv__wait {
     position: absolute;
     inset: 0;
     display: flex;
@@ -2220,35 +2483,27 @@ code {
 }
 /* Read from, never seen. It is the viewer's theme in scope and nothing else,
    untouched by the overrides, which are inline style on the viewer root. */
-.builder .pv__probe {
+.bstage .pv__probe {
     position: absolute;
     width: 0;
     height: 0;
     overflow: hidden;
     pointer-events: none;
 }
-.builder .pv__live {
+.bstage .pv__live {
     position: absolute;
     inset: 0;
 }
 
-/* ---- The builder's three handoffs ------------------------------------
-   The share link and the configuration object sit side by side because they
-   are alternatives to each other; the snippet takes the full width because it
-   is the longest of the three and the one that is read rather than skimmed.
+/* ---- The builder's handoffs ------------------------------------------
+   Stacked at every width, never in columns. Each one is a block of code the
+   reader is meant to read before copying, and a column half the page wide
+   wraps the lines of the very thing that has to paste in finished.
    -------------------------------------------------------------------- */
 .handoff .hand {
     display: grid;
     gap: var(--s6);
     margin-top: var(--s5);
-}
-@media (width >= 900px) {
-    .handoff .hand {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .handoff .hand__one--wide {
-        grid-column: 1 / -1;
-    }
 }
 .handoff .hand__one h3 {
     margin: 0 0 var(--s2);

@@ -262,12 +262,22 @@ function insetAxis(
  *
  * `minZoom` of `0` means "no floor derived" — an empty world — and contributes a
  * nominal floor far below the ceiling rather than a real bound.
+ *
+ * ## The ceiling is the more generous of two rules
+ *
+ * `maxFactor` is a multiple of the fit; `pixelCeiling`
+ * ({@link sourcePixelCeiling}) limits how far a source pixel may be magnified.
+ * The fit term is the only usable answer for a source with fewer pixels than
+ * its viewport; the pixel term the only usable one for a deep scan, whose fit
+ * is small precisely because it has so many pixels. Taking the **larger** means
+ * neither rule can take depth away from the other.
  */
 export function zoomRange(
     fitScale: number,
     minZoom: number,
     maxFactor: number,
     minZoomFraction: number,
+    pixelCeiling = 0,
 ): { min: number; max: number } {
     const derived = minZoom > 0 ? minZoom : (fitScale * maxFactor) / 1e6;
     // Both guarded on a usable fit, because an unmeasured surface has no fit to
@@ -277,7 +287,37 @@ export function zoomRange(
     const wholeCanvas = fitScale > 0 ? fitScale : Infinity;
     const min = Math.min(Math.max(derived, readable), wholeCanvas);
 
-    return { min, max: Math.max(fitScale, min) * maxFactor };
+    // Over the floor rather than the raw fit, so whichever term wins still sits
+    // above `min` and the range cannot collapse.
+    const fitCeiling = Math.max(fitScale, min) * maxFactor;
+    return { min, max: Math.max(fitCeiling, pixelCeiling) };
+}
+
+/**
+ * The scale at which one source pixel covers `maxPixelRatio` device pixels —
+ * the zoom ceiling's second term.
+ *
+ * ```
+ * devicePixelsPerSourcePixel = scale * dpr / sourcePixelsPerWorldUnit
+ * ```
+ *
+ * solved for `maxPixelRatio`. Says nothing about the viewport, so it holds
+ * across a resize and a rotation. `sourcePixelsPerWorldUnit` comes from
+ * `planScene.planViewportLimits`, which is where the two reasons a world unit
+ * is not a source pixel are folded into one number.
+ *
+ * `0` — no ceiling of this kind, leaving it to the fit term — when the world's
+ * resolution is not known.
+ */
+export function sourcePixelCeiling(
+    sourcePixelsPerWorldUnit: number,
+    maxPixelRatio: number,
+    dpr: number,
+): number {
+    if (sourcePixelsPerWorldUnit <= 0 || maxPixelRatio <= 0 || dpr <= 0) {
+        return 0;
+    }
+    return (maxPixelRatio * sourcePixelsPerWorldUnit) / dpr;
 }
 
 /**

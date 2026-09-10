@@ -377,17 +377,26 @@ test.describe('the page frame', () => {
         }
 
         test('the widest figure reads inside the cap', async ({ page }) => {
+            // `/size/`'s two comparison figures are the widest thing the site
+            // lays out: a row per viewer, each with a name, a run of cells and
+            // a value. They must sit inside the content cap, and nothing in a
+            // row may reach past the figure's own right edge — a cell run that
+            // overflowed would be read as a shorter row than it is.
             await page.goto('/size/');
-            const svg = page.locator('.scatter svg').first();
-            const box = await svg.evaluate((node) => {
-                const rect = node.getBoundingClientRect();
-                const label = [...node.querySelectorAll('text')]
-                    .map((text) => text.getBoundingClientRect().right)
-                    .reduce((widest, right) => Math.max(widest, right), 0);
-                return { right: rect.right, width: rect.width, label };
-            });
-            expect(box.width).toBeLessThanOrEqual(860);
-            expect(box.label).toBeLessThanOrEqual(box.right);
+            const figures = page.locator('.cov');
+            expect(await figures.count()).toBeGreaterThan(0);
+
+            for (const figure of await figures.all()) {
+                const box = await figure.evaluate((node) => {
+                    const rect = node.getBoundingClientRect();
+                    const widest = [...node.querySelectorAll('*')]
+                        .map((child) => child.getBoundingClientRect().right)
+                        .reduce((most, right) => Math.max(most, right), 0);
+                    return { right: rect.right, width: rect.width, widest };
+                });
+                expect(box.width).toBeLessThanOrEqual(CONTENT_MAX);
+                expect(box.widest).toBeLessThanOrEqual(box.right + 1);
+            }
         });
     });
 

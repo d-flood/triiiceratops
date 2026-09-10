@@ -29,7 +29,7 @@ styles.
 
 The part that will be re-litigated: **the two registries are near-identical on purpose, and
 must not be unified.** `renderer/overlayLayers.ts` is `renderer/paintLayers.ts` minus the
-canvas-space maths and minus ordering, and a future consistency pass will read that as
+canvas-space math and minus ordering, and a future consistency pass will read that as
 duplication and propose folding overlay layers onto the paint hook, or importing one
 registry into the other. Unifying onto the paint hook would look like a simplification,
 would keep every test in this repository passing, and would silently delete

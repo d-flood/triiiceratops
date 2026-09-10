@@ -10,6 +10,8 @@ import { loadHls } from './hlsLink';
 import { createMediaStage } from './mediaStage';
 import type { AvSource } from './sources';
 import { STYLES } from './styles';
+import type { Peaks } from './timeline/peaks';
+import * as timelineModule from './timeline/index';
 
 // Only the loader is faked. `isHlsSource` and `hasNativeHlsSupport` are the
 // decision under test and stay real; what must never run here is the import of
@@ -1446,5 +1448,292 @@ describe('the stage — captions on a composed canvas', () => {
         stage.setCaptionTrack(IT.url);
         expect(stage.activeCaptionTrack).toBeNull();
         stage.destroy();
+    });
+});
+
+/**
+ * **Captions clear of the chrome.**
+ *
+ * Core's control bar floats over the foot of the picture, which is exactly
+ * where an auto-placed WebVTT cue lands. The cue box is painted in the user
+ * agent's shadow DOM — nothing of ours can style or measure it — so the only
+ * handle is WebVTT's own placement, and these are the rules for using it.
+ */
+describe('the stage — captions under the chrome', () => {
+    const EN: CaptionTrack = {
+        url: 'https://example.org/en.vtt',
+        language: 'en',
+        label: 'English',
+        annotation: 0,
+    };
+
+    /** The picture: 400 tall, its foot flush with the foot of the container. */
+    const RECT = { left: 0, top: 400, width: 640, height: 400 };
+    const VISIBLE = { width: 1280, height: 800 };
+
+    interface FakeCue {
+        line: number | 'auto';
+        snapToLines: boolean;
+        lineAlign?: string;
+    }
+
+    let cues: FakeCue[];
+
+    /**
+     * Track elements carrying cues a test can read back.
+     *
+     * jsdom builds the `<track>` but neither the `TextTrack` nor a cue list, and
+     * cue placement is the whole subject here — so the stand-in is a real array
+     * of writable cue-shaped objects rather than the `{ length }` the mode tests
+     * get by with.
+     */
+    function fakeCuedTracks(): void {
+        const create = document.createElement.bind(document);
+        vi.spyOn(document, 'createElement').mockImplementation(((
+            name: string,
+            ...rest: unknown[]
+        ) => {
+            const element = create(name, ...(rest as [])) as HTMLTrackElement;
+            if (name !== 'track') return element;
+            Object.defineProperty(element, 'track', {
+                value: { mode: 'disabled' as TextTrackMode, cues },
+            });
+            return element;
+        }) as typeof document.createElement);
+    }
+
+    /** A captioned video stage with `EN` loaded and showing. */
+    function showingStage(layout: 'video' | 'audio' = 'video') {
+        fakeCuedTracks();
+        const stage = createMediaStage({
+            canvasId: 'canvas/1',
+            source: layout === 'video' ? VIDEO : AUDIO,
+            layout,
+            cannotPlayMessage: 'nope',
+            onPlayStateChange: () => {},
+            captions: [EN],
+        });
+        stage.media
+            .querySelector(`track[src="${EN.url}"]`)
+            ?.dispatchEvent(new Event('load'));
+        stage.setCaptionTrack(EN.url);
+        return stage;
+    }
+
+    beforeEach(() => {
+        cues = [{ line: 'auto', snapToLines: true }];
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('lifts an auto-placed cue clear of the band the bar covers', () => {
+        const stage = showingStage();
+        stage.place(RECT, VISIBLE);
+
+        stage.setChromeBottom(40);
+
+        // 40 of the picture's 400 is a tenth, plus the gap that keeps a caption
+        // off the bar rather than on it. Measured from the cue's own bottom,
+        // so it holds however many lines the cue runs to.
+        expect(cues[0]).toMatchObject({
+            snapToLines: false,
+            lineAlign: 'end',
+            line: 88,
+        });
+        stage.destroy();
+    });
+
+    it('puts the cue back down when the bar goes', () => {
+        const stage = showingStage();
+        stage.place(RECT, VISIBLE);
+        stage.setChromeBottom(40);
+        expect(cues[0].line).toBe(88);
+
+        // The bar idle-hides during playback, which is when captions matter
+        // most: a cue left lifted would be held clear of nothing.
+        stage.setChromeBottom(0);
+
+        expect(cues[0]).toMatchObject({ snapToLines: true, line: 'auto' });
+        stage.destroy();
+    });
+
+    it('leaves a cue the WebVTT placed itself alone', () => {
+        // A curator positioning a caption against the picture — a sign, a
+        // speaker, a corner the shot leaves empty. Overruling that would be the
+        // viewer overruling the material, and such a cue is not at the foot of
+        // the picture anyway, which is the only place the bar can reach.
+        cues = [{ line: 20, snapToLines: true }];
+        const stage = showingStage();
+        stage.place(RECT, VISIBLE);
+
+        stage.setChromeBottom(40);
+
+        expect(cues[0]).toEqual({ line: 20, snapToLines: true });
+        stage.destroy();
+    });
+
+    it('caps the lift, so a short picture keeps its captions on screen', () => {
+        const stage = showingStage();
+        // A wrapped two-row bar over a shallow canvas: uncapped, the lift would
+        // be 82% and the caption would leave by the top edge instead.
+        stage.place({ ...RECT, top: 700, height: 100 }, VISIBLE);
+
+        stage.setChromeBottom(80);
+
+        expect(cues[0].line).toBe(60);
+        stage.destroy();
+    });
+
+    it('lifts nothing on a stage whose captions the element cannot paint', () => {
+        // An audio stage attaches its tracks so the transcript can read them,
+        // and paints no cues at all — there is nothing for the bar to cover.
+        const stage = showingStage('audio');
+        stage.place(RECT, VISIBLE);
+
+        stage.setChromeBottom(40);
+
+        expect(cues[0]).toEqual({ line: 'auto', snapToLines: true });
+        stage.destroy();
+    });
+
+    it('re-lifts when the picture moves under a bar that has not', () => {
+        const stage = showingStage();
+        stage.place(RECT, VISIBLE);
+        stage.setChromeBottom(40);
+        expect(cues[0].line).toBe(88);
+
+        // Zoomed: the same 40px band now covers a twentieth of a taller picture.
+        stage.place({ ...RECT, top: 0, height: 800 }, VISIBLE);
+
+        expect(cues[0].line).toBe(93);
+        stage.destroy();
+    });
+});
+
+/*
+    The ruler is what a bare audio canvas has to look at. Its drawing is tested
+    as arithmetic in `timeline/ruler.test.ts`; what the stage owns is which
+    layouts build a surface at all, and the hand-over the moment peaks arrive.
+*/
+describe('the timeline ruler', () => {
+    const RECT = { left: 0, top: 0, width: 640, height: 480 };
+    const rulerOf = (stage: { root: HTMLElement }) =>
+        stage.root.querySelector<HTMLElement>('[data-testid="av-ruler"]');
+
+    /** One point of sound: enough for the surface to adopt and paint nothing. */
+    const PEAKS: Peaks = {
+        pairs: new Int16Array([-1000, 1000]),
+        sampleRate: 100,
+        samplesPerPixel: 1,
+        channels: 1,
+        points: 1,
+    };
+
+    /**
+     * A bare audio stage. The declared duration matters: it is the x-axis the
+     * ruler graduates, and jsdom's element never reports one of its own.
+     */
+    const bareAudio = (
+        over: { awaitsFirstPlay?: boolean; duration?: number } = {},
+    ) =>
+        createMediaStage({
+            canvasId: 'canvas/1',
+            source: AUDIO,
+            layout: 'audio',
+            duration: 120,
+            cannotPlayMessage: 'nope',
+            onPlayStateChange: () => {},
+            ...over,
+        });
+
+    it('graduates a lane the reader would otherwise have nothing to read', () => {
+        const stage = bareAudio();
+        stage.place(RECT, VIEWPORT);
+        stage.adoptRuler(timelineModule);
+
+        const ruler = rulerOf(stage)!;
+        expect(ruler).not.toBeNull();
+        expect(ruler.hidden).toBe(false);
+        expect(ruler.style.width).toBe(`${RECT.width}px`);
+        // Decoration over a lane that already carries the seek (ADR 0016).
+        expect(ruler.getAttribute('aria-hidden')).toBe('true');
+        stage.destroy();
+    });
+
+    it('graduates nothing on a layout with no lane of its own', () => {
+        // Video keeps the whole rect for the picture, and a canvas core paints
+        // a companion into keeps it for the companion; both reach the timeline
+        // through the control bar instead.
+        const video = stageFor(VIDEO);
+        video.place(RECT, VIEWPORT);
+        video.adoptRuler(timelineModule);
+
+        expect(rulerOf(video)).toBeNull();
+        video.destroy();
+    });
+
+    it('draws nothing until the lane it lives in is placed', () => {
+        // A stage standing down for the still core is painting has no lane to
+        // graduate, and a ruler over that still would cover it.
+        const stage = bareAudio({ awaitsFirstPlay: true });
+        stage.place(RECT, VIEWPORT);
+        stage.adoptRuler(timelineModule);
+        expect(rulerOf(stage)!.hidden).toBe(true);
+
+        stage.media.dispatchEvent(new Event('play'));
+        stage.media.dispatchEvent(new Event('loadeddata'));
+
+        expect(rulerOf(stage)!.hidden).toBe(false);
+        stage.destroy();
+    });
+
+    it('stands down for a waveform, which says more about the same window', () => {
+        const stage = bareAudio();
+        stage.place(RECT, VIEWPORT);
+        stage.adoptRuler(timelineModule);
+        expect(rulerOf(stage)).not.toBeNull();
+
+        stage.adoptWaveform(timelineModule, PEAKS);
+
+        expect(rulerOf(stage)).toBeNull();
+        expect(
+            stage.root.querySelector('[data-testid="av-waveform"]'),
+        ).not.toBeNull();
+        stage.destroy();
+    });
+
+    it('builds no ruler behind a waveform that got there first', () => {
+        // The two arrive on their own schedules — peaks need a fetch, the ruler
+        // only the chunk — so neither order can leave both drawing.
+        const stage = bareAudio();
+        stage.place(RECT, VIEWPORT);
+        stage.adoptWaveform(timelineModule, PEAKS);
+
+        stage.adoptRuler(timelineModule);
+
+        expect(rulerOf(stage)).toBeNull();
+        stage.destroy();
+    });
+
+    it('graduates nothing on a canvas whose length nothing has stated', () => {
+        // No declared duration and an element that has decoded nothing: there
+        // is no x-axis yet, and a ruler drawn against a guess would be a lie.
+        const stage = bareAudio({ duration: undefined });
+        stage.place(RECT, VIEWPORT);
+        stage.adoptRuler(timelineModule);
+
+        expect(rulerOf(stage)!.hidden).toBe(true);
+        stage.destroy();
+    });
+
+    it('takes its surface with it when the stage goes', () => {
+        const stage = bareAudio();
+        stage.place(RECT, VIEWPORT);
+        stage.adoptRuler(timelineModule);
+        stage.destroy();
+
+        expect(rulerOf(stage)).toBeNull();
     });
 });

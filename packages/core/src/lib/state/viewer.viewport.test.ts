@@ -48,6 +48,7 @@ describe('viewport commands', () => {
         state.panTo({ x: 10, y: 20 });
         state.fitBounds({ x: 0, y: 0, width: 100, height: 100 });
         state.fitCanvas();
+        state.fitView();
 
         expect(commandNames(renderer)).toEqual([
             'zoomBy',
@@ -56,7 +57,20 @@ describe('viewport commands', () => {
             'panTo',
             'fitBounds',
             'fitCanvas',
+            'fitView',
         ]);
+    });
+
+    // The chrome's fit control and the `0`/`Home` key are one action with two
+    // affordances, so the command behind the button is the one the key takes —
+    // never `fitCanvas`, which names a canvas and is therefore a request to
+    // TRAVEL to it (see `canvasRenderer.fitBoundsTarget`).
+    it('fits the view without naming a canvas', () => {
+        const { state, renderer } = mounted();
+
+        state.fitView();
+
+        expect(renderer.calls.at(-1)).toEqual(['fitView']);
     });
 
     // The old toolbar zoomed in by 1.2 and out by 0.8, which are not each
@@ -193,10 +207,12 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
 
         const impostor = {
             zoomBy: () => {},
+            holdZoom: () => {},
             zoomTo: () => {},
             panTo: () => {},
             fitBounds: () => {},
             fitCanvas: () => {},
+            fitView: () => {},
             getScale: () => 999,
             getVisibleCanvasIds: () => ['impostor'],
             getCentre: () => ({ x: 999, y: 999 }),
@@ -225,10 +241,12 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
 
         state.attachRenderer({
             zoomBy: () => {},
+            holdZoom: () => {},
             zoomTo: () => {},
             panTo: () => {},
             fitBounds: () => {},
             fitCanvas: () => {},
+            fitView: () => {},
             getScale: () => 42,
             getVisibleCanvasIds: () => [],
             getCentre: () => null,

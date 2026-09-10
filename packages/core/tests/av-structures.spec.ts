@@ -12,6 +12,9 @@
  * - **`auto-advance` continues playback across a canvas boundary**, and
  *   `repeat` beside it wraps from the last canvas back to the first. Both need
  *   real playback running off the end of real media.
+ * - **A reader's own navigation does not.** Leaving a canvas mid-recording
+ *   stops it where it stands, which only two real elements decoding real media
+ *   can show: the defect it fixes was two of them sounding at once.
  *
  * As with the other AV specs, both artifacts are the BUILT ones a consumer
  * loads — `pnpm build:all` (or core's `build:lib` plus `build:element`, and the
@@ -115,6 +118,24 @@ function playback(
 }
 
 /**
+ * Start the current canvas playing from `at`, and wait until it really is.
+ *
+ * Muted first, and the play is a real click, for the reasons
+ * {@link playToTheEnd} gives — this is that function's other half, for the
+ * tests that need playback running rather than ending.
+ */
+async function playFrom(page: Page, canvasId: string, at: number) {
+    await page.locator(MUTE).click();
+    await page.locator(mediaOf(canvasId)).evaluate((el, from) => {
+        (el as HTMLMediaElement).currentTime = from;
+    }, at);
+    await page.locator(PLAY).click();
+    await expect
+        .poll(async () => (await playback(page, canvasId)).paused)
+        .toBe(false);
+}
+
+/**
  * Play the current canvas from just before its end.
  *
  * Muted first: a headless browser refuses audible script-initiated playback,
@@ -197,6 +218,35 @@ test.describe('av playlist behaviors — auto-advance and repeat', () => {
         await expect
             .poll(async () => (await playback(page, BARS)).paused)
             .toBe(false);
+    });
+
+    test('navigating away mid-recording stops it, and starts nothing on arrival', async ({
+        page,
+    }) => {
+        await openViewer(page);
+        expect(await currentCanvas(page)).toBe(TONE);
+
+        // The table of contents is opened BEFORE playback starts: it dismisses
+        // a panel and unparks the toolbar rail, and every second of that is a
+        // second of a two-second recording running towards `auto-advance`.
+        await openStructures(page);
+        await playFrom(page, TONE, 0);
+
+        await clickChapter(page, 'Colour bars — second half');
+        await expect.poll(() => currentCanvas(page)).toBe(BARS);
+
+        const left = await playback(page, TONE);
+        // Guards the assertion below against passing for the wrong reason: had
+        // the recording run off its own end, `auto-advance` would have navigated
+        // and paused it, and "stopped" would prove nothing about navigation.
+        expect(left.currentTime).toBeLessThan(1.9);
+        expect(left.paused).toBe(true);
+        // …and where it stood, so returning resumes rather than restarts.
+        expect(left.currentTime).toBeGreaterThan(0);
+
+        // The other half of the rule, already pinned for the offset path: a
+        // canvas arrived at is seeked, never started.
+        expect((await playback(page, BARS)).paused).toBe(true);
     });
 
     test('repeat returns to the first canvas after the last one ends, still playing', async ({

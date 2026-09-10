@@ -110,9 +110,6 @@ importers:
       '@triiiceratops/cookbook':
         specifier: workspace:*
         version: link:../../packages/cookbook
-      '@triiiceratops/plugin-annotation-editor':
-        specifier: workspace:*
-        version: link:../../packages/plugin-annotation-editor
       '@triiiceratops/plugin-av':
         specifier: workspace:*
         version: link:../../packages/plugin-av

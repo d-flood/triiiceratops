@@ -29,7 +29,6 @@ import { createRequire } from 'node:module';
 import {
     HERO_CYCLE_START,
     HERO_DWELL,
-    HERO_FIRST_STRIDE,
     HERO_GROUPS,
     HERO_SEQUENCE,
     HERO_STRIDE,
@@ -478,12 +477,7 @@ describe('the material under the sequence', () => {
         let heading: 1 | -1 = 1;
         const landed: number[] = [];
         for (let lap = 0; lap < laps; lap += 1) {
-            const strode = strideMoves(
-                at,
-                CANVASES,
-                heading,
-                lap === 0 ? HERO_FIRST_STRIDE : HERO_STRIDE,
-            );
+            const strode = strideMoves(at, CANVASES, heading, HERO_STRIDE);
             at = strode.moves.reduce((index, move) => index + move, at);
             heading = strode.heading;
             landed.push(at);
@@ -491,19 +485,17 @@ describe('the material under the sequence', () => {
         return landed;
     }
 
-    it('opens on the third canvas rather than the one it was served on', () => {
-        expect(rests(1)).toEqual([HERO_FIRST_STRIDE]);
+    it('opens on the canvas after the one it was served on', () => {
+        expect(rests(1)).toEqual([HERO_STRIDE]);
     });
 
-    it('strides three between laps', () => {
-        expect(rests(3)).toEqual([2, 5, 8]);
+    it('strides one between laps', () => {
+        expect(rests(3)).toEqual([1, 2, 3]);
     });
 
     it('turns round at the ends instead of wrapping', () => {
-        // Wrapping a stride of three over eleven would rest on the same three
-        // canvases forever. The turn is what shifts the phase.
-        const walked = rests(8);
-        expect(walked.slice(3)).toEqual([9, 6, 3, 0, 3]);
+        const walked = rests(13);
+        expect(walked.slice(9)).toEqual([10, 9, 8, 7]);
         for (const at of walked) {
             expect(at).toBeGreaterThanOrEqual(0);
             expect(at).toBeLessThan(CANVASES);

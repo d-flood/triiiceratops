@@ -26,7 +26,7 @@
  * about their own payload: Avalon says `application/json` (correct), the British
  * Library says `application/octet-stream` for a `.dat` (correct but useless —
  * so does every unrelated binary), and a `.dat` served as `application/json` is
- * the observed misconfiguration the sniffing order in `waveform/peaks.ts` exists
+ * the observed misconfiguration the sniffing order in `timeline/peaks.ts` exists
  * to survive. A rule that trusted `format` would either adopt every transcript
  * on the canvas or reject a real waveform, so it trusts the words instead and
  * lets the parser have the last word on the bytes.
@@ -36,7 +36,8 @@
  */
 
 import { asArray, asRecord, labelStrings } from './iiifJson';
-import type { Peaks } from './waveform/peaks';
+import type { Peaks } from './timeline/peaks';
+import { loadTimeline, type TimelineModule } from './timelineLink';
 
 const BBC_WAVEFORM_PROFILE =
     /^https?:\/\/waveform\.prototyping\.bbc\.co\.uk\/?$/;
@@ -73,26 +74,19 @@ export function waveformUrlFor(canvas: unknown): string | null {
     return null;
 }
 
-/** The waveform chunk's public shape, as the eager side uses it. */
-export type WaveformModule = typeof import('./waveform/index');
-
 /**
- * Load the waveform chunk and resolve this URL's peaks, or `null`.
+ * Load the timeline chunk and resolve this URL's peaks, or `null`.
  *
- * The `await import()` is the whole point of the module: it is what keeps every
- * byte of parsing and rendering out of the entry, so a page of image-only
- * manifests never requests them. It must stay dynamic — a static import
- * anywhere in the eager graph silently undoes it.
- *
- * A chunk that will not load (offline, a CSP that blocks it) is the same
- * non-event as data that will not parse: no waveform, and the lane keeps
- * working.
+ * A chunk that will not load is the same non-event as data that will not
+ * parse: no waveform, and the lane keeps working — with the ruler it already
+ * had, where it has one.
  */
 export async function loadPeaks(
     url: string,
-): Promise<{ module: WaveformModule; peaks: Peaks } | null> {
+): Promise<{ module: TimelineModule; peaks: Peaks } | null> {
+    const module = await loadTimeline();
+    if (!module) return null;
     try {
-        const module = await import('./waveform/index');
         const peaks = await module.fetchPeaks(url);
         return peaks ? { module, peaks } : null;
     } catch {

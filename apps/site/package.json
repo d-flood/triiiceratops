@@ -14,6 +14,7 @@
     "scripts": {
         "predev": "node scripts/predev.mjs",
         "material:landing": "node scripts/generate-landing-material.mjs",
+        "material:features": "node scripts/generate-feature-material.mjs",
         "dev": "vite dev",
         "build": "vite build && node scripts/finish-build.mjs && node scripts/place-examples.mjs && node scripts/assert-no-editor-code.mjs",
         "preview": "vite preview",
@@ -28,7 +29,6 @@
         "@triiiceratops/comparison": "workspace:*",
         "@triiiceratops/config": "workspace:*",
         "@triiiceratops/cookbook": "workspace:*",
-        "@triiiceratops/plugin-annotation-editor": "workspace:*",
         "@triiiceratops/plugin-av": "workspace:*",
         "@triiiceratops/plugin-image-export": "workspace:*",
         "@triiiceratops/plugin-image-manipulation": "workspace:*",

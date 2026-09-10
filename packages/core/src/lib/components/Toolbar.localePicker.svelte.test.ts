@@ -169,7 +169,7 @@ describe('Toolbar language picker', () => {
                 .filter((name) => !name.startsWith('svelte-'))
                 .sort()
                 .join(' '),
-        ).toBe('menu menu-flyout open popover-menu right wide');
+        ).toBe('menu-flyout open right tri-menu tri-menu-surface wide');
         expect(panel.getAttribute('role')).toBe('menu');
         expect(panel.getAttribute('tabindex')).toBe('-1');
         expect(panel.getAttribute('aria-label')).toBe('Language');

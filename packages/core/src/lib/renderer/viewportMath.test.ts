@@ -15,6 +15,7 @@ import {
     normalizeWheelDelta,
     screenToCanvas,
     wheelZoomRate,
+    sourcePixelCeiling,
     zoomRange,
 } from './viewportMath';
 
@@ -493,6 +494,81 @@ describe('zoomRange', () => {
         const { min } = zoomRange(0, 0.01, 128, 1 / 2);
 
         expect(min).toBe(0.01);
+    });
+
+    it('takes the pixel ceiling when it is the more generous of the two', () => {
+        // A 62,000 pixel map fitted into a 1,120 pixel column sits at a fit
+        // scale of 0.018, so eight fits of it leaves the source's finest levels
+        // unreachable.
+        const fit = 1120 / 62079;
+        const pixelCeiling = sourcePixelCeiling(1, 2, 2);
+        const { max } = zoomRange(fit, 1e-9, 8, 1 / 2, pixelCeiling);
+
+        expect(max).toBe(pixelCeiling);
+        // …deeper than the fit term by most of an order of magnitude.
+        expect(max / (fit * 8)).toBeGreaterThan(6);
+    });
+
+    it('keeps the FIT ceiling when the source has no pixels left to reach', () => {
+        // A canvas smaller than its viewport is already past 1:1 at the fit, so
+        // the pixel ratio alone would leave it barely zoomable.
+        const fit = 2;
+        const { max } = zoomRange(
+            fit,
+            1e-9,
+            8,
+            1 / 2,
+            sourcePixelCeiling(1, 2, 2),
+        );
+
+        expect(max).toBe(16);
+    });
+
+    it('leaves the ceiling to the fit when no pixel ceiling is given', () => {
+        // What a caller that knows nothing about source resolution gets.
+        expect(zoomRange(0.5, 1e-9, 128, 1 / 2)).toEqual(
+            zoomRange(0.5, 1e-9, 128, 1 / 2, 0),
+        );
+    });
+
+    it('cannot collapse the range, whichever ceiling wins', () => {
+        // A pixel ceiling under the floor — a tiny canvas in a large viewport, or
+        // a consumer asking to stop short of 1:1 — must not strand the reader.
+        const { min, max } = zoomRange(0.001, 0.02, 8, 1 / 2, 1e-6);
+
+        expect(max).toBeGreaterThan(min);
+    });
+});
+
+describe('sourcePixelCeiling', () => {
+    it('is the scale at which one source pixel covers the allowed device pixels', () => {
+        // The definition, as its own inverse.
+        const scale = sourcePixelCeiling(1, 2, 2);
+
+        expect((scale * 2) / 1).toBe(2);
+    });
+
+    it('halves the ceiling on a display with twice the device pixels', () => {
+        // The ceiling is about pixels the surface resolves, not about CSS units.
+        expect(sourcePixelCeiling(1, 2, 2)).toBe(
+            sourcePixelCeiling(1, 2, 1) / 2,
+        );
+    });
+
+    it('scales with the resolution a world unit stands for', () => {
+        // Two source pixels per world unit is twice as far to zoom before they
+        // run out.
+        expect(sourcePixelCeiling(2, 2, 1)).toBe(
+            sourcePixelCeiling(1, 2, 1) * 2,
+        );
+    });
+
+    it('yields no ceiling at all when the resolution is unknown', () => {
+        // A ceiling of zero would clamp every scale to nothing; the fit term
+        // answers instead.
+        expect(sourcePixelCeiling(0, 2, 2)).toBe(0);
+        expect(sourcePixelCeiling(1, 0, 2)).toBe(0);
+        expect(sourcePixelCeiling(1, 2, 0)).toBe(0);
     });
 });
 

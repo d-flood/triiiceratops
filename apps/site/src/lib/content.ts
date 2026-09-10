@@ -25,7 +25,7 @@ import CssTokenTable from './CssTokenTable.svelte';
 import InstallBlock from './InstallBlock.svelte';
 import LinkRow from './LinkRow.svelte';
 import LinkRows from './LinkRows.svelte';
-import MaterialClasses from './MaterialClasses.svelte';
+import FeatureStage from './FeatureStage.svelte';
 import OnwardList from './OnwardList.svelte';
 
 export const siteConfig: UncialCmsSiteConfig = {
@@ -129,7 +129,7 @@ export const blocks = createBlockRegistry([
     defineSvelteBlock({
         id: 'tabs',
         label: 'Tabs',
-        description: 'A linked group of labelled content tabs.',
+        description: 'A linked group of labeled content tabs.',
         attributes: {
             group: {
                 default: FRAMEWORK_GROUP,
@@ -144,7 +144,7 @@ export const blocks = createBlockRegistry([
     defineSvelteBlock({
         id: 'tab',
         label: 'Tab',
-        description: 'One labelled panel inside a tabs block.',
+        description: 'One labeled panel inside a tabs block.',
         attributes: {
             label: {
                 default: '',
@@ -215,13 +215,13 @@ export const blocks = createBlockRegistry([
         content: false,
     }),
     defineSvelteBlock({
-        id: 'materialClasses',
-        label: 'Material classes',
+        id: 'features',
+        label: 'Feature stage',
         description:
-            'Every kind of material the viewer copes with, each running on a real manifest.',
+            'Every feature the viewer has, each one running on the material that has it.',
         readOnly: true,
         attributes: {},
-        component: MaterialClasses as SvelteBlockComponent,
+        component: FeatureStage as SvelteBlockComponent,
         content: false,
     }),
     defineSvelteBlock({

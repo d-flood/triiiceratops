@@ -25,7 +25,8 @@
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",
         "lint": "eslint . --max-warnings 0",
-        "lint:fix": "eslint . --fix --max-warnings 0"
+        "lint:fix": "eslint . --fix --max-warnings 0",
+        "matrix": "node scripts/matrix.mjs"
     },
     "devDependencies": {
         "@playwright/test": "^1.57.0",

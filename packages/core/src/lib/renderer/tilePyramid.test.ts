@@ -122,6 +122,22 @@ describe('buildPyramid', () => {
         expect(pyramid.levels[0].columns * pyramid.levels[0].rows).toBe(1);
     });
 
+    it('has no pyramid for a service whose declared extent was disproved', () => {
+        // It advertises tiling, and the tiles it advertises are the problem: a
+        // service caught serving a different extent than it declares has no
+        // region — advertised or derived — that can be asked for.
+        expect(
+            buildPyramid(SERVICE, facts({ regionsUntrusted: true })),
+        ).toBeNull();
+        expect(
+            buildPyramid(
+                SERVICE,
+                facts({ tileSize: undefined, regionsUntrusted: true }),
+                512,
+            ),
+        ).toBeNull();
+    });
+
     it('refuses to derive a grid for a level0 service, whatever the caller offers', () => {
         // For level0 the missing `tiles` key IS the meaning: there are no
         // region derivatives on disk, so every URL a derived grid minted would

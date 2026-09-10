@@ -1,0 +1,113 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/missing/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["A plate, and a leaf whose image is missing"]
+    },
+    "summary": {
+        "en": [
+            "The second canvas names an image file that is not on the server. It is declared, counted and navigable all the same."
+        ]
+    },
+    "items": [
+        {
+            "id": "/material/missing/canvas/haeckel",
+            "type": "Canvas",
+            "label": {
+                "en": ["Ernst Haeckel, Discomedusae (Plate 8), 1904"]
+            },
+            "width": 3645,
+            "height": 5267,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Ernst Haeckel, Kunstformen der Natur, Plate 8; Smithsonian Libraries and Archives / Biodiversity Heritage Library."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Smithsonian Libraries and Archives / Biodiversity Heritage Library, item 18431"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": ["https://www.biodiversitylibrary.org/item/18431"]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/missing/page/haeckel",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/missing/annotation/haeckel",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/haeckel/0,0,3645,5267/228,330/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 3645,
+                                "height": 5267,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/haeckel",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/missing/canvas/haeckel"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/missing/canvas/plate-9",
+            "type": "Canvas",
+            "label": {
+                "en": ["Plate 9 — the image for this leaf is not there"]
+            },
+            "width": 3645,
+            "height": 5267,
+            "items": [
+                {
+                    "id": "/material/missing/page/plate-9",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/missing/annotation/plate-9",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/missing/images/plate-9.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 3645,
+                                "height": 5267
+                            },
+                            "target": "/material/missing/canvas/plate-9"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

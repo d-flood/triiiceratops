@@ -1,0 +1,67 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/referenced/annotations.json",
+    "type": "AnnotationPage",
+    "items": [
+        {
+            "id": "/material/referenced/annotation/column-right",
+            "type": "Annotation",
+            "motivation": "commenting",
+            "body": {
+                "type": "TextualBody",
+                "language": "en",
+                "format": "text/plain",
+                "value": "The right-hand column. The Aleppo Codex is written three columns to the page, and Hebrew is read right to left, so this column is the first of the three."
+            },
+            "target": "/material/referenced/canvas/aleppo#xywh=2277,335,838,3260"
+        },
+        {
+            "id": "/material/referenced/annotation/column-middle",
+            "type": "Annotation",
+            "motivation": "commenting",
+            "body": {
+                "type": "TextualBody",
+                "language": "en",
+                "format": "text/plain",
+                "value": "The middle column."
+            },
+            "target": "/material/referenced/canvas/aleppo#xywh=1278,335,919,3260"
+        },
+        {
+            "id": "/material/referenced/annotation/column-left",
+            "type": "Annotation",
+            "motivation": "commenting",
+            "body": {
+                "type": "TextualBody",
+                "language": "en",
+                "format": "text/plain",
+                "value": "The left-hand column, and the last of the page."
+            },
+            "target": "/material/referenced/canvas/aleppo#xywh=280,335,918,3260"
+        },
+        {
+            "id": "/material/referenced/annotation/masora-upper",
+            "type": "Annotation",
+            "motivation": "commenting",
+            "body": {
+                "type": "TextualBody",
+                "language": "en",
+                "format": "text/plain",
+                "value": "The masora written across the upper margin, in a hand smaller than the text it annotates."
+            },
+            "target": "/material/referenced/canvas/aleppo#xywh=200,64,2995,216"
+        },
+        {
+            "id": "/material/referenced/annotation/masora-lower",
+            "type": "Annotation",
+            "motivation": "commenting",
+            "body": {
+                "type": "TextualBody",
+                "language": "en",
+                "format": "text/plain",
+                "value": "The masora continued below the text block."
+            },
+            "target": "/material/referenced/canvas/aleppo#xywh=240,3612,2875,207"
+        }
+    ]
+}

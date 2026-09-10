@@ -22,7 +22,7 @@ pixels, exactly where each belongs.
     plugin's overlay layer sits on top of; because a stage is an opaque box, a
     waveform painted underneath it would simply be invisible. The waveform is
     therefore its own `<canvas>` nested inside the stage's timeline lane, within the
-    overlay layer — see `packages/plugin-av/src/waveform/surface.ts`. Only the
+    overlay layer — see `packages/plugin-av/src/timeline/surface.ts`. Only the
     substrate named here is superseded; the ADR's decision, and ADR 0016's
     pixels-versus-operable-targets rule that motivates it, are unchanged.
 

@@ -11,8 +11,8 @@
 
 /**
  * The two session kinds every viewer that can play time-based media is measured
- * in. Two of these viewers code-split per media type, so an audiovisual manifest
- * costs them different bytes than an image one.
+ * in. A viewer that code-splits per media type pays different bytes for an
+ * audiovisual manifest than for an image one, which only a session can show.
  */
 export type SessionKind = 'image' | 'audiovisual';
 
@@ -61,21 +61,23 @@ export interface Competitor {
      */
     lazyArtifacts?: string[];
     /**
-     * The viewer's row in the Cookbook
-     * [support matrix](https://iiif.io/api/cookbook/recipe/matrix/), read on
-     * `MEASURED_COMPARISON.measuredAt`: how many of the 67 distinct recipes the
-     * matrix records the project as fully supporting, and how many it marks
-     * partial. A pinned external claim, in the same sense as `version` — it is
-     * what the matrix said on the day, not something this repository measures.
+     * This viewer's column heading in the Cookbook
+     * [support matrix](https://iiif.io/api/cookbook/recipe/matrix/), spelled
+     * exactly as the matrix spells it, which is how a row here is joined to its
+     * per-recipe cells in `COOKBOOK_MATRIX`.
      *
-     * Absent for a viewer with no matrix column, which gets no point on the
-     * capability chart rather than a point at nought.
+     * A name and not a count: the counts live in the matrix data, so a viewer's
+     * coverage cannot drift from the cells it is drawn from.
      *
-     * The Triiiceratops entries carry none: their capability figure comes from
-     * `@triiiceratops/cookbook`, the one place a Triiiceratops support claim is
-     * recorded, so that the site's own point cannot drift from the catalog.
+     * Absent for a viewer the matrix has no column for, which gets no coverage
+     * row rather than a row of empty cells.
+     *
+     * The Triiiceratops entries carry none. The matrix does have a column for
+     * us, but a Triiiceratops support claim is recorded in
+     * `@triiiceratops/cookbook` and nowhere else; the site reads the matrix's
+     * own column directly to state how far behind it currently runs.
      */
-    matrixRecipes?: { supported: number; partial: number };
+    matrixColumn?: string;
     /** Why these artifacts are the ones a page loads. Carries no figures. */
     note?: string;
 }
@@ -126,7 +128,7 @@ ${viewerElement}
         lazyArtifacts: [
             'plugin-av/av-hls.js',
             'plugin-av/av-transcript.js',
-            'plugin-av/av-waveform.js',
+            'plugin-av/av-timeline.js',
             'plugin-av/av-sequencer.js',
         ],
         note: 'The same element file plus the audiovisual plugin. This is the like-for-like row against the viewers below that play time-based media.',
@@ -147,29 +149,8 @@ ${viewerElement}
     new Tify({ container: '#tify', manifestUrl: '{{MANIFEST}}' });
 </script>`,
         assetBases: ['https://cdn.jsdelivr.net/npm/tify@0.35.0/'],
-        matrixRecipes: { supported: 31, partial: 3 },
+        matrixColumn: 'TIFY',
         note: 'The CDN embed its README documents: one script and one stylesheet.',
-    },
-    {
-        id: 'diva',
-        name: 'Diva.js',
-        version: '7.4.0',
-        sessions: ['image'],
-        embed: `<!doctype html>
-<meta charset="utf-8">
-<title>Diva.js</title>
-<style>html, body { margin: 0 } #diva-wrapper { display: flex; width: 100%; height: 100vh }</style>
-<script src="https://cdn.jsdelivr.net/npm/openseadragon@6.0.2/build/openseadragon/openseadragon.min.js"></script>
-<script src="https://unpkg.com/diva.js@7.4.0/build/diva.js"></script>
-<div id="diva-wrapper"></div>
-<script>
-    new Diva('diva-wrapper', { objectData: '{{MANIFEST}}' });
-</script>`,
-        assetBases: [
-            'https://unpkg.com/diva.js@7.4.0/',
-            'https://cdn.jsdelivr.net/npm/openseadragon@6.0.2/',
-        ],
-        note: 'Diva.js plus the OpenSeadragon its README tells a page to load first. All its CSS and image assets are bundled into the library.',
     },
     {
         id: 'canvas-panel',
@@ -186,23 +167,7 @@ ${viewerElement}
         assetBases: [
             'https://unpkg.com/@digirati/canvas-panel-web-components@1.0.74/',
         ],
-        note: 'The web-component bundle and its stylesheet.',
-    },
-    {
-        id: 'mango',
-        name: 'Mango',
-        version: '0.4.2',
-        sessions: ['image', 'audiovisual'],
-        embed: `<!doctype html>
-<meta charset="utf-8">
-<title>Mango</title>
-<style>html, body { margin: 0 } mango-viewer { display: block; width: 100%; height: 100vh }</style>
-<mango-viewer mode="viewer" manifest-id="{{MANIFEST}}"></mango-viewer>
-<script type="module" src="https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/mango-viewer-element.js"></script>`,
-        assetBases: [
-            'https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/',
-        ],
-        note: "The element module its README's standalone embed resolves to, plus every chunk the session fetched. It injects its styles from JavaScript, so there is no stylesheet. The version-pinned bare package URL is served as a file rather than redirected, which leaves the module's own relative chunk imports unresolvable, so the embed names the resolved path.",
+        note: 'The web-component bundle and its stylesheet. It renders a canvas rather than presenting a manifest — no navigation, no metadata, no ranges — so it is weighed here and left out of the coverage figure, where the matrix has no column for it either.',
     },
     {
         id: 'universal-viewer',
@@ -220,7 +185,7 @@ ${viewerElement}
     UV.init('uv', { iiifManifestId: '{{MANIFEST}}' });
 </script>`,
         assetBases: ['https://unpkg.com/universalviewer@4.4.2/'],
-        matrixRecipes: { supported: 21, partial: 1 },
+        matrixColumn: 'UV',
         note: 'The UMD build and its stylesheet, plus every chunk the session fetched.',
     },
     {
@@ -235,7 +200,7 @@ ${viewerElement}
 <clover-viewer iiif-content="{{MANIFEST}}"></clover-viewer>
 <script src="https://unpkg.com/@samvera/clover-iiif@3.12.0/dist/web-components/index.umd.js"></script>`,
         assetBases: ['https://unpkg.com/@samvera/clover-iiif@3.12.0/'],
-        matrixRecipes: { supported: 18, partial: 1 },
+        matrixColumn: 'Clover',
         note: 'The web-components UMD build. Its documented script tag loads no stylesheet.',
     },
     {
@@ -253,8 +218,8 @@ ${viewerElement}
     Mirador.viewer({ id: 'mirador', windows: [{ manifestId: '{{MANIFEST}}' }] });
 </script>`,
         assetBases: ['https://unpkg.com/mirador@4.1.0/'],
-        matrixRecipes: { supported: 31, partial: 3 },
-        note: 'The self-contained UMD build its README documents. Its ESM build looks smaller only because it externalises React and MUI.',
+        matrixColumn: 'Mirador',
+        note: 'The self-contained UMD build its README documents. Its ESM build looks smaller only because it externalizes React and MUI.',
     },
     {
         id: 'glycerine',
@@ -276,7 +241,7 @@ ${viewerElement}
     }).init();
 </script>`,
         assetBases: ['https://unpkg.com/glycerine-viewer@2.1.0/'],
-        matrixRecipes: { supported: 31, partial: 0 },
-        note: 'The `jslib/` widget its README documents for a script tag, packed with Vue and PrimeVue. Its `dist/` build externalises them and is not what a page loads.',
+        matrixColumn: 'Glycerine Viewer',
+        note: 'The `jslib/` widget its README documents for a script tag, packed with Vue and PrimeVue. Its `dist/` build externalizes them and is not what a page loads.',
     },
 ];

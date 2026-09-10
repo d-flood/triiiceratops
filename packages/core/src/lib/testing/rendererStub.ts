@@ -147,6 +147,9 @@ export function createRendererStub(
             record('zoomBy', factor, anchor);
             view = { ...view, scale: view.scale * factor };
         },
+        holdZoom(direction: number): void {
+            record('holdZoom', direction);
+        },
         zoomTo(scale: number): void {
             record('zoomTo', scale);
             view = { ...view, scale };
@@ -169,6 +172,9 @@ export function createRendererStub(
         },
         fitCanvas(canvasId?: string): void {
             record('fitCanvas', canvasId);
+        },
+        fitView(): void {
+            record('fitView');
         },
 
         getScale: () => view.scale,

@@ -23,7 +23,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *                              ESM entry consumers import).
  * `BUILD_FORMAT=iife`        → `dist/iife.js`  (a `<script>`-loadable bundle
  *                              that registers into `window.Triiiceratops.plugins`).
- * `BUILD_FORMAT=iife-chunks` → `dist/av-waveform.js`, `dist/av-hls.js`,
+ * `BUILD_FORMAT=iife-chunks` → `dist/av-timeline.js`, `dist/av-hls.js`,
  *                              `dist/av-sequencer.js`, `dist/av-transcript.js`
  *                              — the lazy halves the IIFE fetches at runtime.
  *
@@ -32,8 +32,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * Every other first-party plugin ships one file per format, because
  * `inlineDynamicImports` folds its lazy code into the entry. This plugin does
  * not: hls.js is roughly 178 KB gzip of Media Source machinery that a manifest
- * of progressive MP4s never needs, and the waveform parsers are another 2 KB
- * that only a canvas linking waveform data needs. Inlining either would spend
+ * of progressive MP4s never needs, and the timeline's ruler and waveform
+ * parsers are another 3 KB that only a canvas with a lane to draw in needs. Inlining either would spend
  * the competitive pair budget (`scripts/size-check.mjs`) on bytes most readers
  * never use.
  *
@@ -48,7 +48,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * The consumer-visible contract is therefore behavioral: a script-tag consumer
  * hosts the whole `dist` directory rather than copying one file out of it, and
  * the chunks are fetched from beside `iife.js` on demand. A chunk that cannot
- * be fetched degrades exactly as an absent one does — no waveform, or that
+ * be fetched degrades exactly as an absent one does — an ungraduated lane, or that
  * canvas's "can't play" treatment — never an activation failure.
  *
  * ## The deliberate deviation: neither Svelte nor core's utilities are bundled
@@ -104,7 +104,7 @@ const format =
  * side and fetched under the old name on the other.
  */
 const LAZY_CHUNKS: Record<string, string> = {
-    './waveform/index': 'av-waveform.js',
+    './timeline/index': 'av-timeline.js',
     './hls/index': 'av-hls.js',
     './sequencer/index': 'av-sequencer.js',
     './transcript/index': 'av-transcript.js',
@@ -178,7 +178,7 @@ const lib =
         : format === 'iife-chunks'
           ? {
                 entry: {
-                    'av-waveform': resolve(__dirname, 'src/waveform/index.ts'),
+                    'av-timeline': resolve(__dirname, 'src/timeline/index.ts'),
                     'av-hls': resolve(__dirname, 'src/hls/index.ts'),
                     'av-sequencer': resolve(
                         __dirname,

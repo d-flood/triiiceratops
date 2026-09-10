@@ -1321,9 +1321,23 @@
     let canvases = $derived(internalViewerState.canvases);
     let currentCanvasIndex = $derived(internalViewerState.currentCanvasIndex);
 
+    /**
+     * Run a queued search once the manifest it was queued for is the one
+     * loaded.
+     *
+     * `manifestId === internalViewerState.manifestId` is the load-bearing half.
+     * `setManifest` is asynchronous, so between a host changing both props and
+     * the fetch resolving the state still holds the OUTGOING manifest — fully
+     * loaded, and so indistinguishable here from an arrival — and a search run
+     * then goes to that manifest's search service and parses its hits against
+     * that manifest's canvases. A prop-less viewer (`manifestJson`,
+     * `contentState`, or the collection path) names nothing to agree with, and
+     * waits on the entry alone as before.
+     */
     $effect(() => {
         if (
             internalViewerState.pendingSearchQuery &&
+            (!manifestId || manifestId === internalViewerState.manifestId) &&
             manifestData &&
             !manifestData.isFetching &&
             !manifestData.error &&
@@ -1438,14 +1452,36 @@
     );
 
     /**
+     * The region the current navigation carried, as a value — `''` for none.
+     *
+     * Part of the refit signal because a navigation to the canvas ALREADY
+     * showing is still a navigation when it names a region: a content state
+     * dropped onto the viewer, or a table-of-contents entry pointing into the
+     * open leaf, changes no canvas, no spread and no Choice, so without this the
+     * renderer's guard would find nothing owed and never fit the region — which
+     * would then sit in viewer state unspent until some later navigation.
+     *
+     * Spending the region flips this back, and the refit that follows is the
+     * `'settled'` case `fitCurrentCanvas` documents: the region has already been
+     * framed under the geometry in force, so that fit leaves the view alone.
+     */
+    let navigationRegionKey = $derived.by(() => {
+        const region = internalViewerState.navigationRegion;
+        return region
+            ? `${region.x},${region.y},${region.width},${region.height}`
+            : '';
+    });
+
+    /**
      * What the renderer refits on: the world under the reader, as a value.
      *
      * The renderer keys its idempotence guard on this (`refitForCurrentWorld`),
      * so it carries exactly the changes a refit is owed and nothing else — the
      * current canvas and its spread offset, which is how navigation arrives,
-     * and the selected Choices. Mode, direction, manifest and pairing scale
-     * reach the renderer through its own world key, and geometry through
-     * `paintedGeometry`; none of them are repeated here.
+     * the region that navigation carried, and the selected Choices. Mode,
+     * direction, manifest and pairing scale reach the renderer through its own
+     * world key, and geometry through `paintedGeometry`; none of them are
+     * repeated here.
      *
      * `null` when nothing paints, and that nullness is load-bearing: an
      * unsupported-presentation manifest mounts the renderer with no image in
@@ -1454,7 +1490,7 @@
      */
     let refitSignal = $derived(
         canvasesRenderable
-            ? `${currentCanvasIndex}|${internalViewerState.canvasId ?? ''}|${internalViewerState.pagedOffset}|${visibleChoiceKey}`
+            ? `${currentCanvasIndex}|${internalViewerState.canvasId ?? ''}|${internalViewerState.pagedOffset}|${visibleChoiceKey}|${navigationRegionKey}`
             : null,
     );
 
@@ -1961,7 +1997,13 @@
         width: 100%;
         position: relative;
         pointer-events: auto;
-        z-index: 20;
+        /* Above `.control-bar` (41) and `.plugin-overlay` (42), both children of
+           the sibling `.viewer-area` — which sets no z-index, so they stack in
+           this column directly against the band. The band's box never overlaps
+           them, but the expand tab's tooltip escapes the band toward the canvas
+           and would otherwise be painted under whichever chrome sits on that
+           edge. Below the annotation shapes (50). */
+        z-index: 43;
     }
 
     .gallery-expanded {

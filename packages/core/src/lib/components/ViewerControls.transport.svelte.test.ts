@@ -406,6 +406,51 @@ describe('ViewerControls transport chrome', () => {
             ).toBeNull();
         });
 
+        it('keeps a list open while the track set only grows', () => {
+            // A caption track joins the set once it has parsed with cues in
+            // it, so a canvas with two of them arrives as one and then two. A
+            // list open over the first must survive the second: this is the
+            // path a `config.openMenu` of `captions` always takes.
+            state.setOpenMenu('captions');
+            const update = claimLive(
+                makeView({ tracks: [{ id: 'en', label: 'English' }] }),
+            );
+            render();
+            expect(testId('transport-track-list')).not.toBeNull();
+
+            update(
+                makeView({
+                    tracks: [
+                        { id: 'en', label: 'English' },
+                        { id: 'it', label: 'Italian' },
+                    ],
+                }),
+            );
+
+            expect(testId('transport-track-list')).not.toBeNull();
+            expect(state.openMenu).toBe('captions');
+        });
+
+        it('opens the list from config before any track has loaded', () => {
+            // The config is applied long before the claimant has parsed
+            // anything, so the list is asked for over an empty set and has to
+            // be standing when the set fills.
+            state.setOpenMenu('captions');
+            const update = claimLive(makeView({ tracks: [] }));
+            render();
+
+            update(
+                makeView({
+                    tracks: [
+                        { id: 'en', label: 'English' },
+                        { id: 'it', label: 'Italian' },
+                    ],
+                }),
+            );
+
+            expect(testId('transport-track-list')).not.toBeNull();
+        });
+
         it('closes an open list when the tracks go away entirely', () => {
             const update = claimLive(
                 makeView({

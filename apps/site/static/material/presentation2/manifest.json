@@ -1,0 +1,115 @@
+{
+    "@context": "http://iiif.io/api/presentation/2/context.json",
+    "@id": "/material/presentation2/manifest.json",
+    "@type": "sc:Manifest",
+    "label": "Three plates, published as IIIF Presentation 2.1",
+    "description": "The same tiles as the rest of this site, described in the older Presentation vocabulary: a sequence of canvases, each with an images array.",
+    "attribution": "Public-domain reproductions, served from this site.",
+    "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "metadata": [
+        {
+            "label": "Presentation API",
+            "value": "2.1"
+        },
+        {
+            "label": "Image API",
+            "value": "3.0, level 0"
+        }
+    ],
+    "sequences": [
+        {
+            "@id": "/material/presentation2/sequence/normal",
+            "@type": "sc:Sequence",
+            "label": "Default order",
+            "canvases": [
+                {
+                    "@id": "/material/presentation2/canvas/hiroshige",
+                    "@type": "sc:Canvas",
+                    "label": "Utagawa Hiroshige, Sudden Shower over Shin-Ohashi Bridge and Atake, 1857",
+                    "width": 1335,
+                    "height": 1908,
+                    "images": [
+                        {
+                            "@id": "/material/presentation2/annotation/hiroshige",
+                            "@type": "oa:Annotation",
+                            "motivation": "sc:painting",
+                            "on": "/material/presentation2/canvas/hiroshige",
+                            "resource": {
+                                "@id": "/material/landing/images/hiroshige/0,0,1335,1908/334,477/0/default.jpg",
+                                "@type": "dctypes:Image",
+                                "format": "image/jpeg",
+                                "width": 1335,
+                                "height": 1908,
+                                "service": {
+                                    "@context": "http://iiif.io/api/image/3/context.json",
+                                    "@id": "/material/landing/images/hiroshige",
+                                    "id": "/material/landing/images/hiroshige",
+                                    "type": "ImageService3",
+                                    "profile": "level0"
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "@id": "/material/presentation2/canvas/spinola-hours",
+                    "@type": "sc:Canvas",
+                    "label": "The Annunciation, The Spinola Hours, folio 92v, ca. 1510-20",
+                    "width": 4262,
+                    "height": 6422,
+                    "images": [
+                        {
+                            "@id": "/material/presentation2/annotation/spinola-hours",
+                            "@type": "oa:Annotation",
+                            "motivation": "sc:painting",
+                            "on": "/material/presentation2/canvas/spinola-hours",
+                            "resource": {
+                                "@id": "/material/landing/images/spinola-hours/0,0,4262,6422/267,402/0/default.jpg",
+                                "@type": "dctypes:Image",
+                                "format": "image/jpeg",
+                                "width": 4262,
+                                "height": 6422,
+                                "service": {
+                                    "@context": "http://iiif.io/api/image/3/context.json",
+                                    "@id": "/material/landing/images/spinola-hours",
+                                    "id": "/material/landing/images/spinola-hours",
+                                    "type": "ImageService3",
+                                    "profile": "level0"
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "@id": "/material/presentation2/canvas/merian",
+                    "@type": "sc:Canvas",
+                    "label": "Maria Sibylla Merian, Plate 1: Pineapple with Insects, 1705",
+                    "width": 4167,
+                    "height": 6049,
+                    "images": [
+                        {
+                            "@id": "/material/presentation2/annotation/merian",
+                            "@type": "oa:Annotation",
+                            "motivation": "sc:painting",
+                            "on": "/material/presentation2/canvas/merian",
+                            "resource": {
+                                "@id": "/material/landing/images/merian/0,0,4167,6049/261,379/0/default.jpg",
+                                "@type": "dctypes:Image",
+                                "format": "image/jpeg",
+                                "width": 4167,
+                                "height": 6049,
+                                "service": {
+                                    "@context": "http://iiif.io/api/image/3/context.json",
+                                    "@id": "/material/landing/images/merian",
+                                    "id": "/material/landing/images/merian",
+                                    "type": "ImageService3",
+                                    "profile": "level0"
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

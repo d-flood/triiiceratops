@@ -34,6 +34,8 @@ import {
     MAX_ZOOM_FACTOR,
     MIN_ZOOM_FRACTION,
     VELOCITY_WINDOW_MS,
+    ZOOM_PER_CLICK,
+    ZOOM_PER_SECOND,
 } from '../src/lib/renderer/rendererDefaults';
 
 /**
@@ -511,6 +513,71 @@ test.describe('Canvas2D renderer — gestures', () => {
         const nowAt =
             (world.x - after.centre.x) * after.scale + after.width / 2;
         expect(Math.abs(nowAt - local.x)).toBeLessThanOrEqual(0.001);
+    });
+
+    /**
+     * A toolbar zoom button is a step AND a hold, and these two tests are the
+     * boundary between them. The threshold itself lives in
+     * `ViewerControls.svelte`; what is asserted here is that each side of it
+     * produces exactly one motion — the tap does not also get a hold's worth of
+     * travel, and the hold does not get a step landed on top of it when the
+     * button comes up.
+     */
+    test('a tap on the zoom button takes one discrete step', async ({
+        page,
+    }) => {
+        await openGridManifest(page);
+        await setView(page, { centre: { x: 600, y: 450 }, scale: 0.5 });
+
+        const before = await getView(page);
+        await page.getByRole('button', { name: 'Zoom In' }).click();
+        await settled(page);
+        const after = await getView(page);
+
+        // Bounded rather than exact: a synthesized click is over in a couple of
+        // milliseconds, but the hold it starts may still integrate a frame
+        // before the release, which is worth about 2%. What the bound rules out
+        // is the failure that matters — a step plus a hold's worth of travel.
+        const factor = after.scale / before.scale;
+        expect(factor).toBeGreaterThan(ZOOM_PER_CLICK * 0.99);
+        expect(factor).toBeLessThan(ZOOM_PER_CLICK * 1.1);
+    });
+
+    test('a held zoom button zooms continuously and stops when released', async ({
+        page,
+    }) => {
+        await openGridManifest(page);
+        await setView(page, { centre: { x: 600, y: 450 }, scale: 0.5 });
+
+        const before = await getView(page);
+        const button = page.getByRole('button', { name: 'Zoom In' });
+        const box = (await button.boundingBox())!;
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+
+        const holdMs = 800;
+        await page.mouse.down();
+        await page.waitForTimeout(holdMs);
+        await page.mouse.up();
+        await settled(page);
+        const released = await getView(page);
+
+        // The renderer integrates the wall-clock time the browser actually
+        // granted between frames, which is a little short of the requested
+        // hold at both ends, so the window is generous. It still excludes both
+        // failures: a hold that did nothing, and a hold that only ever
+        // delivered the click's single 1.5x step.
+        const factor = released.scale / before.scale;
+        const ideal = 2 ** (ZOOM_PER_SECOND * (holdMs / 1000));
+        expect(factor).toBeGreaterThan(ideal * 0.75);
+        expect(factor).toBeLessThan(ideal * 1.15);
+
+        // Released, not coasting: a hold has no momentum of its own, and the
+        // click that follows `pointerup` must not add a step to a motion that
+        // already covered the distance.
+        await nextPaint(page);
+        await nextPaint(page);
+        const settledView = await getView(page);
+        expect(settledView.scale).toBeCloseTo(released.scale, 10);
     });
 
     test('zooming out stops with the canvas at half the viewport', async ({

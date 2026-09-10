@@ -19,7 +19,7 @@
         {
             "url": "/handles/",
             "owner": "site",
-            "note": "Whether the viewer copes with a given kind of material — codices, single sheets, photographic series, annotated and right-to-left material — each shown running."
+            "note": "What the viewer can do with a IIIF manifest, one feature at a time on one running viewer: how it moves through material, plays sound and video, reads notes and text, obeys what a publisher declares, and what a host adds to it."
         },
         {
             "url": "/configure/",

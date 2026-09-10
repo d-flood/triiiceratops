@@ -12,7 +12,7 @@ transcript panel, and an `AVState` object the host application can command
 playback through.
 
 Nothing about it is in core's bundle. Registering it costs 15.5 KB gzip, and its
-four heaviest pieces — hls.js, the waveform parsers, the segment sequencer and
+four heaviest pieces — hls.js, the timeline drawings, the segment sequencer and
 the transcript panel — are chunks fetched only when a manifest needs them.
 
 ## Install
@@ -49,8 +49,8 @@ sibling ES modules that the entry `import()`s by a URL resolved against its own
 `document.currentScript.src`. Copy `node_modules/@triiiceratops/plugin-av/dist/`
 somewhere your server serves it and point the script tag inside that directory.
 A deployment that copies only `iife.js` works until a reader reaches anything a
-chunk serves — an HLS stream (`av-hls.js`), a canvas with linked waveform data
-(`av-waveform.js`), a canvas whose duration is tiled by several media files
+chunk serves — an HLS stream (`av-hls.js`), a canvas with a timeline lane to
+graduate (`av-timeline.js`), a canvas whose duration is tiled by several media files
 (`av-sequencer.js`), or anything the transcript panel can hold — a caption track
 that loaded with cues in it, a linked `text/plain` transcript, timed annotations
 (`av-transcript.js`) — and then 404s.
@@ -109,11 +109,42 @@ if (av) {
 }
 ```
 
-| Member                                                    | Kind       | Notes                                              |
-| --------------------------------------------------------- | ---------- | -------------------------------------------------- |
-| `play()` `pause()` `seek(s)` `setMuted(b)` `setVolume(v)` | command    | address the **current** canvas's media             |
-| `paused` `duration` `buffering` `activeMediaCanvasId`     | observable | notify through `subscribe`, batched                |
-| `currentTime`                                             | query-only | read it on `subscribeFrame`, never off `subscribe` |
+| Member                                                                           | Kind       | Notes                                              |
+| -------------------------------------------------------------------------------- | ---------- | -------------------------------------------------- |
+| `play()` `pause()` `seek(s)` `setMuted(b)` `setVolume(v)` `setCaptionTrack(url)` | command    | address the **current** canvas's media             |
+| `paused` `duration` `buffering` `activeMediaCanvasId`                            | observable | notify through `subscribe`, batched                |
+| `captionTracks` `activeCaptionTrack`                                             | observable | the set grows as tracks load — see below           |
+| `currentTime`                                                                    | query-only | read it on `subscribeFrame`, never off `subscribe` |
+
+### Switching captions on
+
+Captions start off in every viewer, and `setCaptionTrack` is how a host turns
+them on without waiting for a reader to find the control:
+
+```ts
+// A track is offered only once its file has parsed with cues in it, so the set
+// is empty at mount and fills on the network's own schedule.
+const stop = av.subscribe(() => {
+    const first = av.captionTracks[0];
+    if (first && !av.activeCaptionTrack) av.setCaptionTrack(first.url);
+});
+```
+
+A showing track's cues are held clear of core's control bar: the bar floats over
+the foot of the picture, which is exactly where an auto-placed cue lands, so
+they would otherwise be unreadable whenever the controls are up. The lift is
+WebVTT's own placement (`line` off `snapToLines`, measured from the cue's own
+bottom with `lineAlign`), because the cue box is painted in the user agent's
+shadow DOM where no stylesheet reaches; the band comes from
+`ViewerState.chromeInset`, so the cues drop back down when the bar idle-hides
+during playback. A cue the WebVTT file placed itself is never moved.
+
+`captionTracks` offers only the tracks the current canvas can actually PAINT. A
+sound recording attaches its tracks so the transcript panel can read them, and a
+canvas whose picture is an `accompanyingCanvas` hides the media element behind
+it — a selection on either would show nothing, so neither is offered. Passing a
+`url` that is not on the list turns captions off rather than half-selecting it,
+so the guarantee holds: switching on a track from this list produces captions.
 
 Three contract points worth stating plainly:
 
@@ -135,8 +166,8 @@ current canvas, and every other visible AV canvas shows a play-state glyph.
 - **Stage layout.** The claimed canvas rect is divided into lanes in canvas
   space, so the whole stack pans and zooms with the viewer. Video takes the whole
   rect as a visual lane. Audio takes the whole rect as a timeline lane, which
-  draws a waveform when the canvas links audiowaveform data and is a bare
-  timeline otherwise. A canvas core paints a companion Canvas into gets no lanes
+  draws a waveform when the canvas links audiowaveform data and a **ruler**
+  otherwise. A canvas core paints a companion Canvas into gets no lanes
   at all — the rect belongs to the renderer, and the stage contributes only a tap
   target, the play-state glyph and the "can't play" notice. That covers a canvas
   with an `accompanyingCanvas`, and a canvas with a `placeholderCanvas` until its
@@ -145,8 +176,15 @@ current canvas, and every other visible AV canvas shows a play-state glyph.
   own aspect ratio: a publisher that declares a very wide, very short audio
   canvas gets a correspondingly shallow lane.
 - **Timeline projection.** Canvas x maps linearly to media time, so the viewer's
-  own zoom doubles as temporal zoom into the waveform and a tap on the timeline
-  lane is a seek.
+  own zoom doubles as temporal zoom into whatever graduates the lane, and a tap
+  on the timeline lane is a seek.
+- **Ruler.** What a lane with no waveform draws: ticks at a round interval
+  chosen for the span on screen — hours down to tenths of a second as the reader
+  zooms — a clock label on each, the played span filled, and the playhead. It is
+  what makes the temporal zoom usable, since it says which ten seconds of a
+  two-hour tape the viewport is now showing. A waveform replaces it where the
+  canvas links one; a canvas whose rect belongs to a companion Canvas gets
+  neither and scrubs through the control bar.
 - **Transport.** Play/pause, a real `role="slider"` scrubber with arrow-key
   seeking and buffered ranges, elapsed/total time, mute and volume, and a
   captions control when tracks exist. Registered into core's own control bar
@@ -240,7 +278,7 @@ lazy chunks are outside that figure:
 | Chunk              |    gzip | Fetched when                                                   |
 | ------------------ | ------: | -------------------------------------------------------------- |
 | `av-hls.js`        | ~224 KB | an HLS body must play without native HLS support               |
-| `av-waveform.js`   | ~2.6 KB | a canvas links audiowaveform data                              |
+| `av-timeline.js`   | ~2.9 KB | a canvas has a timeline lane to draw a ruler or waveform in    |
 | `av-sequencer.js`  | ~2.1 KB | a canvas is painted by several media files tiling its duration |
 | `av-transcript.js` | ~3.2 KB | the current canvas has anything for the panel to hold          |
 

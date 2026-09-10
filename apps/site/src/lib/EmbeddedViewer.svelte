@@ -1,8 +1,14 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import ChromeSkeleton from './ChromeSkeleton.svelte';
-    import type { BuiltInTheme, ThemeConfig, ViewerState } from 'triiiceratops';
+    import type {
+        BuiltInTheme,
+        CanvasRegion,
+        ThemeConfig,
+        ViewerState,
+    } from 'triiiceratops';
     import type { Example } from './examples';
+    import type { SitePlugin } from './sitePlugins';
     import type { ViewerConfig } from './viewerConfig';
     import { SITE_VIEWER_THEME } from './viewerTheme';
 
@@ -25,6 +31,9 @@
     let {
         example,
         config,
+        canvasId,
+        initialCanvasRegion,
+        plugins = false,
         label,
         eager = false,
         theme,
@@ -34,6 +43,29 @@
     }: {
         example: Example;
         config?: ViewerConfig;
+        /**
+         * The canvas to open on, for material whose point is one canvas in
+         * particular rather than the manifest's first.
+         */
+        canvasId?: string;
+        /**
+         * The part of the opening canvas to frame, for an embed sent to a region
+         * rather than to a whole leaf.
+         *
+         * Core spends it at the first fit of a world that can honour it, so it
+         * names where an embed OPENS and not where it travels next: setting it
+         * on material already on screen strands it until the manifest, mode or
+         * direction changes. An embed that moves the view inside material it is
+         * already showing calls `setCanvas` with a region instead.
+         */
+        initialCanvasRegion?: CanvasRegion | null;
+        /**
+         * The plugins to activate, for an embed whose subject is a plugin.
+         *
+         * `false` everywhere else, and that is the site's default: a marketing
+         * page ships the viewer, not the plugin catalogue.
+         */
+        plugins?: readonly SitePlugin[] | false;
         /** Names the region for a screen reader; every embed needs one. */
         label: string;
         /**
@@ -189,10 +221,12 @@
             <Viewer
                 bind:viewerState
                 manifestId={example.manifest}
+                {canvasId}
+                {initialCanvasRegion}
                 config={applied}
                 {theme}
                 {themeConfig}
-                plugins={false}
+                {plugins}
             />
         </div>
     {/if}

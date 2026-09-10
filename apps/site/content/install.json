@@ -144,6 +144,6 @@
 	"meta": {
 		"title": "Install and frameworks",
 		"shortTitle": "Install and frameworks",
-		"intro": "What the two lines on the front page cannot cover: framework specifics, versioning, and bundler notes."
+		"intro": "Triiiceratops can be used as a native React, Vue, or Svelte component as well as a Web component script tag in any HTML page."
 	}
 }

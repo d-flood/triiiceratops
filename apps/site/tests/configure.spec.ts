@@ -20,7 +20,7 @@
  * is single-sourced at all.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 /**
  * What the builder opens on, and a second manifest to paste over it.
@@ -34,6 +34,24 @@ const OTHER = '/material/multi-target-array/manifest.json';
 
 function preview(page: Page) {
     return page.locator('.pv__live .viewer-root');
+}
+
+/**
+ * The editor's groups are tabs, so a control has to be reached before it can be
+ * used. The tab is found from the control rather than named: every panel is in
+ * the document whether or not it is showing, so which group offers a control is
+ * a question the page can answer, and a control that moves group moves this
+ * click with it instead of failing it.
+ *
+ * Reading a control needs none of this, for the same reason — a hidden panel's
+ * inputs still hold their values.
+ */
+async function reach(page: Page, control: Locator) {
+    const pane = await control.evaluate(
+        (element) => element.closest('[role="tabpanel"]')!.id,
+    );
+    await page.locator(`[role="tab"][aria-controls="${pane}"]`).click();
+    await expect(control).toBeVisible();
 }
 
 /** The viewer is imported after `load`, so every screen waits for it. */
@@ -53,7 +71,9 @@ test('opens on the example manifest, and loads a manifest the reader pastes', as
     // Open the information panel first, so what the pasted manifest resolves to
     // is readable from the manifest alone — the assertion is about the material
     // arriving, not about somebody else's image server answering.
-    await page.getByLabel('Information open').check();
+    const information = page.getByLabel('Information open');
+    await reach(page, information);
+    await information.check();
     await expect(preview(page)).toContainText('Public-domain visual study set');
 
     const asked = page.waitForRequest((request) =>
@@ -78,6 +98,7 @@ test('changes the preview without rebuilding the viewer', async ({ page }) => {
     });
 
     const gallery = page.getByLabel('Gallery open');
+    await reach(page, gallery);
     await expect(gallery).not.toBeChecked();
     await gallery.check();
 
@@ -86,7 +107,9 @@ test('changes the preview without rebuilding the viewer', async ({ page }) => {
 
     // And the same for a theming token, which reaches the viewer by a different
     // input than the configuration does.
-    await page.getByLabel('Viewer background').fill('#123456');
+    const background = page.getByLabel('Viewer background');
+    await reach(page, background);
+    await background.fill('#123456');
     await expect(preview(page)).toHaveAttribute('style', /--tri-viewer-bg/);
     await expect(preview(page)).toHaveAttribute('data-e2e-mark', 'kept');
 });
@@ -125,9 +148,11 @@ test('opens its swatches on the viewer’s own palette', async ({ page }) => {
     await running(page);
 
     // By id rather than by label: several controls' labels start with the same
-    // word, and which token is meant is exactly what the id says.
-    for (const id of ['tok-primary', 'tok-viewerBg', 'tok-content']) {
-        const swatch = page.locator(`#${id}`);
+    // word, and which token is meant is exactly what the id says. The three sit
+    // in three different groups, and each is reached in turn.
+    for (const key of ['primary', 'viewerBg', 'content']) {
+        const swatch = page.locator(`#tok-${key}`);
+        await reach(page, swatch);
         await expect(swatch).toHaveValue(/^#[0-9a-f]{6}$/);
         // Black is what an unresolved token reads as, and no built-in theme
         // paints any of these three with it.
@@ -158,8 +183,13 @@ async function pasted(page: Page): Promise<string> {
 
 /** Sets exactly two options, and returns nothing else about the page. */
 async function setTwo(page: Page): Promise<void> {
-    await page.getByLabel('Gallery open').check();
-    await page.getByLabel('Canvas nav edge').selectOption('top');
+    const gallery = page.getByLabel('Gallery open');
+    await reach(page, gallery);
+    await gallery.check();
+
+    const edge = page.getByLabel('Canvas nav edge');
+    await reach(page, edge);
+    await edge.selectOption('top');
 }
 
 const TWO = { gallery: { open: true }, nav: { edge: 'top' } };
@@ -240,16 +270,68 @@ test.describe('what a reader leaves with', () => {
             .click();
         expect(JSON.parse(await pasted(page))).toEqual(TWO);
 
-        // The colours reach the viewer by a different input than the
-        // configuration does, so they are a second object rather than a key.
-        await expect(
-            page.getByRole('button', { name: 'Copy the theme configuration' }),
-        ).toHaveCount(0);
-        await page.getByLabel('Viewer background').fill('#123456');
-        await page
-            .getByRole('button', { name: 'Copy the theme configuration' })
-            .click();
+        /*
+         * The colours reach the viewer by a different input than the
+         * configuration does, so they are a second object rather than a key.
+         * It is on the page from the start, empty, because a reader watching
+         * two objects fill in has to be able to see which of them a control
+         * writes to.
+         */
+        const theme = page.getByRole('button', {
+            name: 'Copy the theme configuration',
+        });
+        await theme.click();
+        expect(JSON.parse(await pasted(page))).toEqual({});
+
+        const background = page.getByLabel('Viewer background');
+        await reach(page, background);
+        await background.fill('#123456');
+        await theme.click();
         expect(JSON.parse(await pasted(page))).toEqual({ viewerBg: '#123456' });
+    });
+
+    /*
+     * A plugin is a module, so it can only travel in a snippet. Turning one on
+     * has to reach the code the reader copies and the viewer they are watching,
+     * and reach neither the configuration object nor the link — which is the
+     * whole reason it is a separate answer rather than a configuration key.
+     */
+    test('registers the plugins a reader turned on', async ({ page }) => {
+        await page.goto('/configure/');
+        await running(page);
+
+        // The toolbar opens first: a plugin's button lives in it, and this
+        // page's defaults start it closed.
+        const open = page.getByLabel('Open the toolbar to begin with');
+        await reach(page, open);
+        await open.check();
+
+        const tools = page.getByLabel('Image tools');
+        await reach(page, tools);
+        await tools.check();
+
+        // The plugin's own toolbar button, in the running viewer.
+        await expect(
+            preview(page).getByRole('button', { name: 'Image Adjustments' }),
+        ).toBeVisible({ timeout: 20_000 });
+
+        await page.getByRole('tab', { name: 'Svelte', exact: true }).click();
+        await page
+            .getByRole('button', { name: 'Copy the Svelte snippet' })
+            .click();
+        const snippet = await pasted(page);
+        expect(snippet).toContain(
+            "import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';",
+        );
+        expect(snippet).toContain('const plugins = [ImageManipulationPlugin];');
+        expect(snippet).toContain('{plugins}');
+
+        // And the configuration carries only what a configuration can: the
+        // toolbar key, and nothing at all about the plugin.
+        await page
+            .getByRole('button', { name: 'Copy the configuration object' })
+            .click();
+        expect(JSON.parse(await pasted(page))).toEqual({ toolbarOpen: true });
     });
 
     test('copies a snippet for the framework the reader picked', async ({
@@ -290,6 +372,7 @@ test.describe('what a reader leaves with', () => {
             .click();
         expect(JSON.parse(await pasted(page))).toEqual(TWO);
 
+        // The same group as the edge `setTwo` set, so its tab is already open.
         await page.getByLabel('Gallery position').selectOption('left');
         await page
             .getByRole('button', { name: 'Copy the configuration object' })

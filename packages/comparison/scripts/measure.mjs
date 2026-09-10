@@ -8,16 +8,15 @@
 //
 //   node scripts/measure.mjs
 //
-// Sessions are measured rather than computed from a build because two of these
-// viewers code-split per media type: an audiovisual manifest costs them
-// different bytes than an image one, and only a session can say which chunks
-// arrive. Triiiceratops goes through the same path, from this repository's own
+// Sessions are measured rather than computed from a build because a viewer that
+// code-splits per media type pays different bytes for an audiovisual manifest
+// than for an image one, and only a session can say which chunks arrive. Triiiceratops goes through the same path, from this repository's own
 // `dist` directories, so no row is produced differently from its neighbours.
 //
 // It runs on demand only. It is deliberately not wired to a schedule or to CI:
 // competitor versions move independently, so a scheduled run would rewrite a
 // published marketing claim with nobody reading the diff, and a per-PR run would
-// make every unrelated change depend on nine third-party hosts.
+// make every unrelated change depend on a handful of third-party hosts.
 //
 // This is not the shipped-bytes gate. `scripts/size-check.mjs` and
 // `size-baseline.json` ratchet our own artifacts on every build; they are
@@ -230,9 +229,9 @@ async function runSession(browser, { url, assetBases }) {
 }
 
 /**
- * A third-party CDN can rate-limit or hiccup part-way through nine viewers'
- * worth of sessions, so a refused artifact is retried rather than published as a
- * short row.
+ * A third-party CDN can rate-limit or hiccup part-way through a run's worth of
+ * sessions, so a refused artifact is retried rather than published as a short
+ * row.
  */
 async function measureSession(browser, session, label) {
     for (let attempt = 1; attempt <= 3; attempt += 1) {

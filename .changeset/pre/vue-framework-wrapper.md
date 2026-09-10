@@ -32,7 +32,7 @@ dependencies read by a projection are tracked with no manual watcher, a
 `<KeepAlive>` round trip rebinds every composable to the new `ViewerState`, and a
 failing projection or equality function throws during the consumer's own
 evaluation so it reaches `onErrorCaptured` and `app.config.errorHandler` instead
-of being swallowed, mislabelled, or served as a stale value. Both `state` and
+of being swallowed, mislabeled, or served as a stale value. Both `state` and
 `frame` cadences are supported.
 
 Vue 3.5 is an optional peer dependency.

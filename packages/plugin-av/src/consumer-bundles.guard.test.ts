@@ -73,9 +73,9 @@ function esmChunks(entry: string): string[] {
  * at a host application's expense.
  */
 const CONSUMERS = {
-    AvPlugin: { marker: 'av_notes_panel', ceiling: 46_401 },
-    scanCanvasForAv: { marker: 'vnd.apple.mpegurl', ceiling: 46_401 },
-    getAVState: { marker: 'activeMediaCanvasId', ceiling: 46_542 },
+    AvPlugin: { marker: 'av_notes_panel', ceiling: 50_505 },
+    scanCanvasForAv: { marker: 'vnd.apple.mpegurl', ceiling: 50_505 },
+    getAVState: { marker: 'activeMediaCanvasId', ceiling: 50_646 },
 } as const;
 
 /** Byte slack over each recorded ceiling, matching `scripts/size-check.mjs`. */

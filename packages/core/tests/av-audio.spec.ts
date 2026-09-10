@@ -1068,3 +1068,81 @@ test.describe('av audio — companion and placeholder canvases', () => {
         await expect(page.locator(MEDIA)).toBeVisible();
     });
 });
+
+/**
+ * The ruler, in a real browser: the graduations a bare audio canvas draws in
+ * place of the waveform it has no data for.
+ *
+ * What only a browser can settle is that the surface is really placed and
+ * really sized against the lane, and that the viewer's own zoom narrows the
+ * span it draws — the same observable temporal zoom `av-waveform.spec.ts`
+ * asserts of the waveform, on the layout that has no peaks to draw.
+ */
+test.describe('av audio — the timeline ruler', () => {
+    const RULER = '[data-testid="av-ruler"]';
+
+    test('graduates a lane the canvas links no waveform for', async ({
+        page,
+    }) => {
+        await openViewer(page, AV_MANIFESTS.audio);
+
+        const ruler = page.locator(RULER);
+        await expect(ruler).toHaveCount(1, { timeout: 30_000 });
+        await expect(ruler).toBeVisible();
+
+        // Nested in the lane, which stays the tap target it was: the seek is
+        // measured off the LANE's box, so a surface inside it cannot move it.
+        expect(
+            await ruler.evaluate((el) =>
+                Boolean(el.parentElement?.matches('.tri-av-lane-timeline')),
+            ),
+        ).toBe(true);
+        // Decoration over geometry the DOM already carries (ADR 0016).
+        await expect(ruler).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    test('narrows the span it draws as the reader zooms in', async ({
+        page,
+    }) => {
+        await openViewer(page, AV_MANIFESTS.audio);
+        await page
+            .locator(RULER)
+            .waitFor({ state: 'visible', timeout: 30_000 });
+
+        const drawn = async () => {
+            const box = await settledBox(page, RULER);
+            expect(box.width).toBeGreaterThan(0);
+            return page.locator(RULER).evaluate((el) => {
+                const { rangeStart, rangeEnd } = (el as HTMLElement).dataset;
+                return Number(rangeEnd) - Number(rangeStart);
+            });
+        };
+
+        const whole = await drawn();
+        expect(whole).toBeGreaterThan(0);
+
+        const fitted = (await page.locator(STAGE).boundingBox())!;
+        await zoomTo(page, (fitted.width / 100) * 4);
+
+        await expect
+            .poll(drawn, { timeout: 20_000 })
+            .toBeLessThan(whole * 0.75);
+    });
+
+    test('stops short of the control bar, so its labels are readable', async ({
+        page,
+    }) => {
+        // The lane runs to the bottom of the viewer on a bare audio canvas,
+        // which is exactly where the transport sits: a surface clipped only
+        // against the container would draw every tick underneath it.
+        await openViewer(page, AV_MANIFESTS.audio);
+        await page
+            .locator(TRANSPORT)
+            .waitFor({ state: 'visible', timeout: 30_000 });
+
+        const ruler = await settledBox(page, RULER);
+        const bar = (await page.locator(TRANSPORT).boundingBox())!;
+
+        expect(ruler.y + ruler.height).toBeLessThanOrEqual(bar.y + 1);
+    });
+});

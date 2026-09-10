@@ -69,9 +69,9 @@ export const ROUTES: readonly SiteRoute[] = [
         group: 1,
         source: 'code',
         meta: {
-            title: 'A modern, lightweight, framework-agnostic IIIF viewer',
+            title: 'A modern, lightweight, and fully featured IIIF viewer',
             shortTitle: 'Overview',
-            intro: 'Triiiceratops renders IIIF manifests in React, Vue, Svelte, or plain HTML, and it is the smallest viewer in its field.',
+            intro: 'Triiiceratops installs as a typed React, Vue, or Svelte component, or as one script tag in any HTML page, with layout and theme fully configurable.',
         },
     },
     {
@@ -79,9 +79,9 @@ export const ROUTES: readonly SiteRoute[] = [
         group: 1,
         source: 'code',
         meta: {
-            title: 'Size and capability',
-            shortTitle: 'Size and capability',
-            intro: 'Every viewer in this field is measured here at three compression levels against how much of IIIF it implements, so the size claim reads as analysis rather than marketing.',
+            title: 'Small and mighty',
+            shortTitle: 'Small and mighty',
+            intro: 'Triiiceratops is currently both the smallest and most capable embeddable IIIF viewer.',
         },
     },
     {
@@ -89,9 +89,9 @@ export const ROUTES: readonly SiteRoute[] = [
         group: 1,
         source: 'code',
         meta: {
-            title: 'What it handles',
-            shortTitle: 'What it handles',
-            intro: 'Bound codices with structures, single large sheets, photographic series, annotated material and right-to-left material, each shown running.',
+            title: 'What it can do',
+            shortTitle: 'What it can do',
+            intro: 'Explore the following (non-exhaustive) features of Triiiceratops.',
         },
     },
     {
@@ -99,9 +99,9 @@ export const ROUTES: readonly SiteRoute[] = [
         group: 2,
         source: 'code',
         meta: {
-            title: 'Configure it',
-            shortTitle: 'Configure it',
-            intro: 'Set the viewer’s appearance and chrome against your own manifest, then send the result as a URL to whoever will implement it.',
+            title: 'Customization Wizard',
+            shortTitle: 'Customization Wizard',
+            intro: 'Here you can easily create a layout and theme configuration for your viewer. Share the resulting configuration with others.',
         },
     },
     { path: '/install/', group: 2, source: 'content' },

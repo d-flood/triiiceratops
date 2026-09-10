@@ -1,0 +1,241 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/sound/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Early recordings and Sousa marches"]
+    },
+    "summary": {
+        "en": [
+            "One of the earliest surviving sound recordings — a performance of Arthur Sullivan’s The Lost Chord on an Edison wax cylinder — and four of John Philip Sousa’s marches played by the United States Marine Band."
+        ]
+    },
+    "metadata": [
+        {
+            "label": {
+                "en": ["Source"]
+            },
+            "value": {
+                "en": [
+                    "Wikimedia Commons: the cylinder from the National Park Service (Thomas Edison National Historical Park) and the Internet Archive; the marches from the United States Marine Band; the portrait from the Library of Congress."
+                ]
+            }
+        },
+        {
+            "label": {
+                "en": ["Rights"]
+            },
+            "value": {
+                "en": ["Public domain. Transcoded to MP3 for the web."]
+            }
+        },
+        {
+            "label": {
+                "en": ["Waveform"]
+            },
+            "value": {
+                "en": ["Peaks generated with the BBC’s audiowaveform."]
+            }
+        }
+    ],
+    "items": [
+        {
+            "id": "/material/sound/canvas/lost-chord",
+            "type": "Canvas",
+            "label": {
+                "en": ["The Lost Chord, recorded on a wax cylinder, 1888"]
+            },
+            "duration": 126.772,
+            "items": [
+                {
+                    "id": "/material/sound/canvas/lost-chord/page",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/sound/canvas/lost-chord/page/annotation",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/sound/media/lost-chord.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 126.772
+                            },
+                            "target": "/material/sound/canvas/lost-chord"
+                        }
+                    ]
+                }
+            ],
+            "seeAlso": [
+                {
+                    "id": "/material/sound/waveform/lost-chord-waveform.dat",
+                    "type": "Dataset",
+                    "label": {
+                        "en": ["Waveform data"]
+                    },
+                    "profile": "http://waveform.prototyping.bbc.co.uk",
+                    "format": "application/octet-stream"
+                }
+            ]
+        },
+        {
+            "id": "/material/sound/canvas/marine-band",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Four Sousa marches, played by the United States Marine Band"
+                ]
+            },
+            "duration": 358.818,
+            "items": [
+                {
+                    "id": "/material/sound/canvas/marine-band/page",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/sound/canvas/marine-band/page/annotation/1",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/sound/media/columbias-pride.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 68.441
+                            },
+                            "target": "/material/sound/canvas/marine-band#t=0.0,68.441"
+                        },
+                        {
+                            "id": "/material/sound/canvas/marine-band/page/annotation/2",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/sound/media/quilting-party.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 89.626
+                            },
+                            "target": "/material/sound/canvas/marine-band#t=68.441,158.067"
+                        },
+                        {
+                            "id": "/material/sound/canvas/marine-band/page/annotation/3",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/sound/media/guide-right.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 91.925
+                            },
+                            "target": "/material/sound/canvas/marine-band#t=158.067,249.992"
+                        },
+                        {
+                            "id": "/material/sound/canvas/marine-band/page/annotation/4",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/sound/media/pet-of-the-petticoats.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 108.826
+                            },
+                            "target": "/material/sound/canvas/marine-band#t=249.992,358.818"
+                        }
+                    ]
+                }
+            ],
+            "accompanyingCanvas": {
+                "id": "/material/sound/canvas/marine-band/cover",
+                "type": "Canvas",
+                "label": {
+                    "en": ["John Philip Sousa in band uniform"]
+                },
+                "width": 797,
+                "height": 1000,
+                "items": [
+                    {
+                        "id": "/material/sound/canvas/marine-band/cover/page",
+                        "type": "AnnotationPage",
+                        "items": [
+                            {
+                                "id": "/material/sound/canvas/marine-band/cover/page/annotation",
+                                "type": "Annotation",
+                                "motivation": "painting",
+                                "body": {
+                                    "id": "/material/sound/images/sousa.jpg",
+                                    "type": "Image",
+                                    "format": "image/jpeg",
+                                    "width": 797,
+                                    "height": 1000
+                                },
+                                "target": "/material/sound/canvas/marine-band/cover"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ],
+    "structures": [
+        {
+            "id": "/material/sound/range/marine-band",
+            "type": "Range",
+            "label": {
+                "en": ["The four marches"]
+            },
+            "items": [
+                {
+                    "id": "/material/sound/range/marine-band/columbias-pride",
+                    "type": "Range",
+                    "label": {
+                        "en": ["Columbia’s Pride"]
+                    },
+                    "items": [
+                        {
+                            "id": "/material/sound/canvas/marine-band#t=0.0,68.441",
+                            "type": "Canvas"
+                        }
+                    ]
+                },
+                {
+                    "id": "/material/sound/range/marine-band/quilting-party",
+                    "type": "Range",
+                    "label": {
+                        "en": ["The Quilting Party"]
+                    },
+                    "items": [
+                        {
+                            "id": "/material/sound/canvas/marine-band#t=68.441,158.067",
+                            "type": "Canvas"
+                        }
+                    ]
+                },
+                {
+                    "id": "/material/sound/range/marine-band/guide-right",
+                    "type": "Range",
+                    "label": {
+                        "en": ["Guide Right"]
+                    },
+                    "items": [
+                        {
+                            "id": "/material/sound/canvas/marine-band#t=158.067,249.992",
+                            "type": "Canvas"
+                        }
+                    ]
+                },
+                {
+                    "id": "/material/sound/range/marine-band/pet-of-the-petticoats",
+                    "type": "Range",
+                    "label": {
+                        "en": ["Pet of the Petticoats"]
+                    },
+                    "items": [
+                        {
+                            "id": "/material/sound/canvas/marine-band#t=249.992,358.818",
+                            "type": "Canvas"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

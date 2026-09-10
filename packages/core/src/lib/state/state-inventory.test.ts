@@ -463,6 +463,7 @@ const commandScenarios: CapabilityScenario[] = [
         act: (state) => state.toggleGalleryExpanded(),
     },
     { member: 'toolbarOpen', act: (state) => state.toggleToolbar() },
+    { member: 'openMenu', act: (state) => state.toggleMenu('locale') },
     {
         member: 'showMetadataPanel',
         act: (state) => state.toggleMetadataPanel(),
@@ -631,6 +632,14 @@ const observableScenarios: CapabilityScenario[] = [
         member: 'rendererReady',
         act: (state) => {
             state.attachRenderer(createRendererStub());
+        },
+    },
+    {
+        // Core's control bar reports what it is covering; the stand-in writes
+        // the band directly, as the bar's own measuring effect does.
+        member: 'chromeInset',
+        act: (state) => {
+            state.chromeInset = { top: 0, right: 0, bottom: 44, left: 0 };
         },
     },
     {

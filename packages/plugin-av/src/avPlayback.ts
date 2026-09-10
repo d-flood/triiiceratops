@@ -8,7 +8,7 @@
  * a reachable module.
  */
 
-import type { AVState } from './avState';
+import type { AVState, AvCaptionTrack } from './avState';
 
 /** Below this `readyState` a playing element has nothing to play (spec name: `HAVE_FUTURE_DATA`). */
 const HAVE_FUTURE_DATA = 3;
@@ -30,6 +30,21 @@ export interface CanvasTimeline {
     seek(seconds: number): void;
 }
 
+/**
+ * The current canvas's captions, as the stage holding them answers for.
+ *
+ * A separate handle rather than members on the target because captions belong
+ * to the STAGE and not to the element: the tracks are its `<track>` children,
+ * the paintability fence is its layout's, and the mode writes go through it.
+ */
+export interface AvCaptionPort {
+    /** The tracks a selection could actually show, in manifest order. */
+    tracks(): readonly AvCaptionTrack[];
+    /** The showing track's url, or `null`. */
+    active(): string | null;
+    select(url: string | null): void;
+}
+
 /** The media AVState's commands currently address. */
 export interface AvCommandTarget {
     readonly canvasId: string;
@@ -48,6 +63,11 @@ export interface AvCommandTarget {
      * filling the canvas — and then the element IS the timeline.
      */
     readonly timeline?: CanvasTimeline | null;
+    /**
+     * This canvas's captions. Absent where the activation has no stage to ask —
+     * which publishes no tracks rather than failing a command.
+     */
+    readonly captions?: AvCaptionPort | null;
 }
 
 /** What AVState needs of the activation around it. */
@@ -140,6 +160,9 @@ const FRAME_EVENTS = new Set<string>([
     'ended',
 ]);
 
+/** The published "no tracks" answer, one array so its identity never churns. */
+const NO_CAPTION_TRACKS: readonly AvCaptionTrack[] = Object.freeze([]);
+
 export function createAvState(port: AvStatePort): AvStatePublication {
     const listeners = new Set<() => void>();
     const frameListeners = new Set<() => void>();
@@ -149,6 +172,20 @@ export function createAvState(port: AvStatePort): AvStatePublication {
     let duration: number | null = null;
     let buffering = false;
     let activeMediaCanvasId: string | null = null;
+    /**
+     * The stage's own track array, held to compare against by IDENTITY — it is
+     * replaced only when the loaded set actually changes, so this is what says
+     * whether the published copy is stale.
+     */
+    let captionSource: readonly AvCaptionTrack[] = NO_CAPTION_TRACKS;
+    /**
+     * The copy hosts read: the three published fields, without the placement
+     * index the stage carries for its own windowing. Rebuilt only when the
+     * source changes, so a host keying off the array's identity is not handed a
+     * new one on every sync.
+     */
+    let captionTracks: readonly AvCaptionTrack[] = NO_CAPTION_TRACKS;
+    let activeCaptionTrack: string | null = null;
 
     let notifyQueued = false;
     let frameHandle: number | null = null;
@@ -219,16 +256,34 @@ export function createAvState(port: AvStatePort): AvStatePublication {
             : false;
         const nextActive = target?.canvasId ?? null;
 
+        const captions = target?.captions ?? null;
+        const nextCaptionSource = captions?.tracks() ?? NO_CAPTION_TRACKS;
+        const nextCaptionTrack = captions?.active() ?? null;
+
         const changed =
             nextPaused !== paused ||
             nextDuration !== duration ||
             nextBuffering !== buffering ||
-            nextActive !== activeMediaCanvasId;
+            nextActive !== activeMediaCanvasId ||
+            nextCaptionSource !== captionSource ||
+            nextCaptionTrack !== activeCaptionTrack;
 
         paused = nextPaused;
         duration = nextDuration;
         buffering = nextBuffering;
         activeMediaCanvasId = nextActive;
+        if (nextCaptionSource !== captionSource) {
+            captionSource = nextCaptionSource;
+            captionTracks =
+                nextCaptionSource.length === 0
+                    ? NO_CAPTION_TRACKS
+                    : nextCaptionSource.map(({ url, language, label }) => ({
+                          url,
+                          language,
+                          label,
+                      }));
+        }
+        activeCaptionTrack = nextCaptionTrack;
 
         if (changed) notify();
         scheduleFrames();
@@ -265,10 +320,13 @@ export function createAvState(port: AvStatePort): AvStatePublication {
             seek: 'command',
             setMuted: 'command',
             setVolume: 'command',
+            setCaptionTrack: 'command',
             paused: 'observable',
             duration: 'observable',
             buffering: 'observable',
             activeMediaCanvasId: 'observable',
+            captionTracks: 'observable',
+            activeCaptionTrack: 'observable',
             currentTime: 'queryOnly',
         },
 
@@ -343,6 +401,19 @@ export function createAvState(port: AvStatePort): AvStatePublication {
             );
         },
 
+        setCaptionTrack(url: string | null): void {
+            command(
+                'setCaptionTrack',
+                (_media, target) => {
+                    // A canvas with no stage to ask offers no tracks, so there
+                    // is nothing to select and nothing to refuse: the command
+                    // addressed real media and simply had no captions on it.
+                    target.captions?.select(url);
+                },
+                () => state.setCaptionTrack(url),
+            );
+        },
+
         get paused(): boolean {
             return paused;
         },
@@ -354,6 +425,12 @@ export function createAvState(port: AvStatePort): AvStatePublication {
         },
         get activeMediaCanvasId(): string | null {
             return activeMediaCanvasId;
+        },
+        get captionTracks(): readonly AvCaptionTrack[] {
+            return captionTracks;
+        },
+        get activeCaptionTrack(): string | null {
+            return activeCaptionTrack;
         },
         get currentTime(): number {
             const target = port.currentTarget();

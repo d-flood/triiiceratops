@@ -6,6 +6,10 @@
  * What the boundary actually does to the pixels is `av-structures.spec.ts`'s
  * business; what is asserted here is the decision — which canvas the viewer
  * lands on, and that it was told to play once it got there.
+ *
+ * And the rule that bounds all of it: `auto-advance` is the ONLY way playback
+ * crosses a canvas boundary. A reader who navigates neither starts the canvas
+ * they arrive at nor leaves the one they left sounding behind them.
  */
 
 import {
@@ -340,5 +344,91 @@ describe('repeat on a canvas', () => {
 
         cleanup();
         warn.mockRestore();
+    });
+});
+
+describe('navigation does not carry playback', () => {
+    let play: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        play = vi
+            .spyOn(HTMLMediaElement.prototype, 'play')
+            .mockImplementation(() => Promise.resolve());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('pauses the recording being left, and starts nothing on arrival', async () => {
+        // The reported defect: both elements sounded at once. The stage left
+        // behind is hidden by `rectFor` in `individuals` mode, so it carried no
+        // glyph, no transport and no tap target that could have stopped it.
+        const { tc, mediaFor, cleanup } = await mount();
+        tc.viewerState.setCanvas(TONE);
+        await flush();
+
+        const leaving = vi.spyOn(mediaFor(TONE), 'pause');
+        const arriving = vi.spyOn(mediaFor(BARS), 'pause');
+
+        tc.viewerState.nextCanvas();
+        await flush();
+
+        expect(tc.viewerState.canvasId).toBe(BARS);
+        expect(leaving).toHaveBeenCalled();
+        // Only the canvas the transport was driving. A sweep over every stage
+        // would also silence a recording a `continuous`-mode reader had tapped
+        // to play beside the current one — which is what the glyph reports.
+        expect(arriving).not.toHaveBeenCalled();
+        expect(play).not.toHaveBeenCalled();
+
+        cleanup();
+    });
+
+    it('pauses where it stands, so returning resumes rather than restarts', async () => {
+        // `continuePlayback` seeks to 0 explicitly BECAUSE a canvas rests where
+        // an earlier pass left it. Nothing on the navigation path may rewind it.
+        const { tc, mediaFor, cleanup } = await mount();
+        tc.viewerState.setCanvas(TONE);
+        await flush();
+
+        const media = mediaFor(TONE);
+        const paused = vi.spyOn(media, 'pause').mockImplementation(() => {});
+        media.currentTime = 1.5;
+
+        tc.viewerState.nextCanvas();
+        await flush();
+        tc.viewerState.previousCanvas();
+        await flush();
+
+        expect(tc.viewerState.canvasId).toBe(TONE);
+        // Anchored to the pause having happened, so this cannot pass for the
+        // want of anything touching the element at all.
+        expect(paused).toHaveBeenCalled();
+        expect(mediaFor(TONE).currentTime).toBe(1.5);
+        expect(play).not.toHaveBeenCalled();
+
+        cleanup();
+    });
+
+    it('still lets auto-advance carry playback across the boundary', async () => {
+        // The pause hook fires on the same navigation `auto-advance` performs,
+        // and must not take the step back: it pauses the canvas being LEFT —
+        // which has already ended — never the one arrived at.
+        const { tc, mediaFor, cleanup } = await mount({
+            behavior: ['auto-advance'],
+        });
+        tc.viewerState.setCanvas(TONE);
+        await flush();
+
+        const arriving = vi.spyOn(mediaFor(BARS), 'pause');
+        mediaFor(TONE).dispatchEvent(new Event('ended'));
+        await flush();
+
+        expect(tc.viewerState.canvasId).toBe(BARS);
+        expect(play).toHaveBeenCalled();
+        expect(arriving).not.toHaveBeenCalled();
+
+        cleanup();
     });
 });

@@ -1,0 +1,1313 @@
+{
+    "readAt": "2026-09-08",
+    "source": "https://iiif.io/api/cookbook/recipe/matrix/",
+    "viewers": [
+        "Mirador",
+        "UV",
+        "Annona",
+        "Clover",
+        "Navplace Viewer",
+        "Ramp",
+        "Aviary",
+        "Glycerine Viewer",
+        "Theseus",
+        "Curation",
+        "liiive",
+        "TIFY",
+        "Triiiceratops"
+    ],
+    "recipes": [
+        {
+            "id": "0001-mvm-image",
+            "name": "Simplest Manifest - Single Image File",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "yes",
+                "liiive": "yes",
+                "TIFY": "yes",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0002-mvm-audio",
+            "name": "Simplest Manifest - Audio",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "no",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "yes",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0003-mvm-video",
+            "name": "Simplest Manifest - Video",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "no",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "yes",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0004-canvas-size",
+            "name": "Image and Canvas with Differing Dimensions",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "yes",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0005-image-service",
+            "name": "Support Deep Viewing with Basic Use of a IIIF Image Service",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "yes",
+                "liiive": "yes",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0006-text-language",
+            "name": "Internationalization and Multi-language Values (label, summary, metadata, requiredStatement)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "yes",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0007-string-formats",
+            "name": "Embedding HTML in descriptive properties (label, summary, metadata, requiredStatement)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "yes",
+                "liiive": "yes",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0008-rights",
+            "name": "Rights statement (rights, requiredStatement)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "yes",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0009-book-1",
+            "name": "Simple Manifest - Book",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "yes",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0010-book-2-viewing-direction",
+            "name": "Viewing direction and Its Effect on Navigation (viewingDirection)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "partial",
+                "liiive": "no",
+                "TIFY": "partial",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0011-book-3-behavior",
+            "name": "Book 'behavior' Variations (continuous, individuals) (behaviorimage)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "partial",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0013-placeholderCanvas",
+            "name": "Load a Preview Image Before the Main Content (placeholderCanvas)",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0014-accompanyingcanvas",
+            "name": "Audio Presentation with Accompanying Image (accompanyingCanvas)",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "yes",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0015-start",
+            "name": "Begin playback at a specific point - Time-based media (start)",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "yes",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0017-transcription-av",
+            "name": "Providing Access to Transcript Files of A/V Content (rendering)",
+            "marks": {
+                "Mirador": "no",
+                "UV": "yes",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "yes",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0019-html-in-annotations",
+            "name": "HTML in Annotations",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0021-tagging",
+            "name": "Simple Annotation — Tagging",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "yes",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0022-linking-with-a-hotspot",
+            "name": "Redirecting from one Canvas to another resource (Hotspot linking)",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0024-book-4-toc",
+            "name": "Table of Contents for Book Chapters (structures)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0025-newspaper-article-index",
+            "name": "Navigation by Newspaper Article (structures)",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0026-toc-opera",
+            "name": "Table of Contents for A/V Content",
+            "marks": {
+                "Mirador": "no",
+                "UV": "yes",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "yes",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0027-alternative-page-order",
+            "name": "Alternative Page Sequences",
+            "marks": {
+                "Mirador": "no",
+                "UV": "yes",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0029-metadata-anywhere",
+            "name": "Metadata on any Resource (metadata)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "partial",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "yes",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0030-multi-volume",
+            "name": "Multi-volume Work with Individually-bound Volumes",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0031-bound-multivolume",
+            "name": "Multiple Volumes in a Single Bound Volume",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0032-collection",
+            "name": "Simple Collection",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0033-choice",
+            "name": "Multiple Choice of Images in a Single View (Canvas)",
+            "marks": {
+                "Mirador": "partial",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0035-foldouts",
+            "name": "Foldouts, Flaps, and Maps (behavior)",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0036-composition-from-multiple-images",
+            "name": "Composition from Multiple Images",
+            "marks": {
+                "Mirador": "partial",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0040-image-rotation-service",
+            "name": "Image Rotation Two Ways",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0045-css",
+            "name": "CSS in an Annotation",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0046-rendering",
+            "name": "Providing Alternative Representations (rendering)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0047-homepage",
+            "name": "Linking to Web Page of an Object (homepage)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0053-seeAlso",
+            "name": "Linking to Structured Metadata (seeAlso)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0064-opera-one-canvas",
+            "name": "Table of Contents for Multiple A/V Files on a Single Canvas (start)",
+            "marks": {
+                "Mirador": "no",
+                "UV": "yes",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0065-opera-multiple-canvases",
+            "name": "Table of Contents for Multiple A/V Files on Multiple Canvases",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0074-multiple-language-captions",
+            "name": "Using Caption and Subtitle Files in Multiple Languages with Video Content",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0103-poetry-reading-annotations",
+            "name": "Scholarly Annotation of a Poetry Reading",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "yes",
+                "Glycerine Viewer": "no",
+                "Theseus": "no",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0117-add-image-thumbnail",
+            "name": "Image Thumbnail for Manifest (thumbnail)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0118-multivalue",
+            "name": "Displaying Multiple Values with Language Maps (label, summary, metadata, requiredStatement)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "yes",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0135-annotating-point-in-canvas",
+            "name": "Annotating a specific point of an image",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0139-geolocate-canvas-fragment",
+            "name": "Represent Canvas Fragment as a Geographic Area in a Web Mapping Client",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0154-geo-extension",
+            "name": "Locate a Manifest on a Web Map",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "yes",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "yes",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0202-start-canvas",
+            "name": "Load Manifest Beginning with a Specific Canvas (start)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0219-using-caption-file",
+            "name": "Using Caption and Subtitle Files with Video Content",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "yes",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0229-behavior-ranges",
+            "name": "Adding Thumbnail Navigation and no-nav to a Video Resource",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0230-navdate",
+            "name": "Navigation by Chronology (navDate)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0234-provider",
+            "name": "Acknowledge Content Contributors (provider)",
+            "marks": {
+                "Mirador": "partial",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "partial",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0240-navPlace-on-canvases",
+            "name": "Locate Multiple Canvases on a Web Map",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "yes",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0258-tagging-external-resource",
+            "name": "Tagging with an External Resource",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0261-non-rectangular-commenting",
+            "name": "Annotation with a Non-Rectangular Polygon",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "yes",
+                "TIFY": "no",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0266-full-canvas-annotation",
+            "name": "Simplest Annotation",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0269-embedded-or-referenced-annotations",
+            "name": "Embedded or referenced Annotations",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0283-missing-image",
+            "name": "Missing Images in a Sequence",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "yes",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "yes",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0299-region",
+            "name": "Addressing a Spatial Region",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "yes"
+            }
+        },
+        {
+            "id": "0306-linking-annotations-to-manifests",
+            "name": "Linking external Annotations targeting a Canvas to a Manifest",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0309-annotation-collection",
+            "name": "Grouping Annotations into Collections",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0318-navPlace-navDate",
+            "name": "Locating an Item in Place and Time",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "yes",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "no",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0326-annotating-image-layer",
+            "name": "Annotate specific images or layers",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0346-multilingual-annotation-body",
+            "name": "Annotating in Multiple Languages",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0377-image-in-annotation",
+            "name": "Image in Annotations",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "yes",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "yes",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0434-choice-av",
+            "name": "Multiple Choice of Audio Formats in a Single View (Canvas)",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "yes",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0466-link-for-loading-manifest",
+            "name": "Sharing a link to open a Manifest in a specific viewer",
+            "marks": {
+                "Mirador": "yes",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "yes",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0485-contentstate-canvas-region",
+            "name": "Open a specific region of a Canvas in a viewer",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "yes",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0489-multimedia-canvas",
+            "name": "Rendering Multiple Media Types on a Time-Based Canvas",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0540-link-for-opening-multiple-canvases",
+            "name": "Sharing a link for opening two or more Canvases",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0599-drag-and-drop",
+            "name": "Drag and Drop",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "no",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0608-mvm-3d",
+            "name": "Simplest Manifest - Single 3D Model",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "no",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        }
+    ]
+}

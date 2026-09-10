@@ -41,6 +41,15 @@ export interface RendererPort {
      * about the viewport centre, which is what a toolbar button wants.
      */
     zoomBy(factor: number, anchor?: ViewportPoint): void;
+    /**
+     * Zoom smoothly for as long as a control is held — `1` in, `-1` out, `0` to
+     * stop — about the viewport centre.
+     *
+     * Continuous input, so it is written straight onto the viewport per frame
+     * with no easing, the path a drag takes. {@link zoomBy} is the discrete
+     * counterpart: one press, one step.
+     */
+    holdZoom(direction: number): void;
     /** Zoom to an absolute scale — screen pixels per canvas-space unit. */
     zoomTo(scale: number): void;
     /** Centre the viewport on a canvas-space point. */
@@ -49,6 +58,19 @@ export interface RendererPort {
     fitBounds(bounds: ViewportBox, canvasId?: string): void;
     /** Fit a whole canvas — the viewer's current one unless named. */
     fitCanvas(canvasId?: string): void;
+    /**
+     * Fit what the reader is **looking at**: the laid-out world, or in
+     * `continuous` the canvas their viewport is over. The `0`/`Home` path, and
+     * what a "fit to viewer" control in the chrome issues.
+     *
+     * Distinct from {@link fitCanvas}, which fits the canvas the VIEWER calls
+     * current. The two part company wherever those differ — in `paged`, where
+     * the world is a two-page spread and one canvas is half of it, and in
+     * `continuous` after a scroll, where fitting the current canvas would
+     * travel back to a folio the reader left behind. Refitting is a request not
+     * to travel, so this is the one a reset control wants.
+     */
+    fitView(): void;
 
     // ---- Queries ----------------------------------------------------------
 

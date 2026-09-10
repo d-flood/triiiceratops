@@ -1,0 +1,91 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/referenced/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Aleppo Codex, Deuteronomy page P. 2-5-v, 10th century"]
+    },
+    "summary": {
+        "en": [
+            "The canvas names an annotation page instead of carrying one, so the notes on it arrive in a second request."
+        ]
+    },
+    "items": [
+        {
+            "id": "/material/referenced/canvas/aleppo",
+            "type": "Canvas",
+            "label": {
+                "en": ["Aleppo Codex, Deuteronomy page P. 2-5-v, 10th century"]
+            },
+            "width": 3377,
+            "height": 3963,
+            "rights": "https://creativecommons.org/publicdomain/mark/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Aleppo Codex, Deuteronomy page P. 2-5-v, 10th century. Photograph: Ardon Bar Hama, 2007, Yad Yitzhak Ben-Zvi Institute. Via Wikimedia Commons."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "National Library of Israel / Yad Yitzhak Ben-Zvi Institute"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://commons.wikimedia.org/wiki/File:Aleppo_Codex_(Deut).jpg"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/referenced/page/aleppo",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/referenced/annotation/aleppo",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/aleppo/0,0,3377,3963/423,496/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 3377,
+                                "height": 3963,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/aleppo",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/referenced/canvas/aleppo"
+                        }
+                    ]
+                }
+            ],
+            "annotations": [
+                {
+                    "id": "/material/referenced/annotations.json",
+                    "type": "AnnotationPage"
+                }
+            ]
+        }
+    ]
+}

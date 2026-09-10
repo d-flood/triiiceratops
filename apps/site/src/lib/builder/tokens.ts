@@ -59,7 +59,7 @@ const CATEGORIES: readonly {
     {
         id: 'palette',
         title: 'Palette',
-        note: 'The brand colour and the state colours, each with the text that sits on it.',
+        note: 'The brand color and the state colors, each with the text that sits on it.',
         kind: 'colour',
         drop: ['color'],
     },
@@ -72,8 +72,8 @@ const CATEGORIES: readonly {
     },
     {
         id: 'content',
-        title: 'Content colours',
-        note: 'Text and icons. Each region follows the global content colour until you set it.',
+        title: 'Content colors',
+        note: 'Text and icons. Each region follows the global content color until you set it.',
         kind: 'colour',
         drop: [],
     },

@@ -30,7 +30,7 @@ export const MIN_LABEL_HEIGHT = 32;
  * TWO boxes, and the second one is what makes it perceptible rather than merely
  * present. `left`/`top`/`width`/`height` are the canvas's own layout rect, which
  * is what makes the treatment read as "this page" — but a reader may be zoomed a
- * long way into that canvas (the zoom ceiling is 128x home), and then the rect is
+ * long way into that canvas (the zoom ceiling lets a deep scan reach its own pixels), and then the rect is
  * far larger than the viewport: its border is off screen on every side and a
  * centred label is centred on a point nobody can see. A sighted reader is left
  * with a flat fill and no message, while the accessible name goes on being

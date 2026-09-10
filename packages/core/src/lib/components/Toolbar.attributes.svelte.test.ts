@@ -13,7 +13,7 @@ import type { ViewerConfig } from '../types/config';
  * Every action carries five things a reader depends on and no visual test would
  * catch if they drifted: the hover tooltip (`data-tip`), the accessible name
  * (`aria-label` — often NOT the same string), the pressed state, the
- * `menu-active` styling that must agree with it, and the tooltip placement class
+ * `is-active` styling that must agree with it, and the tooltip placement class
  * that points the bubble away from the viewer's edge. `data-panel-toggle` is a
  * sixth: it is how a closing panel finds the toggle to hand focus back to, so a
  * missing one silently drops focus to `<body>`.
@@ -158,7 +158,7 @@ function matrix() {
         tip: button.getAttribute('data-tip'),
         label: button.getAttribute('aria-label'),
         pressed: button.getAttribute('aria-pressed'),
-        active: button.classList.contains('menu-active'),
+        active: button.classList.contains('is-active'),
         indicator: button.classList.contains('indicator'),
         placement:
             [...button.classList].find((name) => name.startsWith('place-')) ??
@@ -209,7 +209,7 @@ function menuItems(flyoutId: string) {
         text: item.querySelector('span')?.textContent,
         glyph: glyphName(item),
         checked: item.getAttribute('aria-checked'),
-        active: item.classList.contains('menu-active'),
+        active: item.classList.contains('is-active'),
         // The trailing check mark, which is the visual half of `aria-checked`.
         check: item.querySelectorAll('svg').length === 2,
     }));
@@ -309,7 +309,7 @@ describe('Toolbar attribute matrix', () => {
                 label: 'Sequence',
                 indicator: true,
                 haspopup: 'menu',
-                menu: 'tri-flyout-sequence-picker',
+                menu: 'tri-flyout-sequence',
                 expanded: 'false',
                 flyoutToggle: true,
             }),
@@ -405,7 +405,7 @@ describe('Toolbar attribute matrix', () => {
                 label: 'Sequence',
                 indicator: true,
                 haspopup: 'menu',
-                menu: 'tri-flyout-sequence-picker',
+                menu: 'tri-flyout-sequence',
                 expanded: 'false',
                 flyoutToggle: true,
             }),
@@ -563,7 +563,7 @@ describe('Toolbar attribute matrix', () => {
         flushSync();
 
         expect(toggle.getAttribute('aria-expanded')).toBe('true');
-        expect(toggle.classList.contains('menu-active')).toBe(true);
+        expect(toggle.classList.contains('is-active')).toBe(true);
         expect(
             document
                 .querySelector('#tri-flyout-viewing-mode')
@@ -593,7 +593,7 @@ describe('Toolbar attribute matrix', () => {
             panelTabIndex: '-1',
             panelAnchor: 'position-anchor: --anchor-viewing-mode;',
             dismissible: true,
-            classes: 'menu menu-flyout popover-menu right',
+            classes: 'menu-flyout right tri-menu tri-menu-surface',
         });
         expect(flyoutShell('gallery')).toEqual({
             toggleLabel: 'Gallery',
@@ -604,20 +604,20 @@ describe('Toolbar attribute matrix', () => {
             panelTabIndex: '-1',
             panelAnchor: 'position-anchor: --anchor-gallery;',
             dismissible: true,
-            classes: 'menu menu-flyout popover-menu right',
+            classes: 'menu-flyout right tri-menu tri-menu-surface',
         });
         // The sequence picker is the one menu with a count badge, and one of the
         // two whose long labels need the wide panel.
-        expect(flyoutShell('sequence-picker')).toEqual({
+        expect(flyoutShell('sequence')).toEqual({
             toggleLabel: 'Sequence',
-            toggleAnchor: 'anchor-name: --anchor-sequence-picker;',
+            toggleAnchor: 'anchor-name: --anchor-sequence;',
             badge: '2',
             panelLabel: 'Sequence',
             panelRole: 'menu',
             panelTabIndex: '-1',
-            panelAnchor: 'position-anchor: --anchor-sequence-picker;',
+            panelAnchor: 'position-anchor: --anchor-sequence;',
             dismissible: true,
-            classes: 'menu menu-flyout popover-menu right wide',
+            classes: 'menu-flyout right tri-menu tri-menu-surface wide',
         });
     });
 
@@ -632,11 +632,11 @@ describe('Toolbar attribute matrix', () => {
         expect([
             flyoutShell('viewing-mode').classes,
             flyoutShell('gallery').classes,
-            flyoutShell('sequence-picker').classes,
+            flyoutShell('sequence').classes,
         ]).toEqual([
-            'down menu menu-flyout popover-menu',
-            'down menu menu-flyout popover-menu',
-            'down menu menu-flyout popover-menu wide',
+            'down menu-flyout tri-menu tri-menu-surface',
+            'down menu-flyout tri-menu tri-menu-surface',
+            'down menu-flyout tri-menu tri-menu-surface wide',
         ]);
     });
 
@@ -646,15 +646,15 @@ describe('Toolbar attribute matrix', () => {
      */
     it('caps the sequence count badge at 99+ without capping the menu', async () => {
         await mountToolbar({}, 100);
-        expect(flyoutShell('sequence-picker').badge).toBe('99+');
-        expect(menuItems('tri-flyout-sequence-picker')).toHaveLength(100);
+        expect(flyoutShell('sequence').badge).toBe('99+');
+        expect(menuItems('tri-flyout-sequence')).toHaveLength(100);
 
         await unmount(mounted!);
         mounted = null;
         document.body.innerHTML = '';
 
         await mountToolbar({}, 99);
-        expect(flyoutShell('sequence-picker').badge).toBe('99');
+        expect(flyoutShell('sequence').badge).toBe('99');
     });
 
     it('renders one radio item per viewing mode, checked from the current mode', async () => {
@@ -742,7 +742,7 @@ describe('Toolbar attribute matrix', () => {
     it('names every sequence in the sequence picker', async () => {
         const viewerState = await mountToolbar();
 
-        expect(menuItems('tri-flyout-sequence-picker')).toEqual([
+        expect(menuItems('tri-flyout-sequence')).toEqual([
             {
                 role: 'menuitemradio',
                 text: 'Sequence 1',
@@ -765,7 +765,7 @@ describe('Toolbar attribute matrix', () => {
         flushSync();
 
         expect(
-            menuItems('tri-flyout-sequence-picker').map((item) => item.checked),
+            menuItems('tri-flyout-sequence').map((item) => item.checked),
         ).toEqual(['false', 'true']);
     });
 

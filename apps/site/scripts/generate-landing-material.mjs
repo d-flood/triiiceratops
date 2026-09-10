@@ -279,7 +279,7 @@ try {
                 type: 'Manifest',
                 label: language('Public-domain visual study set'),
                 summary: language(
-                    'Eleven locally served IIIF Image API tile pyramids selected to demonstrate colour, line, material texture, and deep zoom. The Urbano Monte composite is the sole exception to the public-domain/CC0 set and is made available under CC BY-NC-SA 3.0.',
+                    'Eleven locally served IIIF Image API tile pyramids selected to demonstrate color, line, material texture, and deep zoom. The Urbano Monte composite is the sole exception to the public-domain/CC0 set and is made available under CC BY-NC-SA 3.0.',
                 ),
                 metadata: [
                     {

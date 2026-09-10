@@ -1,37 +1,46 @@
 /**
- * The **stage layout**: how a claimed canvas's rect is divided into lanes.
+ * The **stage layout**: what the plugin puts in a claimed canvas's rect, and
+ * what the container leaves showing of it.
  *
- * A division of the SAME rect, in canvas space, so the whole stack pans and
- * zooms with the canvas it belongs to. That is what separates it from the
- * transport, which is anchored to the rect but sized in screen pixels.
+ * At most ONE thing, filling the whole rect. The rect is the canvas's
+ * projection — canvas space, where annotation geometry is persisted — so
+ * everything in it is content and is measured in the manifest's own
+ * coordinates. A timeline is chrome, and chrome is screen-anchored: that is why
+ * a waveform on a canvas whose rect is already spoken for reaches the reader
+ * through the control bar's scrubber instead of through this module.
  *
- * Pure arithmetic, deliberately: a lane split is the thing a test can state
- * exactly, and the stage's job is only to write the numbers onto elements.
+ * Pure arithmetic, deliberately: the stage's job is only to write the numbers
+ * onto elements.
  */
 
 import type { StageRect } from './mediaStage';
 
 /**
- * Which lanes a canvas gets, chosen by **what core paints in this rect**:
+ * What the stage does with a canvas's rect, chosen by **what core paints in
+ * it**:
  *
- * - `video` — core paints nothing and the picture is the element, so the visual
- *   lane fills the rect. Waveform data on video appears inside the scrubber.
+ * - `video` — core paints nothing and the picture is the element, so the media
+ *   element fills the rect. Waveform data on video appears in the scrubber.
  * - `audio-with-image` — core paints a companion Canvas here, so the plugin
- *   draws no lanes at all: the rect belongs to the renderer, and the stage
+ *   puts nothing in the rect at all: it belongs to the renderer, and the stage
  *   contributes only a tap target, the glyph and the "can't play" notice.
- * - `audio` — nothing to look at either way, so the timeline lane fills the
- *   rect and carries the waveform.
+ *   Waveform data appears in the scrubber, as it does for video.
+ * - `audio` — nothing to look at either way, and no declared dimensions to
+ *   protect, so the timeline fills the rect and carries the waveform.
  */
 export type StageLayoutKind = 'video' | 'audio' | 'audio-with-image';
 
 /**
- * The lanes of one stage, in the coordinate space the rect was given in.
- * A `null` lane is one this layout does not have — not a hidden one.
+ * Which of the stage's two content elements fills the rect, if either does.
+ *
+ * An alternative, never a split. The rect once WAS divided — this layout's
+ * `audio-with-image` gave a quarter of it to a timeline strip — and that ended
+ * when the transport moved into core's control bar. Nothing has divided it
+ * since, and nothing should: carving a band out of the rect would shrink the
+ * picture inside its own canvas coordinates and misplace every spatial
+ * annotation on it.
  */
-export interface StageLanes {
-    readonly visual: StageRect | null;
-    readonly timeline: StageRect | null;
-}
+export type StageFill = 'visual' | 'timeline' | 'none';
 
 /**
  * Which layout a scanned canvas gets.
@@ -52,18 +61,16 @@ export function stageLayoutKind(
 }
 
 /**
- * Divide a rect into its lanes.
+ * What fills the rect under this layout.
  *
- * A canvas core paints a companion into gets none: whatever the plugin drew
- * there would sit above the renderer's canvas (`z-index: 40`) and hide it.
+ * Takes no rect, because the answer never depends on one: whatever fills the
+ * rect fills all of it. A canvas core paints a companion into is filled by
+ * neither — anything the plugin drew there would sit above the renderer's
+ * canvas (`z-index: 40`) and hide the picture.
  */
-export function stageLanes(
-    rect: StageRect,
-    layout: StageLayoutKind,
-): StageLanes {
-    if (layout === 'video') return { visual: rect, timeline: null };
-    if (layout === 'audio') return { visual: null, timeline: rect };
-    return { visual: null, timeline: null };
+export function stageFill(layout: StageLayoutKind): StageFill {
+    if (layout === 'video') return 'visual';
+    return layout === 'audio' ? 'timeline' : 'none';
 }
 
 /** What the overlay container's box leaves showing of a projected rect. */
@@ -86,8 +93,9 @@ export interface StageClip {
  * unclipped audio lane, which fills its whole rect, reaches out over the side
  * columns and swallows taps aimed at the toolbar and the panels there.
  *
- * `clip-path` rather than a smaller box: the box IS the projection (the lanes
- * divide the canvas, and the waveform's geometry is measured against it), and
+ * `clip-path` rather than a smaller box: the box IS the projection (whatever
+ * fills it fills the canvas, and the waveform's geometry is measured against
+ * it), and
  * clipping takes the overhang out of hit testing as well as out of the picture,
  * which shrinking the box would only do by restretching the layout. So the
  * answer is the four insets — the clipped rect was only ever an intermediate on

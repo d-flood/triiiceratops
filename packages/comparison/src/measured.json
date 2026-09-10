@@ -1,5 +1,5 @@
 {
-    "measuredAt": "2026-08-21",
+    "measuredAt": "2026-09-08",
     "compression": {
         "gzipLevel": 9,
         "brotliQuality": 11
@@ -17,21 +17,21 @@
             "sessions": [
                 {
                     "kind": "image",
-                    "raw": 387450,
-                    "gzip": 113888,
-                    "brotli": 95317,
+                    "raw": 394932,
+                    "gzip": 117542,
+                    "brotli": 98867,
                     "files": [
                         {
                             "url": "packages/core/dist/triiiceratops-element.iife.js",
                             "name": "triiiceratops-element.iife.js",
-                            "raw": 387450,
-                            "gzip": 113888,
-                            "brotli": 95317
+                            "raw": 394932,
+                            "gzip": 117542,
+                            "brotli": 98867
                         }
                     ]
                 }
             ],
-            "note": "The whole viewer in one file, with its CSS injected into the shadow root \u2014 the official plain-HTML embed."
+            "note": "The whole viewer in one file, with its CSS injected into the shadow root — the official plain-HTML embed."
         },
         {
             "id": "triiiceratops-av",
@@ -41,45 +41,45 @@
             "sessions": [
                 {
                     "kind": "image",
-                    "raw": 428311,
-                    "gzip": 129383,
-                    "brotli": 109132,
+                    "raw": 435222,
+                    "gzip": 132779,
+                    "brotli": 112474,
                     "files": [
                         {
                             "url": "packages/core/dist/triiiceratops-element.iife.js",
                             "name": "triiiceratops-element.iife.js",
-                            "raw": 387450,
-                            "gzip": 113888,
-                            "brotli": 95317
+                            "raw": 394932,
+                            "gzip": 117542,
+                            "brotli": 98867
                         },
                         {
                             "url": "packages/plugin-av/dist/iife.js",
                             "name": "iife.js",
-                            "raw": 40861,
-                            "gzip": 15495,
-                            "brotli": 13815
+                            "raw": 40290,
+                            "gzip": 15237,
+                            "brotli": 13607
                         }
                     ]
                 },
                 {
                     "kind": "audiovisual",
-                    "raw": 428311,
-                    "gzip": 129383,
-                    "brotli": 109132,
+                    "raw": 435222,
+                    "gzip": 132779,
+                    "brotli": 112474,
                     "files": [
                         {
                             "url": "packages/core/dist/triiiceratops-element.iife.js",
                             "name": "triiiceratops-element.iife.js",
-                            "raw": 387450,
-                            "gzip": 113888,
-                            "brotli": 95317
+                            "raw": 394932,
+                            "gzip": 117542,
+                            "brotli": 98867
                         },
                         {
                             "url": "packages/plugin-av/dist/iife.js",
                             "name": "iife.js",
-                            "raw": 40861,
-                            "gzip": 15495,
-                            "brotli": 13815
+                            "raw": 40290,
+                            "gzip": 15237,
+                            "brotli": 13607
                         }
                     ]
                 }
@@ -88,30 +88,30 @@
                 {
                     "url": "packages/plugin-av/dist/av-hls.js",
                     "name": "av-hls.js",
-                    "raw": 856596,
-                    "gzip": 223530,
-                    "brotli": 178449
+                    "raw": 581982,
+                    "gzip": 177990,
+                    "brotli": 145680
                 },
                 {
                     "url": "packages/plugin-av/dist/av-transcript.js",
                     "name": "av-transcript.js",
-                    "raw": 9172,
-                    "gzip": 3216,
-                    "brotli": 2804
+                    "raw": 6933,
+                    "gzip": 2666,
+                    "brotli": 2323
                 },
                 {
-                    "url": "packages/plugin-av/dist/av-waveform.js",
-                    "name": "av-waveform.js",
-                    "raw": 6569,
-                    "gzip": 2584,
-                    "brotli": 2292
+                    "url": "packages/plugin-av/dist/av-timeline.js",
+                    "name": "av-timeline.js",
+                    "raw": 6880,
+                    "gzip": 2857,
+                    "brotli": 2590
                 },
                 {
                     "url": "packages/plugin-av/dist/av-sequencer.js",
                     "name": "av-sequencer.js",
-                    "raw": 5506,
-                    "gzip": 2094,
-                    "brotli": 1869
+                    "raw": 3984,
+                    "gzip": 1805,
+                    "brotli": 1613
                 }
             ],
             "note": "The same element file plus the audiovisual plugin. This is the like-for-like row against the viewers below that play time-based media."
@@ -170,37 +170,6 @@
             "note": "The CDN embed its README documents: one script and one stylesheet."
         },
         {
-            "id": "diva",
-            "name": "Diva.js",
-            "version": "7.4.0",
-            "isSelf": false,
-            "sessions": [
-                {
-                    "kind": "image",
-                    "raw": 643863,
-                    "gzip": 173784,
-                    "brotli": 144601,
-                    "files": [
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/openseadragon@6.0.2/build/openseadragon/openseadragon.min.js",
-                            "name": "openseadragon.min.js",
-                            "raw": 345310,
-                            "gzip": 85265,
-                            "brotli": 71095
-                        },
-                        {
-                            "url": "https://unpkg.com/diva.js@7.4.0/build/diva.js",
-                            "name": "diva.js",
-                            "raw": 298553,
-                            "gzip": 88519,
-                            "brotli": 73506
-                        }
-                    ]
-                }
-            ],
-            "note": "Diva.js plus the OpenSeadragon its README tells a page to load first. All its CSS and image assets are bundled into the library."
-        },
-        {
             "id": "canvas-panel",
             "name": "Canvas Panel",
             "version": "1.0.74",
@@ -252,262 +221,6 @@
                 }
             ],
             "note": "The web-component bundle and its stylesheet."
-        },
-        {
-            "id": "mango",
-            "name": "Mango",
-            "version": "0.4.2",
-            "isSelf": false,
-            "sessions": [
-                {
-                    "kind": "image",
-                    "raw": 1717644,
-                    "gzip": 413541,
-                    "brotli": 336305,
-                    "files": [
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/Icon-Cvpo4WK3.js",
-                            "name": "Icon-Cvpo4WK3.js",
-                            "raw": 1833,
-                            "gzip": 977,
-                            "brotli": 859
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/ImageRenderer-CgawZbSj.js",
-                            "name": "ImageRenderer-CgawZbSj.js",
-                            "raw": 27518,
-                            "gzip": 8098,
-                            "brotli": 7061
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/PanelCloseButton-D7-jQK2k.js",
-                            "name": "PanelCloseButton-D7-jQK2k.js",
-                            "raw": 2276,
-                            "gzip": 1187,
-                            "brotli": 1035
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/annotationResolver-CWDG2HN2.js",
-                            "name": "annotationResolver-CWDG2HN2.js",
-                            "raw": 2967,
-                            "gzip": 1101,
-                            "brotli": 973
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/canonical-BMXBiIH5.js",
-                            "name": "canonical-BMXBiIH5.js",
-                            "raw": 78336,
-                            "gzip": 21568,
-                            "brotli": 18754
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/chapterTransitionOrchestrator-wIpbH9_G.js",
-                            "name": "chapterTransitionOrchestrator-wIpbH9_G.js",
-                            "raw": 208055,
-                            "gzip": 47623,
-                            "brotli": 40699
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/chunk-CIAQZ2EB-DqSS9hwI.js",
-                            "name": "chunk-CIAQZ2EB-DqSS9hwI.js",
-                            "raw": 33542,
-                            "gzip": 10290,
-                            "brotli": 9123
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/client-Cm8_y0us.js",
-                            "name": "client-Cm8_y0us.js",
-                            "raw": 83490,
-                            "gzip": 25147,
-                            "brotli": 22384
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/diagnostics-BfIxNtb_.js",
-                            "name": "diagnostics-BfIxNtb_.js",
-                            "raw": 1929,
-                            "gzip": 864,
-                            "brotli": 748
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/i18n-_7zXmz2A.js",
-                            "name": "i18n-_7zXmz2A.js",
-                            "raw": 218420,
-                            "gzip": 64428,
-                            "brotli": 45674
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/languages-lftQejiG.js",
-                            "name": "languages-lftQejiG.js",
-                            "raw": 912,
-                            "gzip": 557,
-                            "brotli": 490
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/mango-viewer-element.js",
-                            "name": "mango-viewer-element.js",
-                            "raw": 626362,
-                            "gzip": 135344,
-                            "brotli": 110100
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/openseadragon-CcFUb5Ax.js",
-                            "name": "openseadragon-CcFUb5Ax.js",
-                            "raw": 428744,
-                            "gzip": 94601,
-                            "brotli": 76818
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/rectangleLabelLayout-DXE16e7J.js",
-                            "name": "rectangleLabelLayout-DXE16e7J.js",
-                            "raw": 1866,
-                            "gzip": 903,
-                            "brotli": 802
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/rolldown-runtime-B0aSnxlc.js",
-                            "name": "rolldown-runtime-B0aSnxlc.js",
-                            "raw": 951,
-                            "gzip": 528,
-                            "brotli": 476
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/x-CW6F0VwH.js",
-                            "name": "x-CW6F0VwH.js",
-                            "raw": 443,
-                            "gzip": 325,
-                            "brotli": 309
-                        }
-                    ]
-                },
-                {
-                    "kind": "audiovisual",
-                    "raw": 1494951,
-                    "gzip": 364582,
-                    "brotli": 296585,
-                    "files": [
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/AVRenderer-D53voMUH.js",
-                            "name": "AVRenderer-D53voMUH.js",
-                            "raw": 25552,
-                            "gzip": 8084,
-                            "brotli": 7131
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/Icon-Cvpo4WK3.js",
-                            "name": "Icon-Cvpo4WK3.js",
-                            "raw": 1833,
-                            "gzip": 977,
-                            "brotli": 859
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/PanelCloseButton-D7-jQK2k.js",
-                            "name": "PanelCloseButton-D7-jQK2k.js",
-                            "raw": 2276,
-                            "gzip": 1187,
-                            "brotli": 1035
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/annotationResolver-CWDG2HN2.js",
-                            "name": "annotationResolver-CWDG2HN2.js",
-                            "raw": 2967,
-                            "gzip": 1101,
-                            "brotli": 973
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/canonical-BMXBiIH5.js",
-                            "name": "canonical-BMXBiIH5.js",
-                            "raw": 78336,
-                            "gzip": 21568,
-                            "brotli": 18754
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/chapterTransitionOrchestrator-wIpbH9_G.js",
-                            "name": "chapterTransitionOrchestrator-wIpbH9_G.js",
-                            "raw": 208055,
-                            "gzip": 47623,
-                            "brotli": 40699
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/chunk-CIAQZ2EB-DqSS9hwI.js",
-                            "name": "chunk-CIAQZ2EB-DqSS9hwI.js",
-                            "raw": 33542,
-                            "gzip": 10290,
-                            "brotli": 9123
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/client-Cm8_y0us.js",
-                            "name": "client-Cm8_y0us.js",
-                            "raw": 83490,
-                            "gzip": 25147,
-                            "brotli": 22384
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/diagnostics-BfIxNtb_.js",
-                            "name": "diagnostics-BfIxNtb_.js",
-                            "raw": 1929,
-                            "gzip": 864,
-                            "brotli": 748
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/dist-WuoOL2vb.js",
-                            "name": "dist-WuoOL2vb.js",
-                            "raw": 204528,
-                            "gzip": 44523,
-                            "brotli": 36097
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/i18n-BAnagCyi.js",
-                            "name": "i18n-BAnagCyi.js",
-                            "raw": 3489,
-                            "gzip": 1133,
-                            "brotli": 931
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/i18n-_7zXmz2A.js",
-                            "name": "i18n-_7zXmz2A.js",
-                            "raw": 218420,
-                            "gzip": 64428,
-                            "brotli": 45674
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/languages-lftQejiG.js",
-                            "name": "languages-lftQejiG.js",
-                            "raw": 912,
-                            "gzip": 557,
-                            "brotli": 490
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/mango-viewer-element.js",
-                            "name": "mango-viewer-element.js",
-                            "raw": 626362,
-                            "gzip": 135344,
-                            "brotli": 110100
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/rectangleLabelLayout-DXE16e7J.js",
-                            "name": "rectangleLabelLayout-DXE16e7J.js",
-                            "raw": 1866,
-                            "gzip": 903,
-                            "brotli": 802
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/rolldown-runtime-B0aSnxlc.js",
-                            "name": "rolldown-runtime-B0aSnxlc.js",
-                            "raw": 951,
-                            "gzip": 528,
-                            "brotli": 476
-                        },
-                        {
-                            "url": "https://cdn.jsdelivr.net/npm/@mango-iiif/iiif-viewer@0.4.2/src/dist/x-CW6F0VwH.js",
-                            "name": "x-CW6F0VwH.js",
-                            "raw": 443,
-                            "gzip": 325,
-                            "brotli": 309
-                        }
-                    ]
-                }
-            ],
-            "note": "The element module its README's standalone embed resolves to, plus every chunk the session fetched. It injects its styles from JavaScript, so there is no stylesheet. The version-pinned bare package URL is served as a file rather than redirected, which leaves the module's own relative chunk imports unresolvable, so the embed names the resolved path."
         },
         {
             "id": "universal-viewer",

@@ -95,30 +95,42 @@
 }
 
 /*
-    The waveform. Decorative pixels over a lane that already carries the seek
-    (ADR 0016), and clipped to the visible area rather than sized to the whole
-    projected lane — see waveform/surface.ts. Its geometry is written per frame.
+    The lane's drawings: the ruler every bare audio canvas gets, and the
+    waveform that replaces it where the canvas links peaks. Both are decorative
+    pixels over a lane that already carries the seek (ADR 0016), and both are
+    clipped to the visible area rather than sized to the whole projected lane —
+    see lane.ts. Geometry is written per frame.
 
     Deliberately no pointer-events declaration: the lane hands a drag down to
     the renderer by going transparent for one hit test, and an "auto" here would
     defeat it.
 */
+.tri-av-ruler,
 .tri-av-waveform {
     position: absolute;
     display: block;
 }
+.tri-av-ruler[hidden],
 .tri-av-waveform[hidden] {
     display: none;
 }
 
-.tri-av-media {
+/*
+    Scoped under the stage rather than written as a bare class, for specificity
+    alone: core's preflight is published scoped to its root, so `img, video {
+    height: auto }` arrives as `.viewer-root video` and outweighs a
+    single-class rule here. Losing that fight collapses the element to the UA's
+    default 150px and leaves the rest of the visual lane showing the stage's
+    black ground under the picture.
+*/
+.tri-av-stage .tri-av-media {
     width: 100%;
     height: 100%;
     object-fit: contain;
     display: block;
     background: #000;
 }
-.tri-av-media[hidden] {
+.tri-av-stage .tri-av-media[hidden] {
     display: none;
 }
 

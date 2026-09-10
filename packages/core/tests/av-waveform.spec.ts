@@ -15,7 +15,8 @@
  * - **The playhead is painted each frame**, so the surface changes during
  *   playback and not otherwise.
  * - **A video canvas gets the scrubber strip**, which is how waveform data
- *   reaches a layout with no timeline lane.
+ *   reaches a layout with no timeline lane — and so does a sound canvas
+ *   published with cover art, which is the same layout by a different route.
  * - **A manifest that links no waveform data fetches none.**
  *
  * Both artifacts are the BUILT ones a consumer loads — `pnpm build:all` (or
@@ -25,7 +26,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { serveAvPluginDist } from './helpers/avPluginDist';
-import { settledBox } from './helpers/settle';
+import { settled, settledBox } from './helpers/settle';
 import {
     AV_MANIFESTS,
     BARS_MP4,
@@ -181,6 +182,71 @@ async function zoomTo(page: Page, scale: number): Promise<void> {
     }, scale);
 }
 
+/**
+ * Move the viewport centre in canvas space. A `null` axis keeps the centre
+ * where it already is, read back through `screenToCanvas` — which is what makes
+ * "pan vertically and only vertically" expressible without guessing the x a
+ * zoom happened to leave behind.
+ */
+async function panTo(
+    page: Page,
+    x: number | null,
+    y: number | null,
+): Promise<void> {
+    // The surface's own box, measured through a locator: it lives in the
+    // element's shadow root, which `page.evaluate` cannot query into.
+    const box = await page.locator(SURFACE).boundingBox();
+    if (!box) throw new Error('no renderer surface');
+
+    await page.evaluate(
+        (to) => {
+            const host = document.getElementById('v') as unknown as {
+                viewerState: {
+                    panTo(point: { x: number; y: number }): void;
+                    screenToCanvas(point: { x: number; y: number }): {
+                        x: number;
+                        y: number;
+                    } | null;
+                };
+            };
+            // `screenToCanvas` takes a point WITHIN the viewport element, so
+            // the surface's own midpoint is the current centre.
+            const centre = host.viewerState.screenToCanvas({
+                x: to.width / 2,
+                y: to.height / 2,
+            });
+            if (!centre) return;
+            host.viewerState.panTo({
+                x: to.x ?? centre.x,
+                y: to.y ?? centre.y,
+            });
+        },
+        { x, y, width: box.width, height: box.height },
+    );
+}
+
+/**
+ * The drawn range, once it has stopped moving.
+ *
+ * Every viewport change here eases (CONTEXT.md — the opening fit and every
+ * programmatic zoom are animated), and the surface is rewritten per frame while
+ * it does. The BOX settles long before the scale does, because past the fit the
+ * lane is clipped to the container and stops changing size, so settling the box
+ * is not enough to settle the window it draws.
+ */
+async function settledRange(
+    page: Page,
+): Promise<{ start: number; end: number }> {
+    return await settled(page, async (p) => {
+        const range = await drawnRange(p);
+        if (!range) throw new Error('no drawn range');
+        return {
+            start: Number(range.start.toFixed(3)),
+            end: Number(range.end.toFixed(3)),
+        };
+    });
+}
+
 /** The time range one waveform surface is currently drawing, in seconds. */
 async function drawnRange(
     page: Page,
@@ -270,6 +336,75 @@ test.describe('av waveform — linked peaks fill the timeline lane', () => {
         // Sharper by a wide margin, and still a real window rather than nothing.
         expect(zoomed).toBeLessThan(whole / 2);
         expect(zoomed).toBeGreaterThan(0);
+    });
+
+    test('opens as a lane: the whole recording, filling the viewer top to bottom', async ({
+        page,
+    }) => {
+        // A manifest whose only canvas is a recording has no vertical axis to
+        // look along, so its rect takes the SURFACE's shape and the fit lands on
+        // the whole of it (`planScene.laneWorld`). What the reader gets is a
+        // timeline: the entire recording across the full width, full height.
+        await openViewer(page, AV_MANIFESTS.waveform);
+        await expect(page.locator(WAVEFORM).first()).toBeVisible({
+            timeout: 30_000,
+        });
+
+        const surface = await settledBox(page, SURFACE);
+        const lane = await settledBox(page, WAVEFORM);
+
+        expect(lane.height).toBeCloseTo(surface.height, 0);
+        expect(lane.width).toBeCloseTo(surface.width, 0);
+
+        const whole = await drawnRange(page);
+        expect(whole?.start).toBeCloseTo(0, 1);
+        expect(whole?.end).toBeCloseTo(TONE_DURATION, 1);
+    });
+
+    test('a lane cannot be zoomed out of, nor panned off vertically', async ({
+        page,
+    }) => {
+        await openViewer(page, AV_MANIFESTS.waveform);
+        await expect(page.locator(WAVEFORM).first()).toBeVisible({
+            timeout: 30_000,
+        });
+
+        // The opening view is the reference for every reading below: the lane
+        // fills the container at the fit (asserted against the renderer's own
+        // surface in the test above), so "unchanged from home" is "still filling
+        // the viewer" without re-deriving the container's box.
+        const home = await settledBox(page, WAVEFORM);
+
+        // The floor is the fit itself rather than half of it: there is nothing
+        // else in this world to reveal by shrinking the timeline away from the
+        // edges. A scale far below it is clamped back to the opening view.
+        await zoomTo(page, 0.001);
+        const floored = await settledBox(page, WAVEFORM);
+        expect(floored).toEqual(home);
+
+        // Zoomed in, the rect overhangs top and bottom — and the centre is
+        // pinned, so what the reader sees is still the full height. Only the
+        // time window narrows.
+        await zoomTo(page, 8);
+        const before = await settledRange(page);
+        const zoomed = await settledBox(page, WAVEFORM);
+        expect(zoomed.height).toBeCloseTo(home.height, 0);
+        expect(zoomed.y).toBeCloseTo(home.y, 0);
+        expect(before.end - before.start).toBeLessThan(TONE_DURATION / 2);
+
+        // A vertical pan has nowhere to go: the centre is pinned, so neither the
+        // box nor the window it draws moves. Far outside the rect, so nothing
+        // but the pin could be holding it.
+        await panTo(page, null, -4000);
+        const afterVertical = await settledBox(page, WAVEFORM);
+        expect(afterVertical.y).toBeCloseTo(home.y, 0);
+        expect(afterVertical.height).toBeCloseTo(home.height, 0);
+        expect(await settledRange(page)).toEqual(before);
+
+        // A horizontal one does, and moving the window is the whole point of
+        // having zoomed in.
+        await panTo(page, 900, null);
+        expect((await settledRange(page)).start).toBeGreaterThan(before.start);
     });
 
     test('still seeks from the lane, with a drawing surface nested in it', async ({
@@ -376,6 +511,35 @@ test.describe('av waveform — linked peaks fill the timeline lane', () => {
         expect(
             await strip.evaluate((el) => getComputedStyle(el).backgroundImage),
         ).toContain('data:image/png');
+    });
+
+    test('gives a cover-art canvas a scrubber strip and no timeline lane', async ({
+        page,
+    }) => {
+        // All three on ONE canvas: the recording, an `accompanyingCanvas` core
+        // paints in the rect, and linked waveform data. The companion is what
+        // decides where the peaks go — the rect belongs to the renderer, so the
+        // stage draws no lanes and the waveform reaches the reader through the
+        // transport, exactly as it does on video.
+        await openViewer(page, AV_MANIFESTS.cover);
+
+        await expect(page.locator(TIMELINE_LANE)).toBeHidden();
+        await expect(page.locator(WAVEFORM)).toHaveCount(0);
+
+        const strip = page.locator(PEAKS_STRIP);
+        await expect(strip).toHaveCount(1, { timeout: 30_000 });
+        expect(
+            await strip.evaluate((el) => getComputedStyle(el).backgroundImage),
+        ).toContain('data:image/png');
+
+        // And the cover is core's to paint, so the canvas took the companion's
+        // real dimensions rather than the duration-only rung: it is not a lane
+        // world, and zoom and pan are an image's, not a timeline's.
+        const media = page.locator(MEDIA).first();
+        await expect(media).toHaveCount(1);
+        expect(
+            await media.evaluate((el) => (el as HTMLMediaElement).duration > 0),
+        ).toBe(true);
     });
 
     test('fetches no waveform data for a manifest that links none', async ({

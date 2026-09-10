@@ -1,0 +1,133 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/tags/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": [
+            "Anna Atkins, Dictyota dichotoma, in the young state and in fruit, 1843-53"
+        ]
+    },
+    "summary": {
+        "en": [
+            "Three annotations on one sheet, none of them anchored to a region: a note, and two tags."
+        ]
+    },
+    "items": [
+        {
+            "id": "/material/tags/canvas/atkins",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Anna Atkins, Dictyota dichotoma, in the young state and in fruit, 1843-53"
+                ]
+            },
+            "width": 3266,
+            "height": 4000,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Anna Atkins, Dictyota dichotoma, in the young state and in fruit, 1843-53, The Metropolitan Museum of Art, 2005.100.557 (18)."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["The Metropolitan Museum of Art, object 291515"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.metmuseum.org/art/collection/search/291515"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/tags/page/atkins",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/tags/annotation/atkins",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/atkins/0,0,3266,4000/409,500/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 3266,
+                                "height": 4000,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/atkins",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/tags/canvas/atkins"
+                        }
+                    ]
+                }
+            ],
+            "annotations": [
+                {
+                    "id": "/material/tags/annotation-page/atkins",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/tags/annotation/note",
+                            "type": "Annotation",
+                            "motivation": "commenting",
+                            "body": {
+                                "type": "TextualBody",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "A photogram, not a photograph: the alga was laid on sensitised paper and printed by sunlight, so the white shape is where the specimen itself lay."
+                            },
+                            "target": "/material/tags/canvas/atkins"
+                        },
+                        {
+                            "id": "/material/tags/annotation/tag-cyanotype",
+                            "type": "Annotation",
+                            "motivation": "tagging",
+                            "body": {
+                                "type": "TextualBody",
+                                "purpose": "tagging",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "Cyanotype"
+                            },
+                            "target": "/material/tags/canvas/atkins"
+                        },
+                        {
+                            "id": "/material/tags/annotation/tag-dictyota",
+                            "type": "Annotation",
+                            "motivation": "tagging",
+                            "body": {
+                                "type": "TextualBody",
+                                "purpose": "tagging",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "Dictyota dichotoma"
+                            },
+                            "target": "/material/tags/canvas/atkins"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

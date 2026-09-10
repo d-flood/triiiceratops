@@ -91,6 +91,11 @@ export const AV_MANIFESTS = {
     composedCaptions: '/media/manifests/av-composed-captions.json',
     /** One canvas, a Choice of three renditions whose first is unplayable. */
     choice: '/media/manifests/av-choice.json',
+    /**
+     * One Sound canvas carrying cover art AND waveform data — the combination
+     * that decides which surface the peaks are drawn on.
+     */
+    cover: '/media/manifests/av-cover.json',
 } as const;
 
 /** The Choice fixture's canvas, and the three renditions it offers. */

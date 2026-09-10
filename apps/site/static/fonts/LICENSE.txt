@@ -7,7 +7,7 @@ Beside each of them sit two derived files, `-Latin.woff2` and `-LatinExt.woff2`,
 which carry the same face narrowed to a range of codepoints so that a page of
 western text downloads less of it. They are derived from the committed
 originals in this directory by `node scripts/subset-fonts.mjs`, which anyone can
-re-run to reproduce them, and they are covered by this same licence.
+re-run to reproduce them, and they are covered by this same license.
 
 Two facts about them, stated plainly rather than characterised. The derived
 files keep the upstream name records unchanged, and each is served under the

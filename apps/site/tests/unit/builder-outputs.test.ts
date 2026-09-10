@@ -24,6 +24,7 @@ import {
     snippet,
     type FrameworkId,
 } from '../../src/lib/builder/outputs';
+import { BUILDER_PLUGINS } from '../../src/lib/builder/plugins';
 
 /** Every code block of a documentation page, as text. */
 function codeBlocks(slug: string): string[] {
@@ -98,12 +99,22 @@ function frameworkTabLabels(slug: string): string[][] {
 
 const MANIFEST = 'https://example.org/iiif/manifest.json';
 
-const nothing = { manifestId: MANIFEST, config: {}, themeConfig: {} };
-const something = {
+const nothing = {
     manifestId: MANIFEST,
+    config: {},
+    themeConfig: {},
+    plugins: [],
+};
+const something = {
+    ...nothing,
     config: { gallery: { open: true }, toolbar: { showSearch: false } },
     themeConfig: { primary: '#123456' },
 };
+
+/** One plugin, and the two of them, to check the list as well as the flag. */
+const [FIRST, SECOND] = BUILDER_PLUGINS;
+const withOne = { ...something, plugins: [FIRST] };
+const withTwo = { ...something, plugins: [FIRST, SECOND] };
 
 const ids = FRAMEWORKS.map((framework) => framework.id);
 
@@ -165,6 +176,7 @@ describe('every snippet', () => {
             const text = snippet(id, nothing);
             expect(text).not.toContain('config');
             expect(text).not.toContain('themeConfig');
+            expect(text).not.toContain('plugins');
             expect(text).toContain(MANIFEST);
         }
     });
@@ -208,6 +220,75 @@ describe('the custom-element snippet', () => {
         });
         expect(text).toContain('&#39;');
         expect(text).not.toContain("it's");
+    });
+});
+
+/**
+ * A plugin is a module rather than data, so the snippet is the only handoff
+ * that can carry it. Each framework registers it the way that framework's own
+ * guide does, and a plugin nobody turned on leaves no trace at all.
+ */
+describe('the plugins a reader turned on', () => {
+    it('leave no trace when none was', () => {
+        for (const id of ids) {
+            expect(snippet(id, something)).not.toContain('plugins');
+            expect(snippet(id, something)).not.toContain(FIRST.pkg);
+        }
+    });
+
+    it('are imported from their own packages in a bundler project', () => {
+        for (const id of ids.filter((entry) => entry !== 'html')) {
+            const text = snippet(id, withTwo);
+            for (const plugin of [FIRST, SECOND]) {
+                expect(text).toContain(
+                    `import { ${plugin.symbol} } from '${plugin.pkg}';`,
+                );
+            }
+            // Built once and handed over as a list, which is what the guides
+            // teach and what keeps a parent re-render from restarting them.
+            expect(text).toContain(
+                `const plugins = [${FIRST.symbol}, ${SECOND.symbol}];`,
+            );
+        }
+    });
+
+    it('are handed to each framework through the prop it declares', () => {
+        expect(snippet('react', withOne)).toContain('plugins={plugins}');
+        expect(snippet('vue', withOne)).toContain(':plugins="plugins"');
+        expect(snippet('svelte', withOne)).toContain('{plugins}');
+    });
+
+    it('are loaded and registered by script on the no-build page', () => {
+        const text = snippet('html', withOne);
+        expect(text).toContain(
+            `<script src="https://unpkg.com/${FIRST.pkg}/dist/iife.js"></script>`,
+        );
+        // Plain objects cannot go through an attribute, so the element is named
+        // and the list is set as a property once the element has upgraded.
+        expect(text).toContain('id="viewer"');
+        expect(text).toContain(
+            "customElements.whenDefined('triiiceratops-viewer')",
+        );
+        expect(text).toContain(
+            `window.Triiiceratops.plugins.get('${FIRST.pkg}')`,
+        );
+    });
+
+    /*
+     * `@triiiceratops/plugin-av` reads core's Svelte runtime off the shared
+     * namespace instead of shipping a second copy, so its script must run after
+     * core's. Core's is the first line of the snippet whatever else is chosen,
+     * which is the property this asserts.
+     */
+    it('never put a plugin script before core’s own', () => {
+        const text = snippet('html', {
+            ...something,
+            plugins: BUILDER_PLUGINS,
+        });
+        const core = text.indexOf('triiiceratops-element.iife.js');
+        for (const plugin of BUILDER_PLUGINS) {
+            expect(text.indexOf(plugin.pkg)).toBeGreaterThan(core);
+        }
     });
 });
 

@@ -126,7 +126,7 @@
 						},
 						{
 							"type": "text",
-							"text": " list. Registering it costs 15.5 KB gzip, and its four heaviest pieces are "
+							"text": " list. Registering it costs 15.2 KB gzip, and its four heaviest pieces are "
 						},
 						{
 							"type": "text",
@@ -719,7 +719,7 @@
 								},
 								{
 									"type": "text",
-									"text": " The claimed canvas rect is divided into lanes in canvas space, so the whole stack pans and zooms with the viewer. Video takes the whole rect as a visual lane. Audio takes the whole rect as a timeline lane, which draws a waveform when the canvas links audiowaveform data and is a bare timeline otherwise. A canvas core paints a companion Canvas into gets no lanes at all — the rect belongs to the renderer, and the stage contributes only a tap target, the play-state glyph and the \"can't play\" notice. That covers a canvas with an "
+									"text": " The claimed canvas rect is divided into lanes in canvas space, so the whole stack pans and zooms with the viewer. Video takes the whole rect as a visual lane. Audio takes the whole rect as a timeline lane, which draws a waveform when the canvas links audiowaveform data and a ruler otherwise. A canvas core paints a companion Canvas into gets no lanes at all — the rect belongs to the renderer, and the stage contributes only a tap target, the play-state glyph and the \"can't play\" notice. That covers a canvas with an "
 								},
 								{
 									"type": "text",
@@ -774,7 +774,7 @@
 								},
 								{
 									"type": "text",
-									"text": " Canvas x maps linearly to media time, so the viewer's own zoom doubles as temporal zoom into the waveform, and a tap on the timeline lane is a seek."
+									"text": " Canvas x maps linearly to media time, so the viewer's own zoom doubles as temporal zoom into whatever graduates the lane, and a tap on the timeline lane is a seek."
 								}
 							],
 							"attrs": {
@@ -3743,7 +3743,7 @@
 				},
 				{
 					"type": "text",
-					"text": "15.5 KB gzip",
+					"text": "15.2 KB gzip",
 					"marks": [
 						{
 							"type": "bold"
@@ -3756,7 +3756,7 @@
 				},
 				{
 					"type": "text",
-					"text": "129 KB gzip",
+					"text": "133 KB gzip",
 					"marks": [
 						{
 							"type": "bold"
@@ -3879,7 +3879,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "~224 KB"
+											"text": "~178 KB"
 										}
 									],
 									"attrs": {
@@ -3927,7 +3927,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "av-waveform.js",
+											"text": "av-timeline.js",
 											"marks": [
 												{
 													"type": "code"
@@ -3952,7 +3952,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "~2.6 KB"
+											"text": "~2.9 KB"
 										}
 									],
 									"attrs": {
@@ -3972,7 +3972,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "a canvas links audiowaveform data"
+											"text": "a canvas has a timeline lane to draw a ruler or waveform in"
 										}
 									],
 									"attrs": {
@@ -4025,7 +4025,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "~2.1 KB"
+											"text": "~1.8 KB"
 										}
 									],
 									"attrs": {
@@ -4098,7 +4098,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "~3.2 KB"
+											"text": "~2.7 KB"
 										}
 									],
 									"attrs": {

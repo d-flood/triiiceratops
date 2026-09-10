@@ -7,6 +7,7 @@
     import { getMessages } from '../state/i18n.svelte';
     import { resolveLanguageValue } from '../utils/languageMap';
     import { getResourceId } from '../utils/iiifIds';
+    import { ZERO_VIEWPORT_INSET, type ViewportInset } from '../types/viewport';
     import {
         canIdleHide,
         getCanvasNavLayout,
@@ -132,9 +133,27 @@
             ? (viewerState.transportChrome[0] ?? null)
             : null,
     );
-    // The bar can be docked to the top edge, where a track list opening upwards
-    // would open off the viewer.
-    let tracksOpenDown = $derived(viewerState.config.nav?.edge === 'top');
+    // The bar can be docked to the top edge, where anything that opens or points
+    // upwards — a track list, a hover tooltip — would land off the viewer.
+    let dockedTop = $derived(viewerState.config.nav?.edge === 'top');
+    // Core's global tooltip layer (`src/styles/tooltip.css`), in the same
+    // `place-*` vocabulary the transport beside these buttons uses, so one bar
+    // labels every control the same way.
+    let tooltipPlacement = $derived(dockedTop ? 'place-bottom' : 'place-top');
+
+    // Derived once each so a button's hover tooltip and its accessible name
+    // cannot drift apart — they are the same string by construction, as the
+    // transport's play and mute labels are.
+    let leftNavLabel = $derived(
+        canvasNavLayout.leftButton === 'previous'
+            ? m.previous_canvas()
+            : m.next_canvas(),
+    );
+    let rightNavLabel = $derived(
+        canvasNavLayout.rightButton === 'next'
+            ? m.next_canvas()
+            : m.previous_canvas(),
+    );
 
     // Which of the bar's groups share a row. CSS can't detect a flex-wrap
     // break, so we watch the bar's size and measure where each group sits. The
@@ -189,6 +208,49 @@
         );
     });
 
+    // --- Zoom buttons ------------------------------------------------------
+    //
+    // A zoom button is a step AND a hold. `pointerdown` starts a smooth zoom
+    // that runs until release; a press let go inside `ZOOM_HOLD_MS` has barely
+    // moved, so the trailing `click` supplies the discrete step instead. Past
+    // that the hold has covered the distance and the click is dropped, or it
+    // would land a visible jump on the end of a smooth motion.
+    //
+    // The click is also the ONLY path for keyboard and assistive activation,
+    // which fires `click` with no pointer events at all — hence a flag set on
+    // release rather than a check for "was a pointer involved".
+    const ZOOM_HOLD_MS = 200;
+    let zoomPressedAt: number | null = null;
+    let zoomWasHeld = false;
+
+    function pressZoom(
+        event: PointerEvent & { currentTarget: HTMLElement },
+        direction: number,
+    ) {
+        // Captured so the release lands on the button even if the pointer
+        // slides off it, which is otherwise a zoom that never stops.
+        event.currentTarget.setPointerCapture(event.pointerId);
+        zoomPressedAt = performance.now();
+        zoomWasHeld = false;
+        viewerState.holdZoom(direction);
+    }
+
+    function releaseZoom() {
+        if (zoomPressedAt === null) return;
+        zoomWasHeld = performance.now() - zoomPressedAt >= ZOOM_HOLD_MS;
+        zoomPressedAt = null;
+        viewerState.holdZoom(0);
+    }
+
+    function clickZoom(direction: number) {
+        if (zoomWasHeld) {
+            zoomWasHeld = false;
+            return;
+        }
+        if (direction > 0) viewerState.zoomIn();
+        else viewerState.zoomOut();
+    }
+
     // --- Idle chrome -------------------------------------------------------
     //
     // Over a claimed canvas this bar is drawn on top of the thing being read —
@@ -212,7 +274,11 @@
     // returning, instantly. Reading the preference again would be a second
     // answer to a question core already answers once.
     let idleHidden = $state(false);
-    let trackListOpen = $state(false);
+    /**
+     * The transport's caption-track list, held with the bar's other flyouts on
+     * viewer state so a host can open it from config.
+     */
+    const trackListOpen = $derived(viewerState.openMenu === 'captions');
     // Plain `let`, not `$state`: these are read only when the idle timer fires
     // and when an event handler runs, and nothing re-renders on them.
     let pointerInBar = false;
@@ -332,6 +398,80 @@
             idleHidden = false;
         };
     });
+
+    /**
+     * Publish the band of the surface this bar is covering
+     * (`ViewerState.chromeInset`), for a claimant painting into the canvas rect
+     * underneath it.
+     *
+     * The bar FLOATS over the rect rather than sitting beside it, so nothing
+     * below can work this out: a video element's own captions land at the
+     * bottom of the picture, which is exactly where the bar is, and the
+     * claimant that owns those captions has no handle on core's chrome to
+     * measure. Reported rather than exposed, so the claimant reads a number and
+     * never this component's DOM.
+     *
+     * Which edge is decided by measurement, not by `nav.edge`: a bar the config
+     * anchors to the top and a bar pushed there because a top-anchored toolbar
+     * rail took the other edge are the same fact to whoever is underneath, and
+     * the geometry states it once.
+     *
+     * Idle-hiding is `opacity`, deliberately — the controls stay laid out,
+     * focusable and in the accessibility tree — so the rect does not shrink
+     * when the bar goes, and the flag is what says the reader can see nothing
+     * there.
+     */
+    $effect(() => {
+        const bar = barEl;
+        const area = bar?.parentElement;
+        const hidden = idleHidden;
+        if (!bar || !area) {
+            viewerState.chromeInset = ZERO_VIEWPORT_INSET;
+            return;
+        }
+
+        const publish = () => {
+            if (hidden) {
+                viewerState.chromeInset = ZERO_VIEWPORT_INSET;
+                return;
+            }
+            const box = bar.getBoundingClientRect();
+            const surface = area.getBoundingClientRect();
+            const fromTop = box.top - surface.top;
+            const fromBottom = surface.bottom - box.bottom;
+            const covered =
+                fromTop <= fromBottom
+                    ? { top: box.bottom - surface.top }
+                    : { bottom: surface.bottom - box.top };
+            viewerState.chromeInset = {
+                ...ZERO_VIEWPORT_INSET,
+                ...clampEdges(covered),
+            };
+        };
+
+        // The bar's own box moves when it wraps to two rows, when a group comes
+        // or goes, and when the surface resizes under it; the surface's moves
+        // when a docked panel takes part of it. Both are watched.
+        const ro = new ResizeObserver(publish);
+        ro.observe(bar);
+        ro.observe(area);
+        publish();
+
+        return () => {
+            ro.disconnect();
+            viewerState.chromeInset = ZERO_VIEWPORT_INSET;
+        };
+    });
+
+    /** Edges as whole, non-negative pixels — a partly-offscreen bar covers nothing. */
+    function clampEdges(edges: Partial<ViewportInset>): Partial<ViewportInset> {
+        return Object.fromEntries(
+            Object.entries(edges).map(([edge, value]) => [
+                edge,
+                Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0,
+            ]),
+        );
+    }
 </script>
 
 {#snippet choiceControls(group: ChoiceGroup, abbreviated: boolean)}
@@ -441,9 +581,11 @@
                  leaves no empty group holding a width floor open. -->
             <Transport
                 chrome={transportChrome}
-                openDown={tracksOpenDown}
+                openDown={dockedTop}
                 bind:element={transportEl}
-                bind:listOpen={trackListOpen}
+                listOpen={trackListOpen}
+                onListOpen={(open) =>
+                    viewerState.setOpenMenu(open ? 'captions' : null)}
             />
             {#if dividerAfterTransport}
                 <div class="divider-v"></div>
@@ -475,8 +617,14 @@
                                     square
                                     size="sm"
                                     ghost
-                                    onclick={() => viewerState.zoomOut()}
-                                    aria-label="Zoom Out"
+                                    onpointerdown={(event) =>
+                                        pressZoom(event, -1)}
+                                    onpointerup={releaseZoom}
+                                    onpointercancel={releaseZoom}
+                                    onclick={() => clickZoom(-1)}
+                                    class="tooltip {tooltipPlacement}"
+                                    data-tip={m.zoom_out()}
+                                    aria-label={m.zoom_out()}
                                 >
                                     <Icon
                                         name="MagnifyingGlassMinus"
@@ -488,11 +636,32 @@
                                     square
                                     size="sm"
                                     ghost
-                                    onclick={() => viewerState.zoomIn()}
-                                    aria-label="Zoom In"
+                                    onpointerdown={(event) =>
+                                        pressZoom(event, 1)}
+                                    onpointerup={releaseZoom}
+                                    onpointercancel={releaseZoom}
+                                    onclick={() => clickZoom(1)}
+                                    class="tooltip {tooltipPlacement}"
+                                    data-tip={m.zoom_in()}
+                                    aria-label={m.zoom_in()}
                                 >
                                     <Icon
                                         name="MagnifyingGlassPlus"
+                                        size={18}
+                                    />
+                                </Button>
+
+                                <Button
+                                    square
+                                    size="sm"
+                                    ghost
+                                    onclick={() => viewerState.fitView()}
+                                    class="tooltip {tooltipPlacement}"
+                                    data-tip={m.fit_to_viewer()}
+                                    aria-label={m.fit_to_viewer()}
+                                >
+                                    <Icon
+                                        name="ArrowCounterClockwise"
                                         size={18}
                                     />
                                 </Button>
@@ -518,10 +687,9 @@
                                         'previous'
                                             ? viewerState.previousCanvas()
                                             : viewerState.nextCanvas()}
-                                    aria-label={canvasNavLayout.leftButton ===
-                                    'previous'
-                                        ? m.previous_canvas()
-                                        : m.next_canvas()}
+                                    class="tooltip {tooltipPlacement}"
+                                    data-tip={leftNavLabel}
+                                    aria-label={leftNavLabel}
                                 >
                                     <Icon name={leftNavIcon} size={18} />
                                 </Button>
@@ -545,10 +713,9 @@
                                         canvasNavLayout.rightButton === 'next'
                                             ? viewerState.nextCanvas()
                                             : viewerState.previousCanvas()}
-                                    aria-label={canvasNavLayout.rightButton ===
-                                    'next'
-                                        ? m.next_canvas()
-                                        : m.previous_canvas()}
+                                    class="tooltip {tooltipPlacement}"
+                                    data-tip={rightNavLabel}
+                                    aria-label={rightNavLabel}
                                 >
                                     <Icon name={rightNavIcon} size={18} />
                                 </Button>
@@ -810,6 +977,42 @@
         border-start-end-radius: var(--tri-radius-controls-buttons);
         border-end-end-radius: var(--tri-radius-controls-buttons);
         border-end-start-radius: var(--tri-radius-controls-buttons);
+    }
+
+    /* Where the bar spans the viewer — a registered transport stretches it —
+       the trailing control sits against the inline-end edge and its centred
+       tooltip bubble overflows and is clipped: "Fit to Viewer" renders as
+       "Fit to View". Anchor that bubble to the button's end edge instead; the
+       tail is left alone and keeps pointing at the button's centre. The same
+       correction the toolbar makes for its own corner buttons.
+
+       Applied unconditionally rather than only when the bar is full width,
+       because CSS cannot ask whether the bubble would fit. The cost where the
+       bar is a centred pill is an end-aligned bubble instead of a centred one,
+       which is a fair trade against clipped text where it is not.
+
+       Which button this is depends on what the bar renders: the fit control
+       where there is no canvas nav, the next-canvas button where there is. The
+       `:last-child` chain names the position rather than the button, so it
+       tracks either. It stops applying when a right choice group follows, since
+       the trailing control is then inside that group instead. */
+    .nav-cluster
+        > .center-controls:last-child
+        > .btn-row:last-child
+        :global(.tooltip.place-top:last-child::before) {
+        transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
+        inset: auto 0 var(--tt-off) auto;
+    }
+    /* The same correction for a bar docked to the top edge, where the bubble
+       hangs below the button instead of above it. Both placements are spelled
+       out because each carries its own `inset`, and a single rule written for
+       one of them would fling the other's bubble to the wrong side. */
+    .nav-cluster
+        > .center-controls:last-child
+        > .btn-row:last-child
+        :global(.tooltip.place-bottom:last-child::before) {
+        transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
+        inset: var(--tt-off) 0 auto auto;
     }
 
     .divider-v {

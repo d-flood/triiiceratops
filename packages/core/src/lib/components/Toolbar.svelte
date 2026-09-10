@@ -4,6 +4,7 @@
     import PluginMountHost from './PluginMountHost.svelte';
     import { getContext, onMount, type Snippet } from 'svelte';
     import type { IconName } from '../generated/icons';
+    import type { BarMenu } from '../types/config';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages, language } from '../state/i18n.svelte';
     import {
@@ -334,7 +335,7 @@
         | {
               key: string;
               show: boolean;
-              flyout: 'viewing-mode' | 'gallery' | 'sequence' | 'locale';
+              flyout: (typeof TOOLBAR_MENUS)[number];
           }
         | {
               key: string;
@@ -543,11 +544,21 @@
     // Built-in toolbar dropdowns (viewing mode, gallery, sequence
     // picker) use the same non-top-layer flyout pattern as plugin flyouts, so
     // tooltips paint above them too. Only one is open at a time.
-    let openMenu = $state<string | null>(null);
+    //
+    // Held on viewer state rather than here, so a host can open one from
+    // config. The transport's caption list shares that member; these four are
+    // the toolbar's own, and are the only ones it may dismiss.
+    const TOOLBAR_MENUS = [
+        'gallery',
+        'viewing-mode',
+        'sequence',
+        'locale',
+    ] as const satisfies readonly BarMenu[];
+    const openMenu = $derived(viewerState.openMenu);
     let toolbarRootEl: HTMLElement | undefined = $state();
 
-    function toggleMenu(name: string) {
-        openMenu = openMenu === name ? null : name;
+    function toggleMenu(name: BarMenu) {
+        viewerState.toggleMenu(name);
     }
 
     // When a built-in flyout opens, move keyboard focus into it (menu behavior).
@@ -594,7 +605,9 @@
     }
 
     function closeAllOverlays() {
-        openMenu = null;
+        if (TOOLBAR_MENUS.some((menu) => menu === openMenu)) {
+            viewerState.setOpenMenu(null);
+        }
         viewerState.closePluginFlyouts();
     }
 
@@ -688,7 +701,7 @@
      menu's pairing checkbox, the sequence picker's count badge and wide panel,
      and the locale menu's per-item `lang` with no leading glyph. -->
 {#snippet flyoutMenu(
-    name: string,
+    name: BarMenu,
     label: string,
     glyph: IconName,
     badge: string | number | undefined,
@@ -697,9 +710,9 @@
 )}
     <li>
         <button
-            class="menu-item tooltip {tooltipPlacement}"
+            class="tri-menu-item tooltip {tooltipPlacement}"
             class:indicator={badge !== undefined}
-            class:menu-active={openMenu === name}
+            class:is-active={openMenu === name}
             data-tip={label}
             data-flyout-toggle
             aria-label={label}
@@ -720,7 +733,7 @@
             role="menu"
             tabindex="-1"
             aria-label={label}
-            class="menu popover-menu menu-flyout {flyoutPlacement}"
+            class="tri-menu tri-menu-surface menu-flyout {flyoutPlacement}"
             class:wide
             class:open={openMenu === name}
             style="position-anchor: --anchor-{name};"
@@ -746,12 +759,12 @@
 )}
     <li role="none">
         <button
-            class="menu-item"
+            class="tri-menu-item"
             class:text-start={textStart}
             {role}
             {lang}
             aria-checked={checked}
-            class:menu-active={checked}
+            class:is-active={checked}
             {onclick}
         >
             {#if icon}
@@ -850,7 +863,7 @@
         <!-- Scrollable Actions -->
         <ul
             bind:this={actionsEl}
-            class="menu actions"
+            class="tri-menu actions"
             class:horizontal={isTop || inline}
             class:top-right={!inline && position === 'top-right'}
             class:top-left={!inline && position === 'top-left'}
@@ -865,7 +878,7 @@
             {#if showToggle && !inline}
                 <li>
                     <button
-                        class="menu-item tooltip {tooltipPlacement}"
+                        class="tri-menu-item tooltip {tooltipPlacement}"
                         data-tip={m.close_menu()}
                         onclick={toggleOpen}
                         aria-label={m.close_menu()}
@@ -891,9 +904,9 @@
                     {@const glyph = entry.icon}
                     <li>
                         <button
-                            class="menu-item tooltip {tooltipPlacement}"
+                            class="tri-menu-item tooltip {tooltipPlacement}"
                             class:indicator={entry.indicator}
-                            class:menu-active={entry.pressed}
+                            class:is-active={entry.pressed}
                             data-tip={entry.tip}
                             aria-label={entry.label}
                             aria-pressed={entry.pressed}
@@ -923,7 +936,7 @@
                     )}
                 {:else if entry.flyout === 'sequence'}
                     {@render flyoutMenu(
-                        'sequence-picker',
+                        'sequence',
                         m.sequence_label(),
                         'Stack',
                         viewerState.sequenceCount > 99
@@ -980,8 +993,8 @@
                         {#if flyout}
                             {@const open = button.isActive?.() ?? false}
                             <button
-                                class="menu-item tooltip {tooltipPlacement}"
-                                class:menu-active={open}
+                                class="tri-menu-item tooltip {tooltipPlacement}"
+                                class:is-active={open}
                                 data-tip={tooltipText}
                                 aria-label={tooltipText}
                                 aria-haspopup="dialog"
@@ -1026,8 +1039,8 @@
                                  -->
                             {@const panelId = toggledPanelId(button.pluginId)}
                             <button
-                                class="menu-item tooltip {tooltipPlacement}"
-                                class:menu-active={button.isActive?.()}
+                                class="tri-menu-item tooltip {tooltipPlacement}"
+                                class:is-active={button.isActive?.()}
                                 data-tip={tooltipText}
                                 aria-label={tooltipText}
                                 aria-pressed={panelId
@@ -1057,7 +1070,7 @@
          layouts use the handle or the in-menu close button instead. -->
     {#if inline && showToggle}
         <button
-            class="menu-item inline-toggle tooltip {tooltipPlacement}"
+            class="tri-menu-item inline-toggle tooltip {tooltipPlacement}"
             data-tip={isOpen ? m.close_menu() : m.open_menu()}
             aria-label={isOpen ? m.close_menu() : m.open_menu()}
             aria-expanded={isOpen}
@@ -1255,12 +1268,6 @@
     .actions.inline.collapsed {
         flex-wrap: nowrap;
     }
-    .actions.inline :where(li) {
-        padding-bottom: 0;
-    }
-    .actions.inline :where(li) > :global(*) {
-        padding: 0;
-    }
 
     /* ===== Collapsible shell ===== */
     .toolbar-shell {
@@ -1314,86 +1321,13 @@
         pointer-events: none;
     }
 
-    /* ===== Menu scaffolding ===== */
-    .menu {
-        --menu-active-fg: var(--tri-color-neutral-content);
-        --menu-active-bg: var(--tri-color-neutral);
-        flex-flow: column wrap;
-        width: fit-content;
-        padding: var(--ui-chrome-pad, 0.5rem);
-        font-size: 0.875rem;
-        display: flex;
-    }
-    /* Layout-driven icon glyph size for the action buttons (markup passes a
-       nominal size; CSS scales the rendered <svg> per preset). */
-    .menu-item :global(svg) {
-        width: var(--ui-icon, 24px);
-        height: var(--ui-icon, 24px);
-    }
-    .menu :where(li) {
-        flex-flow: column wrap;
-        flex-shrink: 0;
-        align-items: stretch;
-        display: flex;
-        position: relative;
-    }
-    /* menu items (buttons) */
-    .menu-item {
-        border-radius: var(--tri-radius-buttons);
-        text-align: start;
-        text-wrap: balance;
-        user-select: none;
-        grid-auto-columns: minmax(auto, max-content) auto max-content;
-        grid-auto-flow: column;
-        align-content: flex-start;
-        align-items: center;
-        gap: 0.5rem;
-        /* menu-sm padding */
-        padding-block: 0.25rem;
-        padding-inline: 0.625rem;
-        font-size: 0.75rem;
-        transition-property: color, background-color, box-shadow;
-        transition-duration: 0.2s;
-        transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
-        display: grid;
-        color: inherit;
-        background-color: transparent;
-        border: none;
-        cursor: pointer;
-    }
-    /* actions ul had [&_li>*]:p-1 — every direct child of its li gets p-1
-       (the menu-item buttons AND the popover dropdown <ul>s) */
-    .actions :where(li) > :global(*) {
+    /* Every action button pads its icon, in every mode, so the fill behind a
+       pressed one reads as a target rather than a shrink-wrapped glyph.
+       Anchored flyouts are excluded: their inner padding belongs to the panel
+       itself (`.tri-menu`) so it lands inside the glass, and the gap between panel
+       and button is the placement margin below. */
+    .actions :where(li) > :global(:not(.menu-flyout)) {
         padding: 0.25rem;
-    }
-    /* ...but the anchored flyout/menu wrappers must NOT get that padding: for
-       the glass dropdowns it sits inside the glass (flush look) while for the
-       transparent plugin-flyout wrapper it sits outside (extra gap), so the two
-       read inconsistently. Zero it so the gap is governed purely by the
-       placement margin below, identically for both. */
-    .actions :where(li) > .menu-flyout {
-        padding: 0;
-    }
-    .menu-item:not(.menu-active):not(:active):hover {
-        cursor: pointer;
-        background-color: color-mix(
-            in oklab,
-            var(--tri-toolbar-content) 10%,
-            transparent
-        );
-        box-shadow:
-            inset 0 1px oklch(0% 0 0 / 0.01),
-            inset 0 -1px oklch(100% 0 0 / 0.01);
-    }
-    .menu-item:active,
-    .menu-item.menu-active {
-        color: var(--menu-active-fg);
-        background-color: var(--menu-active-bg);
-    }
-    .menu-item.menu-active {
-        background-color: var(--tri-color-primary);
-        color: var(--tri-color-primary-content);
-        cursor: pointer;
     }
     .text-start {
         text-align: start;
@@ -1503,44 +1437,12 @@
         display: inline-flex;
     }
 
-    /* ===== Dropdown menu chrome (built-in flyout menus) =====
-       Same glass treatment as the plugin flyout's base bar. The blur/fill live
-       on a ::before layer, not directly on .popover-menu (which also carries
-       `border`) — see the matching comment on ImageManipulationFlyout's .base
-       for why combining backdrop-filter + border breaks nested-content
-       stacking. */
-    .popover-menu {
-        border-radius: var(--tri-radius-toolbar);
-        border: 1px solid var(--tri-surface-border);
-        box-shadow: var(
-            --ui-chrome-shadow,
-            0 10px 15px -3px #0000001a,
-            0 4px 6px -4px #0000001a
-        );
-    }
-    .popover-menu::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        z-index: -1;
-        border-radius: calc(var(--tri-radius-toolbar) - var(--tri-border, 1px));
-        background-color: color-mix(
-            in oklab,
-            var(--tri-toolbar-bg) 70%,
-            transparent
-        );
-        backdrop-filter: blur(8px);
-    }
-    .popover-menu.wide {
-        min-width: 14rem;
-    }
-
     /* ===== Anchored flyout / menu overlay (shared) =====
        Used by plugin flyouts AND the built-in dropdowns. Deliberately NOT a
        top-layer popover: a low z-index keeps the toolbar tooltips (z-index: 2)
        painting above it. Placement is deterministic via CSS anchor positioning
        and centered on the button along the perpendicular axis. When open, the
-       element's own display applies (`.menu` → flex; a plain flyout → block). */
+       element's own display applies (`.tri-menu` → flex; a plain flyout → block). */
     .menu-flyout {
         position: absolute;
         inset: auto;
@@ -1609,7 +1511,7 @@
        used to separate zoom/nav controls, so both read consistently. */
     .divider {
         /* Non-positioned elements paint BEHIND the .actions::before glass layer
-           (which is position:absolute), the same reason .menu li carries
+           (which is position:absolute), the same reason .tri-menu li carries
            position:relative — without this the divider is fully hidden under
            the frosted background. */
         position: relative;

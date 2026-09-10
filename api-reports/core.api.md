@@ -2363,6 +2363,15 @@ export interface RendererPort {
      * about the viewport centre, which is what a toolbar button wants.
      */
     zoomBy(factor: number, anchor?: ViewportPoint): void;
+    /**
+     * Zoom smoothly for as long as a control is held — `1` in, `-1` out, `0` to
+     * stop — about the viewport centre.
+     *
+     * Continuous input, so it is written straight onto the viewport per frame
+     * with no easing, the path a drag takes. {@link zoomBy} is the discrete
+     * counterpart: one press, one step.
+     */
+    holdZoom(direction: number): void;
     /** Zoom to an absolute scale — screen pixels per canvas-space unit. */
     zoomTo(scale: number): void;
     /** Centre the viewport on a canvas-space point. */
@@ -2371,6 +2380,19 @@ export interface RendererPort {
     fitBounds(bounds: ViewportBox, canvasId?: string): void;
     /** Fit a whole canvas — the viewer's current one unless named. */
     fitCanvas(canvasId?: string): void;
+    /**
+     * Fit what the reader is **looking at**: the laid-out world, or in
+     * `continuous` the canvas their viewport is over. The `0`/`Home` path, and
+     * what a "fit to viewer" control in the chrome issues.
+     *
+     * Distinct from {@link fitCanvas}, which fits the canvas the VIEWER calls
+     * current. The two part company wherever those differ — in `paged`, where
+     * the world is a two-page spread and one canvas is half of it, and in
+     * `continuous` after a scroll, where fitting the current canvas would
+     * travel back to a folio the reader left behind. Refitting is a request not
+     * to travel, so this is the one a reset control wants.
+     */
+    fitView(): void;
     /**
      * Screen pixels per canvas-space unit, or `0` before the surface is sized.
      * The single number relating the two spaces.
@@ -2665,6 +2687,17 @@ export interface ImageServiceFacts {
      * whole-image requests must be snapped to a size it actually generated.
      */
     level0?: boolean;
+    /**
+     * Set when the service's declared dimensions were contradicted by the
+     * pixels it actually served (`imageService.verifyDimensions`).
+     *
+     * `width`/`height` are then the MEASURED raster, and every advertised
+     * `sizes`, tile size, and scale factor has been dropped: all of them
+     * describe an extent the service does not honour, so any region request
+     * derived from them falls outside the real image. `buildPyramid` declines
+     * such a service and it renders from whole-image requests instead.
+     */
+    regionsUntrusted?: true;
     /** IIIF Image API major version, which decides `quality` in a tile URL. */
     version?: 2 | 3;
     /** Image format extension for tile requests. Defaults to `jpg`. */
@@ -2913,6 +2946,22 @@ export interface PlanWorldInput {
      */
     knownMetadata: Record<string, ImageServiceFacts>;
     budgets: PlannerBudgets;
+    /**
+     * The surface's height divided by its width — the container's SHAPE, not
+     * the view within it.
+     *
+     * The one viewport-derived input to world layout, and it reaches exactly
+     * one rung: the box a duration-only canvas takes when nothing else offers
+     * one (`planScene.placeholderBox`). A recording has no spatial extent at
+     * all, so shaping its rect like the surface is what lets a lone one open as
+     * a timeline filling the viewer rather than as a band across the middle.
+     * Every canvas whose geometry means anything is laid out above that rung
+     * and cannot be reshaped by a resize.
+     *
+     * `undefined` — the server, and the frame before the first measure — falls
+     * back to `rendererDefaults.DURATION_ONLY_CANVAS_ASPECT`.
+     */
+    surfaceAspect?: number;
 }
 export interface PlanSceneInput extends PlanWorldInput {
     viewport: Viewport;
@@ -3540,7 +3589,7 @@ import { type PaintLayer, type RegisteredPaintLayer } from '../renderer/paintLay
 import { type OverlayLayer, type RegisteredOverlayLayer } from '../renderer/overlayLayers.js';
 import { type RegisteredTransportChrome, type TransportChrome } from './transportChrome.js';
 import { type CanvasSize, type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportInset, type ViewportPoint } from '../types/viewport.js';
-import type { RequestConfig, SearchProvider, SearchResultGroup, ViewerConfig } from '../types/config';
+import type { BarMenu, RequestConfig, SearchProvider, SearchResultGroup, ViewerConfig } from '../types/config';
 import type { PluginMenuButton, PluginPanel, PluginFlyout, PluginMountThunk, PluginUiTarget, IconDescriptor } from '../types/plugin';
 import { type StructureNode } from '../utils/structures';
 import { type CollectionItem } from '../utils/collections';
@@ -3594,6 +3643,16 @@ export declare class ViewerState {
     showAnnotations: boolean;
     showThumbnailGallery: boolean;
     toolbarOpen: boolean;
+    /**
+     * Which of the control bar's flyout menus stands open, or `null` for none.
+     *
+     * One member for menus two components render, because the bar's rule is
+     * that at most one of them is open: the toolbar's own four, and the
+     * transport's caption-track list. Each control dismisses only what it
+     * owns — the toolbar's light-dismiss must not reach into a list the
+     * transport opened, and vice versa.
+     */
+    openMenu: BarMenu | null;
     isGalleryDockedBottom: boolean;
     isGalleryDockedRight: boolean;
     isFullScreen: boolean;
@@ -3933,6 +3992,24 @@ export declare class ViewerState {
      * inset per viewer — a second setter wins.
      */
     viewportInset: ViewportInset;
+    /**
+     * Edges of the surface core's **own floating chrome** is covering right
+     * now — the control bar, as it is laid out and while it is showing.
+     *
+     * The mirror of {@link viewportInset}, and the two must not be confused.
+     * That one is a plugin telling core where not to fit; this one is core
+     * telling a claimant what it is painting over. Core writes it from the
+     * control bar and there is no mutator, as with {@link rendererReady}.
+     *
+     * It exists because the bar floats OVER the canvas rect rather than beside
+     * it, so a claimant drawing into that rect — captions inside a video
+     * element, a waveform's own readout — has no other way to know which band
+     * of its own picture a reader cannot see. Every edge is zero while the
+     * chrome is hidden, which is a real state and not an unknown one: the bar
+     * idle-hides during playback, and content lifted clear of a bar that is no
+     * longer there would be lifted for no reason.
+     */
+    chromeInset: ViewportInset;
     /**
      * Attach the mounted renderer. **Core-internal** — the host↔state seam, not
      * part of the supported plugin API, and it takes a fixed first-party
@@ -4311,6 +4388,17 @@ export declare class ViewerState {
     /** Zoom out one step, about the viewport centre. The toolbar's `−`. */
     zoomOut(): void;
     /**
+     * Zoom smoothly for as long as a control is held — `1` in, `-1` out, `0` to
+     * stop — about the viewport centre.
+     *
+     * The continuous counterpart to {@link zoomIn} / {@link zoomOut}: a press
+     * that is held covers real distance without the reader tapping for it, and
+     * a press that is released immediately leaves the step to the click. Every
+     * hold MUST be ended with `holdZoom(0)`, including on `pointercancel` — the
+     * renderer has no other way to learn the control came up.
+     */
+    holdZoom(direction: number): void;
+    /**
      * Zoom to an absolute scale — screen pixels per canvas-space unit, the same
      * units {@link viewportScale} reads. Clamped by the renderer to the zoom
      * range it derives from the layout; a caller cannot escape those limits.
@@ -4330,10 +4418,20 @@ export declare class ViewerState {
      */
     fitBounds(bounds: ViewportBox, canvasId?: string): void;
     /**
-     * Fit a whole canvas — the current one unless named. The `0`/`Home` path,
-     * and what canvas navigation does in continuous mode.
+     * Fit a whole canvas — the current one unless named. What canvas navigation
+     * does in continuous mode: naming a canvas is a request to travel to it.
      */
     fitCanvas(canvasId?: string): void;
+    /**
+     * Fit what the reader is looking at — the laid-out world, or in continuous
+     * mode the canvas their viewport is over. The `0`/`Home` path, and what the
+     * chrome's fit control issues.
+     *
+     * Named nothing, because naming a canvas is what makes {@link fitCanvas} a
+     * request to TRAVEL. Refitting is the opposite request: it re-frames what is
+     * already on screen and never moves the reader off it.
+     */
+    fitView(): void;
     /**
      * Apply image adjustments, merging over the current set. Members left out
      * keep their current value; {@link resetImageAdjustments} returns to
@@ -4479,6 +4577,10 @@ export declare class ViewerState {
     updateConfig(newConfig: ViewerConfig): void;
     toggleAnnotations(): void;
     toggleToolbar(): void;
+    /** Open one of the control bar's flyout menus, or `null` to close it. */
+    setOpenMenu(menu: BarMenu | null): void;
+    /** Open this menu, or close it if it is the one already open. */
+    toggleMenu(menu: BarMenu): void;
     toggleThumbnailGallery(): void;
     /**
      * Reference to the main viewer DOM element.
@@ -5439,7 +5541,7 @@ export type { GalleryConfig } from './config/gallery';
 export type { SearchHit, SearchProvider, SearchProviderContext, SearchResultGroup, } from './config/search';
 export type { ToolbarConfig, ToolbarSide, ToolbarAnchor, } from './config/toolbar';
 export { TOOLBAR_SIDES, TOOLBAR_ANCHORS, DEFAULT_TOOLBAR_SIDE, DEFAULT_TOOLBAR_ANCHOR, } from './config/toolbar';
-export type { ControlsMode, NavStyle, NavEdge, NavAlign, NavConfig, RendererConfig, ViewerConfig, } from './config/viewer';
+export type { BarMenu, ControlsMode, NavStyle, NavEdge, NavAlign, NavConfig, RendererConfig, ViewerConfig, } from './config/viewer';
 export { CONTROLS_MODES, NAV_STYLES, NAV_EDGES, NAV_ALIGNS, DEFAULT_CONTROLS, DEFAULT_NAV_STYLE, DEFAULT_NAV_EDGE, DEFAULT_NAV_ALIGN, } from './config/viewer';
 
 // ======================================================================
@@ -5768,6 +5870,13 @@ import type { PointStyle } from '../../utils/pointMarker';
  */
 export type ControlsMode = 'split' | 'unified';
 /**
+ * A flyout menu of the control bar, named so a host can open one.
+ *
+ * `captions` is the transport's; the rest are the toolbar's. They share one
+ * name because they share the bar and its one-at-a-time rule.
+ */
+export type BarMenu = 'gallery' | 'viewing-mode' | 'sequence' | 'locale' | 'captions';
+/**
  * How the canvas nav (control bar) sits relative to its edge.
  * - `docked`   — flush to the edge, flat (default).
  * - `floating` — an inset island off the edge, with a shadow.
@@ -5857,13 +5966,34 @@ export interface RendererConfig {
      * the fit scale: `8` stops eight times closer than the scale at which the
      * canvas fits the viewport. Must be greater than 1.
      *
-     * The fit is measured against the live viewport, so the ceiling follows a
-     * window resize and a phone rotation. Because the fit falls as the source
-     * grows, the same factor gives a large scan more magnification past 1:1
-     * than a small one — raise it for images with more pixels than their fit
-     * suggests, lower it to stop the reader short of visible blur.
+     * The fit is measured against the live viewport, so this term follows a
+     * window resize and a phone rotation. It is the ceiling's answer for a
+     * source with **fewer pixels than its viewport**, which can only be
+     * inspected by magnifying it: raise it to allow a small scan more
+     * magnification, lower it to stop the reader short of visible blur.
+     *
+     * Deep material is governed by {@link maxZoomPixelRatio} instead, and the
+     * ceiling is the more generous of the two.
      */
     maxZoomFactor?: number;
+    /**
+     * How far past 1:1 the reader may magnify a source pixel, as device pixels
+     * per pixel the image actually has: `2` stops where one source pixel covers
+     * a 2x2 block of the display. Must be greater than 0.
+     *
+     * The zoom ceiling is the more generous of this and {@link maxZoomFactor}.
+     * This term says nothing about the viewport, so it holds across a resize
+     * and a rotation and gives a deep scan its own resolution with no per-image
+     * tuning; `maxZoomFactor` answers for a source with fewer pixels than the
+     * viewport, which has no resolution left for this knob to reach.
+     *
+     * Resolution comes from the image service's `info.json` where one has been
+     * fetched, and from the manifest Canvas's declared dimensions otherwise —
+     * the IIIF convention that a Canvas is sized in its image's pixels. Lower
+     * it to stop the reader at visible blur; raise it to allow magnification
+     * past the source's own pixels.
+     */
+    maxZoomPixelRatio?: number;
     /**
      * Multiplicative zoom factor for one **wheel notch** — the detent of a
      * classic mouse wheel, which the wheel event reports as about 100 pixels of
@@ -6030,6 +6160,17 @@ export interface ViewerConfig {
      * in `split` controls mode; ignored when `controls === 'unified'`.
      */
     toolbar?: ToolbarConfig;
+    /**
+     * Which of the control bar's flyout menus stands open, or `null` for none.
+     *
+     * The bar holds at most one open at a time, and each control owns its own:
+     * the toolbar's four are dismissed by the toolbar, and `captions` — the
+     * caption-track list a timed-media claimant registers into the transport —
+     * is dismissed by the transport. Naming a menu no visible control offers
+     * opens nothing.
+     * @default null
+     */
+    openMenu?: BarMenu | null;
     /**
      * Whether the Table of Contents (Structures) toolbar button is shown.
      * Prefer `toolbar.showStructures` for new configurations.
@@ -7238,7 +7379,7 @@ export declare function getPaintingAnnotations(canvas: any): any[];
  *
  * **IIIF v2 spells this `resource`; IIIF v3 spells it `body`.** Reading only
  * `body` leaves a v2 annotation yielding nothing, so the viewer renders a
- * blank canvas with only a `logger.debug` line and no other signal.
+ * blank canvas with no diagnostic of any kind.
  *
  * Takes a **raw JSON** annotation, as `getPaintingAnnotations` returns.
  *

@@ -19,6 +19,7 @@
     import PageHead from '$lib/PageHead.svelte';
     import BuilderPreview from '$lib/builder/BuilderPreview.svelte';
     import { FRAMEWORKS, objectText, snippet } from '$lib/builder/outputs';
+    import { BUILDER_PLUGINS, type BuilderPlugin } from '$lib/builder/plugins';
     import {
         BUILDER_DEFAULTS,
         CONTROL_GROUPS,
@@ -28,6 +29,7 @@
     import { FRAMEWORK_GROUP } from '$lib/content';
     import { HERO_EXAMPLE } from '$lib/examples';
     import { PLAYGROUND_PATH } from '$lib/site';
+    import type { SitePlugin } from '$lib/sitePlugins';
     import { THEME_ATTRIBUTE, currentTheme, type Theme } from '$lib/theme';
     import type { ViewerConfig } from '$lib/viewerConfig';
 
@@ -40,13 +42,23 @@
      * application; the prose around it is short enough to live here, and its
      * rules are in `app.css` with every other route's.
      *
-     * Two kinds of state, kept apart because the viewer takes them as two
+     * The page is one stage and then its handoffs. The stage spans the whole
+     * column — the treatment `/handles/` gives its own running viewer — with
+     * the viewer on one side and the editor on the other, pinned to the
+     * viewer's height and scrolled within itself. Every group of controls is a
+     * tab of that editor rather than another screen of one long column: the
+     * point of the page is watching a change land, and a control that has
+     * scrolled the viewer off the screen cannot be watched landing.
+     *
+     * Three kinds of state, kept apart because the viewer takes them as three
      * different inputs. `config` is the viewer's configuration interface, and
      * only the keys the reader actually set are emitted — the sparse algebra for
      * that is `@triiiceratops/config`'s, shared with the playground, so a share
      * URL means the same thing on both routes. `themeOverlay` is the public
      * theming tokens, and it starts empty for the same reason: an untouched
      * token must stay the reader's own theme's answer rather than this page's.
+     * `chosen` is the plugins, which are modules rather than data and therefore
+     * reach a reader's page through the snippet alone.
      *
      * The URL is read on mount rather than at initialisation. The route
      * prerenders, so there is no query string at render time, and reading one
@@ -164,8 +176,45 @@
     });
 
     /*
-     * The three handoffs, each derived rather than captured on a click, so what
-     * a reader copies is the state at the moment they copy it.
+     * The plugins, which are the one part of a reader's answer that is not
+     * data. Turning one on fetches its module — here rather than in an effect,
+     * because the fetch is the consequence of the click and not of the state
+     * settling — and the preview above runs whatever has arrived.
+     */
+    let chosenIds = $state<readonly string[]>([]);
+
+    /*
+     * Raw, and reassigned rather than mutated: activation is keyed to a
+     * plugin's identity, so a plugin that reached the viewer through a deep
+     * reactive proxy would be a different object from the one the module
+     * exported and would restart on every unrelated change.
+     */
+    let loaded = $state.raw<readonly { id: string; plugin: SitePlugin }[]>([]);
+
+    const chosen = $derived(
+        BUILDER_PLUGINS.filter((plugin) => chosenIds.includes(plugin.id)),
+    );
+    const running = $derived(
+        chosen
+            .map((plugin) => loaded.find((entry) => entry.id === plugin.id))
+            .filter((entry) => entry !== undefined)
+            .map((entry) => entry.plugin),
+    );
+
+    async function choose(plugin: BuilderPlugin, on: boolean) {
+        chosenIds = on
+            ? [...chosenIds, plugin.id]
+            : chosenIds.filter((id) => id !== plugin.id);
+        if (!on || loaded.some((entry) => entry.id === plugin.id)) return;
+        // A plugin turned off while its module was in flight must not arrive:
+        // what the viewer runs is the intersection of the two, so the cache
+        // growing is harmless on its own.
+        loaded = [...loaded, { id: plugin.id, plugin: await plugin.load() }];
+    }
+
+    /*
+     * The handoffs, each derived rather than captured on a click, so what a
+     * reader copies is the state at the moment they copy it.
      *
      * The share URL is built where the reader is standing rather than against a
      * declared path, which is what makes the same string mean the same thing
@@ -191,13 +240,13 @@
 
     const configText = $derived(objectText(userSet));
     const themeText = $derived(objectText(themeOverlay));
-    const themeSet = $derived(Object.keys(themeOverlay).length > 0);
 
     const code = $derived.by(() => {
         const output = {
             manifestId: currentManifest,
             config: userSet,
             themeConfig: themeOverlay as Record<string, unknown>,
+            plugins: chosen,
         };
         return new Map(
             FRAMEWORKS.map((entry) => [entry.id, snippet(entry.id, output)]),
@@ -218,6 +267,55 @@
         type: 'tab',
         attrs: { label },
     }));
+
+    /*
+     * The editor's own tabs, which are this route's and not the documentation's:
+     * eleven groups rather than four, and a keyboard reader has to be able to
+     * reach every one of them from the tab that has focus.
+     */
+    const slug = (title: string) =>
+        title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '');
+
+    const PLUGIN_SECTION = 'plugins';
+
+    const SECTIONS: readonly { id: string; title: string }[] = [
+        ...CONTROL_GROUPS.map((group) => ({
+            id: slug(group.title),
+            title: group.title,
+        })),
+        { id: PLUGIN_SECTION, title: 'Plugins' },
+        ...TOKEN_GROUPS.map((group) => ({
+            id: slug(group.title),
+            title: group.title,
+        })),
+    ];
+
+    let section = $state(SECTIONS[0].id);
+    let tablist = $state<HTMLDivElement | undefined>(undefined);
+
+    const STEPS: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 };
+
+    function steer(event: KeyboardEvent, at: number) {
+        const step = STEPS[event.key];
+        const to =
+            step !== undefined
+                ? (at + step + SECTIONS.length) % SECTIONS.length
+                : event.key === 'Home'
+                  ? 0
+                  : event.key === 'End'
+                    ? SECTIONS.length - 1
+                    : undefined;
+        if (to === undefined) return;
+
+        event.preventDefault();
+        section = SECTIONS[to].id;
+        tablist
+            ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+            [to]?.focus();
+    }
 
     function read(control: BuilderControl): unknown {
         return getAtPath(config as SparseConfig, [...control.path]);
@@ -262,6 +360,7 @@
     function startOver() {
         config = clonePlain(BUILDER_DEFAULTS);
         themeOverlay = {};
+        chosenIds = [];
         tracker.reset();
         clearStoredConfig();
         useExample();
@@ -275,74 +374,99 @@
 
 <PageHead />
 
-<section class="band builder" aria-labelledby="builder-h">
+<section class="bstage" aria-labelledby="builder-h">
     <h2 id="builder-h" class="vh">The builder</h2>
 
-    <div class="bd">
-        <div class="bd__show">
-            <form class="pick" onsubmit={loadManifest}>
-                <label class="pick__label" for="manifest">
-                    Your IIIF manifest
-                </label>
-                <div class="pick__row">
-                    <input
-                        id="manifest"
-                        class="pick__url"
-                        type="text"
-                        inputmode="url"
-                        spellcheck="false"
-                        placeholder="https://example.org/iiif/manifest.json"
-                        bind:value={manifestUrl}
-                    />
-                    <button class="btn btn--go" type="submit">Load</button>
-                </div>
-                <p class="pick__note note">
-                    Paste the manifest of something you publish. Nothing is sent
-                    anywhere: the viewer fetches it from your server, in this
-                    browser.
-                    {#if currentManifest !== HERO_EXAMPLE.manifest}
-                        <button
-                            class="linkish"
-                            type="button"
-                            onclick={useExample}
-                            >Back to the example manifest</button
-                        >
-                    {/if}
-                </p>
-            </form>
-
-            <div class="bd__frame">
-                <BuilderPreview
-                    manifestId={currentManifest}
-                    config={applied}
-                    theme={scheme}
-                    themeConfig={themeOverlay}
-                    {colourTokens}
-                    {lengthTokens}
-                    onbase={(resolved) => (base = resolved)}
+    <div class="bstage__show">
+        <form class="pick" onsubmit={loadManifest}>
+            <label class="pick__label" for="manifest">
+                Your IIIF manifest
+            </label>
+            <div class="pick__row">
+                <input
+                    id="manifest"
+                    class="pick__url"
+                    type="text"
+                    inputmode="url"
+                    spellcheck="false"
+                    placeholder="https://example.org/iiif/manifest.json"
+                    bind:value={manifestUrl}
                 />
+                <button class="btn btn--go" type="submit">Load</button>
             </div>
+            <p class="pick__note note">
+                Paste the manifest of something you publish. Nothing is sent
+                anywhere: the viewer fetches it from your server, in this
+                browser.
+                {#if currentManifest !== HERO_EXAMPLE.manifest}
+                    <button class="linkish" type="button" onclick={useExample}
+                        >Back to the example manifest</button
+                    >
+                {/if}
+            </p>
+        </form>
+
+        <div class="bstage__frame">
+            <BuilderPreview
+                manifestId={currentManifest}
+                config={applied}
+                plugins={running}
+                theme={scheme}
+                themeConfig={themeOverlay}
+                {colourTokens}
+                {lengthTokens}
+                onbase={(resolved) => (base = resolved)}
+            />
+        </div>
+    </div>
+
+    <div class="bstage__set">
+        <div class="bd__head">
+            <p class="note">
+                Every control names a key of the viewer's own configuration
+                interface, or one of its public theming tokens. Only what you
+                change is carried.
+            </p>
+            <button class="btn" type="button" onclick={startOver}>
+                Start over
+            </button>
         </div>
 
-        <div class="bd__set">
-            <div class="bd__setHead">
-                <p class="note">
-                    Every control here names a key of the viewer's own
-                    configuration interface, or one of its public theming
-                    tokens. Only what you change is carried.
-                </p>
-                <button class="btn" type="button" onclick={startOver}>
-                    Start over
+        <div
+            class="bd__tabs"
+            role="tablist"
+            aria-label="Configuration sections"
+            bind:this={tablist}
+        >
+            {#each SECTIONS as entry, at (entry.id)}
+                <button
+                    type="button"
+                    role="tab"
+                    id="tab-{entry.id}"
+                    aria-controls="pane-{entry.id}"
+                    aria-selected={section === entry.id}
+                    tabindex={section === entry.id ? 0 : -1}
+                    onclick={() => (section = entry.id)}
+                    onkeydown={(event) => steer(event, at)}
+                >
+                    {entry.title}
                 </button>
-            </div>
+            {/each}
+        </div>
 
+        <div class="bd__panes">
             {#each CONTROL_GROUPS as group (group.title)}
-                <fieldset class="grp">
-                    <legend>{group.title}</legend>
+                <div
+                    class="pane"
+                    role="tabpanel"
+                    id="pane-{slug(group.title)}"
+                    aria-labelledby="tab-{slug(group.title)}"
+                    hidden={section !== slug(group.title)}
+                >
                     {#if group.note}
-                        <p class="grp__note note">{group.note}</p>
+                        <p class="pane__note note">{group.note}</p>
                     {/if}
-                    <div class="grp__body">
+                    <div class="pane__body">
                         {#each group.controls as control (control.path.join('.'))}
                             {#if control.kind === 'toggle'}
                                 <div class="row row--check">
@@ -415,19 +539,60 @@
                             {/if}
                         {/each}
                     </div>
-                </fieldset>
+                </div>
             {/each}
+
+            <div
+                class="pane"
+                role="tabpanel"
+                id="pane-{PLUGIN_SECTION}"
+                aria-labelledby="tab-{PLUGIN_SECTION}"
+                hidden={section !== PLUGIN_SECTION}
+            >
+                <p class="pane__note note">
+                    The first-party plugins, each its own package. One you turn
+                    on runs in the viewer above and is registered in the code
+                    below; it reaches neither the configuration object nor the
+                    link, because a plugin is a module and neither of those can
+                    carry one.
+                </p>
+                <div class="pane__body">
+                    {#each BUILDER_PLUGINS as plugin (plugin.id)}
+                        <div class="row row--plug">
+                            <input
+                                id="plug-{plugin.id}"
+                                type="checkbox"
+                                checked={chosenIds.includes(plugin.id)}
+                                onchange={(event) =>
+                                    choose(plugin, event.currentTarget.checked)}
+                            />
+                            <label for="plug-{plugin.id}">
+                                {plugin.label}
+                                <span class="row__say">{plugin.say}</span>
+                                <code class="row__token">{plugin.pkg}</code>
+                            </label>
+                        </div>
+                    {/each}
+                </div>
+            </div>
 
             <!-- The theming controls appear once the viewer's own palette has
                  been read off its stylesheet: a swatch has no honest value
                  before that, and prerendering forty-five of them would put
-                 their weight on the load of a page that argues about weight. -->
-            {#if themeReady}
-                {#each TOKEN_GROUPS as group (group.title)}
-                    <fieldset class="grp">
-                        <legend>{group.title}</legend>
-                        <p class="grp__note note">{group.note}</p>
-                        <div class="grp__body">
+                 their weight on the load of a page that argues about weight.
+                 The tabs are there from the first paint all the same, so the
+                 row of them does not grow under the reader's pointer. -->
+            {#each TOKEN_GROUPS as group (group.title)}
+                <div
+                    class="pane"
+                    role="tabpanel"
+                    id="pane-{slug(group.title)}"
+                    aria-labelledby="tab-{slug(group.title)}"
+                    hidden={section !== slug(group.title)}
+                >
+                    <p class="pane__note note">{group.note}</p>
+                    {#if themeReady}
+                        <div class="pane__body">
                             {#each group.tokens as token (token.key)}
                                 <div class="row">
                                     <label for={`tok-${token.key}`}>
@@ -465,9 +630,9 @@
                                 </div>
                             {/each}
                         </div>
-                    </fieldset>
-                {/each}
-            {/if}
+                    {/if}
+                </div>
+            {/each}
         </div>
     </div>
 </section>
@@ -476,26 +641,14 @@
     <div class="prose">
         <h2 id="take">Take it with you</h2>
         <p>
-            Three ways out, all of them the state of the viewer above at the
-            moment you copy them, and all of them sparse: what you changed, and
-            nothing else. A key you never touched stays whatever the manifest,
-            the theme or a later release says it should be.
+            Everything below is the state of the viewer above at the moment you
+            copy it, and all of it sparse: what you changed, and nothing else. A
+            key you never touched stays whatever the manifest, the theme or a
+            later release says it should be.
         </p>
     </div>
 
     <div class="hand">
-        <section class="hand__one" aria-labelledby="out-link">
-            <h3 id="out-link">The link</h3>
-            <p class="note">
-                Send this to a colleague and it opens on your manifest, arranged
-                the way you arranged it. It also opens in the
-                <a class="link" href={PLAYGROUND_PATH}>playground</a>, where the
-                rest of the configuration interface is — same query string, same
-                meaning.
-            </p>
-            <CopyLine text={shareUrl} label="share link" />
-        </section>
-
         <section class="hand__one" aria-labelledby="out-config">
             <h3 id="out-config">The configuration</h3>
             <p class="note">
@@ -507,24 +660,36 @@
                 label="configuration object"
                 language="js"
             />
-            {#if themeSet}
-                <p class="note">
-                    The colours and corners you changed travel separately,
-                    because the viewer takes them as a separate input:
-                    <code>themeConfig</code>.
-                </p>
-                <CopyLine
-                    text={themeText}
-                    label="theme configuration object"
-                    language="js"
-                />
-            {/if}
+            <p class="note">
+                The colors and corners travel as a second object, because the
+                viewer takes them as a separate input: <code>themeConfig</code>.
+                It stays empty until you change one.
+            </p>
+            <CopyLine
+                text={themeText}
+                label="theme configuration object"
+                language="js"
+            />
         </section>
 
-        <section class="hand__one hand__one--wide" aria-labelledby="out-code">
+        <section class="hand__one" aria-labelledby="out-link">
+            <h3 id="out-link">The link</h3>
+            <p class="note">
+                Send this to a colleague and it opens on your manifest, arranged
+                the way you arranged it. It also opens in the
+                <a class="link" href={PLAYGROUND_PATH}>playground</a>, where the
+                rest of the configuration interface is — same query string, same
+                meaning. It carries the arrangement and the theme; the plugins
+                are packages a build installs, so they travel in the code below.
+            </p>
+            <CopyLine text={shareUrl} label="share link" />
+        </section>
+
+        <section class="hand__one" aria-labelledby="out-code">
             <h3 id="out-code">The code</h3>
             <p class="note">
-                The whole integration, in the framework you build in. This is
+                The whole integration, in the framework you build in — the
+                configuration, the theme and the plugins you turned on. This is
                 the argument the page is making: everything above is
                 configuration, and none of it is a different build.
             </p>
@@ -558,9 +723,10 @@
         <h2 id="elsewhere">What this page deliberately does not set</h2>
         <p>
             This is appearance and chrome: where the controls sit, which buttons
-            exist, what the viewer is painted in. How the viewer reads a
-            manifest is a different question, and it is answered somewhere a
-            reader can experiment without leaving a share link behind.
+            exist, what the viewer is painted in, and which plugins it is built
+            with. How the viewer reads a manifest is a different question, and
+            it is answered somewhere a reader can experiment without leaving a
+            share link behind.
         </p>
         <p>
             Viewing mode and viewing direction, search providers and renderer

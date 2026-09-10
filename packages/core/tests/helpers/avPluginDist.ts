@@ -3,7 +3,7 @@
  *
  * The plugin lives outside the dev server's root, so every AV spec installs a
  * route for it. It is a helper rather than a copy per spec because the plugin's
- * dist is a DIRECTORY, not a file: `iife.js` fetches `av-waveform.js` and
+ * dist is a DIRECTORY, not a file: `iife.js` fetches `av-timeline.js` and
  * `av-hls.js` from beside itself, resolved against its own script URL. A route
  * that served only the entry would leave those chunks 404ing, and the failure
  * would look like "the waveform never drew" or "the stream will not play"

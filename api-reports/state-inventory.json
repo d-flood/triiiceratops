@@ -1,8 +1,8 @@
 {
-    "count": 84,
+    "count": 86,
     "byClassification": {
-        "command": 38,
-        "observable": 13,
+        "command": 39,
+        "observable": 14,
         "internal": 29,
         "query-only": 4
     },
@@ -63,6 +63,11 @@
                 "nextCanvas",
                 "previousCanvas"
             ]
+        },
+        {
+            "member": "chromeInset",
+            "classification": "observable",
+            "commands": null
         },
         {
             "member": "claimedCanvases",
@@ -216,6 +221,14 @@
             "member": "navigationRegion",
             "classification": "internal",
             "commands": null
+        },
+        {
+            "member": "openMenu",
+            "classification": "command",
+            "commands": [
+                "setOpenMenu",
+                "toggleMenu"
+            ]
         },
         {
             "member": "overlayLayerRegistry",
@@ -506,7 +519,8 @@
                 "panTo",
                 "zoomTo",
                 "fitBounds",
-                "fitCanvas"
+                "fitCanvas",
+                "fitView"
             ]
         },
         {
@@ -515,7 +529,8 @@
             "commands": [
                 "panTo",
                 "fitBounds",
-                "fitCanvas"
+                "fitCanvas",
+                "fitView"
             ]
         },
         {
@@ -532,9 +547,11 @@
             "commands": [
                 "zoomIn",
                 "zoomOut",
+                "holdZoom",
                 "zoomTo",
                 "fitBounds",
-                "fitCanvas"
+                "fitCanvas",
+                "fitView"
             ]
         },
         {

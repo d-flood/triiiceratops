@@ -209,6 +209,13 @@ export function buildPyramid(
     facts: ImageServiceFacts,
     fallbackTileSize?: number,
 ): TilePyramid | null {
+    // The service was caught serving a different extent than it declares, so
+    // there is no grid here to build: a region derived from either the
+    // advertised tiling or a derived one falls outside the real image. It
+    // renders from whole-image requests instead (`imageService`,
+    // `planScene.isSizeLadderSource`).
+    if (facts.regionsUntrusted) return null;
+
     const tileSize =
         usableTileSize(facts.tileSize) ??
         (facts.level0 ? null : usableTileSize(fallbackTileSize));

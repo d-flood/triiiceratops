@@ -1,0 +1,295 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/collection/botany.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Botany and zoology"]
+    },
+    "summary": {
+        "en": [
+            "4 plates from this site's public-domain set, gathered as one volume of a collection."
+        ]
+    },
+    "items": [
+        {
+            "id": "/material/collection/botany/canvas/haeckel",
+            "type": "Canvas",
+            "label": {
+                "en": ["Ernst Haeckel, Discomedusae (Plate 8), 1904"]
+            },
+            "width": 3645,
+            "height": 5267,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Ernst Haeckel, Kunstformen der Natur, Plate 8; Smithsonian Libraries and Archives / Biodiversity Heritage Library."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Smithsonian Libraries and Archives / Biodiversity Heritage Library, item 18431"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": ["https://www.biodiversitylibrary.org/item/18431"]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/collection/botany/page/haeckel",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/collection/botany/annotation/haeckel",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/haeckel/0,0,3645,5267/228,330/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 3645,
+                                "height": 5267,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/haeckel",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/collection/botany/canvas/haeckel"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/collection/botany/canvas/merian",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Maria Sibylla Merian, Plate 1: Pineapple with Insects, 1705"
+                ]
+            },
+            "width": 4167,
+            "height": 6049,
+            "rights": "http://rightsstatements.org/vocab/NoC-US/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Maria Sibylla Merian, Metamorphosis insectorum Surinamensium, Plate 1, 1705. Biodiversity Heritage Library."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Biodiversity Heritage Library, item 129308, page 41398750"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.biodiversitylibrary.org/page/41398750"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/collection/botany/page/merian",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/collection/botany/annotation/merian",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/merian/0,0,4167,6049/261,379/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 4167,
+                                "height": 6049,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/merian",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/collection/botany/canvas/merian"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/collection/botany/canvas/atkins",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Anna Atkins, Dictyota dichotoma, in the young state and in fruit, 1843-53"
+                ]
+            },
+            "width": 3266,
+            "height": 4000,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Anna Atkins, Dictyota dichotoma, in the young state and in fruit, 1843-53, The Metropolitan Museum of Art, 2005.100.557 (18)."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["The Metropolitan Museum of Art, object 291515"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.metmuseum.org/art/collection/search/291515"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/collection/botany/page/atkins",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/collection/botany/annotation/atkins",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/atkins/0,0,3266,4000/409,500/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 3266,
+                                "height": 4000,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/atkins",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/collection/botany/canvas/atkins"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/collection/botany/canvas/audubon",
+            "type": "Canvas",
+            "label": {
+                "en": ["John James Audubon, Snowy Owl (Plate 121), 1831"]
+            },
+            "width": 5230,
+            "height": 7884,
+            "rights": "http://rightsstatements.org/vocab/NoC-US/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "John James Audubon, Snowy Owl, Plate 121, 1831. Boston Public Library / Digital Commonwealth."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Boston Public Library / Digital Commonwealth, 9s16d0015"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://ark.digitalcommonwealth.org/ark:/50959/9s16d0015"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/collection/botany/page/audubon",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/collection/botany/annotation/audubon",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/audubon/0,0,5230,7884/327,493/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 5230,
+                                "height": 7884,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/audubon",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/collection/botany/canvas/audubon"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -114,7 +114,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
                 label: 'Canvas nav alignment',
                 choices: choices<NonNullable<Nav['align']>>({
                     start: 'Start',
-                    center: 'Centre',
+                    center: 'Center',
                     end: 'End',
                 }),
             },
@@ -132,7 +132,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
                 path: ['toolbar', 'anchor'],
                 label: 'Toolbar anchor',
                 choices: choices<NonNullable<Toolbar['anchor']>>({
-                    center: 'Centred on its side',
+                    center: 'Centered on its side',
                     top: 'Pinned to the top',
                 }),
             },

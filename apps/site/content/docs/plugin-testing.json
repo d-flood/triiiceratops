@@ -463,7 +463,7 @@
 								},
 								{
 									"type": "text",
-									"text": " or your sanitised package name, and in neither case is it guaranteed to be the string you typed."
+									"text": " or your sanitized package name, and in neither case is it guaranteed to be the string you typed."
 								}
 							],
 							"attrs": {

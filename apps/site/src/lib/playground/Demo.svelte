@@ -17,7 +17,6 @@
     import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
     import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-export';
     import { PdfExportPlugin } from '@triiiceratops/plugin-pdf-export';
-    import { AnnotationEditorPlugin } from '@triiiceratops/plugin-annotation-editor';
     import { AvPlugin } from '@triiiceratops/plugin-av';
     import {
         buildShareUrl,
@@ -355,11 +354,16 @@
     // Those are structurally identical to core's own `src/lib/types` but
     // nominally distinct (e.g. ViewerState's `#private` brand), so we cast at
     // this in-repo boundary. Runtime is unaffected.
+    //
+    // The annotation editor is not among them. It declares `osd@5`, a
+    // capability core retired when the renderer became first-party, so it
+    // cannot activate at all — and a plugin that cannot activate installs no
+    // button while still costing the playground its whole Annotorious graph on
+    // first load. It returns here when the phase-2 drawing layer rebuilds it.
     const enabledPlugins = [
         ImageManipulationPlugin,
         ImageDownloadPlugin,
         PdfExportPlugin,
-        AnnotationEditorPlugin,
         AvPlugin,
     ] as unknown as SdkPlugin[];
 

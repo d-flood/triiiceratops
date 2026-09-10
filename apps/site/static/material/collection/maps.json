@@ -1,0 +1,157 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/collection/maps.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Maps and star charts"]
+    },
+    "summary": {
+        "en": [
+            "2 plates from this site's public-domain set, gathered as one volume of a collection."
+        ]
+    },
+    "items": [
+        {
+            "id": "/material/collection/maps/canvas/cellarius",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Andreas Cellarius, Scenographia Systematis Copernicani (Plate 5), 1661"
+                ]
+            },
+            "width": 2928,
+            "height": 2469,
+            "rights": "https://creativecommons.org/publicdomain/mark/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Andreas Cellarius, Harmonia Macrocosmica, Plate 5. Public-domain scan via Wikimedia Commons."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Wikimedia Commons, Cellarius Harmonia Macrocosmica - Scenographia Systematis Copernicani"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://commons.wikimedia.org/wiki/File:Cellarius_Harmonia_Macrocosmica_-_Scenographia_Systematis_Copernicani.jpg"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/collection/maps/page/cellarius",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/collection/maps/annotation/cellarius",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/cellarius/0,0,2928,2469/366,309/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 2928,
+                                "height": 2469,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/cellarius",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/collection/maps/canvas/cellarius"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/collection/maps/canvas/monte",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Urbano Monte, Composite: Tavola 1-60 (Map of the World), 1587"
+                ]
+            },
+            "width": 62079,
+            "height": 62160,
+            "rights": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Urbano Monte, Composite: Tavola 1-60 (Map of the World), 1587. David Rumsey Map Collection, list 10130.087. CC BY-NC-SA 3.0."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["David Rumsey Map Collection, list 10130.087"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.davidrumsey.com/luna/servlet/detail/RUMSEY~8~1~303661~90074314"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/collection/maps/page/monte",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/collection/maps/annotation/monte",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/monte/0,0,62079,62160/485,486/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 62079,
+                                "height": 62160,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/monte",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/collection/maps/canvas/monte"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

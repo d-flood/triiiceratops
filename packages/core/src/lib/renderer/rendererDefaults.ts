@@ -103,19 +103,36 @@ export const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
  * canvas with a duration, no dimensions, no picture core can paint, and no
  * companion Canvas to take a rect from — an audio recording, in other words.
  *
- * A strip rather than {@link UNSIZED_CANVAS_PLACEHOLDER}'s square, because the
- * two placeholders answer different questions. That one stands in for a shape
- * nobody stated and something may yet report; this canvas's shape is not
- * unknown — there is no picture, so the only thing that will ever occupy the
- * rect is a timeline, and an AV plugin's audio stage fills it with exactly that
- * (`plugin-av/stageLayout.stageLayoutKind`, the `audio` layout). A square asks
+ * Not a shape at all, strictly: there is no picture, so the only thing that
+ * will ever occupy the rect is a timeline, and an AV plugin's audio stage fills
+ * it with exactly that (`plugin-av/stageLayout.stageLayoutKind`, the `audio`
+ * layout). {@link UNSIZED_CANVAS_PLACEHOLDER}'s square answers a different
+ * question — a shape nobody stated and something may yet report — and would ask
  * the reader to accept a waveform lane as tall as a page.
  *
- * Only the ratio matters, for the same reason it does there: a world of one such
- * canvas is fitted to the viewport, so this decides that an audio canvas is
- * fitted as a band across it rather than as a block down it.
+ * Only the ratio matters, since a world of one such canvas is fitted to the
+ * viewport. **It is the surface's own ratio**, which makes the fit land on the
+ * whole surface: full width and full height at the same scale, so a lone
+ * recording opens as a timeline filling the viewer rather than as a band across
+ * the middle of it. Zooming from there widens the rect past the surface while
+ * the vertical stays covered, which is the temporal zoom a waveform wants — and
+ * `planScene.laneWorld` is what stops the reader zooming back out of it or panning
+ * off it vertically.
+ *
+ * Deriving the box from the surface is the one place world layout consults the
+ * viewer's shape. It is confined to this rung on purpose: every canvas with a
+ * picture — a declared size, a service that reported one, a companion Canvas, a
+ * sized sibling — is laid out before reaching it, so nothing whose geometry
+ * means anything can be reshaped by a window resize.
  */
-export const DURATION_ONLY_CANVAS_PLACEHOLDER = { width: 1000, height: 160 };
+export const DURATION_ONLY_CANVAS_WIDTH = 1000;
+
+/**
+ * The ratio {@link DURATION_ONLY_CANVAS_WIDTH} takes before the surface has been
+ * measured — a strip, so a canvas laid out during SSR or in the frame before the
+ * first `measure` is still not a page-shaped nothing.
+ */
+export const DURATION_ONLY_CANVAS_ASPECT = 0.16;
 
 /**
  * The gutter between adjacent canvases, as a fraction of the median laid-out
@@ -234,19 +251,29 @@ export const WHEEL_PAGE_PIXELS = WHEEL_LINE_PIXELS * 24;
  * How far past a whole-canvas fit the viewer may zoom in, as a multiple of the
  * fit scale, and the default behind `ViewerConfig.renderer.maxZoomFactor`.
  *
- * Comfortably past 1:1 on a high-resolution scan — the point of a deep-zoom
- * viewer — without running far past the pixels the source actually has. The
- * ceiling is relative to the fit and the fit falls as the scan grows, so a
- * generous factor buys a large scan the depth it deserves and hands a modest
- * one nothing but magnified blur: an 8000-pixel folio fitted into an
- * 800-pixel-wide viewport reaches about 1:1 at the ceiling, where a
- * 1000-pixel one stops at 8x its own pixels rather than the 100x a much
- * larger factor would allow.
- *
- * Consumers who know their own images are deeper than the fit suggests raise
- * it through the knob.
+ * The ceiling's answer for a source with fewer pixels than its viewport: there
+ * is no resolution left to reach, so a fit-relative allowance is the only one
+ * that lets such a scan be inspected. A ceiling measured in fits falls as the
+ * source grows and so cannot serve a deep scan — {@link MAX_ZOOM_PIXEL_RATIO}
+ * does, and `viewportMath.zoomRange` takes whichever is more generous.
  */
 export const MAX_ZOOM_FACTOR = 8;
+
+/**
+ * How far past 1:1 the reader may magnify a source pixel, as device pixels per
+ * pixel the source actually has, and the default behind
+ * `ViewerConfig.renderer.maxZoomPixelRatio`.
+ *
+ * The mirror of {@link DEFAULT_BUDGETS}'s `minPixelRatio`: that is the fewest
+ * device pixels a source pixel may cover before the planner fetches a finer
+ * level, this the most before the viewer stops zooming. Independent of viewport
+ * size, so the same material zooms to the same depth on a phone and a desktop.
+ *
+ * `2` lets a source pixel cover a 2x2 block of device pixels — past 1:1,
+ * because stopping exactly there makes the finest level unreachable in
+ * practice, and short of visible interpolation.
+ */
+export const MAX_ZOOM_PIXEL_RATIO = 2;
 
 /**
  * How small a canvas may get, as a fraction of the scale at which it exactly
@@ -311,15 +338,32 @@ export const DOUBLE_TAP_ZOOM_FACTOR = 2;
  * Zoom factor for one **toolbar / API** zoom step (`ViewerState.zoomIn` and
  * `zoomOut`), and the default behind `ViewerConfig.renderer.zoomPerClick`.
  *
- * Carried forward from the previous renderer's toolbar, which zoomed in by
- * 1.2 and out by 0.8. Those were not each other's inverse, so a zoom-in
- * followed by a zoom-out did not return to where it started; one factor
- * applied in both directions fixes that without changing how big a step feels.
+ * One factor in both directions, so a zoom-in followed by a zoom-out returns
+ * to where it started: the previous renderer's toolbar zoomed in by 1.2 and out
+ * by 0.8, which are not each other's inverse.
  *
- * Smaller than {@link DOUBLE_TAP_ZOOM_FACTOR} for the same reason
- * {@link KEY_ZOOM_FACTOR} is: a button is easy to press repeatedly.
+ * Equal to {@link KEY_ZOOM_FACTOR} — a tap and a `+` press are the same
+ * request — and smaller than {@link DOUBLE_TAP_ZOOM_FACTOR} because a button is
+ * easy to press repeatedly. Covering real distance is a HOLD's job
+ * ({@link ZOOM_PER_SECOND}), which is why this is not larger still.
  */
-export const ZOOM_PER_CLICK = 1.2;
+export const ZOOM_PER_CLICK = 1.5;
+
+/**
+ * Rate of a **held** zoom control, in doublings per second.
+ *
+ * A rate rather than a repeated step, for the reason {@link KEY_PAN_SPEED} is
+ * one: the frame loop integrates it, so how far a hold travels is a function of
+ * how long it was held and of nothing else. Applied exponentially
+ * (`scale *= exp(rate * ln2 * elapsed)`), which is what makes the motion read as
+ * even from the zoom floor to the ceiling instead of crawling at one end and
+ * lurching at the other — the same reason {@link ANIMATION_TIME_CONSTANT}'s
+ * easing interpolates scale in log space.
+ *
+ * At 1.75 a hold covers a fit to the {@link MAX_ZOOM_FACTOR} ceiling in about
+ * 1.7s, which reads as deliberate rather than twitchy.
+ */
+export const ZOOM_PER_SECOND = 1.75;
 
 /**
  * Time constant, in seconds, of the friction that decays flick momentum. About

@@ -86,7 +86,8 @@
 
 import { layoutCanvasGeometry } from '../components/canvasLayout';
 import {
-    DURATION_ONLY_CANVAS_PLACEHOLDER,
+    DURATION_ONLY_CANVAS_ASPECT,
+    DURATION_ONLY_CANVAS_WIDTH,
     UNSIZED_CANVAS_PLACEHOLDER,
 } from './rendererDefaults';
 import { viewportBox } from './viewportMath';
@@ -168,6 +169,13 @@ interface SizedCanvas {
     canvas: PlannerCanvas;
     width: number;
     height: number;
+    /**
+     * Whether this canvas took the duration-only rung — a recording with no
+     * spatial extent of any kind, whose box is therefore the surface's own
+     * shape rather than a fact about the manifest. {@link laneWorld} is the
+     * only reader.
+     */
+    lane: boolean;
 }
 
 /**
@@ -211,20 +219,61 @@ function aspectOf(box: { width: number; height: number } | null) {
  * will ever paint a picture in its rect: no service to reflow from, no companion
  * Canvas — one of those would have donated a rect before the descriptor reached
  * this function (`companionCanvases.withCompanion`) — so a page-shaped box would
- * be a page-shaped nothing. It gets a strip instead, which is the shape of the
- * timeline that is the only thing an AV plugin will put there.
+ * be a page-shaped nothing. It gets the SURFACE's shape instead, so the timeline
+ * that is the only thing an AV plugin will put there fills the viewer — see
+ * `rendererDefaults.DURATION_ONLY_CANVAS_WIDTH` for why that ratio and not a
+ * fixed one.
  *
  * A canvas that omits its dimensions and declares no duration is the ordinary
  * spec violation of user story 32: a picture whose shape is unknown, and a
  * fetch may yet report it.
  */
-function placeholderBox(canvas: PlannerCanvas): {
-    width: number;
-    height: number;
-} {
-    return canvas.images.length === 0 && isUsableDimension(canvas.duration)
-        ? DURATION_ONLY_CANVAS_PLACEHOLDER
-        : UNSIZED_CANVAS_PLACEHOLDER;
+function placeholderBox(
+    canvas: PlannerCanvas,
+    surfaceAspect: number | undefined,
+): { width: number; height: number } {
+    if (!isDurationOnly(canvas)) return UNSIZED_CANVAS_PLACEHOLDER;
+
+    // The surface's own ratio, so the fit lands on the whole of it — see
+    // `rendererDefaults.DURATION_ONLY_CANVAS_WIDTH`. An unmeasured surface has
+    // no ratio to take, and a degenerate one (a collapsed container) would give
+    // a rect of no height at all, so both fall back to the strip.
+    const aspect =
+        surfaceAspect !== undefined &&
+        Number.isFinite(surfaceAspect) &&
+        surfaceAspect > 0
+            ? surfaceAspect
+            : DURATION_ONLY_CANVAS_ASPECT;
+
+    return {
+        width: DURATION_ONLY_CANVAS_WIDTH,
+        height: DURATION_ONLY_CANVAS_WIDTH * aspect,
+    };
+}
+
+/** A canvas with a duration and no picture at all — a recording. */
+function isDurationOnly(canvas: PlannerCanvas): boolean {
+    return canvas.images.length === 0 && isUsableDimension(canvas.duration);
+}
+
+/**
+ * Whether the world is a **lane** — one recording with no spatial extent and
+ * nothing else beside it.
+ *
+ * The vertical axis of such a world is a fiction: no picture was ever declared,
+ * so the rect's height came from the surface rather than from the manifest, and
+ * the only thing drawn in it is a timeline. The renderer reads this to take that
+ * axis out of the reader's hands — the zoom floor becomes the fit rather than
+ * half of it, and the centre is pinned to the world's vertical middle — leaving
+ * zoom and pan purely temporal (`canvasRenderer.clampScale`, `constrained`).
+ *
+ * **Exactly one canvas**, because more than one is a stack the reader has to be
+ * able to scroll between: a continuous-mode playlist of recordings would
+ * otherwise be several viewport-tall lanes with the pan that reaches them
+ * locked. A paged spread of two is the same case.
+ */
+function laneWorld(sized: SizedCanvas[], layout: LayoutRect[]): boolean {
+    return sized.length === 1 && layout.length === 1 && sized[0].lane;
 }
 
 /**
@@ -330,6 +379,7 @@ function placeImage(rect: LayoutRect, image: PlannerImage): Box {
 function resolveGeometry(
     canvases: PlannerCanvas[],
     knownMetadata: Record<string, ImageServiceFacts>,
+    surfaceAspect: number | undefined,
 ): SizedCanvas[] {
     const usable = canvases.filter(hasUsableId);
 
@@ -367,7 +417,8 @@ function resolveGeometry(
             isUsableDimension(facts.height)
                 ? { width: facts.width, height: facts.height }
                 : null;
-        const fallback = reported ?? guess ?? placeholderBox(canvas);
+        const fallback =
+            reported ?? guess ?? placeholderBox(canvas, surfaceAspect);
 
         // Whichever axes the manifest stated, kept; the rest taken from the
         // fallback box, and shaped by its aspect ratio so a canvas that stated
@@ -384,7 +435,18 @@ function resolveGeometry(
               ? canvas.width * aspect
               : fallback.height;
 
-        return { canvas, width, height };
+        // A lane only where the duration-only rung was actually reached AND
+        // neither axis was declared: a service report, a sized sibling, or a
+        // Canvas that stated one axis has all said something about this
+        // canvas's shape, and the surface must not overrule any of them.
+        const lane =
+            reported === null &&
+            guess === null &&
+            isDurationOnly(canvas) &&
+            !isUsableDimension(canvas.width) &&
+            !isUsableDimension(canvas.height);
+
+        return { canvas, width, height, lane };
     });
 }
 
@@ -489,9 +551,12 @@ function deriveMinZoom(layout: LayoutRect[], boxThreshold: number): number {
  * a 120 Hz pinch, for two numbers that depend on neither. Tile enumeration
  * belongs to the frame loop, once per frame (see `CanvasHost.paint`).
  *
- * No output depends on the viewport or on what is resident — which is exactly
- * why this can skip all of it, and why the two cannot drift: `planScene`
- * returns these very values by calling this.
+ * No output depends on the viewport's pan or zoom, nor on what is resident —
+ * which is exactly why this can skip all of it, and why the two cannot drift:
+ * `planScene` returns these very values by calling this. `PlanWorldInput`'s
+ * `surfaceAspect` is the one exception, and it is a fact about the container's
+ * SHAPE rather than about the view within it: it moves on a resize and nowhere
+ * else, and it reaches only the duration-only rung (`placeholderBox`).
  *
  * `bounds` is here rather than left to the caller for the same reason the memo
  * around this function exists: the pan constraint runs on every pointer sample
@@ -503,17 +568,83 @@ export function planViewportLimits(input: PlanWorldInput): {
     layout: LayoutRect[];
     bounds: Box | null;
     minZoom: number;
+    /**
+     * Pixels the sources actually have, per world unit — the zoom ceiling's
+     * pixel term (`viewportMath.sourcePixelCeiling`). `0` for an empty world.
+     */
+    sourcePixelsPerWorldUnit: number;
+    /**
+     * Whether this world is one recording and nothing else — see
+     * {@link laneWorld}, which is where the consequences are spelled out.
+     */
+    lane: boolean;
 } {
-    const layout = layoutCanvases(
-        resolveGeometry(input.canvases, input.knownMetadata),
-        input,
+    const sized = resolveGeometry(
+        input.canvases,
+        input.knownMetadata,
+        input.surfaceAspect,
     );
+    const layout = layoutCanvases(sized, input);
 
     return {
         layout,
         bounds: worldBounds(layout),
         minZoom: deriveMinZoom(layout, input.budgets.boxThreshold),
+        lane: laneWorld(sized, layout),
+        sourcePixelsPerWorldUnit: deriveSourceResolution(
+            sized,
+            layout,
+            input.knownMetadata,
+        ),
     };
+}
+
+/**
+ * How much source resolution one world unit stands for.
+ *
+ * Dividing the source's width by the **laid-out rect's** folds in both reasons
+ * the two differ: an `info.json` reporting more pixels than the manifest Canvas
+ * declares (geometry keeps the manifest's figure permanently, so the extra
+ * pixels are real), and a layout that resized the rect — median-height
+ * normalization, or `preserveCanvasScale` off.
+ *
+ * The **primary** image's service, as in {@link resolveGeometry}: the first
+ * painting annotation covers the canvas, and a miniature composited into a
+ * corner describes its own rectangle. Falls back to the resolved canvas width —
+ * the IIIF convention that a Canvas is declared in its image's pixels — so this
+ * is usable before any `info.json` lands.
+ *
+ * The **maximum**, because it feeds a ceiling. Outside continuous mode the
+ * laid-out world is the canvas or spread on screen; continuous mode lays out
+ * the whole manifest, so there the deepest canvas sets the ceiling for all of
+ * them.
+ */
+function deriveSourceResolution(
+    sized: SizedCanvas[],
+    layout: LayoutRect[],
+    knownMetadata: Record<string, ImageServiceFacts>,
+): number {
+    if (sized.length === 0) return 0;
+
+    const rects = new Map(layout.map((rect) => [rect.canvasId, rect]));
+    let deepest = 0;
+
+    for (const entry of sized) {
+        const rect = rects.get(entry.canvas.id);
+        // Absent when layout dropped the canvas; zero-width when its geometry
+        // never resolved.
+        if (!rect || rect.width <= 0) continue;
+
+        const facts = entry.canvas.images.length
+            ? factsFor(entry.canvas.images[0].source, knownMetadata)
+            : undefined;
+        const sourceWidth =
+            facts && isUsableDimension(facts.width) ? facts.width : entry.width;
+
+        deepest = Math.max(deepest, sourceWidth / rect.width);
+    }
+
+    return deepest;
 }
 
 /**
@@ -1315,6 +1446,10 @@ function baseLevelTile(
  * from a missing key turns every tile-less level 1/2 service into a
  * whole-master download (see the call site).
  *
+ * A service whose declared dimensions were caught contradicting the pixels it
+ * serves is one too, and for the strongest form of the same reason: whole
+ * images are the only requests left that it answers correctly.
+ *
  * Advertised `sizes[]` counts as that evidence on its own. A service that
  * publishes a list of prepared whole images can always be asked for one of
  * them, whatever its compliance level, and preferring that list to a derived
@@ -1328,6 +1463,7 @@ function isSizeLadderSource(
     profile: string | null,
 ): boolean {
     return (
+        facts.regionsUntrusted === true ||
         (facts.sizes?.length ?? 0) > 0 ||
         facts.level0 === true ||
         isLevel0Profile(profile)

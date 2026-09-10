@@ -7,7 +7,6 @@
     import { HERO_EXAMPLE } from './examples';
     import {
         HERO_CYCLE_START,
-        HERO_FIRST_STRIDE,
         HERO_START,
         HERO_STRIDE,
         HERO_STRIDE_PAUSE,
@@ -59,9 +58,9 @@
     /**
      * Which way through the material the laps are walking.
      *
-     * The stride does not divide eleven, so it runs off both ends. Reflecting
-     * rather than wrapping is what makes the resting canvas land on a different
-     * one each time the walk crosses the material, so the whole set is reached.
+     * Reflecting rather than wrapping at the ends: walking back the way it came
+     * keeps every lap a page turn, where a jump from the last canvas to the
+     * first would read as the viewer rebuilding itself.
      */
     let heading: 1 | -1 = 1;
     /**
@@ -86,10 +85,7 @@
         // orders are handled.
         const start = () => {
             cycling = true;
-            // The page is served on the first canvas, so the opening lap runs
-            // on the third rather than skipping past what a reader was just
-            // looking at while the viewer loaded.
-            owed += HERO_FIRST_STRIDE;
+            owed += HERO_STRIDE;
             schedule();
         };
         if (document.readyState === 'complete') {
@@ -203,6 +199,11 @@
 <div class="hero">
     <h1>{headline}</h1>
     <p class="hero__lede">{lede}</p>
+    <p class="hero__note">
+        A fifth the size of viewers like Mirador and Universal Viewer while
+        covering considerably more of the IIIF spec than either.
+        <a href="/size/">See the measurements</a>
+    </p>
 </div>
 
 <div class="heroband">

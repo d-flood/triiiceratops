@@ -1,0 +1,167 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/timed/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Four Sousa marches, annotated by the second"]
+    },
+    "summary": {
+        "en": [
+            "The same four-march canvas, with a note at each second one recording hands over to the next."
+        ]
+    },
+    "items": [
+        {
+            "id": "/material/timed/canvas/marine-band",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Four Sousa marches, played by the United States Marine Band"
+                ]
+            },
+            "duration": 358.818,
+            "items": [
+                {
+                    "id": "/material/timed/page/marine-band",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/timed/annotation/marine-band/1",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/sound/media/columbias-pride.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 68.441
+                            },
+                            "target": "/material/timed/canvas/marine-band#t=0.0,68.441"
+                        },
+                        {
+                            "id": "/material/timed/annotation/marine-band/2",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/sound/media/quilting-party.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 89.626
+                            },
+                            "target": "/material/timed/canvas/marine-band#t=68.441,158.067"
+                        },
+                        {
+                            "id": "/material/timed/annotation/marine-band/3",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/sound/media/guide-right.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 91.925
+                            },
+                            "target": "/material/timed/canvas/marine-band#t=158.067,249.992"
+                        },
+                        {
+                            "id": "/material/timed/annotation/marine-band/4",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/sound/media/pet-of-the-petticoats.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 108.826
+                            },
+                            "target": "/material/timed/canvas/marine-band#t=249.992,358.818"
+                        }
+                    ]
+                }
+            ],
+            "accompanyingCanvas": {
+                "id": "/material/timed/canvas/marine-band-cover",
+                "type": "Canvas",
+                "label": {
+                    "en": ["John Philip Sousa in band uniform"]
+                },
+                "width": 797,
+                "height": 1000,
+                "items": [
+                    {
+                        "id": "/material/timed/page/marine-band-cover",
+                        "type": "AnnotationPage",
+                        "items": [
+                            {
+                                "id": "/material/timed/annotation/marine-band-cover",
+                                "type": "Annotation",
+                                "motivation": "painting",
+                                "body": {
+                                    "id": "/material/sound/images/sousa.jpg",
+                                    "type": "Image",
+                                    "format": "image/jpeg",
+                                    "width": 797,
+                                    "height": 1000
+                                },
+                                "target": "/material/timed/canvas/marine-band-cover"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "annotations": [
+                {
+                    "id": "/material/timed/annotation-page/marine-band",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/timed/annotation/marine-band/1",
+                            "type": "Annotation",
+                            "motivation": ["commenting"],
+                            "body": {
+                                "type": "TextualBody",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "Columbia’s Pride opens the timeline. Four separate recordings are laid end to end across this one canvas, and the transport treats the join between them as an ordinary second."
+                            },
+                            "target": "/material/timed/canvas/marine-band#t=0"
+                        },
+                        {
+                            "id": "/material/timed/annotation/marine-band/2",
+                            "type": "Annotation",
+                            "motivation": ["commenting"],
+                            "body": {
+                                "type": "TextualBody",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "The Quilting Party. A second file takes over here: the media element behind the transport is swapped at the boundary, which is why a seek across it costs a moment."
+                            },
+                            "target": "/material/timed/canvas/marine-band#t=68.441"
+                        },
+                        {
+                            "id": "/material/timed/annotation/marine-band/3",
+                            "type": "Annotation",
+                            "motivation": ["commenting"],
+                            "body": {
+                                "type": "TextualBody",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "Guide Right, the third of the four."
+                            },
+                            "target": "/material/timed/canvas/marine-band#t=158.067"
+                        },
+                        {
+                            "id": "/material/timed/annotation/marine-band/4",
+                            "type": "Annotation",
+                            "motivation": ["commenting"],
+                            "body": {
+                                "type": "TextualBody",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "Pet of the Petticoats, the longest, and the last before the canvas ends at 5:58."
+                            },
+                            "target": "/material/timed/canvas/marine-band#t=249.992"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

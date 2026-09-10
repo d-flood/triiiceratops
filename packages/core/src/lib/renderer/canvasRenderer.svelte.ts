@@ -138,6 +138,7 @@ import {
     KEY_ZOOM_FACTOR,
     MAX_DEVICE_PIXEL_RATIO,
     MAX_ZOOM_FACTOR,
+    MAX_ZOOM_PIXEL_RATIO,
     MIN_FLICK_SPEED,
     MIN_VELOCITY_SPAN_MS,
     MIN_ZOOM_FRACTION,
@@ -155,6 +156,7 @@ import {
     WHEEL_NOTCH_PIXELS,
     WHEEL_PAGE_PIXELS,
     WHEEL_TIME_CONSTANT,
+    ZOOM_PER_SECOND,
 } from './rendererDefaults';
 import type { Box } from './tilePyramid';
 import type {
@@ -184,6 +186,7 @@ import {
     viewportBox,
     viewportTransform,
     wheelZoomRate,
+    sourcePixelCeiling,
     zoomRange,
 } from './viewportMath';
 import { watchReducedMotion } from '../state/reducedMotion';
@@ -252,6 +255,15 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * the same friction as a flick — when the key comes up.
      */
     let keyPan: Point | null = null;
+    /**
+     * Sign of a held zoom control — `1` in, `-1` out, `0` when none is held.
+     *
+     * A rate the frame loop integrates rather than a step repeated by whatever
+     * is holding it, for the same reason `keyPan` is a velocity: the distance
+     * covered then depends on how long the control was held and on nothing
+     * else.
+     */
+    let zoomHold = 0;
     /**
      * Which bound pan keys are currently down. See `renderer/keyboardPan.ts`.
      *
@@ -329,6 +341,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         carry('minPixelRatio', config?.minPixelRatio);
         const animation = config?.animationTimeConstant;
         const maxZoom = config?.maxZoomFactor;
+        const maxPixelRatio = config?.maxZoomPixelRatio;
         return {
             budgets,
             /**
@@ -346,6 +359,16 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
              */
             maxZoomFactor:
                 usable(maxZoom) && maxZoom > 1 ? maxZoom : MAX_ZOOM_FACTOR,
+            /**
+             * How far past 1:1 a source pixel may be magnified. Ratios below 1
+             * are honoured — stopping the reader short of the source's own
+             * resolution is a legitimate request, and `zoomRange` keeps the fit
+             * term beneath it either way.
+             */
+            maxZoomPixelRatio:
+                usable(maxPixelRatio) && maxPixelRatio > 0
+                    ? maxPixelRatio
+                    : MAX_ZOOM_PIXEL_RATIO,
         };
     });
 
@@ -449,6 +472,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         direction: ReturnType<typeof worldInput>['direction'];
         preserveCanvasScale: boolean;
         budgets: PlannerBudgets;
+        surfaceAspect: number | undefined;
         metadataRevision: number;
         value: ReturnType<typeof planViewportLimits>;
     } | null = null;
@@ -744,7 +768,20 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             gapFraction: MULTI_CANVAS_GAP_FRACTION,
             knownMetadata,
             budgets,
+            surfaceAspect: surfaceAspect(),
         };
+    }
+
+    /**
+     * The surface's shape, for the one rung of layout that consults it
+     * (`PlanWorldInput.surfaceAspect`).
+     *
+     * `undefined` rather than a number for an unmeasured surface: the planner's
+     * fallback is a statement about not knowing, and `0 / 0` is not it.
+     */
+    function surfaceAspect(): number | undefined {
+        if (!(viewport.width > 0) || !(viewport.height > 0)) return undefined;
+        return viewport.height / viewport.width;
     }
 
     /**
@@ -879,9 +916,21 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             const canvas = canvasesById.get(canvasId);
             if (!canvas) continue;
 
+            // Placement boxes are handed on as what the MANIFEST says these
+            // pictures' shapes are — but only for a canvas the manifest really
+            // sized. An unsized one is placed from the renderer's own
+            // placeholder, and offering that as evidence would convict a
+            // truthful service of disagreeing with a number nobody stated.
+            const sized = Boolean(canvas.width && canvas.height);
+
             for (const image of canvas.images) {
                 if (image.source.kind !== 'service') continue;
-                ensureImageService(canvasId, image.source.serviceId);
+                ensureImageService(
+                    canvasId,
+                    image.source.serviceId,
+                    false,
+                    sized ? image : undefined,
+                );
             }
 
             // Warmed companions too: a picture with no facts has no ladder and
@@ -889,7 +938,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             // Asked for as WARM, because this canvas does not paint from them.
             for (const image of canvas.warmImages ?? []) {
                 if (image.source.kind !== 'service') continue;
-                ensureImageService(canvasId, image.source.serviceId, true);
+                ensureImageService(
+                    canvasId,
+                    image.source.serviceId,
+                    true,
+                    sized ? image : undefined,
+                );
             }
         }
     }
@@ -910,13 +964,18 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * not painting-gated), and a successful warm would clear the message a
      * genuinely broken painting service had earned. Warming is best-effort and
      * invisible: it costs the reader nothing and says nothing.
+     *
+     * `declared` is this placement's manifest-declared box, which the cache
+     * uses to judge an `info.json` that disagrees with it — see
+     * `imageService.verifyDimensions`.
      */
     function ensureImageService(
         canvasId: string,
         serviceId: string,
         warm = false,
+        declared?: { width: number; height: number },
     ): void {
-        void imageServiceCache.ensure(serviceId).then((facts) => {
+        void imageServiceCache.ensure(serviceId, declared).then((facts) => {
             if (!facts) {
                 if (warm) return;
                 // A canvas that will never have pixels. Recorded against
@@ -1048,6 +1107,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             limitsMemo.direction === input.direction &&
             limitsMemo.preserveCanvasScale === input.preserveCanvasScale &&
             limitsMemo.budgets === input.budgets &&
+            limitsMemo.surfaceAspect === input.surfaceAspect &&
             limitsMemo.metadataRevision === metadataRevision
         ) {
             return limitsMemo.value;
@@ -1060,6 +1120,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             direction: input.direction,
             preserveCanvasScale: input.preserveCanvasScale,
             budgets: input.budgets,
+            surfaceAspect: input.surfaceAspect,
             metadataRevision,
             value,
         };
@@ -1232,11 +1293,27 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // the fit so that seeing a whole canvas is reachable at any window size.
         // `homeScale` is measured from the LIVE viewport on every call, which is
         // what makes that hold across a resize and on a phone.
+        //
+        // TWO ceilings as well, and `zoomRange` takes the more generous: a
+        // multiple of that same fit, and a limit on source-pixel magnification.
+        // `dpr` is the CAPPED backing-store ratio, because the ceiling is about
+        // pixels the surface actually resolves. A dpr change re-enters through
+        // `measure`, which re-clamps the live scale.
+        // A lane world's floor is the fit ITSELF, not half of it: the whole of
+        // that world is one recording's timeline, and its home view is the
+        // whole recording across the whole surface. Zooming out from there
+        // would shrink the waveform away from the edges of a viewer that has
+        // nothing else in it to reveal (`planScene.laneWorld`).
         const { min, max } = zoomRange(
             homeScale(limits),
             limits.minZoom,
             knobs.maxZoomFactor,
-            MIN_ZOOM_FRACTION,
+            limits.lane ? 1 : MIN_ZOOM_FRACTION,
+            sourcePixelCeiling(
+                limits.sourcePixelsPerWorldUnit,
+                knobs.maxZoomPixelRatio,
+                dpr,
+            ),
         );
         return clamp(scale, min, max);
     }
@@ -1250,15 +1327,25 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * for getting back.
      */
     function constrained(centre: Point, scale: number): Point {
-        const bounds = viewportLimits().bounds;
+        const limits = viewportLimits();
+        const bounds = limits.bounds;
         if (!bounds) return centre;
-        return constrainCentre(
+        const next = constrainCentre(
             centre,
             scale,
             bounds,
             viewport,
             VISIBILITY_RATIO,
         );
+        // A lane world has no vertical axis to look along: its rect's height is
+        // the surface's, so at the floor it exactly covers the surface and at
+        // every scale above it overhangs top and bottom. Pinning the centre
+        // keeps that overhang symmetrical, which is what makes zoom read as
+        // purely temporal — the waveform fills the viewer at every scale and
+        // only the time window narrows (`planScene.laneWorld`).
+        return limits.lane
+            ? { x: next.x, y: bounds.y + bounds.height / 2 }
+            : next;
     }
 
     /**
@@ -1702,6 +1789,17 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             );
         },
 
+        holdZoom(direction: number): void {
+            zoomHold = Math.sign(direction) || 0;
+            if (!zoomHold) return;
+            // Continuous input supersedes an easing and a glide — they are three
+            // ways of moving one viewport, and running them together would
+            // fight.
+            animating = false;
+            momentum = null;
+            requestFrame();
+        },
+
         zoomTo(scale: number): void {
             // Converted out of canvas space first — `getScale` reports screen
             // pixels per CANVAS unit, so `zoomTo(viewportScale)` has to be a
@@ -1736,6 +1834,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             const placement = placementOf(canvasId);
             if (!placement) return;
             applyFit(placement.rect, true);
+        },
+
+        fitView(): void {
+            fitWorld(true);
         },
 
         getScale(): number {
@@ -1896,6 +1998,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         lastFrameTime = now;
 
         if (keyPan) stepKeyPan(elapsed);
+        if (zoomHold) stepZoom(elapsed);
         if (momentum) stepMomentum(elapsed);
 
         if (animating) {
@@ -1951,7 +2054,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // on a change (see `publishVisibleCanvasIds`).
         publishVisibleCanvasIds();
 
-        if (animating || momentum || keyPan) scheduleFrame();
+        if (animating || momentum || keyPan || zoomHold) scheduleFrame();
     }
 
     /**
@@ -1978,6 +2081,39 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
         viewport = { ...viewport, centre };
         targetCentre = { ...centre };
+    }
+
+    /**
+     * One frame of a held zoom control.
+     *
+     * Written straight onto `viewport` rather than eased towards a target
+     * because a hold is continuous input (spec §Input and animation), and
+     * exponential in scale so that a constant `ZOOM_PER_SECOND` reads as an
+     * even rate across the whole zoom range.
+     */
+    function stepZoom(elapsed: number) {
+        const wanted =
+            viewport.scale *
+            Math.exp(zoomHold * Math.LN2 * ZOOM_PER_SECOND * elapsed);
+        const scale = clampScale(wanted);
+
+        const centre = constrained(viewport.centre, scale);
+        viewport = { ...viewport, centre, scale };
+        targetCentre = { ...centre };
+        targetScale = scale;
+
+        // Ran into a rail — the clamp moved the scale the rate asked for, so
+        // the control is still down with nowhere left to go. Released rather
+        // than left spinning a frame every sixtieth of a second for as long as
+        // the reader leans on the button.
+        //
+        // Compared against the UNCLAMPED scale, never against the previous one:
+        // the first frame of a hold integrates a zero `elapsed` (see
+        // `runFrame`), which moves nothing and must not read as exhausted. The
+        // clamped scale is applied first for the same reason it is applied at
+        // all — a frame that would overshoot the ceiling should land ON it,
+        // not stop short and leave the last sliver of the range unreachable.
+        if (scale !== wanted) zoomHold = 0;
     }
 
     /**
@@ -3453,9 +3589,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 targetScale = view.scale;
                 animating = false;
                 momentum = null;
+                zoomHold = 0;
             },
             getDpr: () => dpr,
-            isMoving: () => animating || momentum !== null || keyPan !== null,
+            isMoving: () =>
+                animating ||
+                momentum !== null ||
+                keyPan !== null ||
+                zoomHold !== 0,
             fitWorld,
             port: canvasPort,
             requestFrame,

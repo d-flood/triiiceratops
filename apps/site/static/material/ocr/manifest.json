@@ -1,0 +1,247 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/ocr/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Two plates, with their printed lines transcribed"]
+    },
+    "summary": {
+        "en": [
+            "Every line of type on either plate, each anchored to the region it occupies, so that a PDF made from these canvases carries text and not only a picture."
+        ]
+    },
+    "items": [
+        {
+            "id": "/material/ocr/canvas/haeckel",
+            "type": "Canvas",
+            "label": {
+                "en": ["Ernst Haeckel, Discomedusae (Plate 8), 1904"]
+            },
+            "width": 3645,
+            "height": 5267,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Ernst Haeckel, Kunstformen der Natur, Plate 8; Smithsonian Libraries and Archives / Biodiversity Heritage Library."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Smithsonian Libraries and Archives / Biodiversity Heritage Library, item 18431"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": ["https://www.biodiversitylibrary.org/item/18431"]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/ocr/page/haeckel",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/ocr/annotation/haeckel",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/haeckel/0,0,3645,5267/228,330/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 3645,
+                                "height": 5267,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/haeckel",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/ocr/canvas/haeckel"
+                        }
+                    ]
+                }
+            ],
+            "annotations": [
+                {
+                    "id": "/material/ocr/annotation-page/haeckel",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/ocr/annotation/haeckel/1",
+                            "type": "Annotation",
+                            "motivation": "supplementing",
+                            "body": {
+                                "type": "TextualBody",
+                                "purpose": "supplementing",
+                                "language": "de",
+                                "format": "text/plain",
+                                "value": "Haeckel, Kunstformen der Natur."
+                            },
+                            "target": "/material/ocr/canvas/haeckel#xywh=283,363,795,60"
+                        },
+                        {
+                            "id": "/material/ocr/annotation/haeckel/2",
+                            "type": "Annotation",
+                            "motivation": "supplementing",
+                            "body": {
+                                "type": "TextualBody",
+                                "purpose": "supplementing",
+                                "language": "de",
+                                "format": "text/plain",
+                                "value": "Tafel 8 — Desmonema."
+                            },
+                            "target": "/material/ocr/canvas/haeckel#xywh=2620,363,585,58"
+                        },
+                        {
+                            "id": "/material/ocr/annotation/haeckel/3",
+                            "type": "Annotation",
+                            "motivation": "supplementing",
+                            "body": {
+                                "type": "TextualBody",
+                                "purpose": "supplementing",
+                                "language": "de",
+                                "format": "text/plain",
+                                "value": "Discomedusae. — Scheibenquallen."
+                            },
+                            "target": "/material/ocr/canvas/haeckel#xywh=1078,4795,1350,72"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/ocr/canvas/audubon",
+            "type": "Canvas",
+            "label": {
+                "en": ["John James Audubon, Snowy Owl (Plate 121), 1831"]
+            },
+            "width": 5230,
+            "height": 7884,
+            "rights": "http://rightsstatements.org/vocab/NoC-US/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "John James Audubon, Snowy Owl, Plate 121, 1831. Boston Public Library / Digital Commonwealth."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Boston Public Library / Digital Commonwealth, 9s16d0015"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://ark.digitalcommonwealth.org/ark:/50959/9s16d0015"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/ocr/page/audubon",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/ocr/annotation/audubon",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/audubon/0,0,5230,7884/327,493/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 5230,
+                                "height": 7884,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/audubon",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/ocr/canvas/audubon"
+                        }
+                    ]
+                }
+            ],
+            "annotations": [
+                {
+                    "id": "/material/ocr/annotation-page/audubon",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/ocr/annotation/audubon/1",
+                            "type": "Annotation",
+                            "motivation": "supplementing",
+                            "body": {
+                                "type": "TextualBody",
+                                "purpose": "supplementing",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "Drawn from Nature by J.J.Audubon, F.R.S., F.L.S."
+                            },
+                            "target": "/material/ocr/canvas/audubon#xywh=270,7578,520,55"
+                        },
+                        {
+                            "id": "/material/ocr/annotation/audubon/2",
+                            "type": "Annotation",
+                            "motivation": "supplementing",
+                            "body": {
+                                "type": "TextualBody",
+                                "purpose": "supplementing",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "Snowy Owl, STRIX NYCTEA, Linn, Male 1. Female 2."
+                            },
+                            "target": "/material/ocr/canvas/audubon#xywh=1700,7513,1440,125"
+                        },
+                        {
+                            "id": "/material/ocr/annotation/audubon/3",
+                            "type": "Annotation",
+                            "motivation": "supplementing",
+                            "body": {
+                                "type": "TextualBody",
+                                "purpose": "supplementing",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "Engraved, Printed & Coloured by R. Havell, London."
+                            },
+                            "target": "/material/ocr/canvas/audubon#xywh=4330,7573,590,55"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -9,7 +9,7 @@
  * demonstrates shapes, not speed.
  *
  * The material that demonstrates range is a third thing again, and lives in
- * `materialClasses.ts`: it is somebody else's, it is fetched from their server,
+ * `features.ts`: it is somebody else's, it is fetched from their server,
  * and neither tier here may be spent on it.
  */
 

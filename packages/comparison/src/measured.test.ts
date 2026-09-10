@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { COMPETITORS, MEASURED_COMPARISON, SESSION_MANIFESTS } from './index';
+import {
+    COMPETITORS,
+    COOKBOOK_MATRIX,
+    MEASURED_COMPARISON,
+    SESSION_MANIFESTS,
+} from './index';
 import type { MeasuredFile, MeasuredViewer } from './index';
 
 const { compression, measuredAt, sessionManifests, viewers } =
@@ -61,27 +66,20 @@ describe('the pinned competitor list', () => {
         }
     });
 
-    it('records no matrix recipe count for a Triiiceratops entry', () => {
-        // Its capability figure comes from the recipe catalog instead, so a
-        // count here would be a second, drifting copy of the same claim.
+    it('names no matrix column for a Triiiceratops entry', () => {
+        // The matrix does have a column for us, but a Triiiceratops support
+        // claim comes from the recipe catalog; joining our row to the matrix
+        // here would make the catalog's claim answerable to an external page.
         const doubled = COMPETITORS.filter(
-            (c) => c.local && c.matrixRecipes !== undefined,
+            (c) => c.local && c.matrixColumn !== undefined,
         ).map((c) => c.id);
         expect(doubled).toEqual([]);
     });
 
-    it('keeps every matrix recipe count within the deduplicated matrix', () => {
-        const DISTINCT_RECIPES = 67;
-        for (const { id, matrixRecipes } of COMPETITORS) {
-            if (matrixRecipes === undefined) continue;
-            const { supported, partial } = matrixRecipes;
-            expect(Number.isInteger(supported), id).toBe(true);
-            expect(Number.isInteger(partial), id).toBe(true);
-            expect(supported, id).toBeGreaterThan(0);
-            expect(partial, id).toBeGreaterThanOrEqual(0);
-            expect(supported + partial, id).toBeLessThanOrEqual(
-                DISTINCT_RECIPES,
-            );
+    it('names a real matrix column wherever it names one', () => {
+        for (const { id, matrixColumn } of COMPETITORS) {
+            if (matrixColumn === undefined) continue;
+            expect(COOKBOOK_MATRIX.viewers, id).toContain(matrixColumn);
         }
     });
 

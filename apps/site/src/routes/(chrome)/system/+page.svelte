@@ -88,13 +88,13 @@
 
 <PageHead />
 
-<section class="band" aria-labelledby="colour">
-    <h2 id="colour">Colour</h2>
+<section class="band" aria-labelledby="color">
+    <h2 id="color">Color</h2>
     <p class="aside">
         Two palettes, each selected and measured against its own ground rather
         than derived from the other. A token showing one swatch keeps that value
-        in both schemes: a filled colour field carries its own ground with it,
-        so re-stepping it would only weaken the identity.
+        in both schemes: a filled color field carries its own ground with it, so
+        re-stepping it would only weaken the identity.
     </p>
     <ul class="swatches">
         {#each COLOURS as token (token.name)}
@@ -164,7 +164,7 @@
             >
         {/each}
         The brand amber measures {AMBER_ON_BONE.toFixed(2)} on the light page ground,
-        so it can carry neither text nor a mark there — which is why the emphasised
+        so it can carry neither text nor a mark there — which is why the emphasized
         mark in a chart is the orange on light and the amber on dark, the opposite
         of what brand instinct wants.
     </p>

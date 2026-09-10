@@ -10,6 +10,7 @@
 // The import attribute is required, not decorative: consumers reach this module
 // as TypeScript source, and one of them — Playwright's own loader — hands it to
 // Node's ESM loader, which refuses a JSON module without it.
+import matrix from './matrix.json' with { type: 'json' };
 import measured from './measured.json' with { type: 'json' };
 
 export type { Competitor, SessionKind } from './competitors';
@@ -75,3 +76,41 @@ export interface MeasuredComparison {
  * scheduled re-measurement would rewrite a published claim unreviewed.
  */
 export const MEASURED_COMPARISON = measured as MeasuredComparison;
+
+/** What one cell of the Cookbook support matrix claims. */
+export type MatrixMark = 'yes' | 'partial' | 'no';
+
+/** One recipe's row of the matrix: every viewer's cell for that recipe. */
+export interface MatrixRecipe {
+    /** The Cookbook recipe slug, e.g. `0001-mvm-image`. Joins to a `CookbookRecipe.id`. */
+    id: string;
+    /** The recipe's title, as the matrix spells it. */
+    name: string;
+    /** Keyed by the matrix's own column heading — see `Competitor.matrixColumn`. */
+    marks: Record<string, MatrixMark>;
+}
+
+export interface CookbookMatrix {
+    /** The date the matrix was read, `YYYY-MM-DD`, so a page can state it. */
+    readAt: string;
+    /** The page read, so a figure drawn from this can cite it. */
+    source: string;
+    /** Every column heading, in the matrix's own order. */
+    viewers: string[];
+    /** Every distinct recipe the matrix lists, by slug. */
+    recipes: MatrixRecipe[];
+}
+
+/**
+ * The committed output of `pnpm --filter @triiiceratops/comparison matrix`: the
+ * Cookbook support matrix, every cell of it, as read on `readAt`.
+ *
+ * Regenerated on demand only, for the same reason as the measurement — the
+ * matrix records what each project has submitted about itself, so a scheduled
+ * run would rewrite a published comparison unreviewed.
+ *
+ * It covers more viewers than the comparison measures, and its recipe list can
+ * be ahead of `@triiiceratops/cookbook`'s: a consumer joins on the recipe slugs
+ * it knows and states what it left out.
+ */
+export const COOKBOOK_MATRIX = matrix as CookbookMatrix;

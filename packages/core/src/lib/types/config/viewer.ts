@@ -37,6 +37,19 @@ import type { PointStyle } from '../../utils/pointMarker';
 export type ControlsMode = 'split' | 'unified';
 
 /**
+ * A flyout menu of the control bar, named so a host can open one.
+ *
+ * `captions` is the transport's; the rest are the toolbar's. They share one
+ * name because they share the bar and its one-at-a-time rule.
+ */
+export type BarMenu =
+    | 'gallery'
+    | 'viewing-mode'
+    | 'sequence'
+    | 'locale'
+    | 'captions';
+
+/**
  * How the canvas nav (control bar) sits relative to its edge.
  * - `docked`   — flush to the edge, flat (default).
  * - `floating` — an inset island off the edge, with a shadow.
@@ -134,13 +147,35 @@ export interface RendererConfig {
      * the fit scale: `8` stops eight times closer than the scale at which the
      * canvas fits the viewport. Must be greater than 1.
      *
-     * The fit is measured against the live viewport, so the ceiling follows a
-     * window resize and a phone rotation. Because the fit falls as the source
-     * grows, the same factor gives a large scan more magnification past 1:1
-     * than a small one — raise it for images with more pixels than their fit
-     * suggests, lower it to stop the reader short of visible blur.
+     * The fit is measured against the live viewport, so this term follows a
+     * window resize and a phone rotation. It is the ceiling's answer for a
+     * source with **fewer pixels than its viewport**, which can only be
+     * inspected by magnifying it: raise it to allow a small scan more
+     * magnification, lower it to stop the reader short of visible blur.
+     *
+     * Deep material is governed by {@link maxZoomPixelRatio} instead, and the
+     * ceiling is the more generous of the two.
      */
     maxZoomFactor?: number;
+
+    /**
+     * How far past 1:1 the reader may magnify a source pixel, as device pixels
+     * per pixel the image actually has: `2` stops where one source pixel covers
+     * a 2x2 block of the display. Must be greater than 0.
+     *
+     * The zoom ceiling is the more generous of this and {@link maxZoomFactor}.
+     * This term says nothing about the viewport, so it holds across a resize
+     * and a rotation and gives a deep scan its own resolution with no per-image
+     * tuning; `maxZoomFactor` answers for a source with fewer pixels than the
+     * viewport, which has no resolution left for this knob to reach.
+     *
+     * Resolution comes from the image service's `info.json` where one has been
+     * fetched, and from the manifest Canvas's declared dimensions otherwise —
+     * the IIIF convention that a Canvas is sized in its image's pixels. Lower
+     * it to stop the reader at visible blur; raise it to allow magnification
+     * past the source's own pixels.
+     */
+    maxZoomPixelRatio?: number;
 
     /**
      * Multiplicative zoom factor for one **wheel notch** — the detent of a
@@ -339,6 +374,18 @@ export interface ViewerConfig {
      * in `split` controls mode; ignored when `controls === 'unified'`.
      */
     toolbar?: ToolbarConfig;
+
+    /**
+     * Which of the control bar's flyout menus stands open, or `null` for none.
+     *
+     * The bar holds at most one open at a time, and each control owns its own:
+     * the toolbar's four are dismissed by the toolbar, and `captions` — the
+     * caption-track list a timed-media claimant registers into the transport —
+     * is dismissed by the transport. Naming a menu no visible control offers
+     * opens nothing.
+     * @default null
+     */
+    openMenu?: BarMenu | null;
 
     /**
      * Whether the Table of Contents (Structures) toolbar button is shown.

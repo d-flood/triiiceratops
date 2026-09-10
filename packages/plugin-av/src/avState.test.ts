@@ -375,6 +375,117 @@ describe('AVState over a non-identity canvas timeline', () => {
     });
 });
 
+describe('AVState captions', () => {
+    const EN = { url: 'cap/en.vtt', language: 'en', label: 'English' };
+    const IT = { url: 'cap/it.vtt', language: 'it', label: 'Sottotitoli' };
+
+    /**
+     * An AVState over a stage whose caption set and selection the test moves,
+     * standing in for the stage's own asynchronous track loading.
+     */
+    function captioned(tracks = [EN, IT]) {
+        const f = fixture();
+        let offered: readonly (typeof EN)[] = tracks;
+        let active: string | null = null;
+
+        f.setTarget({
+            canvasId: 'canvas/1',
+            media: asMedia(f.media),
+            canvasDuration: null,
+            captions: {
+                tracks: () => offered,
+                active: () => active,
+                // The stage's own rule: a track that is not on offer cannot be
+                // selected, whoever asks.
+                select: (url) => {
+                    active =
+                        url !== null && offered.some((t) => t.url === url)
+                            ? url
+                            : null;
+                },
+            },
+        });
+        return {
+            ...f,
+            /** A track settling in, as one network response does. */
+            offer(next: readonly (typeof EN)[]): void {
+                offered = next;
+                f.publication.sync();
+            },
+        };
+    }
+
+    it('publishes the offered tracks without the stage’s placement index', () => {
+        const f = captioned();
+
+        expect(f.state.captionTracks).toEqual([EN, IT]);
+        expect(f.state.activeCaptionTrack).toBeNull();
+    });
+
+    it('shows a track a host selects, and turns them off with null', () => {
+        const f = captioned();
+
+        f.state.setCaptionTrack(IT.url);
+        expect(f.state.activeCaptionTrack).toBe(IT.url);
+
+        f.state.setCaptionTrack(null);
+        expect(f.state.activeCaptionTrack).toBeNull();
+    });
+
+    it('refuses to half-select a track that is not on offer', () => {
+        const f = captioned();
+
+        f.state.setCaptionTrack('cap/de.vtt');
+
+        expect(f.state.activeCaptionTrack).toBeNull();
+        expect(f.refusals).toEqual([]);
+    });
+
+    it('wakes subscribers when a track settles in', async () => {
+        const f = captioned([EN]);
+        const woken = vi.fn();
+        f.state.subscribe(woken);
+
+        f.offer([EN, IT]);
+
+        await flush();
+        expect(woken).toHaveBeenCalledTimes(1);
+        expect(f.state.captionTracks).toEqual([EN, IT]);
+    });
+
+    it('hands back the same array while the offered set is unchanged', () => {
+        const f = captioned();
+        const first = f.state.captionTracks;
+
+        f.publication.sync();
+
+        // A host keying work off the array's identity — which is what the
+        // plugin's own transport does — must not be handed a new one per sync.
+        expect(f.state.captionTracks).toBe(first);
+    });
+
+    it('publishes no tracks on a canvas whose stage offers none', () => {
+        const f = captioned();
+        expect(f.state.captionTracks).toHaveLength(2);
+
+        // An audio stage, or one whose picture is a companion canvas: it
+        // attaches its tracks for the transcript and offers none for painting.
+        f.offer([]);
+
+        expect(f.state.captionTracks).toEqual([]);
+        expect(f.state.activeCaptionTrack).toBeNull();
+    });
+
+    it('refuses the command on a canvas this plugin has not claimed', () => {
+        const f = fixture({ target: false });
+
+        f.state.setCaptionTrack('cap/en.vtt');
+
+        expect(f.refusals).toHaveLength(1);
+        expect(f.refusals[0]!.error.message).toMatch(/setCaptionTrack/);
+    });
+});
+
 describe('AVState lifecycle', () => {
     it('detaches from the media and drops its listeners on destroy', async () => {
         const f = fixture();

@@ -1,0 +1,108 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/outline/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Johannes Vermeer, The Milkmaid, ca. 1660"]
+    },
+    "summary": {
+        "en": ["One note, anchored to a shape that is not a rectangle."]
+    },
+    "items": [
+        {
+            "id": "/material/outline/canvas/milkmaid",
+            "type": "Canvas",
+            "label": {
+                "en": ["Johannes Vermeer, The Milkmaid, ca. 1660"]
+            },
+            "width": 4649,
+            "height": 5177,
+            "rights": "https://creativecommons.org/publicdomain/mark/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Johannes Vermeer, The Milkmaid, ca. 1660, Rijksmuseum, SK-A-2344."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["Rijksmuseum, SK-A-2344"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.rijksmuseum.nl/en/collection/SK-A-2344"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/outline/page/milkmaid",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/outline/annotation/milkmaid",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/milkmaid/0,0,4649,5177/291,324/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 4649,
+                                "height": 5177,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/milkmaid",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/outline/canvas/milkmaid"
+                        }
+                    ]
+                }
+            ],
+            "annotations": [
+                {
+                    "id": "/material/outline/annotation-page/milkmaid",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/outline/annotation/basket",
+                            "type": "Annotation",
+                            "motivation": "commenting",
+                            "body": {
+                                "type": "TextualBody",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "The bread basket. Its lit surfaces are built from the small dots of paint — pointillés — that Vermeer used wherever light catches an edge."
+                            },
+                            "target": {
+                                "type": "SpecificResource",
+                                "source": "/material/outline/canvas/milkmaid",
+                                "selector": {
+                                    "type": "SvgSelector",
+                                    "value": "<svg xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M 399,3547 L 511,3323 L 879,3243 L 1278,3323 L 1406,3547 L 1246,3882 L 879,3994 L 511,3882 Z\"/></svg>"
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

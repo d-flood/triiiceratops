@@ -45,6 +45,7 @@ import {
     type ViewportPoint,
 } from '../types/viewport.js';
 import type {
+    BarMenu,
     PluginUiConfig,
     RequestConfig,
     SearchProvider,
@@ -155,6 +156,17 @@ export class ViewerState {
     showAnnotations = $state(false);
     showThumbnailGallery = $state(false);
     toolbarOpen = $state(false);
+
+    /**
+     * Which of the control bar's flyout menus stands open, or `null` for none.
+     *
+     * One member for menus two components render, because the bar's rule is
+     * that at most one of them is open: the toolbar's own four, and the
+     * transport's caption-track list. Each control dismisses only what it
+     * owns — the toolbar's light-dismiss must not reach into a list the
+     * transport opened, and vice versa.
+     */
+    openMenu = $state<BarMenu | null>(null);
     isGalleryDockedBottom = $state(false);
     isGalleryDockedRight = $state(false);
     isFullScreen = $state(false);
@@ -909,6 +921,25 @@ export class ViewerState {
     viewportInset: ViewportInset = $state.raw(ZERO_VIEWPORT_INSET);
 
     /**
+     * Edges of the surface core's **own floating chrome** is covering right
+     * now — the control bar, as it is laid out and while it is showing.
+     *
+     * The mirror of {@link viewportInset}, and the two must not be confused.
+     * That one is a plugin telling core where not to fit; this one is core
+     * telling a claimant what it is painting over. Core writes it from the
+     * control bar and there is no mutator, as with {@link rendererReady}.
+     *
+     * It exists because the bar floats OVER the canvas rect rather than beside
+     * it, so a claimant drawing into that rect — captions inside a video
+     * element, a waveform's own readout — has no other way to know which band
+     * of its own picture a reader cannot see. Every edge is zero while the
+     * chrome is hidden, which is a real state and not an unknown one: the bar
+     * idle-hides during playback, and content lifted clear of a bar that is no
+     * longer there would be lifted for no reason.
+     */
+    chromeInset: ViewportInset = $state.raw(ZERO_VIEWPORT_INSET);
+
+    /**
      * Attach the mounted renderer. **Core-internal** — the host↔state seam, not
      * part of the supported plugin API, and it takes a fixed first-party
      * interface rather than a renderer object.
@@ -1570,6 +1601,20 @@ export class ViewerState {
     }
 
     /**
+     * Zoom smoothly for as long as a control is held — `1` in, `-1` out, `0` to
+     * stop — about the viewport centre.
+     *
+     * The continuous counterpart to {@link zoomIn} / {@link zoomOut}: a press
+     * that is held covers real distance without the reader tapping for it, and
+     * a press that is released immediately leaves the step to the click. Every
+     * hold MUST be ended with `holdZoom(0)`, including on `pointercancel` — the
+     * renderer has no other way to learn the control came up.
+     */
+    holdZoom(direction: number): void {
+        this.rendererPort?.holdZoom(direction);
+    }
+
+    /**
      * Zoom to an absolute scale — screen pixels per canvas-space unit, the same
      * units {@link viewportScale} reads. Clamped by the renderer to the zoom
      * range it derives from the layout; a caller cannot escape those limits.
@@ -1610,11 +1655,24 @@ export class ViewerState {
     }
 
     /**
-     * Fit a whole canvas — the current one unless named. The `0`/`Home` path,
-     * and what canvas navigation does in continuous mode.
+     * Fit a whole canvas — the current one unless named. What canvas navigation
+     * does in continuous mode: naming a canvas is a request to travel to it.
      */
     fitCanvas(canvasId?: string): void {
         this.rendererPort?.fitCanvas(canvasId);
+    }
+
+    /**
+     * Fit what the reader is looking at — the laid-out world, or in continuous
+     * mode the canvas their viewport is over. The `0`/`Home` path, and what the
+     * chrome's fit control issues.
+     *
+     * Named nothing, because naming a canvas is what makes {@link fitCanvas} a
+     * request to TRAVEL. Refitting is the opposite request: it re-frames what is
+     * already on screen and never moves the reader off it.
+     */
+    fitView(): void {
+        this.rendererPort?.fitView();
     }
 
     /**
@@ -2158,6 +2216,10 @@ export class ViewerState {
             this.toolbarOpen = newConfig.toolbarOpen;
         }
 
+        if (newConfig.openMenu !== undefined) {
+            this.openMenu = newConfig.openMenu;
+        }
+
         if (newConfig.viewingMode) {
             this.viewingMode = newConfig.viewingMode;
             this._viewingModeUserConfigured = true;
@@ -2202,12 +2264,20 @@ export class ViewerState {
             const newQuery = newConfig.search.query;
             const oldQuery = oldConfig.search?.query;
 
+            // Queued rather than run, and that is the whole of it: a host that
+            // changes the manifest and the query together applies the config
+            // synchronously while `setManifest` is still in flight, so a search
+            // issued here would go to whichever service the OUTGOING manifest
+            // declares — or to none, on a manifest that has no search at all —
+            // and answer "no results" for a query the reader can then run by
+            // hand and see work. The component owns the gate because only it
+            // can see the manifest PROP the query arrived beside.
             if (
                 newQuery !== undefined &&
                 newQuery !== oldQuery &&
                 newQuery !== this.searchQuery
             ) {
-                this._performSearch(newQuery);
+                this.pendingSearchQuery = newQuery;
             }
         }
 
@@ -2253,6 +2323,18 @@ export class ViewerState {
     toggleToolbar() {
         this.toolbarOpen = !this.toolbarOpen;
         this.dispatchStateChange();
+    }
+
+    /** Open one of the control bar's flyout menus, or `null` to close it. */
+    setOpenMenu(menu: BarMenu | null) {
+        if (this.openMenu === menu) return;
+        this.openMenu = menu;
+        this.dispatchStateChange();
+    }
+
+    /** Open this menu, or close it if it is the one already open. */
+    toggleMenu(menu: BarMenu) {
+        this.setOpenMenu(this.openMenu === menu ? null : menu);
     }
 
     toggleThumbnailGallery() {

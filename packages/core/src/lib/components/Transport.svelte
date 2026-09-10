@@ -15,6 +15,7 @@
 <script lang="ts">
     import { untrack } from 'svelte';
     import { Button, Range } from './ui';
+    import Icon from './Icon.svelte';
     import PluginIcon from './PluginIcon.svelte';
     import { dismissible } from '../utils/dismissible';
     import type {
@@ -37,16 +38,20 @@
          */
         element = $bindable<HTMLDivElement | null>(null),
         /**
-         * Whether the track list is open, for the bar to read. The bar cannot
-         * go idle over a popover it owns, and this list is the one popover in
-         * the bar that a group of the bar owns rather than the bar itself.
+         * Whether the track list is open. Controlled by the bar rather than
+         * held here: the list is one of the bar's flyouts, and the bar keeps
+         * them on viewer state so that at most one stands open and a host can
+         * open this one from config.
          */
-        listOpen = $bindable(false),
+        listOpen = false,
+        /** Ask the bar to open or close the track list. */
+        onListOpen,
     }: {
         chrome: RegisteredTransportChrome;
         openDown?: boolean;
         element?: HTMLDivElement | null;
         listOpen?: boolean;
+        onListOpen?: (open: boolean) => void;
     } = $props();
 
     // Read on core's own cadence: the claimant already runs the cadences its
@@ -228,17 +233,30 @@
      */
     let openedFor: string | null = null;
     /**
-     * A list left open across a change of track set is a list addressing tracks
-     * that are gone — it survives navigation to a canvas with one track or none,
-     * where the button stops claiming to be expanded and so can no longer close
-     * it, and it survives a canvas with none at all, where the whole control
-     * unmounts and would come back already open with no gesture behind it.
+     * A list left open over tracks that are GONE is a list addressing nothing —
+     * it survives navigation to a canvas with one track or none, where the
+     * button stops claiming to be expanded and so can no longer close it, and
+     * it survives a canvas with none at all, where the whole control unmounts
+     * and would come back already open with no gesture behind it.
+     *
+     * Losing a track is the test, not merely differing from the last set. A
+     * canvas's tracks load one at a time — a caption track joins the set only
+     * once it has parsed with cues in it — so a set that has only GROWN is the
+     * same list with more in it, and a rule that shut on any change would shut
+     * an `openMenu: 'captions'` on the second track's arrival, every time.
      */
     $effect(() => {
         if (trackKey === openedFor) return;
+        const lost =
+            openedFor !== null &&
+            openedFor !== '' &&
+            openedFor
+                .split('\n')
+                .some((id) => !view.tracks.some((track) => track.id === id));
         openedFor = trackKey;
-        listOpen = false;
+        if (listOpen && lost) onListOpen?.(false);
     });
+
     /**
      * Bound rather than queried, so neither the keyboard behaviour nor the
      * focus return can be broken by a selector — a `data-testid` least of all.
@@ -255,8 +273,11 @@
             choose(tracksOn ? null : view.tracks[0].id);
             return;
         }
-        listOpen = !listOpen;
-        if (!listOpen) return;
+        // The intent, not a re-read: the prop is the bar's answer and does not
+        // change under this call.
+        const opening = !listOpen;
+        onListOpen?.(opening);
+        if (!opening) return;
         // Opening moves focus into the list, which is what makes the control
         // operable from the keyboard at all. On the next frame, because the
         // list is not in the DOM until the reactive flush — and a microtask can
@@ -467,14 +488,14 @@
                     -->
                     <div
                         use:dismissible={{
-                            onDismiss: () => (listOpen = false),
+                            onDismiss: () => onListOpen?.(false),
                             invoker: tracksButton,
                             within: [tracksButton],
                             // `onTracksClick` puts focus on the ACTIVE radio;
                             // the action would take it to the group instead.
                             focusOnMount: false,
                         }}
-                        class="track-list"
+                        class="tri-menu tri-menu-surface track-list"
                         class:down={openDown}
                         data-testid="transport-track-list"
                         role="radiogroup"
@@ -494,14 +515,18 @@
                                 bind:this={radios[index]}
                                 type="button"
                                 role="radio"
-                                class="track-option"
+                                class="tri-menu-item"
                                 aria-checked={choice.id === view.activeTrack}
                                 tabindex={choice.id === view.activeTrack
                                     ? 0
                                     : -1}
                                 onclick={() => choose(choice.id)}
-                                >{choice.label}</button
                             >
+                                <span>{choice.label}</span>
+                                {#if choice.id === view.activeTrack}
+                                    <Icon name="Check" size={16} />
+                                {/if}
+                            </button>
                         {/each}
                     </div>
                 {/if}
@@ -619,19 +644,14 @@
         display: flex;
     }
 
+    /* The list's look is the shared menu surface (src/styles/menu.css); what is
+       local to the transport is where it hangs. */
     .track-list {
         position: absolute;
         bottom: 100%;
         margin-bottom: 0.375rem;
         right: 0;
         z-index: 1001;
-        display: flex;
-        flex-direction: column;
-        min-width: max-content;
-        padding: 0.25rem;
-        background: var(--tri-panel-bg);
-        border: 1px solid var(--tri-surface-border);
-        border-radius: var(--tri-radius-panels);
     }
     /* The bar can be docked to the top edge, where opening upwards would put the
        list off the viewer. */
@@ -639,28 +659,6 @@
         bottom: auto;
         top: 100%;
         margin: 0.375rem 0 0;
-    }
-
-    .track-option {
-        appearance: none;
-        /* 44px of height, so the list is aimable with a thumb. */
-        min-height: 2.75rem;
-        padding: 0 0.75rem;
-        text-align: start;
-        white-space: nowrap;
-        color: inherit;
-        font: inherit;
-        background: none;
-        border: 0;
-        border-radius: calc(var(--tri-radius-panels) - 0.25rem);
-        cursor: pointer;
-    }
-    .track-option[aria-checked='true'] {
-        background: color-mix(in oklab, currentColor 20%, transparent);
-    }
-    .track-option:focus-visible {
-        outline: 2px solid currentColor;
-        outline-offset: -2px;
     }
 
     .transport :global(.volume) {

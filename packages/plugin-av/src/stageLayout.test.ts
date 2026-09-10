@@ -8,11 +8,9 @@ import { describe, expect, it } from 'vitest';
 import {
     laneFraction,
     stageClip,
-    stageLanes,
+    stageFill,
     stageLayoutKind,
 } from './stageLayout';
-
-const RECT = { left: 10, top: 20, width: 640, height: 400 };
 
 describe('stage layout', () => {
     describe('which layout a canvas gets', () => {
@@ -32,33 +30,25 @@ describe('stage layout', () => {
         });
     });
 
-    describe('rect to lane rects', () => {
-        it('fills the rect with the visual lane for video', () => {
-            expect(stageLanes(RECT, 'video')).toEqual({
-                visual: RECT,
-                timeline: null,
-            });
+    describe('what fills the rect', () => {
+        it('gives video the media element', () => {
+            expect(stageFill('video')).toBe('visual');
         });
 
-        it('fills the rect with the timeline lane for audio alone', () => {
-            expect(stageLanes(RECT, 'audio')).toEqual({
-                visual: null,
-                timeline: RECT,
-            });
+        it('gives audio alone the timeline', () => {
+            expect(stageFill('audio')).toBe('timeline');
         });
 
         /*
-            The rect belongs to the renderer where core paints a companion. A
-            lane of any height would sit above the renderer's canvas and hide
-            part of the picture — and the quarter-rect timeline strip this
+            The rect belongs to the renderer where core paints a companion.
+            Anything of any height would sit above the renderer's canvas and
+            hide part of the picture — and the quarter-rect timeline strip this
             layout used to get was the last piece of transport-era canvas real
-            estate, now that the transport lives in the control bar.
+            estate, now that the transport lives in the control bar. Waveform
+            data reaches the reader through that bar instead.
         */
         it('leaves the whole rect to core where core paints a companion', () => {
-            expect(stageLanes(RECT, 'audio-with-image')).toEqual({
-                visual: null,
-                timeline: null,
-            });
+            expect(stageFill('audio-with-image')).toBe('none');
         });
     });
 

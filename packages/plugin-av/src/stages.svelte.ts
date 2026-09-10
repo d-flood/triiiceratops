@@ -49,7 +49,7 @@ import { reportAvCommandError } from './reportError';
 import type { CanvasSequencer } from './sequencer/index';
 import { loadSequencer } from './sequencerLink';
 import { scanCanvasForAv, type AvCanvasScan } from './sources';
-import { stageLayoutKind } from './stageLayout';
+import { stageLayoutKind, type StageLayoutKind } from './stageLayout';
 import { createOffsetSeeker } from './temporalOffsets';
 import {
     captionOptions,
@@ -65,7 +65,8 @@ import {
 import { type TextTranscript, textTranscriptFor } from './renderingTranscript';
 import { timedAnnotationsFor, type TimedEntry } from './timedAnnotations';
 import { loadTranscript } from './transcriptLink';
-import type { VisibleBox } from './waveform/surface';
+import type { VisibleBox } from './timeline/lane';
+import { loadTimeline } from './timelineLink';
 import { loadPeaks, waveformUrlFor } from './waveformLink';
 
 export interface AvStageManager {
@@ -170,6 +171,78 @@ export function createAvStageManager(
         return entry ?? null;
     }
 
+    /**
+     * The canvas the transport is driving, as of the last navigation — which is
+     * to say the PREVIOUS `viewerState.canvasId`, since {@link currentEntry}
+     * resolves the current one live.
+     *
+     * Held here because a selector delivers only its new value, and the thing
+     * that has to be paused is the one being left.
+     */
+    let drivenCanvasId: string | null = viewerState.canvasId || null;
+
+    /**
+     * Stop the recording the reader is navigating away from, where it stands.
+     *
+     * **Navigation does not carry playback**, and this is the half of that rule
+     * that was missing. The other half is already pinned: arriving at a canvas
+     * seeks it but never starts it (`playlist.test.ts`). Without this one, the
+     * bar re-attaches to the canvas arrived at while the element left behind
+     * goes on sounding — inside a stage that `rectFor` has hidden, so in
+     * `individuals` mode there is no glyph, no transport and no tap target that
+     * could stop it.
+     *
+     * `auto-advance` is unaffected rather than excepted: it runs from the end of
+     * a timeline, so the element it leaves has already ended and pausing it is a
+     * no-op. That keeps the authored behaviour the only way playback crosses a
+     * canvas boundary, which is what IIIF says it is — `auto-advance` is defined
+     * on reaching the END of a Canvas, and a reader pressing "next" has not.
+     *
+     * **Paused, not rewound.** The element keeps its playhead, so navigating
+     * back resumes where the reader left off; `continuePlayback` seeks to `0`
+     * explicitly for exactly that reason.
+     *
+     * Only the canvas being driven, never a sweep over every stage: in
+     * `continuous` mode a reader can tap a stage that is not current to start
+     * it, which is what the play-state glyph exists to report, and a scroll
+     * changes no `canvasId` — so nothing here fires on one.
+     */
+    function releaseDrivenCanvas(canvasId: string | null): void {
+        const leaving = drivenCanvasId;
+        drivenCanvasId = canvasId || null;
+        if (!leaving || leaving === drivenCanvasId) return;
+        // The element directly, as `currentMedia` and the transport's own
+        // preferences already reach it: pausing is not a transport command
+        // here — AVState has moved on to the canvas arrived at, and addressing
+        // it would pause the wrong recording.
+        entries.get(leaving)?.stage.media.pause();
+    }
+
+    /**
+     * The current canvas's caption tracks a selection could actually SHOW.
+     *
+     * The `rendersCaptions` fence, in one place, because both surfaces that
+     * offer a selection have to agree on it: an audio stage attaches its tracks
+     * for the transcript to read, and offering them as selectable — in the bar
+     * or through AVState — would be the dead control user story 46 forbids.
+     */
+    function paintableCaptionTracks(): readonly CaptionTrack[] {
+        const stage = currentEntry()?.stage;
+        return stage?.rendersCaptions ? stage.captionTracks : NO_CAPTION_TRACKS;
+    }
+
+    /**
+     * Show one caption track, from either surface that can ask.
+     *
+     * `publishViews` afterwards rather than leaving it to the media cadence: the
+     * transcript reads the SELECTED track, and a paused canvas is running no
+     * frame cadence to notice the change on its own.
+     */
+    function selectCaptionTrack(url: string | null): void {
+        currentEntry()?.stage.setCaptionTrack(url);
+        publishViews();
+    }
+
     const publication = createAvState({
         currentTarget: () => {
             const entry = currentEntry();
@@ -179,6 +252,11 @@ export function createAvStageManager(
                       media: entry.stage.media,
                       canvasDuration: entry.scan.duration,
                       timeline: entry.sequencer,
+                      captions: {
+                          tracks: paintableCaptionTracks,
+                          active: () => entry.stage.activeCaptionTrack,
+                          select: selectCaptionTrack,
+                      },
                   }
                 : null;
         },
@@ -275,25 +353,11 @@ export function createAvStageManager(
         // Read off the stage each time rather than mirrored here: the loaded
         // set is decided asynchronously, per element, as each track's fetch
         // settles.
-        captions: () => {
-            const stage = currentEntry()?.stage;
-            return {
-                // Only where the element can paint them. An audio stage
-                // attaches its tracks for the transcript panel to read, and
-                // offering a toggle over them would be the dead control user
-                // story 46 forbids.
-                tracks: stage?.rendersCaptions
-                    ? stage.captionTracks
-                    : NO_CAPTION_TRACKS,
-                active: stage?.activeCaptionTrack ?? null,
-            };
-        },
-        setCaptionTrack: (id) => {
-            currentEntry()?.stage.setCaptionTrack(id);
-            // The transcript reads the SELECTED track, and a paused canvas is
-            // running no frame cadence to notice on its own.
-            publishViews();
-        },
+        captions: () => ({
+            tracks: paintableCaptionTracks(),
+            active: currentEntry()?.stage.activeCaptionTrack ?? null,
+        }),
+        setCaptionTrack: selectCaptionTrack,
         hasTranscript: panelAvailable,
         // The panel's open state belongs to core, which owns the chrome that
         // opens it; `context.surface` is this plugin's live projection of it.
@@ -610,8 +674,14 @@ export function createAvStageManager(
     function placeAll(): void {
         const current = currentEntry();
         const visible = visibleBox();
+        // What core's control bar is covering of the container's bottom edge.
+        // Pushed to every stage rather than the current one: the bar floats
+        // over whatever is under it, and a reader looking at two recordings
+        // sees both.
+        const chromeBottom = viewerState.chromeInset.bottom;
 
         for (const entry of entries.values()) {
+            entry.stage.setChromeBottom(chromeBottom);
             entry.stage.place(rectFor(entry.scan), visible);
             // The glyph says which recordings are playing among the claimed
             // canvases the bar is NOT driving. The canvas the bar does drive
@@ -883,7 +953,7 @@ export function createAvStageManager(
             textTranscript: textTranscriptFor(canvas),
         };
         entries.set(scan.canvasId, entry);
-        attachWaveform(entry, canvas);
+        attachTimeline(entry, canvas, layout);
         if (scan.temporallyComposed) attachSequencer(entry, canvas);
     }
 
@@ -953,6 +1023,36 @@ export function createAvStageManager(
     }
 
     /**
+     * Give this canvas whatever draws over its lane.
+     *
+     * Waveform data if it links any; otherwise the ruler, which needs nothing
+     * fetched beyond the chunk itself and is the only thing a bare audio
+     * canvas has to look at. One or the other, never both — the waveform
+     * graduates the same window and says more — so the ruler is asked for only
+     * where no peaks are coming, and `adoptRuler` refuses a second time if
+     * some arrive first anyway.
+     *
+     * A stage with no timeline lane asks for nothing: video and a canvas core
+     * paints a companion into reach the timeline through the control bar.
+     */
+    function attachTimeline(
+        entry: StageEntry,
+        canvas: unknown,
+        layout: StageLayoutKind,
+    ): void {
+        if (attachWaveform(entry, canvas)) return;
+        if (layout !== 'audio') return;
+
+        void loadTimeline().then((module) => {
+            // The canvas may have gone, or been restaged, while this was in
+            // flight; adopting into a destroyed stage would draw into
+            // detached DOM.
+            if (!module || entries.get(entry.scan.canvasId) !== entry) return;
+            entry.stage.adoptRuler(module);
+        });
+    }
+
+    /**
      * Resolve this canvas's waveform data, if it links any, and give it to the
      * stage and to the scrubber.
      *
@@ -966,11 +1066,11 @@ export function createAvStageManager(
      * the whole work: peaks drawn across it would be a picture of act one
      * stretched over the opera. The lane still seeks in canvas time.
      */
-    function attachWaveform(entry: StageEntry, canvas: unknown): void {
-        if (entry.scan.temporallyComposed) return;
+    function attachWaveform(entry: StageEntry, canvas: unknown): boolean {
+        if (entry.scan.temporallyComposed) return false;
 
         const url = waveformUrlFor(canvas);
-        if (!url) return;
+        if (!url) return false;
 
         void loadPeaks(url).then((loaded) => {
             // The canvas may have gone, or been restaged, while this was in
@@ -987,6 +1087,7 @@ export function createAvStageManager(
             transport.refresh();
             publishViews();
         });
+        return true;
     }
 
     function removeStage(canvasId: string): void {
@@ -1071,7 +1172,9 @@ export function createAvStageManager(
     // navigation republishes `activeMediaCanvasId` and the facts beside it.
     const stopCurrent = context.selectors
         .select((state) => state.canvasId)
-        .subscribe(() => {
+        .subscribe((canvasId) => {
+            // Before anything else: the recording the reader is leaving stops.
+            releaseDrivenCanvas(canvasId);
             // The whole pulse rather than AVState alone: the panel describes
             // the canvas the reader is on, so its sections are rebuilt for the
             // new one here — which is also the only thing that brings them
@@ -1085,6 +1188,20 @@ export function createAvStageManager(
             // carry it to the bar.
             transport.refresh();
         });
+
+    /**
+     * Core's control bar coming and going over the stages.
+     *
+     * A geometry signal that carries no geometry: the bar idle-hides during
+     * playback and returns on a pointer move, and nothing about the viewport or
+     * the canvas has moved when it does — so no frame, navigation or rescan
+     * runs, and the captions underneath would stay lifted for a bar that is no
+     * longer there. Only the bottom edge is watched, which is the only one that
+     * can be over a caption.
+     */
+    const stopChrome = context.selectors
+        .select((state) => state.chromeInset.bottom)
+        .subscribe(() => placeAll());
 
     // The reader's Choice picks, read through core's own selection state rather
     // than mirrored here: `selectChoice` is the command a host already has
@@ -1154,7 +1271,7 @@ export function createAvStageManager(
      * not showing — the same "chrome that lies" the single transport avoids.
      */
     const stopPlayheads = publication.state.subscribeFrame(() => {
-        for (const entry of entries.values()) entry.stage.paintWaveform();
+        for (const entry of entries.values()) entry.stage.paintTimeline();
     });
 
     const stopLocale = context.locale.subscribe(() => {
@@ -1187,6 +1304,7 @@ export function createAvStageManager(
             publication.destroy();
             stopCurrent();
             stopRescan();
+            stopChrome();
             stopChoices();
             stopOffsets();
             offsets.destroy();

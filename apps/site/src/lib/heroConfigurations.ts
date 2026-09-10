@@ -611,30 +611,22 @@ export type Cycle = { readonly at: number };
 export const HERO_CYCLE_START: Cycle = { at: 0 };
 
 /**
- * How many canvases the material moves on by at the top of each lap, and how
- * many before the first one.
+ * How many canvases the material moves on by at the top of each lap.
  *
  * The sequence stands still on one canvas while it walks: the argument is that
  * the chrome recomposes, and material moving underneath it is the one thing
  * that could be mistaken for the chrome being rebuilt. Between laps it moves
- * instead, and by a stride that does not divide eleven, so the resting canvas
- * is a different one each time round and the whole set is reached eventually.
- *
- * The first lap moves two rather than three: the page is served on the first
- * canvas, and three would skip the opening of the material a reader has just
- * been looking at while the viewer loaded.
+ * instead, one canvas at a time, which is a reader turning a page and reaches
+ * the whole set without ever skipping past material unseen.
  */
-export const HERO_STRIDE = 3;
-export const HERO_FIRST_STRIDE = 2;
+export const HERO_STRIDE = 1;
 
 /**
- * How long the material rests on each canvas of a stride, in milliseconds.
+ * How long the material waits before each canvas of a stride, in milliseconds.
  *
- * A stride is walked rather than jumped: three canvases arriving at once is a
- * cut, and a cut is the one thing that looks like the viewer rebuilding itself.
- * Played one at a time the same three canvases are a reader turning pages,
- * which is what the renderer's own motion is tuned for and what makes the point
- * that the material moves under chrome that does not.
+ * The lap turns over and the page turns a moment later rather than with it, so
+ * the two reads as two events: the chrome recomposing, then the material
+ * moving under chrome that did not.
  */
 export const HERO_STRIDE_PAUSE = 600;
 
@@ -647,10 +639,10 @@ export const HERO_STRIDE_PAUSE = 600;
  * taken. It also keeps this a pure function of an index, which is the only way
  * the reflection is worth trusting.
  *
- * Reflecting rather than wrapping. A stride of three over eleven canvases that
- * wrapped would rest on the same three forever; turning round at each end
- * shifts the phase every crossing, so the resting canvas works through the
- * whole set. `heading` is carried out and back in so the turn survives between
+ * Reflecting rather than wrapping. Turning round at the ends walks the
+ * material back the way it came instead of cutting from the last canvas to the
+ * first, and a cut is the one thing that looks like the viewer rebuilding
+ * itself. `heading` is carried out and back in so the turn survives between
  * laps.
  *
  * Fewer moves than asked for when the material cannot supply them — a manifest

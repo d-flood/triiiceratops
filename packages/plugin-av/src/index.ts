@@ -17,7 +17,7 @@ export { AvPlugin } from './plugin';
 // External control (ADR 0018). The STATE is reached through the viewer —
 // `getAVState(viewerState)` — never imported; only its type is.
 export { getAVState } from './avState';
-export type { AVState } from './avState';
+export type { AVState, AvCaptionTrack } from './avState';
 
 export type {
     AvCanvasScan,

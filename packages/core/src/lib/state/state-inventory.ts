@@ -147,6 +147,12 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         commands: ['toggleToolbar'],
     },
     {
+        member: 'openMenu',
+        classification: 'command',
+        commands: ['setOpenMenu', 'toggleMenu'],
+        notes: "Which of the control bar's flyout menus stands open. One member for the toolbar's four and the transport's caption-track list, because the bar holds at most one open; each control dismisses only the menus it renders.",
+    },
+    {
         member: 'showMetadataPanel',
         classification: 'command',
         commands: ['toggleMetadataPanel'],
@@ -414,6 +420,11 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'Brightness/contrast/saturation/invert/grayscale applied to the rendered image. Command state rather than a reach into the renderer’s DOM node: it survives a remount and is testable with no renderer.',
     },
     {
+        member: 'chromeInset',
+        classification: 'observable',
+        notes: 'Edges of the surface core’s own control bar is covering while it shows, for a claimant painting into the canvas rect under it. Core writes it from the bar; no mutator. The mirror of viewportInset, which is a plugin telling core where not to fit.',
+    },
+    {
         member: 'viewportInset',
         classification: 'command',
         commands: ['setViewportInset', 'resetViewportInset'],
@@ -422,19 +433,27 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'viewportScale',
         classification: 'query-only',
-        commands: ['zoomIn', 'zoomOut', 'zoomTo', 'fitBounds', 'fitCanvas'],
+        commands: [
+            'zoomIn',
+            'zoomOut',
+            'holdZoom',
+            'zoomTo',
+            'fitBounds',
+            'fitCanvas',
+            'fitView',
+        ],
         notes: 'Screen pixels per canvas-space unit. Per-frame, so non-notifying; read reactively through a `frame`-cadence selector.',
     },
     {
         member: 'viewportCentre',
         classification: 'query-only',
-        commands: ['panTo', 'fitBounds', 'fitCanvas'],
+        commands: ['panTo', 'fitBounds', 'fitCanvas', 'fitView'],
         notes: 'Canvas-space point at the middle of the viewport. Per-frame, so non-notifying.',
     },
     {
         member: 'viewportBounds',
         classification: 'query-only',
-        commands: ['panTo', 'zoomTo', 'fitBounds', 'fitCanvas'],
+        commands: ['panTo', 'zoomTo', 'fitBounds', 'fitCanvas', 'fitView'],
         notes: 'Canvas-space box the viewport shows. Derived from scale and centre; per-frame, so non-notifying.',
     },
     {

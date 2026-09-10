@@ -722,15 +722,39 @@ describe('planScene — multi-canvas layout', () => {
             images: [],
         };
 
-        it('gives a lone duration-only canvas a timeline-shaped rect, not a square', () => {
+        it('shapes a lone duration-only canvas like the surface, not like a square', () => {
             // Nothing will ever paint a picture here — no images to reflow from,
             // no companion Canvas to donate a rect — so the square that stands in
             // for an unknown shape is the wrong stand-in: it makes an AV plugin's
-            // waveform lane, which fills the rect, as tall as a page.
+            // waveform lane, which fills the rect, as tall as a page. The
+            // surface's own ratio instead, so the fit lands on the whole of it
+            // and the lane opens full width AND full height.
+            const rect = plan([durationOnly], { surfaceAspect: 800 / 1200 })
+                .layout[0];
+
+            expect(rect.height / rect.width).toBeCloseTo(800 / 1200, 6);
+        });
+
+        it('falls back to a strip when the surface has not been measured', () => {
+            // SSR, and the frame before the first measure. Not knowing the
+            // surface is not a reason to lay a recording out as a page.
             const rect = plan([durationOnly]).layout[0];
 
             expect(rect.height).toBeLessThan(rect.width);
             expect(rect.height / rect.width).toBeCloseTo(0.16, 6);
+        });
+
+        it('keeps a declared axis rather than taking the surface\u2019s shape', () => {
+            // A Canvas that states one axis has said something about its shape,
+            // in violation of the spec but on the record. The surface fills the
+            // gap by ratio, as it does for any other half-declared canvas, and
+            // does not overrule the figure that is there.
+            const rect = plan([{ ...durationOnly, width: 4000 }], {
+                surfaceAspect: 0.5,
+            }).layout[0];
+
+            expect(rect.width).toBe(4000);
+            expect(rect.height).toBe(2000);
         });
 
         it('keeps the square for an unsized canvas that does paint a picture', () => {
@@ -1343,6 +1367,23 @@ describe('planScene — size-ladder sources', () => {
             '1024,/0/default.jpg',
             '2048,/0/default.jpg',
             'max/0/default.jpg',
+        ]);
+    });
+
+    it('falls to one whole image for a service whose declared extent was disproved', () => {
+        // It advertises tiling AND sizes, and both were derived from dimensions
+        // it does not honour (`imageService.verifyDimensions`). Only the
+        // canonical whole-image request survives, and the corrected dimensions
+        // are the measured raster, so that one rung IS the whole picture.
+        const result = ladderPlan(8, {}, undefined, {
+            width: 357,
+            height: 524,
+            version: 3,
+            regionsUntrusted: true,
+        });
+
+        expect(result.tileRequests.map((request) => request.url)).toEqual([
+            'https://images.test/c1/full/max/0/default.jpg',
         ]);
     });
 
@@ -2422,6 +2463,143 @@ describe('planViewportLimits', () => {
         // …and the full plan at that zoom really did enumerate tiles, so the
         // comparison above is between the cheap answer and an expensive one.
         expect(zoomedIn.tileRequests.length).toBeGreaterThan(0);
+    });
+
+    describe('lane', () => {
+        /** A bare recording: a duration, no dimensions, no picture. */
+        const recording = (id: string): PlannerCanvas => ({
+            id,
+            width: null,
+            height: null,
+            duration: 180,
+            images: [],
+        });
+
+        it('is a lane when the world is one recording and nothing else', () => {
+            expect(limits([recording('a')]).lane).toBe(true);
+        });
+
+        it('is not a lane once there is a second canvas to scroll to', () => {
+            // A playlist. Locking the pan to the horizontal here would put every
+            // track after the first out of reach.
+            expect(
+                limits([recording('a'), recording('b')], {
+                    mode: 'continuous',
+                }).lane,
+            ).toBe(false);
+        });
+
+        it('is not a lane where a sibling donated a page-shaped box', () => {
+            // The median rung is a real figure from this manifest, and a
+            // recording laid out on it is a page-shaped rect the reader must be
+            // able to look around.
+            expect(
+                limits([staticCanvas('a', 1000, 750), recording('b')], {
+                    mode: 'paged',
+                }).lane,
+            ).toBe(false);
+        });
+
+        it('is not a lane where the Canvas declared a dimension of its own', () => {
+            expect(limits([{ ...recording('a'), height: 400 }]).lane).toBe(
+                false,
+            );
+        });
+
+        it('is not a lane for a canvas that paints a picture', () => {
+            // Cover art: a companion Canvas donates real dimensions and an image
+            // before the descriptor reaches layout at all, so an audio canvas
+            // with a picture is an ordinary canvas.
+            expect(limits([staticCanvas('a', 1000, 1000)]).lane).toBe(false);
+        });
+
+        it('is not a lane for an unsized canvas that declares no duration', () => {
+            // User story 32's spec violation: a picture whose shape is unknown,
+            // which a fetch may yet report. Nothing about it is temporal.
+            expect(
+                limits([
+                    {
+                        id: 'lonely',
+                        width: null,
+                        height: null,
+                        images: [
+                            fills('lonely', serviceSource('lonely'), 1, 1),
+                        ],
+                    },
+                ]).lane,
+            ).toBe(false);
+        });
+    });
+
+    it('reads source resolution off the manifest before any info.json has landed', () => {
+        // A Canvas is declared in its image's pixels, so the ceiling is right on
+        // the first frame — and the ceiling is what lets the reader zoom far
+        // enough to provoke the fetch at all.
+        expect(
+            limits([serviceCanvas('c1', 4000, 3000)]).sourcePixelsPerWorldUnit,
+        ).toBe(1);
+    });
+
+    it("takes the service's own resolution over the manifest's when they differ", () => {
+        // Geometry keeps the manifest's figure permanently, so a service
+        // reporting more pixels means real resolution the ceiling has to reach.
+        const canvases = [serviceCanvas('c1', 2048, 2048)];
+
+        expect(
+            limits(canvases, { knownMetadata: byService({ c1: FACTS }) })
+                .sourcePixelsPerWorldUnit,
+        ).toBe(2);
+    });
+
+    it('divides out a layout that resized the canvas', () => {
+        // Normalization draws a canvas at other than its declared size, so a
+        // world unit stands for a different number of source pixels.
+        const canvases = [
+            staticCanvas('short', 1000, 500),
+            staticCanvas('tall', 1000, 1000),
+        ];
+        const { layout, sourcePixelsPerWorldUnit } = limits(canvases, {
+            mode: 'paged',
+        });
+        const rects = new Map(
+            layout.map((rect) => [rect.canvasId, rect.width]),
+        );
+
+        // The median of 500 and 1000 is 750, so the taller canvas is drawn at
+        // three quarters of its declared size: 1000 source pixels over 750 world
+        // units, 4/3 each, which makes it the deeper of the two.
+        expect(rects.get('tall')).toBe(750);
+        expect(rects.get('short')).toBe(1500);
+        expect(sourcePixelsPerWorldUnit).toBeCloseTo(4 / 3, 12);
+        // …and with normalization off, a world unit is a declared pixel again.
+        expect(
+            limits(canvases, { mode: 'paged', preserveCanvasScale: true })
+                .sourcePixelsPerWorldUnit,
+        ).toBe(1);
+    });
+
+    it('reports the DEEPEST canvas in the world', () => {
+        // Outside continuous mode the laid-out world is the canvas or spread on
+        // screen, so this is that canvas's own figure.
+        const canvases = [
+            serviceCanvas('shallow', 1000, 1000),
+            serviceCanvas('deep', 1000, 1000),
+        ];
+
+        expect(
+            limits(canvases, {
+                mode: 'paged',
+                knownMetadata: byService({
+                    deep: { ...FACTS, width: 8000, height: 8000 },
+                }),
+            }).sourcePixelsPerWorldUnit,
+        ).toBe(8);
+    });
+
+    it('reports no resolution for a world with nothing in it', () => {
+        // `viewportMath.sourcePixelCeiling` turns zero into no ceiling of that
+        // kind rather than a ceiling of zero.
+        expect(limits([]).sourcePixelsPerWorldUnit).toBe(0);
     });
 });
 

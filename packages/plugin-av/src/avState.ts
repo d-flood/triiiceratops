@@ -16,6 +16,21 @@ import type { PublishedState } from '@triiiceratops/plugin-sdk';
 import { PLUGIN_META } from './identity';
 
 /**
+ * One caption track a host may switch on, as the manifest authored it.
+ *
+ * The label is content — a track called "Sottotitoli" is called that in every
+ * locale — so it is published verbatim and never translated.
+ */
+export interface AvCaptionTrack {
+    /** The WebVTT resource's id, and the handle {@link AVState.setCaptionTrack} takes. */
+    readonly url: string;
+    /** BCP 47 tag, or `null` where the resource declares none. */
+    readonly language: string | null;
+    /** The resource's own label, or `null`. */
+    readonly label: string | null;
+}
+
+/**
  * External control of playback. Commands address the **current canvas's**
  * media; multi-target addressing (`seek(canvasId, t)`) is a compatible future
  * extension, deliberately not v1.
@@ -38,6 +53,27 @@ export interface AVState extends PublishedState {
     readonly buffering: boolean;
     /** The canvas whose media these commands address, or `null` when there is none. */
     readonly activeMediaCanvasId: string | null;
+    /**
+     * The caption tracks the current canvas can actually PAINT, in manifest
+     * order — empty until they load, and empty for a canvas whose picture is
+     * not the element's.
+     *
+     * A track appears only once its file has parsed with cues in it, so the set
+     * grows asynchronously and a host reading it at mount will see none. The
+     * canvases fenced out are the ones a selection could not show: a sound
+     * recording attaches its tracks so the transcript can read them, and an
+     * `accompanyingCanvas` hides the element behind the picture core paints.
+     * The guarantee is that switching on a track offered here produces
+     * captions.
+     */
+    readonly captionTracks: readonly AvCaptionTrack[];
+    /** The showing track's `url`, or `null` for off — which is where it starts. */
+    readonly activeCaptionTrack: string | null;
+    /**
+     * Show one caption track, or `null` for off. A `url` that is not among
+     * {@link captionTracks} turns them off rather than half-selecting one.
+     */
+    setCaptionTrack(url: string | null): void;
     /** Query-only: read it on the {@link subscribeFrame} cadence, never off `subscribe`. */
     readonly currentTime: number;
     subscribe(listener: () => void): () => void;

@@ -108,7 +108,7 @@ export const COLOURS: readonly ColourToken[] = [
         name: '--rule-2',
         light: '#cabda6',
         dark: '#4a4036',
-        role: 'Emphasised rule',
+        role: 'Emphasized rule',
     },
     {
         name: '--link',
@@ -132,13 +132,13 @@ export const COLOURS: readonly ColourToken[] = [
         name: '--mark',
         light: '#8d8375',
         dark: '#a19582',
-        role: 'Data mark, de-emphasised',
+        role: 'Data mark, de-emphasized',
     },
     {
         name: '--mark-emphasis',
         light: '#b84a19',
         dark: '#e0a32e',
-        role: 'Data mark, emphasised — orange on light, amber on dark',
+        role: 'Data mark, emphasized — orange on light, amber on dark',
     },
     // Filled colour fields from here down: one value, both schemes.
     {
@@ -253,8 +253,8 @@ export const PAIRINGS: readonly Pairing[] = [
 
 /** The data marks, which are not text and so answer to the 3:1 threshold. */
 export const MARK_PAIRINGS: readonly Pairing[] = [
-    { ink: '--mark', ground: '--bone', role: 'De-emphasised mark' },
-    { ink: '--mark-emphasis', ground: '--bone', role: 'Emphasised mark' },
+    { ink: '--mark', ground: '--bone', role: 'De-emphasized mark' },
+    { ink: '--mark-emphasis', ground: '--bone', role: 'Emphasized mark' },
 ];
 
 /** WCAG 2 minimum for text at body size. */

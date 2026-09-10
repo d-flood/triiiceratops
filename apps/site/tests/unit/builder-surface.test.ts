@@ -227,11 +227,11 @@ describe('every theming control', () => {
         for (const name of invented) expect(names).not.toContain(name);
     });
 
-    it('offers the palette, the surfaces, the content colours, the per-panel overrides and the corners', () => {
+    it('offers the palette, the surfaces, the content colors, the per-panel overrides and the corners', () => {
         expect(TOKEN_GROUPS.map((group) => group.title)).toEqual([
             'Palette',
             'Surfaces',
-            'Content colours',
+            'Content colors',
             'Per-panel overrides',
             'Corners',
         ]);

@@ -1,6 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -9,108 +7,11 @@ import { createLocalVitePlugin } from 'uncial-cms/local';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
+import { workspaceSourceAliases } from './scripts/workspace-source-aliases.mjs';
+
 const CONTENT_DIR = fileURLToPath(new URL('./content', import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const CORE_PACKAGE_JSON = 'packages/core/package.json';
-
-type ExportTarget = string | { [condition: string]: ExportTarget };
-
-type PackageManifest = {
-    name?: string;
-    exports?: Record<string, ExportTarget>;
-};
-
-type SourceAlias = {
-    find: string | RegExp;
-    replacement: string;
-    specificity: number;
-};
-
-/** The conditions that can identify a module Vite can load while serving. */
-const MODULE_CONDITIONS = ['svelte', 'import', 'default', 'require'] as const;
-
-function workspacePackageDirectories(): string[] {
-    return ['packages', 'vendor/uncial/packages'].flatMap((directory) =>
-        readdirSync(resolve(REPO_ROOT, directory), { withFileTypes: true })
-            .filter((entry) => entry.isDirectory())
-            .map((entry) => resolve(REPO_ROOT, directory, entry.name)),
-    );
-}
-
-function runtimeTarget(target: ExportTarget): string | undefined {
-    if (typeof target === 'string') return target;
-    for (const condition of MODULE_CONDITIONS) {
-        const candidate = target[condition];
-        if (candidate === undefined) continue;
-        const resolved = runtimeTarget(candidate);
-        if (resolved !== undefined) return resolved;
-    }
-    return undefined;
-}
-
-function sourceTarget(
-    packageDirectory: string,
-    target: string,
-): string | undefined {
-    if (!target.startsWith('./dist/')) return undefined;
-
-    const output = target
-        .slice('./dist/'.length)
-        .replace(/\.d\.ts$/, '')
-        .replace(/\.m?js$/, '');
-    const extension = target.endsWith('.css') ? '.css' : undefined;
-    const extensions =
-        extension === undefined
-            ? ['.ts', '.svelte', '.svelte.ts', '.js']
-            : [extension];
-
-    for (const sourceDirectory of ['src', 'src/lib']) {
-        for (const sourceExtension of extensions) {
-            const source = resolve(
-                packageDirectory,
-                sourceDirectory,
-                `${output}${sourceExtension}`,
-            );
-            if (existsSync(source)) return source;
-        }
-    }
-    return undefined;
-}
-
-function sourceAliases(): { find: string | RegExp; replacement: string }[] {
-    const aliases: SourceAlias[] = [];
-    for (const packageDirectory of workspacePackageDirectories()) {
-        const manifest = JSON.parse(
-            readFileSync(resolve(packageDirectory, 'package.json'), 'utf8'),
-        ) as PackageManifest;
-        if (manifest.name === undefined || manifest.exports === undefined)
-            continue;
-
-        for (const [subpath, target] of Object.entries(manifest.exports)) {
-            const runtime = runtimeTarget(target);
-            if (runtime === undefined) continue;
-            const source = sourceTarget(packageDirectory, runtime);
-            if (source === undefined) continue;
-            const specifier =
-                subpath === '.'
-                    ? manifest.name
-                    : `${manifest.name}${subpath.slice(1)}`;
-            aliases.push({
-                find:
-                    subpath === '.'
-                        ? new RegExp(
-                              `^${manifest.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
-                          )
-                        : specifier,
-                replacement: source,
-                specificity: specifier.length,
-            });
-        }
-    }
-    return aliases
-        .sort((left, right) => right.specificity - left.specificity)
-        .map(({ specificity: _specificity, ...alias }) => alias);
-}
 
 /**
  * Resolve the plugin packages' bundled-CSS virtual module while serving.
@@ -132,18 +33,23 @@ function pluginBundledCss(): Plugin {
 /**
  * Develop against workspace source while leaving production resolution alone.
  *
- * The development server therefore does not exercise package exports; production
- * builds, consumer examples and the packed-consumer test do.
+ * Every subpath in a workspace package's `exports` map is aliased to the source
+ * file it is built from, so editing the viewer core, a plugin or Uncial
+ * hot-reloads this application with no package rebuild in between. The aliases
+ * are derived from the `exports` maps themselves, never written down: a
+ * hand-written list is how a new subpath goes on quietly resolving to a stale
+ * `dist/`.
+ *
+ * The accepted consequence: the development server does not exercise package
+ * exports. Production builds, the consumer examples and `pnpm test:packed` do.
  */
-function workspaceSourceAliases(): Plugin {
+function workspaceSource(): Plugin {
     return {
-        name: 'triiiceratops:workspace-source-aliases',
-        apply(_config, { command }) {
-            return command === 'serve';
-        },
-        config() {
-            return { resolve: { alias: sourceAliases() } };
-        },
+        name: 'triiiceratops:workspace-source',
+        apply: 'serve',
+        config: () => ({
+            resolve: { alias: workspaceSourceAliases(REPO_ROOT) },
+        }),
     };
 }
 
@@ -161,7 +67,9 @@ function workspaceSourceAliases(): Plugin {
  * is not in the alias set and so is not in the set this rejects.
  */
 function assertPublishedResolution(): Plugin {
-    const sources = new Set(sourceAliases().map((alias) => alias.replacement));
+    const sources = new Set(
+        workspaceSourceAliases(REPO_ROOT).map((alias) => alias.replacement),
+    );
     return {
         name: 'triiiceratops:assert-published-resolution',
         apply: 'build',
@@ -225,7 +133,7 @@ const stamp = versionStamp();
 
 export default defineConfig({
     plugins: [
-        workspaceSourceAliases(),
+        workspaceSource(),
         assertPublishedResolution(),
         pluginBundledCss(),
         /*

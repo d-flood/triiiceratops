@@ -5,8 +5,9 @@
  * Svelte component consumers import this once (`import 'triiiceratops/style.css'`)
  * to get the global layer their bundler can't derive from the components:
  * the element reset, design tokens + built-in themes, base styles, chrome
- * layout vars, and the CSS-only tooltip shared by chrome that hangs a tooltip
- * off an element it already renders. Per-component styling still comes from
+ * layout vars, the CSS-only tooltip shared by chrome that hangs a tooltip
+ * off an element it already renders, and the menu surface shared by the
+ * viewer's selectors. Per-component styling still comes from
  * each `.svelte` file's scoped <style> at the consumer's build.
  *
  * CORE ONLY — no plugin CSS here. The Annotorious annotation layer is shipped
@@ -27,3 +28,4 @@ import '../styles/themes.css';
 import '../styles/base.css';
 import '../styles/layout.css';
 import '../styles/tooltip.css';
+import '../styles/menu.css';

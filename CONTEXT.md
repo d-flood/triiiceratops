@@ -501,7 +501,7 @@ never by which element decodes the body: `video` — the picture is the media el
 the visual lane fills the rect; `audio-with-image` — core paints a companion Canvas there,
 so the plugin draws no lanes at all and contributes only a tap target, the play-state
 glyph and the "can't play" notice; `audio` — nothing to look at either way, so the
-timeline lane fills the rect and carries the waveform. A stage's layout can change once,
+timeline lane fills the rect and carries the ruler, or the waveform where the canvas links one. A stage's layout can change once,
 at first play: a duration-only canvas whose only companion is a `placeholderCanvas` takes
 `audio-with-image` before play and falls to `audio` on the handover, keeping the
 companion's aspect throughout so the rect does not move.
@@ -512,6 +512,15 @@ The linear mapping between a claimed canvas's x-axis in canvas space and media t
 (canvas width ↔ duration). What makes the viewer's own pan/zoom double as temporal
 zoom, and a surface tap resolvable to a seek.
 _Avoid_: time scale, temporal zoom (that is the interaction, not the mapping)
+
+**Ruler**:
+The graduations a timeline lane draws when the canvas links no waveform data: ticks at
+a round interval chosen for the span currently on screen, a clock label on each, the
+played span filled, and the playhead. What makes the timeline projection legible —
+without it the lane is a featureless rectangle and the temporal zoom says nothing about
+where the reader has landed. Replaced by the waveform where there is one, since that
+graduates the same window and says more.
+_Avoid_: timeline (that is the projection), scrubber (that is the transport's control)
 
 **Peaks model**:
 The single normalized in-memory representation of waveform data (min/max sample
