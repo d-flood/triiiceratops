@@ -565,10 +565,10 @@ async function measureRuntime(root, { warmups, runs, tracesDir }) {
     const runtime = {};
     let renderer = 'unknown';
     let memory = null;
-    // EVERY plugin is registered, so the paused one's registration and its
-    // fail-closed capability check stay part of the measured baseline (ADR 0008).
-    // Only the ones that actually mount a button are WAITED on — the paused
-    // plugin installs none, so waiting for it never resolves.
+    // EVERY plugin is registered, so every first-party plugin's activation and
+    // subscription overhead stays part of the measured baseline (ADR 0008).
+    // Only the ones with a captured activation ceiling are WAITED on; a plugin
+    // marked `paused` in lib.mjs is registered and never timed.
     const pluginPkgs = PLUGINS.map((p) => p.pkg);
     const toggles = ACTIVATION_MEASURED_PLUGINS.map((p) => p.toggle);
 

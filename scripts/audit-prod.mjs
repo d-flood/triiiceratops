@@ -2,7 +2,7 @@
 // Production-dependency audit gate.
 //
 // SPEC: required CI includes a production audit, run "per package". pnpm audits
-// the whole workspace in one pass, but the publishable packages (five today) ship
+// the whole workspace in one pass, but the publishable packages (seven today) ship
 // different production dependency sets, so a single workspace number hides which
 // package actually owns a flagged advisory. This gate:
 //   1. runs `pnpm audit --prod --json` once (production deps only — dev-dep
@@ -21,10 +21,9 @@
 // version membership back onto each package is both reliable and complete.
 //
 // The publishable set is discovered below by SKIPPING `private: true` manifests,
-// which is why the paused `@triiiceratops/plugin-annotation-editor` (private, and
-// absent from `scripts/release/packages.mjs`) drops out of this report on its own:
-// its `@annotorious/*` production deps are no longer shipped by anything, so an
-// advisory against them cannot gate a release it is not part of.
+// so a package paused by that flag drops out of this report on its own: an
+// advisory against a dependency nothing ships cannot gate a release it is not
+// part of.
 //
 // ─── Severity threshold ──────────────────────────────────────────────────────
 // The gate fails on any advisory at `high` or above in a package's production

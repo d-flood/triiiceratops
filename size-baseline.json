@@ -1,12 +1,12 @@
 {
     "triiiceratops-element.iife.js": {
-        "raw": 399603,
-        "gzip": 119147,
-        "brotli": 100036
+        "raw": 398968,
+        "gzip": 119170,
+        "brotli": 100184
     },
     "triiiceratops-element.js": {
-        "raw": 414300,
-        "gzip": 122643,
-        "brotli": 102628
+        "raw": 413665,
+        "gzip": 122671,
+        "brotli": 102692
     }
 }

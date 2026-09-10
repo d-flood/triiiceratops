@@ -9,10 +9,11 @@
      *
      * It exists for one branch in particular — the **editable** shape, which is a
      * real `<button>` with an accessible name and Enter/Space activation. That
-     * branch is gated on the annotation-editor plugin's toolbar button, and that
-     * plugin is paused for this phase, so nothing in a shipped viewer or in the
-     * e2e suite reaches it. Seeding `pluginMenuButtons` with a stub button is what
-     * makes the accessibility contract an assertion rather than a promise.
+     * branch is gated on the annotation-editor plugin's toolbar button, so it is
+     * unreachable from any unit test that does not stand one up. Seeding
+     * `pluginMenuButtons` with a stub button reaches it here without a plugin, at
+     * the seam where the projected geometry is arithmetic; the plugin's own
+     * browser specs cover the same branch end to end.
      */
     import { setContext } from 'svelte';
 

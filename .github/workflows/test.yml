@@ -580,10 +580,10 @@ jobs:
             - name: Install dependencies
               run: pnpm install
 
-            # build:all + npm pack every publishable package (the paused
-            # annotation-editor plugin is not one of them). Output goes to
-            # RUNNER_TEMP so the tarballs never touch the tracked tree (keeps the
-            # clean-build check below honest).
+            # build:all + npm pack every publishable package (the set is
+            # scripts/release/packages.mjs). Output goes to RUNNER_TEMP so the
+            # tarballs never touch the tracked tree (keeps the clean-build check
+            # below honest).
             - name: Build + pack the publishable packages
               run: pnpm release:pack --out "$RUNNER_TEMP/release-artifacts"
 

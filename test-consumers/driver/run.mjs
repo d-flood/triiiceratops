@@ -62,11 +62,10 @@ import {
 // Packages packed into tarballs for the fixtures below. Core first (its dist must
 // exist before the SDK type-checks against it); the SDK follows.
 //
-// This is NOT the publishable set. `scripts/release/packages.mjs` lists the
-// packages that reach npm; this list adds the paused
-// `@triiiceratops/plugin-annotation-editor`, which still has to be packed for the
-// one fixture that consumes it from a real tarball (its adapter-conformance
-// suite). Packing proves the tarball's contents; it is not published.
+// This list and `scripts/release/packages.mjs` (the packages that reach npm) hold
+// the same set today, but they answer different questions and must stay separate:
+// packing proves a tarball's contents, and a package may need packing for a
+// fixture without being something we publish.
 const PACKAGES_TO_PACK = [
     {
         filter: 'triiiceratops',
@@ -122,9 +121,7 @@ const PACKAGES_TO_PACK = [
     {
         // The annotation-editor plugin. `build` = ESM + IIFE (vite) +
         // types (tsc); resolves `triiiceratops` and `@triiiceratops/plugin-sdk`
-        // from the entries built above, so it must stay AFTER both. Packed but
-        // NOT published (see the note above): only the viewer-free
-        // `plugin-annotation-conformance` and `docs-examples` fixtures consume it.
+        // from the entries built above, so it must stay AFTER both.
         filter: '@triiiceratops/plugin-annotation-editor',
         build: ['build'],
         tarballName: '_triiiceratops_plugin-annotation-editor.tgz',
@@ -171,16 +168,14 @@ export const FIXTURES = [
     // The annotation-editor plugin, consumed from its packed
     // tarball. `-conformance` runs the adapter conformance suite from the packed
     // `@triiiceratops/plugin-annotation-editor/testing` subpath in a plain vitest
-    // project (no Svelte tooling, no viewer) — that subpath is pure logic and is
-    // unaffected by the pause, so it keeps running.
+    // project (no Svelte tooling, no viewer).
     //
-    // `plugin-annotation-svelte` is GONE from this list. It drove the full
-    // annotate journey through a real viewer, and the plugin cannot activate
-    // on one: core provides no raw third-party viewer for the plugin's editing
-    // surface to build on, so activation fails with a `PluginCompatibilityError`
-    // BY DESIGN. Keeping the fixture would assert the failure we intend, which
-    // is not what it is for. Its directory is retained, unrun, for the phase-2
-    // drawing layer to restore. See `packages/plugin-annotation-editor/README.md`.
+    // `plugin-annotation-svelte` is absent from this list: that fixture's journey
+    // drives Annotorious's click-move-click rectangle gesture and asserts against
+    // `.a9s-annotationlayer`, and the editing surface is first-party, so neither
+    // the gesture nor the class exists. Its directory is retained, unrun, to be
+    // re-listed once the journey is rewritten against the drawing layer's own
+    // gestures and DOM. Do not weaken its assertions to make it pass.
     'plugin-annotation-conformance',
     // Strict-TS declaration consumer. Type-checks a consumer of the
     // public viewport API against the packed core tarball under

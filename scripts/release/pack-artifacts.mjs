@@ -253,9 +253,9 @@ function main() {
 
     // Sanity: exactly one tarball per publishable package, nothing stray. The
     // count comes from PUBLISHABLE_PACKAGES so pausing/adding a package cannot
-    // leave a stale literal behind — a package dropped from that list (e.g. the
-    // paused annotation-editor plugin) must also vanish from this directory,
-    // because whatever lands here is what publish.yml promotes to npm.
+    // leave a stale literal behind — a package dropped from that list must also
+    // vanish from this directory, because whatever lands here is what publish.yml
+    // promotes to npm.
     const tgz = readdirSync(outDir).filter((f) => f.endsWith('.tgz'));
     if (tgz.length !== PUBLISHABLE_PACKAGES.length) {
         throw new Error(

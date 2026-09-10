@@ -817,8 +817,9 @@ export declare function createTestViewerContext(options?: TestViewerContextOptio
  *   await flush();            // ← notification lands here
  *   expect(seen).toBe(true);
  *
- * This kit is unit-level. Renderer- and Annotorious-dependent behavior is
- * validated at the browser seam, not here: the kit ships no Annotorious fake.
+ * This kit is unit-level. Renderer-dependent behavior — anything that needs a
+ * real viewport, a projected coordinate or a pointer gesture — is validated at
+ * the browser seam, not here: the kit ships no renderer fake.
  */
 export { flush, createHeadlessViewerState, type HeadlessViewerFixtures, } from 'triiiceratops/testing';
 export { createTestViewerContext, whenRendererReady, type TestViewerContext, type TestViewerContextOptions, type RecordingStyleService, type RecordedStyleInstall, type RecordingUiService, type RecordedUiRequest, type TestLocaleService, } from './context.js';

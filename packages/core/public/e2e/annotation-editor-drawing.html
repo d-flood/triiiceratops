@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops annotation-editor drawing fixture</title>
+        <!--
+            The drawing specs' fixture, and deliberately NOT the activation
+            one beside it.
+
+            Those specs make GEOMETRIC claims, and every geometric claim in this
+            suite is gated against the coordinate model through
+            `__triiiceratopsRenderer` — the dev-only handle in `src/devtools`,
+            which the element build never pulls in. So core is loaded from
+            SOURCE here, the way `canvas-renderer-wc.html` loads it, while the
+            plugin is still the BUILT artifact a consumer installs.
+
+            `annotation-editor-plugin.html` keeps loading both from dist: what it
+            asserts is that the shipped pair activate together, and that claim
+            would be worth less made against source.
+        -->
+        <script type="module" src="/src/devtools/register.ts"></script>
+        <script type="module" src="/src/lib/custom-element.ts"></script>
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            /*
+                Wider than the other fixtures: this page opens BOTH the editor
+                panel and the annotations panel, and each takes a fixed column
+                out of the stage. At 800px the image is left a strip a couple of
+                hundred pixels across, which a drag has to be measured against
+                rather than simply drawn on.
+            */
+            #v {
+                display: block;
+                width: 1280px;
+                height: 720px;
+            }
+        </style>
+    </head>
+    <body>
+        <triiiceratops-viewer id="v" theme="dark"></triiiceratops-viewer>
+        <script type="module">
+            /*
+                The plugin's whole `dist/` is served under
+                `/plugin-annotation-editor/` by the route the spec installs
+                (`helpers/annotationEditorDist.ts`), since the plugin lives
+                outside the dev server's root. It bundles its own Svelte runtime
+                and bootstraps `window.Triiiceratops` itself, so it may load
+                before or after core.
+            */
+            await loadScript('/plugin-annotation-editor/iife.js');
+
+            window.__pluginErrors = [];
+            const viewer = document.getElementById('v');
+            viewer.addEventListener('pluginerror', (event) => {
+                window.__pluginErrors.push(event.detail);
+            });
+
+            const params = new URLSearchParams(location.search);
+            // `pointStyle` is the ONE place a point marker's size is set: core's
+            // read-only overlay and the editor's drawing layer both resolve it
+            // from the viewer config. Parameterised so a spec can drive a
+            // non-default radius and read both sides at it.
+            const pointRadius = params.get('pointRadius');
+            viewer.config = {
+                ...(pointRadius
+                    ? { pointStyle: { radius: Number(pointRadius) } }
+                    : {}),
+                // The editor panel starts open so its tools are reachable
+                // without driving the toolbar. The annotations panel starts open
+                // too: core's shape overlay draws nothing while annotations are
+                // hidden, and a persisted rectangle has to be visible for the
+                // round trip to be assertable.
+                annotations: { open: true },
+                plugins: { 'annotation-editor': { open: true } },
+            };
+            viewer.plugins = [
+                window.Triiiceratops.plugins.get(
+                    '@triiiceratops/plugin-annotation-editor',
+                ),
+            ];
+            viewer.manifestId =
+                params.get('manifest') ??
+                '/demo-manifests/static-image/manifest.json';
+
+            function loadScript(src) {
+                return new Promise((resolve, reject) => {
+                    const element = document.createElement('script');
+                    element.src = src;
+                    element.onload = resolve;
+                    element.onerror = reject;
+                    document.head.append(element);
+                });
+            }
+        </script>
+    </body>
+</html>

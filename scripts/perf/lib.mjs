@@ -78,6 +78,17 @@ export const MEMORY_RUNS = 3;
 // artifacts built before Toolbar exposed the stable data-plugin-toggle marker —
 // and before SDK plugins gained a `title`, when the button's accessible name
 // still WAS the package name. Current builds match on the first alternative.
+//
+// `sized: false` keeps a plugin's artifacts out of the size gates entirely: no
+// row is collected for it, so neither the base-vs-head delta nor an absolute
+// ceiling applies. The bundle-size promise the project makes is about the viewer
+// a reader loads — core plus the AV plugin, which is the pair
+// scripts/size-check.mjs gates against TIFY. The annotation editor is a
+// deliberately heavy optional plugin whose bytes are never in that pair, so it
+// carries no byte budget; a row for it only ever gated the editor against its
+// own past. The plugin is still registered and built for the runtime scenarios,
+// because ADR 0008 puts every first-party plugin's subscription overhead inside
+// the interaction baseline.
 export const PLUGINS = [
     {
         key: 'image-manipulation',
@@ -103,27 +114,23 @@ export const PLUGINS = [
         pkg: '@triiiceratops/plugin-annotation-editor',
         toggle: '[data-plugin-toggle="annotation-editor"],[aria-label="@triiiceratops/plugin-annotation-editor"]',
         paused: true,
+        sized: false,
     },
 ];
 
 /**
- * Plugins whose ACTIVATION cannot be measured, and why.
+ * Plugins whose ACTIVATION is not measured, and why.
  *
- * `@triiiceratops/plugin-annotation-editor` is paused and unpublished: it still
- * declares the retired `osd@5` capability, so registering it fails closed with a
- * structured `PluginCompatibilityError` and installs **no toolbar button at all**
- * — see its README, "What you see if you register it anyway". The activation
- * signal every plugin scenario waits on is that button, so the scenario cannot
- * complete, and neither can `theme_switch` or `core_interaction`, which wait for
- * every plugin to be up before they measure anything.
+ * `@triiiceratops/plugin-annotation-editor` activates and installs its toolbar
+ * button again, so the harness could measure it — but `perf-budgets.json` carries
+ * no `activate_annotation-editor` ceiling, having been captured while the plugin
+ * was paused. Re-listing it needs a reviewed perf capture in the same commit,
+ * because `theme_switch` and `core_interaction` wait for every measured plugin to
+ * be up before they measure anything, and an uncaptured scenario would fail the
+ * absolute gate rather than report a number.
  *
- * This is renderer-independent (`RENDERER_AVAILABLE_FOR_ANNOTORIOUS` is a
- * hardcoded `false`), so it is not a consequence of the renderer swap; the pause
- * landed after the last budget capture and left this harness measuring a button
- * that no longer exists.
- *
- * Its ARTIFACTS are still sized — the package still builds and its bytes are
- * still real — so only the runtime scenario is dropped.
+ * Its artifacts are not sized either (`sized: false` above), so the plugin is
+ * built and registered for the interaction baseline and gated on nothing.
  */
 export const ACTIVATION_MEASURED_PLUGINS = PLUGINS.filter((p) => !p.paused);
 
@@ -333,9 +340,10 @@ export function esmEntryGraphSize(entryFile) {
 
 /**
  * Per-artifact byte sizes for a built repo root. Matches the SPEC list: core
- * ESM entry graph, style.css, element IIFE, each plugin ESM + IIFE, the SDK
- * ESM entry graph, and the AV plugin's entry file plus each of its lazy chunks.
- * These are exactly the published artifacts a consumer loads.
+ * ESM entry graph, style.css, element IIFE, each size-gated plugin's ESM + IIFE,
+ * the SDK ESM entry graph, and the AV plugin's entry file plus each of its lazy
+ * chunks. These are exactly the published artifacts a consumer loads whose bytes
+ * the project makes a promise about.
  */
 export function collectSizes(root) {
     const coreDist = join(root, 'packages/core/dist');
@@ -349,7 +357,7 @@ export function collectSizes(root) {
             join(root, 'packages/plugin-sdk/dist/index.js'),
         ),
     };
-    for (const p of PLUGINS) {
+    for (const p of PLUGINS.filter((p) => p.sized !== false)) {
         sizes[`${p.key}:esm`] = esmEntryGraphSize(
             join(root, p.dir, 'dist/index.js'),
         );

@@ -15,9 +15,7 @@
 # `set -euo pipefail` with core first, so a package we don't intend to publish left
 # in the list aborts the job after core is already on the registry — published,
 # unsmoked, and with no GitHub release. Keeping a package off npm therefore means
-# dropping it from that list, which is why the paused
-# `@triiiceratops/plugin-annotation-editor` is absent from it and from the
-# tarballs above.
+# dropping it from that list, not marking the manifest private.
 #
 # Graph:  promote  →  registry smoke  →  GitHub release
 # The GitHub release is created ONLY after the registry smoke test passes.

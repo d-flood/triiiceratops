@@ -10,11 +10,10 @@
  * viewer's selectors. Per-component styling still comes from
  * each `.svelte` file's scoped <style> at the consumer's build.
  *
- * CORE ONLY — no plugin CSS here. The Annotorious annotation layer is shipped
- * BY the annotation-editor plugin (AnnotationEditorPanel.svelte imports its
- * stylesheet, and AnnotationManager injects it into the shadow root), so a
- * consumer only pays for it when they use that plugin. Core has no Annotorious
- * dependency.
+ * CORE ONLY — no plugin CSS here. A plugin's own styling is shipped BY that
+ * plugin — the annotation editor, for one, installs its build-extracted
+ * component CSS through the SDK style service, which reaches the element
+ * build's shadow root — so a consumer only pays for it when they use it.
  *
  * These same sheets feed the custom element's shadow root via `app.css?inline`
  * (see TriiiceratopsViewerElement.svelte). The difference: this bundle is run

@@ -10,10 +10,11 @@ cleanup, per the SPEC "Dependency, Type, And Generated-Code Policy":
 > follow-up.
 
 **Current status:** the audited production set is the **publishable** workspace
-packages — `scripts/audit-prod.mjs` skips `private: true` manifests, so the
-paused `@triiiceratops/plugin-annotation-editor` is not part of it. Across that
-set the gate reports **0 critical / 0 high / 0 moderate / 0 low**, because
-`packages/core` now declares **no runtime dependencies at all**.
+packages — `scripts/audit-prod.mjs` walks `packages/` and skips `private: true`
+manifests, of which the annotation editor is not one. Across the seven that
+remain the gate reports **0 critical / 0 high / 0 moderate / 0 low**, because
+`packages/core` declares **no runtime dependencies at all** and every plugin's
+production graph is its peers.
 
 The one finding this document previously carried open — DOMPurify
 `GHSA-55q2-fjhq-7xh7` (vulnerable `<=3.4.12`, patched `>=3.4.13`) — needs no
@@ -24,12 +25,16 @@ explicit allowlist, so there is no general-purpose sanitizer in the graph to
 have advisories about. The DOMPurify assessments below are retained as the
 historical record of a dependency the viewer no longer has.
 
-A raw workspace-wide `pnpm audit --prod`, which does not skip private manifests,
-additionally reports one HIGH — `nanoid` `GHSA-28wg-ghj8-5hjv`, reachable only
-through `@triiiceratops/plugin-annotation-editor`'s Annotorious dependencies.
-Because that package is private and unpublished, it is outside the shipped
-production graph and outside the CI gate; it is recorded here as **open and
-unassessed** rather than resolved.
+The one HIGH this document previously carried as **open and unassessed** —
+`nanoid` `GHSA-28wg-ghj8-5hjv`, reachable only through
+`@triiiceratops/plugin-annotation-editor`'s Annotorious dependencies — is closed
+by removal, not by a bump: the annotation editor's editing surface is first-party
+now and `@annotorious/annotorious`, `@annotorious/openseadragon` and
+`openseadragon` are gone from its dependencies. Nothing in the workspace reaches
+`nanoid` through a production path, and the package is no longer private, so it is
+inside the audited set and reports clean. The same removal closes the `qs` and
+`uuid` findings below, which reached the graph by the same route; their
+assessments are retained as the historical record.
 
 - Last audited: **2026-08-08**
 - Next scheduled review: **2026-10-17** (or sooner if a new advisory lands on a

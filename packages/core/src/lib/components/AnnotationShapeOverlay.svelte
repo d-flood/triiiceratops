@@ -34,10 +34,6 @@
         POINT: 'anno-point',
     };
 
-    // Deprecated shim: external listeners may still observe this event for one
-    // release, but in-repo communication uses viewerState.annotationEditBus.
-    const REQUEST_EDIT_EVENT = 'triiiceratops:annotation-editor:request-edit';
-
     let root: HTMLDivElement | undefined = $state();
 
     /**
@@ -124,19 +120,20 @@
      * editable — and therefore focusable and operable.
      *
      * Read from the plugin's toolbar button, which is target-independent
-     * (`isActive` reflects open for both a panel and a flyout). The editor plugin
-     * is paused as of this epic, so this is `false` in a shipped viewer today;
-     * the branch stays because the editor returns with the phase-2 drawing layer
-     * and the focusable-target contract is what it returns onto.
+     * (`isActive` reflects open for both a panel and a flyout).
      *
-     * TODO(phase 2, drawing layer): core should not name a plugin. The literal
-     * `'annotation-editor'` id is carried verbatim from the previous overlay, and it means
-     * core hard-codes which single plugin may make an annotation editable —
-     * nothing else can, however it is packaged. The phase-2 drawing layer (built
-     * on the paint hook and the input-claim API) should replace this with an
-     * editing claim a plugin declares — an "annotation editing is open" state on
-     * `ViewerState.annotationEditBus` set by whoever is editing — so this reads a
-     * capability rather than a name.
+     * TODO(editing claim): core should not name a plugin. The literal
+     * `'annotation-editor'` hard-codes which single plugin may make an
+     * annotation editable — nothing else can, however it is packaged. The
+     * replacement is an editing claim a plugin declares: an "annotation editing
+     * is open" state on `ViewerState.annotationEditBus`, set by whoever is
+     * editing, so this reads a capability rather than a name.
+     *
+     * Known debt, deliberately deferred — see
+     * `docs/adr/0021-the-editing-surface-is-first-party.md`. It only pays off
+     * when a SECOND plugin wants to make annotations editable, which is the
+     * far-future AV annotation editor, and the annotation editor keeps
+     * `uiId: 'annotation-editor'` until then or nothing is editable at all.
      */
     const annotationEditorOpen = $derived.by(() => {
         const editorButton = viewerState.pluginMenuButtons.find(
@@ -356,11 +353,6 @@
 
         event.stopPropagation();
         viewerState.annotationEditBus.requestEdit(annotationId);
-        window.dispatchEvent(
-            new CustomEvent(REQUEST_EDIT_EVENT, {
-                detail: { annotationId },
-            }),
-        );
     }
 
     function handleShapeKeydown(annotationId: string, event: KeyboardEvent) {

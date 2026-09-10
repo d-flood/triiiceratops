@@ -1,40 +1,30 @@
 /**
- * The retired plugin's one remaining behavioural claim: **it fails activation,
- * loudly, and says why.**
+ * The plugin's compatibility declaration, checked against the core it is built
+ * beside.
  *
- * `runPluginConformance` cannot run here, and that is the point rather than an
- * obstacle: the suite mounts a plugin against a real viewer, and this plugin
- * declares `osd@5` — a capability core retired with no successor when the
- * renderer became first-party (SPEC.md §Public API). Every lifecycle contract
- * conformance asserts is downstream of an activation that correctly never
- * happens.
- *
- * The alternative — dropping the declaration so the suite goes green — would
- * make a consumer's viewer install a toolbar button and a panel whose "Edit"
- * does nothing at all, with no error anywhere. A structured
- * `PluginCompatibilityError` naming the missing capability is the honest
- * report, and this file pins it.
- *
- * The package itself is PAUSED — unpublished (`private: true`), left in the
- * workspace, and still building/checking/testing/linting clean. `README.md`
- * carries the disposition: why, the last core version it works against, and the
- * phase-2 paint hook + input-claim API the editing surface returns on.
+ * The whole declaration is `coreRange`: the drawing layer's container comes from
+ * `registerOverlayLayer`, which core treats as always present and therefore does
+ * not list as a capability, so there is nothing optional left to require. A
+ * floor that this core does not satisfy would fail activation for every
+ * consumer in the workspace, and nothing else in this package's suite runs
+ * against a real viewer to catch it.
  */
 
 import { describe, expect, it } from 'vitest';
 
-import { capabilities } from 'triiiceratops/testing';
+import { satisfies } from '@triiiceratops/plugin-sdk';
+import { CORE_VERSION } from 'triiiceratops/testing';
 
 import { catalog } from './catalog';
 
 import { createAnnotationEditorPlugin } from './plugin';
 
-describe('retired plugin', () => {
-    it('declares a capability this core does not provide, so activation fails', () => {
+describe('plugin compatibility', () => {
+    it('declares a core floor this core satisfies, and requires no capability', () => {
         const plugin = createAnnotationEditorPlugin();
 
-        expect(plugin.requiredCapabilities).toEqual(['osd@5']);
-        expect(capabilities).not.toContain('osd@5');
+        expect(plugin.requiredCapabilities).toEqual([]);
+        expect(satisfies(CORE_VERSION, plugin.coreRange!)).toBe(true);
     });
 });
 

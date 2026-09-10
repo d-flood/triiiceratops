@@ -87,10 +87,12 @@ The server-assigned annotation IRI after reconciliation; the only id used for
 subsequent `update`/`delete`.
 _Avoid_: real id, server id (in code)
 
-**Echo**:
-The Annotorious lifecycle event re-emitted asynchronously after the plugin itself
-programmatically mutates Annotorious state. Echoes are suppressed per annotation id so
-they don't trigger duplicate persistence.
+**Drawing layer**:
+The annotation editor's own drawing surface: an overlay layer holding the annotation
+currently being edited, its handles, and the in-progress preview. It draws only that one
+annotation — the persisted set is the read-only overlay's — and it is what makes drawing
+modal, taking pointer events across the whole surface for as long as a tool is armed.
+_Avoid_: manager, editing layer, canvas (nothing here is a `<canvas>`)
 
 **Body editor**:
 The UI inside the editor card that edits an annotation's bodies. Either the built-in
@@ -367,10 +369,10 @@ _Avoid_: painted companion (nothing is handed over — core resolves the Canvas 
 companion payload (the seam deliberately carries no resource, only an enum)
 
 **Input claim**:
-A consumer temporarily owning pointer input, suppressing pan and zoom gestures for its
-duration. The gesture recognizer is built with a single arbitration point that decides
-which consumer owns a gesture, which is where a claim would be granted. The term is fixed
-now; the API ships in phase 2.
+A consumer temporarily owning pointer input, suppressing _pointer_ pan and zoom for its
+duration. Only pointer gestures: wheel zoom is bound on the stage and keyboard zoom on the
+renderer root, neither of which passes through the gesture arbiter a claim would be granted
+at. The term is fixed; the API is unshipped.
 _Avoid_: capture (that is the DOM pointer-capture mechanism, one implementation detail of
 honoring a claim)
 
@@ -677,9 +679,9 @@ is that the submodule is a workspace root in its own right)
 
 ## Relationships
 
-- **Manager → Store → Adapter**: the manager (the annotation drawing-layer mechanics)
-  calls the store for all persistence; the store calls the raw adapter and performs
-  display sync, stamping, and reconciliation around it.
+- **Drawing layer → Store → Adapter**: the drawing layer calls the store for all
+  persistence; the store calls the raw adapter and performs display sync, stamping, and
+  reconciliation around it.
 - **Store → Overlay**: the store's display sync feeds the read-only overlay; the drawing
   layer holds only the annotation currently being edited.
 - **Canvas tier → level residency**: the canvas's residency tier gates the per-canvas

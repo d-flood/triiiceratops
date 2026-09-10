@@ -20,24 +20,24 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * with core. `svelte/internal` is private, unversioned API, and this plugin is
  * released independently of core, so a consumer can pair any plugin version with any
  * core version — a shared runtime would break on the first version skew.
- * `emitCss: false` keeps component CSS in the JS; the Annotorious stylesheet and
- * the plugin's own CSS install through the SDK style service, so the built output
- * ships no stylesheet.
+ * `emitCss: false` keeps component CSS in the JS; the plugin's own CSS installs
+ * through the SDK style service, so the built output ships no stylesheet.
  *
- * ESM externalizes the declared peers AND the heavy runtime dependencies
- * (`@annotorious/*`, `openseadragon`) so a consumer's bundler resolves and dedupes
- * them from the plugin's own `dependencies`; the IIFE bundles everything so the
+ * ESM externalizes the declared peers AND their subpaths — `triiiceratops` and
+ * `triiiceratops/image-export`, whose pure IIIF/canvas helpers the drawing layer
+ * imports — so a consumer's bundler resolves and dedupes them against the core it
+ * already has. Matched by pattern rather than by name: Rollup compares a string
+ * external against the exact module id, so `'triiiceratops'` alone leaves the
+ * subpath to be bundled in, and a private copy of core's helpers is precisely what
+ * the peer contract exists to prevent. The IIFE bundles everything so the
  * `<script>`-loadable file is fully self-contained: a script-tag consumer has no
  * bundler to resolve peers with, so nothing may be left external.
  */
 const format = process.env.BUILD_FORMAT === 'iife' ? 'iife' : 'es';
 
 const esExternal = [
-    '@triiiceratops/plugin-sdk',
-    'triiiceratops',
-    '@annotorious/annotorious',
-    '@annotorious/openseadragon',
-    'openseadragon',
+    /^@triiiceratops\/plugin-sdk(\/.*)?$/,
+    /^triiiceratops(\/.*)?$/,
     // The `/testing` entry imports vitest; leave it for the consumer's test
     // runner rather than bundling it into the shipped kit.
     'vitest',
@@ -50,9 +50,7 @@ export default defineConfig({
         // un-nonced `append_styles` injection, so the plugin installs it through
         // the nonce-aware SDK style service and `@triiiceratops/ui` components
         // (and this plugin's own) keep idiomatic `<style>` blocks under strict
-        // CSP. The Annotorious stylesheet stays a `?inline` string import
-        // installed separately, so `bundledCss()` never touches it. See
-        // `@triiiceratops/ui/vite`.
+        // CSP. See `@triiiceratops/ui/vite`.
         svelte({
             emitCss: true,
             compilerOptions: { customElement: false },

@@ -2,8 +2,8 @@
 // Release-reproducibility gate (required CI).
 //
 // Two independent clean builds of the SAME source tree must produce byte-identical
-// tarballs for every publishable package (`PUBLISHABLE_PACKAGES` is the list — the
-// annotation-editor plugin is paused). This proves publication can safely PROMOTE
+// tarballs for every publishable package (`PUBLISHABLE_PACKAGES` is the list).
+// This proves publication can safely PROMOTE
 // the artifacts required CI verified instead of rebuilding: a rebuild at publish
 // time would land on the same bytes anyway.
 //

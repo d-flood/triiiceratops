@@ -463,7 +463,7 @@ test.describe('Canvas2D renderer — gestures', () => {
         await settled(page);
 
         // Single click stays unbound: it is reserved for annotation selection,
-        // and binding zoom to it would break the phase-2 drawing layer.
+        // and binding zoom to it would break the annotation drawing layer.
         const after = await getView(page);
         expect(after.scale).toBeCloseTo(before.scale, 10);
         expect(after.centre.x).toBeCloseTo(before.centre.x, 10);

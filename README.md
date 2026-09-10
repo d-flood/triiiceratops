@@ -21,6 +21,7 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
     - Supports rectangle (`xywh`), polygon (SVG selector), and point (`PointSelector`) geometries
     - Tagging annotations displayed as badges; full-canvas annotations listed without an overlay
     - Toggle per-annotation or all-annotations visibility
+    - Creating and editing annotations with the optional `annotation-editor` plugin: rectangle, ellipse, polygon, point and whole-canvas tools, every one of them operable from the keyboard, persisting through a storage adapter the consumer supplies (LocalStorage by default). See the plugins guide at `/docs/plugins/`.
 - **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
 - **Multi-image Canvases**: Canvases with multiple painting annotations (e.g., compositions, foldouts, maps) are composited correctly with per-image positioning
 - **Audio and Video**: Canvases with a `duration` are played by the optional `av` plugin — a media stage over the canvas rect, transport in the viewer's own control bar, waveforms, WebVTT captions, and a transcript panel holding caption cues, timed `commenting` annotations or a linked transcript. Core alone renders such a canvas as an honest placard rather than dropping it. See the plugins guide at `/docs/plugins/`.
@@ -45,7 +46,8 @@ This project is actively developed. The following IIIF features are not yet supp
 
 ### Annotations
 
-- **Annotation creation**: The viewer is read-only. `@triiiceratops/plugin-annotation-editor` is **paused and unpublished** for this release: its editing surface is built on the raw OpenSeadragon instance, which the viewer stopped handing out when its renderer became first-party, so the plugin cannot activate against any core newer than `1.0.0-rc.36`. Editing returns with the phase-2 drawing layer. The package's own `README.md` records the disposition and the last working version combination.
+- **Time-based annotation editing**: `@triiiceratops/plugin-annotation-editor` annotates image canvases only. A canvas claimed by the `av` plugin is outside its reach, so annotating a point in a recording is not yet possible; editing timed annotations is a separate future plugin that pairs with `av`.
+- **Multi-target annotations**: An annotation with several geometries is rendered on read, but the editor writes one target per annotation.
 
 There is also an optional `pdf-export` plugin for downloading a selected flat range of canvases as a client-side PDF, with optional consumer-configured cover-sheet metadata and an optional OCR annotation-source selector for PDF text. When canvases include IIIF OCR annotations with `supplementing` text bodies and `xywh` targets, the plugin embeds that OCR as selectable PDF text. For private or non-CORS image services, consumers can supply their own image loader/proxy path. See the plugins guide at `/docs/plugins/`.
 

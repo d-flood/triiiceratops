@@ -7,7 +7,7 @@ import type { AnnotationStore } from './AnnotationStore.svelte';
  * (the panel may never open), so it drives the shared store directly: point the
  * store at the current canvas and load; the store injects into this viewer's
  * per-viewer display state (F10, ADR 0007). When the editor panel is mounted,
- * its manager shares this same store, so both paths converge on one cache.
+ * its drawing layer shares this same store, so both paths converge on one cache.
  */
 export function createLoader(store: AnnotationStore) {
     return (viewerState: ViewerState) => {

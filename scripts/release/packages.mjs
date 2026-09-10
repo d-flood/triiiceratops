@@ -10,22 +10,17 @@
 //   · smoke-registry.mjs      — installs the exact published versions post-publish
 //
 // Derive counts from `PUBLISHABLE_PACKAGES.length` rather than restating a
-// literal: the set shrank from six to five when the annotation-editor plugin was
-// paused (see below), and every consumer of this list that hard-coded "six" had
-// to be chased down.
+// literal: the set has both shrunk and grown as packages were paused and
+// unpaused, and every consumer of this list that hard-coded a number had to be
+// chased down.
 //
-// NOT publishable, deliberately: `@triiiceratops/plugin-annotation-editor`. Its
-// editing surface needs the raw third-party viewer that core no longer exposes,
-// so it cannot run against this core at all (see
-// `packages/plugin-annotation-editor/README.md`). The package is also
-// `private: true`, which npm does enforce for `npm publish <tgz>` — but relying
-// on that alone would break the release, not protect it: publish.yml runs its
-// promote loop under `set -euo pipefail` over the release manifest THIS list
-// generates, with core first. A package we don't intend to publish left in the
-// list would pack, then fail EPRIVATE mid-loop and abort the job with core
-// already on the registry — published, unsmoked, and with no GitHub release.
-// Omitting it here is what keeps the promote loop honest end to end. Re-adding it
-// must wait for the phase-2 drawing layer.
+// Dropping a package from this list — not `private: true` — is what keeps it off
+// npm. npm does enforce `private` for `npm publish <tgz>` (EPRIVATE), but relying
+// on that alone would break the release rather than protect it: publish.yml runs
+// its promote loop under `set -euo pipefail` over the release manifest THIS list
+// generates, with core first, so a package we don't intend to publish left in the
+// list would pack, then fail mid-loop and abort the job with core already on the
+// registry — published, unsmoked, and with no GitHub release.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -40,10 +35,9 @@ export const REPO_ROOT = join(
 /**
  * The publishable packages. `build` lists the package scripts that must run (in
  * order) before packing so the packed `dist/` is complete — these mirror the
- * packed-consumer harness (`test-consumers/driver/run.mjs`), whose own list is
- * deliberately wider: it packs the paused annotation-editor plugin so its
- * adapter-conformance fixture keeps running against a real tarball. Packing is
- * not publishing. `dir` is the package directory under `packages/`.
+ * packed-consumer harness (`test-consumers/driver/run.mjs`), which packs the same
+ * set for its fixtures. Packing is not publishing. `dir` is the package directory
+ * under `packages/`.
  */
 export const PUBLISHABLE_PACKAGES = [
     {
@@ -75,6 +69,11 @@ export const PUBLISHABLE_PACKAGES = [
     {
         name: '@triiiceratops/plugin-pdf-export',
         dir: 'plugin-pdf-export',
+        build: ['build'],
+    },
+    {
+        name: '@triiiceratops/plugin-annotation-editor',
+        dir: 'plugin-annotation-editor',
         build: ['build'],
     },
 ];

@@ -21,14 +21,21 @@
  * (CONTEXT.md §Renderer domain / *Input claim*).
  *
  * That single point is the whole reason this module exists as something more
- * than a pair of handlers on the canvas. The phase-2 **input claim** API — a
- * consumer (the annotation drawing layer) temporarily owning pointer input and
- * suppressing pan and zoom for its duration — is granted *there*, by returning
- * `'none'` while a claim is held. Retrofitting preemption into scattered
- * `pointerdown`/`pointermove` handlers means restructuring all of them;
- * adding it to one arbiter is a two-line change. The claim API is deliberately
- * **not exposed in this phase** (spec §Input and animation, CONTEXT.md
- * §Renderer domain / *Input claim*) — only the shape that makes it cheap.
+ * than a pair of handlers on the canvas. An **input claim** — a consumer
+ * temporarily owning pointer input and suppressing pointer pan and zoom for its
+ * duration — would be granted *there*, by returning `'none'` while a claim is
+ * held. Retrofitting preemption into scattered `pointerdown`/`pointermove`
+ * handlers means restructuring all of them; adding it to one arbiter is a
+ * two-line change.
+ *
+ * **The claim API is unshipped, and that is an outcome rather than an omission.**
+ * Its expected consumer, the annotation editor's drawing layer, swallows pointer
+ * events in the DOM instead — an overlay layer is a sibling of the renderer root,
+ * so a gesture over an armed drawing surface never reaches these handlers at all,
+ * which also avoids the unconditional momentum-cancel, the pointer capture, and
+ * viewport stability reading true through a drag. See
+ * `docs/adr/0020-modal-drawing-swallows-pointer-events-in-the-dom.md`. What is
+ * kept here is the shape that makes a claim cheap if a consumer ever needs one.
  *
  * ## What this module does NOT decide
  *
@@ -163,10 +170,10 @@ export class GestureRecogniser {
      * **The single arbitration point.** Every ownership decision in the
      * renderer is this function's return value.
      *
-     * Phase 2's input claim is granted here: a held claim returns `'none'`,
+     * An input claim would be granted here: a held claim returns `'none'`,
      * which suppresses pan, pinch, flick momentum, and double-tap zoom for its
      * duration without any other handler knowing a claim exists. Nothing grants
-     * one today.
+     * one, and nothing is expected to — see the module comment and ADR 0020.
      *
      * `protected` rather than `private` only so the claim-suppression contract
      * can be pinned by a test that overrides it (see `gestureArbiter.test.ts`).
@@ -315,8 +322,8 @@ export class GestureRecogniser {
 
         this.pendingTap = { x: sample.x, y: sample.y, time: sample.time };
         // A single tap moves nothing: it is reserved for annotation selection,
-        // and binding zoom to it would break the phase-2 drawing layer (spec
-        // §Input and animation). It is REPORTED so that selection reads the
+        // and binding zoom to it would break the annotation editor's drawing
+        // layer (spec §Input and animation). It is REPORTED so that selection reads the
         // arbiter's decision rather than recognising a tap a second time from
         // its own handlers — which is where a held input claim would stop
         // suppressing input, and where the two slop thresholds would drift.

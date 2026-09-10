@@ -48,13 +48,15 @@ async function loadViewer(page: Page, config?: object): Promise<void> {
 type Box = { x: number; y: number; w: number; h: number };
 
 interface Settled {
-    actions: {
+    actions: Box & {
         classes: string[];
         flexDirection: string;
         flexWrap: string;
         buttons: number;
         rows: number;
         columns: number;
+        columnGap: number;
+        buttonWidths: number[];
     };
     toggle: Box;
     panel: Box & {
@@ -103,6 +105,7 @@ async function settled(page: Page, menu: string): Promise<Settled> {
             const actionsStyle = getComputedStyle(actions);
             return {
                 actions: {
+                    ...box(actions),
                     classes: scoped(actions).sort(),
                     flexDirection: actionsStyle.flexDirection,
                     flexWrap: actionsStyle.flexWrap,
@@ -111,6 +114,8 @@ async function settled(page: Page, menu: string): Promise<Settled> {
                         .size,
                     columns: new Set(buttons.map((b) => Math.round(box(b).x)))
                         .size,
+                    columnGap: parseFloat(actionsStyle.columnGap) || 0,
+                    buttonWidths: buttons.map((b) => box(b).w),
                 },
                 toggle: box(toggle),
                 panel: {
@@ -251,11 +256,25 @@ test('toolbar flyout shells keep their settled placement and styles @mobile', as
         'tri-menu',
     ]);
     expect(inline.actions.flexDirection).toBe('row');
-    // One row, and one fewer button than the rail: inline drops the collapse
-    // affordance, because the bar has nothing to collapse into.
-    expect(inline.actions.rows).toBe(1);
-    expect(inline.actions.columns).toBe(inline.actions.buttons);
+    // One fewer button than the rail: inline drops the collapse affordance,
+    // because the bar has nothing to collapse into.
     expect(inline.actions.buttons).toBe(floating.actions.buttons - 1);
+    // One row while the bar has room for one, and a wrap when it does not.
+    // Whether it wraps is a function of width, not a captured count: at phone
+    // width the buttons plus their gaps exceed the group by a few pixels (an
+    // iPhone 13 overflows, a Pixel 7 does not), so the row is expected to wrap
+    // there and expected not to on the desktop projects. Asserted as that
+    // relation so neither viewport is a special case, and so a wrap that is NOT
+    // forced by width still fails.
+    expect(inline.actions.flexWrap).toBe('wrap');
+    const inlineOneRow =
+        inline.actions.buttonWidths.reduce((total, w) => total + w, 0) +
+        inline.actions.columnGap * (inline.actions.buttons - 1);
+    // Two, never more: the overflow is a fraction of one button, so a third row
+    // means the bar lost far more width than the wrap accounts for.
+    expect(inline.actions.rows).toBe(inlineOneRow > inline.actions.w ? 2 : 1);
+    // Every button keeps its own column, wrapped or not.
+    expect(inline.actions.columns).toBe(inline.actions.buttons);
     // Grows upward out of the bottom bar, over the same safe gap.
     expect(inline.panel.classes).toContain('up');
     expect(inline.toggle.y - (inline.panel.y + inline.panel.h)).toBe(SAFE_GAP);

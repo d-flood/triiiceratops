@@ -20,10 +20,10 @@ function recogniser(overrides: Partial<GestureConfig> = {}) {
 
 /**
  * A recogniser whose single arbitration point grants nothing — which is exactly
- * what a held phase-2 **input claim** will do (CONTEXT.md §Renderer domain /
+ * what a held **input claim** would do (CONTEXT.md §Renderer domain /
  * *Input claim*).
  *
- * No claim API is exposed in this phase, so this stands in for one by
+ * No claim API is exposed (ADR 0020), so this stands in for one by
  * overriding the arbiter itself. That is the point of the tests below: they
  * pin the contract that a claim suppresses pan and zoom **entirely**, so the
  * eventual two-line claim change cannot quietly leave double-tap zoom and flick

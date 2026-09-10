@@ -55,14 +55,6 @@
             "bytes": 536892,
             "ceilingBytes": 563737
         },
-        "annotation-editor:esm": {
-            "bytes": 171040,
-            "ceilingBytes": 179592
-        },
-        "annotation-editor:iife": {
-            "bytes": 117702,
-            "ceilingBytes": 123588
-        },
         "av:esm-entry": {
             "bytes": 50280,
             "ceilingBytes": 52794

@@ -45,7 +45,9 @@ reserved core namespace — reworking shipped, working code for a leak that is i
 because paint layers own no DOM. That asymmetry is not an oversight; the ownership logic
 lives in `unregisterPlugin`, not in either registry, which is where it is discoverable.
 
-The **input claim** remains a phase-2 API and is not a prerequisite for this capability.
+The **input claim** is not a prerequisite for this capability, and — as ADR 0020 records —
+it was never built, because the consumer that was expected to need it took this substrate
+instead.
 Pointer events on a layer's content never traverse the renderer's surface element, because
 a layer is a sibling of the renderer root and the renderer binds its gesture handling
 inside that root — so a plugin's operable children work today with no negotiation, and the

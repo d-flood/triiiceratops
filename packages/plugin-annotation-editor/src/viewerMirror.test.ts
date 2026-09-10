@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
     createHeadlessViewerState,
+    createStubSurfaceService,
     flush,
 } from '@triiiceratops/plugin-sdk/testing';
 
@@ -20,7 +21,10 @@ describe('ViewerStateMirror', () => {
         state.ensurePluginUiState('av');
         state.visibleCanvasIds = [page, film];
 
-        const { mirror, destroy } = createViewerStateMirror(state);
+        const { mirror, destroy } = createViewerStateMirror(
+            state,
+            createStubSurfaceService(),
+        );
         expect(mirror.annotatableCanvasIds).toEqual([page, film]);
 
         const release = state.claimCanvas(film, 'av');

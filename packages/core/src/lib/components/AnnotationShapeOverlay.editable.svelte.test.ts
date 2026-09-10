@@ -5,17 +5,18 @@
  * > The canvas paints pixels; a parallel DOM layer carries the focusable,
  * > labelled targets.
  *
- * This is the branch that rule is about, and it is the one branch of the overlay
- * nothing else executes: it is gated on the annotation-editor plugin's toolbar
- * button, and that plugin is paused for this phase, so the viewer, the demo page,
- * and the whole e2e suite reach only the read-only shapes. `a11y-axe` cannot
- * notice: an element that is never rendered has nothing to fail.
+ * This is the branch that rule is about, and no unit test reaches it by accident:
+ * it is gated on the annotation-editor plugin's toolbar button, so the demo page
+ * and every read-only journey execute only the read-only shapes. `a11y-axe`
+ * cannot notice either — an element that is never rendered has nothing to fail.
  *
- * Seeding `pluginMenuButtons` with a stub button reaches it, which turns "the
- * accessible targets are preserved by construction" into an assertion — and
- * protects it from silent rot, since a rename of `annotationEditBus.requestEdit`,
- * a change to the shape of `pluginMenuButtons`, or a renamed `parseAnnotations`
- * field would all still compile.
+ * Seeding `pluginMenuButtons` with a stub button reaches it without a plugin,
+ * which turns "the accessible targets are preserved by construction" into an
+ * assertion — and protects it from silent rot, since a rename of
+ * `annotationEditBus.requestEdit`, a change to the shape of `pluginMenuButtons`,
+ * or a renamed `parseAnnotations` field would all still compile. The same branch
+ * is asserted against a real plugin in `tests/annotation-editor-drawing.spec.ts`;
+ * this is the cheap, exhaustive half.
  */
 
 import { flushSync, mount, unmount } from 'svelte';

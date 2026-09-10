@@ -564,3 +564,34 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-28 · **Review by:** 2027-02-28
 
+### 15. `a11y_no_static_element_interactions` — `packages/plugin-annotation-editor/src/DrawingLayer.svelte`
+
+- **Code:** `a11y_no_static_element_interactions` (Svelte compiler)
+- **File / target:** two `<div>`s in the drawing layer's markup — the
+  `.drawing-surface` root, and the `.edit-shape` box drawn around the annotation
+  under edit. Nothing else in this package suppresses this code.
+- **Mechanism:** two rule-named `<!-- svelte-ignore ... -->` comments, one
+  immediately above each element.
+- **Rationale:** neither `<div>` is the interactive element; each is a
+  hit-testing surface whose keyboard path lives elsewhere, and giving either one
+  a role would add an accessible node over pixels that already have one.
+  `.drawing-surface` takes pointer events only while a tool is armed (ADR 0020),
+  and creation from the keyboard never goes through it: the panel's tool
+  `<button>` is what places a default shape, so a role and a `tabindex` here
+  would put an unnamed tab stop over the whole image for no gesture. Inside
+  `.edit-shape`, every control point IS a real `<button>` with an accessible
+  name — the move affordance and each handle or vertex — and the container
+  carries the pointer handlers only because which control point a pointer
+  reached is decided by `handleAtPoint` rather than by document order (on a
+  small shape the handles overlap and the topmost is not the nearest), and the
+  `onkeydown` only because a nudge with one of those buttons focused bubbles to
+  it. Adding `role`/`tabindex` to the container would give the shape a second,
+  duplicate accessible name beside its own move button.
+- **Behavior test:** `packages/core/tests/annotation-editor-drawing.spec.ts` —
+  "every handle is a focusable element with an accessible name" and "every
+  persisted annotation is focusable and labelled while the editor is open" pin
+  that the control points are reachable and named; "an armed drag draws instead
+  of panning, and the image does not move" pins the surface's one pointer
+  behavior.
+- **Owner:** David Flood <david_flood@fas.harvard.edu>
+- **Recorded:** 2026-09-10 · **Review by:** 2027-03-10

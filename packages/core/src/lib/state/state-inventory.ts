@@ -589,7 +589,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'annotationEditBus',
         classification: 'internal',
-        notes: 'Transitional per-viewer edit channel shared by the annotation shape overlay and the annotation-editor plugin; mutated by direct reassignment, no stable contract yet (the annotation editor returns with the phase-2 drawing layer).',
+        notes: 'Transitional per-viewer edit channel shared by the annotation shape overlay and the annotation-editor plugin; mutated by direct reassignment, no stable contract yet. Promoting it, and replacing the hard-coded plugin id beside it with a declared editing claim, is deliberately deferred until a second plugin wants to make annotations editable (ADR 0021).',
     },
     {
         member: 'collectionThumbnailHydrationId',

@@ -7,14 +7,19 @@
  * reactive mirror of the owning viewer's state (see `viewerMirror.svelte.ts`).
  *
  * Per activation (per viewer) it:
- *  1. installs the Annotorious stylesheet + chrome through the SDK style service;
- *  2. builds the reactive `ViewerState` mirror + a reactive locale `t`;
+ *  1. installs the build-extracted component CSS through the SDK style service;
+ *  2. builds the reactive `ViewerState` mirror (which also carries the surface's
+ *     open state, since core never re-runs `mount` on open/close) + a reactive
+ *     locale `t`;
  *  3. constructs ONE `AnnotationStore` (per viewer — never shared across viewers,
  *     so annotations can't leak between viewers) and points display sync at the
  *     mirror;
  *  4. runs the loader in an `$effect.root` so the read-only overlay tracks canvas
  *     changes even while the panel is closed;
- *  5. mounts the panel content into the core-provided container, handing the
+ *  5. registers the drawing layer, the DOM core places over the image for this
+ *     plugin to own, sharing one `DrawingSession` with the panel so arming a
+ *     tool there arms the surface here;
+ *  6. mounts the panel content into the core-provided container, handing the
  *     mirror + `t` down through context.
  *
  * Core owns the chrome: it renders the toolbar button and the docked-panel /
@@ -38,8 +43,9 @@ import { AnnotationStore } from './AnnotationStore.svelte';
 import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
 import { VIEWER_STATE_KEY } from './contextKey';
 import { createLocaleBridge, LOCALE_T_KEY, type TFn } from './i18n.svelte';
+import { registerDrawingLayer } from './drawingLayer';
+import { DrawingSession } from './drawingSession.svelte';
 import { createLoader } from './loader.svelte';
-import { STYLE_ID, STYLES } from './styles';
 import type { AnnotationEditorConfig } from './types';
 import { createViewerStateMirror } from './viewerMirror.svelte';
 
@@ -48,10 +54,14 @@ export function mountAnnotationEditor(
     context: PluginContext,
     config: AnnotationEditorConfig,
 ): () => void {
-    // Root-aware CSS (Annotorious layer + chrome), single-installed for this
-    // activation and released on teardown.
-    const releaseStyles = context.styles.install(STYLES, STYLE_ID);
-    // Build-extracted Svelte-scoped component CSS (this plugin's + `@triiiceratops/ui`).
+    // Build-extracted Svelte-scoped component CSS (this plugin's +
+    // `@triiiceratops/ui`), single-installed for this activation and released on
+    // teardown. Root-aware, so it reaches the shadow root of the element build.
+    //
+    // The drawing layer needs no sheet of its own: core's overlay-layer wrapper
+    // provides the positioned, click-through box, and the container it hands the
+    // plugin is `display: contents`, so styling that container would do nothing.
+    // The layer's children carry their own styles.
     const releaseBundled = context.styles.install(BUNDLED_CSS, 'bundled');
 
     // Reactive bridges: the mirror makes cross-realm state changes visible to the
@@ -59,13 +69,14 @@ export function mountAnnotationEditor(
     // active-locale change.
     const { mirror, destroy: destroyMirror } = createViewerStateMirror(
         context.viewerState,
+        context.surface,
     );
     const { t, unsubscribe: unsubscribeLocale } = createLocaleBridge(
         context.locale,
     );
 
     // One store per activation (per viewer). Shared between the loader (display
-    // sync while the panel is closed) and the controller/manager (editing).
+    // sync while the panel is closed) and the controller + drawing layer (editing).
     const adapter = config.adapter ?? new LocalStorageAdapter();
     const fullConfig: AnnotationEditorConfig = { ...config, adapter };
     const store = new AnnotationStore(fullConfig);
@@ -78,11 +89,26 @@ export function mountAnnotationEditor(
         createLoader(store)(mirror);
     });
 
+    // The drawing layer belongs to the activation, not to the panel: core keeps
+    // the container across a manifest change, and the read-only overlay is
+    // visible whether or not the panel is open. The session is what crosses the
+    // two component trees — the panel arms a tool, the layer takes the surface.
+    const session = new DrawingSession();
+    const releaseDrawingLayer = registerDrawingLayer(context, {
+        session,
+        store,
+        viewerState: mirror,
+        // The layer is mounted outside the panel's tree, so the locale reaches
+        // it as a prop rather than through context.
+        t,
+    });
+
     const app = mount(AnnotationEditorApp, {
         target: container,
         props: {
             config: fullConfig,
             store,
+            session,
             // Content-only: core provides the button + surface chrome for both
             // panel and flyout targets, so the panel content never renders its
             // own header or floating box.
@@ -98,10 +124,10 @@ export function mountAnnotationEditor(
 
     return () => {
         unmount(app);
+        releaseDrawingLayer();
         disposeLoader();
         unsubscribeLocale();
         destroyMirror();
         releaseBundled();
-        releaseStyles();
     };
 }

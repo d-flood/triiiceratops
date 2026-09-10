@@ -1,10 +1,16 @@
-import type { User, DrawingStyle } from '@annotorious/openseadragon';
 import type { Component } from 'svelte';
 import type { PluginUiTarget } from '@triiiceratops/plugin-sdk';
-import type { PointStyle } from 'triiiceratops/image-export';
 import type { W3CAnnotation, AdapterLoadResult } from './adapters/types';
 
-export type { PointStyle };
+/**
+ * The person an annotation is attributed to. Only `id` and `name` are ever
+ * read — they are what creator stamping writes onto a new annotation — so the
+ * shape is declared here rather than borrowed from a drawing library.
+ */
+export interface AnnotationEditorUser {
+    id: string;
+    name?: string;
+}
 
 export interface AnnotationEditorRuntimeContext<
     HostContext = unknown,
@@ -14,7 +20,7 @@ export interface AnnotationEditorRuntimeContext<
     canvasId: string | null;
     isEditing: boolean;
     selectedAnnotation: W3CAnnotation<TBody> | null;
-    user?: User;
+    user?: AnnotationEditorUser;
     hostContext: HostContext | null;
 }
 
@@ -184,18 +190,7 @@ export interface AnnotationEditorConfig<
     adapter?: AnnotationStorageAdapter<TBody>;
 
     /** Current user for attribution */
-    user?: User;
-
-    /** Drawing style for annotations while editing */
-    drawingStyle?: DrawingStyle;
-
-    /**
-     * Marker styling for point annotations (`PointSelector`). Consumed by both
-     * the read-only overlay and the editor so a point looks the same selected or
-     * not; `radius` is in screen pixels. Defaults to a red marker of radius 5
-     * (spec §3.4).
-     */
-    pointStyle?: PointStyle;
+    user?: AnnotationEditorUser;
 
     /** Available drawing tools */
     tools?: DrawingTool[];
@@ -241,7 +236,12 @@ export interface AnnotationEditorConfig<
     onPersistenceError?: (error: AnnotationPersistenceError) => void;
 }
 
-export type DrawingTool = 'rectangle' | 'polygon' | 'point';
+export type DrawingTool =
+    | 'rectangle'
+    | 'ellipse'
+    | 'polygon'
+    | 'point'
+    | 'wholeCanvas';
 
 /** W3C Annotation Body */
 export interface W3CAnnotationBody {

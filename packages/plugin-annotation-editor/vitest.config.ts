@@ -20,14 +20,5 @@ export default defineConfig({
         environment: 'jsdom',
         include: ['src/**/*.test.ts'],
         globals: false,
-        // The plugin's `styles.ts` imports the Annotorious stylesheet with Vite's
-        // `?inline` query (the single CSS source, F23). Inline the package so
-        // vitest runs it through Vite's CSS transform (yielding the string)
-        // instead of externalizing the raw `.css` to Node's ESM loader.
-        server: {
-            deps: {
-                inline: ['@annotorious/openseadragon'],
-            },
-        },
     },
 });

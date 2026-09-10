@@ -2848,7 +2848,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     //
     // Which gesture is running is decided in exactly one place — the
     // recogniser's `arbitrate` — and never re-derived here. That is the seam
-    // the phase-2 input-claim API is granted at (`renderer/gestureArbiter.ts`).
+    // an input claim would be granted at (`renderer/gestureArbiter.ts`), if one
+    // is ever built — see that module, and ADR 0020 for why none is.
 
     const gestures = new GestureRecogniser({
         tapSlop: TAP_SLOP,

@@ -7869,17 +7869,18 @@ export declare function findImageBody(annotation: unknown, selectedChoiceId?: st
 /**
  * Shared point-marker styling for the annotation editor. A point looks the same
  * whether it is rendered read-only (the viewer's shape overlay), selected, or edited, so
- * the radius/fill/stroke live in one place consumed by both the viewer overlay
- * and the editor's Annotorious styling (spec §3.4).
+ * the radius lives in one place consumed by both the viewer overlay and the
+ * editor's drawing layer (spec §3.4). The colour fields are not: no renderer
+ * reads them, and the marker's colour is fixed on both sides instead.
  */
 export interface PointStyle {
     /** Marker radius in screen (CSS) pixels. */
     radius?: number;
-    /** Marker fill colour (any CSS colour the consumer renders). */
+    /** Marker fill colour. Inert: no renderer reads it. */
     fill?: string;
-    /** Marker stroke colour. */
+    /** Marker stroke colour. Inert: no renderer reads it. */
     stroke?: string;
-    /** Marker stroke width in pixels. */
+    /** Marker stroke width in pixels. Inert: no renderer reads it. */
     strokeWidth?: number;
 }
 /**

@@ -204,9 +204,10 @@ describe('published distributions ship styles + themes', () => {
             expect(css, 'layout --ui- vars').toContain('--ui-');
         });
 
-        it('does NOT bundle plugin CSS — core has no Annotorious layer', () => {
-            // The annotation layer ships with the annotation-editor plugin, not
-            // core. A consumer without that plugin must not pay for it.
+        it('does NOT bundle plugin CSS', () => {
+            // A plugin's styling ships with that plugin, not with core. The
+            // `a9s-` fossils are the annotation editor's former Annotorious
+            // layer: core never carried it and must not start.
             expect(css, 'no a9s classes').not.toContain('a9s-');
             expect(css, 'no annotorious').not.toContain('annotorious');
         });
@@ -427,9 +428,7 @@ describe('published distributions ship styles + themes', () => {
         });
     });
 
-    // The Annotorious single-source CSS rule lives in
-    // `@triiiceratops/plugin-annotation-editor`, whose `styles.ts` imports the
-    // Annotorious stylesheet with `?inline` and installs it through the SDK
-    // style service. Core's own "no Annotorious layer" rule (above) is what
-    // stays here.
+    // A plugin installs its own CSS through the SDK style service (the
+    // annotation editor's `mount.svelte.ts`, for one). Core's own "no plugin
+    // CSS" rule (above) is what stays here.
 });
