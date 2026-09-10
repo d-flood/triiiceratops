@@ -131,8 +131,7 @@ describe('serializeContentState', () => {
 describe('sharing round-trips through parseContentState', () => {
     it('round-trips a manifest-only view as a bare URI', () => {
         const url = buildShareUrl({
-            pathname: '/demo/',
-            mode: 'image',
+            pathname: '/configure/',
             target: { manifestId: MANIFEST },
             config: {},
         });
@@ -146,8 +145,7 @@ describe('sharing round-trips through parseContentState', () => {
 
     it('round-trips a canvas and region as an Annotation', () => {
         const url = buildShareUrl({
-            pathname: '/demo/',
-            mode: 'image',
+            pathname: '/configure/',
             target: {
                 manifestId: MANIFEST,
                 canvasId: CANVAS,
@@ -169,8 +167,7 @@ describe('sharing round-trips through parseContentState', () => {
 
     it('keeps configuration out of iiif-content and in its own parameter', () => {
         const url = buildShareUrl({
-            pathname: '/demo/',
-            mode: 'image',
+            pathname: '/configure/',
             target: { manifestId: MANIFEST, canvasId: CANVAS },
             config: { gallery: { open: true } },
         });
@@ -187,23 +184,9 @@ describe('sharing round-trips through parseContentState', () => {
         });
     });
 
-    it('preserves the viewer mode', () => {
-        const url = buildShareUrl({
-            pathname: '/demo/',
-            mode: 'custom-theme',
-            target: { manifestId: MANIFEST },
-            config: {},
-        });
-
-        expect(new URLSearchParams(url.split('?')[1]).get('mode')).toBe(
-            'custom-theme',
-        );
-    });
-
     it('omits the config parameter when the user set nothing', () => {
         const url = buildShareUrl({
-            pathname: '/demo/',
-            mode: 'svelte',
+            pathname: '/configure/',
             target: { manifestId: MANIFEST },
             config: {},
         });
@@ -444,11 +427,6 @@ describe('legacy view parameters', () => {
 });
 
 describe('drop payloads', () => {
-    const CONTENT_STATE = serializeContentState({
-        manifestId: MANIFEST,
-        canvasId: CANVAS,
-    })!;
-
     function transfer(data: Record<string, string>): DropPayloadSource {
         return {
             types: Object.keys(data),
@@ -456,50 +434,26 @@ describe('drop payloads', () => {
         };
     }
 
-    it('carries a content state when the drag offers a text flavour', () => {
+    it('carries a content state only on text/plain', () => {
         expect(carriesContentState(transfer({ 'text/plain': '' }))).toBe(true);
         expect(carriesContentState(transfer({ 'text/uri-list': '' }))).toBe(
-            true,
+            false,
         );
         expect(carriesContentState(transfer({ Files: '' }))).toBe(false);
         expect(carriesContentState(null)).toBe(false);
     });
 
-    it('prefers text/uri-list over text/plain', () => {
-        expect(
-            readDroppedContentState(
-                transfer({
-                    'text/uri-list': MANIFEST,
-                    'text/plain': 'https://example.org/other',
-                }),
-            ),
-        ).toBe(MANIFEST);
-    });
-
-    it('falls back to text/plain, which is what browsers deliver', () => {
-        expect(
-            readDroppedContentState(transfer({ 'text/plain': MANIFEST })),
-        ).toBe(MANIFEST);
-    });
-
-    // The uri-list format allows comment lines and more than one URI.
-    it('takes the first uri of a uri-list, ignoring comments', () => {
-        expect(
-            readDroppedContentState(
-                transfer({
-                    'text/uri-list': `# a comment\r\n${MANIFEST}\r\nhttps://example.org/second`,
-                }),
-            ),
-        ).toBe(MANIFEST);
-    });
-
     // Recipe 0599's own drag source: a stringified content-state Annotation.
-    it('passes a bare content-state document through untouched', () => {
+    it('passes a content-state document through untouched', () => {
         const document = JSON.stringify({
             '@context': 'http://iiif.io/api/presentation/3/context.json',
             type: 'Annotation',
-            motivation: 'contentState',
-            target: { id: CANVAS, type: 'Canvas' },
+            motivation: ['contentState'],
+            target: {
+                id: CANVAS,
+                type: 'Canvas',
+                partOf: [{ id: MANIFEST, type: 'Manifest' }],
+            },
         });
 
         expect(
@@ -507,20 +461,34 @@ describe('drop payloads', () => {
         ).toBe(document);
     });
 
-    // Recipe 0466's link, dragged rather than clicked: the parameter is the
-    // content state, and the link around it is not.
-    it('unwraps the iiif-content parameter of a dropped link', () => {
-        const link = `https://example.org/viewer/?iiif-content=${encodeURIComponent(CONTENT_STATE)}&mode=svelte`;
-
+    it('passes a bare manifest URI through untouched', () => {
         expect(
-            readDroppedContentState(transfer({ 'text/uri-list': link })),
-        ).toBe(CONTENT_STATE);
+            readDroppedContentState(transfer({ 'text/plain': MANIFEST })),
+        ).toBe(MANIFEST);
     });
 
-    it('yields a dropped URL that carries no iiif-content unchanged', () => {
+    /*
+     * The failure recipe 0599 walks into: its drag source is an `<img>`, so the
+     * browser offers the logo's own URL on `text/uri-list` alongside the state
+     * the page set on `text/plain`. Reading the wrong one loads a PNG.
+     */
+    it('ignores the text/uri-list a dragged image comes with', () => {
+        const document = JSON.stringify({
+            '@context': 'http://iiif.io/api/presentation/3/context.json',
+            type: 'Annotation',
+            motivation: ['contentState'],
+            target: { id: MANIFEST, type: 'Manifest' },
+        });
+
         expect(
-            readDroppedContentState(transfer({ 'text/uri-list': MANIFEST })),
-        ).toBe(MANIFEST);
+            readDroppedContentState(
+                transfer({
+                    'text/uri-list':
+                        'https://iiif.io/api/cookbook/recipe/0599-drag-and-drop/logo-sm.png',
+                    'text/plain': document,
+                }),
+            ),
+        ).toBe(document);
     });
 
     it('yields nothing for an empty or absent payload', () => {
@@ -530,9 +498,7 @@ describe('drop payloads', () => {
             readDroppedContentState(transfer({ 'text/plain': '   ' })),
         ).toBeNull();
         expect(
-            readDroppedContentState(
-                transfer({ 'text/uri-list': '# only a comment' }),
-            ),
+            readDroppedContentState(transfer({ 'text/uri-list': MANIFEST })),
         ).toBeNull();
     });
 });

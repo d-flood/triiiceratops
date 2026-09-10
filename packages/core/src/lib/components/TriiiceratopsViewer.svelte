@@ -77,6 +77,7 @@
         canvasPaintsImage,
         getVisibleViewerCanvases,
     } from '../utils/resolveCanvasImage';
+    import { findCanvasIndexById } from '../utils/iiifIds';
     import { getCanvasId } from './viewerControls';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationShapeOverlay from './AnnotationShapeOverlay.svelte';
@@ -224,8 +225,21 @@
          * address bar is never mutated.
          */
         readContentStateFromUrl?: boolean;
+        /**
+         * Opt in to opening a IIIF content state dropped onto the viewer
+         * (cookbook recipe 0599). Off by default, for the reason the URL
+         * parameter is: a viewer dropped into a page it does not own must not
+         * swallow a drop the host meant to handle itself.
+         *
+         * A drop is the reader's own gesture rather than a view source the
+         * host declared, so it opens what it names even when the host drives
+         * this viewer with {@link manifestId}. The precedence ADR 0006 sets
+         * out orders the DECLARED sources among themselves; it does not make
+         * a host's initial choice permanent against the reader.
+         */
+        acceptDroppedContentState?: boolean;
         plugins?: readonly SdkPlugin[] | null | boolean;
-        /** Built-in theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
+        /** Built-in theme name. Unset paints the defaults, which are `light`. */
         theme?: BuiltInTheme;
         /** Custom theme configuration to override the base theme's values. */
         themeConfig?: ThemeConfig;
@@ -263,6 +277,7 @@
         canvasId,
         contentState,
         readContentStateFromUrl = false,
+        acceptDroppedContentState = false,
         plugins: rawPlugins = [],
         theme,
         themeConfig,
@@ -383,14 +398,13 @@
     });
 
     function hasCanvas(canvasId: string) {
-        return internalViewerState.canvases.some(
-            (canvas: any) => getCanvasId(canvas) === canvasId,
-        );
+        return findCanvasIndexById(internalViewerState.canvases, canvasId) >= 0;
     }
 
     $effect(() => {
         if (manifestId && manifestJson) {
             const requestedCanvasId = canvasId || undefined;
+            lastAppliedManifestId = manifestId;
             void (async () => {
                 await internalViewerState.setManifestData(
                     manifestId,
@@ -402,7 +416,16 @@
             return;
         }
 
-        if (manifestId && manifestId !== internalViewerState.manifestId) {
+        /*
+         * Keyed to the PROP's own changes, exactly as `lastAppliedCanvasId`
+         * keys the canvas below. Re-applying whenever viewer state merely
+         * drifts from the prop would make the manifest unnavigable at runtime:
+         * a dropped content state, like a canvas the reader picks, is a move
+         * the host did not make and must not be snapped back.
+         */
+        if (manifestId && manifestId !== lastAppliedManifestId) {
+            lastAppliedManifestId = manifestId;
+            if (manifestId === internalViewerState.manifestId) return;
             // Don't re-trigger setManifest if the prop points to the active collection.
             // When a collection is loaded, internalViewerState.manifestId is the
             // currently-selected manifest inside the collection, which differs from
@@ -428,6 +451,7 @@
     });
 
     // Track last applied canvasId PROP value to prevent reverting internal navigation
+    let lastAppliedManifestId = '';
     let lastAppliedCanvasId = '';
 
     $effect(() => {
@@ -482,6 +506,29 @@
         untrack(() => void ingestContentState(value));
     });
 
+    /*
+     * Cookbook recipe 0599, which is `text/plain` and nothing else: a drag
+     * source sets the content state there and a destination reads it from
+     * there. Notably not `text/uri-list` — the recipe's own drag source is an
+     * `<img>`, and a browser fills that flavour with the image's `src`.
+     */
+    function onDragOver(event: DragEvent) {
+        if (!acceptDroppedContentState) return;
+        if (!event.dataTransfer?.types.includes('text/plain')) return;
+        // Without this the browser treats the root as a non-target and never
+        // fires `drop`.
+        event.preventDefault();
+    }
+
+    function onDrop(event: DragEvent) {
+        if (!acceptDroppedContentState) return;
+        const value = event.dataTransfer?.getData('text/plain').trim();
+        if (!value) return;
+        event.preventDefault();
+        ingestedContentState = value;
+        void ingestContentState(value, true);
+    }
+
     /**
      * Resolve one delivered content state and drive the viewer with it. The
      * region is staged before the manifest load so the canvas selection it
@@ -491,7 +538,10 @@
      * Each part of the target yields to the discrete prop that covers it: the
      * whole discrete tier outranks a content state, not just its manifest.
      */
-    async function ingestContentState(value: string): Promise<void> {
+    async function ingestContentState(
+        value: string,
+        dropped = false,
+    ): Promise<void> {
         const resolved = await resolveContentState(value, {
             requestConfig: config?.requests,
             report: emitViewerError,
@@ -502,8 +552,7 @@
         if (
             !resolved ||
             value !== ingestedContentState ||
-            manifestId ||
-            manifestJson
+            (!dropped && (manifestId || manifestJson))
         ) {
             return;
         }
@@ -1655,6 +1704,8 @@
 <div
     bind:this={rootElement}
     id="triiiceratops-viewer"
+    ondragover={onDragOver}
+    ondrop={onDrop}
     class="viewer-root"
     class:opaque={!internalViewerState.config.transparentBackground}
     data-controls={resolvedControls}

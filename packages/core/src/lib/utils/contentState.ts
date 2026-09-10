@@ -210,6 +210,17 @@ function resolveAnnotation(document: JsonRecord): ContentStateTarget | null {
 
     const target = targets[0];
     const targetId = extractIiifTargetId(target) ?? undefined;
+
+    /*
+     * A target that IS a Manifest is the manifest, and names no view inside it.
+     * Cookbook recipe 0599's first drag source is exactly this — a Manifest
+     * target with no `partOf` — and reading its id as a canvas would open a
+     * manifest id as a view.
+     */
+    if (isRecord(target) && isType(target, 'Manifest')) {
+        return targetId ? { manifestId: targetId } : null;
+    }
+
     const manifestId =
         (isRecord(target) ? manifestIdFrom(target.partOf) : undefined) ??
         manifestIdFrom(document.partOf);

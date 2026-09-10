@@ -27,6 +27,7 @@ describe('prop tiers', () => {
             'theme',
             'contentState',
             'readContentStateFromUrl',
+            'acceptDroppedContentState',
         ]);
         expect([...VIEWER_PROPERTY_PROPS]).toEqual([
             'manifestJson',

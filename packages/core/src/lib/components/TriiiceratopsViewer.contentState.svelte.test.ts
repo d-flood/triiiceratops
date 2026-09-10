@@ -220,6 +220,123 @@ describe('content-state ingestion through the viewer inputs', () => {
         await unmount(app);
     });
 
+    /*
+     * Cookbook recipe 0599. The drag half is the host's; what the viewer owes
+     * is a destination that reads `text/plain` — and only when the host asked
+     * for one, since a viewer dropped into a page it does not own must not
+     * swallow a drop the host meant to handle itself.
+     */
+    describe('a dropped content state', () => {
+        function drop(payload: string, type = 'text/plain') {
+            const root = target.querySelector('#triiiceratops-viewer')!;
+            const dataTransfer = {
+                types: [type],
+                getData: (asked: string) => (asked === type ? payload : ''),
+            };
+            for (const name of ['dragover', 'drop']) {
+                const event = new Event(name, {
+                    bubbles: true,
+                    cancelable: true,
+                });
+                Object.defineProperty(event, 'dataTransfer', {
+                    value: dataTransfer,
+                });
+                root.dispatchEvent(event);
+            }
+        }
+
+        it('opens what it names, once the host opts in', async () => {
+            const { state, app } = mountViewer({
+                acceptDroppedContentState: true,
+            });
+            await settle();
+
+            drop(JSON.stringify(contentStateAnnotation(MANIFEST_ID, 'p2')));
+            await settle();
+
+            expect(state.viewerState?.manifestId).toBe(MANIFEST_ID);
+            expect(state.viewerState?.canvasId).toBe(CANVAS(MANIFEST_ID, 'p2'));
+
+            await unmount(app);
+        });
+
+        // Recipe 0599's FIRST drag source, which targets a Manifest and names
+        // no canvas inside it.
+        it('opens a manifest-target state, as the recipe publishes it', async () => {
+            const { state, app } = mountViewer({
+                acceptDroppedContentState: true,
+            });
+            await settle();
+
+            drop(
+                JSON.stringify({
+                    id: 'https://example.org/state/annotation',
+                    type: 'Annotation',
+                    motivation: ['contentState'],
+                    target: { id: MANIFEST_ID, type: 'Manifest' },
+                }),
+            );
+            await settle();
+
+            expect(state.viewerState?.manifestId).toBe(MANIFEST_ID);
+
+            await unmount(app);
+        });
+
+        it('stays inert until then', async () => {
+            const { state, app } = mountViewer({});
+            await settle();
+
+            drop(JSON.stringify(contentStateAnnotation(MANIFEST_ID, 'p2')));
+            await settle();
+
+            expect(state.viewerState?.manifestId).toBeFalsy();
+
+            await unmount(app);
+        });
+
+        /*
+         * The reader's own gesture, so it replaces what the host opened.
+         * ADR 0006 orders the DECLARED sources among themselves; a drop is
+         * not one of them.
+         */
+        it('replaces the manifest a discrete prop opened', async () => {
+            const { state, app } = mountViewer({
+                manifestId: MANIFEST_ID,
+                acceptDroppedContentState: true,
+            });
+            await settle();
+
+            drop(
+                JSON.stringify(contentStateAnnotation(OTHER_MANIFEST_ID, 'p1')),
+            );
+            await settle();
+
+            expect(state.viewerState?.manifestId).toBe(OTHER_MANIFEST_ID);
+
+            await unmount(app);
+        });
+
+        /*
+         * The failure recipe 0599 walks into: its drag source is an `<img>`,
+         * so a browser offers the logo's own URL on `text/uri-list`. Reading
+         * that flavour loads a PNG.
+         */
+        it('ignores a drag carrying only text/uri-list', async () => {
+            const { state, app } = mountViewer({
+                acceptDroppedContentState: true,
+            });
+            await settle();
+
+            drop('https://iiif.io/img/logo-iiif.png', 'text/uri-list');
+            await settle();
+
+            expect(state.viewerState?.manifestId).toBeFalsy();
+
+            await unmount(app);
+        });
+    });
+
     it('lets the discrete props win over a content-state input', async () => {
         const { state, app } = mountViewer({
             manifestId: OTHER_MANIFEST_ID,

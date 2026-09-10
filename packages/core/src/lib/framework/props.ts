@@ -66,6 +66,16 @@ export interface ViewerAttributeProps {
      * bar is never mutated.
      */
     readContentStateFromUrl?: boolean;
+    /**
+     * Opt in to opening a IIIF content state dropped onto the viewer (cookbook
+     * recipe 0599). **Off by default**, for the reason above: a viewer dropped
+     * into a page it does not own must not swallow a drop the host meant to
+     * handle itself.
+     *
+     * A drop is the reader's own gesture, so it opens what it names even when
+     * the host drives this viewer with `manifestId`.
+     */
+    acceptDroppedContentState?: boolean;
 }
 
 /** Viewer inputs assigned imperatively as element properties. */
@@ -110,6 +120,7 @@ export const VIEWER_ATTRIBUTE_PROPS = {
     theme: 'theme',
     contentState: 'content-state',
     readContentStateFromUrl: 'read-content-state-from-url',
+    acceptDroppedContentState: 'accept-dropped-content-state',
 } as const satisfies Record<ViewerAttributePropName, string>;
 
 /** Property-tier inputs, in the order the applier writes them. */

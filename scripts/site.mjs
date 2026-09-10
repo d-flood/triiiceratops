@@ -3,8 +3,8 @@
 //
 // This is the blessed way to look at the site. It serves the BUILT tree from a
 // static server rather than a development server, so the paths between the
-// marketing root, the documentation, the playground and the bare viewer are the
-// real ones, and the crawl files are the ones a host would read.
+// marketing root, the documentation and the bare viewer are the real ones, and
+// the crawl files are the ones a host would read.
 //
 // The narrower verbs (`build:all`, `site:serve`, `site:preview`) stay for CI and
 // tighter loops; this composes them and adds the guard that keeps a green

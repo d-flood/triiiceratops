@@ -106,10 +106,6 @@ describe('the search indexer', () => {
             prose('Any framework', '<p>The custom element in any bundler.</p>'),
         );
         write(
-            join(build, 'demo/index.html'),
-            application('Loading the playground'),
-        );
-        write(
             join(build, 'viewer/index.html'),
             application('Loading the viewer'),
         );
@@ -124,8 +120,8 @@ describe('the search indexer', () => {
     it('fails when no page declares a body to index', () => {
         const build = scratch();
         write(
-            join(build, 'demo/index.html'),
-            application('Loading the playground'),
+            join(build, 'viewer/index.html'),
+            application('Loading the viewer'),
         );
 
         const result = run(build);

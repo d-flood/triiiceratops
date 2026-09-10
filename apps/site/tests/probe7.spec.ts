@@ -7,6 +7,9 @@ for (const name of ['Whichever format will play', 'Sound, with its waveform']) {
         await expect(
             page.locator('.featstage .vw .viewer-root'),
         ).toBeAttached();
+        await page
+            .locator('.featstage__tab', { hasText: 'Sound & video' })
+            .click();
         await page.locator('.featstage__opt', { hasText: name }).click();
         await page.waitForTimeout(8000);
         const lane = page

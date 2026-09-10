@@ -25,8 +25,8 @@ import {
 } from '$lib/routes';
 
 describe('the route declaration', () => {
-    it('declares eight routes', () => {
-        expect(ROUTES).toHaveLength(8);
+    it('declares nine routes', () => {
+        expect(ROUTES).toHaveLength(9);
     });
 
     it('gives every route a leading and trailing slash', () => {
@@ -36,9 +36,14 @@ describe('the route declaration', () => {
         }
     });
 
-    it('carries the seven rail pages plus one route out of the rail', () => {
+    it('carries the seven rail pages plus two routes out of the rail', () => {
         expect(ROUTES.filter((r) => r.group !== null)).toHaveLength(7);
-        expect(ROUTES.filter((r) => r.group === null)).toHaveLength(1);
+        // The design-token appendix and the recipe bench: served and promised,
+        // reachable from the footer and from the site's own search field, and
+        // withheld from a crawler.
+        expect(ROUTES.filter((r) => r.group === null).map((r) => r.path)).toEqual(
+            ['/demo/', '/system/'],
+        );
     });
 
     it('keeps the front page in the rail and offered for indexing', () => {
@@ -67,13 +72,20 @@ describe('the route declaration', () => {
             // catch-all, so it prerenders and is gated through the same list.
             ...DOC_ROUTES.map((route) => route.path),
         ]);
-        // The three that stay code-backed derive every figure they carry from
-        // committed data, so they must not gain an edit button.
+        // The code-backed routes derive everything they carry from committed
+        // data or from a running viewer, so none may gain an edit button.
         expect(
             ROUTES.filter((route) => route.source === 'code').map(
                 (route) => route.path,
             ),
-        ).toEqual(['/', '/size/', '/handles/', '/configure/', '/system/']);
+        ).toEqual([
+            '/',
+            '/size/',
+            '/handles/',
+            '/configure/',
+            '/demo/',
+            '/system/',
+        ]);
     });
 });
 

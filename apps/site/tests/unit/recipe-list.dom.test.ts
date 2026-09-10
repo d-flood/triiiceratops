@@ -1,14 +1,14 @@
 /**
- * The playground's recipe catalog: how the cookbook's recipes are grouped, and
- * that the browser built from them offers every one of them.
+ * The recipe catalog: how the Cookbook's recipes are grouped, and that the list
+ * built from them offers every one of them with the catalog's own verdict.
  */
 
 import { describe, expect, it } from 'vitest';
 import { mount, unmount } from 'svelte';
 import { COOKBOOK_RECIPES } from '@triiiceratops/cookbook';
 
-import RecipeBrowser from '$lib/playground/RecipeBrowser.svelte';
-import { groupRecipes } from '$lib/playground/manifestCatalog';
+import RecipeList from '$lib/recipes/RecipeList.svelte';
+import { groupRecipes } from '$lib/recipes/manifestCatalog';
 
 describe('groupRecipes', () => {
     it('groups every catalog recipe, in the order the groups first appear', () => {
@@ -43,22 +43,23 @@ describe('groupRecipes', () => {
     });
 });
 
-describe('RecipeBrowser', () => {
+describe('RecipeList', () => {
     it('renders a heading per group and loads a manifest on click', () => {
         const target = document.createElement('div');
         document.body.append(target);
         const loaded: string[] = [];
 
-        const component = mount(RecipeBrowser, {
+        const component = mount(RecipeList, {
             target,
             props: { onSelect: (url: string) => loaded.push(url) },
         });
 
-        const headings = target.querySelectorAll('.section-heading');
+        // The catalog's groups, plus the three the catalog has no entry for.
+        const headings = target.querySelectorAll('.recstage__head');
         expect(headings.length).toBe(groupRecipes().length + 3);
 
         const entries =
-            target.querySelectorAll<HTMLButtonElement>('button.entry');
+            target.querySelectorAll<HTMLButtonElement>('button.recstage__opt');
         expect(entries.length).toBeGreaterThan(COOKBOOK_RECIPES.length);
         entries[0].click();
         expect(loaded).toEqual([COOKBOOK_RECIPES[0].manifestUrl]);
@@ -67,11 +68,11 @@ describe('RecipeBrowser', () => {
         target.remove();
     });
 
-    it('shows the status and reason of an unsupported recipe', () => {
+    it('shows the reason an unsupported recipe is unsupported', () => {
         const target = document.createElement('div');
         document.body.append(target);
 
-        const component = mount(RecipeBrowser, {
+        const component = mount(RecipeList, {
             target,
             props: { onSelect: () => {} },
         });
@@ -80,12 +81,42 @@ describe('RecipeBrowser', () => {
             (r) => r.support !== 'supported',
         );
         expect(unsupported).toBeDefined();
-        const statuses = [...target.querySelectorAll('.entry-status')].map(
+        const statuses = [...target.querySelectorAll('.recstage__say')].map(
             (el) => el.textContent,
         );
         expect(
             statuses.some((text) => text?.includes(unsupported!.reason!)),
         ).toBe(true);
+
+        unmount(component);
+        target.remove();
+    });
+
+    /*
+     * A manifest with no catalog entry is not a recipe with no verdict: the
+     * institutional and vendored manifests are here to be looked at, and
+     * printing a status for them would credit or blame the viewer for a claim
+     * nothing makes.
+     */
+    it('says nothing about a manifest the catalog does not list', () => {
+        const target = document.createElement('div');
+        document.body.append(target);
+
+        const component = mount(RecipeList, {
+            target,
+            props: { onSelect: () => {} },
+        });
+
+        const rows = [
+            ...target.querySelectorAll<HTMLButtonElement>(
+                'button.recstage__opt',
+            ),
+        ];
+        const institutional = rows.find((row) =>
+            row.textContent?.includes('Wellcome Collection'),
+        );
+        expect(institutional).toBeDefined();
+        expect(institutional!.querySelector('.recstage__say')).toBeNull();
 
         unmount(component);
         target.remove();

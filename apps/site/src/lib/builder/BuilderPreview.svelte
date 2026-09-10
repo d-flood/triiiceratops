@@ -36,7 +36,7 @@
         config: ViewerConfig;
         /** Only the plugins the reader turned on, already loaded. */
         plugins: readonly SitePlugin[];
-        /** The built-in theme the overrides are layered on, following the page. */
+        /** The theme the overrides are layered on, and the snippet names. */
         theme: BuiltInTheme;
         /** Only the tokens the reader has set. */
         themeConfig: ThemeConfig;
@@ -71,16 +71,21 @@
     });
 
     /*
-     * The probe carries the theme attribute *and* the class the published
-     * stylesheet scopes its tokens under, so its custom properties resolve to
-     * that theme's values — including the derived ones, which are `var()`
-     * references and resolve only where the theme is in scope. The e2e suite
-     * asserts the swatches come back with real colours, which is what catches
-     * that scope changing.
+     * The probe carries the class the published stylesheet scopes its tokens
+     * under, so its custom properties resolve the way the running viewer's do
+     * — including the derived ones, which are `var()` references and resolve
+     * only where a theme is in scope. The e2e suite asserts the swatches come
+     * back with real colours, which is what catches that scope changing.
+     *
+     * The ground is set here rather than in the template because the order is
+     * load-bearing: the attribute has to be on the element before its computed
+     * values are read through it.
      */
     $effect(() => {
         const element = probe;
-        if (!element || !theme) return;
+        if (!element) return;
+
+        element.setAttribute('data-theme', theme);
         onbase(readTokenValues(element, colourTokens, lengthTokens));
     });
 </script>
@@ -89,11 +94,7 @@
     {#if Viewer === undefined}
         <p class="pv__wait">The viewer loads once the page has.</p>
     {:else}
-        <div
-            class="pv__probe viewer-root"
-            data-theme={theme}
-            bind:this={probe}
-        ></div>
+        <div class="pv__probe viewer-root" bind:this={probe}></div>
         <div class="pv__live">
             <Viewer {manifestId} {config} {theme} {themeConfig} {plugins} />
         </div>

@@ -6,9 +6,11 @@
  * `dragover` or `drop`, so each screen builds a real `DataTransfer` in the page,
  * fills it through the recipe's own published drag source, and dispatches the
  * pair. The recipe's drag source is an `<img draggable="true">` whose
- * `dragstart` handler writes the content state as `text/plain` — the flavour the
- * Content State API requires "for maximum compatibility" — so these screens run
- * the same handler a reader's drag would.
+ * `dragstart` handler writes the content state as `text/plain` — the only
+ * flavour the Content State API defines for a drop — so these screens run the
+ * same handler a reader's drag would. Each transfer also carries the
+ * `text/uri-list` a browser fills in for an image drag, because reading that
+ * one instead is the way this goes wrong: it holds the logo, not the state.
  */
 
 import { expect, test, type Locator, type Page } from '@playwright/test';
@@ -66,6 +68,12 @@ async function dragOnto(
             document.body.append(source);
 
             const dataTransfer = new DataTransfer();
+            // What a browser puts on the transfer by itself when the drag
+            // source is an image: the logo's own URL, which is not the state.
+            dataTransfer.setData(
+                'text/uri-list',
+                'https://iiif.io/img/logo-iiif.png',
+            );
             const fire = (type: string, target: Element) =>
                 target.dispatchEvent(
                     new DragEvent(type, {
@@ -177,22 +185,6 @@ test('a dropped bare manifest URL opens its first canvas', async ({ page }) => {
     const surface = page.locator(SURFACE);
     await expect(surface).toBeVisible({ timeout: 30_000 });
     expect(await settledCenterColor(surface)).toEqual([...CANVAS_COLORS[1]]);
-});
-
-test('a dropped link carrying iiif-content opens what the parameter names', async ({
-    page,
-}) => {
-    const encoded = Buffer.from(contentStateFor(2), 'utf8')
-        .toString('base64url')
-        .replace(/=+$/, '');
-    await dragOnto(
-        page,
-        `${ORIGIN}/some/other/page/?iiif-content=${encodeURIComponent(encoded)}`,
-    );
-
-    const surface = page.locator(SURFACE);
-    await expect(surface).toBeVisible({ timeout: 30_000 });
-    expect(await settledCenterColor(surface)).toEqual([...CANVAS_COLORS[2]]);
 });
 
 test('the drop state appears while a drag is over the pane and clears on drop', async ({

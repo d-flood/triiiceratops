@@ -244,7 +244,11 @@ test.describe('the edit variant', () => {
         await page.goto('/access/edit/');
         await editor(page);
 
-        await page.locator('nav.rail a[href="/configure/"]').click();
+        // The rail's list, not the action block below it: the builder is in
+        // both, and this screen is about the list still navigating.
+        await page
+            .locator('nav.rail .rail__list a[href="/configure/"]')
+            .click();
 
         await expect(page).toHaveURL(/\/configure\/$/);
     });

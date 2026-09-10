@@ -3,6 +3,12 @@
     "shadow": "open",
     "properties": [
         {
+            "property": "acceptDroppedContentState",
+            "attribute": "accept-dropped-content-state",
+            "type": "Boolean",
+            "reflect": false
+        },
+        {
             "property": "canvasId",
             "attribute": "canvas-id",
             "type": "String",

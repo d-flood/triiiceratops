@@ -100,6 +100,46 @@ describe('contentState', () => {
         );
     });
 
+    /*
+     * Cookbook recipe 0599 publishes two drag sources, and the first targets a
+     * Manifest with no `partOf` at all. Both are quoted literally: this is the
+     * exchange a reader dragging the recipe's own logo hands the viewer.
+     */
+    describe('cookbook recipe 0599’s published drag payloads', () => {
+        const MANIFEST =
+            'https://iiif.io/api/cookbook/recipe/0006-text-language/manifest.json';
+
+        const state = (target: unknown) =>
+            JSON.stringify({
+                '@context': 'http://iiif.io/api/presentation/3/context.json',
+                id: 'https://iiif.io/api/cookbook/recipe/0599-drag-and-drop/dnd-manifest',
+                type: 'Annotation',
+                motivation: ['contentState'],
+                target,
+            });
+
+        it('opens a Manifest target, which names no view inside it', () => {
+            expect(
+                parseContentState(state({ id: MANIFEST, type: 'Manifest' })),
+            ).toEqual({ manifestId: MANIFEST });
+        });
+
+        it('opens a Canvas target at the canvas its partOf places', () => {
+            const canvasId =
+                'https://iiif.io/api/cookbook/recipe/0006-text-language/canvas/p1';
+
+            expect(
+                parseContentState(
+                    state({
+                        id: canvasId,
+                        type: 'Canvas',
+                        partOf: [{ id: MANIFEST, type: 'Manifest' }],
+                    }),
+                ),
+            ).toMatchObject({ manifestId: MANIFEST, canvasId });
+        });
+    });
+
     it('parses target canvas ids and xywh regions via shared IIIF helpers', () => {
         const payload = {
             id: 'annotation-1',

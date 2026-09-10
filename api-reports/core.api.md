@@ -277,6 +277,19 @@ interface Props {
      * address bar is never mutated.
      */
     readContentStateFromUrl?: boolean;
+    /**
+     * Opt in to opening a IIIF content state dropped onto the viewer
+     * (cookbook recipe 0599). Off by default, for the reason the URL
+     * parameter is: a viewer dropped into a page it does not own must not
+     * swallow a drop the host meant to handle itself.
+     *
+     * A drop is the reader's own gesture rather than a view source the
+     * host declared, so it opens what it names even when the host drives
+     * this viewer with {@link manifestId}. The precedence ADR 0006 sets
+     * out orders the DECLARED sources among themselves; it does not make
+     * a host's initial choice permanent against the reader.
+     */
+    acceptDroppedContentState?: boolean;
     plugins?: readonly SdkPlugin[] | null | boolean;
     /** Built-in theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
     theme?: BuiltInTheme;
@@ -931,6 +944,16 @@ export interface ViewerAttributeProps {
      * bar is never mutated.
      */
     readContentStateFromUrl?: boolean;
+    /**
+     * Opt in to opening a IIIF content state dropped onto the viewer (cookbook
+     * recipe 0599). **Off by default**, for the reason above: a viewer dropped
+     * into a page it does not own must not swallow a drop the host meant to
+     * handle itself.
+     *
+     * A drop is the reader's own gesture, so it opens what it names even when
+     * the host drives this viewer with `manifestId`.
+     */
+    acceptDroppedContentState?: boolean;
 }
 /** Viewer inputs assigned imperatively as element properties. */
 export interface ViewerPropertyProps {
@@ -970,6 +993,7 @@ export declare const VIEWER_ATTRIBUTE_PROPS: {
     readonly theme: "theme";
     readonly contentState: "content-state";
     readonly readContentStateFromUrl: "read-content-state-from-url";
+    readonly acceptDroppedContentState: "accept-dropped-content-state";
 };
 /** Property-tier inputs, in the order the applier writes them. */
 export declare const VIEWER_PROPERTY_PROPS: readonly ["manifestJson", "themeConfig", "config", "initialCanvasRegion", "plugins", "searchProvider"];
@@ -4774,6 +4798,14 @@ export declare class ViewerState {
      * holds it open orphans the plugin's content element (an open plugin's
      * chrome is mounted once and re-parented, never re-mounted).
      *
+     * Availability RETURNING re-honors `config.plugins[id].open`, and only
+     * that: a consumer's configured open is a standing declaration rather than
+     * a one-time event, so a plugin that goes briefly unavailable while the
+     * next canvas's material settles — a caption track still parsing, a
+     * manifest still loading — must not leave a configured panel shut. What a
+     * reader opened themselves stays theirs to reopen, because there is no
+     * declaration to restore.
+     *
      * Plugin-facing (`PluginSurface.setAvailable`) and independent of the
      * consumer's `config.plugins[id].visible`, which stays the hard off-switch:
      * both must agree for the button to render. No-op (and no notification) if
@@ -7274,6 +7306,16 @@ export declare function getCanvasId(canvas: any): string;
  */
 export declare const getAnnotationId: typeof getCanvasId;
 export declare function findCanvasIndexById(canvases: any[], canvasId: string | null): number;
+/**
+ * Whether two ids name one canvas.
+ *
+ * Two spellings reach the viewer for the same thing: a content state names its
+ * target by absolute URI, which the Content State API requires of it, while a
+ * manifest is free to declare a relative one — against the spec, and common
+ * enough that refusing to match would send a reader who dropped a perfectly
+ * good content state to the wrong canvas, or drop the region it asked for.
+ */
+export declare function sameCanvasId(a: string, b: string): boolean;
 export declare function findCanvasById(canvases: any[], canvasId: string | null): any;
 
 // ======================================================================
@@ -8465,6 +8507,10 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
         readonly type: BooleanConstructor;
         readonly required: false;
     };
+    readonly acceptDroppedContentState: {
+        readonly type: BooleanConstructor;
+        readonly required: false;
+    };
     readonly manifestJson: {
         readonly type: PropType<string | Record<string, any>>;
         readonly required: false;
@@ -8517,6 +8563,10 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
         readonly type: BooleanConstructor;
         readonly required: false;
     };
+    readonly acceptDroppedContentState: {
+        readonly type: BooleanConstructor;
+        readonly required: false;
+    };
     readonly manifestJson: {
         readonly type: PropType<string | Record<string, any>>;
         readonly required: false;
@@ -8550,4 +8600,5 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
     onViewerError?: ((error: ViewerError) => any) | undefined;
 }>, {
     readonly readContentStateFromUrl: boolean;
+    readonly acceptDroppedContentState: boolean;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;

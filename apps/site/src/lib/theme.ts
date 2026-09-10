@@ -7,7 +7,7 @@
  *
  * The key is namespaced against everything else this origin stores, and the one
  * key serves the whole domain: the marketing routes, the documentation and the
- * playground are all routes of this application and share the one toggle, so
+ * bare viewer are all routes of this application and share the one toggle, so
  * the choice travels with the reader rather than flashing at each boundary.
  *
  * The stored choice is applied to `<html>` by the inline blocking script in

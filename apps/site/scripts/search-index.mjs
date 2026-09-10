@@ -41,9 +41,9 @@ const BODY_MARKER = 'data-pagefind-body';
  *
  * Counted here so the indexer can hold its own result to the markup's
  * declaration. Pagefind falls back to indexing every page's whole `<body>` when
- * it finds the marker nowhere at all, which would quietly pull the playground
- * and the bare viewer in — the exact scope this is meant to exclude — so the
- * fallback has to be caught rather than trusted.
+ * it finds the marker nowhere at all, which would quietly pull the bare viewer
+ * in — the exact scope this is meant to exclude — so the fallback has to be
+ * caught rather than trusted.
  */
 function markedPages(build) {
     return readdirSync(build, { recursive: true, withFileTypes: true })
@@ -97,8 +97,7 @@ export async function buildSearchIndex({ build }) {
             `nothing under ${build} carries \`${BODY_MARKER}\`. Indexing scope is ` +
                 "declared by the chrome layout's page body region, so a tree without " +
                 'it holds no prose route at all — and Pagefind would fall back to ' +
-                'indexing every page whole, the playground and the bare viewer ' +
-                'included.',
+                'indexing every page whole, the bare viewer included.',
         );
     }
 

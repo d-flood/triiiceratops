@@ -16,10 +16,11 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { BUILTIN_THEMES } from 'triiiceratops';
 import { describe, expect, it } from 'vitest';
 
 import { CONTROL_GROUPS } from '../../src/lib/builder/surface';
-import { TOKEN_GROUPS } from '../../src/lib/builder/tokens';
+import { THEME_CHOICES, TOKEN_GROUPS } from '../../src/lib/builder/tokens';
 
 const API = readFileSync(
     fileURLToPath(
@@ -180,23 +181,111 @@ describe('every configuration control', () => {
     });
 });
 
-describe('what the route leaves to the playground', () => {
+/**
+ * Every leaf of the configuration interface, as a dotted path: a property
+ * whose declared type is not itself an interface the report carries. This is
+ * the denominator the route's coverage claim is made against.
+ */
+function leaves(name: string, prefix = '', seen: string[] = []): string[] {
+    if (seen.includes(name)) return [];
+    const target = INTERFACES.get(name);
+    if (!target) return [];
+
+    const found = target.extends.flatMap((parent) =>
+        leaves(parent, prefix, [...seen, name]),
+    );
+    for (const [prop, type] of target.props) {
+        found.push(
+            ...(INTERFACES.has(type)
+                ? leaves(type, `${prefix}${prop}.`, [...seen, name])
+                : [`${prefix}${prop}`]),
+        );
+    }
+    return found;
+}
+
+describe('what the route leaves out', () => {
     const paths = CONTROLS.map((control) => control.path.join('.'));
 
-    it('has no control for a value this route is not the surface for', () => {
-        // Whether a control is *shown* is chrome, so `toolbar.showViewingMode`
-        // is in scope; the value it sets is not.
-        expect(paths).not.toContain('viewingMode');
-        expect(paths).not.toContain('viewingDirection');
-        expect(paths).not.toContain('pagedViewOffset');
-        expect(paths).not.toContain('preserveCanvasScale');
+    /*
+     * The route is the site's only configuration surface, so a key's absence
+     * here is a claim that a reader has nothing to look at while setting it —
+     * not that it is set somewhere else. Each absence carries the reason the
+     * page's own closing section gives for it, because the two have to agree:
+     * a silent omission is how the prose came to claim it left out only what
+     * could not be seen while `pointStyle` and the visible renderer terms sat
+     * outside the surface.
+     */
+    const EXPECTED_ABSENT: Record<string, string> = {
+        debug: 'diagnostics, with no appearance',
+        locale: 'the viewer publishes no list of the locales it has messages for, so a control would be a third hardcoded copy of one; toolbar.showLocalePicker is the chrome half and is in',
+        openMenu: 'transient runtime state, which a config should not pin',
+        plugins: 'per-plugin UI state, owned by the plugin picker',
+        'requests.headers': 'network, with no appearance',
+        'requests.withCredentials': 'network, with no appearance',
+        'search.query': 'material, not configuration',
+        showStructures: 'deprecated alias for toolbar.showStructures',
+        'renderer.boxThreshold': 'fetch budget, measured rather than seen',
+        'renderer.byteBudget': 'memory budget, measured rather than seen',
+        'renderer.minPixelRatio': 'fetch budget, measured rather than seen',
+        'renderer.pyramidThreshold': 'fetch budget, measured rather than seen',
+        'renderer.residencyMargin': 'memory budget, measured rather than seen',
+    };
+
+    it('accounts for every leaf of the configuration interface', () => {
+        const unaccounted = leaves('ViewerConfig').filter(
+            (leaf) => !paths.includes(leaf) && !(leaf in EXPECTED_ABSENT),
+        );
+
+        expect(unaccounted).toEqual([]);
     });
 
-    it('has no control under renderer tuning or search providers', () => {
-        for (const path of paths) {
-            expect(path.startsWith('renderer')).toBe(false);
+    it('names no absence that is in fact a control', () => {
+        expect(
+            Object.keys(EXPECTED_ABSENT).filter((leaf) => paths.includes(leaf)),
+        ).toEqual([]);
+    });
+
+    it('keeps the chrome half of the locale pair', () => {
+        expect(paths).toContain('toolbar.showLocalePicker');
+    });
+});
+
+describe('a control whose absence is a choice', () => {
+    const unsettable = CONTROLS.filter(
+        (control) => control.kind === 'choice' && control.unset !== undefined,
+    );
+
+    /*
+     * Both keys override what the publisher declared, so the builder has to be
+     * able to say nothing about them. Core reads a falsy value as "the manifest
+     * decides", which is what makes the retraction expressible at all.
+     */
+    it('is offered for the two keys that override the manifest', () => {
+        expect(unsettable.map((control) => control.path.join('.'))).toEqual([
+            'viewingMode',
+            'viewingDirection',
+        ]);
+    });
+
+    it('states no default, so an untouched page overrides nothing', async () => {
+        const { BUILDER_DEFAULTS } =
+            await import('../../src/lib/builder/surface');
+
+        for (const control of unsettable) {
+            expect(
+                (BUILDER_DEFAULTS as Record<string, unknown>)[control.path[0]],
+            ).toBeUndefined();
         }
-        expect(paths).not.toContain('search.query');
+    });
+
+    it('reserves the empty string, which no real choice may use', () => {
+        for (const control of unsettable) {
+            if (control.kind !== 'choice') continue;
+            for (const choice of control.choices) {
+                expect(choice.value).not.toBe('');
+            }
+        }
     });
 });
 
@@ -254,12 +343,30 @@ describe('every theming control', () => {
     });
 });
 
+describe('the theme a reader starts from', () => {
+    it('offers exactly the themes the package builds in', () => {
+        expect(THEME_CHOICES.map((choice) => choice.value).sort()).toEqual(
+            [...BUILTIN_THEMES].sort(),
+        );
+    });
+});
+
 describe('the configuration the controls start from', () => {
+    /*
+     * Every control but the two whose absence is itself a choice: a `<select>`
+     * bound to `undefined` shows no arrangement and a slider bound to it has no
+     * position, so each of the rest has to start from its own documented
+     * default. The exceptions are held to the opposite rule above.
+     */
     it('states a default for every key a control binds', async () => {
         const { BUILDER_DEFAULTS } =
             await import('../../src/lib/builder/surface');
 
-        for (const control of CONTROLS) {
+        const settled = CONTROLS.filter(
+            (control) => !(control.kind === 'choice' && control.unset),
+        );
+
+        for (const control of settled) {
             let cursor: unknown = BUILDER_DEFAULTS;
             for (const key of control.path) {
                 expect(cursor).toBeTypeOf('object');

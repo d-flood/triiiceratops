@@ -24,10 +24,10 @@
      * The marketing chrome: the rail, the mobile sheet, the footer, and every
      * page's crawl and social metadata.
      *
-     * A group layout rather than the root one, because `/demo/` and `/viewer/`
-     * are applications that fill the window and draw their own chrome. They hang
-     * off the root layout instead, and share the stylesheet, the theme and the
-     * type but none of this.
+     * A group layout rather than the root one, because `/viewer/` is an
+     * application that fills the window and draws no chrome at all. It hangs off
+     * the root layout instead, and shares the stylesheet, the theme and the type
+     * but none of this.
      */
 
     let { children, data } = $props();
@@ -127,11 +127,16 @@
     <div class="main">
         <!-- `data-pagefind-body` declares this region as the site's search
              scope, so a route is indexed by wearing this chrome: the marketing
-             pages and the documentation are one searchable site, and `/demo/`
-             and `/viewer/` are out of it because they hang off the root layout
-             instead. The not-found page is the one exception: it carries no
-             prose anybody could be looking for, and it is the page a reader
-             already lands on when a link fails. -->
+             pages and the documentation are one searchable site, and `/viewer/`
+             is out of it because it hangs off the root layout instead. The
+             not-found page is the one exception: it carries no prose anybody
+             could be looking for, and it is the page a reader already lands on
+             when a link fails.
+
+             `noindex` is a separate question from this one, and the two
+             deliberately disagree: the appendix and the recipe bench are not
+             offered to a crawler but are still findable from the site's own
+             field, which is where somebody looking for them would look. -->
         <main
             class="pagebody"
             id="main"

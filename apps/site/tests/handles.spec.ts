@@ -21,7 +21,8 @@ import { inflateSync } from 'node:zlib';
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { FEATURES } from '../src/lib/features';
+import { dragContentState, type DragTarget } from '../src/lib/dragSource';
+import { FEATURE_GROUP_TABS, FEATURES } from '../src/lib/features';
 import { ORIGIN } from './helpers/origin';
 
 const FIRST = FEATURES[0];
@@ -59,6 +60,25 @@ function rail(page: Page) {
     return page.locator('.featstage__opt');
 }
 
+/** The rail lists one kind of feature at a time, so its tab is opened first. */
+async function openTab(page: Page, at: number) {
+    const tab = page
+        .locator('.featstage__tab')
+        .filter({ hasText: FEATURE_GROUP_TABS[FEATURES[at].group] });
+    if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+}
+
+/** The rail option for one feature, whichever tab it lives under. */
+function option(page: Page, at: number) {
+    return rail(page).nth(
+        FEATURES.filter(
+            (feature, index) =>
+                feature.group === FEATURES[at].group && index < at,
+        ).length,
+    );
+}
+
 /**
  * Pick one feature, and be sure the rail took it.
  *
@@ -70,12 +90,13 @@ function rail(page: Page) {
  * than left to fail thirty seconds later against the previous feature's label.
  */
 async function choose(page: Page, at: number) {
-    const option = rail(page).nth(at);
-    await option.click();
-    if ((await option.getAttribute('aria-checked')) !== 'true') {
-        await option.click();
+    await openTab(page, at);
+    const chosen = option(page, at);
+    await chosen.click();
+    if ((await chosen.getAttribute('aria-checked')) !== 'true') {
+        await chosen.click();
     }
-    await expect(option).toHaveAttribute('aria-checked', 'true');
+    await expect(chosen).toHaveAttribute('aria-checked', 'true');
 }
 
 /** Every URL the page asked for, recorded from the first navigation. */
@@ -97,18 +118,45 @@ function asked(requested: string[], manifest: string): string[] {
     return requested.filter((url) => new URL(url, ORIGIN).href === wanted);
 }
 
-test('serves one stage and the whole rail before anything is fetched', async ({
+test('serves one stage and the open tab’s rail before anything is fetched', async ({
     page,
 }) => {
     // The prerendered document, before a line of this application's script has
-    // run: one reserved stage and every rail option, or the page shifts as the
-    // viewer arrives.
+    // run: one reserved stage, the whole tab strip, and the first tab's options
+    // under it, or the page shifts as the viewer arrives.
     await page.route('**/_app/**', (route) => route.abort());
     await page.goto('/handles/');
 
     await expect(stage(page)).toHaveCount(1);
     await expect(stage(page)).toHaveCSS('aspect-ratio', /^\d+ \/ \d+$/);
-    await expect(rail(page)).toHaveCount(FEATURES.length);
+    await expect(page.locator('.featstage__tab')).toHaveCount(
+        new Set(FEATURES.map((feature) => feature.group)).size,
+    );
+    await expect(rail(page)).toHaveCount(
+        FEATURES.filter((feature) => feature.group === FIRST.group).length,
+    );
+});
+
+test('a tab shows its own features and nothing else', async ({ page }) => {
+    await page.goto('/handles/');
+    await expect(stage(page).locator('.viewer-root')).toBeAttached();
+    const plugins = FEATURES.filter(
+        (feature) => feature.group === 'First Party Plugins',
+    );
+    await page
+        .locator('.featstage__tab')
+        .filter({ hasText: FEATURE_GROUP_TABS['First Party Plugins'] })
+        .click();
+
+    await expect(rail(page)).toHaveCount(plugins.length);
+    await expect(rail(page).first()).toContainText(plugins[0].name);
+    // Opening a tab shows its first feature rather than leaving the stage on a
+    // feature the rail is no longer listing.
+    await expect(stage(page)).toHaveAttribute(
+        'aria-label',
+        plugins[0].example.label,
+        { timeout: 30_000 },
+    );
 });
 
 test('fetches a feature only once it is picked', async ({ page }) => {
@@ -124,7 +172,7 @@ test('fetches a feature only once it is picked', async ({ page }) => {
         `${DEFERRED.name} was fetched without ever being picked`,
     ).toEqual([]);
 
-    await rail(page).nth(DEFERRED_AT).click();
+    await choose(page, DEFERRED_AT);
     await expect
         .poll(() => asked(requested, DEFERRED.example.manifest))
         .not.toEqual([]);
@@ -328,7 +376,7 @@ for (const [at, feature] of FEATURES.entries()) {
         const requested = recordRequests(page);
         await page.goto('/handles/');
         await expect(stage(page).locator('.viewer-root')).toBeAttached();
-        await rail(page).nth(at).click();
+        await choose(page, at);
 
         // The manifest resolves before the material can paint, so the request
         // is what proves the switch reached somebody's server rather than
@@ -365,19 +413,19 @@ test('brings the plugin back when its feature is picked again', async ({
     await page.goto('/handles/');
     await expect(stage(page).locator('.viewer-root')).toBeAttached();
 
-    await rail(page).nth(at).click();
+    await choose(page, at);
     await expect(flyout).toBeVisible();
-    await rail(page).nth(other).click();
+    await choose(page, other);
     await expect(flyout).toBeHidden();
-    await rail(page).nth(at).click();
+    await choose(page, at);
     await expect(flyout).toBeVisible();
 });
 
-/** The rail option for one feature, by the name the page gives it. */
-function pick(page: Page, name: string) {
+/** Show one feature, by the name the page gives it. */
+async function pick(page: Page, name: string) {
     const at = FEATURES.findIndex((feature) => feature.name === name);
     if (at < 0) throw new Error(`no feature named ${name}`);
-    return rail(page).nth(at);
+    await choose(page, at);
 }
 
 /**
@@ -390,7 +438,7 @@ async function open(page: Page, name: string) {
     const feature = FEATURES.find((entry) => entry.name === name)!;
     await page.goto('/handles/');
     await expect(stage(page).locator('.viewer-root')).toBeAttached();
-    await pick(page, name).click();
+    await pick(page, name);
     await expect(stage(page)).toHaveAttribute(
         'aria-label',
         feature.example.label,
@@ -431,7 +479,7 @@ test('keeps the caption tracks open when arriving from the other film feature', 
     const video = stage(page).locator('video.tri-av-media').first();
     await expect(video).toBeAttached({ timeout: 30_000 });
 
-    await pick(page, 'Captions in two languages').click();
+    await pick(page, 'Captions in two languages');
     const list = stage(page).getByTestId('transport-track-list');
     await expect(list).toBeVisible({ timeout: 30_000 });
     await expect(list.getByRole('radio')).toHaveCount(3);
@@ -665,7 +713,7 @@ test('fetches the annotation page the canvas only names', async ({ page }) => {
     // before the canvas that names the page is on screen.
     expect(asked(requested, PAGE_URL)).toEqual([]);
 
-    await pick(page, 'Notes kept in another file').click();
+    await pick(page, 'Notes kept in another file');
     await expect.poll(() => asked(requested, PAGE_URL)).not.toEqual([]);
     // Five notes, none of which are in the manifest the viewer fetched first.
     await expect(stage(page).locator('[data-annotation-row]')).toHaveCount(5, {
@@ -883,21 +931,33 @@ const DRAG_CHIPS = FEATURES.find(
  *
  * A real pointer drag between two elements is not something Playwright can
  * drive through the HTML drag-and-drop API, so the transfer is handed over as
- * the browser would hand it: the data the chip sets, on a drop event dispatched
- * at the pane. What is under test is the page's own resolver.
+ * the browser would hand it: recipe 0599's content state on `text/plain`,
+ * alongside the `text/uri-list` a browser fills in for itself when the drag
+ * source is an image — as the recipe's own is. What is under test is the
+ * page's own resolver.
  */
-async function dropOnStage(page: Page, state: unknown) {
-    await page.locator('.featstage__viewer').evaluate((pane, carried) => {
-        const transfer = new DataTransfer();
-        transfer.setData('text/plain', carried);
-        pane.dispatchEvent(
-            new DragEvent('drop', { dataTransfer: transfer, bubbles: true }),
-        );
-    }, JSON.stringify(state));
+async function dropOnStage(page: Page, target: DragTarget) {
+    await page.locator('.featstage__viewer').evaluate(
+        (pane, carried) => {
+            const transfer = new DataTransfer();
+            transfer.setData(
+                'text/uri-list',
+                'https://iiif.io/img/logo-iiif.png',
+            );
+            transfer.setData('text/plain', carried);
+            pane.dispatchEvent(
+                new DragEvent('drop', {
+                    dataTransfer: transfer,
+                    bubbles: true,
+                }),
+            );
+        },
+        dragContentState(target, ORIGIN),
+    );
 }
 
 test('takes a view dragged from the rail onto the stage', async ({ page }) => {
-    await open(page, 'Dragged in from outside');
+    await open(page, 'Drag and drop IIIF content state');
     await expect(page.locator('.featstage__chip')).toHaveCount(
         DRAG_CHIPS.length,
     );
@@ -909,9 +969,71 @@ test('takes a view dragged from the rail onto the stage', async ({ page }) => {
     await expect(stage(page).locator('canvas').first()).toBeAttached();
 });
 
+/*
+ * The IIIF Cookbook's own drag source, which is the thing a reader who knows
+ * the recipe will try on this page: a Manifest-targeted content state naming
+ * material the page has never declared. The stage has to fetch it to describe
+ * it, since it owes a reserved box and a name to whatever it shows.
+ */
+test('takes a content state naming material the page never declared', async ({
+    page,
+}) => {
+    const foreign = `${ORIGIN}/test-manifests/dropped.json`;
+    await page.route(foreign, (route) =>
+        route.fulfill({
+            contentType: 'application/json',
+            body: JSON.stringify({
+                id: foreign,
+                type: 'Manifest',
+                label: { en: ['Something the page has never heard of'] },
+                items: [
+                    {
+                        id: `${foreign}/canvas/1`,
+                        type: 'Canvas',
+                        width: 1114,
+                        height: 991,
+                    },
+                ],
+            }),
+        }),
+    );
+
+    await open(page, 'Drag and drop IIIF content state');
+
+    await page.locator('.featstage__viewer').evaluate(
+        (pane, carried) => {
+            const transfer = new DataTransfer();
+            transfer.setData(
+                'text/uri-list',
+                'https://iiif.io/img/logo-iiif.png',
+            );
+            transfer.setData('text/plain', carried);
+            pane.dispatchEvent(
+                new DragEvent('drop', {
+                    dataTransfer: transfer,
+                    bubbles: true,
+                }),
+            );
+        },
+        JSON.stringify({
+            '@context': 'http://iiif.io/api/presentation/3/context.json',
+            id: 'https://example.org/state/foreign',
+            type: 'Annotation',
+            motivation: ['contentState'],
+            target: { id: foreign, type: 'Manifest' },
+        }),
+    );
+
+    // Announced by the publisher's own label, not by the feature's.
+    await expect(stage(page)).toHaveAttribute(
+        'aria-label',
+        'Something the page has never heard of',
+    );
+});
+
 test('takes a whole manifest dragged onto the stage', async ({ page }) => {
     const requested = recordRequests(page);
-    await open(page, 'Dragged in from outside');
+    await open(page, 'Drag and drop IIIF content state');
 
     const chip = DRAG_CHIPS.find((candidate) => candidate.carries)!;
     const carried = chip.carries!;
@@ -933,10 +1055,10 @@ test('takes a whole manifest dragged onto the stage', async ({ page }) => {
 
     // Leaving the feature and coming back through the rail — no reload — shows
     // the feature's own material again rather than what a drop left standing.
-    await pick(page, 'Deep zoom on a canvas').click();
-    await pick(page, 'Dragged in from outside').click();
+    await pick(page, 'Deep zoom on a single canvas');
+    await pick(page, 'Drag and drop IIIF content state');
     const own = FEATURES.find(
-        (feature) => feature.name === 'Dragged in from outside',
+        (feature) => feature.name === 'Drag and drop IIIF content state',
     )!;
     await expect(stage(page)).toHaveAttribute('aria-label', own.example.label);
 });

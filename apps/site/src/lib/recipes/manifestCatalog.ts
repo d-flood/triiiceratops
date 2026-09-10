@@ -1,5 +1,5 @@
 /*
- * What the playground's recipe browser can load.
+ * What the recipe bench at `/demo/` can load.
  *
  * The Cookbook recipes come from `@triiiceratops/cookbook`, the workspace's one
  * catalog, which is also what the documentation's support counts are generated

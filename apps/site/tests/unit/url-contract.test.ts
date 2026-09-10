@@ -1,17 +1,19 @@
 /**
  * The URL contract's identity assertion: that the application at `/viewer/` is
- * the bare viewer and the one at `/demo/` is the playground.
+ * the bare viewer.
  *
- * The failure this guards is the swap, so the swap is what these exercise. A
- * tree with the two pages exchanged resolves every promised URL and passes every
- * other check, which is exactly why existence is not enough.
+ * The failure this guards is a tree with some other page at that path, which is
+ * what these exercise. Every route of the site resolves to an index.html, so
+ * such a tree keeps every promised URL and passes every other check — which is
+ * exactly why existence is not enough. The path is linked directly by roughly
+ * thirty-four published IIIF Cookbook recipes.
  *
- * Both are routes of this application, so the marker is declared in
- * `src/lib/applications.ts` and written into each route's head. That the served
- * pages actually carry it is a browser assertion — `tests/shell.spec.ts`. What
- * is asserted here is the pure logic, plus the one thing neither seam can see:
- * that the module, the gate and the manifest spell the marker the same way. A
- * guard spelled differently on both sides is a guard that only half exists.
+ * The viewer is a route of this application, so the marker is declared in
+ * `src/lib/applications.ts` and written into its head. That the served page
+ * actually carries it is a browser assertion — `tests/shell.spec.ts`. What is
+ * asserted here is the pure logic, plus the one thing neither seam can see: that
+ * the module, the gate and the manifest spell the marker the same way. A guard
+ * spelled differently on both sides is a guard that only half exists.
  */
 
 import {
@@ -31,7 +33,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
     APP_MARKER as MARKER_NAME,
     BARE_VIEWER_APP,
-    PLAYGROUND_APP,
 } from '$lib/applications';
 import { CONTENT_ROUTES } from '$lib/routes';
 import {
@@ -49,10 +50,13 @@ const MANIFEST_FILE = JSON.parse(
 const MANIFEST = {
     urls: [
         { url: '/', owner: 'site' },
-        { url: '/demo/', owner: 'site', app: PLAYGROUND_APP },
+        { url: '/demo/', owner: 'site' },
         { url: '/viewer/', owner: 'site', app: BARE_VIEWER_APP },
     ],
 };
+
+/** Whatever else a build might put at the viewer's path. */
+const OTHER_APP = 'not-the-viewer';
 
 /** A page as each route emits it: the marker, in a head with other tags. */
 function page(app: string): string {
@@ -66,7 +70,11 @@ function page(app: string): string {
 
 const PAGES = {
     viewer: page(BARE_VIEWER_APP),
-    demo: page(PLAYGROUND_APP),
+    other: page(OTHER_APP),
+    /* A page of the site with no marker at all, which is what every route but
+       the viewer emits — including `/demo/`, whose entry promises no
+       application. */
+    document: '<!doctype html><title>Cookbook recipes</title><h1>Recipes</h1>',
 };
 
 let scratch: string | undefined;
@@ -95,17 +103,16 @@ describe('the application marker', () => {
         expect(MARKER_NAME).toBe(APP_MARKER);
     });
 
-    it('names, for each application route, the application the manifest promises', () => {
+    it('names, for the one application route, the application the manifest promises', () => {
         const promised = new Map(
             MANIFEST_FILE.urls
                 .filter((entry) => entry.app !== undefined)
                 .map((entry) => [entry.url, entry.app]),
         );
-        expect(promised.get('/demo/')).toBe(PLAYGROUND_APP);
         expect(promised.get('/viewer/')).toBe(BARE_VIEWER_APP);
-        // Exactly those two: a third application path with no route to serve it
+        // Exactly that one: a second application path with no route to serve it
         // would be a promise nothing keeps.
-        expect(promised.size).toBe(2);
+        expect(promised.size).toBe(1);
     });
 
     it('is absent from a page that does not declare one', () => {
@@ -117,49 +124,59 @@ describe('the application marker', () => {
     });
 
     it('reads the marker whichever order its attributes are written in', () => {
-        expect(appMarker(`<meta content="demo" name="${APP_MARKER}">`)).toBe(
-            'demo',
+        expect(appMarker(`<meta content="viewer" name="${APP_MARKER}">`)).toBe(
+            'viewer',
         );
     });
 
     it('ignores a marker inside an HTML comment', () => {
         expect(
-            appMarker(`<!-- <meta name="${APP_MARKER}" content="demo"> -->`),
+            appMarker(`<!-- <meta name="${APP_MARKER}" content="viewer"> -->`),
         ).toBe(null);
     });
 });
 
 describe('the identity assertion over a built tree', () => {
     it('passes the correctly built tree', () => {
-        const dir = tree({ viewer: PAGES.viewer, demo: PAGES.demo });
+        const dir = tree({ viewer: PAGES.viewer, demo: PAGES.document });
         expect(applicationMismatches(dir, MANIFEST)).toEqual([]);
     });
 
-    it('fails a tree with the two applications exchanged, naming both paths', () => {
-        const dir = tree({ viewer: PAGES.demo, demo: PAGES.viewer });
-        const mismatches = applicationMismatches(dir, MANIFEST);
-        expect(mismatches).toEqual([
-            {
-                url: '/demo/',
-                path: join('demo', 'index.html'),
-                app: PLAYGROUND_APP,
-                found: BARE_VIEWER_APP,
-            },
+    it('fails a tree serving some other application at the viewer’s path', () => {
+        const dir = tree({ viewer: PAGES.other, demo: PAGES.document });
+        expect(applicationMismatches(dir, MANIFEST)).toEqual([
             {
                 url: '/viewer/',
                 path: join('viewer', 'index.html'),
                 app: BARE_VIEWER_APP,
-                found: PLAYGROUND_APP,
+                found: OTHER_APP,
             },
         ]);
     });
 
-    it('fails a page whose marker was deleted rather than swapped', () => {
+    /*
+     * The likeliest way for this to go wrong now that the viewer is the only
+     * marked route: a build puts an ordinary page of the site at the path,
+     * which carries no marker because no other route emits one.
+     */
+    it('fails a tree serving an unmarked page at the viewer’s path', () => {
+        const dir = tree({ viewer: PAGES.document, demo: PAGES.document });
+        expect(applicationMismatches(dir, MANIFEST)).toEqual([
+            {
+                url: '/viewer/',
+                path: join('viewer', 'index.html'),
+                app: BARE_VIEWER_APP,
+                found: null,
+            },
+        ]);
+    });
+
+    it('fails a page whose marker was deleted rather than replaced', () => {
         const stripped = PAGES.viewer.replaceAll(
             new RegExp(`<meta[^>]*${APP_MARKER}[^>]*>`, 'gi'),
             '',
         );
-        const dir = tree({ viewer: stripped, demo: PAGES.demo });
+        const dir = tree({ viewer: stripped, demo: PAGES.document });
         expect(applicationMismatches(dir, MANIFEST)).toEqual([
             {
                 url: '/viewer/',
@@ -171,12 +188,12 @@ describe('the identity assertion over a built tree', () => {
     });
 
     it('says nothing about a path check 1 already reports as missing', () => {
-        const dir = tree({ demo: PAGES.demo });
+        const dir = tree({ demo: PAGES.document });
         expect(applicationMismatches(dir, MANIFEST)).toEqual([]);
     });
 
     it('leaves an entry naming no application alone', () => {
-        const dir = tree({ viewer: PAGES.viewer, demo: PAGES.demo });
+        const dir = tree({ viewer: PAGES.viewer, demo: PAGES.document });
         const manifest = { urls: [{ url: '/', owner: 'site' }] };
         expect(applicationMismatches(dir, manifest)).toEqual([]);
     });

@@ -137,6 +137,24 @@ describe('createPluginSurface', () => {
 
         state.destroy();
     });
+
+    it('re-opens a configured panel when availability returns', () => {
+        // The transient-unavailability case a manifest switch produces: the
+        // plugin declares nothing to show while the next canvas's material is
+        // still settling, and the consumer's configured open must survive it.
+        const state = new ViewerState();
+        state.updateConfig({ plugins: { declared: { open: true } } });
+        const surface = createPluginSurface(state, 'declared', 'panel');
+        expect(surface.isOpen).toBe(true);
+
+        surface.setAvailable(false);
+        expect(surface.isOpen).toBe(false);
+
+        surface.setAvailable(true);
+        expect(surface.isOpen).toBe(true);
+
+        state.destroy();
+    });
 });
 
 describe('plugin open state notifies subscribers', () => {

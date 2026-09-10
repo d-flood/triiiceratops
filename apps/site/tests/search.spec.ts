@@ -74,18 +74,16 @@ test('a query matching marketing prose returns that page', async ({ page }) => {
     expect(await search(page, 'design tokens')).toContain('/system/');
 });
 
-test('a result never points at the playground or the bare viewer', async ({
-    page,
-}) => {
-    // Terms drawn from what those two routes prerender, so a page that had
-    // wrongly been indexed would rank at the top of these rather than nowhere.
-    for (const term of ['playground', 'viewer', 'JavaScript']) {
+test('a result never points at the bare viewer', async ({ page }) => {
+    // Terms drawn from what that route prerenders, so a page that had wrongly
+    // been indexed would rank at the top of these rather than nowhere.
+    for (const term of ['viewer', 'JavaScript']) {
         const paths = await search(page, term);
         // A term that matches nothing at all would make this pass by saying
         // nothing, so the query has to return something first.
         expect(paths.length).toBeGreaterThan(0);
         for (const path of paths) {
-            expect(path).not.toMatch(/^\/(demo|viewer)\//);
+            expect(path).not.toMatch(/^\/viewer\//);
         }
     }
 });

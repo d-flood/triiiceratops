@@ -122,10 +122,13 @@ export function parseThemeConfig(json: string): ThemeConfig | null {
 /**
  * Apply theme to an element.
  *
+ * With no theme the attribute is removed, and the stylesheet's zero-specificity
+ * defaults paint — which are `light`'s own values. Following the reader's
+ * colour scheme is the host's call: `theme={prefersDark ? 'dark' : 'light'}`.
+ *
  * @param element - The HTML element to apply the theme to
- * @param theme - Built-in theme name (defaults to light/dark based on prefers-color-scheme)
+ * @param theme - Built-in theme name; omitted leaves the element on the defaults
  * @param config - Optional custom theme configuration to override the base theme
- * @param prefersDark - Whether the user prefers dark mode (from media query)
  */
 export function applyTheme(
     element: HTMLElement,

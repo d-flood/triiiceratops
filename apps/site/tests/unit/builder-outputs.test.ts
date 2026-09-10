@@ -101,10 +101,11 @@ const MANIFEST = 'https://example.org/iiif/manifest.json';
 
 const nothing = {
     manifestId: MANIFEST,
+    theme: 'light',
     config: {},
     themeConfig: {},
     plugins: [],
-};
+} as const;
 const something = {
     ...nothing,
     config: { gallery: { open: true }, toolbar: { showSearch: false } },
@@ -289,6 +290,41 @@ describe('the plugins a reader turned on', () => {
         for (const plugin of BUILDER_PLUGINS) {
             expect(text.indexOf(plugin.pkg)).toBeGreaterThan(core);
         }
+    });
+});
+
+/*
+ * The theme is not a key of either object: it reaches the viewer as its own
+ * input, so the snippet is the only handoff that can carry it — the same
+ * position the plugins are in, and for a milder version of the same reason.
+ *
+ * It is always named. The overlays are sparse, so an override says nothing
+ * without the ground it departs from, and a snippet that left the input out
+ * would hand a developer values chosen against a theme their page never
+ * paints.
+ */
+describe('the theme the overlays sit on', () => {
+    const started = { ...something, theme: 'dracula' } as const;
+
+    it('is handed to each framework through the input it declares', () => {
+        for (const id of ids) {
+            expect(snippet(id, started)).toContain('theme="dracula"');
+        }
+    });
+
+    it('is named even by the snippet for a reader who set nothing else', () => {
+        for (const id of ids) {
+            expect(snippet(id, nothing)).toContain('theme="light"');
+        }
+    });
+
+    it('travels beside the theming overlay rather than inside it', () => {
+        // The two are different inputs, and a theme written into the overlay
+        // would be a `themeConfig` key the viewer does not have.
+        const text = snippet('svelte', started);
+        expect(text).toContain('theme="dracula"');
+        expect(text).toContain('{themeConfig}');
+        expect(objectText(started.themeConfig)).not.toContain('dracula');
     });
 });
 

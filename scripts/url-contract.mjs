@@ -15,14 +15,14 @@
 //      That is exactly how a link that reads correctly in the editor emits
 //      broken: the not-found page is rendered at `/404/` and served from the
 //      root.
-//   3. The two application paths serve the application their `app` field names.
-//      `/viewer/` and `/demo/` both resolve to a non-empty index.html whichever
-//      way round they are built, so check 1 is blind to the swap — and the
-//      swap breaks roughly thirty-four IIIF Cookbook recipes, which link
-//      `/viewer/` directly through the cookbook's own `_includes/viewer_link.html`.
-//      That path was kept rather than moved for those links; see the
-//      `/viewer/` entry's note in the manifest. It has gone wrong on the
-//      deployed host once already.
+//   3. An application path serves the application its `app` field names.
+//      Every route of the site resolves to a non-empty index.html, so check 1
+//      cannot tell `/viewer/` from any other page that happens to render a
+//      viewer — and a build that served something else there breaks roughly
+//      thirty-four IIIF Cookbook recipes, which link `/viewer/` directly
+//      through the cookbook's own `_includes/viewer_link.html`. That path was
+//      kept rather than moved for those links; see the `/viewer/` entry's note
+//      in the manifest. It has gone wrong on the deployed host once already.
 //
 // ADVISORY check (warning, exit 0):
 //
@@ -93,23 +93,21 @@ const HOST_CONTROL_FILES = new Set(['CNAME', '_app', 'fonts', 'material']);
  * The meta name every application page carries, whose content is the `app` the
  * page declares itself to be.
  *
- * A marker tag rather than a title or a body string, because the two titles are
- * not distinguishable in both directions: the playground's
- * `Live demo — Triiiceratops IIIF Viewer` contains the bare viewer's
- * `Triiiceratops IIIF Viewer` verbatim, so a substring test passes on a swapped
- * tree in one direction. This is exact-matched, and it is not copy — no reader
- * sees it, so no rewording of a heading or a social card can quietly change what
- * it says.
+ * A marker tag rather than a title or a body string. A title is copy: it gets
+ * reworded, and one page's title routinely contains another's verbatim, so a
+ * substring test can pass on a tree with the wrong page at this path. This is
+ * exact-matched, and no reader sees it, so no rewording of a heading or a social
+ * card can quietly change what it says.
  */
 export const APP_MARKER = 'triiiceratops:app';
 
 /**
  * The manifest field naming which application a path serves.
  *
- * Keyed on the entry rather than on its `owner`: the playground and the bare
- * viewer are both routes of the site application, so one owner builds both and
- * `owner` cannot tell them apart. An entry without this field is not confusable
- * with another application's page and is left alone.
+ * Keyed on the entry rather than on its `owner`: the bare viewer is a route of
+ * the site application like every page around it, so `owner` cannot tell it from
+ * any of them. An entry without this field is not confusable with an
+ * application's page and is left alone.
  */
 const APPLICATION_FIELD = 'app';
 
@@ -367,11 +365,11 @@ function main() {
                 );
             }
             console.error(
-                '    Both applications publish an index.html, so every other check ' +
-                    'passes on a tree with them exchanged. /viewer/ is linked directly ' +
-                    'by the IIIF Cookbook from roughly thirty-four recipes; serving the ' +
-                    'playground there breaks all of them. Check which route ' +
-                    'declares which marker in apps/site/src/routes.',
+                '    Every route publishes an index.html, so every other check passes ' +
+                    'on a tree with the wrong page at this path. /viewer/ is linked ' +
+                    'directly by the IIIF Cookbook from roughly thirty-four recipes; ' +
+                    'serving anything else there breaks all of them. Check which route ' +
+                    'declares the marker in apps/site/src/routes.',
             );
         }
         if (brokenLinks.length > 0) {

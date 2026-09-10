@@ -13,7 +13,7 @@
         type SparseConfig,
     } from '@triiiceratops/config';
     import { Tab, Tabs } from 'uncial/render';
-    import type { ThemeConfig } from 'triiiceratops';
+    import type { BuiltInTheme, ThemeConfig } from 'triiiceratops';
 
     import CopyLine from '$lib/CopyLine.svelte';
     import PageHead from '$lib/PageHead.svelte';
@@ -25,12 +25,16 @@
         CONTROL_GROUPS,
         type BuilderControl,
     } from '$lib/builder/surface';
-    import { TOKEN_GROUPS, type TokenControl } from '$lib/builder/tokens';
+    import {
+        THEME_CHOICES,
+        TOKEN_GROUPS,
+        type TokenControl,
+    } from '$lib/builder/tokens';
     import { FRAMEWORK_GROUP } from '$lib/content';
     import { HERO_EXAMPLE } from '$lib/examples';
-    import { PLAYGROUND_PATH } from '$lib/site';
+    import { DOCUMENTATION_PATH } from '$lib/site';
     import type { SitePlugin } from '$lib/sitePlugins';
-    import { THEME_ATTRIBUTE, currentTheme, type Theme } from '$lib/theme';
+    import { currentTheme } from '$lib/theme';
     import type { ViewerConfig } from '$lib/viewerConfig';
 
     /**
@@ -53,8 +57,8 @@
      * Three kinds of state, kept apart because the viewer takes them as three
      * different inputs. `config` is the viewer's configuration interface, and
      * only the keys the reader actually set are emitted — the sparse algebra for
-     * that is `@triiiceratops/config`'s, shared with the playground, so a share
-     * URL means the same thing on both routes. `themeOverlay` is the public
+     * that is `@triiiceratops/config`'s, which is also what reads a share URL
+     * back. `themeOverlay` is the public
      * theming tokens, and it starts empty for the same reason: an untouched
      * token must stay the reader's own theme's answer rather than this page's.
      * `chosen` is the plugins, which are modules rather than data and therefore
@@ -79,7 +83,28 @@
 
     let manifestUrl = $state(HERO_EXAMPLE.manifest);
     let currentManifest = $state(HERO_EXAMPLE.manifest);
-    let scheme = $state<Theme>('light');
+
+    /**
+     * The theme the reader starts from, always one of the four.
+     *
+     * Named rather than left to the viewer's own defaults, and the snippet
+     * carries the name: an override is only reproducible if the ground under
+     * it is, and `light` — which is what the defaults are — is a ground with a
+     * name. Seeded on mount from the scheme the page is in, so a reader arrives
+     * on a viewer that agrees with the page around it rather than on somebody's
+     * idea of a starting theme.
+     *
+     * It does not go on following the toggle after that. A theme moving under
+     * the values a reader has set is the one thing this control must not do,
+     * and a chip that changed by itself while they were reading it is close
+     * behind.
+     *
+     * The theme is the ground, not a layer over the reader's work: their token
+     * overrides survive a change of it, because that is the relationship the
+     * viewer itself implements — `themeConfig` beats `theme` — and this page is
+     * where it has to be visible. `Start over` is what clears both.
+     */
+    let theme = $state<BuiltInTheme>('light');
 
     /*
      * Whatever the live configuration says that the defaults do not is the
@@ -122,28 +147,8 @@
         tracker = createSparseTracker(defaults, resolved.sparse);
         origin = window.location.origin;
         pathname = window.location.pathname;
+        theme = currentTheme();
         ready = true;
-
-        /*
-         * The preview follows the page's scheme, which the rail's toggle owns
-         * and writes to `<html>`. Watching the attribute is what lets this route
-         * follow it without the layout having to hand a callback down through
-         * every page it renders.
-         */
-        const sync = () => (scheme = currentTheme());
-        sync();
-
-        const media = window.matchMedia('(prefers-color-scheme: dark)');
-        const observer = new MutationObserver(sync);
-        observer.observe(document.documentElement, {
-            attributeFilter: [THEME_ATTRIBUTE],
-        });
-        media.addEventListener('change', sync);
-
-        return () => {
-            observer.disconnect();
-            media.removeEventListener('change', sync);
-        };
     });
 
     /*
@@ -163,13 +168,20 @@
      * reading it would never hear about a change. A fresh copy per run is what
      * makes the three outputs below recompute, and it is a copy for the same
      * reason `applied` is: nothing downstream may write into the tracker.
+     *
+     * A round-trip through JSON rather than `clonePlain`, because it also drops
+     * a retracted key. `record` reports a retraction as `undefined` — that is
+     * what distinguishes it from the value the reader had chosen — and an
+     * overlay carrying `viewingMode: undefined` would reach a developer as a
+     * line of code that says nothing. The overlay is what gets persisted and
+     * shared, so it is JSON either way.
      */
     let userSet = $state<SparseConfig>({});
 
     $effect(() => {
         if (!ready) return;
         const recorded = tracker.record(config as SparseConfig);
-        userSet = clonePlain(recorded);
+        userSet = JSON.parse(JSON.stringify(recorded)) as SparseConfig;
         // A `clean-config` load is a bookmarkable deterministic start: it reads
         // nothing from storage and must write nothing to it either.
         if (!clean) writeStoredConfig(recorded);
@@ -217,9 +229,8 @@
      * reader copies is the state at the moment they copy it.
      *
      * The share URL is built where the reader is standing rather than against a
-     * declared path, which is what makes the same string mean the same thing
-     * under `/demo/`: one origin, one encoding, and `mode` at the value the
-     * playground opens on. It is empty until the URL has been read, because
+     * declared path, so it stays correct under whatever prefix the site is
+     * served from. It is empty until the URL has been read, because
      * `serializeContentState` resolves relative manifests against the current
      * document and there is none while the route prerenders.
      */
@@ -231,7 +242,6 @@
             ? origin +
                   buildShareUrl({
                       pathname,
-                      mode: 'image',
                       target: { manifestId: currentManifest },
                       config: userSet,
                   })
@@ -244,6 +254,7 @@
     const code = $derived.by(() => {
         const output = {
             manifestId: currentManifest,
+            theme,
             config: userSet,
             themeConfig: themeOverlay as Record<string, unknown>,
             plugins: chosen,
@@ -270,7 +281,7 @@
 
     /*
      * The editor's own tabs, which are this route's and not the documentation's:
-     * eleven groups rather than four, and a keyboard reader has to be able to
+     * twelve labels rather than four, and a keyboard reader has to be able to
      * reach every one of them from the tab that has focus.
      */
     const slug = (title: string) =>
@@ -281,19 +292,76 @@
 
     const PLUGIN_SECTION = 'plugins';
 
-    const SECTIONS: readonly { id: string; title: string }[] = [
-        ...CONTROL_GROUPS.map((group) => ({
-            id: slug(group.title),
-            title: group.title,
-        })),
-        { id: PLUGIN_SECTION, title: 'Plugins' },
-        ...TOKEN_GROUPS.map((group) => ({
-            id: slug(group.title),
-            title: group.title,
-        })),
+    /**
+     * The tabs, in the two halves the editor actually has.
+     *
+     * Twelve labels in one undivided row asks a reader to know which of them
+     * are about what the viewer does and which are about what it looks like,
+     * and the two are answered by different inputs and copied out of this page
+     * as different objects. The plugins sit in the first half: a plugin is part
+     * of what the viewer is rather than of how it is painted, whatever else its
+     * own panel says about where it travels.
+     */
+    const TAB_GROUPS: readonly {
+        title: string;
+        sections: readonly { id: string; title: string }[];
+    }[] = [
+        {
+            title: 'The viewer',
+            sections: [
+                ...CONTROL_GROUPS.map((group) => ({
+                    id: slug(group.title),
+                    title: group.title,
+                })),
+                { id: PLUGIN_SECTION, title: 'Plugins' },
+            ],
+        },
+        {
+            title: 'The theme',
+            sections: TOKEN_GROUPS.map((group) => ({
+                id: slug(group.title),
+                title: group.title,
+            })),
+        },
     ];
 
+    /** One roving tab stop over all of them: the groups divide the row, not the widget. */
+    const SECTIONS: readonly { id: string; title: string }[] =
+        TAB_GROUPS.flatMap((group) => group.sections);
+
+    /**
+     * The theming half, which is where the theme itself is offered: the choice
+     * is the ground all five of those groups read through, so it stands at the
+     * head of the group rather than inside one of its tabs, where the other
+     * four would not show what had moved their swatches.
+     */
+    const THEME_SECTIONS = new Set(
+        TOKEN_GROUPS.map((group) => slug(group.title)),
+    );
+
     let section = $state(SECTIONS[0].id);
+    const theming = $derived(THEME_SECTIONS.has(section));
+
+    /**
+     * The choice is offered until there is work of the reader's own for it to
+     * disturb, and then it is fixed.
+     *
+     * A theme moves every token the reader has not set, and a reader who has
+     * set some cannot see from the switcher which of the others would move. So
+     * the moment they set one, the switcher goes and says what it started
+     * from: nothing on this page may quietly change the ground under a value
+     * somebody chose. Until then it is free to try, which is worth keeping —
+     * comparing two themes on your own material is half of why the page exists.
+     *
+     * `Start over` is the way back, and it is the honest one: starting from a
+     * different theme is starting again.
+     */
+    const fixed = $derived(Object.keys(themeOverlay).length > 0);
+
+    /** How the choice is named once it is fixed and only prose can say it. */
+    const startedFrom = $derived(
+        THEME_CHOICES.find((choice) => choice.value === theme)?.label ?? '',
+    );
     let tablist = $state<HTMLDivElement | undefined>(undefined);
 
     const STEPS: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 };
@@ -325,8 +393,34 @@
         setAtPath(config as SparseConfig, [...control.path], value);
     }
 
+    /*
+     * The empty string is the `unset` option's own value, and no value the
+     * configuration declares is ever empty, so it is unambiguous as the
+     * sentinel. `undefined` rather than a delete: the tracker diffs what the
+     * live configuration says against its baseline and never looks for a key
+     * that has gone, so a deleted key would leave the reader's previous choice
+     * standing in the overlay.
+     */
+    function writeChoice(control: BuilderControl, value: string) {
+        write(control, value === '' ? undefined : value);
+    }
+
     function pixels(control: BuilderControl): number {
         return parseFloat(String(read(control) ?? '0'));
+    }
+
+    /*
+     * A slider's readout, rounded to the step it can actually land on.
+     * `animationTimeConstant` defaults to a seventh of a second, and printing
+     * that raw puts sixteen digits in a label a reader is trying to read.
+     */
+    function counted(control: BuilderControl): string {
+        if (control.kind !== 'count') return String(read(control) ?? '');
+        const places = Math.max(
+            0,
+            -Math.floor(Math.log10(control.step) + 1e-9),
+        );
+        return Number(read(control) ?? 0).toFixed(places);
     }
 
     function colour(token: TokenControl): string {
@@ -359,6 +453,7 @@
 
     function startOver() {
         config = clonePlain(BUILDER_DEFAULTS);
+        theme = currentTheme();
         themeOverlay = {};
         chosenIds = [];
         tracker.reset();
@@ -411,7 +506,7 @@
                 manifestId={currentManifest}
                 config={applied}
                 plugins={running}
-                theme={scheme}
+                {theme}
                 themeConfig={themeOverlay}
                 {colourTokens}
                 {lengthTokens}
@@ -422,13 +517,8 @@
 
     <div class="bstage__set">
         <div class="bd__head">
-            <p class="note">
-                Every control names a key of the viewer's own configuration
-                interface, or one of its public theming tokens. Only what you
-                change is carried.
-            </p>
             <button class="btn" type="button" onclick={startOver}>
-                Start over
+                Reset to Default
             </button>
         </div>
 
@@ -438,23 +528,64 @@
             aria-label="Configuration sections"
             bind:this={tablist}
         >
-            {#each SECTIONS as entry, at (entry.id)}
-                <button
-                    type="button"
-                    role="tab"
-                    id="tab-{entry.id}"
-                    aria-controls="pane-{entry.id}"
-                    aria-selected={section === entry.id}
-                    tabindex={section === entry.id ? 0 : -1}
-                    onclick={() => (section = entry.id)}
-                    onkeydown={(event) => steer(event, at)}
-                >
-                    {entry.title}
-                </button>
+            {#each TAB_GROUPS as group (group.title)}
+                <!-- The group's name divides the row and nothing else: a
+                     tablist owns tabs, so this is presentational, and the tabs
+                     themselves are named well enough to be read without it. -->
+                <span class="bd__group" role="presentation">{group.title}</span>
+                {#each group.sections as entry (entry.id)}
+                    {@const at = SECTIONS.findIndex(
+                        (other) => other.id === entry.id,
+                    )}
+                    <button
+                        type="button"
+                        role="tab"
+                        id="tab-{entry.id}"
+                        aria-controls="pane-{entry.id}"
+                        aria-selected={section === entry.id}
+                        tabindex={section === entry.id ? 0 : -1}
+                        onclick={() => (section = entry.id)}
+                        onkeydown={(event) => steer(event, at)}
+                    >
+                        {entry.title}
+                    </button>
+                {/each}
             {/each}
         </div>
 
         <div class="bd__panes">
+            {#if theming && !fixed}
+                <fieldset class="bd__from">
+                    <legend>Start from a theme</legend>
+                    <div class="bd__seg">
+                        {#each THEME_CHOICES as choice (choice.value)}
+                            <label
+                                class="bd__opt"
+                                class:on={theme === choice.value}
+                            >
+                                <input
+                                    type="radio"
+                                    name="theme-start"
+                                    value={choice.value}
+                                    checked={theme === choice.value}
+                                    onchange={() => (theme = choice.value)}
+                                />
+                                <span>{choice.label}</span>
+                            </label>
+                        {/each}
+                    </div>
+                    <p class="note">
+                        Override one or every part of a built-in theme.
+                    </p>
+                </fieldset>
+            {:else if theming}
+                <p class="bd__fixed note">
+                    Started from {startedFrom}, with your own values over it.
+                    <strong>Start over</strong>, above, begins again from any of
+                    them.
+                </p>
+            {/if}
+
             {#each CONTROL_GROUPS as group (group.title)}
                 <div
                     class="pane"
@@ -493,17 +624,40 @@
                                         id={controlId(control)}
                                         value={String(read(control) ?? '')}
                                         onchange={(event) =>
-                                            write(
+                                            writeChoice(
                                                 control,
                                                 event.currentTarget.value,
                                             )}
                                     >
+                                        {#if control.unset}
+                                            <option value="">
+                                                {control.unset}
+                                            </option>
+                                        {/if}
                                         {#each control.choices as choice (choice.value)}
                                             <option value={choice.value}>
                                                 {choice.label}
                                             </option>
                                         {/each}
                                     </select>
+                                </div>
+                            {:else if control.kind === 'colour'}
+                                <div class="row">
+                                    <label for={controlId(control)}>
+                                        {control.label}
+                                    </label>
+                                    <input
+                                        id={controlId(control)}
+                                        type="color"
+                                        value={String(
+                                            read(control) ?? '#000000',
+                                        )}
+                                        oninput={(event) =>
+                                            write(
+                                                control,
+                                                event.currentTarget.value,
+                                            )}
+                                    />
                                 </div>
                             {:else}
                                 <div class="row">
@@ -512,7 +666,7 @@
                                         <span class="row__value">
                                             {control.kind === 'pixels'
                                                 ? `${pixels(control)}px`
-                                                : read(control)}
+                                                : counted(control)}
                                         </span>
                                     </label>
                                     <input
@@ -641,30 +795,23 @@
     <div class="prose">
         <h2 id="take">Take it with you</h2>
         <p>
-            Everything below is the state of the viewer above at the moment you
-            copy it, and all of it sparse: what you changed, and nothing else. A
-            key you never touched stays whatever the manifest, the theme or a
-            later release says it should be.
+            The code blocks below show the current configuration you've set
+            above. You can copy them to use in your own project.
         </p>
     </div>
 
     <div class="hand">
         <section class="hand__one" aria-labelledby="out-config">
-            <h3 id="out-config">The configuration</h3>
-            <p class="note">
-                The viewer's <code>config</code> input, for storing in a content system
-                and handing to whoever builds the page.
-            </p>
+            <h3 id="out-config">Portable Viewer Configuration</h3>
             <CopyLine
                 text={configText}
                 label="configuration object"
                 language="js"
             />
-            <p class="note">
-                The colors and corners travel as a second object, because the
-                viewer takes them as a separate input: <code>themeConfig</code>.
-                It stays empty until you change one.
-            </p>
+        </section>
+
+        <section class="hand__one" aria-labelledby="out-config-theme">
+            <h3 id="out-config-theme">Custom Theme</h3>
             <CopyLine
                 text={themeText}
                 label="theme configuration object"
@@ -673,25 +820,20 @@
         </section>
 
         <section class="hand__one" aria-labelledby="out-link">
-            <h3 id="out-link">The link</h3>
+            <h3 id="out-link">Share Link</h3>
             <p class="note">
-                Send this to a colleague and it opens on your manifest, arranged
-                the way you arranged it. It also opens in the
-                <a class="link" href={PLAYGROUND_PATH}>playground</a>, where the
-                rest of the configuration interface is — same query string, same
-                meaning. It carries the arrangement and the theme; the plugins
-                are packages a build installs, so they travel in the code below.
+                Send this link for someone else to view your configuration or
+                bookmark it for later editing.
             </p>
             <CopyLine text={shareUrl} label="share link" />
         </section>
 
         <section class="hand__one" aria-labelledby="out-code">
-            <h3 id="out-code">The code</h3>
+            <h3 id="out-code">Complete Embeddable Code</h3>
             <p class="note">
-                The whole integration, in the framework you build in — the
-                configuration, the theme and the plugins you turned on. This is
-                the argument the page is making: everything above is
-                configuration, and none of it is a different build.
+                The complete code snippet you can embed in your project,
+                including the configuration, theme, and any plugins you've
+                enabled.
             </p>
             <Tabs group={FRAMEWORK_GROUP} content={frameworkNodes}>
                 {#each FRAMEWORKS as entry (entry.id)}
@@ -722,18 +864,22 @@
     <div class="prose">
         <h2 id="elsewhere">What this page deliberately does not set</h2>
         <p>
-            This is appearance and chrome: where the controls sit, which buttons
-            exist, what the viewer is painted in, and which plugins it is built
-            with. How the viewer reads a manifest is a different question, and
-            it is answered somewhere a reader can experiment without leaving a
-            share link behind.
+            Everything above is something you can look at: where the controls
+            sit, which buttons exist, how the material is presented and how far
+            it zooms, what the viewer is painted in, and which plugins it is
+            built with. What is missing is what has nothing to look at — how
+            requests are made, whether diagnostics are logged, the renderer's
+            memory and fetch budgets, which are measured rather than seen, and
+            an initial search query, which is material rather than
+            configuration. Each of those is a line a developer writes once, and
+            <a class="link" href={DOCUMENTATION_PATH}>the documentation</a>
+            covers them.
         </p>
         <p>
-            Viewing mode and viewing direction, search providers and renderer
-            tuning are set in the
-            <a class="link" href={PLAYGROUND_PATH}>playground</a>, which exposes
-            the whole configuration interface. A URL built there opens here, and
-            a URL built here opens there, and it means the same thing in both.
+            The viewer's own language is not here either. This page speaks
+            whatever your browser asks for, and a deployment either names one
+            with <code>locale</code> or leaves the toolbar's language picker to the
+            reader — a choice with no appearance to preview.
         </p>
     </div>
 </section>

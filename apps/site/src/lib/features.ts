@@ -30,13 +30,14 @@
 
 import type { ThemeConfig, ViewerState } from 'triiiceratops';
 
+import type { DragTarget } from './dragSource';
 import type { Example } from './examples';
 import type { SitePlugin } from './sitePlugins';
 import type { ViewerConfig } from './viewerConfig';
 
 /**
- * The headings the rail runs under, in order. A feature names the one it
- * belongs to, and the rail rules between them.
+ * The kinds of feature the rail is divided into, in order. A feature names the
+ * one it belongs to, and the rail shows one kind at a time.
  *
  * The last two divide by who decided the thing being shown. A publisher writes
  * a manifest and the viewer obeys it; a host registers a plugin or names a
@@ -45,19 +46,35 @@ import type { ViewerConfig } from './viewerConfig';
  * reader is looking at there is the material rather than the package.
  */
 export const FEATURE_GROUPS = [
-    'Moving through the material',
-    'Sound and video',
+    'Image Features',
+    'Sound and Video Features',
     'Notes and text',
-    'What the publisher declares',
-    'What the host application adds',
+    'Metadata',
+    'First Party Plugins',
 ] as const;
 
 export type FeatureGroup = (typeof FEATURE_GROUPS)[number];
 
+/**
+ * What each kind is called on the rail's tab strip.
+ *
+ * Shorter than the group's own name because a tab is read at a glance and five
+ * of them share the width of the rail: the strip is the navigation, and the
+ * word that distinguishes one kind from the next is the whole of what it has
+ * to carry.
+ */
+export const FEATURE_GROUP_TABS: Record<FeatureGroup, string> = {
+    'Image Features': 'Images',
+    'Sound and Video Features': 'Sound & video',
+    'Notes and text': 'Notes & text',
+    Metadata: 'Metadata',
+    'First Party Plugins': 'Plugins',
+};
+
 export type Feature = {
     /** The feature, named for itself. */
     readonly name: string;
-    /** The rail heading this feature sits under. */
+    /** The rail tab this feature sits under. */
     readonly group: FeatureGroup;
     /** What the reader is about to see, in one clause. */
     readonly what: string;
@@ -128,8 +145,8 @@ export type Feature = {
 export type DragChip = {
     /** What the chip says it is. */
     readonly label: string;
-    /** The content state itself, as the JSON a IIIF drop carries. */
-    readonly state: unknown;
+    /** The view the chip's content state names, in this site's own relative ids. */
+    readonly state: DragTarget;
     /**
      * The material this state names, for a chip that names a DIFFERENT manifest
      * from the feature's own — which the stage has to load, credit and reserve a
@@ -298,9 +315,9 @@ const NOTE_ID =
 
 export const FEATURES: readonly Feature[] = [
     {
-        name: 'Deep zoom on a canvas',
-        group: 'Moving through the material',
-        what: 'Nearly four billion pixels, tiled: zoom until single ships show.',
+        name: 'Deep zoom on a single canvas',
+        group: 'Image Features',
+        what: 'Nearly four billion pixels. You can zoom in to see those little ships!',
         material: 'Urbano Monte, Tavola 1–60 (Map of the World), 1587',
         source: LANDING.source,
         example: {
@@ -324,9 +341,9 @@ export const FEATURES: readonly Feature[] = [
         config: bare(),
     },
     {
-        name: 'Thumbnail strip',
-        group: 'Moving through the material',
-        what: 'Every canvas as a strip along the foot, to move between them.',
+        name: 'Thumbnail gallery strip',
+        group: 'Image Features',
+        what: 'Every canvas as a strip to move between them.',
         material: 'Eleven plates, prints and paintings',
         source: LANDING.source,
         example: {
@@ -341,9 +358,9 @@ export const FEATURES: readonly Feature[] = [
         }),
     },
     {
-        name: 'Two-page openings',
-        group: 'Moving through the material',
-        what: 'Leaves paired as facing pages, turned an opening at a time.',
+        name: 'Book view',
+        group: 'Image Features',
+        what: 'Show two canvases at once as a book spread.',
         material: 'Eleven plates, prints and paintings',
         source: LANDING.source,
         example: {
@@ -360,8 +377,8 @@ export const FEATURES: readonly Feature[] = [
     },
     {
         name: 'Continuous scroll',
-        group: 'Moving through the material',
-        what: 'One strip of canvases, scrolled through rather than paged.',
+        group: 'Image Features',
+        what: 'All canvases in a continuous scroll',
         material: 'Eleven plates, prints and paintings',
         source: LANDING.source,
         example: {
@@ -375,8 +392,8 @@ export const FEATURES: readonly Feature[] = [
     },
     {
         name: 'Right to left',
-        group: 'Moving through the material',
-        what: 'The book runs the way it was bound: the next opening is left.',
+        group: 'Image Features',
+        what: 'Canvases read from right to left',
         material: 'A playbill for the Chikugo Theater, Osaka, 1849',
         source: {
             who: 'The IIIF Cookbook',
@@ -397,8 +414,8 @@ export const FEATURES: readonly Feature[] = [
         config: showing({}),
     },
     {
-        name: 'Another order for the leaves',
-        group: 'Moving through the material',
+        name: 'Alternative order of canvases',
+        group: 'Image Features',
         what: 'The same eleven plates in a second order the manifest declares.',
         material: 'Eleven plates, prints and paintings, twice over',
         source: {
@@ -426,8 +443,8 @@ export const FEATURES: readonly Feature[] = [
     },
     {
         name: 'Table of contents',
-        group: 'Moving through the material',
-        what: 'The volume’s own divisions; each entry goes to the leaf it names.',
+        group: 'Image Features',
+        what: 'Navigate to canvases via the table of contents.',
         material: 'Ethiopic Ms 10',
         source: {
             who: 'The IIIF Cookbook',
@@ -443,9 +460,9 @@ export const FEATURES: readonly Feature[] = [
         config: showing({ structures: { open: true } }),
     },
     {
-        name: 'Opens where the publisher says',
-        group: 'Moving through the material',
-        what: 'The same eleven plates, arriving at the one the manifest names.',
+        name: 'Start canvas',
+        group: 'Image Features',
+        what: 'Open on the canvas specified by the manifest instead of the first one.',
         material: 'John James Audubon, Snowy Owl (Plate 121), 1831',
         source: {
             who: 'this site’s own public-domain set',
@@ -462,8 +479,8 @@ export const FEATURES: readonly Feature[] = [
         config: showing({}),
     },
     {
-        name: 'A whole collection',
-        group: 'Moving through the material',
+        name: 'Collection',
+        group: 'Image Features',
         what: 'Four volumes in one collection, moved between in place.',
         material: 'Eleven plates, gathered into four volumes by subject',
         source: {
@@ -492,28 +509,45 @@ export const FEATURES: readonly Feature[] = [
         }),
     },
     {
-        name: 'Video, with captions',
-        group: 'Sound and video',
-        what: 'A newsreel plays in the canvas, its captions burnt in by the viewer.',
-        material: NEWSREEL.material,
-        source: NEWSREEL.source,
-        example: {
-            manifest: NEWSREEL.manifest,
-            canvases: NEWSREEL.canvases,
-            label: 'A captioned film in the canvas',
-            firstCanvas: NEWSREEL.firstCanvas,
+        name: 'Alternative images',
+        group: 'Image Features',
+        what: 'Natural light or x-ray of the same painting, switched in the bar.',
+        material: 'John Dee performing an experiment before Queen Elizabeth I',
+        source: {
+            who: 'The IIIF Cookbook',
+            href: 'https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json',
         },
-        // The bar's tool group opens so the captions control is beside the film
-        // it belongs to; which track is showing is `captionsOn`'s to say, and
-        // the list of tracks to choose between is the next feature's subject.
+        example: {
+            manifest:
+                'https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json',
+            canvases: 1,
+            label: 'Two images of the same page to choose between',
+            firstCanvas: { width: 2000, height: 1271 },
+        },
         config: showing({ toolbarOpen: true }),
-        captionsOn: true,
-        plugin: AV_PLUGIN,
+    },
+    {
+        name: 'Composite image',
+        group: 'Image Features',
+        what: 'Two images combined into one canvas. The illustration, cut out, now digitally reconstructed.',
+        material: 'Folio from Grandes Chroniques de France, ca. 1460',
+        source: {
+            who: 'The IIIF Cookbook',
+            href: 'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json',
+        },
+        example: {
+            manifest:
+                'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json',
+            canvases: 1,
+            label: 'One canvas painted from two photographs',
+            firstCanvas: { width: 7216, height: 5412 },
+        },
+        config: showing({}),
     },
     {
         name: 'Captions in two languages',
-        group: 'Sound and video',
-        what: 'The same film, with its caption tracks listed to choose between.',
+        group: 'Sound and Video Features',
+        what: 'Video with captions available in multiple languages.',
         material: NEWSREEL.material,
         source: NEWSREEL.source,
         example: {
@@ -528,9 +562,9 @@ export const FEATURES: readonly Feature[] = [
         plugin: AV_PLUGIN,
     },
     {
-        name: 'Sound, with its waveform',
-        group: 'Sound and video',
-        what: 'An 1888 cylinder drawn as a timeline the viewer’s zoom sharpens.',
+        name: 'Sound with waveform',
+        group: 'Sound and Video Features',
+        what: 'Display a zoomable waveform provided by the manifest.',
         material: 'The Lost Chord, on an Edison “Perfected” cylinder, 1888',
         source: SOUND.source,
         example: {
@@ -547,8 +581,8 @@ export const FEATURES: readonly Feature[] = [
     },
     {
         name: 'Chapters in a recording',
-        group: 'Sound and video',
-        what: 'Four marches under one cover photograph, the contents seeking between them.',
+        group: 'Sound and Video Features',
+        what: 'Zoomable cover image and chapters for audio.',
         material: MARCHES,
         source: SOUND.source,
         example: {
@@ -562,9 +596,9 @@ export const FEATURES: readonly Feature[] = [
         plugin: AV_PLUGIN,
     },
     {
-        name: 'A transcript you can click into',
-        group: 'Sound and video',
-        what: 'The film’s caption cues as a list; a line seeks the playhead to it.',
+        name: 'Video/audio transcription',
+        group: 'Sound and Video Features',
+        what: 'Transcription with clickable timestamps.',
         material: NEWSREEL.material,
         source: NEWSREEL.source,
         example: {
@@ -577,9 +611,9 @@ export const FEATURES: readonly Feature[] = [
         plugin: AV_PLUGIN,
     },
     {
-        name: 'Notes pinned to the recording',
-        group: 'Sound and video',
-        what: 'Four notes, each at its own second; clicking one seeks to it.',
+        name: 'Time-based text annotations',
+        group: 'Sound and Video Features',
+        what: 'Clickable timestamped notes for audio or video.',
         material: MARCHES,
         source: {
             who: 'this site’s own public-domain set',
@@ -598,9 +632,9 @@ export const FEATURES: readonly Feature[] = [
         plugin: AV_PLUGIN,
     },
     {
-        name: 'A poster before it plays',
-        group: 'Sound and video',
-        what: 'A still stands in the frame until somebody asks for the film.',
+        name: 'Placeholder image',
+        group: 'Sound and Video Features',
+        what: 'A still image to display until playing video.',
         material: 'Donizetti, L’elisir d’amore, Indiana University',
         source: {
             who: 'The IIIF Cookbook',
@@ -613,30 +647,13 @@ export const FEATURES: readonly Feature[] = [
             label: 'A film standing behind its poster frame',
             firstCanvas: { width: 640, height: 360 },
         },
-        // The one feature whose material being enormous is the argument: a
-        // two-hour opera stands behind this canvas, and what a reader is shown
-        // is a 640×360 still. A placeholder Canvas is how a publisher says
-        // "show this until somebody asks for the film", and it is only legible
-        // where the film is something nobody wants by accident.
-        //
-        // Picking it costs about 6 MB, which is the media element's own
-        // `preload="metadata"` reading the head of a 936 MB file — not the
-        // film, and the same order as the newsreel three features above
-        // already fetch whole. Nothing here can lower it: `preload` is the
-        // plugin's, and a poster is what saves the rest.
-        //
-        // Audio cannot carry this feature, which is why it is not on the sound
-        // set. There the photograph is an `accompanyingCanvas` and stays for
-        // the whole of playback, which is the better treatment for a recording
-        // with nothing to look at — republishing it as a placeholder only made
-        // that canvas worse.
         config: showing({}),
         plugin: AV_PLUGIN,
     },
     {
-        name: 'Opens at the moment named',
-        group: 'Sound and video',
-        what: 'Not a leaf but a second: the playhead arrives inside a march.',
+        name: 'Start at a specific time',
+        group: 'Sound and Video Features',
+        what: 'Start playback at a specific time within the media.',
         material: MARCHES,
         source: {
             who: 'this site’s own public-domain set',
@@ -655,9 +672,9 @@ export const FEATURES: readonly Feature[] = [
         plugin: AV_PLUGIN,
     },
     {
-        name: 'Whichever format will play',
-        group: 'Sound and video',
-        what: 'One recording published six ways; the one this browser plays is taken.',
+        name: 'Media format choice',
+        group: 'Sound and Video Features',
+        what: 'Defaults to the first option supported by the current browser.',
         material: 'Excerpt from Egbe Iyawo, Kabba Division, Kwara State',
         source: {
             who: 'The IIIF Cookbook',
@@ -679,9 +696,9 @@ export const FEATURES: readonly Feature[] = [
         plugin: AV_PLUGIN,
     },
     {
-        name: 'Annotations',
+        name: 'Simple rectangle annotation',
         group: 'Notes and text',
-        what: 'A note in two languages, selected, tied to the part it marks.',
+        what: 'Annotation text in multiple languages, with connector to target.',
         material: 'Koto, chess, calligraphy, and painting',
         source: {
             who: 'The IIIF Cookbook',
@@ -698,9 +715,9 @@ export const FEATURES: readonly Feature[] = [
         drive: (viewer) => viewer.setActiveAnnotationId(NOTE_ID),
     },
     {
-        name: 'A note that is not a rectangle',
+        name: 'Polygon annotation',
         group: 'Notes and text',
-        what: 'An outline traced around the bread basket, and the note it carries.',
+        what: 'An outline traced around the bread basket.',
         material: 'Johannes Vermeer, The Milkmaid, ca. 1660',
         source: {
             who: 'this site’s own public-domain set',
@@ -717,9 +734,9 @@ export const FEATURES: readonly Feature[] = [
             viewer.setActiveAnnotationId('/material/outline/annotation/basket'),
     },
     {
-        name: 'A note pinned to a point',
+        name: 'Point annotation',
         group: 'Notes and text',
-        what: 'Not a box and not an outline: one point on the plate, marked.',
+        what: 'A single point, no bounding box or outline.',
         material:
             'Andreas Cellarius, Scenographia Systematis Copernicani (Plate 5), 1661',
         source: {
@@ -737,9 +754,9 @@ export const FEATURES: readonly Feature[] = [
             viewer.setActiveAnnotationId('/material/point/annotation/sun'),
     },
     {
-        name: 'Tags, and a note on the leaf',
+        name: 'Annotations that target the entire canvas',
         group: 'Notes and text',
-        what: 'Two tags as badges, and a note that marks no region at all.',
+        what: 'Text comment and two tags, all targeting the entire canvas.',
         material:
             'Anna Atkins, Dictyota dichotoma, in the young state and in fruit',
         source: {
@@ -758,9 +775,9 @@ export const FEATURES: readonly Feature[] = [
         config: showing({ annotations: { open: true } }),
     },
     {
-        name: 'Notes kept in another file',
+        name: 'Annotations from an external source',
         group: 'Notes and text',
-        what: 'The canvas names a page of notes; the viewer goes and gets it.',
+        what: 'Render linked annotations from an annotation server.',
         material: 'Aleppo Codex, Deuteronomy page P. 2-5-v, 10th century',
         source: {
             who: 'this site’s own public-domain set',
@@ -781,9 +798,9 @@ export const FEATURES: readonly Feature[] = [
             ),
     },
     {
-        name: 'Search inside the text',
+        name: 'IIIF Content Search',
         group: 'Notes and text',
-        what: 'A word looked up in the library’s own transcription, hit by hit.',
+        what: 'Supports versions 2.0, 1.0, and 0.9 of the content search API.',
         material: 'Fritz Bolle, Wunder der Vererbung',
         source: {
             who: 'Wellcome Collection',
@@ -805,27 +822,27 @@ export const FEATURES: readonly Feature[] = [
         config: showing({ search: { open: true, query: 'Vererbung' } }),
     },
     {
-        name: 'Catalog metadata',
-        group: 'What the publisher declares',
-        what: 'The label, the summary and the fields, as published.',
+        name: 'IIIF resource metadata',
+        group: 'Metadata',
+        what: 'Metadata at the collection, manifest, and canvas levels.',
         material: 'Ernst Haeckel, Discomedusae (Plate 8), 1904',
-        source: LANDING.source,
+        source: {
+            who: 'this site’s own public-domain set',
+            href: '/material/links/manifest.json',
+        },
         example: {
-            manifest: LANDING.manifest,
-            canvases: LANDING.canvases,
-            label: 'The material’s own catalog entry',
+            manifest: '/material/links/manifest.json',
+            canvases: 1,
+            label: 'A manifest’s links out to the record and the files',
             firstCanvas: { width: 3645, height: 5267 },
         },
-        canvasId: LANDING.plate,
         config: showing({ information: { open: true } }),
-        // The entry would otherwise sit near-white on the stage: the panel
-        // inherits the paper every panel wears, and here it floats over cream.
         themeConfig: { metadataPanelBg: 'var(--bench)' },
     },
     {
-        name: 'The languages it is written in',
-        group: 'What the publisher declares',
-        what: 'Every field in four languages, and the picker that switches them.',
+        name: 'Multilingual metadata',
+        group: 'Metadata',
+        what: 'Switch between languages provided by the manifest.',
         material: 'Three paintings, cataloged in several languages',
         source: {
             who: 'this site’s own public-domain set',
@@ -847,62 +864,8 @@ export const FEATURES: readonly Feature[] = [
         themeConfig: { metadataPanelBg: 'var(--bench)' },
     },
     {
-        name: 'Links out of the viewer',
-        group: 'What the publisher declares',
-        what: 'The record it came from, the data behind it, the file to take away.',
-        material: 'Ernst Haeckel, Discomedusae (Plate 8), 1904',
-        source: {
-            who: 'this site’s own public-domain set',
-            href: '/material/links/manifest.json',
-        },
-        example: {
-            manifest: '/material/links/manifest.json',
-            canvases: 1,
-            label: 'A manifest’s links out to the record and the files',
-            firstCanvas: { width: 3645, height: 5267 },
-        },
-        config: showing({ information: { open: true } }),
-        themeConfig: { metadataPanelBg: 'var(--bench)' },
-    },
-    {
-        name: 'Alternative images',
-        group: 'What the publisher declares',
-        what: 'Natural light or x-ray of the same painting, switched in the bar.',
-        material: 'John Dee performing an experiment before Queen Elizabeth I',
-        source: {
-            who: 'The IIIF Cookbook',
-            href: 'https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json',
-        },
-        example: {
-            manifest:
-                'https://iiif.io/api/cookbook/recipe/0033-choice/manifest.json',
-            canvases: 1,
-            label: 'Two images of the same page to choose between',
-            firstCanvas: { width: 2000, height: 1271 },
-        },
-        config: showing({ toolbarOpen: true }),
-    },
-    {
-        name: 'One canvas from several images',
-        group: 'What the publisher declares',
-        what: 'A folio photographed in two halves, placed as one leaf.',
-        material: 'Folio from Grandes Chroniques de France, ca. 1460',
-        source: {
-            who: 'The IIIF Cookbook',
-            href: 'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json',
-        },
-        example: {
-            manifest:
-                'https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/manifest.json',
-            canvases: 1,
-            label: 'One canvas painted from two photographs',
-            firstCanvas: { width: 7216, height: 5412 },
-        },
-        config: showing({}),
-    },
-    {
-        name: 'A leaf whose image is missing',
-        group: 'What the publisher declares',
+        name: 'Gracefully handle missing images',
+        group: 'Metadata',
         what: 'A canvas the server has no picture for, still counted and navigable.',
         material: 'A plate, and a leaf whose image is missing',
         source: {
@@ -919,30 +882,9 @@ export const FEATURES: readonly Feature[] = [
         config: showing({}),
     },
     {
-        name: 'Published as the older IIIF',
-        group: 'What the publisher declares',
-        what: 'A Presentation 2.1 document: sequences, images, older spellings.',
-        material: 'Three plates, described in IIIF Presentation 2.1',
-        source: {
-            who: 'this site’s own public-domain set',
-            href: '/material/presentation2/manifest.json',
-        },
-        example: {
-            manifest: '/material/presentation2/manifest.json',
-            canvases: 3,
-            label: 'A manifest written in the older Presentation vocabulary',
-            firstCanvas: { width: 1335, height: 1908 },
-        },
-        // The information panel, because the difference between the two
-        // versions is all in the description: `description`, `attribution` and
-        // `license` where 3.0 has `summary`, `requiredStatement` and `rights`.
-        config: showing({ information: { open: true } }),
-        themeConfig: { metadataPanelBg: 'var(--bench)' },
-    },
-    {
-        name: 'Dragged in from outside',
-        group: 'What the publisher declares',
-        what: 'Drag either chip onto the viewer: one names a region, one a whole manifest.',
+        name: 'Drag and drop IIIF content state',
+        group: 'Metadata',
+        what: 'Drag either chip onto the viewer.',
         material: 'Johannes Vermeer, The Milkmaid, ca. 1660',
         source: LANDING.source,
         example: {
@@ -953,41 +895,22 @@ export const FEATURES: readonly Feature[] = [
         },
         canvasId: '/material/landing/canvas/milkmaid',
         config: showing({}),
-        // Two chips because a content state carries two different sizes of
-        // thing, and only the second shows the interesting half: a region names
-        // where to look inside material the stage already has, while a manifest
-        // names material it does not — so the stage has to fetch it, credit it,
-        // and reserve a box shaped like its first canvas. Either chip dropped
-        // while the other's material is showing carries the stage back.
         dragPayloads: [
             {
                 label: 'The bread basket',
                 state: {
-                    '@context':
-                        'http://iiif.io/api/presentation/3/context.json',
                     id: '/material/landing/content-state/milkmaid-basket',
-                    type: 'Annotation',
-                    motivation: ['contentState'],
-                    target: '/material/landing/canvas/milkmaid#xywh=351,3243,1055,751',
-                    partOf: {
-                        id: '/material/landing/manifest.json',
-                        type: 'Manifest',
-                    },
+                    canvasId:
+                        '/material/landing/canvas/milkmaid#xywh=351,3243,1055,751',
+                    manifestId: '/material/landing/manifest.json',
                 },
             },
             {
                 label: 'Another manifest entirely',
                 state: {
-                    '@context':
-                        'http://iiif.io/api/presentation/3/context.json',
                     id: '/material/multilingual/content-state/hiroshige',
-                    type: 'Annotation',
-                    motivation: ['contentState'],
-                    target: '/material/multilingual/canvas/hiroshige',
-                    partOf: {
-                        id: '/material/multilingual/manifest.json',
-                        type: 'Manifest',
-                    },
+                    canvasId: '/material/multilingual/canvas/hiroshige',
+                    manifestId: '/material/multilingual/manifest.json',
                 },
                 carries: {
                     example: {
@@ -1007,9 +930,9 @@ export const FEATURES: readonly Feature[] = [
         ],
     },
     {
-        name: 'Image tools, from a plugin',
-        group: 'What the host application adds',
-        what: 'Brightness, contrast and rotation, added by a separate package.',
+        name: 'Image modification plugin',
+        group: 'First Party Plugins',
+        what: 'Adjust brightness, contrast, saturation, invert colors, or make grayscale.',
         material: 'Ernst Haeckel, Discomedusae (Plate 8), 1904',
         source: LANDING.source,
         example: {
@@ -1028,9 +951,9 @@ export const FEATURES: readonly Feature[] = [
                 .ImageManipulationPlugin as unknown as SitePlugin,
     },
     {
-        name: 'Pages taken away as a PDF',
-        group: 'What the host application adds',
-        what: 'A range of leaves as one PDF, the printed lines selectable.',
+        name: 'PDF export plugin',
+        group: 'First Party Plugins',
+        what: 'If the canvases contain OCR text as annotations, it is included as selectable text.',
         material: 'Two plates, with their printed lines transcribed',
         source: {
             who: 'this site’s own public-domain set',
@@ -1053,9 +976,9 @@ export const FEATURES: readonly Feature[] = [
         plugin: PDF_PLUGIN,
     },
     {
-        name: 'The leaf downloaded as an image',
-        group: 'What the host application adds',
-        what: 'The sizes a level-0 service will actually answer, and no others.',
+        name: 'Image download plugin',
+        group: 'First Party Plugins',
+        what: 'Download the canvas, which may hold one or more images.',
         material: 'Ernst Haeckel, Discomedusae (Plate 8), 1904',
         source: LANDING.source,
         example: {
@@ -1070,28 +993,5 @@ export const FEATURES: readonly Feature[] = [
             plugins: { 'image-download': { open: true } },
         }),
         plugin: IMAGE_DOWNLOAD_PLUGIN,
-    },
-    {
-        name: 'A viewer in another language',
-        group: 'What the host application adds',
-        what: 'The viewer’s own words in German, asked for by the page.',
-        material: 'Ernst Haeckel, Discomedusae (Plate 8), 1904',
-        source: LANDING.source,
-        example: {
-            manifest: LANDING.manifest,
-            canvases: LANDING.canvases,
-            label: 'The viewer’s chrome rendered in German',
-            firstCanvas: { width: 3645, height: 5267 },
-        },
-        canvasId: LANDING.plate,
-        // The material is written in one language, which is the point: this is
-        // the CHROME's language, not the manifest's, and the two are separate
-        // settings. The viewing-mode menu stands open because it is the
-        // longest run of the viewer's own words the bar can show at once.
-        config: showing({
-            locale: 'de',
-            toolbarOpen: true,
-            openMenu: 'viewing-mode',
-        }),
     },
 ];

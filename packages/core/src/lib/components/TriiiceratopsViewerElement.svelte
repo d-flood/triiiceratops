@@ -48,6 +48,12 @@
                 type: 'Boolean',
                 reflect: false,
             },
+            // A real HTML boolean attribute, on the same terms.
+            acceptDroppedContentState: {
+                attribute: 'accept-dropped-content-state',
+                type: 'Boolean',
+                reflect: false,
+            },
             themeConfig: {
                 attribute: 'theme-config',
                 type: 'String',
@@ -118,6 +124,7 @@
         canvasId = '',
         contentState = '',
         readContentStateFromUrl = false,
+        acceptDroppedContentState = false,
         plugins = [],
         theme = undefined as string | undefined,
         themeConfig = undefined as string | ThemeConfig | undefined,
@@ -143,6 +150,7 @@
          * mutated.
          */
         readContentStateFromUrl?: boolean;
+        acceptDroppedContentState?: boolean;
         /**
          * Framework-neutral `SdkPlugin`s. A property-only input (there is no
          * supported `plugins` attribute): assign `element.plugins = [...]`,
@@ -323,6 +331,7 @@
         {canvasId}
         {contentState}
         readContentStateFromUrl={!!readContentStateFromUrl}
+        acceptDroppedContentState={!!acceptDroppedContentState}
         {plugins}
         theme={validatedTheme}
         themeConfig={parsedThemeConfig}

@@ -11,9 +11,9 @@ import { absolute } from '$lib/site';
  * but it is published prose and a crawler is offered it.
  *
  * This is the published sitemap: one build emits the whole tree, so nothing
- * re-roots or merges it afterwards. The playground and the bare viewer are
- * deliberately absent — a canvas application is not prose a crawler has any use
- * for, and `/sitemap.xml`'s entry in site-urls.json says so.
+ * re-roots or merges it afterwards. The bare viewer is deliberately absent — a
+ * canvas application is not prose a crawler has any use for, and
+ * `/sitemap.xml`'s entry in site-urls.json says so.
  */
 export const prerender = true;
 

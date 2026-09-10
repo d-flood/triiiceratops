@@ -112,7 +112,7 @@ describe('the features', () => {
             (feature) => feature.config.controls !== 'unified',
         );
         expect(chromeless.map((feature) => feature.name)).toEqual([
-            'Deep zoom on a canvas',
+            'Deep zoom on a single canvas',
         ]);
         for (const { name, config } of chromeless) {
             expect(config.controls, name).toBe('split');
@@ -226,13 +226,12 @@ describe('the features', () => {
         expect(chips.length).toBeGreaterThan(1);
 
         for (const chip of chips) {
-            const state = chip.state as { partOf?: { id?: string } };
             // Every chip has to name a manifest the stage can actually show:
             // the stage resolves the drop itself, and it owes the reader a
             // credit line and a reserved shape for whatever it loads. So a
             // chip names either the feature's own manifest or the one it
             // carries the material for.
-            expect(state.partOf?.id, chip.label).toBe(
+            expect(chip.state.manifestId, chip.label).toBe(
                 chip.carries?.example.manifest ?? feature.example.manifest,
             );
         }

@@ -7,9 +7,9 @@
  *
  * The colour, type and space tokens and the three self-hosted faces are not
  * here: they are `@triiiceratops/shell`, imported above and shared with the
- * playground at /demo/, so the two surfaces cannot drift into two identities.
- * That package's `src/palette.ts` carries the measured contrast table, and its
- * unit suite holds the two to the same values.
+ * bare viewer at /viewer/, so the two surfaces cannot drift into two
+ * identities. That package's `src/palette.ts` carries the measured contrast
+ * table, and its unit suite holds the two to the same values.
  */
 
 *,
@@ -342,7 +342,7 @@ code {
     background: var(--amber);
     color: var(--amber-ink);
 }
-.rail__out .demo {
+.rail__out .builder {
     background: var(--cta);
     color: var(--cta-ink);
 }
@@ -1950,7 +1950,9 @@ code {
    including the double-width paged opening — letterbox inside it rather than
    resizing the page. The switcher stays outside the viewer chrome: the
    viewer's own pager turns the leaves of the material showing, the rail turns
-   the materials.
+   the materials. The rail's tab strip divides those materials by kind and
+   lists one kind at a time, so its height is a group's rather than the whole
+   list's.
    -------------------------------------------------------------------- */
 .featstage {
     display: grid;
@@ -1977,18 +1979,41 @@ code {
     border-right: 1px solid var(--rule);
     overflow-y: auto;
 }
-.featstage__head {
-    margin-top: var(--s3);
-    padding-bottom: var(--s1);
-    border-bottom: 1px solid var(--rule-2);
-    color: var(--ink-2);
-    font-size: var(--t-tiny);
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+/* The strip that divides the rail into its five kinds of feature. It stays put
+   while the list under it scrolls: the strip is how a reader moves between
+   kinds, and one that scrolled away with the list would strand them among
+   options with no way back but the scrollbar. */
+.featstage__tabs {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s1);
+    padding-bottom: var(--s2);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bench);
 }
-.featstage__head:first-child {
-    margin-top: 0;
+.featstage__tab {
+    padding: var(--s1) var(--s3);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+    font-weight: 600;
+    cursor: pointer;
+}
+.featstage__tab:hover {
+    background: var(--paper);
+}
+.featstage__tab.on {
+    border-color: var(--cta);
+    background: var(--paper);
+    color: var(--ink);
+}
+.featstage__tab:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
 }
 .featstage__group {
     display: flex;
@@ -2051,6 +2076,98 @@ code {
 .featstage__viewer.over {
     outline: 2px dashed var(--cta);
     outline-offset: -6px;
+}
+
+/* ---- Recipe bench: the catalog beside one viewer -----------------------
+   The same two-column stage as the material classes above, and deliberately
+   not the same rules: that stage's rail carries four kinds of feature and this
+   one carries every manifest the workspace tracks, so the two are free to move
+   apart. The list scrolls within a stage of fixed height rather than growing
+   the page — forty recipes above the viewer would put the thing they are all
+   about off the bottom of the screen.
+   -------------------------------------------------------------------- */
+.recstage {
+    display: grid;
+    /* Wider than the feature rail: a recipe's label carries its number and its
+       Cookbook name, which is longer than a feature's. */
+    grid-template-columns: 400px minmax(0, 1fr);
+    height: 720px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bench);
+}
+.recstage__viewer {
+    display: grid;
+    min-height: 0;
+    padding: var(--s5);
+}
+/* Standing in for the viewer until it has loaded, and centred in the box it
+   will take, so nothing moves when it arrives. */
+.recstage__wait {
+    place-self: center;
+    color: var(--ink-2);
+}
+.recstage__rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    min-height: 0;
+    padding: var(--s5) var(--s4) var(--s5) var(--s5);
+    border-right: 1px solid var(--rule);
+    overflow-y: auto;
+}
+.recstage__head {
+    margin-top: var(--s3);
+    padding-bottom: var(--s1);
+    border-bottom: 1px solid var(--rule-2);
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.recstage__head:first-child {
+    margin-top: 0;
+}
+.recstage__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.recstage__opt {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--s1) var(--s3);
+    border: 1px solid transparent;
+    text-align: left;
+    font-size: var(--t-small);
+    cursor: pointer;
+}
+.recstage__opt:hover {
+    background: var(--paper);
+}
+.recstage__opt.on {
+    border-color: var(--cta);
+    background: var(--paper);
+    font-weight: 600;
+}
+.recstage__opt:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+}
+/* The catalog's own verdict, and the only thing on the row that is not the
+   manifest's name. Italic rather than coloured: a row is already marked by its
+   ground when it is the one showing, and a second colour there would read as a
+   third state. */
+.recstage__say {
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    font-style: italic;
 }
 
 /* ---- Link rows: a ruled list of links ---------------------------------- */
@@ -2154,6 +2271,22 @@ code {
        every one of them is about. Half the viewport, so the stage's own top is
        on screen from the start. */
     .featstage__rail {
+        max-height: 50svh;
+        border-right: 0;
+        border-bottom: 1px solid var(--rule);
+    }
+    /* The recipe bench stacks the same way, and needs the capped rail more
+       than the feature stage does: its list is every manifest the workspace
+       tracks. */
+    .recstage {
+        display: block;
+        height: auto;
+    }
+    .recstage__viewer {
+        height: 62svh;
+        min-height: 420px;
+    }
+    .recstage__rail {
         max-height: 50svh;
         border-right: 0;
         border-bottom: 1px solid var(--rule);
@@ -2344,12 +2477,27 @@ code {
 }
 
 /* The site's own tab hand — a ruled row of labels rather than a strip of
-   buttons — wrapped, because this group has eleven labels and the column it
+   buttons — wrapped, because this group has twelve labels and the column it
    sits in is a column rather than a page. */
 .bstage .bd__tabs {
     display: flex;
     flex-wrap: wrap;
     border-bottom: 1px solid var(--rule);
+}
+/* Each half's name takes a line of its own rather than sitting inline with the
+   first of its tabs: a wrapped row puts the break wherever the column happens
+   to end, and a divider that lands mid-group divides nothing. */
+.bstage .bd__group {
+    flex: 0 0 100%;
+    margin-top: var(--s2);
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.bstage .bd__tabs .bd__group:first-child {
+    margin-top: 0;
 }
 .bstage .bd__tabs button {
     padding: var(--s2);
@@ -2369,6 +2517,92 @@ code {
 .bstage .bd__tabs button:focus-visible {
     outline: 2px solid var(--link);
     outline-offset: -2px;
+}
+
+/* The theming half's own head: the theme every control under it reads through,
+   which is why it stands outside the five panes rather than in one of them.
+   A fieldset for the group's name, so the choice is named without ARIA.
+
+   The chips are the front page's segmented control — native radios under labels
+   that cover them, for the arrow keys, the roving tab stop and the group
+   semantics — at this route's smaller type. */
+.bstage .bd__from {
+    margin: 0 0 var(--s4);
+    padding: 0;
+    border: 0;
+}
+.bstage .bd__from legend {
+    padding: 0;
+    margin-bottom: var(--s2);
+    font-size: var(--t-small);
+    font-weight: 600;
+}
+.bstage .bd__from .note {
+    margin: var(--s2) 0 0;
+    font-size: var(--t-tiny);
+}
+/* What stands where the switcher stood, holding the same place in the column
+   so the panes below do not move when it is replaced. */
+.bstage .bd__fixed {
+    margin: 0 0 var(--s4);
+}
+.bstage .bd__fixed strong {
+    font-weight: 600;
+    color: var(--ink);
+}
+.bstage .bd__seg {
+    /* Hugging its chips rather than filling the column: the box is the choice,
+       and a rule running on past the last chip reads as a field with room in
+       it. It wraps instead of overflowing — this column is 30rem at its
+       widest and narrower than that on a phone. */
+    display: inline-flex;
+    flex-wrap: wrap;
+    max-width: 100%;
+    border: 1px solid var(--rule-2);
+}
+.bstage .bd__opt {
+    position: relative;
+    /* Sized to its own text rather than to an equal share: the five labels are
+       not the same length, and this column is 30rem at its widest. */
+    flex: 0 1 auto;
+    min-width: 0;
+    display: grid;
+    place-items: center;
+    padding: var(--s1) var(--s2);
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    text-align: center;
+    cursor: pointer;
+}
+.bstage .bd__opt + .bd__opt {
+    border-left: 1px solid var(--rule-2);
+}
+.bstage .bd__opt:hover {
+    color: var(--ink);
+}
+.bstage .bd__opt.on {
+    background: var(--cta);
+    color: var(--cta-ink);
+    font-weight: 600;
+}
+/* Out of the flow rather than `display: none`, which takes a radio out of its
+   group's keyboard navigation as well as out of the layout. */
+.bstage .bd__opt input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.bstage .bd__opt:has(input:focus-visible) {
+    outline: 2px solid var(--link);
+    outline-offset: -2px;
+}
+/* Orange on orange is not a focus ring. */
+.bstage .bd__opt.on:has(input:focus-visible) {
+    outline-color: var(--cta-ink);
 }
 
 /* Only the pane in view is in flow, so the scroller measures one group. */

@@ -592,7 +592,7 @@ is the store)
 
 **Shipped surface**:
 What a published package contains: only what the viewer strictly needs in order to
-run. Everything that exists for the playground or for a test is kept out
+run. Everything that exists for an application or for a test is kept out
 _structurally_ — it lives where the build cannot reach it — rather than by a policy
 asking authors to remember. Four mechanisms hold that line.
 `packages/core/src/packaging/pruneDist.ts` trims what `svelte-package` copied wholesale:

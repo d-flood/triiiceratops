@@ -31,7 +31,7 @@
  * re-deriving that evidence across the documentation is not the same piece of
  * work as holding it.
  *
- * The playground and the bare viewer are outside the gate entirely. A
+ * The bare viewer is outside the gate entirely. A
  * performance score on a canvas application measures the manifest it was handed,
  * and the deterministic categories on an application shell measure little more.
  *

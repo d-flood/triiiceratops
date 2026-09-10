@@ -164,9 +164,9 @@ The web component can also load manifest JSON directly via the `manifestJson` pr
 
 ## Development
 
-The whole published site — the marketing routes, the documentation, the
-playground and the bare viewer — is one SvelteKit application, so the workspace
-dependencies are the only install:
+The whole published site — the marketing routes, the documentation and the
+bare viewer — is one SvelteKit application, so the workspace dependencies are
+the only install:
 
 ```bash
 pnpm install

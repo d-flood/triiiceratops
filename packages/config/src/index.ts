@@ -346,20 +346,22 @@ function parseSharedConfig(param: string | null): SparseConfig {
 /**
  * The share URL. The view travels as a content state, configuration travels as
  * its own parameter, and configuration never enters the content state.
+ *
+ * A URL already sent may carry a `mode` parameter, which the playground
+ * switched its own view on. Nothing reads it — the resolvers below name the
+ * parameters they want — so such a link still resolves to exactly the view and
+ * configuration it carried; `shareUrl.fixtures.test.ts` holds that.
  */
 export function buildShareUrl({
     pathname,
-    mode,
     target,
     config,
 }: {
     pathname: string;
-    mode: string;
     target: ViewTarget;
     config: SparseConfig;
 }): string {
     const params = new URLSearchParams();
-    params.set('mode', mode);
 
     const contentState = serializeContentState(target);
     if (contentState) params.set(IIIF_CONTENT_PARAM, contentState);
@@ -441,8 +443,16 @@ export function resolveInitialView(search: string | URLSearchParams): {
  */
 export type DropPayloadSource = Pick<DataTransfer, 'types' | 'getData'>;
 
-/** The flavours a IIIF drag source can deliver a content state in. */
-const DROP_TYPES = ['text/uri-list', 'text/plain'] as const;
+/**
+ * The one flavour cookbook recipe 0599 and Content State API §3.4 define for
+ * drag and drop. A drag source sets the content state on `text/plain` and a
+ * destination reads it from there; nothing else is part of the exchange.
+ *
+ * Notably not `text/uri-list`: recipe 0599's drag source is an `<img>`, and a
+ * browser fills that flavour with the image's own `src` before `dragstart`
+ * runs, so a reader that consults it gets the IIIF logo instead of the state.
+ */
+const DROP_TYPE = 'text/plain';
 
 /**
  * Whether a drag in flight carries something that could be a content state.
@@ -452,51 +462,22 @@ const DROP_TYPES = ['text/uri-list', 'text/plain'] as const;
 export function carriesContentState(
     transfer: DropPayloadSource | null | undefined,
 ): boolean {
-    if (!transfer) return false;
-    return DROP_TYPES.some((type) => transfer.types.includes(type));
-}
-
-/**
- * The first URI of a `text/uri-list`. The format permits several, each on its
- * own line, and `#`-prefixed comment lines among them.
- */
-function firstUri(value: string): string {
-    for (const line of value.split(/\r?\n/)) {
-        const trimmed = line.trim();
-        if (trimmed && !trimmed.startsWith('#')) return trimmed;
-    }
-    return '';
+    return transfer?.types.includes(DROP_TYPE) ?? false;
 }
 
 /**
  * The content state a drop carries, ready for `parseContentState`, or `null`.
  *
- * Three payload shapes reach here and all three come out as one string: a link
- * whose query carries `iiif-content` (recipe 0466's link, dragged rather than
- * clicked) yields the parameter's value; a bare manifest URL and a stringified
- * content-state document (recipe 0599's own drag source, which the Content State
- * API requires be offered as `text/plain`) pass through untouched.
+ * Recipe 0599 drags a stringified content-state Annotation; the Content State
+ * API also allows a bare Manifest URI as a state in its own right. Both are
+ * text, and `parseContentState` tells them apart, so the payload passes through
+ * untouched.
  */
 export function readDroppedContentState(
     transfer: DropPayloadSource | null | undefined,
 ): string | null {
-    if (!transfer) return null;
+    if (!carriesContentState(transfer)) return null;
 
-    let payload = '';
-    for (const type of DROP_TYPES) {
-        if (!transfer.types.includes(type)) continue;
-        const raw = transfer.getData(type) ?? '';
-        payload = type === 'text/uri-list' ? firstUri(raw) : raw.trim();
-        if (payload) break;
-    }
-    if (!payload) return null;
-
-    try {
-        const carried = new URL(payload).searchParams.get(IIIF_CONTENT_PARAM);
-        if (carried?.trim()) return carried.trim();
-    } catch {
-        // Not a URL, so it is the content state itself.
-    }
-
-    return payload;
+    const payload = (transfer?.getData(DROP_TYPE) ?? '').trim();
+    return payload || null;
 }

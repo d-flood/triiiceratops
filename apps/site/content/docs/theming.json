@@ -485,11 +485,11 @@
 				},
 				{
 					"type": "text",
-					"text": "). Theme names are case-sensitive. When no theme is set, the viewer follows the OS "
+					"text": "). Theme names are case-sensitive. Set no theme and the viewer paints "
 				},
 				{
 					"type": "text",
-					"text": "prefers-color-scheme",
+					"text": "light",
 					"marks": [
 						{
 							"type": "code"
@@ -498,7 +498,20 @@
 				},
 				{
 					"type": "text",
-					"text": " defaults and can inherit CSS variables from the host/page."
+					"text": ": which scheme a reader sees is the page's decision rather than the component's, so follow their own preference where you want that — "
+				},
+				{
+					"type": "text",
+					"text": "theme={prefersDark ? 'dark' : 'light'}",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". A viewer can also inherit CSS variables from the host page."
 				}
 			],
 			"attrs": {

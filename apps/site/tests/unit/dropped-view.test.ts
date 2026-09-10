@@ -1,13 +1,13 @@
 /**
- * The playground's drop seam. Nothing drives the playground in a browser, and
- * jsdom implements neither `DataTransfer` nor `DragEvent`, so the handler is
- * tested where it is a function of a payload rather than of an event.
+ * The drop seam a host with its own manifest selection uses. jsdom implements
+ * neither `DataTransfer` nor `DragEvent`, so the handler is tested where it is
+ * a function of a payload rather than of an event.
  */
 
 import { describe, expect, it } from 'vitest';
 import type { DropPayloadSource } from '@triiiceratops/config';
 
-import { resolveDroppedView } from '$lib/playground/drop';
+import { resolveDroppedView } from '$lib/droppedView';
 
 const MANIFEST =
     'https://iiif.io/api/cookbook/recipe/0599-drag-and-drop/manifest.json';
@@ -20,6 +20,10 @@ function plain(text: string): DropPayloadSource {
     };
 }
 
+/**
+ * A drag whose only flavour is the one a browser fills in for an image source,
+ * as recipe 0599's is. It carries no content state and must resolve to nothing.
+ */
 function uriList(text: string): DropPayloadSource {
     return {
         types: ['text/uri-list'],
@@ -42,7 +46,7 @@ function contentStateDocument(fragment = ''): string {
 
 describe('resolveDroppedView', () => {
     it('resolves a bare manifest URL', () => {
-        expect(resolveDroppedView(uriList(MANIFEST))).toEqual({
+        expect(resolveDroppedView(plain(MANIFEST))).toEqual({
             manifestId: MANIFEST,
         });
     });
@@ -54,18 +58,26 @@ describe('resolveDroppedView', () => {
         });
     });
 
-    it('resolves a link whose query carries iiif-content, region and all', () => {
-        const encoded = btoa(contentStateDocument('#xywh=10,20,30,40'))
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=+$/, '');
-        const link = `https://example.org/demo/?iiif-content=${encodeURIComponent(encoded)}`;
-
-        expect(resolveDroppedView(uriList(link))).toEqual({
+    it('resolves the region a content state names', () => {
+        expect(
+            resolveDroppedView(
+                plain(contentStateDocument('#xywh=10,20,30,40')),
+            ),
+        ).toEqual({
             manifestId: MANIFEST,
             canvasId: CANVAS,
             region: { x: 10, y: 20, width: 30, height: 40 },
         });
+    });
+
+    it('ignores the text/uri-list a dragged image comes with', () => {
+        expect(
+            resolveDroppedView(
+                uriList(
+                    'https://iiif.io/api/cookbook/recipe/0599-drag-and-drop/logo-sm.png',
+                ),
+            ),
+        ).toBeNull();
     });
 
     it('resolves nothing from plain text that is not a content state', () => {

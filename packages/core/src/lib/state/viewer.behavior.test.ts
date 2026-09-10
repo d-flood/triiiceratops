@@ -306,6 +306,49 @@ describe('ViewerState manifest behavior', () => {
         expect(state.canvasId).toBe(CANVAS_2);
     });
 
+    /*
+     * The two spellings a dropped content state produces. The Content State
+     * API requires the state to name its target absolutely; a manifest is free
+     * to declare relative canvas ids, and plenty do. Everything downstream —
+     * the renderer's placement map, the region carried by the navigation, a
+     * plugin's media element — is keyed by the manifest's spelling, so the
+     * canvas is stored as the manifest spells it.
+     */
+    it('stores a canvas named absolutely as its manifest spells it', async () => {
+        await load(
+            v3Manifest('http://example.org/manifest/relative-canvases', {
+                canvases: [v3Canvas('/canvas/one'), v3Canvas('/canvas/two')],
+            }),
+        );
+
+        const absolute = new URL('/canvas/two', document.baseURI).href;
+        state.setCanvas(absolute, null, {
+            x: 1,
+            y: 2,
+            width: 3,
+            height: 4,
+        });
+
+        expect(state.canvasId).toBe('/canvas/two');
+        // The region travels with the canvas, so it has to be filed under the
+        // same spelling or the fit that would spend it never finds it.
+        expect(state.takeNavigationRegion('/canvas/two')).toEqual({
+            canvasId: '/canvas/two',
+            x: 1,
+            y: 2,
+            width: 3,
+            height: 4,
+        });
+    });
+
+    it('leaves a canvas its manifest does not declare alone', async () => {
+        await load(v3Manifest('http://example.org/manifest/unknown-canvas'));
+
+        state.setCanvas('http://example.org/canvas/nowhere');
+
+        expect(state.canvasId).toBe('http://example.org/canvas/nowhere');
+    });
+
     it('keeps a pre-requested canvas when loading manifest data directly', async () => {
         state.setCanvas(CANVAS_2);
         await load(

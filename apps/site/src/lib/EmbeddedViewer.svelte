@@ -39,10 +39,18 @@
         theme,
         themeConfig = SITE_VIEWER_THEME,
         fill = false,
+        acceptDroppedContentState = true,
         viewerState = $bindable(),
     }: {
         example: Example;
         config?: ViewerConfig;
+        /**
+         * Take a IIIF content state dropped on this embed (cookbook recipe
+         * 0599). On by default across the site. Off for an embed whose page
+         * credits the material beside it and would be left describing
+         * something the viewer is no longer showing.
+         */
+        acceptDroppedContentState?: boolean;
         /**
          * The canvas to open on, for material whose point is one canvas in
          * particular rather than the manifest's first.
@@ -220,6 +228,7 @@
         <div class="vw__live">
             <Viewer
                 bind:viewerState
+                {acceptDroppedContentState}
                 manifestId={example.manifest}
                 {canvasId}
                 {initialCanvasRegion}

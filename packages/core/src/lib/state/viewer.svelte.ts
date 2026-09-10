@@ -81,10 +81,12 @@ import type { CanvasRegion } from '../utils/contentState';
 import { parseIiifSelectorTime, parseIiifTime } from '../utils/iiifTargets';
 import type { IiifTemporalFragment } from '../utils/iiifTime';
 import {
+    findCanvasById,
     findCanvasIndexById,
     getAnnotationId,
     getCanvasId,
     getReferenceId,
+    sameCanvasId,
 } from '../utils/iiifIds';
 import { getPagedCanvasGroups } from '../components/viewerControls';
 import { getThumbnailSrc } from '../utils/getThumbnailSrc';
@@ -2185,11 +2187,22 @@ export class ViewerState {
         temporalOffset?: IiifTemporalFragment | null,
         region?: CanvasRegion | null,
     ) {
-        this.canvasId = canvasId;
+        /*
+         * Store the canvas as its manifest spells it. A content state names
+         * its target by absolute URI while a manifest may declare a relative
+         * id, and every lookup downstream — the renderer's placement map, the
+         * region and time carried here, a plugin's media element — is keyed by
+         * the manifest's spelling. Normalising once here is what keeps them
+         * from each having to know about the other spelling.
+         */
+        const canvas = findCanvasById(this.canvases, canvasId);
+        const id = canvas ? getCanvasId(canvas) : canvasId;
+
+        this.canvasId = id;
         this.temporalOffset = temporalOffset
-            ? { canvasId, ...temporalOffset }
+            ? { canvasId: id, ...temporalOffset }
             : null;
-        this.navigationRegion = region ? { canvasId, ...region } : null;
+        this.navigationRegion = region ? { canvasId: id, ...region } : null;
         this.tileSourceError = null;
 
         if (this.showAnnotations) {
@@ -2445,7 +2458,7 @@ export class ViewerState {
      */
     takeNavigationRegion(canvasId: string): CanvasRegion | null {
         const region = this.navigationRegion;
-        if (!region || region.canvasId !== canvasId) return null;
+        if (!region || !sameCanvasId(region.canvasId, canvasId)) return null;
         this.navigationRegion = null;
         return region;
     }
@@ -2898,6 +2911,14 @@ export class ViewerState {
      * holds it open orphans the plugin's content element (an open plugin's
      * chrome is mounted once and re-parented, never re-mounted).
      *
+     * Availability RETURNING re-honors `config.plugins[id].open`, and only
+     * that: a consumer's configured open is a standing declaration rather than
+     * a one-time event, so a plugin that goes briefly unavailable while the
+     * next canvas's material settles — a caption track still parsing, a
+     * manifest still loading — must not leave a configured panel shut. What a
+     * reader opened themselves stays theirs to reopen, because there is no
+     * declaration to restore.
+     *
      * Plugin-facing (`PluginSurface.setAvailable`) and independent of the
      * consumer's `config.plugins[id].visible`, which stays the hard off-switch:
      * both must agree for the button to render. No-op (and no notification) if
@@ -2910,7 +2931,10 @@ export class ViewerState {
         this.pluginUiState.set(pluginId, {
             ...current,
             available,
-            open: available ? current.open : false,
+            open: available
+                ? current.open ||
+                  (this.getPluginUiConfig(pluginId)?.open ?? false)
+                : false,
         });
         this.dispatchStateChange();
     }

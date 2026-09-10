@@ -17,8 +17,8 @@
 
     /*
      * Exactly the plugins needed to render or inspect the content a recipe
-     * points at. Authoring tools — the annotation editor, image and PDF export —
-     * are playground features and are not dependencies of this application.
+     * points at. The export plugins are features of the viewer rather than of
+     * any recipe, and `/handles/` is where each of those is shown.
      */
     const plugins: readonly SdkPlugin[] = [AvPlugin, ImageManipulationPlugin];
 
@@ -176,6 +176,7 @@
     role="presentation"
 >
     <TriiiceratopsViewer
+        acceptDroppedContentState
         bind:viewerState
         {config}
         {theme}

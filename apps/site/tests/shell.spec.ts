@@ -2,9 +2,8 @@
  * The marketing site's shell, in a browser: what only a browser can see.
  *
  * The rail on every route it carries, the mobile bar and its full-screen sheet,
- * the footer's four institutional facts, the appendix's absence from a crawler's
- * reach, and which application each of the two application routes declares
- * itself to be.
+ * the footer's four institutional facts, the pages a crawler is not offered, and
+ * that the one application route declares itself to be the viewer.
  *
  * The crawl policy's other half is asserted where it is visible: absence from
  * the sitemap in `tests/unit/routes.test.ts`.
@@ -12,16 +11,12 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import {
-    APP_MARKER,
-    BARE_VIEWER_APP,
-    PLAYGROUND_APP,
-} from '../src/lib/applications';
+import { APP_MARKER, BARE_VIEWER_APP } from '../src/lib/applications';
 import { NAV, ROUTES, isNavigable } from '../src/lib/routes';
 import {
+    BUILDER_PATH,
     DOCUMENTATION_PATH,
     HOSTED_VIEWER_PATH,
-    PLAYGROUND_PATH,
 } from '../src/lib/site';
 
 const PHONE = { width: 390, height: 844 };
@@ -153,72 +148,93 @@ test.describe('the rail', () => {
         ).toHaveCount(1);
     });
 
-    test('points at the application routes, the documentation and the repository', async ({
+    test('points at the viewer, the builder, the documentation and the repository', async ({
         page,
     }) => {
         await page.goto('/');
+        const block = rail(page).locator('.rail__out');
         for (const href of [
             HOSTED_VIEWER_PATH,
-            PLAYGROUND_PATH,
+            BUILDER_PATH,
             DOCUMENTATION_PATH,
         ]) {
-            await expect(rail(page).locator(`a[href="${href}"]`)).toHaveCount(
-                1,
-            );
+            await expect(block.locator(`a[href="${href}"]`)).toHaveCount(1);
         }
         await expect(
-            rail(page).locator('a[href*="github.com/d-flood/triiiceratops"]'),
+            block.locator('a[href*="github.com/d-flood/triiiceratops"]'),
         ).toHaveCount(1);
+    });
+
+    /*
+     * The builder is deliberately in both the block and the list, which is why
+     * the assertion above is scoped to the block. The list is a table of
+     * contents and the block is a set of actions, and the builder is honestly
+     * both: the page a reader is sent to act on, and a page of the site.
+     *
+     * Nothing else is in both. A second duplicate would mean the block had
+     * started restating the list rather than offering the things it does not
+     * carry.
+     */
+    test('repeats the builder, and nothing else, in both of its halves', async ({
+        page,
+    }) => {
+        await page.goto('/');
+        const listed = await railPageLinks(page).evaluateAll((links) =>
+            links.map((link) => link.getAttribute('href')),
+        );
+        const acted = await rail(page)
+            .locator('.rail__out a')
+            .evaluateAll((links) =>
+                links.map((link) => link.getAttribute('href')),
+            );
+
+        expect(acted.filter((href) => listed.includes(href))).toEqual([
+            BUILDER_PATH,
+        ]);
     });
 });
 
 /*
- * Which application each path serves, asserted where it is observable: in the
- * served page's head.
+ * That `/viewer/` is the viewer, asserted where it is observable: in the served
+ * page's head.
  *
- * Both paths resolve and both render a viewer, so nothing else in the tree tells
- * them apart — and a swap breaks every published IIIF Cookbook recipe, which link
- * `/viewer/` directly. `scripts/url-contract.mjs` makes the same assertion over
- * the built tree; this one holds the routes to it as they are authored.
+ * Every route of the site resolves to a page, so nothing else in the tree tells
+ * the viewer from any of them — and putting something else at this path breaks
+ * every published IIIF Cookbook recipe, which link it directly.
+ * `scripts/url-contract.mjs` makes the same assertion over the built tree; this
+ * one holds the route to it as it is authored.
  */
-test.describe('the application routes', () => {
-    const identities = [
-        { path: HOSTED_VIEWER_PATH, app: BARE_VIEWER_APP },
-        { path: PLAYGROUND_PATH, app: PLAYGROUND_APP },
-    ];
+test.describe('the application route', () => {
+    test(`declares itself as ${BARE_VIEWER_APP}`, async ({ page }) => {
+        await page.goto(HOSTED_VIEWER_PATH);
+        await expect(
+            page.locator(`head meta[name="${APP_MARKER}"]`),
+        ).toHaveAttribute('content', BARE_VIEWER_APP);
+    });
 
-    for (const { path, app } of identities) {
-        test(`${path} declares itself as ${app}`, async ({ page }) => {
+    test('is the only route that declares one', async ({ page }) => {
+        // The marker is what the URL gate reads, so a second route carrying one
+        // would make the gate's answer depend on which page it happened to
+        // find. `/demo/` renders a viewer too and must stay unmarked.
+        for (const path of ['/', '/demo/', BUILDER_PATH]) {
             await page.goto(path);
             await expect(
                 page.locator(`head meta[name="${APP_MARKER}"]`),
-            ).toHaveAttribute('content', app);
-        });
-    }
-
-    test('do not carry the marketing rail', async ({ page }) => {
-        // They fill the window and draw their own chrome, which is why they sit
-        // outside the group layout that carries the rail.
-        for (const { path } of identities) {
-            await page.goto(path);
-            await expect(rail(page)).toHaveCount(0);
+            ).toHaveCount(0);
         }
     });
 
-    test('the playground mounts its viewer and the site’s one toggle', async ({
-        page,
-    }) => {
-        await page.goto(PLAYGROUND_PATH);
-        await expect(page.locator('.themebtn')).toBeVisible();
-        await expect(
-            page.locator('[data-testid="canvas-renderer-surface"]'),
-        ).toBeVisible({ timeout: 60_000 });
+    test('does not carry the marketing rail', async ({ page }) => {
+        // It fills the window and draws no chrome of its own, which is why it
+        // sits outside the group layout that carries the rail.
+        await page.goto(HOSTED_VIEWER_PATH);
+        await expect(rail(page)).toHaveCount(0);
     });
 
     /*
      * No viewer in the rendered document.
      *
-     * Both routes render server-side under `strict` prerendering, and a canvas
+     * The route renders server-side under `strict` prerendering, and a canvas
      * renderer must never run there. With script off, what is left is exactly
      * what the static adapter wrote to disk — so an eagerly imported viewer
      * would show up here as a surface in a document that ran no client code.
@@ -226,22 +242,15 @@ test.describe('the application routes', () => {
     test.describe('rendered without script', () => {
         test.use({ javaScriptEnabled: false });
 
-        for (const { path } of [
-            { path: HOSTED_VIEWER_PATH },
-            { path: PLAYGROUND_PATH },
-        ]) {
-            test(`${path} carries no viewer, and says what it needs`, async ({
-                page,
-            }) => {
-                await page.goto(path);
-                await expect(
-                    page.locator('[data-testid="canvas-renderer-surface"]'),
-                ).toHaveCount(0);
-                await expect(page.locator('.appwait')).toContainText(
-                    'It needs JavaScript',
-                );
-            });
-        }
+        test('carries no viewer, and says what it needs', async ({ page }) => {
+            await page.goto(HOSTED_VIEWER_PATH);
+            await expect(
+                page.locator('[data-testid="canvas-renderer-surface"]'),
+            ).toHaveCount(0);
+            await expect(page.locator('.appwait')).toContainText(
+                'It needs JavaScript',
+            );
+        });
     });
 });
 

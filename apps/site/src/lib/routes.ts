@@ -108,6 +108,19 @@ export const ROUTES: readonly SiteRoute[] = [
     { path: '/access/', group: 3, source: 'content' },
     { path: '/production/', group: 3, source: 'content' },
     {
+        path: '/demo/',
+        // Out of the rail for the same reason as `/system/`: a maintainer's
+        // bench is not one of the arguments the site is making, and a search
+        // for a IIIF viewer should not land on it.
+        group: null,
+        source: 'code',
+        meta: {
+            title: 'IIIF Cookbook recipes',
+            shortTitle: 'Cookbook recipes',
+            intro: 'Every Cookbook recipe the workspace tracks, on one running viewer, with what it does with each.',
+        },
+    },
+    {
         path: '/system/',
         // Out of the rail by design, and therefore `noindex` and out of the
         // sitemap: an appendix must not compete with a real page for a query.

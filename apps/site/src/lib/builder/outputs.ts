@@ -15,6 +15,7 @@
  */
 
 import type { SparseConfig } from '@triiiceratops/config';
+import type { BuiltInTheme } from 'triiiceratops';
 
 import { PACKAGE_NAME } from '../install';
 import type { BuilderPlugin } from './plugins';
@@ -87,6 +88,14 @@ export const FRAMEWORKS: readonly Framework[] = [
  */
 export type BuilderOutput = {
     readonly manifestId: string;
+    /**
+     * The theme the two overlays sit on, always one of the four.
+     *
+     * Named rather than left out: the overlays are sparse, so an override only
+     * means something against a stated ground — and this page's own preview is
+     * standing on it.
+     */
+    readonly theme: BuiltInTheme;
     readonly config: SparseConfig;
     readonly themeConfig: Record<string, unknown>;
     readonly plugins: readonly BuilderPlugin[];
@@ -204,6 +213,7 @@ const pluginList = (plugins: readonly BuilderPlugin[], pad: string) =>
 
 function html({
     manifestId,
+    theme,
     config,
     themeConfig,
     plugins,
@@ -219,6 +229,7 @@ ${lines(
     // Named only when something has to find it, so the bare embed stays bare.
     any ? '    id="viewer"' : null,
     `    manifest-id="${attr(manifestId)}"`,
+    `    theme="${theme}"`,
     isSet(config) ? `    config='${jsonAttr(config)}'` : null,
     isSet(themeConfig) ? `    theme-config='${jsonAttr(themeConfig)}'` : null,
     '    style="display: block; width: 100%; height: 100vh;"',
@@ -228,6 +239,7 @@ ${lines(
 
 function react({
     manifestId,
+    theme,
     config,
     themeConfig,
     plugins,
@@ -244,6 +256,7 @@ export function Reader() {
 ${lines(
     '        <TriiiceratopsViewer',
     `            manifestId="${attr(manifestId)}"`,
+    `            theme="${theme}"`,
     isSet(config) ? `            config={${literal(config, 12)}}` : null,
     isSet(themeConfig)
         ? `            themeConfig={${literal(themeConfig, 12)}}`
@@ -258,6 +271,7 @@ ${lines(
 
 function vue({
     manifestId,
+    theme,
     config,
     themeConfig,
     plugins,
@@ -280,6 +294,7 @@ ${lines(
 ${lines(
     '    <TriiiceratopsViewer',
     `        manifest-id="${attr(manifestId)}"`,
+    `        theme="${theme}"`,
     isSet(config) ? '        :config="config"' : null,
     isSet(themeConfig) ? '        :theme-config="themeConfig"' : null,
     plugins.length > 0 ? '        :plugins="plugins"' : null,
@@ -291,6 +306,7 @@ ${lines(
 
 function svelte({
     manifestId,
+    theme,
     config,
     themeConfig,
     plugins,
@@ -316,6 +332,7 @@ ${lines(
 ${lines(
     '    <TriiiceratopsViewer',
     `        manifestId="${attr(manifestId)}"`,
+    `        theme="${theme}"`,
     isSet(config) ? '        {config}' : null,
     isSet(themeConfig) ? '        {themeConfig}' : null,
     plugins.length > 0 ? '        {plugins}' : null,

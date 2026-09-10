@@ -16,8 +16,8 @@
  *
  * The second half of the file is the handoffs — the share URL, the
  * configuration object and the framework snippet — read back out of the
- * clipboard, and the cross-surface round trip that is the reason the encoding
- * is single-sourced at all.
+ * clipboard, and the round trip through this route's own URL that the encoding
+ * exists for.
  */
 
 import { expect, test, type Locator, type Page } from '@playwright/test';
@@ -128,6 +128,11 @@ test('restores the configuration and the manifest a share URL carries', async ({
     const asked = page.waitForRequest((request) =>
         request.url().endsWith(OTHER),
     );
+    /*
+     * `mode` is a parameter the builder no longer emits. It is left in this URL
+     * on purpose: links carrying one are in circulation, and what they promise
+     * is that the view and the configuration still arrive.
+     */
     await page.goto(
         `/configure/?mode=image&iiif-content=${encodeURIComponent(contentState)}&config=${encodeURIComponent(config)}`,
     );
@@ -160,20 +165,155 @@ test('opens its swatches on the viewer’s own palette', async ({ page }) => {
     }
 });
 
-test('sends the reader to the playground for what it does not set', async ({
+/*
+ * The theme is the ground the theming half reads through, so picking one has to
+ * move every swatch a reader has not set — which is a claim about the probe
+ * reading the viewer's stylesheet again under a different theme, and only a
+ * browser can answer it.
+ *
+ * A reader is free to try the themes until they set a value of their own, and
+ * then the choice is fixed: a theme moving under a colour somebody chose is the
+ * one thing this control must not be able to do. `Start over` is the way back,
+ * and it has to be a real one.
+ */
+test('starts the theming half from a built-in theme', async ({ page }) => {
+    await page.goto('/configure/');
+    await running(page);
+
+    const swatch = page.locator('#tok-viewerBg');
+    await reach(page, swatch);
+    const scheme = await swatch.inputValue();
+
+    // The switcher stands at the head of the theming half, so reaching any of
+    // its tabs is reaching it.
+    await expect(page.getByLabel('Light')).toBeChecked();
+    await page.getByLabel('Dracula').check();
+
+    await expect(swatch).not.toHaveValue(scheme);
+    await expect(swatch).toHaveValue(/^#[0-9a-f]{6}$/);
+
+    // Free to compare while nothing of the reader's own is at stake.
+    await page.getByLabel('Teal').check();
+    const teal = await swatch.inputValue();
+    expect(teal).toMatch(/^#[0-9a-f]{6}$/);
+
+    const chosen = '#123456';
+    await swatch.fill(chosen);
+    await expect(page.getByLabel('Teal')).toHaveCount(0);
+    await expect(
+        page.getByText('Started from Teal, with your own values over it.'),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Start over' }).click();
+    await expect(page.getByLabel('Light')).toBeChecked();
+    await expect(swatch).toHaveValue(scheme);
+});
+
+/*
+ * The preview stands on a named theme, always, and the snippet names the same
+ * one: the overlays this page hands over are sparse, so an override means
+ * nothing without the ground it departs from.
+ *
+ * Which theme a reader opens on is the scheme the page is in, so a reader
+ * reading in dark is not handed a white viewer to work against.
+ */
+test.describe('the ground the preview stands on', () => {
+    test('is a theme the viewer ships, named on the element', async ({
+        page,
+    }) => {
+        await page.goto('/configure/');
+        await running(page);
+
+        const swatch = page.locator('#tok-primary');
+        await reach(page, swatch);
+
+        await expect(preview(page)).toHaveAttribute('data-theme', 'light');
+        await expect(page.locator('.pv__probe')).toHaveAttribute(
+            'data-theme',
+            'light',
+        );
+        // A token with no theme in scope would come back black.
+        await expect(swatch).not.toHaveValue('#000000');
+
+        await page.getByLabel('Teal').check();
+        await expect(preview(page)).toHaveAttribute('data-theme', 'teal');
+        await expect(page.locator('.pv__probe')).toHaveAttribute(
+            'data-theme',
+            'teal',
+        );
+    });
+
+    test.describe('for a reader reading in dark', () => {
+        test.use({ colorScheme: 'dark' });
+
+        test('is the dark theme rather than a white viewer', async ({
+            page,
+        }) => {
+            await page.goto('/configure/');
+            await running(page);
+
+            await expect(preview(page)).toHaveAttribute('data-theme', 'dark');
+
+            const swatch = page.locator('#tok-viewerBg');
+            await reach(page, swatch);
+            await expect(page.getByLabel('Dark')).toBeChecked();
+            await expect(swatch).not.toHaveValue('#ffffff');
+        });
+    });
+});
+
+test('sends the reader to the documentation for what it does not set', async ({
     page,
 }) => {
     await page.goto('/configure/');
 
     const elsewhere = page.locator('section', {
-        hasText: 'Viewing mode and viewing direction',
+        hasText: 'What this page deliberately does not set',
     });
-    await expect(elsewhere).toContainText('playground');
-    // Scoped to this section: the handoffs above send the reader to the same
-    // place, for the same reason, and both links are the page keeping its word.
     await expect(
-        elsewhere.getByRole('link', { name: 'playground', exact: true }),
-    ).toHaveAttribute('href', '/demo/');
+        elsewhere.getByRole('link', { name: 'the documentation' }),
+    ).toHaveAttribute('href', '/docs/');
+});
+
+/*
+ * Viewing mode and viewing direction override what the publisher declared, so
+ * the builder has to be able to say nothing about them — and a reader who has
+ * said something has to be able to take it back. Nothing below is visible to a
+ * unit test: the retraction is only a retraction if the tracker reports it and
+ * the overlay then drops it.
+ */
+test.describe('the two keys that override the manifest', () => {
+    test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
+
+    test('start out following it, and can be handed back', async ({ page }) => {
+        await page.goto('/configure/');
+        await running(page);
+
+        const mode = page.getByLabel('Viewing mode', { exact: true });
+        await reach(page, mode);
+        await expect(mode).toHaveValue('');
+
+        await page
+            .getByRole('button', { name: 'Copy the configuration object' })
+            .click();
+        expect(JSON.parse(await pasted(page))).toEqual({});
+
+        await mode.selectOption('paged');
+        await page
+            .getByRole('button', { name: 'Copy the configuration object' })
+            .click();
+        expect(JSON.parse(await pasted(page))).toEqual({
+            viewingMode: 'paged',
+        });
+
+        // Back to following the manifest: the key goes, rather than being
+        // handed to a developer as a line that says nothing.
+        await mode.selectOption('');
+        await page
+            .getByRole('button', { name: 'Copy the configuration object' })
+            .click();
+        expect(JSON.parse(await pasted(page))).toEqual({});
+    });
 });
 
 /** The clipboard, as the reader's next paste would see it. */
@@ -211,17 +351,18 @@ test.describe('what a reader leaves with', () => {
         expect(JSON.parse(shared.searchParams.get('config') ?? '{}')).toEqual(
             TWO,
         );
-        // The manifest travels as a content state, which is the encoding the
-        // playground reads too.
+        // The manifest travels as a content state, which is the encoding
+        // `/viewer/` reads too.
         expect(shared.searchParams.get('iiif-content')).toContain(EXAMPLE);
     });
 
     /*
-     * A link built in the playground can declare a key whose value happens to
-     * be this page's default. It is still what the sender chose, and the link
-     * handed back has to still carry it: the two surfaces share one encoding,
-     * so a round trip that quietly narrowed it would make the same query string
-     * mean less on the second pass than on the first.
+     * A link can declare a key whose value happens to be this page's default —
+     * a colleague who set it deliberately, or a developer who wrote the query
+     * string by hand. It is still what the sender chose, and the link handed
+     * back has to still carry it: a round trip that quietly narrowed it would
+     * make the same query string mean less on the second pass than on the
+     * first.
      */
     test('keeps a key the link declared at this page\u2019s own default', async ({
         page,
@@ -334,6 +475,36 @@ test.describe('what a reader leaves with', () => {
         expect(JSON.parse(await pasted(page))).toEqual({ toolbarOpen: true });
     });
 
+    test('names the theme a reader started from in the code, and nowhere else', async ({
+        page,
+    }) => {
+        await page.goto('/configure/');
+        await running(page);
+
+        const swatch = page.locator('#tok-viewerBg');
+        await reach(page, swatch);
+        await page.getByLabel('Dracula').check();
+
+        await page.getByRole('tab', { name: 'Svelte', exact: true }).click();
+        await page
+            .getByRole('button', { name: 'Copy the Svelte snippet' })
+            .click();
+        expect(await pasted(page)).toContain('theme="dracula"');
+
+        /*
+         * A theme is the viewer's own input rather than a key of either
+         * overlay, and it is a name rather than a value a URL could carry. So
+         * neither copyable object says anything about it.
+         */
+        await page
+            .getByRole('button', { name: 'Copy the theme configuration' })
+            .click();
+        expect(JSON.parse(await pasted(page))).toEqual({});
+
+        await page.getByRole('button', { name: 'Copy the share link' }).click();
+        expect(await pasted(page)).not.toContain('dracula');
+    });
+
     test('copies a snippet for the framework the reader picked', async ({
         page,
     }) => {
@@ -381,48 +552,5 @@ test.describe('what a reader leaves with', () => {
             ...TWO,
             gallery: { open: true, dockPosition: 'left' },
         });
-    });
-
-    /**
-     * One origin, one encoding, both surfaces. The string the builder produced
-     * is pasted under the playground's path unchanged, and what the viewer is
-     * handed there is read off the element's own `config` attribute — the input
-     * it actually takes, rather than a control that happens to agree with it.
-     */
-    test('means the same thing under the playground’s path', async ({
-        page,
-    }) => {
-        await page.goto('/configure/');
-        await running(page);
-        await setTwo(page);
-
-        await page.getByRole('button', { name: 'Copy the share link' }).click();
-        const shared = new URL(await pasted(page));
-
-        await page.goto(`/demo/${shared.search}`);
-
-        const viewer = page.locator('triiiceratops-viewer');
-        await expect(viewer).toBeAttached({ timeout: 20_000 });
-
-        const applied = JSON.parse(
-            (await viewer.getAttribute('config')) ?? '{}',
-        );
-        expect(applied.gallery.open).toBe(true);
-        expect(applied.nav.edge).toBe('top');
-
-        // And in the running viewer, not only in what it was handed: the
-        // gallery is banded because `gallery.open` arrived, and the nav sits
-        // at the top because `nav.edge` did.
-        await expect(viewer.locator('.gallery-band')).toBeAttached({
-            timeout: 20_000,
-        });
-        await expect(viewer.locator('.viewer-root')).toHaveAttribute(
-            'data-nav-edge',
-            'top',
-        );
-        await expect(viewer).toHaveAttribute(
-            'manifest-id',
-            new RegExp(`${EXAMPLE}$`),
-        );
     });
 });

@@ -1,13 +1,21 @@
 <script lang="ts">
     import { replaceState } from '$app/navigation';
-    import { onMount } from 'svelte';
+    import { onMount, tick } from 'svelte';
     import type { ViewTarget } from '@triiiceratops/config';
     import type { CanvasRegion, ViewerState } from 'triiiceratops';
 
+    import { dragContentState } from './dragSource';
+    import { describeDroppedManifest, firstCanvasId } from './droppedMaterial';
     import EmbeddedViewer from './EmbeddedViewer.svelte';
     import type { Example } from './examples';
-    import { FEATURES, type DragChip, type FeatureGroup } from './features';
-    import { resolveDroppedView } from './playground/drop';
+    import {
+        FEATURE_GROUPS,
+        FEATURE_GROUP_TABS,
+        FEATURES,
+        type DragChip,
+        type FeatureGroup,
+    } from './features';
+    import { resolveDroppedView } from './droppedView';
     import { featureSearch, parseFeatureIndex } from './featureSelection';
     import type { SitePlugin } from './sitePlugins';
     import { SITE_VIEWER_THEME } from './viewerTheme';
@@ -35,6 +43,12 @@
      * either: a reader explores the features, and nothing advances underneath
      * them.
      *
+     * The rail's tabs divide the features by kind and the list under them
+     * shows one kind at a time, so a reader reaches a feature in two clicks
+     * rather than by scrolling a rail longer than the stage is tall. A tab is
+     * not a third piece of state: the feature showing is what says which tab
+     * is open, so a shared link, an arrow key and a click all agree.
+     *
      * The rail sits left of the stage and first in the document, on purpose.
      * The viewer's own pager turns the leaves of the material showing; the rail
      * turns the features. A control that moved features from inside the stage
@@ -49,17 +63,22 @@
     const total = FEATURES.length;
     const active = $derived(FEATURES[at] ?? FEATURES[0]);
     /**
-     * Where each heading falls in the rail: the index of the first feature of
-     * each group. Order in `FEATURES` is what groups them, so a feature moves
-     * between headings by moving in that list and nowhere else.
+     * The features under each tab, in rail order. Order in `FEATURES` is what
+     * groups them, so a feature moves between tabs by moving in that list and
+     * nowhere else.
      */
-    const headings = new Map<number, FeatureGroup>(
-        FEATURES.flatMap((feature, index) =>
-            FEATURES[index - 1]?.group === feature.group
-                ? []
-                : [[index, feature.group] as const],
-        ),
+    const byGroup = new Map<FeatureGroup, readonly number[]>(
+        FEATURE_GROUPS.map((group) => [
+            group,
+            FEATURES.flatMap((feature, index) =>
+                feature.group === group ? [index] : [],
+            ),
+        ]),
     );
+    /** The tab open, which is always the one the feature showing sits under. */
+    const openTab = $derived(active.group);
+    /** The features the rail is listing: the open tab's, and only those. */
+    const listed = $derived(byGroup.get(openTab) ?? []);
     /**
      * The chrome this route wears: the site's own tokens with a rounded
      * control radius throughout. Route-wide rather than per feature — this
@@ -215,8 +234,9 @@
      */
     function showSelectedInRail() {
         const rail = railEl;
-        const option =
-            rail?.querySelectorAll<HTMLElement>('[role="radio"]')[at];
+        const option = rail?.querySelector<HTMLElement>(
+            '[role="radio"][aria-checked="true"]',
+        );
         if (!rail || !option) return;
         rail.scrollTop =
             option.offsetTop - rail.clientHeight / 2 + option.offsetHeight / 2;
@@ -226,12 +246,10 @@
      * The material a drop replaced the feature's own with, or `undefined` while
      * the stage shows what the feature named.
      *
-     * A drop naming another manifest cannot be handed to the viewer as a
-     * `contentState`: the stage always names a manifest, and the viewer's
-     * precedence ladder discards a content state whenever a discrete manifest
-     * prop is present (ADR 0006). So the stage resolves the payload itself and
-     * takes the manifest over — which means it also owes the reader the
-     * reserved box for the material it swapped in.
+     * The viewer would take a drop itself, but this stage resolves the payload
+     * instead, because it owes a reader more than the pixels: a box reserved in
+     * the material's own shape, and a name for what is being shown. Both are
+     * properties of the manifest, so the stage is the one that has to know.
      *
      * A command, not a mirror of anything, and cleared by the switch that ends
      * it: a feature the reader picks shows its OWN material.
@@ -255,49 +273,110 @@
     );
 
     /**
-     * Take a view carried in from outside — a chip beside this feature, or
-     * anything else a IIIF publisher hands out.
+     * Take a view carried in from outside — a chip beside this feature, or a
+     * content state from anywhere at all, the IIIF Cookbook's own drag source
+     * included.
      *
-     * One rule for both chips, so neither has a special case: a view naming the
-     * manifest on the stage moves the view INSIDE it, and a view naming any
-     * other replaces it. Only a manifest one of this feature's chips declares
-     * can be shown — the stage owes a reader a reserved shape for
-     * whatever it loads, and it has none for a manifest it has never heard of — so anything else is refused rather than silently reframed.
+     * One rule, so no source is a special case: a view naming the manifest on
+     * the stage moves the view INSIDE it, and a view naming any other replaces
+     * it. The stage owes a reader a reserved box and a name for whatever it
+     * shows, so material it has never heard of is fetched to be described
+     * before it is swapped in, rather than refused for being unfamiliar.
      */
-    function takeView(view: ViewTarget | null) {
-        if (!view?.canvasId) return;
+    async function takeView(view: ViewTarget | null) {
+        if (!view?.manifestId) return;
 
-        if (view.manifestId === shown.example.manifest) {
+        // A content state names resources absolutely, while this site declares
+        // its own material at root-relative paths.
+        const same = (manifest: string) =>
+            new URL(manifest, location.href).href === view.manifestId;
+
+        if (same(shown.example.manifest)) {
+            if (!view.canvasId) return;
             viewerState?.setCanvas(view.canvasId, null, view.region ?? null);
             return;
         }
 
-        const chip = active.dragPayloads?.find(
-            (candidate) =>
-                (candidate.carries?.example.manifest ??
-                    active.example.manifest) === view.manifestId,
+        const chip = active.dragPayloads?.find((candidate) =>
+            same(
+                candidate.carries?.example.manifest ?? active.example.manifest,
+            ),
         );
-        if (!chip) return;
+        if (chip && view.canvasId) {
+            carried = {
+                example: chip.carries?.example ?? active.example,
+                canvasId: view.canvasId,
+                region: view.region ?? null,
+            };
+            return;
+        }
+
+        await carryUnknown(view);
+    }
+
+    /**
+     * Show material this page has never declared. Its manifest is fetched for
+     * the two things the stage cannot reserve a box or announce a name without
+     * — the first canvas's shape and the publisher's own label — and a drop
+     * naming no canvas opens on the first, which is what a Manifest-targeted
+     * content state asks for.
+     *
+     * A fetch that fails leaves the stage exactly as it was: a reader who
+     * dropped something unreachable is better served by the material still in
+     * front of them than by an empty box.
+     */
+    async function carryUnknown(view: ViewTarget) {
+        const { manifestId } = view;
+        dropping = manifestId;
+
+        let json: unknown;
+        try {
+            const response = await fetch(manifestId);
+            if (!response.ok) return;
+            json = await response.json();
+        } catch {
+            return;
+        }
+
+        // A second drop, or a feature the reader picked, owns the stage now.
+        if (dropping !== manifestId) return;
+        dropping = undefined;
+
+        const canvasId = view.canvasId || firstCanvasId(json);
+        if (!canvasId) return;
 
         carried = {
-            example: chip.carries?.example ?? active.example,
-            canvasId: view.canvasId,
+            example: describeDroppedManifest(manifestId, json),
+            canvasId,
             region: view.region ?? null,
         };
     }
 
+    /**
+     * The manifest a drop is currently fetching, which is also what says a
+     * later-arriving fetch is stale. Not a spinner: the material on the stage
+     * stays put and readable until the one replacing it can be described.
+     */
+    let dropping = $state<string | undefined>(undefined);
+
     function onDrop(event: DragEvent) {
         event.preventDefault();
         dragOver = false;
-        takeView(resolveDroppedView(event.dataTransfer));
+        void takeView(resolveDroppedView(event.dataTransfer));
     }
 
     let dragOver = $state(false);
 
-    /** Carry a chip's content state, for a drop anywhere that takes one. */
+    /**
+     * Carry a chip's content state, for a drop anywhere that takes one —
+     * recipe 0599's `text/plain`, which is the whole of the exchange.
+     */
     function onDragStart(event: DragEvent, chip: DragChip) {
         if (!event.dataTransfer) return;
-        event.dataTransfer.setData('text/plain', JSON.stringify(chip.state));
+        event.dataTransfer.setData(
+            'text/plain',
+            dragContentState(chip.state, location.href),
+        );
         event.dataTransfer.effectAllowed = 'copy';
     }
 
@@ -306,10 +385,11 @@
      * keyboard equivalent, so each chip is a button as well as a drag source.
      */
     function applyPayload(chip: DragChip) {
-        takeView(
+        const state = dragContentState(chip.state, location.href);
+        void takeView(
             resolveDroppedView({
                 types: ['text/plain'],
-                getData: () => JSON.stringify(chip.state),
+                getData: () => state,
             }),
         );
     }
@@ -333,46 +413,99 @@
         // A picked feature shows its own material, never the one a drop on the
         // previous feature left standing.
         carried = undefined;
+        dropping = undefined;
         syncUrl();
     }
 
+    /**
+     * Move within the tab's own list. The vertical axis only: the tab strip
+     * owns the horizontal one, and a rail that answered to both would move a
+     * reader between kinds of feature on a key they pressed to move within one.
+     */
     function onRailKeys(event: KeyboardEvent) {
-        const forward =
-            event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : 0;
-        const back =
-            event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? 1 : 0;
-        if (forward + back !== 1) return;
+        const step =
+            event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
+        if (step === 0) return;
         event.preventDefault();
-        const next = (at + forward - back + total) % total;
-        select(next);
-        // Focus follows the selection for arrow keys only: a click leaves focus
-        // where the reader put it.
-        const group = (event.currentTarget as HTMLElement).closest(
-            '[role="radiogroup"]',
-        );
-        group
-            ?.querySelectorAll<HTMLButtonElement>('[role="radio"]')
-            [next]?.focus();
+        const here = listed.indexOf(at);
+        const nextAt = listed[(here + step + listed.length) % listed.length];
+        if (nextAt === undefined) return;
+        select(nextAt);
+        void focusIn(`[role="radio"][data-at="${nextAt}"]`);
+    }
+
+    /** Open a tab by showing its first feature: the tab has no state of its own. */
+    function selectGroup(group: FeatureGroup) {
+        const first = byGroup.get(group)?.[0];
+        if (first !== undefined) select(first);
+    }
+
+    function onTabKeys(event: KeyboardEvent) {
+        const step =
+            event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+        if (step === 0) return;
+        event.preventDefault();
+        const here = FEATURE_GROUPS.indexOf(openTab);
+        const next =
+            FEATURE_GROUPS[
+                (here + step + FEATURE_GROUPS.length) % FEATURE_GROUPS.length
+            ];
+        if (!next) return;
+        selectGroup(next);
+        void focusIn(`[role="tab"][data-tab="${next}"]`);
+    }
+
+    /**
+     * Follow the selection with focus, for arrow keys only — a click leaves
+     * focus where the reader put it. After a tick, and found by what it is
+     * rather than by position: the rail relists as the tab changes, so the
+     * control to focus may not exist yet and is not at the index it was.
+     */
+    async function focusIn(selector: string) {
+        await tick();
+        railEl?.querySelector<HTMLButtonElement>(selector)?.focus();
     }
 </script>
 
 <div class="featstage">
     <div class="featstage__rail" bind:this={railEl}>
-        <div class="featstage__group" role="radiogroup" aria-label="Features">
-            {#each FEATURES as feature, index (feature.name)}
-                <!-- Headings rule the rail into its four kinds of feature.
-                     `aria-hidden`, and inside the group rather than around it:
-                     a radio group's children are its radios, and a reader
-                     arrowing through them should not have to leave and re-enter
-                     one at every rule. -->
-                {#if headings.has(index)}
-                    <p class="featstage__head" aria-hidden="true">
-                        {headings.get(index)}
-                    </p>
-                {/if}
+        <!-- The strip that divides the rail. Roving tabindex, so a reader tabs
+             into the strip once and moves across it with the arrow keys, then
+             tabs on into the list the open tab is showing. -->
+        <div
+            class="featstage__tabs"
+            role="tablist"
+            aria-label="Kinds of feature"
+        >
+            {#each FEATURE_GROUPS as group (group)}
+                <button
+                    type="button"
+                    role="tab"
+                    data-tab={group}
+                    aria-selected={group === openTab}
+                    aria-controls="featstage-list"
+                    tabindex={group === openTab ? 0 : -1}
+                    class="featstage__tab"
+                    class:on={group === openTab}
+                    onclick={() => selectGroup(group)}
+                    onkeydown={onTabKeys}
+                >
+                    {FEATURE_GROUP_TABS[group]}
+                </button>
+            {/each}
+        </div>
+        <div
+            class="featstage__group"
+            id="featstage-list"
+            role="radiogroup"
+            aria-label={openTab}
+        >
+            {#each listed as index (FEATURES[index].name)}
+                {@const feature = FEATURES[index]}
                 <button
                     type="button"
                     role="radio"
+                    data-at={index}
                     aria-checked={index === at}
                     class="featstage__opt"
                     class:on={index === at}
@@ -417,10 +550,13 @@
         ondrop={onDrop}
         role="presentation"
     >
+        <!-- The pane above takes the drop, not the viewer inside it: only the
+             stage can re-reserve the box and rename what it announces. -->
         <EmbeddedViewer
             bind:viewerState
             fill
             eager
+            acceptDroppedContentState={false}
             example={shown.example}
             canvasId={shown.canvasId}
             initialCanvasRegion={shown.region}

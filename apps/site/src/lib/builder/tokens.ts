@@ -15,6 +15,8 @@
  * the corners; the theming reference is where the rest is set.
  */
 
+import type { BuiltInTheme } from 'triiiceratops';
+
 import report from '../../../../../api-reports/css-tokens.json';
 import type { CssToken } from '../cssTokens';
 
@@ -110,3 +112,28 @@ export const TOKEN_GROUPS: readonly TokenGroup[] = CATEGORIES.map(
         })),
     }),
 );
+
+/**
+ * The themes a reader can start from, and the label each carries.
+ *
+ * Written out rather than derived: the token report is a report of tokens and
+ * says nothing about which themes declare them, and importing the viewer's own
+ * `BUILTIN_THEMES` here would pull the package into this route's first chunk —
+ * which is the one thing a page arguing the viewer is light may not do.
+ * `tests/unit/builder-surface.test.ts` holds the list to that export instead,
+ * so a theme the package adds or drops fails the suite rather than going
+ * quietly missing from this control.
+ *
+ * A theme is the ground the token controls read through, not a fifth kind of
+ * token: it reaches the viewer as its own input, so it is offered beside them
+ * rather than among them.
+ */
+export const THEME_CHOICES: readonly {
+    readonly value: BuiltInTheme;
+    readonly label: string;
+}[] = [
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' },
+    { value: 'teal', label: 'Teal' },
+    { value: 'dracula', label: 'Dracula' },
+];

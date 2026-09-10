@@ -41,4 +41,38 @@ describe('iiifIds', () => {
         expect(findCanvasById(canvases, 'canvas-3')).toEqual(canvases[2]);
         expect(findCanvasById(canvases, 'missing')).toBeNull();
     });
+
+    /*
+     * The two spellings a dropped content state produces: the Content State
+     * API requires the state to name its target absolutely, while plenty of
+     * published manifests declare relative canvas ids.
+     */
+    it('matches a canvas named absolutely against a relatively declared id', () => {
+        const canvases = [
+            { id: '/material/landing/canvas/haeckel' },
+            { id: '/material/landing/canvas/milkmaid' },
+        ];
+        const wanted = new URL(
+            '/material/landing/canvas/milkmaid',
+            document.baseURI,
+        ).href;
+
+        expect(findCanvasIndexById(canvases, wanted)).toBe(1);
+    });
+
+    it('still refuses a canvas that is genuinely not there', () => {
+        const canvases = [{ id: '/canvas/one' }];
+
+        expect(
+            findCanvasIndexById(
+                canvases,
+                new URL('/canvas/other', document.baseURI).href,
+            ),
+        ).toBe(-1);
+    });
+
+    // Two ids that cannot be resolved must not collapse into one match.
+    it('does not match unresolvable ids to each other', () => {
+        expect(findCanvasIndexById([{ id: '' }, {}], 'canvas-1')).toBe(-1);
+    });
 });
