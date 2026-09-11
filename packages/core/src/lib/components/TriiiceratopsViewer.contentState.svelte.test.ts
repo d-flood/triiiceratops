@@ -184,6 +184,7 @@ describe('content-state ingestion through the viewer inputs', () => {
         } | null;
         contentState?: string;
         readContentStateFromUrl?: boolean;
+        acceptDroppedContentState?: boolean;
     };
 
     function mountViewer(props: Props) {

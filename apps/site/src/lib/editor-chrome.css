@@ -96,7 +96,9 @@
     container-type: inline-size;
 }
 @container (max-width: 1007px) {
-    .uncial-editor-shell:has(> .uncial-editor-sidebar) {
+    .uncial-editor-shell:has(
+        > .uncial-editor-sidebar:not(.uncial-editor-sidebar--overlay)
+    ) {
         grid-template-columns: minmax(0, 1fr);
         grid-template-areas: 'toolbar' 'body';
     }

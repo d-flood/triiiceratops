@@ -145,12 +145,13 @@ function perfManifest() {
     };
 }
 
-// The measurement page: loads the packed core element IIFE + every plugin IIFE,
-// exactly like a no-bundler consumer.
-function perfPage() {
+// The measurement page loads the production plugin IIFEs and the core IIFE
+// staged below. Current trees replace that one served core file with an
+// otherwise-equivalent perf build carrying private renderer counters.
+function perfPage(plugins) {
     const scripts = [
         '/node_modules/triiiceratops/dist/triiiceratops-element.iife.js',
-        ...PLUGINS.map((p) => `/node_modules/${p.pkg}/dist/iife.js`),
+        ...plugins.map((p) => `/node_modules/${p.pkg}/dist/iife.js`),
     ];
     return `<!doctype html>
 <html lang="en">
@@ -177,8 +178,24 @@ function stageWebRoot(root, webRoot) {
         cpSync(from, to, { recursive: true });
     };
     copyDist('packages/core', 'triiiceratops');
-    for (const p of PLUGINS) copyDist(p.dir, p.pkg);
-    writeFileSync(join(webRoot, 'index.html'), perfPage());
+    const perfElement = join(
+        root,
+        'packages/core/.svelte-kit/perf-dist/triiiceratops-perf-element.iife.js',
+    );
+    if (existsSync(perfElement)) {
+        cpSync(
+            perfElement,
+            join(
+                webRoot,
+                'node_modules/triiiceratops/dist/triiiceratops-element.iife.js',
+            ),
+        );
+    }
+    const availablePlugins = PLUGINS.filter((p) =>
+        existsSync(join(root, p.dir, 'dist')),
+    );
+    for (const p of availablePlugins) copyDist(p.dir, p.pkg);
+    writeFileSync(join(webRoot, 'index.html'), perfPage(availablePlugins));
     writeFileSync(
         join(webRoot, 'manifest.json'),
         JSON.stringify(perfManifest()),

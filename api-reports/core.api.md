@@ -3863,8 +3863,23 @@ export declare class ViewerState {
      */
     private eventTarget;
     /**
+     * Channel names dispatched before the element wired its target, replayed
+     * in order by `setEventTarget`. Covers the mount window only: Svelte
+     * usage never wires a target, so buffering stops past a small cap rather
+     * than retaining history nobody will read.
+     */
+    private pendingPreWireEvents;
+    /**
      * Set the event target for dispatching state change events.
      * Called by TriiiceratopsViewerElement to enable event-driven API.
+     *
+     * Replays state-channel events dispatched before the target was wired:
+     * the initial manifest load can complete before the mount effect wires
+     * the target (slow mount, fast local fetch), and without a replay that
+     * first `manifestchange` is silently dropped — a host waiting on it hangs
+     * even though its listener was attached in time. The replay preserves the
+     * channel names in order; details snapshot at replay time, which is what
+     * the channels carry anyway (a "something changed" signal, not a log).
      */
     setEventTarget(target: EventTarget): void;
     /**
@@ -3891,6 +3906,12 @@ export declare class ViewerState {
      *
      * Uses queueMicrotask to dispatch asynchronously AFTER the current
      * reactive cycle completes, preventing infinite update loops.
+     *
+     * Dispatched before the element wired its target, the channel name is
+     * buffered for `setEventTarget`'s replay instead of being dropped (see
+     * `pendingPreWireEvents`). Svelte-component usage never wires a target,
+     * so buffering stops past a small cap rather than retaining history
+     * nobody will read.
      */
     private dispatchStateChange;
     constructor(initialManifestId?: string | null, initialCanvasId?: string | null);

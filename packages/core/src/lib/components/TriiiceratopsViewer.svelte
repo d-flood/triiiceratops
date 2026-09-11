@@ -1704,6 +1704,7 @@
 <div
     bind:this={rootElement}
     id="triiiceratops-viewer"
+    role="group"
     ondragover={onDragOver}
     ondrop={onDrop}
     class="viewer-root"

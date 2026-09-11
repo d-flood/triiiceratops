@@ -116,6 +116,15 @@ export const PLUGINS = [
         paused: true,
         sized: false,
     },
+    {
+        key: 'av',
+        dir: 'packages/plugin-av',
+        pkg: '@triiiceratops/plugin-av',
+        // It activates with every plugin for the interaction baseline. There is
+        // no useful first-activation signal on the image-only timing manifest.
+        paused: true,
+        sized: false,
+    },
 ];
 
 /**
@@ -131,6 +140,11 @@ export const PLUGINS = [
  *
  * Its artifacts are not sized either (`sized: false` above), so the plugin is
  * built and registered for the interaction baseline and gated on nothing.
+ *
+ * `@triiiceratops/plugin-av` is likewise activated and subscribed for that
+ * baseline, but the image-only timing manifest gives it no meaningful first
+ * activation signal. Its specialized entry and lazy-chunk size rows are
+ * collected separately below.
  */
 export const ACTIVATION_MEASURED_PLUGINS = PLUGINS.filter((p) => !p.paused);
 
@@ -367,7 +381,7 @@ export function collectSizes(root) {
     /*
         The AV plugin is sized here rather than through PLUGINS above because
         it is the one plugin whose dist is a DIRECTORY: `iife.js` fetches
-        `av-hls.js`, `av-waveform.js`, `av-sequencer.js` and
+        `av-hls.js`, `av-timeline.js`, `av-sequencer.js` and
         `av-transcript.js` from beside itself
         on demand, and the
         whole point of that arrangement is that the entry stays small while the
@@ -389,7 +403,7 @@ export function collectSizes(root) {
     sizes['av:esm-entry'] = fileSize(join(avDist, 'index.js'));
     sizes['av:iife'] = fileSize(join(avDist, 'iife.js'));
     sizes['av:iife-chunk-hls'] = fileSize(join(avDist, 'av-hls.js'));
-    sizes['av:iife-chunk-waveform'] = fileSize(join(avDist, 'av-waveform.js'));
+    sizes['av:iife-chunk-timeline'] = fileSize(join(avDist, 'av-timeline.js'));
     sizes['av:iife-chunk-sequencer'] = fileSize(
         join(avDist, 'av-sequencer.js'),
     );
@@ -401,6 +415,11 @@ export function collectSizes(root) {
 }
 
 // --- comparison ------------------------------------------------------------
+
+/** Whether two measurements came from different renderer generations. */
+export function rendererGenerationChanged(base, head) {
+    return base?.renderer !== head?.renderer;
+}
 
 /**
  * Compare per-artifact sizes. A deterministic increase above 5% is a regression
@@ -416,14 +435,15 @@ export function collectSizes(root) {
 export function compareSizes(base, head, accepted = {}) {
     const rows = [];
     let regressed = false;
-    for (const key of Object.keys(head)) {
+    for (const key of new Set([...Object.keys(base), ...Object.keys(head)])) {
         const b = base[key] ?? 0;
         const h = head[key] ?? 0;
         const deltaBytes = h - b;
         const pct = b > 0 ? deltaBytes / b : h > 0 ? Infinity : 0;
         const exemption = accepted[key];
         const exempt = Boolean(exemption) && h <= exemption.headBytes;
-        const fail = pct > THRESHOLDS.sizeRegressionPct && !exempt;
+        const missing = b > 0 && h === 0;
+        const fail = missing || (pct > THRESHOLDS.sizeRegressionPct && !exempt);
         if (fail) regressed = true;
         rows.push({
             key,
@@ -432,6 +452,7 @@ export function compareSizes(base, head, accepted = {}) {
             deltaBytes,
             pct,
             fail,
+            ...(missing ? { missing: true } : {}),
             ...(exempt ? { exempt: true, reason: exemption.reason } : {}),
         });
     }
@@ -537,6 +558,11 @@ export function buildBudgets(
 ) {
     const size = {};
     for (const [key, bytes] of Object.entries(measurement.sizes)) {
+        if (!Number.isFinite(bytes) || bytes <= 0) {
+            throw new Error(
+                `cannot capture a budget for missing artifact \`${key}\` (${bytes} bytes)`,
+            );
+        }
         size[key] = {
             bytes,
             ceilingBytes: Math.ceil(bytes * (1 + THRESHOLDS.sizeRegressionPct)),
@@ -711,9 +737,17 @@ export function checkBudgets(
     { skipMemory = false } = {},
 ) {
     const failures = [];
-    for (const [key, bytes] of Object.entries(measurement.sizes)) {
-        const budget = budgets.size?.[key];
-        if (!budget) continue;
+    for (const [key, budget] of Object.entries(budgets.size ?? {})) {
+        const bytes = measurement.sizes?.[key];
+        if (!Number.isFinite(bytes) || bytes <= 0) {
+            failures.push({
+                kind: 'size',
+                key: `${key} (missing)`,
+                value: bytes ?? 'none',
+                ceiling: budget.ceilingBytes,
+            });
+            continue;
+        }
         if (bytes > budget.ceilingBytes) {
             failures.push({
                 kind: 'size',

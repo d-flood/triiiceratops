@@ -58,7 +58,12 @@ interface Settled {
         columnGap: number;
         buttonWidths: number[];
     };
-    toggle: Box;
+    toggle: Box & {
+        // Full-precision twin of the toggle box, part of the settle key: on a
+        // cold load webfonts can shift the whole rail after the menu opens,
+        // and the anchor-positioned panel trails such motion by a frame.
+        stable: Box;
+    };
     panel: Box & {
         classes: string[];
         position: string;
@@ -67,6 +72,8 @@ interface Settled {
         borderRadius: string;
         margin: string;
         padding: string;
+        // Full-precision box the settle poll compares; never asserted on.
+        stable: Box;
     };
     items: Box[];
 }
@@ -89,6 +96,22 @@ async function settled(page: Page, menu: string): Promise<Settled> {
                     y: Math.round(b.y),
                     w: Math.round(b.width),
                     h: Math.round(b.height),
+                };
+            };
+            // Full-precision twin of `box`, used only to detect settling: the
+            // panel scales 95→100% as it opens, so its box grows through
+            // fractional steps. Two integer-rounded reads can agree while the
+            // true box is still moving, and the anchor-positioned panel then
+            // reads a few pixels off-centre. Comparing at two decimals settles
+            // only once the drift has actually stopped.
+            const rect = (el: Element) => {
+                const b = el.getBoundingClientRect();
+                const two = (n: number) => Math.round(n * 100) / 100;
+                return {
+                    x: two(b.x),
+                    y: two(b.y),
+                    w: two(b.width),
+                    h: two(b.height),
                 };
             };
             const scoped = (el: Element) =>
@@ -117,9 +140,10 @@ async function settled(page: Page, menu: string): Promise<Settled> {
                     columnGap: parseFloat(actionsStyle.columnGap) || 0,
                     buttonWidths: buttons.map((b) => box(b).w),
                 },
-                toggle: box(toggle),
+                toggle: { ...box(toggle), stable: rect(toggle) },
                 panel: {
                     ...box(panel),
+                    stable: rect(panel),
                     classes: scoped(panel).sort(),
                     position: panelStyle.position,
                     display: panelStyle.display,
@@ -134,16 +158,45 @@ async function settled(page: Page, menu: string): Promise<Settled> {
             };
         }, menu);
 
-    // Settle on the panel's own box: the open transition moves it, so two equal
-    // reads mean the animation has finished.
+    // Wait out the open transition before reading boxes: the panel scales
+    // 95→100% on open, and its percentage translate composes with that scale,
+    // so any box read mid-transition is off-centre by a few pixels. Two
+    // animation frames guarantee the transition has started (style resolution
+    // is async after the click), `finished` waits for its end, and an empty
+    // animation list — reduced motion, for instance — resolves at once.
+    await page.evaluate(
+        (name) =>
+            new Promise<void>((resolve) => {
+                const root = document
+                    .querySelector('triiiceratops-viewer')!
+                    .shadowRoot!.querySelector('.viewer-root')!;
+                const panel = root.querySelector(`#tri-flyout-${name}`)!;
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => {
+                        void Promise.all(
+                            panel
+                                .getAnimations()
+                                .map((animation) => animation.finished),
+                        ).then(() => resolve());
+                    }),
+                );
+            }),
+        menu,
+    );
+
+    // Then settle on the full-precision boxes as a backstop: two equal reads
+    // mean neither the panel nor its toggle moved between frames, and the
+    // comparison must not round (see `rect` above).
     let previous = await read();
     await expect
         .poll(
             async () => {
                 const next = await read();
                 const same =
-                    JSON.stringify(next.panel) ===
-                    JSON.stringify(previous.panel);
+                    JSON.stringify(next.panel.stable) ===
+                        JSON.stringify(previous.panel.stable) &&
+                    JSON.stringify(next.toggle.stable) ===
+                        JSON.stringify(previous.toggle.stable);
                 previous = next;
                 return same;
             },

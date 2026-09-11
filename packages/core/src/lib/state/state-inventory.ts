@@ -602,6 +602,11 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'Private EventTarget for the web-component build; null under Svelte usage.',
     },
     {
+        member: 'pendingPreWireEvents',
+        classification: 'internal',
+        notes: 'Private replay buffer for state-channel events dispatched before the element wired its target; flushed by setEventTarget, capped so never-wired Svelte usage stays constant-size.',
+    },
+    {
         member: 'errorReporter',
         classification: 'internal',
         notes: 'Private host reporter for the structured `viewererror` channel; wired by the viewer component, null in direct/test use.',

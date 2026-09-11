@@ -1,9 +1,9 @@
 {
-    "count": 86,
+    "count": 87,
     "byClassification": {
         "command": 39,
         "observable": 14,
-        "internal": 29,
+        "internal": 30,
         "query-only": 4
     },
     "entries": [
@@ -264,6 +264,11 @@
         },
         {
             "member": "paintLayers",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "pendingPreWireEvents",
             "classification": "internal",
             "commands": null
         },

@@ -24,7 +24,13 @@
 // Raw measurement JSON + Playwright traces are written under --out-dir
 // (default: perf-results/) for upload as CI artifacts.
 
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import {
+    appendFileSync,
+    existsSync,
+    mkdirSync,
+    readFileSync,
+    writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -47,6 +53,7 @@ import {
     ok,
     parseArgs,
     removeWorktree,
+    rendererGenerationChanged,
     resolveSha,
     run,
     step,
@@ -66,6 +73,13 @@ const BUILD_STEPS = [
     ['@triiiceratops/plugin-image-export', 'build'],
     ['@triiiceratops/plugin-pdf-export', 'build'],
     ['@triiiceratops/plugin-annotation-editor', 'build'],
+    ['@triiiceratops/plugin-av', 'build', 'packages/plugin-av/package.json'],
+    [
+        'triiiceratops',
+        'build:perf-element',
+        'packages/core/package.json',
+        'build:perf-element',
+    ],
 ];
 
 // The measured packages live under packages/. A `--base` SHA from before that
@@ -83,7 +97,19 @@ async function buildRoot(root) {
         cwd: root,
         timeout: 600_000,
     });
-    for (const [filter, script] of BUILD_STEPS) {
+    for (const [filter, script, packageJson, requiredScript] of BUILD_STEPS) {
+        if (packageJson) {
+            const packagePath = join(root, packageJson);
+            if (!existsSync(packagePath)) continue;
+            if (
+                requiredScript &&
+                !JSON.parse(readFileSync(packagePath, 'utf8')).scripts?.[
+                    requiredScript
+                ]
+            ) {
+                continue;
+            }
+        }
         step(`build ${filter} ${script}`);
         await run('pnpm', ['--filter', filter, 'run', script], {
             cwd: root,
@@ -169,7 +195,7 @@ async function main() {
         // 5.7 ms untraced and 64.6 ms traced on this tree, past a ceiling derived
         // from the untraced median. Ceiling and measurement have to be the same
         // kind of number.
-        noTraces: Boolean(args['no-traces']),
+        noTraces: Boolean(args['no-traces'] || args['update-budgets']),
     };
     mkdirSync(opts.outDir, { recursive: true });
 
@@ -225,14 +251,21 @@ async function main() {
     }
 
     // ── Comparison ─────────────────────────────────────────────────────────
+    // Runtime, size and residency figures from different renderer generations
+    // describe different implementations and artifact boundaries. Preserve the
+    // head measurement for absolute-budget enforcement, but make the
+    // differential side a no-op just as the pre-workspace boundary does.
+    const rendererGenerationBoundary =
+        !opts.sizeOnly && rendererGenerationChanged(base, head);
+    const comparisonBase = rendererGenerationBoundary ? head : base;
     const accepted = loadBudgets()?.acceptedSizeIncreases ?? {};
-    const size = compareSizes(base.sizes, head.sizes, accepted);
+    const size = compareSizes(comparisonBase.sizes, head.sizes, accepted);
     const runtime = opts.sizeOnly
         ? { rows: [], regressed: false }
-        : compareRuntime(base.runtime, head.runtime);
+        : compareRuntime(comparisonBase.runtime, head.runtime);
     const memory = opts.sizeOnly
         ? { rows: [], regressed: false }
-        : compareMemory(base.memory, head.memory);
+        : compareMemory(comparisonBase.memory, head.memory);
 
     const budgets = loadBudgets();
     const budgetFailures = budgets
@@ -270,6 +303,12 @@ async function main() {
     if (preRestructureBase) {
         out.push(
             `> Base \`${String(base.sha).slice(0, 10)}\` predates the pnpm-workspace restructure (no \`packages/core\`) — a size/runtime diff against it would be meaningless. Skipping the base-vs-head comparison; only the absolute budget ceilings below are enforced.`,
+        );
+        out.push('');
+    }
+    if (rendererGenerationBoundary) {
+        out.push(
+            `> Renderer generation changed from \`${base.renderer ?? 'unknown'}\` to \`${head.renderer ?? 'unknown'}\` — size, runtime and memory differentials are not comparable. Skipping the base-vs-head gates; only the head's absolute budget ceilings below are enforced.`,
         );
         out.push('');
     }
@@ -339,6 +378,7 @@ async function main() {
         base: { ref: base.ref, sha: base.sha, root: base.root },
         head: { ref: head.ref, sha: head.sha, root: head.root },
         preRestructureBase,
+        rendererGenerationBoundary,
         renderer: { base: base.renderer, head: head.renderer },
         size,
         runtime,
@@ -362,9 +402,11 @@ async function main() {
     // ── Verdict ──────────────────────────────────────────────────────────--
     heading('Verdict');
     let failed = false;
-    if (preRestructureBase) {
+    if (preRestructureBase || rendererGenerationBoundary) {
         warn(
-            'base predates the workspace restructure — size/runtime diff skipped',
+            preRestructureBase
+                ? 'base predates the workspace restructure — differential gates skipped'
+                : 'renderer generation changed — differential gates skipped',
         );
     } else {
         if (size.regressed) {

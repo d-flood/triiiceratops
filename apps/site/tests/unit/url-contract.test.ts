@@ -30,10 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { defaultMapPathToSource } from 'uncial-cms/sveltekit';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-    APP_MARKER as MARKER_NAME,
-    BARE_VIEWER_APP,
-} from '$lib/applications';
+import { APP_MARKER as MARKER_NAME, BARE_VIEWER_APP } from '$lib/applications';
 import { CONTENT_ROUTES } from '$lib/routes';
 import {
     APP_MARKER,

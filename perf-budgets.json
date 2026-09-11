@@ -1,10 +1,10 @@
 {
     "$schema": "./scripts/perf/perf-budgets.schema.json",
-    "baselineRef": "working-tree@1cb6c5fe",
+    "baselineRef": "working-tree@official-1.0-release",
     "renderer": "canvas",
     "tracing": "off",
-    "capturedAt": "2026-08-08T18:23:18.772Z",
-    "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median; byte ceilings are proportional (x1.75) so a small scenario is not swallowed by an additive floor sized for a large one. baselineRef names the commit that was MEASURED, which for a working-tree capture is not a released tag. Reproduce a capture with an ordinary build of that commit: the first-party Canvas2D renderer is the only renderer, so no environment variable selects it. core:style.css was re-recorded from 12,995 when the shared tooltip sheet moved into the global layer: those rules previously shipped twice over, inside Toolbar's and AnnotationShapeOverlay's scoped blocks, which svelte-package hands to a component consumer as part of each component rather than as part of this file. The sheet grew; what a consumer transfers fell.",
+    "capturedAt": "2026-09-11T21:56:35.962Z",
+    "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median; byte ceilings are proportional (x1.75) so a small scenario is not swallowed by an additive floor sized for a large one. baselineRef names the commit that was MEASURED, which for a working-tree capture is not a released tag. Reproduce a capture with an ordinary build of that commit: the first-party Canvas2D renderer is the only renderer, so no environment variable selects it.",
     "thresholds": {
         "sizeRegressionPct": 0.05,
         "runtimePct": 0.1,
@@ -16,128 +16,102 @@
     },
     "size": {
         "core:esm-entry-graph": {
-            "bytes": 47886,
-            "ceilingBytes": 50281
+            "bytes": 148433,
+            "ceilingBytes": 155855
         },
         "core:style.css": {
-            "bytes": 16504,
-            "ceilingBytes": 17330
+            "bytes": 18050,
+            "ceilingBytes": 18953
         },
         "core:element-iife": {
-            "bytes": 534162,
-            "ceilingBytes": 560871
+            "bytes": 401280,
+            "ceilingBytes": 421344
         },
         "sdk:esm-entry-graph": {
-            "bytes": 17144,
-            "ceilingBytes": 18002
+            "bytes": 14376,
+            "ceilingBytes": 15095
         },
         "image-manipulation:esm": {
-            "bytes": 88987,
-            "ceilingBytes": 93437
+            "bytes": 102123,
+            "ceilingBytes": 107230
         },
         "image-manipulation:iife": {
-            "bytes": 64100,
-            "ceilingBytes": 67305
+            "bytes": 68778,
+            "ceilingBytes": 72217
         },
         "image-download:esm": {
-            "bytes": 107711,
-            "ceilingBytes": 113097
+            "bytes": 129256,
+            "ceilingBytes": 135719
         },
         "image-download:iife": {
-            "bytes": 93259,
-            "ceilingBytes": 97922
+            "bytes": 108449,
+            "ceilingBytes": 113872
         },
         "pdf-export:esm": {
-            "bytes": 120481,
-            "ceilingBytes": 126506
+            "bytes": 139705,
+            "ceilingBytes": 146691
         },
         "pdf-export:iife": {
-            "bytes": 536892,
-            "ceilingBytes": 563737
+            "bytes": 551329,
+            "ceilingBytes": 578896
         },
         "av:esm-entry": {
-            "bytes": 50280,
-            "ceilingBytes": 52794
+            "bytes": 35502,
+            "ceilingBytes": 37278
         },
         "av:iife": {
-            "bytes": 51511,
-            "ceilingBytes": 54086
+            "bytes": 42381,
+            "ceilingBytes": 44501
         },
         "av:iife-chunk-hls": {
-            "bytes": 856581,
-            "ceilingBytes": 899410
+            "bytes": 581982,
+            "ceilingBytes": 611082
         },
-        "av:iife-chunk-waveform": {
-            "bytes": 6569,
-            "ceilingBytes": 6897
-        },
-        "av:iife-chunk-sequencer": {
-            "bytes": 5036,
-            "ceilingBytes": 5288
-        },
-        "av:iife-chunk-transcript": {
-            "bytes": 4495,
-            "ceilingBytes": 4720
-        }
-    },
-    "acceptedSizeIncreases": {
-        "av:esm-entry": {
-            "headBytes": 52794,
-            "reason": "New artifact family: the base ref predates @triiiceratops/plugin-av, so there is nothing to diff its entry against."
-        },
-        "av:iife": {
-            "headBytes": 54086,
-            "reason": "New artifact family: the base ref predates @triiiceratops/plugin-av. This is the artifact the competitive pair budget in scripts/size-check.mjs actually gates; the ratchet on its gzip lives in the plugin's own check-shared-runtime.mjs."
-        },
-        "av:iife-chunk-hls": {
-            "headBytes": 899410,
-            "reason": "New artifact family, and deliberately large: hls.js is fetched only when an HLS body must play on a browser with no native HLS. These bytes are never in the entry and never in the pair budget."
-        },
-        "av:iife-chunk-waveform": {
-            "headBytes": 6897,
-            "reason": "New artifact family: fetched only when a canvas links waveform data."
+        "av:iife-chunk-timeline": {
+            "bytes": 6880,
+            "ceilingBytes": 7224
         },
         "av:iife-chunk-sequencer": {
-            "headBytes": 5288,
-            "reason": "New artifact family: fetched only when a canvas is painted by several time-based bodies tiling its duration. These bytes are never in the entry and never in the pair budget."
+            "bytes": 3984,
+            "ceilingBytes": 4184
         },
         "av:iife-chunk-transcript": {
-            "headBytes": 4720,
-            "reason": "New artifact family: the transcript panel, fetched only when the current canvas carries a VTT track that loaded with cues in it. These bytes are never in the entry and never in the pair budget."
+            "bytes": 6933,
+            "ceilingBytes": 7280
         }
     },
     "runtime": {
         "initial_viewer_mount": {
-            "medianMs": 13.5,
-            "ceilingMs": 70.25
+            "medianMs": 30.2,
+            "ceilingMs": 95.3
         },
         "local_manifest_readiness": {
-            "medianMs": 30.4,
-            "ceilingMs": 95.6
+            "medianMs": 44.6,
+            "ceilingMs": 116.9
         },
         "first_canvas_render": {
-            "medianMs": 34.6,
-            "ceilingMs": 101.9
+            "medianMs": 46.2,
+            "ceilingMs": 119.3
         },
         "theme_switch": {
-            "medianMs": 1.8,
-            "ceilingMs": 52.7
+            "medianMs": 4,
+            "ceilingMs": 56
         },
         "core_interaction": {
-            "medianMs": 2,
-            "ceilingMs": 53
+            "medianMs": 2.7,
+            "ceilingMs": 54.05
         },
         "activate_image-manipulation": {
-            "medianMs": 5.7,
-            "ceilingMs": 58.55
+            "medianMs": 12.2,
+            "ceilingMs": 68.3
         },
         "activate_image-download": {
-            "medianMs": 5.9,
-            "ceilingMs": 58.85
+            "medianMs": 9.3,
+            "ceilingMs": 63.95
         },
         "activate_pdf-export": {
-            "medianMs": 6.5,
-            "ceilingMs": 59.75
+            "medianMs": 10.4,
+            "ceilingMs": 65.6
         }
     },
     "memory": {
@@ -155,8 +129,8 @@
             "ceilingResidentTileCount": 23,
             "requiredBytes": 998400,
             "ceilingRequiredBytes": 1747200,
-            "decodedBytes": 1397760,
-            "ceilingDecodedBytes": 2446080,
+            "decodedBytes": 998400,
+            "ceilingDecodedBytes": 1747200,
             "byteBudget": 134217728
         }
     }

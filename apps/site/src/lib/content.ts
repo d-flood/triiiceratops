@@ -5,8 +5,8 @@
  * A content route's body is one whole Uncial document, stored as normalized
  * JSON under `content/`, mirroring the site's paths through Uncial's default
  * mapping: `/production/` is `content/production.json`. `contentDir` is what the
- * storage backend addresses files by; `localContentDir` is the same directory as
- * a filesystem path from where Vite runs, which is this application's root.
+ * repository-rooted storage backend addresses files by; `localContentDir` is the
+ * same directory as a filesystem path from where Vite runs, this application.
  */
 import { createBlockRegistry, createSchema } from 'uncial/core';
 // The block factory from the runtime subpath rather than from Uncial's root: the
@@ -30,7 +30,7 @@ import OnwardList from './OnwardList.svelte';
 
 export const siteConfig: UncialCmsSiteConfig = {
     forge: 'local',
-    contentDir: 'content',
+    contentDir: 'apps/site/content',
 };
 
 export const localContentDir = 'content';

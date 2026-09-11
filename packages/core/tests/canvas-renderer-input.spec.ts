@@ -314,9 +314,11 @@ test.describe('Canvas2D renderer — gestures', () => {
             `momentum did not decay: ${early.toFixed(1)}px in the first half of the glide, ${late.toFixed(1)}px in the second`,
         ).toBeLessThan(early);
 
-        // And it really stopped, rather than crawling below the poll's notice.
-        const tail = trace.samples.slice(-3);
-        for (const sample of tail) expect(sample).toBeCloseTo(after, 6);
+        // And the independent frame sampler saw it stop, rather than retaining
+        // pre-settle samples because it trailed the renderer by a frame.
+        await expect
+            .poll(async () => (await readTrace(page)).samples.slice(-3))
+            .toEqual([after, after, after]);
     });
 
     test('a pointer-down during momentum stops it in the same frame', async ({

@@ -68,6 +68,18 @@ describe('sparse algebra', () => {
         ).toEqual({ gallery: { open: true } });
     });
 
+    it('compares array-valued settings by value rather than identity', () => {
+        expect(
+            diffSparse({ locales: ['en', 'fr'] }, { locales: ['en', 'fr'] }),
+        ).toEqual({});
+
+        for (const locales of [['en'], ['en', 'de'], 'en']) {
+            expect(diffSparse({ locales }, { locales: ['en', 'fr'] })).toEqual({
+                locales,
+            });
+        }
+    });
+
     it('collects leaf paths', () => {
         expect(collectPaths({ a: 1, b: { c: 2 } })).toEqual([
             ['a'],

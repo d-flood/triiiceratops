@@ -344,13 +344,13 @@ test('docking a gallery to the BOTTOM keeps the canvas inside the shortened view
 test('a host resize moments after a panel toggle still preserves scale', async ({
     page,
 }) => {
-    // Reduced motion so the column arrives in one step: the re-fit is then over
+    // Reduced motion so the column arrives in one step: compensation is then over
     // within a frame or two of the toggle, and everything after it is a plain
     // resize with no ambiguity about which case it belongs to.
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await openFixture(page);
 
-    // Deep enough that a re-fit would be unmistakable rather than a rounding
+    // Deep enough that compensation would be unmistakable rather than a rounding
     // difference.
     await page.evaluate(() => {
         const host = document.getElementById('v') as unknown as {
@@ -376,17 +376,19 @@ test('a host resize moments after a panel toggle still preserves scale', async (
             new Promise((resolve) => requestAnimationFrame(resolve));
 
         host.viewerState.showMetadataPanel = true;
-        // Enough frames for the column to arrive and the re-fit to settle,
+        // Enough frames for the column to arrive and compensation to settle,
         // few enough to stay well inside any plausible timeout.
         for (let i = 0; i < 6; i += 1) await frame();
 
         const afterRefit = host.viewerState.viewportScale;
-        element.style.width = '600px';
+        // Keep the current scale inside the narrower surface's legal zoom range;
+        // zoom-range clamping is a separate behavior from resize compensation.
+        element.style.width = '700px';
         for (let i = 0; i < 6; i += 1) await frame();
         return { afterRefit, afterResize: host.viewerState.viewportScale };
     });
 
-    // The panel took the surface, so the canvas was re-fitted — but the window
+    // The panel took the surface, so the canvas was compensated, but the window
     // getting smaller straight afterwards is the OTHER case, and the reader's
     // scale survives it. Collapsing the two is what this pins against.
     expect(seen.afterResize).toBeCloseTo(seen.afterRefit, 5);

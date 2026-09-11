@@ -28,6 +28,24 @@
                     composed: event.composed,
                 });
             });
+            // Count the documented viewer-change channels from the document,
+            // here in <head>: the IIFE entry is a parser-blocking classic
+            // script, so the viewer can mount, load its manifest and dispatch
+            // before the trailing body script runs. The channels bubble and
+            // compose, so document-level listeners catch every dispatch no
+            // matter how early — element-level listeners attached at the end
+            // of <body> can miss the first load by milliseconds.
+            window.__statechangeCount = 0;
+            for (const name of [
+                'manifestchange',
+                'canvaschange',
+                'choicechange',
+                'statechange',
+            ]) {
+                document.addEventListener(name, () => {
+                    window.__statechangeCount += 1;
+                });
+            }
         </script>
         <style>
             #v {
@@ -45,20 +63,11 @@
         ></triiiceratops-viewer>
         <script>
             // Record documented Web Component behavior so the parity spec can
-            // compare the IIFE and ESM entries head-to-head.
+            // compare the IIFE and ESM entries head-to-head. The change-event
+            // counting lives in <head> (see above); only per-instance setup
+            // remains here.
             window.__wcEntry = 'iife';
-            window.__statechangeCount = 0;
             const v = document.getElementById('v');
-            for (const name of [
-                'manifestchange',
-                'canvaschange',
-                'choicechange',
-                'statechange',
-            ]) {
-                v.addEventListener(name, () => {
-                    window.__statechangeCount += 1;
-                });
-            }
 
             // Custom search as a property-only input, assigned as a JavaScript
             // property with no attribute involved.

@@ -35,6 +35,11 @@ test.describe.configure({ mode: 'serial' });
  */
 test.use({ reducedMotion: 'reduce' });
 
+test.skip(
+    ({ browserName }) => browserName !== 'chromium',
+    'Accessibility scans are Chromium-only.',
+);
+
 // The a11y suite audits the desktop viewer. Skip on mobile projects so this
 // file stays deterministic there.
 test.beforeEach(({ isMobile }) => {

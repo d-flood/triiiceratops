@@ -27,14 +27,15 @@ export const entries = () =>
 
 export const load = async (event: Parameters<typeof handlers.load>[0]) => {
     try {
-        const data = await handlers.load(event);
+        const { document, meta } = await handlers.load(event);
         // The contents are derived here rather than in the page component so
         // that the deriving costs a reader nothing: every route prerenders, so
         // this runs at build time and only the list reaches the browser.
         return {
-            ...data,
+            document,
+            meta,
             toc: isDocPath(`/${event.params.path}/`)
-                ? documentToc(data.document)
+                ? documentToc(document)
                 : undefined,
         };
     } catch (cause) {

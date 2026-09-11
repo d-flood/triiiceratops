@@ -14,6 +14,7 @@ export default {
         '@triiiceratops/plugin-image-manipulation',
         '@triiiceratops/plugin-image-export',
         '@triiiceratops/plugin-pdf-export',
+        '@triiiceratops/plugin-annotation-editor',
     ],
     buildScript: 'check',
     browser: false,

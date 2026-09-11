@@ -58,8 +58,9 @@ describe('RecipeList', () => {
         const headings = target.querySelectorAll('.recstage__head');
         expect(headings.length).toBe(groupRecipes().length + 3);
 
-        const entries =
-            target.querySelectorAll<HTMLButtonElement>('button.recstage__opt');
+        const entries = target.querySelectorAll<HTMLButtonElement>(
+            'button.recstage__opt',
+        );
         expect(entries.length).toBeGreaterThan(COOKBOOK_RECIPES.length);
         entries[0].click();
         expect(loaded).toEqual([COOKBOOK_RECIPES[0].manifestUrl]);

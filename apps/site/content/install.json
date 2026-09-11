@@ -192,6 +192,6 @@
 	"meta": {
 		"title": "Fits the site you already have",
 		"shortTitle": "Install and frameworks",
-		"intro": "Add Triiiceratops to an HTML page or import it as a React, Vue, or Svelte component. Start with a IIIF manifest, then make the viewer your own."
+		"intro": "Add Triiiceratops to an HTML page or import it through your bundler as a React, Vue, or Svelte component. Start with a IIIF manifest, then make the viewer your own."
 	}
 }

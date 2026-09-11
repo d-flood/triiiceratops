@@ -435,13 +435,13 @@
         const area = bar?.parentElement;
         const hidden = idleHidden;
         if (!bar || !area) {
-            viewerState.chromeInset = ZERO_VIEWPORT_INSET;
+            publishInset(ZERO_VIEWPORT_INSET);
             return;
         }
 
         const publish = () => {
             if (hidden) {
-                viewerState.chromeInset = ZERO_VIEWPORT_INSET;
+                publishInset(ZERO_VIEWPORT_INSET);
                 return;
             }
             const box = bar.getBoundingClientRect();
@@ -452,10 +452,10 @@
                 fromTop <= fromBottom
                     ? { top: box.bottom - surface.top }
                     : { bottom: surface.bottom - box.top };
-            viewerState.chromeInset = {
+            publishInset({
                 ...ZERO_VIEWPORT_INSET,
                 ...clampEdges(covered),
-            };
+            });
         };
 
         // The bar's own box moves when it wraps to two rows, when a group comes
@@ -468,7 +468,7 @@
 
         return () => {
             ro.disconnect();
-            viewerState.chromeInset = ZERO_VIEWPORT_INSET;
+            publishInset(ZERO_VIEWPORT_INSET);
         };
     });
 
@@ -480,6 +480,26 @@
                 Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0,
             ]),
         );
+    }
+
+    // `chromeInset` is `$state.raw`: any assignment wakes subscribers, even one
+    // holding identical edges, and the observer above fires on resizes that
+    // move nothing reported here. Publish only on change, so such a resize
+    // notifies nobody. The current edges are read untracked: this helper runs
+    // inside the effect above, and a tracked read would make the effect depend
+    // on the very member it publishes — re-running (and rewriting) on every
+    // publish instead of only when the bar, the surface, or the flag moves.
+    function publishInset(next: ViewportInset): void {
+        const current = untrack(() => viewerState.chromeInset);
+        if (
+            current.top === next.top &&
+            current.right === next.right &&
+            current.bottom === next.bottom &&
+            current.left === next.left
+        ) {
+            return;
+        }
+        viewerState.chromeInset = next;
     }
 </script>
 

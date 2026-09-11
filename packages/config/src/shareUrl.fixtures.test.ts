@@ -148,7 +148,9 @@ describe.each(EMITTED)('what the codec emits: $name', (fixture) => {
 
     it('names no parameter nothing reads', () => {
         const params = new URLSearchParams(fixture.url.split('?')[1]);
-        expect([...params.keys()].toSorted()).toEqual(
+        const keys: string[] = [];
+        params.forEach((_, key) => keys.push(key));
+        expect(keys.sort()).toEqual(
             fixture.input.config && Object.keys(fixture.input.config).length
                 ? ['config', 'iiif-content']
                 : ['iiif-content'],

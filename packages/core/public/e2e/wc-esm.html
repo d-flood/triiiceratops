@@ -26,6 +26,24 @@
                     composed: event.composed,
                 });
             });
+            // Count the documented viewer-change channels from the document,
+            // here in <head>, exactly as in the IIFE fixture so the two
+            // entries are compared on the same observation: the viewer can
+            // mount, load and dispatch before the trailing body script runs,
+            // and element-level listeners attached there can miss the first
+            // load by milliseconds. The channels bubble and compose, so
+            // document-level listeners catch every dispatch.
+            window.__statechangeCount = 0;
+            for (const name of [
+                'manifestchange',
+                'canvaschange',
+                'choicechange',
+                'statechange',
+            ]) {
+                document.addEventListener(name, () => {
+                    window.__statechangeCount += 1;
+                });
+            }
         </script>
         <style>
             #v {
@@ -43,22 +61,12 @@
         ></triiiceratops-viewer>
         <script>
             // Record documented Web Component behavior so the parity spec can
-            // compare the IIFE and ESM entries head-to-head. This classic script
-            // runs before the deferred module above; the listener is attached to
-            // the element instance and survives its custom-element upgrade.
+            // compare the IIFE and ESM entries head-to-head. The change-event
+            // counting lives in <head> (see above); only per-instance setup
+            // remains here — assigned with the tag not yet defined, so the
+            // element must carry the value across its custom-element upgrade.
             window.__wcEntry = 'esm';
-            window.__statechangeCount = 0;
             const v = document.getElementById('v');
-            for (const name of [
-                'manifestchange',
-                'canvaschange',
-                'choicechange',
-                'statechange',
-            ]) {
-                v.addEventListener(name, () => {
-                    window.__statechangeCount += 1;
-                });
-            }
 
             // Custom search as a property-only input, assigned here — with the
             // tag not yet defined, so the element must carry the value across
