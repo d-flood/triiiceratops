@@ -1,6 +1,6 @@
 # @triiiceratops/plugin-av
 
-Audio and video for the [Triiiceratops](https://d-flood.github.io/triiiceratops/)
+Audio and video for the [Triiiceratops](https://triiiceratops.org/)
 IIIF viewer.
 
 Core is an image viewer. A canvas whose painting bodies are `Sound` or `Video`
@@ -76,9 +76,9 @@ and no registration — not a broken page.
 The shared runtime is a **first-party arrangement, not a pattern to copy**:
 `svelte/internal` is private, unversioned API, and it is only safe here because
 core and this plugin are built and released from one repository at one Svelte
-version. The plugin pins `coreRange` to an exact core version to say so, and
+version. The plugin holds `coreRange` to the 1.x line to say so, and
 refuses to activate against anything else. If you are writing your own plugin,
-[bundle your own Svelte runtime](https://d-flood.github.io/triiiceratops/plugin-authoring/).
+[bundle your own Svelte runtime](https://triiiceratops.org/docs/plugin-authoring/).
 
 ## Commanding playback: `AVState`
 

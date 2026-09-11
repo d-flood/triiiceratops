@@ -2,6 +2,7 @@
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { isFullCanvasAnnotation } from '../utils/annotationAdapter';
+    import { isAnnotationEditorOpen } from '../utils/annotationEditing';
     import { collectCanvasAnnotations } from '../utils/canvasAnnotations';
     import { getAnnotationId } from '../utils/iiifIds';
 
@@ -29,6 +30,14 @@
             .filter(Boolean);
     });
 
+    /**
+     * Whether the annotation editor is open — the second thing that makes an
+     * annotation shown by default (see the visibility effect below).
+     */
+    const annotationEditorOpen = $derived(
+        isAnnotationEditorOpen(viewerState.pluginMenuButtons),
+    );
+
     function escapeAttributeValue(value: string): string {
         if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
             return CSS.escape(value);
@@ -48,10 +57,15 @@
      * arrived hidden: shapes drawn nowhere, and rows whose eye claimed the reader
      * had hidden something they never touched. The condition settles because
      * `showVisibleCanvasAnnotations` adds exactly these ids.
+     *
+     * The annotations panel is one of two things that seeds the set: an open
+     * annotation EDITOR seeds it too. The eye toggles live in the panel, so with
+     * the panel shut nothing would ever enter the set — and a reader drawing a
+     * shape would watch it vanish the moment it was persisted.
      */
     $effect(() => {
         if (
-            !viewerState.showAnnotations ||
+            !(viewerState.showAnnotations || annotationEditorOpen) ||
             viewerState.annotationVisibilityTouched ||
             toggleableAnnotationIds.length === 0
         ) {

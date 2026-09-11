@@ -327,7 +327,7 @@
 				},
 				{
 					"type": "text",
-					"text": "coreRange: '>=1.0.0-rc.36'",
+					"text": "coreRange: '>=1.0.0'",
 					"marks": [
 						{
 							"type": "code"

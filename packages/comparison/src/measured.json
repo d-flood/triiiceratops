@@ -1,5 +1,5 @@
 {
-    "measuredAt": "2026-09-08",
+    "measuredAt": "2026-09-11",
     "compression": {
         "gzipLevel": 9,
         "brotliQuality": 11
@@ -17,16 +17,16 @@
             "sessions": [
                 {
                     "kind": "image",
-                    "raw": 394932,
-                    "gzip": 117542,
-                    "brotli": 98867,
+                    "raw": 400943,
+                    "gzip": 119531,
+                    "brotli": 100499,
                     "files": [
                         {
                             "url": "packages/core/dist/triiiceratops-element.iife.js",
                             "name": "triiiceratops-element.iife.js",
-                            "raw": 394932,
-                            "gzip": 117542,
-                            "brotli": 98867
+                            "raw": 400943,
+                            "gzip": 119531,
+                            "brotli": 100499
                         }
                     ]
                 }
@@ -41,45 +41,45 @@
             "sessions": [
                 {
                     "kind": "image",
-                    "raw": 435222,
-                    "gzip": 132779,
-                    "brotli": 112474,
+                    "raw": 443324,
+                    "gzip": 135425,
+                    "brotli": 114716,
                     "files": [
                         {
                             "url": "packages/core/dist/triiiceratops-element.iife.js",
                             "name": "triiiceratops-element.iife.js",
-                            "raw": 394932,
-                            "gzip": 117542,
-                            "brotli": 98867
+                            "raw": 400943,
+                            "gzip": 119531,
+                            "brotli": 100499
                         },
                         {
                             "url": "packages/plugin-av/dist/iife.js",
                             "name": "iife.js",
-                            "raw": 40290,
-                            "gzip": 15237,
-                            "brotli": 13607
+                            "raw": 42381,
+                            "gzip": 15894,
+                            "brotli": 14217
                         }
                     ]
                 },
                 {
                     "kind": "audiovisual",
-                    "raw": 435222,
-                    "gzip": 132779,
-                    "brotli": 112474,
+                    "raw": 443324,
+                    "gzip": 135425,
+                    "brotli": 114716,
                     "files": [
                         {
                             "url": "packages/core/dist/triiiceratops-element.iife.js",
                             "name": "triiiceratops-element.iife.js",
-                            "raw": 394932,
-                            "gzip": 117542,
-                            "brotli": 98867
+                            "raw": 400943,
+                            "gzip": 119531,
+                            "brotli": 100499
                         },
                         {
                             "url": "packages/plugin-av/dist/iife.js",
                             "name": "iife.js",
-                            "raw": 40290,
-                            "gzip": 15237,
-                            "brotli": 13607
+                            "raw": 42381,
+                            "gzip": 15894,
+                            "brotli": 14217
                         }
                     ]
                 }
@@ -220,7 +220,7 @@
                     ]
                 }
             ],
-            "note": "The web-component bundle and its stylesheet."
+            "note": "The web-component bundle and its stylesheet. It renders a canvas rather than presenting a manifest — no navigation, no metadata, no ranges — so it is weighed here and left out of the coverage figure, where the matrix has no column for it either."
         },
         {
             "id": "universal-viewer",
@@ -477,7 +477,7 @@
                     ]
                 }
             ],
-            "note": "The self-contained UMD build its README documents. Its ESM build looks smaller only because it externalises React and MUI."
+            "note": "The self-contained UMD build its README documents. Its ESM build looks smaller only because it externalizes React and MUI."
         },
         {
             "id": "glycerine",
@@ -530,7 +530,7 @@
                     ]
                 }
             ],
-            "note": "The `jslib/` widget its README documents for a script tag, packed with Vue and PrimeVue. Its `dist/` build externalises them and is not what a page loads."
+            "note": "The `jslib/` widget its README documents for a script tag, packed with Vue and PrimeVue. Its `dist/` build externalizes them and is not what a page loads."
         }
     ]
 }

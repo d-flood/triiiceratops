@@ -246,6 +246,9 @@
                 // manifest published rather than this editor's adapter. There
                 // is nothing to save it back through.
                 if (!annotation) return;
+                // The reader reached for the shape itself, so focus belongs on
+                // it — this is the only path that is a tap on the image.
+                if (session) session.focusOnEdit = true;
                 void selectAnnotation(annotation);
             };
         }

@@ -8,6 +8,7 @@
 
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { parseAnnotations } from '../utils/annotationAdapter';
+    import { isAnnotationEditorOpen } from '../utils/annotationEditing';
     import { collectCanvasAnnotations } from '../utils/canvasAnnotations';
     import {
         prepareAnnotationShapes,
@@ -131,29 +132,10 @@
     /**
      * Whether the annotation editor is open, which is what makes a shape
      * editable — and therefore focusable and operable.
-     *
-     * Read from the plugin's toolbar button, which is target-independent
-     * (`isActive` reflects open for both a panel and a flyout).
-     *
-     * TODO(editing claim): core should not name a plugin. The literal
-     * `'annotation-editor'` hard-codes which single plugin may make an
-     * annotation editable — nothing else can, however it is packaged. The
-     * replacement is an editing claim a plugin declares: an "annotation editing
-     * is open" state on `ViewerState.annotationEditBus`, set by whoever is
-     * editing, so this reads a capability rather than a name.
-     *
-     * Known debt, deliberately deferred — see
-     * `docs/adr/0021-the-editing-surface-is-first-party.md`. It only pays off
-     * when a SECOND plugin wants to make annotations editable, which is the
-     * far-future AV annotation editor, and the annotation editor keeps
-     * `uiId: 'annotation-editor'` until then or nothing is editable at all.
      */
-    const annotationEditorOpen = $derived.by(() => {
-        const editorButton = viewerState.pluginMenuButtons.find(
-            (button) => button.pluginId === 'annotation-editor',
-        );
-        return editorButton?.isActive?.() ?? false;
-    });
+    const annotationEditorOpen = $derived(
+        isAnnotationEditorOpen(viewerState.pluginMenuButtons),
+    );
 
     /**
      * Every annotation on every canvas the reader is looking at.
@@ -197,8 +179,13 @@
      * state, and settled before any geometry is projected so a hidden annotation
      * costs no arithmetic per frame.
      */
-    const shownAnnotations = $derived(
-        parsedAnnotations.filter((anno) => {
+    const shownAnnotations = $derived.by(() => {
+        // Nothing is asking for annotations, so none are drawn — whatever is
+        // still in the visibility set. The set is seeded by the annotations
+        // panel and by an open editor, and neither clears it on the way out, so
+        // without this a shape outlived the thing that put it on screen.
+        if (!viewerState.showAnnotations && !annotationEditorOpen) return [];
+        return parsedAnnotations.filter((anno) => {
             // A search hit is always shown; everything else honours the
             // annotation panel's visibility set.
             if (
@@ -209,8 +196,8 @@
             }
             // The one being edited is drawn by the editor, not here.
             return anno.sourceAnnotationId !== activeEditAnnotationId;
-        }),
-    );
+        });
+    });
 
     /**
      * Canvas/image dimensions per canvas on screen, for the annotations whose
@@ -604,7 +591,7 @@
         class:place-right={readonlyTooltip.side === 'right'}
         data-tip={readonlyTooltip.text}
         aria-hidden="true"
-        style="left: {readonlyTooltip.x}px; top: {readonlyTooltip.y}px; width: 0; height: 0;"
+        style="position: fixed; left: {readonlyTooltip.x}px; top: {readonlyTooltip.y}px; width: 0; height: 0;"
     ></div>
 {/if}
 
@@ -922,28 +909,49 @@
         );
     }
 
-    /* Fixed read-only tooltip anchor */
+    /*
+     * The read-only tooltip anchor.
+     *
+     * `position: fixed` is written INLINE on the element, not here, and that is
+     * load-bearing. This element carries `.tooltip` as well, and that sheet sets
+     * `position: relative` on it; the two live in separate stylesheets, so a
+     * scoped rule here wins only while this component's own CSS actually
+     * reaches the page. Where it does not, the anchor fell back to `relative`
+     * and the coordinates below — which are VIEWPORT coordinates, from
+     * `clientX`/`clientY` — were applied as offsets from its place in the flow,
+     * putting the bubble a page-length away from the pointer.
+     *
+     * An inline declaration outranks every stylesheet, so the one property the
+     * tooltip cannot be wrong about is the one property that no longer depends
+     * on which sheet arrives.
+     */
     .readonly-tooltip {
-        position: fixed;
         z-index: 50;
         pointer-events: none;
     }
 
     /*
      * The bubble, tail, reveal and placements come from `src/styles/tooltip.css`.
-     * This rule stays component-scoped because it must outrank that sheet's
-     * `--tt-bg`/`--tt-fg` on `.tooltip`, and the extra class Svelte scopes it
-     * with is the only thing that does: the two live in separate stylesheets
-     * whose injection order is not this file's to decide.
+     * This recolours them, so it has to outrank that sheet's `--tt-bg`/`--tt-fg`
+     * on `.tooltip` — and BOTH classes sit on the same element.
+     *
+     * `.tooltip` qualifies the selector for that reason, and it is the whole
+     * point of the rule. Svelte's scope class is not enough on its own: that
+     * sheet is scoped in some pipelines too, and then `.tooltip.<scope>` and
+     * `.tooltip-primary.<scope>` are both one class plus a scope class — a
+     * specificity TIE, settled by whichever stylesheet was injected last, which
+     * is not this file's to decide. Qualified, this is one class more specific
+     * than the sheet it is recolouring and the order stops mattering.
      *
      * Nothing here restates that sheet's `position: relative`. A drawn shape IS
      * the tooltip — `.tooltip` goes on the shape rather than on a wrapper around
      * it — and every such element is already placed by a rule above. A scoped
-     * `position` on `.tooltip` would outrank those by that same extra class and
-     * take the shape out of the coordinate system its inline `left`/`top` are
-     * written in.
+     * `position` on `.tooltip` would outrank those and take the shape out of the
+     * coordinate system its inline `left`/`top` are written in. The read-only
+     * anchor, which needs `fixed` and lost exactly this tie, carries that one
+     * property inline instead — see `.readonly-tooltip` above.
      */
-    .tooltip-primary {
+    .tooltip.tooltip-primary {
         --tt-bg: var(--tri-color-primary);
         --tt-fg: var(--tri-color-primary-content);
     }

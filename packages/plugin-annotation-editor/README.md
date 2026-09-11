@@ -1,6 +1,6 @@
 # @triiiceratops/plugin-annotation-editor
 
-Annotation editing for the [Triiiceratops](https://d-flood.github.io/triiiceratops/)
+Annotation editing for the [Triiiceratops](https://triiiceratops.org/)
 IIIF viewer.
 
 Core renders and selects the annotations a manifest publishes; it writes none.

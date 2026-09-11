@@ -22,5 +22,5 @@ export const PLUGIN_META = {
      * The site root, rather than a per-page path: this value is inlined into
      * every published bundle, so it outlives any page it could name.
      */
-    docs: 'https://d-flood.github.io/triiiceratops/',
+    docs: 'https://triiiceratops.org/',
 } as const;

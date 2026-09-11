@@ -27,6 +27,22 @@ export class DrawingSession {
     editingAnnotationId = $state<string | null>(null);
 
     /**
+     * Set by the controller when an edit was opened by TAPPING the shape on the
+     * image, and cleared by the drawing layer once focus is on it.
+     *
+     * A tap leaves focus wherever it was — core's own shape is removed the
+     * instant the editor takes the rendering over, so the document is left
+     * focused on nothing. Every keyboard verb the open shape has (nudge,
+     * commit, delete, the vertex keys) is bound on the shape, so until focus
+     * reaches it a reader who taps a shape has no keyboard at all.
+     *
+     * Only the tap. Selecting the annotation from the panel's LIST opens the
+     * same edit, and pulling focus out of the list onto the image would take
+     * the reader off the control they are actually working in.
+     */
+    focusOnEdit = $state(false);
+
+    /**
      * Set by the controller so a committed shape opens its body editor. Not
      * reactive state: it is wiring, replaced only when the controller mounts.
      */

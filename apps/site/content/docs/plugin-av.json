@@ -662,7 +662,7 @@
 				},
 				{
 					"type": "text",
-					"text": " to an exact core version to say so, and refuses to activate against anything else. If you are writing your own plugin, "
+					"text": " to the 1.x line to say so, and refuses to activate against anything else. If you are writing your own plugin, "
 				},
 				{
 					"type": "text",

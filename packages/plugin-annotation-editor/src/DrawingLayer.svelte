@@ -1387,7 +1387,15 @@
             return;
         }
 
-        if (event.key === 'Delete') {
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+            // Backspace as well as Delete: the Apple keyboards much of this
+            // audience works on have no Delete key at all, and Backspace is
+            // what "delete this" means there.
+            //
+            // Suppressed because an unhandled Backspace is a history-back
+            // gesture in some browsers and assistive setups, which would take
+            // the reader off the page instead of removing a shape.
+            event.preventDefault();
             // Only a persisted annotation can be deleted; an uncommitted
             // keyboard shape is abandoned with Escape, there being nothing
             // stored to remove.
@@ -1431,6 +1439,23 @@
         );
         (move ?? fallback)?.focus();
     }
+
+    /*
+     * Focus follows a TAPPED shape too, for the same reason it follows a placed
+     * one: the shape's keyboard verbs are bound on the shape, so a reader who
+     * opened an edit by tapping would otherwise have to Tab across the whole
+     * viewer to reach them.
+     *
+     * Driven from `underEdit` rather than done by the controller at the moment
+     * of the tap, because the shape the focus is going to does not exist yet
+     * then — the tap sets a selection, and the handles are two derivations
+     * downstream of it.
+     */
+    $effect(() => {
+        if (!underEdit?.annotation || !session.focusOnEdit) return;
+        session.focusOnEdit = false;
+        void focusShape();
+    });
 
     async function focusHandle(
         id: HandleId | number | PointHandleId,
@@ -1719,6 +1744,29 @@
             --tri-annotation-point-fill,
             var(--tri-annotation-color)
         );
+        /*
+         * A ring, because nothing else about an open point says it is open.
+         * Every other shape gains an outline and eight handles when it opens;
+         * a point's one handle IS the marker, so at rest and under edit it was
+         * the same ten pixels and a reader had no way to tell whether their
+         * tap had landed.
+         *
+         * Drawn OUTSIDE the marker as a `box-shadow`, which changes neither
+         * the element's box nor its fill: `--tri-annotation-point-size` stays
+         * the single source of a point's size, and the marker goes on being
+         * painted exactly as core paints the same point at rest.
+         *
+         * Not `:focus-visible`, which was the only treatment here before and
+         * is precisely the one a mouse does not raise — the reader who taps a
+         * point is the reader who was seeing nothing.
+         */
+        box-shadow:
+            0 0 0 2px var(--tri-color-base-100, #fff),
+            0 0 0 4px
+                var(
+                    --tri-annotation-point-selected-ring,
+                    var(--tri-color-primary)
+                );
     }
 
     .edit-handle:focus-visible {

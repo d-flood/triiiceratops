@@ -19,15 +19,11 @@
 
 // ---- The domain file ------------------------------------------------------
 //
-// Written into the BUILD rather than committed at the repository root: Pages
-// serves an uploaded artifact, so a repository-root file would never reach the
-// served tree.
-//
-// Gated on PUBLISH_CNAME=1, and off by default, because a custom-domain file can
-// make the default `*.github.io` host redirect to the custom domain. Until that
-// domain resolves and is bound in the repository's Pages settings, publishing
-// one can leave the site unreachable at both hosts — including the `/viewer/`
-// URL that published IIIF Cookbook recipes link directly.
+// Written on deploys that set PUBLISH_CNAME=1, and omitted from local builds:
+// Pages serves an uploaded artifact, so a repository-root file would never
+// reach the served tree. The domain is bound in the repository's Pages
+// settings, so the deploy workflow always sets the flag; a local build
+// without it serves from whatever host it runs on and writes no file.
 
 // ---- The search index ----------------------------------------------------
 //

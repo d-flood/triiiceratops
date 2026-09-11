@@ -155,12 +155,12 @@ jobs:
             # routes, the documentation, the playground, the bare viewer and the
             # consumer examples it carries — so every deploy builds all of it.
             #
-            # The custom-domain file is part of this build and off by default;
-            # set PUBLISH_CNAME=1 here once the domain resolves and is bound in
-            # the repository's Pages settings. See
-            # apps/site/scripts/finish-build.mjs for why it is not on yet.
+            # The domain is bound in the repository's Pages settings, so the
+            # build writes the custom-domain file every deploy.
             - name: Build the whole tree
               run: pnpm build:all
+              env:
+                  PUBLISH_CNAME: '1'
 
             - uses: actions/upload-pages-artifact@v5
               with:

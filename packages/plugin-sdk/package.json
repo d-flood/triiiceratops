@@ -10,7 +10,7 @@
         "url": "git+https://github.com/d-flood/triiiceratops.git",
         "directory": "packages/plugin-sdk"
     },
-    "homepage": "https://d-flood.github.io/triiiceratops/",
+    "homepage": "https://triiiceratops.org/",
     "publishConfig": {
         "access": "public",
         "provenance": true

@@ -428,7 +428,22 @@
 
 <!-- Delete Confirmation Modal (Keep as modal for safety) -->
 {#if showDeleteConfirm}
-    <dialog class="modal modal-open">
+    <!--
+        Opened with `showModal`, which is what puts it in the browser's TOP
+        LAYER — above every stacking context on the page, the drawing layer's
+        included. A `z-index` cannot reach that far from here: this panel is a
+        stacking context of core's own, so the dialog's z-index only ever
+        competes inside it, and the overlay layer core stacks above the panels
+        painted the shape being deleted straight over the confirmation.
+
+        The top layer also brings the modal semantics this dialog only looked
+        like it had: an inert page behind it, focus held inside it, and Escape.
+    -->
+    <dialog
+        class="modal modal-open"
+        {@attach (dialog: HTMLDialogElement) => void dialog.showModal()}
+        oncancel={onCancelDelete}
+    >
         <div class="modal-box">
             <h3 class="modal-title">
                 <span class="modal-warning-icon"
@@ -690,8 +705,9 @@
         color: inherit;
         overflow: clip;
         overscroll-behavior: contain;
-        z-index: 999;
     }
+    /* The dim is painted by the dialog itself, which covers the viewport, so
+       the top layer's own backdrop would only double it. */
     .modal::backdrop {
         display: none;
     }

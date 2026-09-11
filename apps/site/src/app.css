@@ -1975,7 +1975,7 @@ code {
     flex-direction: column;
     gap: var(--s3);
     min-height: 0;
-    padding: var(--s5) var(--s4) var(--s5) var(--s5);
+    padding: 0 var(--s4) var(--s5) var(--s5);
     border-right: 1px solid var(--rule);
     overflow-y: auto;
 }
@@ -1992,6 +1992,7 @@ code {
     display: flex;
     flex-wrap: wrap;
     margin-bottom: var(--s1);
+    padding-top: var(--s5);
     border-bottom: 1px solid var(--rule);
     background: var(--bench);
 }

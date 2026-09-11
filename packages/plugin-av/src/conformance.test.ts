@@ -136,16 +136,20 @@ describe('declared compatibility', () => {
     });
 
     /**
-     * `svelte/internal` is private API with no semver guarantee, so an upper
-     * bound is not optional: a `>=` range is satisfied by a core 2.0 on a later
-     * Svelte, whose compiled components would call helpers that had moved. The
-     * pin must be re-stamped at each core release — nothing in the release
-     * tooling stamps it, which is what this assertion stands in for.
+     * `svelte/internal` is private API with no semver guarantee, so the range
+     * must still refuse a future major: the caret over the 1.x line admits the
+     * prerelease this plugin was built against and every 1.x core after it —
+     * including the stable the release tooling mints from it — while 2.0.0
+     * stays refused. Pinned as a literal so the floor moves only deliberately,
+     * at a core major, and never drifts as release busywork.
      */
-    it('pins core exactly, so a future major cannot satisfy it', () => {
-        expect(AvPlugin.coreRange).toBe(CORE_VERSION);
+    it('holds core to the 1.x line, refusing older cores and future majors', () => {
+        expect(AvPlugin.coreRange).toBe('^1.0.0-rc.36');
+        expect(refusalAgainst({ coreVersion: '1.0.0-rc.35' })).toContain(
+            'requires core ^1.0.0-rc.36',
+        );
         expect(refusalAgainst({ coreVersion: '2.0.0' })).toContain(
-            `requires core ${CORE_VERSION}`,
+            'requires core ^1.0.0-rc.36',
         );
     });
 });

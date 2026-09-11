@@ -1,8 +1,6 @@
 # Triiiceratops IIIF Viewer
 
-A modern IIIF viewer with a small footprint (despite the name) distributed as a web component that can be dropped into any HTML page or frontend framework.
-
-This is a work in progress and does not support all required IIIF client features (_yet_).
+A modern IIIF viewer with a small footprint (despite the name) distributed as a web component that can be dropped into any HTML page or frontend framework. Read the [documentation](https://triiiceratops.org/docs/) for guides, or open the [live feature tour](https://triiiceratops.org/features/) to see what the viewer can do with a IIIF manifest.
 
 This project is heavily inspired by Mirador 4, which I still view as the premier IIIF viewer.
 

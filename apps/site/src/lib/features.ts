@@ -993,4 +993,29 @@ export const FEATURES: readonly Feature[] = [
         }),
         plugin: IMAGE_DOWNLOAD_PLUGIN,
     },
+    {
+        name: 'Annotation editor plugin',
+        group: 'First Party Plugins',
+        what: 'Draw a region — box, ellipse, outline or point — and write a note on it.',
+        // A plate that publishes no annotations of its own, so everything on
+        // the surface is something the reader put there.
+        material: 'Ernst Haeckel, Discomedusae (Plate 8), 1904',
+        source: LANDING.source,
+        example: {
+            manifest: LANDING.manifest,
+            canvases: LANDING.canvases,
+            label: 'Regions drawn on a canvas by a plugin',
+            firstCanvas: { width: 3645, height: 5267 },
+        },
+        canvasId: LANDING.plate,
+        config: showing({
+            toolbarOpen: true,
+            plugins: { 'annotation-editor': { open: true } },
+        }),
+        // The shipped plugin carries the LocalStorage adapter, so what a reader
+        // draws on this page stays in their own browser and reaches no server.
+        plugin: async () =>
+            (await import('@triiiceratops/plugin-annotation-editor'))
+                .AnnotationEditorPlugin as unknown as SitePlugin,
+    },
 ];

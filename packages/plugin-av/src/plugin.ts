@@ -21,12 +21,14 @@
  *   controls, and this plugin builds none of its own: a reader would get a
  *   staged recording with no way to play it.
  *
- * `coreRange` is pinned EXACTLY, not as a lower bound. `>=` would be satisfied
- * by a core 2.0 on a future Svelte, and `svelte/internal` is private API with no
- * semver guarantee: the capability says a runtime is shared, and only the exact
- * version says it is the same runtime. The pin must be re-stamped at every core
- * release — nothing in the release tooling does it, so it is a manual edit
- * alongside `CORE_VERSION`.
+ * `coreRange` is a caret over the 1.x line, not an exact pin and not an open
+ * lower bound. `>=` would be satisfied by a core 2.0 on a future Svelte, and
+ * `svelte/internal` is private API with no semver guarantee: the capability
+ * says a runtime is shared, and only the same-major line says it is the same
+ * runtime. The caret admits the prerelease this plugin was built against and
+ * every 1.x core after it — including the 1.0.0 stable the release tooling
+ * mints from it — while refusing 2.0.0 and above, so the floor moves only
+ * deliberately, at a core major, and never as release busywork.
  */
 
 import { mount, unmount } from 'svelte';
@@ -115,7 +117,7 @@ export const AvPlugin: SdkPlugin = definePlugin({
     title: 'av_title',
     uiId: PLUGIN_META.uiId,
     version: VERSION,
-    coreRange: '1.0.0-rc.36',
+    coreRange: '^1.0.0-rc.36',
     pluginApiRange: '^1.2.0',
     requiredCapabilities: [
         'canvas-claim',

@@ -146,6 +146,26 @@ async function armRectangle(page: Page): Promise<void> {
     await armTool(page, 'Rectangle');
 }
 
+/**
+ * Shut the annotations panel, leaving only the editor open.
+ *
+ * Through `config`, which is how a host asks — and how the panel comes to be
+ * shut in the field: `open: false` is the shipped default, and this fixture is
+ * the odd one out in opening it.
+ */
+async function closeAnnotationsPanel(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        const viewer = document.getElementById('v') as HTMLElement & {
+            config: unknown;
+        };
+        viewer.config = {
+            annotations: { open: false },
+            plugins: { 'annotation-editor': { open: true } },
+        };
+    });
+    await settleSurface(page);
+}
+
 /** The LocalStorage adapter's frozen 1.0 namespace prefix. */
 const STORAGE_PREFIX = '@triiiceratops/plugin-annotation-editor:v1';
 
@@ -444,6 +464,245 @@ test.describe('annotation editor drawing', () => {
         expect(
             Math.abs(shapeBox.height - stored.height * reloaded.scale),
         ).toBeLessThanOrEqual(1);
+    });
+
+    /** Core's own rendering of one annotation, which this block asserts about. */
+    const shapeOf = (id: string) => `[data-annotation-id="${id}"]`;
+
+    test('closing the editor takes the shapes with it', async ({ page }) => {
+        await openFixture(page);
+        await closeAnnotationsPanel(page);
+        await setView(page, VIEW);
+        await armRectangle(page);
+
+        const view = await getView(page);
+        const from = await pageAt(page, { x: 700, y: 520 }, view);
+        const to = await pageAt(page, { x: 500, y: 380 }, view);
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await page.mouse.move(to.x, to.y, { steps: 8 });
+        await page.mouse.up();
+
+        await expect.poll(async () => (await storedRects(page)).length).toBe(1);
+        const [stored] = await storedRects(page);
+        await expect(page.locator(shapeOf(stored.id))).toHaveCount(1);
+
+        // With the annotations panel shut, an open editor is the only thing
+        // asking for these shapes — so closing it has to take them away. The
+        // visibility set is seeded by both and cleared by neither, so a shape
+        // outlived the thing that put it on screen and could only be dismissed
+        // by opening the annotations panel and shutting it again.
+        await page.evaluate(() => {
+            (
+                document.getElementById('v') as HTMLElement & {
+                    config: unknown;
+                }
+            ).config = {
+                annotations: { open: false },
+                plugins: { 'annotation-editor': { open: false } },
+            };
+        });
+        await expect(page.locator(shapeOf(stored.id))).toHaveCount(0);
+
+        // And re-opening it brings them back, rather than leaving the reader
+        // with an editor over an image with nothing on it.
+        await page.evaluate(() => {
+            (
+                document.getElementById('v') as HTMLElement & {
+                    config: unknown;
+                }
+            ).config = {
+                annotations: { open: false },
+                plugins: { 'annotation-editor': { open: true } },
+            };
+        });
+        await expect(page.locator(shapeOf(stored.id))).toHaveCount(1);
+    });
+
+    test('hovering a shape tells the reader what it says, editor open or shut', async ({
+        page,
+    }) => {
+        await openFixture(page);
+        await armRectangle(page);
+
+        const view = await getView(page);
+        const from = await pageAt(page, { x: 500, y: 380 }, view);
+        const to = await pageAt(page, { x: 700, y: 520 }, view);
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await page.mouse.move(to.x, to.y, { steps: 8 });
+        await page.mouse.up();
+        await expect.poll(async () => (await storedRects(page)).length).toBe(1);
+        const [stored] = await storedRects(page);
+
+        // A tooltip is the annotation's BODY, so there has to be one.
+        await page.getByRole('button', { name: 'Add Content' }).click();
+        await page.getByPlaceholder('Enter text...').fill(BODY_TEXT);
+        await page.getByRole('button', { name: 'Save Changes' }).click();
+        await expect
+            .poll(() => storedBodyText(page, stored.id))
+            .toBe(BODY_TEXT);
+
+        let pointer = { x: 0, y: 0 };
+        const hover = async () => {
+            // Located fresh each time: opening and closing the editor takes a
+            // column out of the stage and gives it back, so the point the shape
+            // is at is not the point it was at before the panel moved.
+            const centre = await pageAt(
+                page,
+                { x: 600, y: 450 },
+                await getView(page),
+            );
+            // Moved twice: the hit test runs on `pointermove`, so arriving at
+            // the shape from somewhere else is what raises the event.
+            await page.mouse.move(centre.x - 40, centre.y - 30);
+            await page.mouse.move(centre.x, centre.y);
+            pointer = centre;
+        };
+
+        // Out of create mode with the shape deselected, so core has the
+        // rendering back: the editor stands down on the annotation it has open,
+        // and this spec is about the shapes core draws.
+        const configure = async (editorOpen: boolean) => {
+            await page.evaluate((open) => {
+                (
+                    document.getElementById('v') as HTMLElement & {
+                        config: unknown;
+                    }
+                ).config = {
+                    annotations: { open: true },
+                    plugins: { 'annotation-editor': { open } },
+                };
+            }, editorOpen);
+            await settleSurface(page);
+            await setView(page, VIEW);
+        };
+
+        // Editor OPEN: the shape is a real button carrying its own tooltip,
+        // because with the editor open it is a control rather than a mark.
+        await configure(true);
+        await hover();
+        await expect(
+            page.locator(`[data-annotation-id="${stored.id}"]`),
+        ).toHaveAttribute('data-tip', BODY_TEXT);
+
+        // Editor SHUT, annotations panel open: the shape goes back to being a
+        // mark that takes no pointer events — so the tooltip is the overlay's
+        // own, placed by a hit test on the pointer rather than by `:hover`.
+        await configure(false);
+        await hover();
+        await expect(page.locator('.readonly-tooltip')).toHaveAttribute(
+            'data-tip',
+            BODY_TEXT,
+        );
+
+        // PAINTED, not merely present. The tooltip element is a 0x0 anchor and
+        // every visible pixel of it is a `::before` fed by `data-tip` — so an
+        // attribute assertion alone passes just as well on a page where the
+        // tooltip stylesheet never arrived and nothing is drawn at all.
+        const painted = await page
+            .locator('.readonly-tooltip')
+            .evaluate((element) => {
+                const before = getComputedStyle(element, '::before');
+                return {
+                    content: before.content,
+                    width: Number.parseFloat(before.width),
+                    height: Number.parseFloat(before.height),
+                    opacity: Number.parseFloat(before.opacity),
+                    visibility: before.visibility,
+                };
+            });
+        expect(painted.content).toContain(BODY_TEXT);
+        expect(painted.width).toBeGreaterThan(0);
+        expect(painted.height).toBeGreaterThan(0);
+        expect(painted.opacity).toBeGreaterThan(0);
+        expect(painted.visibility).toBe('visible');
+
+        // AT THE POINTER. The anchor is placed in viewport coordinates and has
+        // to be `position: fixed` to read them that way — but it also carries
+        // `.tooltip`, whose own sheet makes it `relative`. Lose that fight and
+        // the coordinates become offsets from the anchor's place in the flow:
+        // the bubble still exists, still paints, still carries the right text,
+        // and renders a page-length below the shape being hovered. Every
+        // assertion above passes in that state, which is why this one is here.
+        const anchor = (await page.locator('.readonly-tooltip').boundingBox())!;
+        expect(Math.abs(anchor.x - pointer.x)).toBeLessThanOrEqual(4);
+        expect(Math.abs(anchor.y - pointer.y)).toBeLessThanOrEqual(16);
+
+        // And in the PRIMARY colour, not the tooltip sheet's neutral default.
+        //
+        // Under a stylesheet that RESTATES the sheet's own `--tt-bg` at one
+        // class plus one more, injected last — which is the shape the tooltip
+        // sheet takes wherever the pipeline scopes it, and the reason the
+        // read-only tooltip came out neutral on a real consumer. Recreated
+        // here because this fixture's own injection order happens to favour
+        // the component, so without it the assertion below passes whether or
+        // not the rule can actually win.
+        await page.locator('.readonly-tooltip').evaluate((element) => {
+            // Into the tooltip's OWN root, which in this fixture is the custom
+            // element's shadow tree: a document-level stylesheet never reaches
+            // it, and the simulation would assert nothing.
+            const sheet = document.createElement('style');
+            sheet.textContent = `.tooltip.tooltip-open {
+                --tt-bg: var(--tri-color-neutral);
+                --tt-fg: var(--tri-color-neutral-content);
+            }`;
+            (element.getRootNode() as ShadowRoot | Document).appendChild(sheet);
+        });
+
+        // Both roles RESOLVED against the element, rather than compared with
+        // the raw token text: `--tri-color-primary` is an `oklch(...)` string
+        // and the bubble's background is a computed `rgb(...)`, so comparing
+        // the two directly can never match and asserts nothing.
+        const recoloured = await page
+            .locator('.readonly-tooltip')
+            .evaluate((element) => {
+                const resolve = (token: string) => {
+                    const probe = document.createElement('div');
+                    probe.style.backgroundColor = `var(${token})`;
+                    element.append(probe);
+                    const value = getComputedStyle(probe).backgroundColor;
+                    probe.remove();
+                    return value;
+                };
+                return {
+                    bubble: getComputedStyle(element, '::before')
+                        .backgroundColor,
+                    primary: resolve('--tri-color-primary'),
+                    neutral: resolve('--tri-color-neutral'),
+                };
+            });
+        // Guarded, because the claim is only meaningful where the theme gives
+        // the two roles different colours.
+        expect(recoloured.primary).not.toBe(recoloured.neutral);
+        expect(recoloured.bubble).toBe(recoloured.primary);
+    });
+
+    test('a shape drawn with the annotations panel shut stays on the image', async ({
+        page,
+    }) => {
+        await openFixture(page);
+        await closeAnnotationsPanel(page);
+        await setView(page, VIEW);
+        await armRectangle(page);
+
+        const view = await getView(page);
+        const from = await pageAt(page, { x: 700, y: 520 }, view);
+        const to = await pageAt(page, { x: 500, y: 380 }, view);
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await page.mouse.move(to.x, to.y, { steps: 8 });
+        await page.mouse.up();
+
+        await expect.poll(async () => (await storedRects(page)).length).toBe(1);
+        const [stored] = await storedRects(page);
+
+        // The panel is where the eye toggles live, so with it shut nothing ever
+        // entered the visibility set and core's overlay drew the annotation
+        // nowhere — the shape vanished the moment it was persisted.
+        await expect(
+            page.locator(`[data-annotation-id="${stored.id}"]`),
+        ).toBeVisible();
     });
 });
 
@@ -1009,6 +1268,39 @@ test.describe('editing a persisted annotation', () => {
         // A move is a translation: the extent is the claim.
         expect(moved.width).toBe(stored.width);
         expect(moved.height).toBe(stored.height);
+    });
+
+    test('a tapped shape takes focus, so Delete and Backspace reach it', async ({
+        page,
+    }) => {
+        await openFixture(page);
+        const stored = await drawRegion(page);
+        await reopen(page, stored.id);
+        await openForEditing(page, stored.id);
+
+        // The tap put focus on the shape. Without this a reader who opened an
+        // edit with the pointer had no keyboard at all: core removes its own
+        // shape the instant the editor takes over the rendering, so the
+        // document was left focused on nothing and every verb bound on the
+        // shape — nudge, commit, delete — went to the page instead.
+        await expect(
+            page.getByRole('button', { name: 'Move annotation' }),
+        ).toBeFocused();
+
+        // Backspace first, then the confirmation dismissed, then Delete: both
+        // keys reach the same guard from the same tapped shape.
+        await page.keyboard.press('Backspace');
+        await expect(page.getByText('Delete Annotation?')).toBeVisible();
+        await page.getByRole('button', { name: 'Cancel' }).click();
+        await expect(page.getByText('Delete Annotation?')).toBeHidden();
+
+        await page.getByRole('button', { name: 'Move annotation' }).focus();
+        await page.keyboard.press('Delete');
+        await expect(page.getByText('Delete Annotation?')).toBeVisible();
+        await page.getByRole('button', { name: 'Delete', exact: true }).click();
+
+        await expect.poll(() => storedRects(page)).toEqual([]);
+        await expect(page.locator(shapeOf(stored.id))).toHaveCount(0);
     });
 
     test('cancelling an edit gives the shape back to core', async ({
@@ -1628,6 +1920,41 @@ test.describe('point and whole-canvas tools', () => {
         // Read from both sides rather than compared against a literal: the
         // claim is that the two agree, not that either is a particular red.
         expect(open).toEqual(rest);
+    });
+
+    test('a point open for editing is ringed, and Delete reaches it', async ({
+        page,
+    }) => {
+        await openFixture(page);
+        const stored = await placePoint(page);
+        await reopen(page, stored.id);
+        await page.mouse.move(20, 20);
+
+        const marker = page.locator(shapeOf(stored.id)).first();
+        // Core's resting marker carries no ring — without this the assertion
+        // below would pass on a ring that was always there.
+        expect(await settledStyle(marker, ['box-shadow'])).toEqual({
+            'box-shadow': 'none',
+        });
+
+        await marker.click();
+        const handle = page.locator(HANDLE);
+        await expect(handle).toHaveCount(1);
+
+        // The whole of what tells a reader their tap landed. A point gains no
+        // outline and no second handle when it opens, so before the ring an
+        // open point and a resting one were the same ten pixels.
+        const open = await settledStyle(handle, ['box-shadow']);
+        expect(open['box-shadow']).not.toBe('none');
+
+        // And the tap put focus on it, so the key works from the pointer path
+        // — which is the only path a reader who cannot see the point is open
+        // would ever be on.
+        await expect(handle).toBeFocused();
+        await page.keyboard.press('Delete');
+        await expect(page.getByText('Delete Annotation?')).toBeVisible();
+        await page.getByRole('button', { name: 'Delete', exact: true }).click();
+        await expect.poll(() => storedPoints(page)).toEqual([]);
     });
 
     /**
@@ -2332,6 +2659,57 @@ test.describe('keyboard cancel and delete', () => {
         await expect.poll(() => storedRects(page)).toEqual([]);
         await expect(page.locator(shapeOf(stored.id))).toHaveCount(0);
         await expect(page.locator(EDIT_SHAPE)).toHaveCount(0);
+    });
+
+    test('Backspace deletes too, and the confirmation takes the click', async ({
+        page,
+    }) => {
+        await openFixture(page);
+        await enterCreateMode(page);
+        await activateTool(page, 'Rectangle');
+        await page.keyboard.press('Enter');
+        await expect.poll(async () => (await storedRects(page)).length).toBe(1);
+        const [stored] = await storedRects(page);
+
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page
+            .locator(SURFACE)
+            .waitFor({ state: 'visible', timeout: 30_000 });
+        await page
+            .locator(shapeOf(stored.id))
+            .first()
+            .waitFor({ state: 'visible', timeout: 20_000 });
+        await settleSurface(page);
+        await setView(page, VIEW);
+
+        await page.locator(shapeOf(stored.id)).first().focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator(EDIT_SHAPE)).toBeVisible();
+
+        await page.getByRole('button', { name: 'Move annotation' }).focus();
+        // Backspace, not Delete: the Apple keyboards much of this audience
+        // works on have no Delete key to press.
+        await page.keyboard.press('Backspace');
+        await expect(page.getByText('Delete Annotation?')).toBeVisible();
+
+        // In the browser's TOP LAYER, which is the whole of why it is legible:
+        // the shape being deleted is painted in an overlay layer core stacks
+        // above the side panels, so a confirmation opened anywhere inside the
+        // panel's own stacking context was drawn over by the very shape it was
+        // asking about. `:modal` is true only of a dialog opened with
+        // `showModal`, which is what the top layer is reached through.
+        expect(
+            await page
+                .locator('dialog.modal')
+                .evaluate((dialog) => dialog.matches(':modal')),
+        ).toBe(true);
+
+        // And clicked rather than focused-and-Entered, so the confirmation is
+        // shown to take a pointer as well as paint above the surface.
+        await page.getByRole('button', { name: 'Delete', exact: true }).click();
+
+        await expect.poll(() => storedRects(page)).toEqual([]);
+        await expect(page.locator(shapeOf(stored.id))).toHaveCount(0);
     });
 });
 

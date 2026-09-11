@@ -147,6 +147,9 @@
                 );
             };
         },
+        // The overlay draws nothing unless something is asking for annotations:
+        // the panel, or an open editor. This host is always one of the two.
+        showAnnotations: true,
         get visibleAnnotationIds() {
             return new Set(
                 Object.values(byCanvas)
