@@ -172,8 +172,8 @@ importers:
         specifier: ~5.9.3
         version: 5.9.3
       uncial-cms:
-        specifier: ^1.0.0
-        version: 1.0.0(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@6.2.4(supports-color@10.2.2)(svelte@5.56.10(@typescript-eslint/types@8.68.0))(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2)))(svelte@5.56.10(@typescript-eslint/types@8.68.0))(typescript@5.9.3)(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2)))(svelte@5.56.10(@typescript-eslint/types@8.68.0))(uncial@2.0.0(@tiptap/extension-code-block@3.30.3(@tiptap/core@3.30.3(@tiptap/pm@3.30.3))(@tiptap/pm@3.30.3))(happy-dom@20.11.6)(svelte@5.56.10(@typescript-eslint/types@8.68.0))(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2)))
+        specifier: ^2.0.0
+        version: 2.0.0(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@6.2.4(supports-color@10.2.2)(svelte@5.56.10(@typescript-eslint/types@8.68.0))(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2)))(svelte@5.56.10(@typescript-eslint/types@8.68.0))(typescript@5.9.3)(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2)))(svelte@5.56.10(@typescript-eslint/types@8.68.0))(uncial@2.0.0(@tiptap/extension-code-block@3.30.3(@tiptap/core@3.30.3(@tiptap/pm@3.30.3))(@tiptap/pm@3.30.3))(happy-dom@20.11.6)(svelte@5.56.10(@typescript-eslint/types@8.68.0))(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2)))
       vite:
         specifier: ^6.0.0
         version: 6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2)
@@ -3404,13 +3404,13 @@ packages:
   ufo@1.6.1:
     resolution: {integrity: sha512-9a4/uxlTWJ4+a5i0ooc1rU7C7YOw3wT+UGqdeNNHWnOF9qcMBgLRS+4IYUqbczewFx4mLEig6gawh7X6mFlEkA==}
 
-  uncial-cms@1.0.0:
-    resolution: {integrity: sha512-SegKXeWa0FDcZJrgPZP5aOtJTjPr3KE0YkiE+low0K44WdxtclODl31OuAfzRMLzjJ5VXl/ZPYziuJwbat80Xw==}
+  uncial-cms@2.0.0:
+    resolution: {integrity: sha512-8D7XxU1eUW2kiwNe10MsAsaauZAKcyQ64Yc29KV6Tw0z1NcVfGVHkkBCnQIA8bbPRO9PG9+Px7ZnsISREWUfXA==}
     hasBin: true
     peerDependencies:
       '@sveltejs/kit': ^2.0.0
       svelte: ^5.0.0
-      uncial: workspace:^
+      uncial: ^2.0.0
     peerDependenciesMeta:
       '@sveltejs/kit':
         optional: true
@@ -6690,7 +6690,7 @@ snapshots:
 
   ufo@1.6.1: {}
 
-  uncial-cms@1.0.0(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@6.2.4(supports-color@10.2.2)(svelte@5.56.10(@typescript-eslint/types@8.68.0))(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2)))(svelte@5.56.10(@typescript-eslint/types@8.68.0))(typescript@5.9.3)(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2)))(svelte@5.56.10(@typescript-eslint/types@8.68.0))(uncial@2.0.0(@tiptap/extension-code-block@3.30.3(@tiptap/core@3.30.3(@tiptap/pm@3.30.3))(@tiptap/pm@3.30.3))(happy-dom@20.11.6)(svelte@5.56.10(@typescript-eslint/types@8.68.0))(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2))):
+  uncial-cms@2.0.0(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@6.2.4(supports-color@10.2.2)(svelte@5.56.10(@typescript-eslint/types@8.68.0))(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2)))(svelte@5.56.10(@typescript-eslint/types@8.68.0))(typescript@5.9.3)(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2)))(svelte@5.56.10(@typescript-eslint/types@8.68.0))(uncial@2.0.0(@tiptap/extension-code-block@3.30.3(@tiptap/core@3.30.3(@tiptap/pm@3.30.3))(@tiptap/pm@3.30.3))(happy-dom@20.11.6)(svelte@5.56.10(@typescript-eslint/types@8.68.0))(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2))):
     dependencies:
       svelte: 5.56.10(@typescript-eslint/types@8.68.0)
       uncial: 2.0.0(@tiptap/extension-code-block@3.30.3(@tiptap/core@3.30.3(@tiptap/pm@3.30.3))(@tiptap/pm@3.30.3))(happy-dom@20.11.6)(svelte@5.56.10(@typescript-eslint/types@8.68.0))(vite@6.4.1(@types/node@24.10.1)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.49.2))

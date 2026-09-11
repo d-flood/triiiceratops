@@ -71,11 +71,6 @@ test-results/
 perf-results/
 release-artifacts/
 
-# The Uncial submodule: a separate repository with its own Prettier config and
-# its own format gate. Same vendored-output rule as above — reflowing it here
-# would put every file permanently out of step with upstream.
-vendor/
-
 # Local tooling state / agent worktrees (nested full checkouts must never be format-gated)
 .claude/
 .opencode/

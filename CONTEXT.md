@@ -652,31 +652,6 @@ reason is recorded there rather than repeated here.
 _Avoid_: sitemap (generated output listing a subset for crawlers; the contract is the
 reviewed source), route table (nothing routes — these are paths in a static tree)
 
-**Vendored workspace**:
-Uncial, at `vendor/uncial`, is at once a member of this workspace
-(`vendor/uncial/packages/*`) and a complete pnpm workspace of its own, carrying its own
-`pnpm-workspace.yaml` and its own lockfile. Membership is what resolves the `workspace:*`
-links to it, and what makes `pnpm install` fail outright when the submodule is not
-checked out. The second workspace is what makes it a hazard: a pnpm command whose cwd is
-inside `vendor/uncial` resolves against Uncial's root rather than this one and installs
-from Uncial's lockfile, which honors none of the `overrides` here — chiefly
-`uncial-cms>vite: ^6.0.0`, the pin that keeps the `Plugin` returned by
-`createLocalVitePlugin` the same type the site's `vite.config.ts` is written against. The
-`vendor/uncial/node_modules` that leaves behind shadows resolution for the whole tree,
-and reports itself two steps away as svelte-check errors in `apps/site` naming a `Plugin`
-mismatch rather than the store that caused it. `scripts/assert-no-nested-store.mjs` gates
-`pnpm check` and `pnpm test` on its absence.
-Upstream work never needs to `cd` in there: `pnpm check:uncial` and `pnpm test:uncial`
-run the submodule's own suites through this workspace's store. Note what that verifies —
-Uncial under the Vite this repository builds it with, not the Vite 7 its own CI uses.
-The store at `vendor/uncial` itself is the mistake; the root install provisions each
-member at `vendor/uncial/packages/*/node_modules`, which is ordinary — but a nested
-install repoints those members at its own store, so recovery deletes them along with it.
-Deleting the store alone leaves them dangling, and the lockfile is already satisfied, so
-the reinstall relinks nothing and the dev server serves a 500 from inside Uncial's source.
-_Avoid_: nested install, submodule node_modules (both name the symptom, where the cause
-is that the submodule is a workspace root in its own right)
-
 ## Relationships
 
 - **Drawing layer → Store → Adapter**: the drawing layer calls the store for all
