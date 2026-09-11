@@ -33,8 +33,6 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
-              with:
-                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -80,8 +78,6 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
-              with:
-                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -141,7 +137,6 @@ jobs:
             # default branch.
             - uses: actions/checkout@v7
               with:
-                  submodules: recursive
                   ref: ${{ inputs.publish_ref }}
 
             - uses: pnpm/action-setup@v6

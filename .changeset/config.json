@@ -7,11 +7,5 @@
     "access": "public",
     "baseBranch": "main",
     "updateInternalDependencies": "patch",
-    "ignore": [
-        "uncial",
-        "uncial-cms",
-        "uncial-cms-auth",
-        "uncial-docs",
-        "uncial-wagtail"
-    ]
+    "ignore": ["@triiiceratops/app-site"]
 }

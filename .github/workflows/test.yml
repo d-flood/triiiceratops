@@ -30,8 +30,6 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
-              with:
-                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -72,7 +70,6 @@ jobs:
         steps:
             - uses: actions/checkout@v7
               with:
-                  submodules: recursive
                   # Full history so the changed-lines coverage report (ticket 34)
                   # can resolve the merge-base with the PR base branch.
                   fetch-depth: 0
@@ -175,8 +172,6 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
-              with:
-                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -231,8 +226,6 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
-              with:
-                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -274,8 +267,6 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
-              with:
-                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -333,8 +324,6 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
-              with:
-                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -379,7 +368,6 @@ jobs:
         steps:
             - uses: actions/checkout@v7
               with:
-                  submodules: recursive
                   # Full history so the base SHA is available for the worktree
                   # build the comparison performs.
                   fetch-depth: 0
@@ -462,7 +450,6 @@ jobs:
         steps:
             - uses: actions/checkout@v7
               with:
-                  submodules: recursive
                   # Full history so the Changeset guard can diff against the PR base.
                   fetch-depth: 0
 
@@ -530,8 +517,6 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
-              with:
-                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:
@@ -565,8 +550,6 @@ jobs:
 
         steps:
             - uses: actions/checkout@v7
-              with:
-                  submodules: recursive
 
             - uses: pnpm/action-setup@v6
               with:

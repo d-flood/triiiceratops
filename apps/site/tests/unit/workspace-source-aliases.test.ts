@@ -55,19 +55,10 @@ describe('the derived source aliases', () => {
         );
     });
 
-    it('maps the submodule packages, stylesheets included', () => {
-        expect(resolved('uncial')).toBe(
-            'vendor/uncial/packages/uncial/src/lib/index.ts',
-        );
-        expect(resolved('uncial/editor')).toBe(
-            'vendor/uncial/packages/uncial/src/lib/editor/index.ts',
-        );
-        expect(resolved('uncial/styles')).toBe(
-            'vendor/uncial/packages/uncial/src/lib/styles/index.css',
-        );
-        expect(resolved('uncial-cms/sveltekit')).toBe(
-            'vendor/uncial/packages/uncial-cms/src/lib/sveltekit/index.ts',
-        );
+    it('leaves a published dependency to resolve from node_modules', () => {
+        expect(resolved('uncial')).toBeUndefined();
+        expect(resolved('uncial/styles')).toBeUndefined();
+        expect(resolved('uncial-cms/sveltekit')).toBeUndefined();
     });
 
     it('leaves a package whose exports already name source alone', () => {

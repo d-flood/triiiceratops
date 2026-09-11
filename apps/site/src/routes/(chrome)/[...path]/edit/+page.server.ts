@@ -39,6 +39,6 @@ export const load = async (event: Parameters<typeof handlers.load>[0]) => {
     if (!CONTENT_ROUTES.some((route) => route.path === editing)) {
         error(404, 'Not an editable page');
     }
-    const { sourcePath, path } = await handlers.load(event);
-    return { sourcePath, pagePath: path };
+    const { sourcePath, pagePath } = await handlers.load(event);
+    return { sourcePath, pagePath };
 };

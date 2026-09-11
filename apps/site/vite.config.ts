@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -11,6 +12,9 @@ import { workspaceSourceAliases } from './scripts/workspace-source-aliases.mjs';
 
 const CONTENT_DIR = fileURLToPath(new URL('./content', import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
+// The write endpoint addresses paths from the repository root, so the content
+// directory it may reach is declared relative to that root rather than on disk.
+const CONTENT_DIR_FROM_ROOT = relative(REPO_ROOT, CONTENT_DIR);
 const CORE_PACKAGE_JSON = 'packages/core/package.json';
 
 /**
@@ -142,7 +146,10 @@ export default defineConfig({
          * that writes files from a URL path exists nowhere but a development
          * server and cannot be walked out of its tree.
          */
-        createLocalVitePlugin({ contentDir: CONTENT_DIR }),
+        createLocalVitePlugin({
+            root: REPO_ROOT,
+            permittedRoots: [CONTENT_DIR_FROM_ROOT],
+        }),
         sveltekit(),
     ],
     define: {

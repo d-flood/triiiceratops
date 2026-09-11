@@ -22,14 +22,11 @@
         "build:element": "pnpm --filter triiiceratops build:element",
         "build:examples": "pnpm --filter @triiiceratops/app-examples build",
         "build:site": "pnpm --filter @triiiceratops/app-site build",
-        "build:uncial": "pnpm --filter uncial --filter uncial-cms package",
-        "build:packages": "pnpm build:uncial && pnpm --filter @triiiceratops/ui build && pnpm --filter triiiceratops build:lib && pnpm --filter @triiiceratops/plugin-sdk build && pnpm --filter @triiiceratops/plugin-image-manipulation build && pnpm --filter @triiiceratops/plugin-image-export build && pnpm --filter @triiiceratops/plugin-pdf-export build && pnpm --filter @triiiceratops/plugin-annotation-editor build && pnpm --filter @triiiceratops/plugin-av build && pnpm --filter triiiceratops build:testing && pnpm --filter triiiceratops build:element && pnpm size:check:pair",
+        "build:packages": "pnpm --filter @triiiceratops/ui build && pnpm --filter triiiceratops build:lib && pnpm --filter @triiiceratops/plugin-sdk build && pnpm --filter @triiiceratops/plugin-image-manipulation build && pnpm --filter @triiiceratops/plugin-image-export build && pnpm --filter @triiiceratops/plugin-pdf-export build && pnpm --filter @triiiceratops/plugin-annotation-editor build && pnpm --filter @triiiceratops/plugin-av build && pnpm --filter triiiceratops build:testing && pnpm --filter triiiceratops build:element && pnpm size:check:pair",
         "build:all": "pnpm build:packages && pnpm --filter './apps/*' build",
         "build:plugin-sdk": "pnpm --filter @triiiceratops/plugin-sdk build",
-        "check": "node scripts/assert-no-nested-store.mjs && pnpm -r --filter './packages/*' --filter './apps/*' check",
-        "check:uncial": "node scripts/assert-no-nested-store.mjs && pnpm -r --filter './vendor/uncial/packages/*' check",
-        "test": "node scripts/assert-no-nested-store.mjs && pnpm -r --filter './packages/*' --filter './apps/*' test",
-        "test:uncial": "node scripts/assert-no-nested-store.mjs && pnpm -r --filter './vendor/uncial/packages/*' test",
+        "check": "pnpm -r --filter './packages/*' --filter './apps/*' check",
+        "test": "pnpm -r --filter './packages/*' --filter './apps/*' test",
         "test:e2e": "pnpm -r --filter './packages/*' --filter './apps/*' --sequential test:e2e",
         "test:packed": "node test-consumers/driver/run.mjs",
         "view:fixture": "node test-consumers/driver/view-fixture.mjs",
@@ -52,7 +49,7 @@
         "docs:build": "node scripts/docs-examples.mjs --check && node scripts/docs-content-state.mjs --check",
         "urls:check": "node scripts/url-contract.mjs",
         "links:check": "pnpm --filter @triiiceratops/app-site links:check",
-        "prepare": "simple-git-hooks && node scripts/setup-submodule.mjs && pnpm build:uncial",
+        "prepare": "simple-git-hooks",
         "lint": "pnpm -r --filter './packages/*' --filter './apps/*' lint",
         "lint:fix": "pnpm -r --filter './packages/*' --filter './apps/*' lint:fix",
         "format": "prettier --write .",
@@ -76,9 +73,7 @@
         "simple-git-hooks": "^2.13.1",
         "svelte": "^5.56.10",
         "typescript": "~5.9.3",
-        "typescript-eslint": "^8.53.1",
-        "uncial": "workspace:*",
-        "uncial-cms": "workspace:*"
+        "typescript-eslint": "^8.53.1"
     },
     "simple-git-hooks": {
         "pre-commit": "bash scripts/pre-commit.sh"

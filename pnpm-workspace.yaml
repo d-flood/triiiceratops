@@ -15,31 +15,12 @@ packages:
     # tarball, never workspace source.
     - 'test-consumers'
 
-    # Uncial arrives as a git submodule and is a member for resolution and
-    # building only: the site imports it and its build needs it packaged. It is
-    # a separate repository with its own suites and its own releases, so the
-    # root's recursive check/test/lint are filtered away from it (see the root
-    # package.json) and its packages are in the changesets ignore list.
-    #
-    # Membership makes the submodule load bearing for `pnpm install` itself:
-    # without it checked out there is no package named `uncial` and the install
-    # fails outright. Every checkout that installs has to fetch it — hence
-    # `submodules: recursive` in each workflow, and the submodule update the perf
-    # comparison performs in the worktrees it builds.
-    - 'vendor/uncial/packages/*'
-
-    # Membership does NOT make the submodule a place to run pnpm from. It is a
-    # pnpm workspace root in its own right, so a command with its cwd inside it
-    # installs from Uncial's lockfile and ignores the `overrides` below — see
-    # `scripts/assert-no-nested-store.mjs`, which gates `check` and `test` on the
-    # absence of the store that leaves behind. Run the submodule's own suites
-    # from here, with `pnpm check:uncial` / `pnpm test:uncial`.
-
 allowBuilds:
     esbuild: true
     simple-git-hooks: true
-    # uncial-cms-auth is a Cloudflare Worker; wrangler pulls workerd in.
-    workerd: true
+
+minimumReleaseAgeExclude:
+    - uncial@2.0.0
 
 overrides:
     # Vitest accepts Vite 6 or 7 and would otherwise take the highest in the
