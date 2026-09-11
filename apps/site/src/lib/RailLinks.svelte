@@ -6,22 +6,7 @@
         REPOSITORY_URL,
     } from './site';
 
-    /**
-     * The rail's coloured link block: the four things a reader can do, as
-     * opposed to the pages the rail's own list carries, which are the argument
-     * the site makes.
-     *
-     * The hosted viewer leads because a stranger watching their own material
-     * render outperforms every chart on the site, and the builder follows it
-     * because making the viewer look like their own site is what that stranger
-     * wants next. The builder is therefore in both this block and the list: the
-     * list is a table of contents and this is a set of actions, and one page can
-     * be an entry in each.
-     *
-     * The repository sits last and unpainted on purpose. It is the one
-     * destination nobody has to be persuaded to find, so it takes the row that
-     * persuades least.
-     */
+    // Tools and resources stay directly reachable below the numbered introduction.
 </script>
 
 <div class="rail__out">

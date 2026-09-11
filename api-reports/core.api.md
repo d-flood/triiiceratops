@@ -291,7 +291,7 @@ interface Props {
      */
     acceptDroppedContentState?: boolean;
     plugins?: readonly SdkPlugin[] | null | boolean;
-    /** Built-in theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
+    /** Built-in theme name. Unset paints the defaults, which are `light`. */
     theme?: BuiltInTheme;
     /** Custom theme configuration to override the base theme's values. */
     themeConfig?: ThemeConfig;
@@ -1251,7 +1251,7 @@ export type { TriiiceratopsViewerElement };
 export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, getDeclaredCanvasDimensions, resolveAllCanvasImages, resolveCanvasImage, type ResolvedCanvasImage, } from './utils/resolveCanvasImage';
 export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchExportImageBlob, fetchImageBlob, getCompositeImagePlacement, getResolvedImageExportUrl, isCrossOriginImageFailure, isLevel0ImageService, loadImageElement, resolveExportSizeOptions, sanitizeFilenamePart, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
 export { canvasPointToImagePoint, imagePointToCanvasPoint, transformAnnotationToCanvasSpace, transformAnnotationToImageSpace, type CanvasImageSpaceDimensions, } from './utils/canvasImageSpace';
-export { DEFAULT_POINT_RADIUS, resolvePointRadius, type PointStyle, } from './utils/pointMarker';
+export { DEFAULT_POINT_DIAMETER, POINT_SIZE_TOKEN, observePointDiameter, } from './utils/pointMarker';
 export { getCanvasDisplayLayouts } from './components/canvasLayout';
 export { getVisibleCanvasEntries } from './components/viewerControls';
 export { parseAnnotation } from './utils/annotationAdapter';
@@ -5430,10 +5430,13 @@ export declare function parseThemeConfig(json: string): ThemeConfig | null;
 /**
  * Apply theme to an element.
  *
+ * With no theme the attribute is removed, and the stylesheet's zero-specificity
+ * defaults paint — which are `light`'s own values. Following the reader's
+ * colour scheme is the host's call: `theme={prefersDark ? 'dark' : 'light'}`.
+ *
  * @param element - The HTML element to apply the theme to
- * @param theme - Built-in theme name (defaults to light/dark based on prefers-color-scheme)
+ * @param theme - Built-in theme name; omitted leaves the element on the defaults
  * @param config - Optional custom theme configuration to override the base theme
- * @param prefersDark - Whether the user prefers dark mode (from media query)
  */
 export declare function applyTheme(element: HTMLElement, theme: BuiltInTheme | undefined, config: ThemeConfig | undefined): void;
 
@@ -5531,6 +5534,32 @@ export interface ThemeConfig {
     collectionPanelBg?: string;
     /** Collection panel text color */
     collectionPanelContent?: string;
+    /**
+     * The hue every annotation shape is drawn in — rectangle, polygon and point,
+     * read-only and under edit. The overlay mixes each state off it: a fill at
+     * rest, a deeper one on hover and selection, and the border at full strength.
+     */
+    annotationColor?: string;
+    /** The hue an annotation that is a search hit is drawn in instead. */
+    annotationHitColor?: string;
+    /**
+     * The border a shape carries at rest, as a CSS length. A selected shape adds
+     * a pixel to whatever this says.
+     */
+    annotationBorderWidth?: string;
+    /**
+     * How much of the hue fills a shape that has an interior — a rectangle, a
+     * polygon — at rest, as a CSS percentage. Every other fill is a multiple of
+     * it: twice for a shape hovered or selected and for a search hit at rest,
+     * three times for a search hit hovered, so one value moves the ladder and
+     * keeps its steps. A point marker is a solid disc and is not on it.
+     */
+    annotationFillOpacity?: string;
+    /**
+     * The point marker's diameter, as a CSS length. Screen pixels at every zoom:
+     * a marker marks a position, so it does not grow with the image under it.
+     */
+    annotationPointSize?: string;
     /** Radius for large components like cards, modals, panels (e.g., '1rem') */
     radiusBox?: string;
     /** Radius for buttons, inputs, and button groups (e.g., '0.5rem') */
@@ -5590,11 +5619,6 @@ export interface GalleryConfig {
      * @default false
      */
     open?: boolean;
-    /**
-     * Whether to show the close button on the gallery.
-     * @default true
-     */
-    showCloseButton?: boolean;
     /**
      * How much of the viewer the gallery takes, in pixels, and the only knob that
      * changes a thumbnail's size. It applies to whichever axis the gallery's
@@ -5877,7 +5901,6 @@ import type { GalleryConfig } from './gallery';
 import type { AnnotationsConfig, CollectionConfig, InformationConfig, PluginUiConfig, SearchConfig, StructuresConfig } from './panels';
 import type { RequestConfig } from './requests';
 import type { ToolbarConfig } from './toolbar';
-import type { PointStyle } from '../../utils/pointMarker';
 /**
  * The viewer chrome layout is configured by a few independent knobs, each of
  * which answers exactly one question — all layout-only; colors and border-radii
@@ -6222,12 +6245,6 @@ export interface ViewerConfig {
      * Renderer tuning. See {@link RendererConfig} — a small, closed set.
      */
     renderer?: RendererConfig;
-    /**
-     * Marker styling for point annotations, shared by the read-only overlay and
-     * the annotation editor so a point renders consistently whether selected or
-     * not. `radius` is in screen pixels (default 5).
-     */
-    pointStyle?: PointStyle;
     /**
      * Enable opt-in developer diagnostics. Production distributions are quiet
      * by default: when `false`, the viewer emits no unsolicited
@@ -7867,33 +7884,38 @@ export declare function findImageBody(annotation: unknown, selectedChoiceId?: st
 // FILE: dist/utils/pointMarker.d.ts
 // ======================================================================
 /**
- * Shared point-marker styling for the annotation editor. A point looks the same
- * whether it is rendered read-only (the viewer's shape overlay), selected, or edited, so
- * the radius lives in one place consumed by both the viewer overlay and the
- * editor's drawing layer (spec §3.4). The colour fields are not: no renderer
- * reads them, and the marker's colour is fixed on both sides instead.
+ * The point marker's size, which is a theme token and therefore a length in the
+ * stylesheet rather than a number in the configuration.
+ *
+ * A point looks the same whether it is rendered read-only (the viewer's shape
+ * overlay), selected, or edited, so both sides resolve it here (spec §3.4).
+ * They need the number as well as the paint: the overlay positions a marker
+ * from its own geometry and measures a tap against the marker's diameter, and
+ * the editor sizes the handle that stands in for one.
+ *
+ * Measured rather than parsed. A custom property's computed value is the text
+ * the author wrote — `getPropertyValue` hands back `0.625rem`, not `10px` — so
+ * the only honest way to a pixel count is to let CSS resolve the length on a
+ * real element. The probe is one zero-height div per viewer, and a
+ * `ResizeObserver` on it means a theme change, a `themeConfig` update, or a
+ * host stylesheet moving the token all arrive the same way, without anything
+ * polling and without a style read per tap.
  */
-export interface PointStyle {
-    /** Marker radius in screen (CSS) pixels. */
-    radius?: number;
-    /** Marker fill colour. Inert: no renderer reads it. */
-    fill?: string;
-    /** Marker stroke colour. Inert: no renderer reads it. */
-    stroke?: string;
-    /** Marker stroke width in pixels. Inert: no renderer reads it. */
-    strokeWidth?: number;
-}
+/** The token every point marker is drawn and measured from. */
+export declare const POINT_SIZE_TOKEN = "--tri-annotation-point-size";
 /**
- * Default marker radius in screen pixels. Chosen so the diameter (2 × radius)
- * equals the historical `POINT_MARKER_SIZE = 10` the read-only overlay used, so
- * existing viewers render unchanged when no `pointStyle` is configured.
+ * Marker diameter in CSS pixels when the token resolves to nothing usable —
+ * a detached scope, or a host that set it to a bad value. The stylesheet's own
+ * default, so the fallback and the theme agree.
  */
-export declare const DEFAULT_POINT_RADIUS = 5;
+export declare const DEFAULT_POINT_DIAMETER = 10;
 /**
- * Resolve the effective marker radius (screen pixels) from a `pointStyle`
- * config, falling back to {@link DEFAULT_POINT_RADIUS} when unset or invalid.
+ * Watch the marker diameter in `scope`, calling `onChange` with the resolved
+ * width in CSS pixels — now, and whenever the token's value moves.
+ *
+ * Returns a teardown that removes the probe and stops observing.
  */
-export declare function resolvePointRadius(pointStyle?: PointStyle | null): number;
+export declare function observePointDiameter(scope: HTMLElement, onChange: (diameter: number) => void): () => void;
 
 // ======================================================================
 // FILE: dist/utils/resolveCanvasImage.d.ts

@@ -29,7 +29,10 @@
      * a COMMITTED region — a point has no size to judge.
      */
     import { tick, untrack } from 'svelte';
-    import { resolvePointRadius } from 'triiiceratops/image-export';
+    import {
+        DEFAULT_POINT_DIAMETER,
+        observePointDiameter,
+    } from 'triiiceratops/image-export';
 
     import type { AnnotationStore } from './AnnotationStore.svelte';
     import type { W3CAnnotation, W3CSelector } from './adapters/types';
@@ -154,14 +157,20 @@
     /**
      * The point marker's diameter in SCREEN pixels.
      *
-     * The viewer config is the one source, because it is the only one core's
-     * read-only overlay can see: the plugin has no `pointStyle` of its own, and
-     * cannot write core's. A second source would be a second answer the moment
-     * the two disagreed, and a point would change size on being opened.
+     * Core's `--tri-annotation-point-size` is the one source, measured through
+     * core's own helper on this layer — which inherits the token from the same
+     * viewer the read-only overlay measures. The plugin declares no size of its
+     * own and could not write core's: a second source would be a second answer
+     * the moment the two disagreed, and a point would change size on being
+     * opened for editing.
      */
-    let pointMarkerSize = $derived(
-        resolvePointRadius(viewerState.config?.pointStyle) * 2,
-    );
+    let pointMarkerSize = $state(DEFAULT_POINT_DIAMETER);
+
+    /** Attached to the layer, which inherits core's tokens from the viewer. */
+    const measureMarker = (node: HTMLElement) =>
+        observePointDiameter(node, (diameter) => {
+            pointMarkerSize = diameter;
+        });
 
     let armed = $derived(
         session.armedTool !== null && DRAWING_TOOLS.includes(session.armedTool),
@@ -1453,6 +1462,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
     bind:this={root}
+    {@attach measureMarker}
     class="drawing-surface"
     class:drawing
     onpointerdown={handlePointerDown}
@@ -1695,18 +1705,20 @@
        than unselected, and the vertex and corner handles are the editor's own
        furniture while this one stands in for a marker the reader already sees.
 
-       The fallbacks duplicate core's `--anno-red`, declared inside the scoped
-       `<style>` of `packages/core/src/lib/components/AnnotationShapeOverlay.svelte`
-       and therefore unreachable from here. The two literals must move together
-       — this duplication is the invariant's only weak point. */
+       The fallbacks are core's own `--tri-annotation-*` theme tokens rather
+       than copies of their values: the marker under edit and the marker at rest
+       are the same marker, so they answer to one declaration. */
     .edit-handle.point {
         border-radius: calc(infinity * 1px);
-        border-width: 2px;
+        border-width: var(--tri-annotation-border-width, 2px);
         border-color: var(
             --tri-annotation-point-stroke,
-            oklch(63.7% 0.237 25.331)
+            var(--tri-annotation-color)
         );
-        background: var(--tri-annotation-point-fill, oklch(63.7% 0.237 25.331));
+        background: var(
+            --tri-annotation-point-fill,
+            var(--tri-annotation-color)
+        );
     }
 
     .edit-handle:focus-visible {

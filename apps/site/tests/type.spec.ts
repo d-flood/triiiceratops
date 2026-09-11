@@ -73,7 +73,7 @@ test.describe('the unicode-range split', () => {
             const requests = recordRequests(page);
             await page.goto(route.path);
             /*
-             * `/handles/` is the one route whose content is other people's
+             * `/features/` is the one route whose content is other people's
              * material, and a collection that needs this viewer is exactly the
              * one whose labels are in Ge'ez, Japanese or Arabic — so an embed
              * that has loaded reaches past the slices to the full face,
@@ -85,7 +85,7 @@ test.describe('the unicode-range split', () => {
              * one. That also holds the deferral itself — an embed that started
              * during load would show up here as a full face.
              */
-            if (route.path !== '/handles/')
+            if (route.path !== '/features/')
                 await page.waitForLoadState('networkidle');
 
             expect(

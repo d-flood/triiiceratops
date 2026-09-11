@@ -20,19 +20,29 @@ import type { BuiltInTheme } from 'triiiceratops';
 import report from '../../../../../api-reports/css-tokens.json';
 import type { CssToken } from '../cssTokens';
 
+/** Colours take a swatch; lengths a slider in pixels, percentages one in per cent. */
+export type TokenKind = 'colour' | 'length' | 'percent';
+
 export type TokenControl = {
     /** The CSS custom property, named so a theme author recognises it. */
     readonly name: string;
     /** The `themeConfig` key that sets it. */
     readonly key: string;
     readonly label: string;
+    readonly kind: TokenKind;
+    /** Where this token's slider runs, where the general range does not suit. */
+    readonly range?: SliderRange;
+};
+
+export type SliderRange = {
+    readonly min?: number;
+    readonly max?: number;
+    readonly step?: number;
 };
 
 export type TokenGroup = {
     readonly title: string;
     readonly note: string;
-    /** Colours take a swatch; lengths take a slider in pixels. */
-    readonly kind: 'colour' | 'length';
     readonly tokens: readonly TokenControl[];
 };
 
@@ -55,41 +65,48 @@ const CATEGORIES: readonly {
     readonly id: string;
     readonly title: string;
     readonly note: string;
-    readonly kind: TokenGroup['kind'];
+    readonly kind: TokenKind;
     readonly drop: readonly string[];
 }[] = [
     {
         id: 'palette',
         title: 'Palette',
-        note: 'The brand color and the state colors, each with the text that sits on it.',
+        note: 'The brand/state colors and their text colors.',
         kind: 'colour',
         drop: ['color'],
     },
     {
         id: 'surface',
         title: 'Surfaces',
-        note: 'What each region of the viewer is painted on. The gallery and the input surface follow the viewer’s until you say otherwise.',
+        note: 'The gallery and the input surface follow the viewer’s by default.',
         kind: 'colour',
         drop: [],
     },
     {
         id: 'content',
         title: 'Content colors',
-        note: 'Text and icons. Each region follows the global content color until you set it.',
+        note: 'Text and icons. Each region follows the global content color by default.',
         kind: 'colour',
         drop: [],
     },
     {
         id: 'panel',
         title: 'Per-panel overrides',
-        note: 'One panel retinted on its own, rather than every panel at once.',
+        note: '',
+        kind: 'colour',
+        drop: [],
+    },
+    {
+        id: 'annotation',
+        title: 'Annotations',
+        note: '',
         kind: 'colour',
         drop: [],
     },
     {
         id: 'radius',
         title: 'Corners',
-        note: 'The three top-level radii and the regions that can depart from them.',
+        note: 'Set which corners are rounded and how much.',
         kind: 'length',
         drop: ['radius'],
     },
@@ -97,11 +114,42 @@ const CATEGORIES: readonly {
 
 const TOKENS = report.tokens as readonly CssToken[];
 
+/**
+ * The kinds a category cannot answer for.
+ *
+ * Every other group is one kind throughout — a palette is colours, the corners
+ * are lengths — and annotations are the exception: the same group decides two
+ * hues, the size of a marker, the width of a border and how much of the hue
+ * fills a shape. Named here rather than derived from the token's own name, so a
+ * control's kind is a decision on the page rather than a spelling convention
+ * the next token has to remember to follow.
+ */
+const KINDS: Record<string, TokenKind> = {
+    '--tri-annotation-fill-opacity': 'percent',
+    '--tri-annotation-point-size': 'length',
+    '--tri-annotation-border-width': 'length',
+};
+
+/**
+ * Where a slider runs, for the tokens the general 0–32px range does not suit.
+ *
+ * A corner takes that range and reads as a corner at every point of it, zero
+ * included: a square corner is an answer. A shape's border is not the same
+ * control. Past ten pixels it stops being an edge around the material and
+ * becomes a band over it, and at zero it stops being a border at all — the
+ * shape loses the outline that separates it from the image under it, which is
+ * not something to hand a reader by dragging one notch too far. So it runs from
+ * a hairline to ten, in half pixels, which are what a border can honestly be
+ * drawn in on the screens that can draw one.
+ */
+const RANGES: Record<string, SliderRange> = {
+    '--tri-annotation-border-width': { min: 0.5, max: 10, step: 0.5 },
+};
+
 export const TOKEN_GROUPS: readonly TokenGroup[] = CATEGORIES.map(
     (category) => ({
         title: category.title,
         note: category.note,
-        kind: category.kind,
         tokens: TOKENS.filter(
             (token) =>
                 token.category === category.id && token.themeConfigKey !== null,
@@ -109,6 +157,8 @@ export const TOKEN_GROUPS: readonly TokenGroup[] = CATEGORIES.map(
             name: token.name,
             key: token.themeConfigKey as string,
             label: label(token.name, category.drop),
+            kind: KINDS[token.name] ?? category.kind,
+            range: RANGES[token.name],
         })),
     }),
 );

@@ -1,26 +1,14 @@
-/**
- * Every route the site owns, declared once: the eight marketing routes and the
- * documentation.
- *
- * The rail, the documentation sidebar, the next-page link, the emitted sitemap
- * and each page's `robots` meta are all derived from these lists. Independent
- * lists would disagree, and a disagreement between what a reader is offered and
- * what a crawler is offered is invisible until a crawler finds it.
- *
- * Order is the order of the argument the site makes, which is the rail's order
- * and the next-page link's order. This module holds path, order and grouping
- * only: a content route's own words live in its document's meta, and
- * `$lib/server/pageMeta` is what resolves the two into one list.
- */
+// Canonical pages, navigation order and crawl policy. Content routes hold their
+// own words in Uncial documents, resolved by `$lib/server/pageMeta`.
 
 /** The rail's three tint groups, or `null` for a route the rail does not carry. */
 export type RailGroup = 1 | 2 | 3 | null;
 
 /** A page's own words: its heading, the rail's label for it, and its lede. */
 export type PageMeta = {
-    /** The rail's label, and the page's own heading. */
+    /** The page's heading. */
     readonly title: string;
-    /** The document title, and the rail's slim-bar "where am I" label. */
+    /** The document title, numbered rail label and mobile location label. */
     readonly shortTitle: string;
     /** One real sentence saying what the page is for. */
     readonly intro: string;
@@ -30,6 +18,7 @@ type RoutePosition = {
     /** Path within the site, with a leading and trailing slash. */
     readonly path: string;
     readonly group: RailGroup;
+    readonly indexed?: boolean;
 };
 
 /** A route whose body and words are one Uncial document under `content/`. */
@@ -40,7 +29,7 @@ export type ContentRoute = RoutePosition & { readonly source: 'content' };
  *
  * Two kinds of page qualify. Most are pages whose figures are computed from
  * committed data: a page whose credibility rests on being generated must not
- * gain an edit button. The front page and `/handles/` are the other kind — their
+ * gain an edit button. The front page and `/features/` are the other kind — their
  * bodies are running viewers rather than prose, so a document would hold nothing
  * but the heading and the lede and the edit variant would open on an empty
  * editor.
@@ -56,10 +45,8 @@ export type SiteRoute = ContentRoute | CodeRoute;
  * A route with its words resolved: what the chrome, the rail and each page's
  * heading actually render from. `$lib/server/pageMeta` builds the list.
  *
- * `indexed` is carried rather than recomputed because the rail and the crawler
- * do not agree. A marketing route the rail withholds is an appendix nobody
- * should index; a documentation page is the other combination — offered to a
- * crawler, absent from the rail, because the sidebar is what navigates to it.
+ * Indexing is independent of numbered rail membership: the builder and
+ * documentation remain discoverable through their own navigation.
  */
 export type SitePage = RoutePosition & PageMeta & { readonly indexed: boolean };
 
@@ -75,17 +62,7 @@ export const ROUTES: readonly SiteRoute[] = [
         },
     },
     {
-        path: '/size/',
-        group: 1,
-        source: 'code',
-        meta: {
-            title: 'Small and mighty',
-            shortTitle: 'Small and mighty',
-            intro: 'Triiiceratops is currently both the smallest and most capable embeddable IIIF viewer.',
-        },
-    },
-    {
-        path: '/handles/',
+        path: '/features/',
         group: 1,
         source: 'code',
         meta: {
@@ -95,18 +72,29 @@ export const ROUTES: readonly SiteRoute[] = [
         },
     },
     {
-        path: '/configure/',
-        group: 2,
+        path: '/size/',
+        group: 1,
         source: 'code',
         meta: {
-            title: 'Customization Wizard',
-            shortTitle: 'Customization Wizard',
+            title: 'Small and mighty',
+            shortTitle: 'Small and mighty',
+            intro: 'Triiiceratops is currently both the smallest and most capable embeddable IIIF viewer.',
+        },
+    },
+    { path: '/accessibility/', group: 2, source: 'content' },
+    { path: '/production/', group: 2, source: 'content' },
+    { path: '/install/', group: 3, source: 'content' },
+    {
+        path: '/configure/',
+        group: null,
+        indexed: true,
+        source: 'code',
+        meta: {
+            title: 'Build your viewer',
+            shortTitle: 'Build your viewer',
             intro: 'Here you can easily create a layout and theme configuration for your viewer. Share the resulting configuration with others.',
         },
     },
-    { path: '/install/', group: 2, source: 'content' },
-    { path: '/access/', group: 3, source: 'content' },
-    { path: '/production/', group: 3, source: 'content' },
     {
         path: '/demo/',
         // Out of the rail for the same reason as `/system/`: a maintainer's
@@ -144,7 +132,12 @@ export const ROUTES: readonly SiteRoute[] = [
  * security notes stay Markdown in the repository's own `docs/` directory: they
  * are not content documents, so no declaration can reach them.
  */
-export const DOC_SECTIONS = ['Get started', 'Guides', 'Plugins'] as const;
+export const DOC_SECTIONS = [
+    'Get started',
+    'Guides',
+    'Plugins',
+    'Build a plugin',
+] as const;
 
 export type DocSection = (typeof DOC_SECTIONS)[number];
 
@@ -161,10 +154,17 @@ export type DocRoute = {
 /**
  * Every documentation page, in the sidebar's order within each section.
  *
+ * Grouped in section order, because the sidebar flattens to this list: a page
+ * declared out of its section's run would render under the right heading and in
+ * the wrong place, and `tests/docs.spec.ts` holds the served order to this one.
+ *
  * The order within a section is the order a reader meets the ideas, not
  * alphabetical: the framework guides lead with the two wrappers, the guides
- * lead with configuration because everything else assumes it, and the plugin
- * pages put the system before the plugins and the authoring guide last.
+ * lead with configuration because everything else assumes it and end with the
+ * policy a deployment needs, and the plugin pages put the system before the
+ * plugins. Authoring and testing a plugin are their own section: they are the
+ * only two pages addressed to somebody writing one rather than using one, and
+ * they read as a pair.
  */
 export const DOC_ROUTES: readonly DocRoute[] = [
     { path: '/docs/', section: null, source: 'content' },
@@ -174,10 +174,15 @@ export const DOC_ROUTES: readonly DocRoute[] = [
     { path: '/docs/integration/', section: 'Get started', source: 'content' },
     { path: '/docs/configuration/', section: 'Guides', source: 'content' },
     { path: '/docs/theming/', section: 'Guides', source: 'content' },
-    { path: '/docs/csp/', section: 'Guides', source: 'content' },
     { path: '/docs/content-state/', section: 'Guides', source: 'content' },
+    { path: '/docs/csp/', section: 'Guides', source: 'content' },
     { path: '/docs/plugins/', section: 'Plugins', source: 'content' },
     { path: '/docs/plugin-av/', section: 'Plugins', source: 'content' },
+    {
+        path: '/docs/plugin-annotation-editor/',
+        section: 'Plugins',
+        source: 'content',
+    },
     {
         path: '/docs/plugin-image-manipulation/',
         section: 'Plugins',
@@ -189,8 +194,16 @@ export const DOC_ROUTES: readonly DocRoute[] = [
         source: 'content',
     },
     { path: '/docs/plugin-pdf-export/', section: 'Plugins', source: 'content' },
-    { path: '/docs/plugin-authoring/', section: 'Plugins', source: 'content' },
-    { path: '/docs/plugin-testing/', section: 'Plugins', source: 'content' },
+    {
+        path: '/docs/plugin-authoring/',
+        section: 'Build a plugin',
+        source: 'content',
+    },
+    {
+        path: '/docs/plugin-testing/',
+        section: 'Build a plugin',
+        source: 'content',
+    },
 ];
 
 /** The path every documentation route lives under. */
@@ -215,21 +228,20 @@ export function nextDoc(path: string): DocRoute | undefined {
     return DOC_ROUTES[current + 1];
 }
 
-/**
- * Whether the site navigates to a route, and equally whether it offers the route
- * to a crawler: the rail's items, the next-page link's chain, an onward list,
- * the sitemap's entries, and the absence of `noindex`.
- *
- * Group membership alone decides all of it, so it takes anything carrying a
- * group — a route declaration, or a resolved page. The branch merges only when
- * every declared route renders real prose, so there is no state in which a
- * reachable page must be withheld from a search result.
- */
+/** Whether a route belongs to the numbered introduction. */
 export function isNavigable(route: { readonly group: RailGroup }): boolean {
     return route.group !== null;
 }
 
-/** The rail's items and the sitemap's entries, in the argument's order. */
+/** The builder is indexed even though it lives only in the action block. */
+export function isIndexed(route: {
+    readonly group: RailGroup;
+    readonly indexed?: boolean;
+}): boolean {
+    return route.indexed ?? isNavigable(route);
+}
+
+/** The numbered rail's items, in the argument's order. */
 export const NAV: readonly SiteRoute[] = ROUTES.filter(isNavigable);
 
 /**

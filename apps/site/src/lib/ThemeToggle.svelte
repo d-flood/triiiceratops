@@ -2,11 +2,12 @@
     import { chooseTheme, currentTheme } from './theme';
 
     /**
-     * The colour-scheme toggle: a small round control in the rail's brand row.
+     * The colour-scheme toggle: a small round control, in the rail's brand row
+     * on the prose routes and in the bare viewer's top bar.
      *
-     * That row is the only one in the rail that is not a page, so the control
-     * does not disturb the flat equal-weight list; and the coloured link block
-     * below would imply it is a destination.
+     * The brand row is the only row in the rail that is not a page, so the
+     * control does not disturb the flat equal-weight list; and the coloured link
+     * block below would imply it is a destination.
      *
      * Which face it shows is decided entirely in CSS, from `data-theme` and
      * `prefers-color-scheme` — the same two inputs the palette reads. Painting

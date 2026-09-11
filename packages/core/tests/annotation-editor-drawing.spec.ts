@@ -1633,23 +1633,24 @@ test.describe('point and whole-canvas tools', () => {
     /**
      * The size half of the invariant the colour spec above holds for paint.
      *
-     * Driven at a NON-default radius, because at the default both sides fall
-     * back to the same `DEFAULT_POINT_RADIUS` and agree whether or not they
-     * read one source — so the default proves nothing. A configured radius is
-     * what makes the single source load-bearing: the viewer config is the only
-     * place a radius can be set, because core's read-only marker reads nothing
-     * else and the plugin cannot write it. A second source would give a point
-     * one size at rest and another the moment it was opened; this is the guard.
+     * Driven at a NON-default size, because at the default both sides fall back
+     * to the same `DEFAULT_POINT_DIAMETER` and agree whether or not they read
+     * one source — so the default proves nothing. A theme that moves the token
+     * is what makes the single source load-bearing: `--tri-annotation-point-size`
+     * is the only place a marker's size is set, and each side measures it off
+     * the element it draws in rather than parsing it. A second source would give
+     * a point one size at rest and another the moment it was opened; this is the
+     * guard.
      *
      * Both diameters are read off the rendered elements rather than compared
      * against the configured number — the claim is that the two agree, not that
      * either resolves a particular arithmetic.
      */
-    test('a point open for editing is the same size as the same point at rest, at a non-default radius', async ({
+    test('a point open for editing is the same size as the same point at rest, at a non-default size', async ({
         page,
     }) => {
-        const RADIUS = 9;
-        await openFixture(page, `?pointRadius=${RADIUS}`);
+        const SIZE = 18;
+        await openFixture(page, `?pointSize=${SIZE}`);
         const stored = await placePoint(page);
         await reopen(page, stored.id);
 
@@ -1668,7 +1669,7 @@ test.describe('point and whole-canvas tools', () => {
         expect(Math.abs(open.width - rest.width)).toBeLessThanOrEqual(1);
         expect(Math.abs(open.height - rest.height)).toBeLessThanOrEqual(1);
 
-        // The fixture really did take the configured radius: at the default
+        // The fixture really did take the configured size: at the default
         // both sides agree whether or not they read one source, so a run that
         // silently fell back to it would assert nothing.
         expect(rest.width).not.toBe(MARKER_SIZE);

@@ -53,6 +53,13 @@ export const CSS_VAR_MAP: Record<
     collectionPanelBg: '--tri-collection-panel-bg',
     collectionPanelContent: '--tri-collection-panel-content',
 
+    // Annotation shapes
+    annotationColor: '--tri-annotation-color',
+    annotationHitColor: '--tri-annotation-hit-color',
+    annotationBorderWidth: '--tri-annotation-border-width',
+    annotationFillOpacity: '--tri-annotation-fill-opacity',
+    annotationPointSize: '--tri-annotation-point-size',
+
     // Border radius (top-level + per-region overrides)
     radiusBox: '--tri-radius-box',
     radiusButtons: '--tri-radius-buttons',
@@ -113,4 +120,7 @@ export const COLOR_PROPS = new Set<keyof ThemeConfig>([
     'structuresPanelContent',
     'collectionPanelBg',
     'collectionPanelContent',
+    // Annotation shapes
+    'annotationColor',
+    'annotationHitColor',
 ]);

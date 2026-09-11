@@ -1979,41 +1979,41 @@ code {
     border-right: 1px solid var(--rule);
     overflow-y: auto;
 }
-/* The strip that divides the rail into its five kinds of feature. It stays put
-   while the list under it scrolls: the strip is how a reader moves between
-   kinds, and one that scrolled away with the list would strand them among
-   options with no way back but the scrollbar. */
+/* The strip that divides the rail into its five kinds of feature, in the site's
+   own tab hand — the ruled row of labels the configurator and the documentation
+   use, so a tab reads the same wherever the site sets one. It stays put while
+   the list under it scrolls: the strip is how a reader moves between kinds, and
+   one that scrolled away with the list would strand them among options with no
+   way back but the scrollbar. */
 .featstage__tabs {
     position: sticky;
     top: 0;
     z-index: 1;
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s1);
-    padding-bottom: var(--s2);
+    margin-bottom: var(--s1);
     border-bottom: 1px solid var(--rule);
     background: var(--bench);
 }
 .featstage__tab {
-    padding: var(--s1) var(--s3);
-    border: 1px solid transparent;
-    border-radius: 999px;
+    margin-bottom: -1px;
+    padding: var(--s2);
+    border-bottom: 2px solid transparent;
     color: var(--ink-2);
     font-size: var(--t-small);
-    font-weight: 600;
     cursor: pointer;
 }
 .featstage__tab:hover {
-    background: var(--paper);
+    color: var(--ink);
 }
 .featstage__tab.on {
-    border-color: var(--cta);
-    background: var(--paper);
+    border-bottom-color: var(--ink);
     color: var(--ink);
+    font-weight: 600;
 }
 .featstage__tab:focus-visible {
     outline: 2px solid var(--link);
-    outline-offset: 2px;
+    outline-offset: -2px;
 }
 .featstage__group {
     display: flex;
@@ -2344,7 +2344,7 @@ code {
    in a stylesheet the whole site shares.
 
    The stage spans the whole column rather than stopping at the content
-   measure, which is `/handles/`'s treatment of its own running viewer and for
+   measure, which is `/features/`'s treatment of its own running viewer and for
    the same reason: the material gets the width, and prose is what the measure
    is for. It keeps a fixed height on desktop so the editor beside the viewer
    can scroll inside itself — the viewer stays where it is, which is what makes
@@ -2641,8 +2641,17 @@ code {
     gap: var(--s2);
     padding-bottom: var(--s2);
 }
+/* The box has no line box of its own, so it is centered on the label's first
+   line by hand. `line-height: inherit` is load-bearing: a bare input's
+   line-height is `normal`, which would resolve `1lh` against the box's own
+   17px rather than the row's 24px line. */
 .bstage .row--plug input {
-    margin-top: 0.2em;
+    flex: none;
+    width: 1em;
+    height: 1em;
+    margin: calc((1lh - 1em) / 2) 0 0;
+    font-size: inherit;
+    line-height: inherit;
 }
 .bstage .row__say {
     display: block;
@@ -2665,12 +2674,48 @@ code {
     width: 100%;
     min-width: 0;
 }
+/* A range input carries a 2px margin from the platform, and the pane it fills is
+   the scroller: a full-width slider plus that margin is two pixels of sideways
+   scroll on every panel that has one. */
+.bstage .row input[type='range'] {
+    margin: 0;
+}
+/* `appearance: none` because the platform's own select paints its ground over
+   the left and right thirds of the box, leaving a border that runs along the
+   top and bottom and stops. Removing it takes the caret with it, so the caret
+   is the shell's: two gradient triangles, which cost no request. */
 .bstage .row select {
+    appearance: none;
     padding: var(--s1) var(--s2);
+    padding-inline-end: var(--s5);
     color: var(--ink);
-    background: var(--bone);
+    background-color: var(--bone);
     border: 1px solid var(--rule-2);
     border-radius: 2px;
+    cursor: pointer;
+    text-overflow: ellipsis;
+    background-image:
+        linear-gradient(45deg, #0000 50%, currentColor 50%),
+        linear-gradient(135deg, currentColor 50%, #0000 50%);
+    background-repeat: no-repeat;
+    background-position:
+        calc(100% - 15px) calc(50% + 1px),
+        calc(100% - 11px) calc(50% + 1px);
+    background-size:
+        4px 4px,
+        4px 4px;
+}
+/* The popup is the platform's, but engines that read option colours take them
+   from here rather than from their own light default. */
+.bstage .row select option {
+    background: var(--bone);
+    color: var(--ink);
+}
+/* A control fills the pane, and the pane is the scroller: an outward focus ring
+   is clipped on both sides by its own container, so the ring is drawn inside
+   the control's border, which is where the tabs and chips above draw theirs. */
+.bstage .row :is(select, input, textarea):focus-visible {
+    outline-offset: -2px;
 }
 .bstage .row input[type='color'] {
     width: 4rem;
@@ -2678,6 +2723,37 @@ code {
     padding: 0;
     border: 1px solid var(--rule-2);
     background: var(--paper);
+}
+.bstage .row input[type='text'],
+.bstage .row textarea {
+    font: inherit;
+    font-size: var(--t-tiny);
+    width: 100%;
+    min-width: 0;
+    padding: var(--s1) var(--s2);
+    color: var(--ink);
+    background: var(--bone);
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+}
+/* Headers are written a line at a time, so the box does not reflow the text and
+   scrolls sideways for a long token instead of wrapping it mid-value. */
+.bstage .row--area textarea {
+    font-family: var(--mono);
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+    resize: vertical;
+}
+
+/* A chosen plugin's own UI keys, indented under it so the rule reads as
+   belonging to the plugin above rather than to the next one. */
+.bstage .plugui {
+    display: grid;
+    gap: var(--s2);
+    margin: 0 0 var(--s3) var(--s4);
+    padding-left: var(--s3);
+    border-left: 1px solid var(--rule-2);
 }
 
 /* ---- The builder's live viewer ---------------------------------------

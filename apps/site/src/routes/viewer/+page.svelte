@@ -3,7 +3,14 @@
 
     import '$lib/bare-viewer/bare-viewer.css';
     import { APP_MARKER, BARE_VIEWER_APP } from '$lib/applications';
-    import { HOSTED_VIEWER_PATH, SITE_NAME, absolute } from '$lib/site';
+    import {
+        HOSTED_VIEWER_PATH,
+        SITE_NAME,
+        SITE_ROOT,
+        absolute,
+    } from '$lib/site';
+    import ThemeToggle from '$lib/ThemeToggle.svelte';
+    import Wordmark from '$lib/Wordmark.svelte';
 
     /**
      * The bare viewer: a viewer with no chrome, driven by the content state in
@@ -18,6 +25,11 @@
      *
      * It carries no social preview card, as it did not before: a card names one
      * page, and this one shows whatever material its link points at.
+     *
+     * The one exception to "no chrome" is the strip above the viewer: readers
+     * reach this route cold from a Cookbook link, with no way back to the site
+     * and no way to change the scheme, because the toggle lives in the prose
+     * routes' rail and this route sits outside it.
      */
 
     type BareViewerComponent =
@@ -35,6 +47,14 @@
         })();
     });
 
+    /*
+     * The site's host, not its name. The bar has to read as a way off this page
+     * rather than as a title for the viewer under it: a product name at the top
+     * left of an application is where that application names itself, and this
+     * one would then be claiming the viewer ships a branded bar.
+     */
+    const host = new URL(SITE_ROOT).host;
+
     const title = SITE_NAME;
     const description =
         'A bare IIIF viewer. Open the view named by an iiif-content parameter, or paste a manifest URL or content state.';
@@ -47,22 +67,89 @@
     <meta name={APP_MARKER} content={BARE_VIEWER_APP} />
 </svelte:head>
 
-{#if BareViewer}
-    <BareViewer />
-{:else}
-    <div class="appwait">
-        <p>Loading the viewer…</p>
-        <p class="aside">
-            It needs JavaScript. Paste a manifest URL or a IIIF content state
-            once it has loaded.
-        </p>
-    </div>
-{/if}
+<div class="route">
+    <nav class="sitebar" aria-label="Site">
+        <a class="brand" href="/" aria-label="Back to {host}">
+            <span class="arrow" aria-hidden="true">←</span>
+            <Wordmark eye />
+            <span>{host}</span>
+        </a>
+        <ThemeToggle />
+    </nav>
+
+    {#if BareViewer}
+        <BareViewer />
+    {:else}
+        <div class="appwait">
+            <p>Loading the viewer…</p>
+            <p class="aside">
+                It needs JavaScript. Paste a manifest URL or a IIIF content
+                state once it has loaded.
+            </p>
+        </div>
+    {/if}
+</div>
 
 <style>
-    .appwait {
+    /*
+     * The bar takes the height it needs and the viewer takes the rest; nothing
+     * here names a bar height, so the two cannot disagree about one.
+     */
+    .route {
         display: flex;
-        min-height: 100dvh;
+        flex-direction: column;
+        /* A band between the bar and the viewer, in the darkest surface the
+           palette has. The bar, the page ground and the viewer's stage all sit
+           within eight points of each other in the dark scheme, so a band in
+           any of them reads as more of the same slab; `--bench` is below that
+           cluster and reads as a groove. */
+        gap: var(--s2);
+        height: 100dvh;
+        background: var(--bench);
+    }
+
+    .sitebar {
+        display: flex;
+        align-items: center;
+        gap: var(--s3);
+        padding: var(--s2) var(--s3);
+        border-bottom: 1px solid var(--rule);
+        background: var(--paper);
+    }
+
+    /* The rail's brand idiom at the size this strip can afford, behind an
+       arrow. The mark and the arrow are decorative; the host is the link's
+       text, and `aria-label` says what following it does. */
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: var(--s2);
+        color: var(--ink-2);
+        font-size: var(--t-small);
+        text-decoration: none;
+    }
+    .brand :global(svg) {
+        width: 20px;
+        height: auto;
+        flex: none;
+    }
+    .brand:hover {
+        color: var(--ink);
+    }
+    .brand .arrow {
+        font-size: 1.1em;
+        line-height: 1;
+    }
+    .brand:hover span {
+        text-decoration: underline;
+    }
+    .brand:hover .arrow {
+        text-decoration: none;
+    }
+
+    .appwait {
+        flex: 1;
+        display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;

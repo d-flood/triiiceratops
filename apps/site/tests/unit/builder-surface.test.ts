@@ -19,7 +19,10 @@ import { fileURLToPath } from 'node:url';
 import { BUILTIN_THEMES } from 'triiiceratops';
 import { describe, expect, it } from 'vitest';
 
-import { CONTROL_GROUPS } from '../../src/lib/builder/surface';
+import {
+    CONTROL_GROUPS,
+    PLUGIN_UI_CONTROLS,
+} from '../../src/lib/builder/surface';
 import { THEME_CHOICES, TOKEN_GROUPS } from '../../src/lib/builder/tokens';
 
 const API = readFileSync(
@@ -101,7 +104,13 @@ const ALIASES = new Map(
     ]),
 );
 
-const expand = (type: string): string => ALIASES.get(type) ?? type;
+/*
+ * Aliases are substituted wherever they appear rather than only when the whole
+ * declared type is one, so a union like `BarMenu | null` is checked against the
+ * values `BarMenu` actually carries.
+ */
+const expand = (type: string): string =>
+    type.replace(/\w+/g, (word) => ALIASES.get(word) ?? word);
 
 /** A property's declared type, following `extends` where the interface has one. */
 function propertyType(name: string, prop: string): string | undefined {
@@ -134,9 +143,7 @@ function resolve(path: readonly string[]): string | undefined {
 }
 
 const CONTROLS = CONTROL_GROUPS.flatMap((group) => group.controls);
-const TOKENS = TOKEN_GROUPS.flatMap((group) =>
-    group.tokens.map((token) => ({ ...token, kind: group.kind })),
-);
+const TOKENS = TOKEN_GROUPS.flatMap((group) => group.tokens);
 
 describe('the API report parse this suite depends on', () => {
     it('finds the interfaces the controls are checked against', () => {
@@ -166,7 +173,12 @@ describe('every configuration control', () => {
             const type = resolve(control.path);
             if (control.kind === 'toggle') expect(type).toBe('boolean');
             if (control.kind === 'pixels') expect(type).toBe('string');
+            if (control.kind === 'text') expect(type).toBe('string');
+            if (control.kind === 'colour') expect(type).toBe('string');
             if (control.kind === 'count') expect(type).toBe('number');
+            if (control.kind === 'headers') {
+                expect(type).toBe('Record<string, string>');
+            }
             if (control.kind === 'choice') {
                 for (const choice of control.choices) {
                     expect(expand(type ?? '')).toContain(`'${choice.value}'`);
@@ -208,28 +220,22 @@ describe('what the route leaves out', () => {
     const paths = CONTROLS.map((control) => control.path.join('.'));
 
     /*
-     * The route is the site's only configuration surface, so a key's absence
-     * here is a claim that a reader has nothing to look at while setting it —
-     * not that it is set somewhere else. Each absence carries the reason the
-     * page's own closing section gives for it, because the two have to agree:
-     * a silent omission is how the prose came to claim it left out only what
-     * could not be seen while `pointStyle` and the visible renderer terms sat
-     * outside the surface.
+     * The route sets the whole configuration interface, so a key that is not a
+     * control has to say why in one line here. Two do; a third would be a gap.
      */
     const EXPECTED_ABSENT: Record<string, string> = {
-        debug: 'diagnostics, with no appearance',
-        locale: 'the viewer publishes no list of the locales it has messages for, so a control would be a third hardcoded copy of one; toolbar.showLocalePicker is the chrome half and is in',
-        openMenu: 'transient runtime state, which a config should not pin',
-        plugins: 'per-plugin UI state, owned by the plugin picker',
-        'requests.headers': 'network, with no appearance',
-        'requests.withCredentials': 'network, with no appearance',
-        'search.query': 'material, not configuration',
-        showStructures: 'deprecated alias for toolbar.showStructures',
-        'renderer.boxThreshold': 'fetch budget, measured rather than seen',
-        'renderer.byteBudget': 'memory budget, measured rather than seen',
-        'renderer.minPixelRatio': 'fetch budget, measured rather than seen',
-        'renderer.pyramidThreshold': 'fetch budget, measured rather than seen',
-        'renderer.residencyMargin': 'memory budget, measured rather than seen',
+        /*
+         * The one key a reader must not be handed. It is the superseded alias
+         * of `toolbar.showStructures`, which is a control, and offering both
+         * would let one page emit two keys that disagree about the same button.
+         */
+        showStructures: 'superseded alias of toolbar.showStructures',
+        /*
+         * Covered, but not from here: the record is keyed by plugin id, so the
+         * route renders `PLUGIN_UI_CONTROLS` under each plugin a reader turns
+         * on. The suite below holds those to `PluginUiConfig`.
+         */
+        plugins: 'rendered per plugin by the picker, from PLUGIN_UI_CONTROLS',
     };
 
     it('accounts for every leaf of the configuration interface', () => {
@@ -251,6 +257,58 @@ describe('what the route leaves out', () => {
     });
 });
 
+/*
+ * The picker renders these under `plugins.<id>`, so they are resolved against
+ * `PluginUiConfig` directly: a plugin id is not a key the report can carry.
+ */
+describe('every per-plugin UI control', () => {
+    const relative = (path: readonly string[]) =>
+        propertyType('PluginUiConfig', path[0]);
+
+    it('names a real leaf of the per-plugin interface', () => {
+        const unresolved = PLUGIN_UI_CONTROLS.filter(
+            (control) => relative(control.path) === undefined,
+        ).map((control) => control.path.join('.'));
+
+        expect(unresolved).toEqual([]);
+    });
+
+    it('covers every leaf of it', () => {
+        const bound = PLUGIN_UI_CONTROLS.map((control) =>
+            control.path.join('.'),
+        );
+
+        expect(leaves('PluginUiConfig').sort()).toEqual(bound.sort());
+    });
+
+    it('writes the kind of value that leaf declares', () => {
+        for (const control of PLUGIN_UI_CONTROLS) {
+            const type = relative(control.path);
+            if (control.kind === 'toggle') expect(type).toBe('boolean');
+            if (control.kind === 'choice') {
+                for (const choice of control.choices) {
+                    expect(expand(type ?? '')).toContain(`'${choice.value}'`);
+                }
+            }
+        }
+    });
+
+    /*
+     * Both override an answer the plugin was authored with, so a reader who has
+     * stated one has to be able to hand it back.
+     */
+    it('lets a reader retract the two the plugin already answers', () => {
+        const unsettable = PLUGIN_UI_CONTROLS.filter(
+            (control) => control.kind === 'choice' && control.unset,
+        );
+
+        expect(unsettable.map((control) => control.path.join('.'))).toEqual([
+            'target',
+            'position',
+        ]);
+    });
+});
+
 describe('a control whose absence is a choice', () => {
     const unsettable = CONTROLS.filter(
         (control) => control.kind === 'choice' && control.unset !== undefined,
@@ -261,10 +319,11 @@ describe('a control whose absence is a choice', () => {
      * able to say nothing about them. Core reads a falsy value as "the manifest
      * decides", which is what makes the retraction expressible at all.
      */
-    it('is offered for the two keys that override the manifest', () => {
+    it('is offered for each key whose absence says something', () => {
         expect(unsettable.map((control) => control.path.join('.'))).toEqual([
             'viewingMode',
             'viewingDirection',
+            'openMenu',
         ]);
     });
 
@@ -316,18 +375,50 @@ describe('every theming control', () => {
         for (const name of invented) expect(names).not.toContain(name);
     });
 
-    it('offers the palette, the surfaces, the content colors, the per-panel overrides and the corners', () => {
+    it('offers the palette, the surfaces, the content colors, the per-panel overrides, the annotations and the corners', () => {
         expect(TOKEN_GROUPS.map((group) => group.title)).toEqual([
             'Palette',
             'Surfaces',
             'Content colors',
             'Per-panel overrides',
+            'Annotations',
             'Corners',
         ]);
-        // Sizing and border/effect tokens are the theming reference's, not this
-        // route's.
+        // The general sizing and border/effect tokens are the theming
+        // reference's, not this route's.
         expect(TOKENS.map((token) => token.key)).not.toContain('sizeField');
         expect(TOKENS.map((token) => token.key)).not.toContain('depth');
+    });
+
+    /*
+     * The one group that is not a single kind: two hues, a marker's size, a
+     * border's width and the fill the hue is carried at. A control drawn as a
+     * swatch would set `20%` to `#000000`, so what each token is has to reach
+     * the template.
+     */
+    it('draws each annotation token as the kind of value it is', () => {
+        const annotations = TOKEN_GROUPS.find(
+            (group) => group.title === 'Annotations',
+        );
+
+        expect(
+            annotations?.tokens.map((token) => [token.name, token.kind]),
+        ).toEqual([
+            ['--tri-annotation-color', 'colour'],
+            ['--tri-annotation-hit-color', 'colour'],
+            ['--tri-annotation-fill-opacity', 'percent'],
+            ['--tri-annotation-point-size', 'length'],
+            ['--tri-annotation-border-width', 'length'],
+        ]);
+
+        // A border past ten pixels is a band over the material rather than an
+        // edge around it, and at zero it is not a border at all, so this one
+        // slider runs from a hairline to ten rather than over the general range.
+        expect(
+            annotations?.tokens.find(
+                (token) => token.name === '--tri-annotation-border-width',
+            )?.range,
+        ).toEqual({ min: 0.5, max: 10, step: 0.5 });
     });
 
     it('reads each token’s label off its own name', () => {

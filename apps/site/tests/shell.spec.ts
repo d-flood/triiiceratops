@@ -12,7 +12,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { APP_MARKER, BARE_VIEWER_APP } from '../src/lib/applications';
-import { NAV, ROUTES, isNavigable } from '../src/lib/routes';
+import { NAV, ROUTES, isIndexed } from '../src/lib/routes';
 import {
     BUILDER_PATH,
     DOCUMENTATION_PATH,
@@ -60,7 +60,7 @@ function strips(page: Page): Promise<Strip[]> {
 }
 
 const navPaths = NAV.map((route) => route.path);
-const unindexedPaths = ROUTES.filter((route) => !isNavigable(route)).map(
+const unindexedPaths = ROUTES.filter((route) => !isIndexed(route)).map(
     (route) => route.path,
 );
 
@@ -165,17 +165,7 @@ test.describe('the rail', () => {
         ).toHaveCount(1);
     });
 
-    /*
-     * The builder is deliberately in both the block and the list, which is why
-     * the assertion above is scoped to the block. The list is a table of
-     * contents and the block is a set of actions, and the builder is honestly
-     * both: the page a reader is sent to act on, and a page of the site.
-     *
-     * Nothing else is in both. A second duplicate would mean the block had
-     * started restating the list rather than offering the things it does not
-     * carry.
-     */
-    test('repeats the builder, and nothing else, in both of its halves', async ({
+    test('offers distinct destinations in its numbered list and action block', async ({
         page,
     }) => {
         await page.goto('/');
@@ -188,9 +178,7 @@ test.describe('the rail', () => {
                 links.map((link) => link.getAttribute('href')),
             );
 
-        expect(acted.filter((href) => listed.includes(href))).toEqual([
-            BUILDER_PATH,
-        ]);
+        expect(acted.filter((href) => listed.includes(href))).toEqual([]);
     });
 });
 
@@ -269,7 +257,9 @@ test.describe('a route offered to a crawler', () => {
     test('carries no robots directive and a canonical URL', async ({
         page,
     }) => {
-        for (const path of navPaths) {
+        for (const path of ROUTES.filter(isIndexed).map(
+            (route) => route.path,
+        )) {
             await page.goto(path);
             await expect(page.locator('head meta[name="robots"]')).toHaveCount(
                 0,

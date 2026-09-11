@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 for (const name of ['Whichever format will play', 'Sound, with its waveform']) {
     test(`lane vs bar: ${name}`, async ({ page }) => {
         await page.setViewportSize({ width: 1500, height: 950 });
-        await page.goto('/handles/');
+        await page.goto('/features/');
         await expect(
             page.locator('.featstage .vw .viewer-root'),
         ).toBeAttached();

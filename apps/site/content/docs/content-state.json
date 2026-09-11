@@ -165,7 +165,7 @@
 				},
 				{
 					"type": "text",
-					"text": " attribute. The channel is yours: the viewer never reaches for one on its own, because a component that claimed the address bar could hijack your routing or consume an "
+					"text": " attribute. The channel is yours by default: the viewer reaches for none of them on its own, because a component that claimed the address bar could hijack your routing or consume an "
 				},
 				{
 					"type": "text",
@@ -178,7 +178,7 @@
 				},
 				{
 					"type": "text",
-					"text": " parameter meant for the page around it ("
+					"text": " parameter meant for the page around it, and one that swallowed every drop could take a drag your page meant to handle ("
 				},
 				{
 					"type": "text",
@@ -207,7 +207,7 @@
 				},
 				{
 					"type": "text",
-					"text": " input — and, if you say so explicitly, read that one parameter on your behalf."
+					"text": " input — and, if you say so explicitly, take that one parameter or a drop on your behalf."
 				}
 			],
 			"attrs": {
@@ -347,7 +347,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Two inputs, on every distribution — the Svelte component, the custom element, and the React and Vue wrappers:"
+					"text": "Three inputs, on every distribution — the Svelte component, the custom element, and the React and Vue wrappers. The first is the payload; the other two each hand the viewer one ambient channel:"
 				}
 			],
 			"attrs": {
@@ -580,6 +580,84 @@
 					"attrs": {
 						"id": "f0ab2f2f-27c1-414f-b7fb-1e8e36036161"
 					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "acceptDroppedContentState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "ee4e450d-ae44-43f8-bdd1-190f4a7d632e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ff8f7c5a-2632-4dc7-a779-86aa4596b45e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "accept-dropped-content-state",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c07b25e8-7ab6-4bdd-b597-68c6a0806e53"
+									}
+								}
+							],
+							"attrs": {
+								"id": "849ac645-1e03-4108-af11-bc536c19f3f3"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "off"
+										}
+									],
+									"attrs": {
+										"id": "03a97f62-dfbb-465c-9fa5-6b89d6cc035a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fe2327f2-ae4d-4751-8a2c-a2a74e3cbb1d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "dcbc2ccc-e498-482c-b786-358f3b81b802"
+					}
 				}
 			],
 			"attrs": {
@@ -735,6 +813,204 @@
 			"type": "heading",
 			"attrs": {
 				"level": 3,
+				"slug": "accepting-a-drop",
+				"id": "5503ccb5-dc34-41c3-a058-86bea50637e6"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Accepting a drop"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "accept-dropped-content-state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " delegates the other ambient channel: a content state "
+				},
+				{
+					"type": "text",
+					"text": "dropped onto the viewer",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " ("
+				},
+				{
+					"type": "text",
+					"text": "Cookbook recipe 0599",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "https://iiif.io/api/cookbook/recipe/0599-drag-and-drop/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "). It is a boolean attribute, presence opts in, and it is "
+				},
+				{
+					"type": "text",
+					"text": "off by default",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the same reason the URL flag is: a viewer dropped into a page it does not own must not swallow a drag the page meant to handle itself."
+				}
+			],
+			"attrs": {
+				"id": "3dad318a-a559-491f-a616-78f6fe0c0606"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "f77e6b98-f34a-4ae5-9228-485df1696331"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer accept-dropped-content-state>\n</triiiceratops-viewer>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The payload is read from the drag’s "
+				},
+				{
+					"type": "text",
+					"text": "text/plain",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " flavour and nothing else — that is where the recipe’s own drag source puts it, and "
+				},
+				{
+					"type": "text",
+					"text": "text/uri-list",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is deliberately not read, because a browser fills that flavour with an image’s "
+				},
+				{
+					"type": "text",
+					"text": "src",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " whenever the drag started from an "
+				},
+				{
+					"type": "text",
+					"text": "<img>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Every form the "
+				},
+				{
+					"type": "text",
+					"text": "conformance table",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#supported-forms"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " lists arrives this way too: a bare URI, the Annotation as JSON, or its base64url encoding."
+				}
+			],
+			"attrs": {
+				"id": "978b2ca3-44ed-409a-8c01-68f3172d32b0"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Unlike the URL flag, this one is live rather than read once on mount, and a drop is the one delivery that outranks the discrete inputs — see "
+				},
+				{
+					"type": "text",
+					"text": "precedence",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#precedence"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " below."
+				}
+			],
+			"attrs": {
+				"id": "6f498ebd-7c80-4086-b787-e88c3c7c6fc3"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
 				"slug": "precedence",
 				"id": "4712e0ea-1f63-4cd6-b4a8-fcbc406b7198"
 			},
@@ -766,7 +1042,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "manifest-id / manifest-json (+ canvas-id, initial-canvas-region)\n  > content-state\n  > the iiif-content URL parameter"
+					"text": "a dropped content state\n  > manifest-id / manifest-json (+ canvas-id, initial-canvas-region)\n  > content-state\n  > the iiif-content URL parameter"
 				}
 			]
 		},
@@ -844,6 +1120,70 @@
 			],
 			"attrs": {
 				"id": "c0ba5471-946f-4449-bb63-3ef1405e298b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A "
+				},
+				{
+					"type": "text",
+					"text": "drop",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " sits above all of it, and only for the manifest. It is a gesture the reader made on this viewer, so refusing to open what it names because the host had set "
+				},
+				{
+					"type": "text",
+					"text": "manifest-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " would be answering the wrong person; "
+				},
+				{
+					"type": "text",
+					"text": "canvas-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "initial-canvas-region",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " still win over the canvas and region a dropped target carries, exactly as they do for every other delivery."
+				}
+			],
+			"attrs": {
+				"id": "e10cbdd9-3a44-46f3-82b8-d401ee1e251f"
 			}
 		},
 		{

@@ -4,8 +4,11 @@
         buildShareUrl,
         clearStoredConfig,
         clonePlain,
-        createSparseTracker,
+        collectPaths,
+        diffSparse,
         getAtPath,
+        mergeSparse,
+        pruneSparse,
         resolveInitialConfig,
         resolveInitialView,
         setAtPath,
@@ -23,6 +26,8 @@
     import {
         BUILDER_DEFAULTS,
         CONTROL_GROUPS,
+        PLUGIN_UI_CONTROLS,
+        PLUGIN_UI_DEFAULTS,
         type BuilderControl,
     } from '$lib/builder/surface';
     import {
@@ -32,7 +37,6 @@
     } from '$lib/builder/tokens';
     import { FRAMEWORK_GROUP } from '$lib/content';
     import { HERO_EXAMPLE } from '$lib/examples';
-    import { DOCUMENTATION_PATH } from '$lib/site';
     import type { SitePlugin } from '$lib/sitePlugins';
     import { currentTheme } from '$lib/theme';
     import type { ViewerConfig } from '$lib/viewerConfig';
@@ -47,7 +51,7 @@
      * rules are in `app.css` with every other route's.
      *
      * The page is one stage and then its handoffs. The stage spans the whole
-     * column — the treatment `/handles/` gives its own running viewer — with
+     * column — the treatment `/features/` gives its own running viewer — with
      * the viewer on one side and the editor on the other, pinned to the
      * viewer's height and scrolled within itself. Every group of controls is a
      * tab of that editor rather than another screen of one long column: the
@@ -79,7 +83,8 @@
     let base = $state<{
         colours: Record<string, string>;
         lengths: Record<string, number>;
-    }>({ colours: {}, lengths: {} });
+        percents: Record<string, number>;
+    }>({ colours: {}, lengths: {}, percents: {} });
 
     let manifestUrl = $state(HERO_EXAMPLE.manifest);
     let currentManifest = $state(HERO_EXAMPLE.manifest);
@@ -106,31 +111,35 @@
      */
     let theme = $state<BuiltInTheme>('light');
 
-    /*
-     * Whatever the live configuration says that the defaults do not is the
-     * reader's intent, and that overlay is what a share URL carries. The tracker
-     * holds plain, non-reactive objects, so the persistence effect does not
-     * re-run on its own bookkeeping.
+    /**
+     * What the load arrived carrying: a link's `config`, or the overlay held
+     * from a previous visit.
      *
-     * Seeded on mount with the overlay the load already carried, because the
-     * tracker records what departs from the defaults and a key set to what
-     * happens to be a default is not a departure. Without the seed a link
-     * arriving with `showToggle: true` would open here correctly and be handed
-     * back without it, so the same query string would mean less on the second
-     * pass than on the first.
+     * The overlay below is whatever the live configuration says that the
+     * defaults do not, and that on its own would narrow a link on its way back
+     * out. A sender is free to declare a key whose value happens to be this
+     * page's own default — a colleague who set it deliberately, a developer who
+     * wrote the query string by hand — and a round trip that dropped it would
+     * make the same query string mean less on the second pass than on the
+     * first. So a key that arrived travels on for as long as it still holds the
+     * value it arrived with, and stops the moment the reader moves off it.
      */
-    let tracker = createSparseTracker(defaults);
+    let declared = $state<SparseConfig>({});
 
     /** Nothing is read from or written to storage before the URL has been read. */
     let ready = $state(false);
     let clean = false;
 
-    const colourTokens = TOKEN_GROUPS.filter(
-        (group) => group.kind === 'colour',
-    ).flatMap((group) => group.tokens.map((token) => token.name));
-    const lengthTokens = TOKEN_GROUPS.filter(
-        (group) => group.kind === 'length',
-    ).flatMap((group) => group.tokens.map((token) => token.name));
+    const named = (kind: TokenControl['kind']) =>
+        TOKEN_GROUPS.flatMap((group) =>
+            group.tokens
+                .filter((token) => token.kind === kind)
+                .map((token) => token.name),
+        );
+
+    const colourTokens = named('colour');
+    const lengthTokens = named('length');
+    const percentTokens = named('percent');
 
     onMount(() => {
         const search = window.location.search;
@@ -144,7 +153,7 @@
         const resolved = resolveInitialConfig({ search, defaults });
         config = resolved.config;
         clean = resolved.clean;
-        tracker = createSparseTracker(defaults, resolved.sparse);
+        declared = resolved.sparse;
         origin = window.location.origin;
         pathname = window.location.pathname;
         theme = currentTheme();
@@ -162,29 +171,52 @@
     const applied = $derived(clonePlain(config));
 
     /**
-     * The overlay, as reactive state.
+     * The keys of `from` the live configuration still agrees with.
      *
-     * The tracker's own object is plain and is mutated in place, so a template
-     * reading it would never hear about a change. A fresh copy per run is what
-     * makes the three outputs below recompute, and it is a copy for the same
-     * reason `applied` is: nothing downstream may write into the tracker.
-     *
-     * A round-trip through JSON rather than `clonePlain`, because it also drops
-     * a retracted key. `record` reports a retraction as `undefined` — that is
-     * what distinguishes it from the value the reader had chosen — and an
-     * overlay carrying `viewingMode: undefined` would reach a developer as a
-     * line of code that says nothing. The overlay is what gets persisted and
-     * shared, so it is JSON either way.
+     * Leaf by leaf, because a link declares leaves: a sender who set the
+     * gallery's size and nothing else about the gallery must not have the
+     * reader's own dock position read as agreement with the rest of it.
      */
-    let userSet = $state<SparseConfig>({});
+    function held(live: SparseConfig, from: SparseConfig): SparseConfig {
+        const kept: SparseConfig = {};
+        for (const path of collectPaths(from)) {
+            const value = getAtPath(from, path);
+            if (getAtPath(live, path) === value) {
+                setAtPath(kept, path, value);
+            }
+        }
+        return kept;
+    }
+
+    /**
+     * The overlay: what a reader would have to state to get the viewer they are
+     * looking at, and nothing else.
+     *
+     * It is derived from the live configuration rather than accumulated as the
+     * reader works, so a value put back where it started leaves nothing behind
+     * — a toggle turned on and off again, or an emptied field, has been
+     * decided about and then undecided, and an overlay that still carried it
+     * would hand somebody else a key its own sender no longer means.
+     *
+     * `pruneSparse` is what drops a retraction: a control with an `unset` option
+     * writes `undefined` rather than deleting its key, because the diff below
+     * reads what the configuration says and would never look for a key that had
+     * gone.
+     */
+    const userSet = $derived(
+        pruneSparse(
+            mergeSparse(
+                held(config as SparseConfig, declared),
+                diffSparse(config as SparseConfig, defaults as SparseConfig),
+            ),
+        ),
+    );
 
     $effect(() => {
         if (!ready) return;
-        const recorded = tracker.record(config as SparseConfig);
-        userSet = JSON.parse(JSON.stringify(recorded)) as SparseConfig;
         // A `clean-config` load is a bookmarkable deterministic start: it reads
         // nothing from storage and must write nothing to it either.
-        if (!clean) writeStoredConfig(recorded);
+        if (!clean) writeStoredConfig(userSet);
     });
 
     /*
@@ -385,6 +417,29 @@
             [to]?.focus();
     }
 
+    /*
+     * A per-plugin control, rooted at the plugin's own key. The declarations
+     * are relative because the key is not known until a reader turns the
+     * plugin on.
+     */
+    function pluginControl(
+        plugin: BuilderPlugin,
+        control: BuilderControl,
+    ): BuilderControl {
+        return { ...control, path: ['plugins', plugin.id, ...control.path] };
+    }
+
+    /*
+     * A per-plugin control's value, falling back to the key's documented
+     * default so an untouched toggle shows where the plugin actually stands.
+     * The fallback is not written: nothing reaches `plugins` until a reader
+     * moves something.
+     */
+    function readPlugin(control: BuilderControl): unknown {
+        const set = read(control);
+        return set ?? PLUGIN_UI_DEFAULTS[control.path[2]];
+    }
+
     function read(control: BuilderControl): unknown {
         return getAtPath(config as SparseConfig, [...control.path]);
     }
@@ -405,8 +460,27 @@
         write(control, value === '' ? undefined : value);
     }
 
+    /*
+     * A field a reader has emptied is a field they are not answering, so it
+     * retracts rather than emitting the empty string: neither key this kind
+     * covers has one as a value — a locale nobody named is the browser's, and a
+     * search for nothing is not a search.
+     */
+    function writeText(control: BuilderControl, value: string) {
+        write(control, value === '' ? undefined : value);
+    }
+
     function pixels(control: BuilderControl): number {
         return parseFloat(String(read(control) ?? '0'));
+    }
+
+    /*
+     * Where a slider stands, in the unit it runs in rather than the one the
+     * configuration takes: a byte budget is dragged in megabytes.
+     */
+    function slid(control: BuilderControl): number {
+        if (control.kind !== 'count') return 0;
+        return Number(read(control) ?? 0) / (control.scale ?? 1);
     }
 
     /*
@@ -420,7 +494,46 @@
             0,
             -Math.floor(Math.log10(control.step) + 1e-9),
         );
-        return Number(read(control) ?? 0).toFixed(places);
+        return `${slid(control).toFixed(places)}${control.unit ?? ''}`;
+    }
+
+    /*
+     * `Name: value` per line, which is the form headers are already written and
+     * pasted in. A name the reader has deleted is written back as `undefined`
+     * rather than dropped: the tracker records leaves that differ from the
+     * baseline and never looks for one that has gone, so a deleted header would
+     * otherwise stand in the overlay after it had left the textarea.
+     */
+    function writeHeaders(control: BuilderControl, text: string) {
+        const next: Record<string, string | undefined> = {};
+        for (const line of text.split('\n')) {
+            const at = line.indexOf(':');
+            if (at < 1) continue;
+            const name = line.slice(0, at).trim();
+            if (name) next[name] = line.slice(at + 1).trim();
+        }
+
+        const before = read(control);
+        if (isRecord(before)) {
+            for (const name of Object.keys(before)) {
+                if (!(name in next)) next[name] = undefined;
+            }
+        }
+
+        write(control, next);
+    }
+
+    function headerText(control: BuilderControl): string {
+        const value = read(control);
+        if (!isRecord(value)) return '';
+        return Object.entries(value)
+            .filter(([, header]) => header !== undefined)
+            .map(([name, header]) => `${name}: ${header}`)
+            .join('\n');
+    }
+
+    function isRecord(value: unknown): value is Record<string, unknown> {
+        return typeof value === 'object' && value !== null;
     }
 
     function colour(token: TokenControl): string {
@@ -430,10 +543,12 @@
             : (base.colours[token.name] ?? '#000000');
     }
 
-    function radius(token: TokenControl): number {
+    /** Where a length or percentage slider stands, in its own unit. */
+    function amount(token: TokenControl): number {
         const set = themeOverlay[token.key as keyof ThemeConfig];
-        return typeof set === 'string'
-            ? parseFloat(set)
+        if (typeof set === 'string') return parseFloat(set);
+        return token.kind === 'percent'
+            ? (base.percents[token.name] ?? 0)
             : (base.lengths[token.name] ?? 0);
     }
 
@@ -456,7 +571,7 @@
         theme = currentTheme();
         themeOverlay = {};
         chosenIds = [];
-        tracker.reset();
+        declared = {};
         clearStoredConfig();
         useExample();
     }
@@ -489,16 +604,6 @@
                 />
                 <button class="btn btn--go" type="submit">Load</button>
             </div>
-            <p class="pick__note note">
-                Paste the manifest of something you publish. Nothing is sent
-                anywhere: the viewer fetches it from your server, in this
-                browser.
-                {#if currentManifest !== HERO_EXAMPLE.manifest}
-                    <button class="linkish" type="button" onclick={useExample}
-                        >Back to the example manifest</button
-                    >
-                {/if}
-            </p>
         </form>
 
         <div class="bstage__frame">
@@ -510,6 +615,7 @@
                 themeConfig={themeOverlay}
                 {colourTokens}
                 {lengthTokens}
+                {percentTokens}
                 onbase={(resolved) => (base = resolved)}
             />
         </div>
@@ -641,6 +747,41 @@
                                         {/each}
                                     </select>
                                 </div>
+                            {:else if control.kind === 'text'}
+                                <div class="row">
+                                    <label for={controlId(control)}>
+                                        {control.label}
+                                    </label>
+                                    <input
+                                        id={controlId(control)}
+                                        type="text"
+                                        value={String(read(control) ?? '')}
+                                        placeholder={control.placeholder}
+                                        oninput={(event) =>
+                                            writeText(
+                                                control,
+                                                event.currentTarget.value,
+                                            )}
+                                    />
+                                </div>
+                            {:else if control.kind === 'headers'}
+                                <div class="row row--area">
+                                    <label for={controlId(control)}>
+                                        {control.label}
+                                    </label>
+                                    <textarea
+                                        id={controlId(control)}
+                                        rows="3"
+                                        spellcheck="false"
+                                        value={headerText(control)}
+                                        placeholder={control.placeholder}
+                                        oninput={(event) =>
+                                            writeHeaders(
+                                                control,
+                                                event.currentTarget.value,
+                                            )}
+                                    ></textarea>
+                                </div>
                             {:else if control.kind === 'colour'}
                                 <div class="row">
                                     <label for={controlId(control)}>
@@ -677,7 +818,7 @@
                                         step={control.step}
                                         value={control.kind === 'pixels'
                                             ? pixels(control)
-                                            : Number(read(control) ?? 0)}
+                                            : slid(control)}
                                         oninput={(event) =>
                                             write(
                                                 control,
@@ -686,7 +827,7 @@
                                                     : Number(
                                                           event.currentTarget
                                                               .value,
-                                                      ),
+                                                      ) * (control.scale ?? 1),
                                             )}
                                     />
                                 </div>
@@ -704,11 +845,7 @@
                 hidden={section !== PLUGIN_SECTION}
             >
                 <p class="pane__note note">
-                    The first-party plugins, each its own package. One you turn
-                    on runs in the viewer above and is registered in the code
-                    below; it reaches neither the configuration object nor the
-                    link, because a plugin is a module and neither of those can
-                    carry one.
+                    The following are the first-party plugins available today.
                 </p>
                 <div class="pane__body">
                     {#each BUILDER_PLUGINS as plugin (plugin.id)}
@@ -726,6 +863,66 @@
                                 <code class="row__token">{plugin.pkg}</code>
                             </label>
                         </div>
+                        {#if chosenIds.includes(plugin.id)}
+                            <div class="plugui">
+                                {#each PLUGIN_UI_CONTROLS as control (control.path.join('.'))}
+                                    {@const scoped = pluginControl(
+                                        plugin,
+                                        control,
+                                    )}
+                                    {#if control.kind === 'toggle'}
+                                        <div class="row row--check">
+                                            <input
+                                                id={controlId(scoped)}
+                                                type="checkbox"
+                                                checked={readPlugin(scoped) ===
+                                                    true}
+                                                onchange={(event) =>
+                                                    write(
+                                                        scoped,
+                                                        event.currentTarget
+                                                            .checked,
+                                                    )}
+                                            />
+                                            <label for={controlId(scoped)}>
+                                                {control.label}
+                                            </label>
+                                        </div>
+                                    {:else if control.kind === 'choice'}
+                                        <div class="row">
+                                            <label for={controlId(scoped)}>
+                                                {control.label}
+                                            </label>
+                                            <select
+                                                id={controlId(scoped)}
+                                                value={String(
+                                                    read(scoped) ?? '',
+                                                )}
+                                                onchange={(event) =>
+                                                    writeChoice(
+                                                        scoped,
+                                                        event.currentTarget
+                                                            .value,
+                                                    )}
+                                            >
+                                                {#if control.unset}
+                                                    <option value="">
+                                                        {control.unset}
+                                                    </option>
+                                                {/if}
+                                                {#each control.choices as choice (choice.value)}
+                                                    <option
+                                                        value={choice.value}
+                                                    >
+                                                        {choice.label}
+                                                    </option>
+                                                {/each}
+                                            </select>
+                                        </div>
+                                    {/if}
+                                {/each}
+                            </div>
+                        {/if}
                     {/each}
                 </div>
             </div>
@@ -755,7 +952,7 @@
                                             {token.name}
                                         </code>
                                     </label>
-                                    {#if group.kind === 'colour'}
+                                    {#if token.kind === 'colour'}
                                         <input
                                             id={`tok-${token.key}`}
                                             type="color"
@@ -766,14 +963,28 @@
                                                     event.currentTarget.value,
                                                 )}
                                         />
-                                    {:else}
+                                    {:else if token.kind === 'percent'}
                                         <input
                                             id={`tok-${token.key}`}
                                             type="range"
                                             min="0"
-                                            max="32"
-                                            step="1"
-                                            value={radius(token)}
+                                            max="100"
+                                            step="5"
+                                            value={amount(token)}
+                                            oninput={(event) =>
+                                                setToken(
+                                                    token,
+                                                    `${event.currentTarget.value}%`,
+                                                )}
+                                        />
+                                    {:else}
+                                        <input
+                                            id={`tok-${token.key}`}
+                                            type="range"
+                                            min={token.range?.min ?? 0}
+                                            max={token.range?.max ?? 32}
+                                            step={token.range?.step ?? 1}
+                                            value={amount(token)}
                                             oninput={(event) =>
                                                 setToken(
                                                     token,
@@ -857,29 +1068,5 @@
                 {/each}
             </Tabs>
         </section>
-    </div>
-</section>
-
-<section class="band band--paper" aria-labelledby="elsewhere">
-    <div class="prose">
-        <h2 id="elsewhere">What this page deliberately does not set</h2>
-        <p>
-            Everything above is something you can look at: where the controls
-            sit, which buttons exist, how the material is presented and how far
-            it zooms, what the viewer is painted in, and which plugins it is
-            built with. What is missing is what has nothing to look at — how
-            requests are made, whether diagnostics are logged, the renderer's
-            memory and fetch budgets, which are measured rather than seen, and
-            an initial search query, which is material rather than
-            configuration. Each of those is a line a developer writes once, and
-            <a class="link" href={DOCUMENTATION_PATH}>the documentation</a>
-            covers them.
-        </p>
-        <p>
-            The viewer's own language is not here either. This page speaks
-            whatever your browser asks for, and a deployment either names one
-            with <code>locale</code> or leaves the toolbar's language picker to the
-            reader — a choice with no appearance to preview.
-        </p>
     </div>
 </section>

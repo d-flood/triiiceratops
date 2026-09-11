@@ -146,7 +146,7 @@
 			"type": "callout",
 			"attrs": {
 				"kind": "tip",
-				"title": "Interactive Configuration",
+				"title": "Try it on the builder",
 				"id": "c4a4ace3-79e9-4485-a46f-51752dcd2f11"
 			},
 			"content": [
@@ -155,36 +155,23 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "You can experiment with these settings in the "
+							"text": "Every setting below is on the "
 						},
 						{
 							"type": "text",
-							"text": "Live Demo",
+							"text": "builder",
 							"marks": [
 								{
 									"type": "link",
 									"attrs": {
-										"href": "https://triiiceratops.org/demo/"
+										"href": "/configure/"
 									}
 								}
 							]
 						},
 						{
 							"type": "text",
-							"text": "{target=_blank}. Open the settings menu (gear icon), tweak the configuration, then click "
-						},
-						{
-							"type": "text",
-							"text": "\"Copy Config\"",
-							"marks": [
-								{
-									"type": "bold"
-								}
-							]
-						},
-						{
-							"type": "text",
-							"text": " to get the JSON for your project."
+							"text": ", over a manifest of your own: arrange the viewer by looking at it, then copy the configuration object, the theme, or a whole embeddable snippet for your framework."
 						}
 					],
 					"attrs": {
@@ -214,7 +201,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "interface ViewerConfig {\n    // Top-level UI Toggles\n    locale?: string; // Preferred locale for chrome and IIIF language maps (the toolbar's language picker overrides it)\n    showCanvasNav?: boolean; // Default: true\n    viewingMode?: 'individuals' | 'paged' | 'continuous'; // Default: 'individuals'\n    viewingDirection?:\n        | 'left-to-right'\n        | 'right-to-left'\n        | 'top-to-bottom'\n        | 'bottom-to-top';\n    pagedViewOffset?: boolean; // Default: true (Offset paged view by one canvas)\n    preserveCanvasScale?: boolean; // Default: false (Preserve authored IIIF canvas scale in multi-canvas layouts)\n    showZoomControls?: boolean; // Default: true\n    transparentBackground?: boolean; // Default: false\n\n    // Chrome layout\n    controls?: 'split' | 'unified'; // Default: 'split' (toolbar separate vs embedded in nav)\n\n    nav?: {\n        style?: 'docked' | 'floating'; // Default: 'docked' (flush vs inset island)\n        edge?: 'top' | 'bottom'; // Default: 'bottom' (which horizontal edge)\n        align?: 'start' | 'center' | 'end'; // Default: 'center' (alignment along the edge; inert while a plugin registers transport chrome — see below)\n    };\n\n    // Toolbar Settings\n    showToggle?: boolean; // Default: true (Toolbar toggle visible)\n    toolbarOpen?: boolean; // Default: false (Toolbar expanded)\n    openMenu?: 'gallery' | 'viewing-mode' | 'sequence' | 'locale' | 'captions' | null; // Default: null (one flyout of the control bar stands open; `captions` is the transport's caption-track list, the rest are the toolbar's)\n\n    toolbar?: {\n        side?: 'left' | 'right'; // Default: 'left' (which vertical side, split mode)\n        anchor?: 'top' | 'center'; // Default: 'center' (a top anchor claims the top edge)\n        showSearch?: boolean; // Default: true\n        showGallery?: boolean; // Default: true\n        showAnnotations?: boolean; // Default: true\n        showFullscreen?: boolean; // Default: true\n        showInfo?: boolean; // Default: true\n        showViewingMode?: boolean; // Default: true\n        showStructures?: boolean; // Default: true (only visible when manifest has structures)\n        showLocalePicker?: boolean; // Default: true (only visible when the manifest is multilingual)\n        showCollection?: boolean; // Default: true (only visible when a collection is loaded)\n    };\n\n    // Plugin UI Settings (keyed by plugin id — the SDK `uiId`)\n    plugins?: {\n        [pluginId: string]: {\n            visible?: boolean; // Default: true (Toolbar button visible)\n            open?: boolean; // Default: false (Plugin panel open)\n            showCloseButton?: boolean; // Default: true\n            target?: 'panel' | 'flyout'; // Override where the plugin renders\n            // Override the docked panel's position; ignored when target is 'flyout'\n            position?: 'left' | 'right' | 'bottom' | 'overlay';\n        };\n    };\n\n    // Thumbnail Gallery Settings\n    gallery?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n        dockPosition?: 'left' | 'right' | 'top' | 'bottom'; // Default: 'bottom'\n        expanded?: boolean; // Default: false (fills the center column as a grid; implies open)\n        size?: number; // Default: 100 (strip height when top/bottom, rail width when left/right)\n    };\n\n    // Sidebar Stack Settings\n    leftPanelWidth?: string; // Default: '320px'\n    rightPanelWidth?: string; // Default: '320px'\n\n    // Search Panel Settings\n    search?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n        query?: string; // Programmatically set search query\n    };\n\n    // Annotations Settings\n    annotations?: {\n        open?: boolean; // Default: false (Sidebar panel, opening also shows annotations)\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n    };\n\n    // Information / Metadata Settings\n    information?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n        showButton?: boolean; // Default: true (canvas info button in the nav bar, shown when the current canvas has metadata)\n    };\n\n    // Structures / Table of Contents Settings\n    structures?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n    };\n\n    // Collection Navigation Settings\n    collection?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n    };\n\n    // Network Requests\n    requests?: {\n        headers?: Record<string, string>; // Extra headers for manifest requests\n        withCredentials?: boolean; // Use cookies/credentials\n    };\n\n    // Renderer tuning — a small, closed set (see \"Renderer tuning\" below)\n    renderer?: {\n        animationTimeConstant?: number;\n        zoomPerClick?: number;\n        zoomPerWheelNotch?: number;\n        minPixelRatio?: number;\n        byteBudget?: number;\n        residencyMargin?: number;\n        pyramidThreshold?: number;\n        boxThreshold?: number;\n    };\n\n    // Marker styling for point annotations in the read-only overlay\n    pointStyle?: {\n        radius?: number; // Screen pixels; Default: 5\n        fill?: string;\n        stroke?: string;\n        strokeWidth?: number;\n    };\n\n    // Opt-in developer diagnostics. When true, viewer diagnostics are logged\n    // through the core logger (prefixed `[triiiceratops]`). Actionable\n    // failures always surface through `viewererror`/`pluginerror` regardless\n    // of this flag.\n    debug?: boolean; // Default: false\n}"
+					"text": "interface ViewerConfig {\n    // Top-level UI Toggles\n    locale?: string; // Preferred locale for chrome and IIIF language maps (the toolbar's language picker overrides it)\n    showCanvasNav?: boolean; // Default: true\n    viewingMode?: 'individuals' | 'paged' | 'continuous'; // Default: 'individuals'\n    viewingDirection?:\n        | 'left-to-right'\n        | 'right-to-left'\n        | 'top-to-bottom'\n        | 'bottom-to-top';\n    pagedViewOffset?: boolean; // Default: true (Offset paged view by one canvas)\n    preserveCanvasScale?: boolean; // Default: false (Preserve authored IIIF canvas scale in multi-canvas layouts)\n    showZoomControls?: boolean; // Default: true\n    transparentBackground?: boolean; // Default: false\n\n    // Chrome layout\n    controls?: 'split' | 'unified'; // Default: 'split' (toolbar separate vs embedded in nav)\n\n    nav?: {\n        style?: 'docked' | 'floating'; // Default: 'docked' (flush vs inset island)\n        edge?: 'top' | 'bottom'; // Default: 'bottom' (which horizontal edge)\n        align?: 'start' | 'center' | 'end'; // Default: 'center' (alignment along the edge; inert while a plugin registers transport chrome — see below)\n    };\n\n    // Toolbar Settings\n    showToggle?: boolean; // Default: true (Toolbar toggle visible)\n    toolbarOpen?: boolean; // Default: false (Toolbar expanded)\n    openMenu?: 'gallery' | 'viewing-mode' | 'sequence' | 'locale' | 'captions' | null; // Default: null (one flyout of the control bar stands open; `captions` is the transport's caption-track list, the rest are the toolbar's)\n\n    toolbar?: {\n        side?: 'left' | 'right'; // Default: 'left' (which vertical side, split mode)\n        anchor?: 'top' | 'center'; // Default: 'center' (a top anchor claims the top edge)\n        showSearch?: boolean; // Default: true\n        showGallery?: boolean; // Default: true\n        showAnnotations?: boolean; // Default: true\n        showFullscreen?: boolean; // Default: true\n        showInfo?: boolean; // Default: true\n        showViewingMode?: boolean; // Default: true\n        showStructures?: boolean; // Default: true (only visible when manifest has structures)\n        showLocalePicker?: boolean; // Default: true (only visible when the manifest is multilingual)\n        showCollection?: boolean; // Default: true (only visible when a collection is loaded)\n    };\n\n    // Plugin UI Settings (keyed by plugin id — the SDK `uiId`)\n    plugins?: {\n        [pluginId: string]: {\n            visible?: boolean; // Default: true (Toolbar button visible)\n            open?: boolean; // Default: false (Plugin panel open)\n            showCloseButton?: boolean; // Default: true\n            target?: 'panel' | 'flyout'; // Override where the plugin renders\n            // Override the docked panel's position; ignored when target is 'flyout'\n            position?: 'left' | 'right' | 'bottom' | 'overlay';\n        };\n    };\n\n    // Thumbnail Gallery Settings\n    gallery?: {\n        open?: boolean; // Default: false\n        dockPosition?: 'left' | 'right' | 'top' | 'bottom'; // Default: 'bottom'\n        expanded?: boolean; // Default: false (fills the center column as a grid; implies open)\n        size?: number; // Default: 100 (strip height when top/bottom, rail width when left/right)\n    };\n\n    // Sidebar Stack Settings\n    leftPanelWidth?: string; // Default: '320px'\n    rightPanelWidth?: string; // Default: '320px'\n\n    // Search Panel Settings\n    search?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n        query?: string; // Programmatically set search query\n    };\n\n    // Annotations Settings\n    annotations?: {\n        open?: boolean; // Default: false (Sidebar panel, opening also shows annotations)\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n    };\n\n    // Information / Metadata Settings\n    information?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n        showButton?: boolean; // Default: true (canvas info button in the nav bar, shown when the current canvas has metadata)\n    };\n\n    // Structures / Table of Contents Settings\n    structures?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n    };\n\n    // Collection Navigation Settings\n    collection?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n    };\n\n    // Network Requests\n    requests?: {\n        headers?: Record<string, string>; // Extra headers for manifest requests\n        withCredentials?: boolean; // Use cookies/credentials\n    };\n\n    // Renderer tuning — a small, closed set (see \"Renderer tuning\" below)\n    renderer?: {\n        animationTimeConstant?: number;\n        zoomPerClick?: number;\n        zoomPerWheelNotch?: number;\n        minPixelRatio?: number;\n        byteBudget?: number;\n        residencyMargin?: number;\n        pyramidThreshold?: number;\n        boxThreshold?: number;\n    };\n\n    // Opt-in developer diagnostics. When true, viewer diagnostics are logged\n    // through the core logger (prefixed `[triiiceratops]`). Actionable\n    // failures always surface through `viewererror`/`pluginerror` regardless\n    // of this flag.\n    debug?: boolean; // Default: false\n}"
 				}
 			]
 		},
@@ -538,6 +525,19 @@
 				{
 					"type": "text",
 					"text": "av",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "annotation-editor",
 					"marks": [
 						{
 							"type": "code"
@@ -1612,6 +1612,123 @@
 					"attrs": {
 						"id": "3d16fa44-c847-44ef-8c73-78f147a51c87"
 					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "choicechange",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ": Fired when a different body of a IIIF "
+								},
+								{
+									"type": "text",
+									"text": "Choice",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is selected."
+								}
+							],
+							"attrs": {
+								"id": "8610c740-0734-410f-b5e7-dffc02d2dbad"
+							}
+						}
+					],
+					"attrs": {
+						"id": "000e8db7-edef-4aea-96f4-561e0dc01f3b"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "The two failure channels, "
+								},
+								{
+									"type": "text",
+									"text": "viewererror",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "pluginerror",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", carry a structured error rather than a snapshot, and "
+								},
+								{
+									"type": "text",
+									"text": "viewerstateavailable",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " carries the live state itself — see "
+								},
+								{
+									"type": "text",
+									"text": "attributes, properties and events",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/integration/#attributes-properties-and-events"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "c2d0de52-ef41-48e9-a8d0-dc025bac1083"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b8264619-0b7e-4850-8f8c-2a94984ac857"
+					}
 				}
 			],
 			"attrs": {
@@ -1701,20 +1818,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "You can use these events to sync your application's UI with the viewer, as demonstrated in "
-								},
-								{
-									"type": "text",
-									"text": "apps/site/src/lib/playground/Demo.svelte",
-									"marks": [
-										{
-											"type": "code"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": "."
+									"text": "Use these events to sync your application’s own UI with the viewer — a heading that names the current canvas, a URL you keep in step, an analytics call."
 								}
 							],
 							"attrs": {
@@ -5148,13 +5252,13 @@
 						{
 							"type": "codeBlock",
 							"attrs": {
-								"language": "jsx",
+								"language": "tsx",
 								"id": "8865d651-f83e-4acc-8ab3-f02e38c2f428"
 							},
 							"content": [
 								{
 									"type": "text",
-									"text": "<triiiceratops-viewer\n  ref={ref}\n  manifest-id=\"https://iiif.io/api/cookbook/recipe/0032-collection/collection.json\"\n/>"
+									"text": "<TriiiceratopsViewer\n  manifestId=\"https://iiif.io/api/cookbook/recipe/0032-collection/collection.json\"\n/>"
 								}
 							]
 						}
@@ -5176,7 +5280,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "<triiiceratops-viewer\n  ref=\"viewer\"\n  manifest-id=\"https://iiif.io/api/cookbook/recipe/0032-collection/collection.json\"\n/>"
+									"text": "<TriiiceratopsViewer\n  manifest-id=\"https://iiif.io/api/cookbook/recipe/0032-collection/collection.json\"\n/>"
 								}
 							]
 						}
@@ -6047,7 +6151,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is a portable IIIF description of a view. The viewer takes one as an explicit input, and reads the "
+					"text": " is a portable IIIF description of a view. The viewer takes one as an explicit input, and reaches for an ambient one — the "
 				},
 				{
 					"type": "text",
@@ -6060,7 +6164,7 @@
 				},
 				{
 					"type": "text",
-					"text": " URL parameter only when the host opts in ("
+					"text": " URL parameter, or a drop onto itself — only when the host opts in ("
 				},
 				{
 					"type": "text",
@@ -6309,6 +6413,84 @@
 					"attrs": {
 						"id": "0c34aec5-84b1-4924-8283-c22e90f33c05"
 					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "acceptDroppedContentState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "192775c7-085c-43fd-b5ff-da1fded60cdd"
+									}
+								}
+							],
+							"attrs": {
+								"id": "065d44e1-5bde-42a0-b54a-2153f424a2f7"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "accept-dropped-content-state",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "092dc2c4-1d6e-4fb5-8c18-84e73678f935"
+									}
+								}
+							],
+							"attrs": {
+								"id": "39abbe4e-f1c2-4a43-b515-add452ffe42e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "off"
+										}
+									],
+									"attrs": {
+										"id": "6237ffd1-0489-4df6-8359-d2d79f71817a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7e1bdb64-651c-41ec-b452-d28916a696ae"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9aa6d0d9-2d16-4767-9403-de9706384a9a"
+					}
 				}
 			],
 			"attrs": {
@@ -6320,7 +6502,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "With the flag off — the default — the viewer never touches "
+					"text": "With both flags off — the default — the viewer never touches "
 				},
 				{
 					"type": "text",
@@ -6333,7 +6515,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", so a component embedded in your application cannot consume an "
+					"text": " and swallows no drop, so a component embedded in your application cannot consume an "
 				},
 				{
 					"type": "text",
@@ -6346,7 +6528,7 @@
 				},
 				{
 					"type": "text",
-					"text": " parameter meant for the page around it. Turning it on delegates that one channel to the viewer; every other delivery channel (paste, drop, "
+					"text": " parameter, or a drag, meant for the page around it. Each flag delegates exactly one channel; every remaining channel — a paste, a "
 				},
 				{
 					"type": "text",
@@ -6372,7 +6554,7 @@
 				},
 				{
 					"type": "text",
-					"text": " attribute) stays the host's."
+					"text": " attribute — stays the host’s."
 				}
 			],
 			"attrs": {
@@ -6397,7 +6579,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", which wins over the URL parameter. A content state's region is honored when the canvas it names opens, so supply it with the content state rather than assigning "
+					"text": ", which wins over the URL parameter. A content state’s region is honored when the canvas it names opens, so supply it with the content state rather than assigning "
 				},
 				{
 					"type": "text",
@@ -6415,6 +6597,70 @@
 			],
 			"attrs": {
 				"id": "80b92ea9-63e7-4728-a146-6aa399af214e"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A "
+				},
+				{
+					"type": "text",
+					"text": "dropped",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " content state is the exception: it is the reader’s own gesture, so its manifest opens even on a viewer the host drives with "
+				},
+				{
+					"type": "text",
+					"text": "manifestId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Its canvas and region still yield to an explicit "
+				},
+				{
+					"type": "text",
+					"text": "canvasId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or "
+				},
+				{
+					"type": "text",
+					"text": "initialCanvasRegion",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", which are the only inputs that outrank it."
+				}
+			],
+			"attrs": {
+				"id": "c100a537-3c63-4a38-8fb7-ebcc426e4bdd"
 			}
 		},
 		{
@@ -6472,14 +6718,14 @@
 						{
 							"type": "link",
 							"attrs": {
-								"href": "https://triiiceratops.org/viewer/"
+								"href": "/viewer/"
 							}
 						}
 					]
 				},
 				{
 					"type": "text",
-					"text": "{target=_blank} sets "
+					"text": " sets "
 				},
 				{
 					"type": "text",
@@ -6831,7 +7077,7 @@
 								},
 								{
 									"type": "text",
-									"text": ": If you build external controls (like the settings menu in the Demo), read the viewer's own state rather than assuming your inputs are still current — "
+									"text": ": If you build external controls (like the toolbar in the builder), read the viewer's own state rather than assuming your inputs are still current — "
 								},
 								{
 									"type": "text",

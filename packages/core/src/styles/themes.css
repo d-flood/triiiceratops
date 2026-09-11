@@ -118,6 +118,36 @@
     --tri-collection-panel-bg: var(--tri-panel-bg);
     --tri-collection-panel-content: var(--tri-panel-content);
 
+    /* Annotation shapes. One hue for every shape the read-only overlay and the
+       editor draw — rectangle, polygon and point — with each state mixed off it,
+       and a second hue for a shape that is a search hit.
+
+       Declared here rather than per theme because a shape is drawn over the
+       material and not over a themed surface: it has to stay legible against
+       somebody's photograph, which is not a question the reader's colour scheme
+       answers. A theme that wants its own may still redeclare either, and a
+       `[data-theme=…]` block outranks this one. */
+    --tri-annotation-color: oklch(63.7% 0.237 25.331);
+    --tri-annotation-hit-color: oklch(85.2% 0.199 91.936);
+    --tri-annotation-border-width: 2px;
+
+    /* How much of that hue a shape with an interior — a rectangle, a polygon —
+       is filled with at rest. Every other fill in the overlay is a multiple of
+       it: twice for a shape under the pointer or selected and for a search hit
+       at rest, three times for a search hit under the pointer, so one value
+       moves the whole ladder and keeps its steps.
+
+       A point is not on the ladder. It is a solid disc of the hue, because a
+       marker only a few pixels across has no interior to speak of and a
+       translucent one disappears into the material. */
+    --tri-annotation-fill-opacity: 20%;
+
+    /* The point marker's diameter, in the same screen pixels at every zoom:
+       what a marker marks is a position, so it does not grow with the image
+       under it. The viewer measures this token to know what a tap on a marker
+       is, so it may be given in any unit CSS resolves. */
+    --tri-annotation-point-size: 10px;
+
     /* Per-region radius overrides; inherit the top-level trio by default */
     --tri-radius-toolbar: var(--tri-radius-buttons);
     --tri-radius-panels: var(--tri-radius-box);

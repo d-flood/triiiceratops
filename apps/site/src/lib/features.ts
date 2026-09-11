@@ -1,5 +1,5 @@
 /**
- * The features `/handles/` shows, each declared once with the material that
+ * The features `/features/` shows, each declared once with the material that
  * exercises it.
  *
  * The page answers one question — what can this viewer actually do — by doing
@@ -40,10 +40,10 @@ import type { ViewerConfig } from './viewerConfig';
  * one it belongs to, and the rail shows one kind at a time.
  *
  * The last two divide by who decided the thing being shown. A publisher writes
- * a manifest and the viewer obeys it; a host registers a plugin or names a
- * locale and the viewer obeys that instead. The audio and video features stay
- * under their own heading even though a plugin renders them, because what a
- * reader is looking at there is the material rather than the package.
+ * a manifest and the viewer obeys it; a host registers a plugin and the viewer
+ * obeys that instead. The audio and video features stay under their own
+ * heading even though a plugin renders them, because what a reader is looking
+ * at there is the material rather than the package.
  */
 export const FEATURE_GROUPS = [
     'Image Features',
@@ -188,10 +188,9 @@ const BASE_CONFIG: ViewerConfig = {
     showCanvasNav: true,
     showZoomControls: true,
     viewingMode: 'individuals',
-    // Named for the same reason the panels are, and more sharply: one feature
-    // asks for the chrome in German, and the viewer follows a config leaf until
-    // another names a different one. Left out here, that feature's German would
-    // stand for every feature picked after it.
+    // Named for the same reason the panels are: the viewer follows a config
+    // leaf until another names a different one, so the route states the
+    // chrome's language rather than inheriting whatever the stage was left in.
     locale: 'en',
     gallery: { open: false, expanded: false },
     information: { open: false },
@@ -529,7 +528,7 @@ export const FEATURES: readonly Feature[] = [
     {
         name: 'Composite image',
         group: 'Image Features',
-        what: 'Two images combined into one canvas. The illustration, cut out, now digitally reconstructed.',
+        what: 'Two images painted onto one canvas: a cut-out illustration, reconstructed.',
         material: 'Folio from Grandes Chroniques de France, ca. 1460',
         source: {
             who: 'The IIIF Cookbook',
@@ -754,7 +753,7 @@ export const FEATURES: readonly Feature[] = [
             viewer.setActiveAnnotationId('/material/point/annotation/sun'),
     },
     {
-        name: 'Annotations that target the entire canvas',
+        name: 'Annotations on the whole canvas',
         group: 'Notes and text',
         what: 'Text comment and two tags, all targeting the entire canvas.',
         material:
@@ -775,7 +774,7 @@ export const FEATURES: readonly Feature[] = [
         config: showing({ annotations: { open: true } }),
     },
     {
-        name: 'Annotations from an external source',
+        name: 'Annotations from a server',
         group: 'Notes and text',
         what: 'Render linked annotations from an annotation server.',
         material: 'Aleppo Codex, Deuteronomy page P. 2-5-v, 10th century',
@@ -953,7 +952,7 @@ export const FEATURES: readonly Feature[] = [
     {
         name: 'PDF export plugin',
         group: 'First Party Plugins',
-        what: 'If the canvases contain OCR text as annotations, it is included as selectable text.',
+        what: 'OCR text carried as annotations, rendered as selectable text.',
         material: 'Two plates, with their printed lines transcribed',
         source: {
             who: 'this site’s own public-domain set',

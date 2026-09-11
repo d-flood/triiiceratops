@@ -71,15 +71,4 @@ describe('every plugin the builder offers', () => {
         const ids = BUILDER_PLUGINS.map((plugin) => plugin.id);
         expect(new Set(ids).size).toBe(ids.length);
     });
-
-    /*
-     * The annotation editor is an authoring surface rather than a viewing one,
-     * and this route builds a viewer. Named here so that adding it is a
-     * decision somebody makes rather than one that happens.
-     */
-    it('is not the annotation editor', () => {
-        for (const plugin of BUILDER_PLUGINS) {
-            expect(plugin.pkg).not.toContain('annotation-editor');
-        }
-    });
 });

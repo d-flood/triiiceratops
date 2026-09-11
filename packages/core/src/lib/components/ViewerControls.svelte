@@ -174,16 +174,25 @@
         // Read so the effect re-runs — and re-measures — as groups come and go.
         const groups = [toolbarEl, transportEl, navEl];
         if (!bar) return;
+        // A group whose element is present but empty — the unified toolbar with
+        // every button hidden, say — has nothing to divide from, so it counts
+        // as absent until something is actually rendered in it.
         const centre = (el: HTMLElement | null | undefined) =>
-            el ? el.offsetTop + el.offsetHeight / 2 : null;
+            el && el.offsetWidth > 0
+                ? el.offsetTop + el.offsetHeight / 2
+                : null;
         const update = () => {
             const [toolbar, transport, nav] = groups;
             toolbarCentre = centre(toolbar);
             transportCentre = centre(transport);
             navCentre = centre(nav);
         };
+        // Each group is observed as well as the bar: a group filling or
+        // emptying (a toolbar opened programmatically) need not change the
+        // bar's own size.
         const ro = new ResizeObserver(update);
         ro.observe(bar);
+        for (const group of groups) if (group) ro.observe(group);
         update();
         return () => ro.disconnect();
     });
@@ -699,7 +708,7 @@
                                         .canvases.length}
                                 </span>
 
-                                <CanvasInfoPopover />
+                                <CanvasInfoPopover {tooltipPlacement} />
 
                                 <Button
                                     square

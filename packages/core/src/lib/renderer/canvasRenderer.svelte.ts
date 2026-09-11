@@ -3326,19 +3326,92 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     /**
-     * The discrete bindings: **one press, one step.**
+     * The non-pan bindings.
      *
-     * Unlike an arrow — which drives a velocity, so the thirtieth repeat
-     * recomputes the same rate the first one did — these ACCUMULATE against
-     * the animation target. An OS repeat at ~30 Hz would compound
+     * Every one of them ACCUMULATES against the animation target, unlike an
+     * arrow — which drives a velocity, so the thirtieth repeat recomputes the
+     * same rate the first one did. An OS repeat at ~30 Hz would compound
      * `KEY_ZOOM_FACTOR` thirty times a second (1.5¹² ≈ 130× in under half a
      * second, straight into `clampScale`'s ceiling) and re-arm the fit
-     * animation on every repeat. A repeat is not a second deliberate press.
+     * animation on every repeat. A repeat is not a second deliberate press —
+     * it is one press still being held, which for a zoom key is
+     * `startKeyZoom`'s business and not a step's.
      */
     // A plain `Set`: a module-level constant, never mutated and never read by
     // the reactive graph.
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const DISCRETE_KEYS = new Set(['+', '=', '-', '_', '0', 'Home']);
+
+    // ── Held zoom keys ───────────────────────────────────────────────────
+    //
+    // A zoom key is a step AND a hold, on exactly the terms a zoom BUTTON is
+    // (see `ViewerControls`, which pairs `pointerdown` with `click` the same
+    // way): key-down starts a smooth zoom that runs until release, and a press
+    // let go inside `KEY_ZOOM_HOLD_MS` has barely moved, so its release
+    // supplies the discrete `KEY_ZOOM_FACTOR` step instead. Past that the hold
+    // has covered the distance and the step is dropped, or it would land a
+    // visible jump on the end of a smooth motion.
+    //
+    // Deliberately NOT driven by the OS key repeat, which is the other way to
+    // know a key is held: the repeat only starts after the system's typing
+    // delay, so the zoom would step, sit still for a third of a second, and
+    // then begin — a press and a release followed by a hold, where the button
+    // gives one continuous motion.
+    //
+    // `=` and `_` are the unshifted keys `+` and `-` share, so a keyboard that
+    // needs Shift for `+` works without it too — and so a hold's key-up is
+    // recognised even when Shift was released first.
+    const ZOOM_KEYS: Record<string, number> = {
+        '+': 1,
+        '=': 1,
+        '-': -1,
+        _: -1,
+    };
+    const KEY_ZOOM_HOLD_MS = 200;
+    let zoomKeyDirection = 0;
+    let zoomKeyPressedAt = 0;
+
+    function startKeyZoom(direction: number) {
+        zoomKeyDirection = direction;
+        zoomKeyPressedAt = performance.now();
+        zoomHold = direction;
+        // Continuous input supersedes an easing and a glide, for the reason
+        // `holdZoom` gives.
+        animating = false;
+        momentum = null;
+        requestFrame();
+    }
+
+    /**
+     * The held key came up.
+     *
+     * A press too short to have moved anything gets the discrete step it was
+     * really asking for; a longer one has already travelled and stops dead,
+     * carrying nothing over, for the reason `stopKeyPan` does.
+     */
+    function releaseKeyZoom() {
+        if (!zoomKeyDirection) return;
+        const tapped = performance.now() - zoomKeyPressedAt < KEY_ZOOM_HOLD_MS;
+        const direction = zoomKeyDirection;
+        cancelKeyZoom();
+        if (tapped) {
+            zoomByKey(direction > 0 ? KEY_ZOOM_FACTOR : 1 / KEY_ZOOM_FACTOR);
+            return;
+        }
+        // Stopped where it was let go, so the view is stable now: ask for the
+        // frame that notices (see `releaseKeyPan`).
+        requestFrame();
+    }
+
+    /**
+     * End a held zoom without its step — either because the release already
+     * decided the step is owed, or because the key-up is never coming (focus
+     * left the surface, the Meta guard fired).
+     */
+    function cancelKeyZoom() {
+        zoomKeyDirection = 0;
+        zoomHold = 0;
+    }
 
     /**
      * A hold cannot survive the Meta key.
@@ -3389,28 +3462,28 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             return;
         }
 
-        // Claimed and de-repeated in one place, so no binding below can forget
-        // either.
+        // Claimed in one place, so no binding below can forget to.
         if (!DISCRETE_KEYS.has(event.key)) return;
         event.preventDefault();
+
+        // A repeat adds nothing: the hold below is already running, and a fit
+        // already reached does not want re-arming thirty times a second.
         if (event.repeat) return;
 
-        switch (event.key) {
-            // `=` and `_` are the unshifted keys `+` and `-` share, so a
-            // keyboard that needs Shift for `+` works without it too.
-            case '+':
-            case '=':
-                zoomByKey(KEY_ZOOM_FACTOR);
+        const zoom = ZOOM_KEYS[event.key];
+        if (zoom) {
+            // Under the preference a held key does nothing more than its first
+            // press, for the reason `stepPanInstant` gives.
+            if (reducedMotion) {
+                zoomByKey(zoom > 0 ? KEY_ZOOM_FACTOR : 1 / KEY_ZOOM_FACTOR);
                 return;
-            case '-':
-            case '_':
-                zoomByKey(1 / KEY_ZOOM_FACTOR);
-                return;
-            case '0':
-            case 'Home':
-                fitWorld(true);
-                return;
+            }
+            startKeyZoom(zoom);
+            return;
         }
+
+        // `0` / `Home`.
+        fitWorld(true);
     }
 
     function handleKeyUp(event: KeyboardEvent) {
@@ -3419,6 +3492,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         if (event.key === 'Shift') {
             panShift = false;
             if (heldKeyCount() > 0) startKeyPan();
+            return;
+        }
+
+        if (ZOOM_KEYS[event.key]) {
+            event.preventDefault();
+            releaseKeyZoom();
             return;
         }
 
@@ -3446,6 +3525,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         clearHeldKeys();
         panShift = false;
         stopKeyPan();
+        cancelKeyZoom();
     }
 
     /**
@@ -3590,7 +3670,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 targetScale = view.scale;
                 animating = false;
                 momentum = null;
-                zoomHold = 0;
+                cancelKeyZoom();
             },
             getDpr: () => dpr,
             isMoving: () =>

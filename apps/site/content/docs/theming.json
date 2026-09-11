@@ -4294,7 +4294,7 @@
 						},
 						{
 							"type": "text",
-							"text": " The canvas-nav controls now inherit the button radius by default. To restore the fully-rounded capsule and circular buttons, set "
+							"text": " The canvas-nav controls inherit the button radius by default. For the fully-rounded capsule and circular buttons, set "
 						},
 						{
 							"type": "text",
@@ -5155,6 +5155,39 @@
 				{
 					"type": "text",
 					"text": " or plain CSS."
+				},
+				{
+					"type": "text",
+					"text": " The table is core’s own tokens. A plugin may declare further "
+				},
+				{
+					"type": "text",
+					"text": "--tri-*",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " properties of its own, governed by that plugin’s version and documented on its page: the "
+				},
+				{
+					"type": "text",
+					"text": "annotation editor",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-annotation-editor/#styling"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "’s drawing layer is the first-party example."
 				}
 			],
 			"attrs": {

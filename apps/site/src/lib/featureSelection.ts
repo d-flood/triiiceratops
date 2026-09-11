@@ -1,5 +1,5 @@
 /**
- * Which feature the single `/handles/` stage is showing, as a shareable value.
+ * Which feature the single `/features/` stage is showing, as a shareable value.
  *
  * The page prerenders, so there is no query string at render time: the stage
  * serves the first feature and only reads the URL on mount, which is also why

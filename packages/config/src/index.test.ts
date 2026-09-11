@@ -11,6 +11,7 @@ import {
     createSparseTracker,
     diffSparse,
     mergeSparse,
+    pruneSparse,
     readDroppedContentState,
     readStoredConfig,
     resolveInitialConfig,
@@ -35,7 +36,7 @@ const defaults = {
     transparentBackground: false,
     leftPanelWidth: '320px',
     toolbar: { showSearch: true, showGallery: true, showViewingMode: true },
-    gallery: { open: false, showCloseButton: true, dockPosition: 'bottom' },
+    gallery: { open: false, dockPosition: 'bottom' },
     search: { open: false, showCloseButton: true, query: '' },
     information: { open: false, position: 'right' },
 };
@@ -72,6 +73,25 @@ describe('sparse algebra', () => {
             ['a'],
             ['b', 'c'],
         ]);
+    });
+
+    it('prunes a retraction, and the branch it empties', () => {
+        expect(
+            pruneSparse({
+                showToggle: true,
+                viewingMode: undefined,
+                search: { query: undefined },
+                gallery: { open: true, dockPosition: undefined },
+            }),
+        ).toEqual({ showToggle: true, gallery: { open: true } });
+    });
+
+    it('keeps a false, a zero and an empty string, which are answers', () => {
+        expect(pruneSparse({ a: false, b: 0, c: '' })).toEqual({
+            a: false,
+            b: 0,
+            c: '',
+        });
     });
 });
 
@@ -256,11 +276,7 @@ describe('stored configuration never masks a manifest default', () => {
         const config = {
             ...(clonePlain(defaults) as Record<string, unknown>),
             toolbarOpen: false,
-            gallery: {
-                open: true,
-                showCloseButton: true,
-                dockPosition: 'left',
-            },
+            gallery: { open: true, dockPosition: 'left' },
         };
 
         expect(tracker.record(config)).toEqual({

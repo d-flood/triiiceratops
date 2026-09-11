@@ -2624,6 +2624,97 @@
 									"content": [
 										{
 											"type": "text",
+											"text": "acceptDroppedContentState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e4bd786e-b63e-4295-aaa9-ba676e77d9b9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "dd232bed-9c3b-4a5e-b21a-68af2c87d140"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "boolean",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f1c0f475-4670-4397-9fdb-1301d1da8d10"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a769bf08-15ff-44cc-8848-07a0b9426ab8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "accept-dropped-content-state",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "0458263e-dd68-40d3-b2b9-3bbaa375c8d9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d222104c-3331-4f52-ba76-fb2a56125ff5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "35674462-e8eb-488a-aac4-480823f6ed76"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
 											"text": "manifestJson",
 											"marks": [
 												{

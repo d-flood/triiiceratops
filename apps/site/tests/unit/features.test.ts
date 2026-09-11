@@ -1,5 +1,5 @@
 /**
- * What `/handles/` has to be true of as a declaration, before a browser sees it.
+ * What `/features/` has to be true of as a declaration, before a browser sees it.
  *
  * The page shows one feature at a time on a single running viewer, and the ways
  * it can quietly stop doing that are all invisible in a screenshot: a feature
@@ -87,18 +87,15 @@ describe('the features', () => {
         }
     });
 
-    it('read in the route’s own language, but for the one feature about that', () => {
+    it('read in the route’s own language', () => {
         // `locale` is a config leaf the viewer follows until another names a
-        // different one, so the feature that asks for German has to be the only
-        // one that asks for anything, and every other has to say English out
-        // loud rather than leaving it to the page.
+        // different one. The chrome's language is not what this route
+        // demonstrates, so a feature that asked for another one would leave
+        // the stage in it for every feature picked afterwards.
         const translated = FEATURES.filter(
             (feature) => feature.config.locale !== 'en',
         );
-        expect(translated.map((feature) => feature.name)).toEqual([
-            'A viewer in another language',
-        ]);
-        expect(translated[0].config.locale).toBe('de');
+        expect(translated.map((feature) => feature.name)).toEqual([]);
     });
 
     it('share one chrome, and vary only in the feature shown', () => {

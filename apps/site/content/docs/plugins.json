@@ -1898,6 +1898,19 @@
 				},
 				{
 					"type": "text",
+					"text": "annotation-editor",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
 					"text": "pdf-export",
 					"marks": [
 						{
@@ -2996,6 +3009,82 @@
 					],
 					"attrs": {
 						"id": "8afbd420-c0fd-4c5d-97a8-2897521d29d8"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Annotation Editor",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/plugin-annotation-editor/"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7df27124-73c6-4a6e-be40-edb6d3e222d3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6c951bd8-1666-4c9a-b6f6-9c60cd2bf96e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Draws and edits a canvas’s annotations — rectangle, ellipse, polygon, point and whole-canvas tools, keyboard parity, and a storage adapter the host supplies"
+										}
+									],
+									"attrs": {
+										"id": "f7ae52b3-c6e8-4bd3-bd6d-e4bb000e14cb"
+									}
+								}
+							],
+							"attrs": {
+								"id": "dd6b9c13-a07f-4a6d-a443-ccffa84738a2"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Panel (or flyout)"
+										}
+									],
+									"attrs": {
+										"id": "f2582cb5-5740-410f-90be-9c4a4c4ab64a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0a99e59b-b50c-4a3f-a37d-ecc25c381b6e"
+							}
+						}
+					],
+					"attrs": {
+						"id": "016f6f9a-8562-4e52-ae60-66ecab33bcc1"
 					}
 				},
 				{
@@ -4297,6 +4386,177 @@
 					],
 					"attrs": {
 						"id": "254fe241-5ae5-43b6-861e-c8917da9484c"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-annotation-editor",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "deb4f552-b15f-4c6b-a387-69beb0803963"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c56c4cab-8ae7-4cb8-a2b4-6e2df7cc675c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Annotation editor plugin (ES module)"
+										}
+									],
+									"attrs": {
+										"id": "6423ca88-8a76-4d10-8af4-494f6579104d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2d816b49-eec2-4e99-80d2-8c133b7790c5"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b43f0d8d-6e08-4bc8-af90-31e3e64c1cf7"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-annotation-editor/testing",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3bb3b1f9-343e-4b28-88c5-31ac5e8761e0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1f5c465b-e34d-4122-8413-4ad7fdb2c2ef"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Adapter conformance suite — see "
+										},
+										{
+											"type": "text",
+											"text": "the conformance suite",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/plugin-annotation-editor/#the-conformance-suite"
+													}
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "725952d4-a7ba-4b5c-b944-bad83a4c7494"
+									}
+								}
+							],
+							"attrs": {
+								"id": "78ed2861-d002-4313-9e83-da91ffd898f3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "cc39d7d7-270d-44b0-9154-1b78c9873b34"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "@triiiceratops/plugin-annotation-editor/iife",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "73239cbd-08dd-4b45-8fbf-14859db05121"
+									}
+								}
+							],
+							"attrs": {
+								"id": "060c7967-9aa7-4ac9-8d85-5867e03739b4"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Annotation editor plugin (IIFE — either script order)"
+										}
+									],
+									"attrs": {
+										"id": "bd038e10-a4f2-454b-8f54-dc49e806d057"
+									}
+								}
+							],
+							"attrs": {
+								"id": "249577d0-0a18-421e-b9a8-faa047c25cba"
+							}
+						}
+					],
+					"attrs": {
+						"id": "57a7af0e-102a-4f3c-b04b-d5d8362adfee"
 					}
 				},
 				{

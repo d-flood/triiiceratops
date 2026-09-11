@@ -204,7 +204,7 @@ test('starts the theming half from a built-in theme', async ({ page }) => {
         page.getByText('Started from Teal, with your own values over it.'),
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Start over' }).click();
+    await page.getByRole('button', { name: 'Reset to Default' }).click();
     await expect(page.getByLabel('Light')).toBeChecked();
     await expect(swatch).toHaveValue(scheme);
 });
@@ -260,19 +260,6 @@ test.describe('the ground the preview stands on', () => {
             await expect(swatch).not.toHaveValue('#ffffff');
         });
     });
-});
-
-test('sends the reader to the documentation for what it does not set', async ({
-    page,
-}) => {
-    await page.goto('/configure/');
-
-    const elsewhere = page.locator('section', {
-        hasText: 'What this page deliberately does not set',
-    });
-    await expect(
-        elsewhere.getByRole('link', { name: 'the documentation' }),
-    ).toHaveAttribute('href', '/docs/');
 });
 
 /*
@@ -505,6 +492,44 @@ test.describe('what a reader leaves with', () => {
         expect(await pasted(page)).not.toContain('dracula');
     });
 
+    /*
+     * The overlay is what a reader would have to state to get the viewer they
+     * are looking at. A value put back where it started is not part of that:
+     * they decided about it and then undecided, and a key still standing in the
+     * link would hand somebody else something its own sender no longer means.
+     */
+    test('drops a value the reader put back where it started', async ({
+        page,
+    }) => {
+        await page.goto('/configure/');
+        await running(page);
+
+        const gallery = page.getByLabel('Gallery open');
+        await reach(page, gallery);
+        await gallery.check();
+
+        const query = page.getByLabel('Search the manifest for this on load');
+        await reach(page, query);
+        await query.fill('whale');
+
+        await page
+            .getByRole('button', { name: 'Copy the configuration object' })
+            .click();
+        expect(JSON.parse(await pasted(page))).toEqual({
+            gallery: { open: true },
+            search: { query: 'whale' },
+        });
+
+        await query.fill('');
+        await reach(page, gallery);
+        await gallery.uncheck();
+
+        await page
+            .getByRole('button', { name: 'Copy the configuration object' })
+            .click();
+        expect(JSON.parse(await pasted(page))).toEqual({});
+    });
+
     test('copies a snippet for the framework the reader picked', async ({
         page,
     }) => {
@@ -517,7 +542,11 @@ test.describe('what a reader leaves with', () => {
             .click();
         const html = await pasted(page);
         expect(html).toContain('<triiiceratops-viewer');
-        expect(html).toContain(`config='${JSON.stringify(TWO)}'`);
+        // Parsed rather than matched as a string: the overlay is emitted in the
+        // configuration's own key order, which is not what this asserts.
+        expect(JSON.parse(html.match(/config='(.*)'/)?.[1] ?? '{}')).toEqual(
+            TWO,
+        );
         expect(html).toContain(EXAMPLE);
 
         await page.getByRole('tab', { name: 'React' }).click();

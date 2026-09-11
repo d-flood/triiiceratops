@@ -24,7 +24,7 @@ import { localContentDir } from '$lib/content';
 import {
     DOC_ROUTES,
     ROUTES,
-    isNavigable,
+    isIndexed,
     type DocRoute,
     type PageMeta,
     type SitePage,
@@ -62,7 +62,7 @@ function resolve(route: SiteRoute): SitePage {
     return {
         path: route.path,
         group: route.group,
-        indexed: isNavigable(route),
+        indexed: isIndexed(route),
         ...meta,
     };
 }

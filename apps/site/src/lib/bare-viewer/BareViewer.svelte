@@ -10,15 +10,16 @@
         carriesContentState,
         readDroppedContentState,
     } from '@triiiceratops/config';
+    import type { ThemeConfig } from 'triiiceratops';
     import { AvPlugin } from '@triiiceratops/plugin-av';
     import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
 
-    import { currentTheme } from '$lib/theme';
+    import { SITE_VIEWER_THEME } from '$lib/viewerTheme';
 
     /*
      * Exactly the plugins needed to render or inspect the content a recipe
      * points at. The export plugins are features of the viewer rather than of
-     * any recipe, and `/handles/` is where each of those is shown.
+     * any recipe, and `/features/` is where each of those is shown.
      */
     const plugins: readonly SdkPlugin[] = [AvPlugin, ImageManipulationPlugin];
 
@@ -61,15 +62,29 @@
         return 'en';
     }
 
-    // The reader's own language, and nothing else: this route has no settings of
-    // its own.
-    const config: ViewerConfig = { locale: readerLocale() };
+    // The reader's own language, and one layout choice: a single bar keeps the
+    // chrome out of the way of material this route exists to show.
+    const config: ViewerConfig = {
+        locale: readerLocale(),
+        controls: 'unified',
+    };
 
-    // The scheme is the one choice the site already holds — `app.html` has
-    // applied it to `<html data-theme>` before this component exists — so the
-    // viewer is handed it rather than being left to read `prefers-color-scheme`
-    // and disagree with the page around it.
-    const theme = currentTheme();
+    /*
+     * The site's own theme, as every embedded viewer in the tree wears. Its
+     * slots are token references, so the viewer re-steps with the page whenever
+     * the bar's toggle moves `data-theme`. No built-in `theme` is passed,
+     * because one would win over this.
+     *
+     * One slot is this route's own: the site's 2px corners are the prose
+     * routes' idiom, where a viewer is a figure set in a page. Here the viewer
+     * is the page, and its controls float over the material rather than sitting
+     * in a frame with it. `radiusToolbar` and both `radiusControls*` slots
+     * default to this one, so the whole of the chrome rounds together.
+     */
+    const themeConfig: ThemeConfig = {
+        ...SITE_VIEWER_THEME,
+        radiusButtons: '1rem',
+    };
 
     let viewerState = $state<ViewerState | undefined>();
     let contentState = $state<string | undefined>();
@@ -179,7 +194,7 @@
         acceptDroppedContentState
         bind:viewerState
         {config}
-        {theme}
+        {themeConfig}
         {plugins}
         {contentState}
         readContentStateFromUrl
@@ -234,7 +249,10 @@
      */
     .viewer-pane {
         position: relative;
-        height: 100dvh;
+        /* The route lays this out as a flex column under its bar; `min-height`
+           keeps the canvas from being sized by its own content. */
+        flex: 1;
+        min-height: 0;
     }
 
     .fallback {

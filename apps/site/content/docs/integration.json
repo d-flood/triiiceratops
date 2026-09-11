@@ -956,11 +956,24 @@
 								},
 								{
 									"type": "text",
-									"text": ". Strings only, plus the boolean attribute "
+									"text": ". Strings only, plus the two boolean attributes "
 								},
 								{
 									"type": "text",
 									"text": "read-content-state-from-url",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "accept-dropped-content-state",
 									"marks": [
 										{
 											"type": "code"
@@ -1213,6 +1226,36 @@
 								{
 									"type": "text",
 									"text": ". All bubble and are composed, so they escape the shadow root."
+								},
+								{
+									"type": "text",
+									"text": " The two failure channels are also readable as the callback properties "
+								},
+								{
+									"type": "text",
+									"text": "onviewererror",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "onpluginerror",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", for a host that would rather assign one handler than add a listener."
 								}
 							],
 							"attrs": {

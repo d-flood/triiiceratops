@@ -902,6 +902,81 @@
 									"content": [
 										{
 											"type": "text",
+											"text": "acceptDroppedContentState",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "cb352c05-5e63-45fe-b202-bfced18c7ed1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f37c3a35-1a71-40b0-8152-053990f9eb2e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "boolean",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " (default "
+										},
+										{
+											"type": "text",
+											"text": "false",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "572093da-07fe-4d55-919c-fa5840f86779"
+									}
+								}
+							],
+							"attrs": {
+								"id": "20c8777a-47f9-4745-ae36-3f0595ff6eab"
+							}
+						}
+					],
+					"attrs": {
+						"id": "aa6ca034-10f8-4928-9548-10be19732283"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
 											"text": "manifestJson",
 											"marks": [
 												{

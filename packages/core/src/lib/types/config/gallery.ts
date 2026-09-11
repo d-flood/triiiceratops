@@ -10,11 +10,6 @@ export interface GalleryConfig {
      */
     open?: boolean;
     /**
-     * Whether to show the close button on the gallery.
-     * @default true
-     */
-    showCloseButton?: boolean;
-    /**
      * How much of the viewer the gallery takes, in pixels, and the only knob that
      * changes a thumbnail's size. It applies to whichever axis the gallery's
      * position commits to: the strip's HEIGHT when docked to the top or bottom, and

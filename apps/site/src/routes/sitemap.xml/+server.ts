@@ -1,4 +1,4 @@
-import { DOC_ROUTES, NAV } from '$lib/routes';
+import { DOC_ROUTES, ROUTES, isIndexed } from '$lib/routes';
 import { absolute } from '$lib/site';
 
 /**
@@ -31,7 +31,7 @@ function xmlEscape(text: string): string {
 }
 
 export function GET(): Response {
-    const body = [...NAV, ...DOC_ROUTES]
+    const body = [...ROUTES.filter(isIndexed), ...DOC_ROUTES]
         .map(
             (route) =>
                 `  <url>\n    <loc>${xmlEscape(absolute(route.path))}</loc>\n  </url>`,

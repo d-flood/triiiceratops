@@ -838,12 +838,46 @@ test.describe('Canvas2D renderer — keyboard', () => {
         await settled(page);
         expect((await getView(page)).scale).toBeLessThan(zoomedIn);
 
-        // A HELD `+` is one press, not thirty a second. Unlike an arrow — whose
-        // repeats recompute the same velocity — the zoom accumulates against
-        // its target, so a step per repeat would compound the factor at the OS
-        // repeat rate and slam the zoom ceiling in well under a second.
-        // Synthesized here because Playwright never sends a repeat: this is the
-        // event the OS sends, and the only way to press the key that hard.
+        // A HELD `+` zooms CONTINUOUSLY, from the moment it goes down — the
+        // same motion the toolbar's zoom button gives, not a step followed by
+        // a pause and then a hold. It must not compound the discrete step at
+        // the OS repeat rate either, which would slam the zoom ceiling in well
+        // under a second.
+        await setView(page, { centre: { x: 600, y: 450 }, scale: 1 });
+        await page.keyboard.down('+');
+        await page.waitForTimeout(120);
+        const early = (await getView(page)).scale;
+        expect(
+            early,
+            'the hold had not started zooming a frame after key-down',
+        ).toBeGreaterThan(1);
+        expect(
+            early,
+            'a held + compounded its zoom factor per key repeat',
+        ).toBeLessThan(zoomedIn ** 2);
+
+        await page.waitForTimeout(300);
+        const later = (await getView(page)).scale;
+        expect(
+            later,
+            'the hold stopped zooming while still down',
+        ).toBeGreaterThan(early);
+
+        // Key-up past the hold window stops it dead — no trailing step, no
+        // glide: the scale where the hold ended is the scale it keeps.
+        await page.keyboard.up('+');
+        await settled(page);
+        const released = (await getView(page)).scale;
+        expect(released).toBeCloseTo(later, 1);
+        await page.waitForTimeout(200);
+        expect(
+            (await getView(page)).scale,
+            'the zoom kept running after the key came up',
+        ).toBeCloseTo(released, 6);
+
+        // Synthesized repeats are the event the OS sends while a key is held,
+        // and the only way to press the key that hard. They must add nothing
+        // to the hold already running.
         await setView(page, { centre: { x: 600, y: 450 }, scale: 1 });
         await page.locator(SURFACE).evaluate((element) => {
             for (let i = 0; i < 15; i += 1) {
@@ -860,21 +894,14 @@ test.describe('Canvas2D renderer — keyboard', () => {
         await settled(page);
         expect(
             (await getView(page)).scale,
-            'a held + compounded its zoom factor per key repeat',
+            'a key repeat moved the viewport on its own',
         ).toBeCloseTo(1, 6);
 
-        // The same key, pressed rather than repeated, still zooms exactly once.
-        await page.locator(SURFACE).evaluate((element) => {
-            element.dispatchEvent(
-                new KeyboardEvent('keydown', {
-                    key: '+',
-                    bubbles: true,
-                    cancelable: true,
-                }),
-            );
-        });
+        // A TAP — released well inside the hold window — is the discrete step,
+        // exactly as a quick click of the zoom button is.
+        await page.keyboard.press('+');
         await settled(page);
-        expect((await getView(page)).scale).toBeCloseTo(zoomedIn, 6);
+        expect((await getView(page)).scale).toBeCloseTo(zoomedIn, 1);
 
         // `0` fits the world — a different scale from where we left it, and
         // the same one `Home` reaches.

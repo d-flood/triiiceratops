@@ -45,7 +45,7 @@
             /*
              * Exactly the plugins a recipe needs to render or be inspected —
              * the same pair `/viewer/` runs. The export plugins are features of
-             * the viewer rather than of any recipe, and `/handles/` is where
+             * the viewer rather than of any recipe, and `/features/` is where
              * each of those is shown.
              */
             const [module, av, image] = await Promise.all([
@@ -68,7 +68,10 @@
 </script>
 
 <div class="recstage">
-    <RecipeList activeUrl={manifestUrl} onSelect={(url) => (manifestUrl = url)} />
+    <RecipeList
+        activeUrl={manifestUrl}
+        onSelect={(url) => (manifestUrl = url)}
+    />
 
     <div class="recstage__viewer">
         {#if Viewer === undefined}

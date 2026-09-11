@@ -118,6 +118,35 @@ export function diffSparse(
     return delta;
 }
 
+/**
+ * The overlay with every retraction taken out of it.
+ *
+ * `record` reports a retracted key as `undefined` rather than by deleting it —
+ * that is what tells the tracker's baseline the reader retracted a value
+ * instead of never having set one — but the overlay is what gets serialized,
+ * shared and pasted into somebody's source, and `viewingMode: undefined` reads
+ * there as a line that says nothing. A branch left holding only retractions is
+ * the same statement one level up: `search: {}` in a snippet claims the reader
+ * decided something about search when what they decided was nothing.
+ */
+export function pruneSparse(sparse: SparseConfig): SparseConfig {
+    const pruned: SparseConfig = {};
+
+    for (const [key, value] of Object.entries(sparse)) {
+        if (value === undefined) continue;
+
+        if (isPlainObject(value)) {
+            const sub = pruneSparse(value);
+            if (Object.keys(sub).length) pruned[key] = sub;
+            continue;
+        }
+
+        pruned[key] = clonePlain(value);
+    }
+
+    return pruned;
+}
+
 /** Every leaf path in a sparse object. An empty object counts as a leaf. */
 export function collectPaths(sparse: SparseConfig): string[][] {
     const paths: string[][] = [];

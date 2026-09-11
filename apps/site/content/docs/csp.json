@@ -1154,7 +1154,23 @@
 								},
 								{
 									"type": "text",
-									"text": " below."
+									"text": " below. A plugin’s own server belongs here as well: an "
+								},
+								{
+									"type": "text",
+									"text": "annotation storage adapter",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-annotation-editor/#storage-the-adapter-seam"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " fetches from wherever you wrote it to, and the viewer knows nothing about that host to allow it for you."
 								}
 							],
 							"attrs": {

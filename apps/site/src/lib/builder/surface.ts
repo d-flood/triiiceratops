@@ -23,6 +23,7 @@ import type { ViewerConfig } from '../viewerConfig';
 type Nav = NonNullable<ViewerConfig['nav']>;
 type Toolbar = NonNullable<ViewerConfig['toolbar']>;
 type Gallery = NonNullable<ViewerConfig['gallery']>;
+type PluginUi = NonNullable<ViewerConfig['plugins']>[string];
 type Information = NonNullable<ViewerConfig['information']>;
 
 export type Choice = { readonly value: string; readonly label: string };
@@ -33,14 +34,21 @@ export type Choice = { readonly value: string; readonly label: string };
  * which is the difference between a panel's width and a gallery's size.
  * `colour` writes a CSS colour, and is the one kind whose value the theming
  * tokens do not reach: a marker colour is annotation styling rather than a
- * theme token, so it belongs to the configuration object.
+ * theme token, so it belongs to the configuration object. `text` writes a
+ * free string, for the two keys whose values the viewer cannot enumerate.
+ * `headers` writes a string map, and is `requests.headers` alone.
  *
- * `unset` is for the two keys whose absence is itself a choice: viewing mode
- * and viewing direction override what the manifest declares, so a builder that
+ * A `count` may declare `scale` and `unit`: the slider runs in the unit a
+ * reader thinks in and the configuration takes the product, which is what lets
+ * a byte budget be dragged in megabytes.
+ *
+ * `unset` is for a key whose absence is itself a choice. Viewing mode and
+ * viewing direction override what the manifest declares, so a builder that
  * always stated one would silently override every publisher who declared
- * theirs. A control that carries it offers the label as a first option, writes
- * `undefined` when it is picked, and states no default — core reads a falsy
- * value as "the manifest decides".
+ * theirs; an open menu names a flyout, and none standing open is the ordinary
+ * case rather than a fourth menu. A control that carries it offers the label
+ * as a first option, writes `undefined` when it is picked, and states no
+ * default.
  */
 export type BuilderControl =
     | {
@@ -61,12 +69,28 @@ export type BuilderControl =
           readonly label: string;
       }
     | {
+          readonly kind: 'text';
+          readonly path: readonly string[];
+          readonly label: string;
+          readonly placeholder: string;
+      }
+    | {
+          readonly kind: 'headers';
+          readonly path: readonly string[];
+          readonly label: string;
+          readonly placeholder: string;
+      }
+    | {
           readonly kind: 'pixels' | 'count';
           readonly path: readonly string[];
           readonly label: string;
           readonly min: number;
           readonly max: number;
           readonly step: number;
+          /** What one step of the slider is worth in the configuration. */
+          readonly scale?: number;
+          /** Appended to the readout, in the unit the slider runs in. */
+          readonly unit?: string;
       };
 
 export type ControlGroup = {
@@ -168,7 +192,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
     },
     {
         title: 'Behavior',
-        note: 'How the material itself is presented and how it moves. The first two override what the manifest declares, so both start out following it; the zoom terms below all take effect on the viewer above, so drag one and then use the wheel, the zoom buttons, or a double-tap.',
+        note: 'Viewer behavior and presentation settings.',
         controls: [
             {
                 kind: 'choice',
@@ -248,29 +272,57 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
                 max: 0.5,
                 step: 0.01,
             },
+            {
+                kind: 'text',
+                path: ['search', 'query'],
+                label: 'Search the manifest for this on load',
+                placeholder: 'A word to look for',
+            },
         ],
     },
     {
         title: 'Chrome',
-        note: 'Which parts of the viewer’s own furniture a reader is given, and whether it paints its own ground.',
+        note: 'Which parts of the viewer UI to show or hide.',
         controls: [
             toggle(['showToggle'], 'The toolbar’s open/close toggle'),
             toggle(['toolbarOpen'], 'Open the toolbar to begin with'),
             toggle(['showCanvasNav'], 'The canvas nav bar'),
             toggle(['showZoomControls'], 'Zoom controls in the nav bar'),
-            toggle(
-                ['information', 'showButton'],
-                'The canvas info button, where a canvas carries metadata',
-            ),
+            toggle(['information', 'showButton'], 'The canvas info button'),
             toggle(
                 ['transparentBackground'],
                 'A transparent background, so the host page shows through',
             ),
+            {
+                kind: 'choice',
+                path: ['openMenu'],
+                label: 'A flyout menu already open',
+                unset: 'None',
+                choices: choices<NonNullable<ViewerConfig['openMenu']>>({
+                    gallery: 'Gallery',
+                    'viewing-mode': 'Viewing mode',
+                    sequence: 'Sequence',
+                    locale: 'Language',
+                    captions: 'Captions',
+                }),
+            },
+            /*
+             * Free text rather than a list. The key takes any BCP 47 tag and
+             * the viewer falls back for one it has no messages for, so a select
+             * would both invent a list the package does not publish and imply
+             * that naming anything else is an error.
+             */
+            {
+                kind: 'text',
+                path: ['locale'],
+                label: 'The language the viewer speaks',
+                placeholder: 'Your browser’s, unless you name one',
+            },
         ],
     },
     {
         title: 'Toolbar buttons',
-        note: 'Each button, one at a time. A button whose feature the manifest does not carry stays hidden whatever this says.',
+        note: 'Hide or show specific toolbar buttons.',
         controls: [
             toggle(['toolbar', 'showSearch'], 'Search'),
             toggle(['toolbar', 'showGallery'], 'Gallery'),
@@ -285,53 +337,57 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
     },
     {
         title: 'Panels',
-        note: 'Which panels are already open when a reader arrives, which side the three that can move sit on, and which of them a reader can close again.',
+        note: 'hich panels are open on load, which can be closed, and which side they appear on.',
         controls: [
             toggle(['gallery', 'open'], 'Gallery open'),
             toggle(['gallery', 'expanded'], 'Gallery expanded to a full grid'),
+
             toggle(['search', 'open'], 'Search open'),
-            toggle(['annotations', 'open'], 'Annotations open'),
-            toggle(['information', 'open'], 'Information open'),
-            toggle(['structures', 'open'], 'Contents open'),
-            toggle(['collection', 'open'], 'Collection open'),
-            toggle(['gallery', 'showCloseButton'], 'Gallery close button'),
             toggle(['search', 'showCloseButton'], 'Search close button'),
-            toggle(
-                ['annotations', 'showCloseButton'],
-                'Annotations close button',
-            ),
-            toggle(
-                ['information', 'showCloseButton'],
-                'Information close button',
-            ),
-            toggle(['structures', 'showCloseButton'], 'Contents close button'),
-            toggle(
-                ['collection', 'showCloseButton'],
-                'Collection close button',
-            ),
             {
                 kind: 'choice',
                 path: ['search', 'position'],
                 label: 'Search panel side',
                 choices: sides,
             },
+
+            toggle(['annotations', 'open'], 'Annotations open'),
+            toggle(
+                ['annotations', 'showCloseButton'],
+                'Annotations close button',
+            ),
             {
                 kind: 'choice',
                 path: ['annotations', 'position'],
                 label: 'Annotations panel side',
                 choices: sides,
             },
+
+            toggle(['information', 'open'], 'Information open'),
+            toggle(
+                ['information', 'showCloseButton'],
+                'Information close button',
+            ),
             {
                 kind: 'choice',
                 path: ['information', 'position'],
                 label: 'Information panel side',
                 choices: sides,
             },
+
+            toggle(['structures', 'open'], 'Contents open'),
+            toggle(['structures', 'showCloseButton'], 'Contents close button'),
+
+            toggle(['collection', 'open'], 'Collection open'),
+            toggle(
+                ['collection', 'showCloseButton'],
+                'Collection close button',
+            ),
         ],
     },
     {
         title: 'Sizes',
-        note: 'The gallery’s size is the only knob that changes a thumbnail: it sets the strip’s height, or the rail’s width, and a thumbnail follows.',
+        note: 'Panel and thumbnail gallery sizes.',
         controls: [
             {
                 kind: 'pixels',
@@ -360,38 +416,132 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
         ],
     },
     {
-        title: 'Annotation markers',
-        note: 'How a point annotation is drawn. Load a manifest whose canvases carry point annotations to watch these land — the example above has none, and the three colour and stroke terms are read by the annotation editor rather than by the read-only overlay.',
+        title: 'Performance',
+        note: 'Renderer performance settings.',
         controls: [
             {
                 kind: 'count',
-                path: ['pointStyle', 'radius'],
-                label: 'Marker radius, in screen pixels',
-                min: 2,
-                max: 24,
-                step: 1,
-            },
-            {
-                kind: 'colour',
-                path: ['pointStyle', 'fill'],
-                label: 'Marker fill',
-            },
-            {
-                kind: 'colour',
-                path: ['pointStyle', 'stroke'],
-                label: 'Marker stroke',
+                path: ['renderer', 'byteBudget'],
+                label: 'Tile cache ceiling',
+                min: 16,
+                max: 512,
+                step: 16,
+                scale: 1024 * 1024,
+                unit: ' MB',
             },
             {
                 kind: 'count',
-                path: ['pointStyle', 'strokeWidth'],
-                label: 'Marker stroke width, in pixels',
-                min: 0,
-                max: 8,
-                step: 1,
+                path: ['renderer', 'residencyMargin'],
+                label: 'Residency margin, as a multiple of the viewport',
+                min: 1,
+                max: 4,
+                step: 0.1,
+            },
+            {
+                kind: 'count',
+                path: ['renderer', 'minPixelRatio'],
+                label: 'Least device pixels per level pixel',
+                min: 0.25,
+                max: 2,
+                step: 0.05,
+            },
+            {
+                kind: 'count',
+                path: ['renderer', 'pyramidThreshold'],
+                label: 'Full pyramid at this on-screen size, in pixels',
+                min: 80,
+                max: 1200,
+                step: 20,
+            },
+            {
+                kind: 'count',
+                path: ['renderer', 'boxThreshold'],
+                label: 'Plain box below this on-screen size, in pixels',
+                min: 4,
+                max: 200,
+                step: 4,
             },
         ],
     },
+    {
+        title: 'Network and diagnostics',
+        note: '',
+        controls: [
+            /*
+             * A textarea of `Name: value` lines rather than a row editor: it is
+             * the form a developer already holds headers in, it pastes, and it
+             * makes deleting one a matter of deleting a line.
+             */
+            {
+                kind: 'headers',
+                path: ['requests', 'headers'],
+                label: 'Extra headers on the manifest request',
+                placeholder: 'Authorization: Bearer …',
+            },
+            toggle(
+                ['requests', 'withCredentials'],
+                'Send cookies with the manifest request',
+            ),
+            toggle(['debug'], 'Log viewer diagnostics to the console'),
+        ],
+    },
 ];
+
+/**
+ * The per-plugin UI keys, which `config.plugins` holds under a plugin's own id.
+ *
+ * Declared apart from `CONTROL_GROUPS` because the key they hang from is not
+ * known until a reader turns a plugin on: the route renders one copy of these
+ * under each chosen plugin, rooted at `plugins.<id>`. The paths here are
+ * therefore relative, and `tests/unit/builder-surface.test.ts` resolves them
+ * against `PluginUiConfig` rather than against `ViewerConfig`.
+ *
+ * `target` and `position` carry `unset` because the plugin was authored with
+ * an answer to both: stating one here overrides the plugin's own default, and
+ * a reader has to be able to hand that back.
+ */
+export const PLUGIN_UI_CONTROLS: readonly BuilderControl[] = [
+    toggle(['visible'], 'Its toolbar button is visible'),
+    toggle(['open'], 'Its panel is open to begin with'),
+    toggle(['showCloseButton'], 'Its panel has a close button'),
+    {
+        kind: 'choice',
+        path: ['target'],
+        label: 'Renders as',
+        unset: 'However the plugin was authored',
+        choices: choices<NonNullable<PluginUi['target']>>({
+            panel: 'A docked panel',
+            flyout: 'A flyout over the canvas',
+        }),
+    },
+    {
+        kind: 'choice',
+        path: ['position'],
+        label: 'Panel position',
+        unset: 'However the plugin was authored',
+        choices: choices<NonNullable<PluginUi['position']>>({
+            left: 'Left',
+            right: 'Right',
+            bottom: 'Bottom',
+            overlay: 'Overlay',
+        }),
+    },
+];
+
+/**
+ * Where the per-plugin toggles stand before a reader touches one.
+ *
+ * Consulted for display only, never written: the key they would be written
+ * under does not exist until a plugin is chosen, and materializing them would
+ * put a `plugins` block in the emitted configuration the moment a reader turned
+ * a plugin on. `target` and `position` are absent because the plugin itself
+ * answers both, which is what their `unset` option hands back.
+ */
+export const PLUGIN_UI_DEFAULTS: Record<string, boolean> = {
+    visible: true,
+    open: false,
+    showCloseButton: true,
+};
 
 /**
  * The configuration the controls start from: each key's own documented default,
@@ -441,15 +591,23 @@ export const BUILDER_DEFAULTS: ViewerConfig = {
         maxZoomFactor: 8,
         maxZoomPixelRatio: 2,
         animationTimeConstant: 1 / 7,
+        /*
+         * The desktop ceiling. Core drops to a smaller one where memory
+         * pressure is fatal rather than slow, so a reader on a phone is
+         * starting this slider above what their own viewer chose.
+         */
+        byteBudget: 128 * 1024 * 1024,
+        residencyMargin: 1.5,
+        minPixelRatio: 0.5,
+        pyramidThreshold: 320,
+        boxThreshold: 24,
     },
     gallery: {
         open: false,
         expanded: false,
         dockPosition: 'bottom',
         size: 100,
-        showCloseButton: true,
     },
-    search: { open: false, position: 'right', showCloseButton: true },
     annotations: { open: false, position: 'right', showCloseButton: true },
     information: {
         open: false,
@@ -459,16 +617,13 @@ export const BUILDER_DEFAULTS: ViewerConfig = {
     },
     structures: { open: false, showCloseButton: true },
     collection: { open: false, showCloseButton: true },
-    /*
-     * Only the radius has a default in core. The editor falls back to its own
-     * marker colours when the host names none, and those are private to that
-     * package, so the swatches start from the red the read-only overlay's
-     * `--anno-red` token approximates — the colour a reader is looking at.
-     */
-    pointStyle: {
-        radius: 5,
-        fill: '#e5484d',
-        stroke: '#e5484d',
-        strokeWidth: 2,
+    search: {
+        open: false,
+        position: 'right',
+        showCloseButton: true,
+        query: '',
     },
+    locale: '',
+    requests: { headers: {}, withCredentials: false },
+    debug: false,
 };

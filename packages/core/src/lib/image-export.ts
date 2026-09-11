@@ -57,11 +57,12 @@ export {
     type CanvasImageSpaceDimensions,
 } from './utils/canvasImageSpace';
 
-// Point annotation appearance shared by core's overlay and editor plugin.
+// Point marker size, shared by core's overlay and the editor plugin: one theme
+// token, measured once per viewer rather than read per tap.
 export {
-    DEFAULT_POINT_RADIUS,
-    resolvePointRadius,
-    type PointStyle,
+    DEFAULT_POINT_DIAMETER,
+    POINT_SIZE_TOKEN,
+    observePointDiameter,
 } from './utils/pointMarker';
 
 // Multi-canvas layout math. The one layout implementation: an export that must

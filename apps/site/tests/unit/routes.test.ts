@@ -18,6 +18,7 @@ import {
     NAV,
     ROUTES,
     isDocPath,
+    isIndexed,
     isNavigable,
     nextDoc,
     nextNavigable,
@@ -36,14 +37,11 @@ describe('the route declaration', () => {
         }
     });
 
-    it('carries the seven rail pages plus two routes out of the rail', () => {
-        expect(ROUTES.filter((r) => r.group !== null)).toHaveLength(7);
-        // The design-token appendix and the recipe bench: served and promised,
-        // reachable from the footer and from the site's own search field, and
-        // withheld from a crawler.
-        expect(ROUTES.filter((r) => r.group === null).map((r) => r.path)).toEqual(
-            ['/demo/', '/system/'],
-        );
+    it('carries six rail pages plus the builder and two supplementary routes', () => {
+        expect(ROUTES.filter((r) => r.group !== null)).toHaveLength(6);
+        expect(
+            ROUTES.filter((r) => r.group === null).map((r) => r.path),
+        ).toEqual(['/configure/', '/demo/', '/system/']);
     });
 
     it('keeps the front page in the rail and offered for indexing', () => {
@@ -59,15 +57,22 @@ describe('the route declaration', () => {
         // The rail's whole job is showing the argument's shape. The item heights
         // depend on the list being whole too: they divide the rail's height
         // between them.
-        expect(NAV).toHaveLength(7);
+        expect(NAV.map((route) => route.path)).toEqual([
+            '/',
+            '/features/',
+            '/size/',
+            '/accessibility/',
+            '/production/',
+            '/install/',
+        ]);
         expect(NAV.every(isNavigable)).toBe(true);
     });
 
     it('renders the three editable routes from content and the rest from code', () => {
         expect(CONTENT_ROUTES.map((route) => route.path)).toEqual([
-            '/install/',
-            '/access/',
+            '/accessibility/',
             '/production/',
+            '/install/',
             // The documentation is content too, and served by the same
             // catch-all, so it prerenders and is gated through the same list.
             ...DOC_ROUTES.map((route) => route.path),
@@ -80,8 +85,8 @@ describe('the route declaration', () => {
             ),
         ).toEqual([
             '/',
+            '/features/',
             '/size/',
-            '/handles/',
             '/configure/',
             '/demo/',
             '/system/',
@@ -91,6 +96,19 @@ describe('the route declaration', () => {
 
 const grouped = { path: '/x/', group: 1, source: 'content' } as const;
 const ungrouped = { path: '/y/', group: null, source: 'content' } as const;
+
+describe('isIndexed', () => {
+    it('keeps the builder discoverable without putting it in the numbered rail', () => {
+        const builder = routeAt('/configure/')!;
+        expect(isNavigable(builder)).toBe(false);
+        expect(isIndexed(builder)).toBe(true);
+        expect(
+            ROUTES.filter((route) => !isIndexed(route)).map(
+                (route) => route.path,
+            ),
+        ).toEqual(['/demo/', '/system/']);
+    });
+});
 
 describe('isNavigable', () => {
     it('carries a route the rail carries', () => {
@@ -168,6 +186,6 @@ describe('nextDoc', () => {
     });
 
     it('offers nothing for a path the documentation does not declare', () => {
-        expect(nextDoc('/handles/')).toBeUndefined();
+        expect(nextDoc('/features/')).toBeUndefined();
     });
 });

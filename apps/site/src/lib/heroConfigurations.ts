@@ -381,7 +381,7 @@ export const LAYOUT_KNOBS: readonly Knob[] = [
  * that collapse some of them. A number in marketing copy that nothing checks is
  * a number that quietly stops being true.
  */
-export const THEME_SAY = '4 built-ins, 44 typed slots, or your own tokens';
+export const THEME_SAY = '4 built-ins, 49 typed slots, or your own tokens';
 export const LAYOUT_SAY = '8 settings, 240 distinct arrangements';
 
 /**

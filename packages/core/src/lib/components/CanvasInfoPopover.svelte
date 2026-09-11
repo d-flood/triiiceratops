@@ -8,6 +8,9 @@
     import { Button } from './ui';
     import { dismissible } from '../utils/dismissible';
 
+    let { tooltipPlacement = 'place-top' }: { tooltipPlacement?: string } =
+        $props();
+
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
     let viewerLocale = $derived(viewerState.activeLocale);
@@ -63,10 +66,10 @@
             circle
             size="xs"
             ghost
-            class="trigger"
+            class="trigger tooltip {tooltipPlacement}"
+            data-tip={m.canvas_info_tooltip()}
             onclick={openInfo}
             aria-label={m.canvas_info_tooltip()}
-            title={m.canvas_info_tooltip()}
         >
             <Icon name="Info" size={14} weight="bold" />
         </Button>

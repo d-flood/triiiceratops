@@ -31,7 +31,8 @@ export type PublicTokenCategory =
     | 'panel'
     | 'radius'
     | 'sizing'
-    | 'effect';
+    | 'effect'
+    | 'annotation';
 
 export interface PublicToken {
     /** CSS custom property name, including the leading `--`. */
@@ -84,6 +85,13 @@ export const PUBLIC_TOKENS: readonly PublicToken[] = [
     { name: '--tri-structures-panel-content', category: 'panel' },
     { name: '--tri-collection-panel-bg', category: 'panel' },
     { name: '--tri-collection-panel-content', category: 'panel' },
+
+    // ---- Annotation shapes ----
+    { name: '--tri-annotation-color', category: 'annotation' },
+    { name: '--tri-annotation-hit-color', category: 'annotation' },
+    { name: '--tri-annotation-fill-opacity', category: 'annotation' },
+    { name: '--tri-annotation-point-size', category: 'annotation' },
+    { name: '--tri-annotation-border-width', category: 'annotation' },
 
     // ---- Border radius ----
     { name: '--tri-radius-selector', category: 'radius' },

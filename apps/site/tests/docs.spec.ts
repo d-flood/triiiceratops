@@ -60,9 +60,9 @@ test.describe('a documentation page', () => {
     test('wears the same type and palette as a marketing page', async ({
         page,
     }) => {
-        // A marketing route whose body is ordinary prose: `/handles/` renders
+        // A marketing route whose body is ordinary prose: `/features/` renders
         // from code now, and its embeds set their captions in their own face.
-        await page.goto('/access/');
+        await page.goto('/accessibility/');
         const marketing = await typography(page, 'main .doc p');
 
         await page.goto('/docs/');

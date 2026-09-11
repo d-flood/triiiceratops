@@ -3652,7 +3652,23 @@
 								},
 								{
 									"type": "text",
-									"text": " — there is no rectangle tool over a video."
+									"text": " — so "
+								},
+								{
+									"type": "text",
+									"text": "the annotation editor",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-annotation-editor/#documented-limitations"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " offers no tool over a video."
 								}
 							],
 							"attrs": {

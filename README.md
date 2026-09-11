@@ -21,7 +21,7 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
     - Supports rectangle (`xywh`), polygon (SVG selector), and point (`PointSelector`) geometries
     - Tagging annotations displayed as badges; full-canvas annotations listed without an overlay
     - Toggle per-annotation or all-annotations visibility
-    - Creating and editing annotations with the optional `annotation-editor` plugin: rectangle, ellipse, polygon, point and whole-canvas tools, every one of them operable from the keyboard, persisting through a storage adapter the consumer supplies (LocalStorage by default). See the plugins guide at `/docs/plugins/`.
+    - Creating and editing annotations with the optional `annotation-editor` plugin: rectangle, ellipse, polygon, point and whole-canvas tools, every one of them operable from the keyboard, persisting through a storage adapter the consumer supplies (LocalStorage by default). See the annotation editor guide at `/docs/plugin-annotation-editor/`.
 - **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
 - **Multi-image Canvases**: Canvases with multiple painting annotations (e.g., compositions, foldouts, maps) are composited correctly with per-image positioning
 - **Audio and Video**: Canvases with a `duration` are played by the optional `av` plugin — a media stage over the canvas rect, transport in the viewer's own control bar, waveforms, WebVTT captions, and a transcript panel holding caption cues, timed `commenting` annotations or a linked transcript. Core alone renders such a canvas as an honest placard rather than dropping it. See the plugins guide at `/docs/plugins/`.
@@ -55,7 +55,7 @@ For downloading raster images instead of a PDF, the optional `image-download` pl
 
 ### Other
 
-- **`placeholderCanvas`/`accompanyingCanvas`**: Not supported
+- **`placeholderCanvas`/`accompanyingCanvas`**: Painted only on a canvas a plugin has claimed — a recording staged by `av`, where a poster is what there is to show before playback. On an ordinary image canvas neither is read; the canvas’s own painting bodies are the content.
 
 The goal is to support all IIIF client mandatory features with pluggable optional features. The footprint of Triiiceratops, despite the name, is intended to remain considerably smaller than other fully featured viewers while attaining feature parity.
 

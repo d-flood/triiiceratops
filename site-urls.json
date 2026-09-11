@@ -17,7 +17,7 @@
             "note": "The comparative evidence: bundle size measured against how much of IIIF each viewer implements, with the method, the versions and the measurement date."
         },
         {
-            "url": "/handles/",
+            "url": "/features/",
             "owner": "site",
             "note": "What the viewer can do with a IIIF manifest, one feature at a time on one running viewer: how it moves through material, plays sound and video, reads notes and text, obeys what a publisher declares, and what a host adds to it."
         },
@@ -29,12 +29,22 @@
         {
             "url": "/install/",
             "owner": "site",
-            "note": "Framework specifics, versioning and bundler notes — what the install lines on the front page cannot cover."
+            "note": "The adoption page: web component, React, Vue and Svelte integration choices, with the builder as the configuration handoff and links to the detailed guides."
+        },
+        {
+            "url": "/accessibility/",
+            "owner": "site",
+            "note": "Reader-facing accessibility features, IIIF interoperability and the automated checks supporting those commitments."
+        },
+        {
+            "url": "/handles/",
+            "owner": "site",
+            "note": "Static redirect to /features/, preserving query strings and fragments when JavaScript is available. Kept for existing links; excluded from indexing."
         },
         {
             "url": "/access/",
             "owner": "site",
-            "note": "Which standards the viewer holds itself to, and how that is gated rather than asserted."
+            "note": "Static redirect to /accessibility/, preserving query strings and fragments when JavaScript is available. Kept for existing links; excluded from indexing."
         },
         {
             "url": "/production/",

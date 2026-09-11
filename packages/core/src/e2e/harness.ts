@@ -39,7 +39,6 @@ const defaultConfig: ViewerConfig = {
     },
     gallery: {
         open: false,
-        showCloseButton: true,
         dockPosition: 'bottom',
     },
     search: {

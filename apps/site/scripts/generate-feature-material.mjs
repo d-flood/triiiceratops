@@ -1,5 +1,5 @@
 /*
- * The manifests `/handles/` shows that are variations on material already here.
+ * The manifests `/features/` shows that are variations on material already here.
  *
  * Each one republishes canvases from `material/landing/manifest.json` or
  * `material/sound/manifest.json` under an id space of its own, with one IIIF

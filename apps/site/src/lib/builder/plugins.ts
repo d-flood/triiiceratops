@@ -12,8 +12,6 @@
  * page that covers the same plugin: the package specifier and the export the
  * snippets import are read out of `apps/site/content/docs/`, so a renamed
  * export fails the suite rather than shipping a paste that resolves to nothing.
- *
- * The annotation editor is not offered here.
  */
 
 import type { SitePlugin } from '../sitePlugins';
@@ -92,5 +90,16 @@ export const BUILDER_PLUGINS: readonly BuilderPlugin[] = [
         load: async () =>
             (await import('@triiiceratops/plugin-image-export'))
                 .ImageDownloadPlugin as unknown as SitePlugin,
+    },
+    {
+        id: 'annotation-editor',
+        label: 'Annotation editor',
+        say: 'Draws rectangle, ellipse, polygon, point and whole-canvas annotations, stored through a pluggable adapter.',
+        pkg: '@triiiceratops/plugin-annotation-editor',
+        symbol: 'AnnotationEditorPlugin',
+        ...doc('plugin-annotation-editor'),
+        load: async () =>
+            (await import('@triiiceratops/plugin-annotation-editor'))
+                .AnnotationEditorPlugin as unknown as SitePlugin,
     },
 ];

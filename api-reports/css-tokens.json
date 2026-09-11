@@ -1,6 +1,6 @@
 {
     "prefix": "--tri-",
-    "count": 43,
+    "count": 48,
     "tokens": [
         {
             "name": "--tri-color-primary",
@@ -161,6 +161,31 @@
             "name": "--tri-collection-panel-content",
             "category": "panel",
             "themeConfigKey": "collectionPanelContent"
+        },
+        {
+            "name": "--tri-annotation-color",
+            "category": "annotation",
+            "themeConfigKey": "annotationColor"
+        },
+        {
+            "name": "--tri-annotation-hit-color",
+            "category": "annotation",
+            "themeConfigKey": "annotationHitColor"
+        },
+        {
+            "name": "--tri-annotation-fill-opacity",
+            "category": "annotation",
+            "themeConfigKey": "annotationFillOpacity"
+        },
+        {
+            "name": "--tri-annotation-point-size",
+            "category": "annotation",
+            "themeConfigKey": "annotationPointSize"
+        },
+        {
+            "name": "--tri-annotation-border-width",
+            "category": "annotation",
+            "themeConfigKey": "annotationBorderWidth"
         },
         {
             "name": "--tri-radius-selector",

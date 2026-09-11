@@ -32,8 +32,8 @@ function documents(dir = CONTENT) {
 }
 
 /**
- * A document's route, through Uncial's default mapping: `handles.json` is
- * `/handles/`, `docs/react.json` is `/docs/react/`, and `index.json` is the
+ * A document's route, through Uncial's default mapping: `install.json` is
+ * `/install/`, `docs/react.json` is `/docs/react/`, and `index.json` is the
  * site root rather than `/index/`.
  */
 function routeOf(document) {

@@ -30,6 +30,7 @@
         themeConfig,
         colourTokens,
         lengthTokens,
+        percentTokens,
         onbase,
     }: {
         manifestId: string;
@@ -42,10 +43,12 @@
         themeConfig: ThemeConfig;
         colourTokens: readonly string[];
         lengthTokens: readonly string[];
+        percentTokens: readonly string[];
         /** The untouched value of every token, once the theme can be read. */
         onbase: (base: {
             colours: Record<string, string>;
             lengths: Record<string, number>;
+            percents: Record<string, number>;
         }) => void;
     } = $props();
 
@@ -86,7 +89,9 @@
         if (!element) return;
 
         element.setAttribute('data-theme', theme);
-        onbase(readTokenValues(element, colourTokens, lengthTokens));
+        onbase(
+            readTokenValues(element, colourTokens, lengthTokens, percentTokens),
+        );
     });
 </script>
 

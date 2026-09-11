@@ -273,20 +273,18 @@ viewer's `--tri-` custom properties like everything else. There is no styling
 | `--tri-annotation-handle-size`       | `10px`                                          |
 | `--tri-annotation-handle-fill`       | `var(--tri-color-primary)`                      |
 | `--tri-annotation-handle-stroke`     | `var(--tri-color-base-100)`                     |
-| `--tri-annotation-point-fill`        | `oklch(63.7% 0.237 25.331)`                     |
-| `--tri-annotation-point-stroke`      | `oklch(63.7% 0.237 25.331)`                     |
+| `--tri-annotation-point-fill`        | `var(--tri-annotation-color)`                   |
+| `--tri-annotation-point-stroke`      | `var(--tri-annotation-color)`                   |
 
-Point markers are the exception, and their size is not set here at all: it comes
-from the VIEWER's `pointStyle.radius` (`viewer.config.pointStyle`), which is the
-one place core's read-only overlay resolves it from too. This plugin takes no
-`pointStyle` of its own, deliberately — it cannot write core's config, so a
-second setting could only disagree with the first, and a point would change size
-the moment it was opened for editing.
-
-Their colour is not configurable through `pointStyle` either — it is fixed to
-match core's read-only marker, so a point looks the same open for editing as it
-does at rest. Restyle it with `--tri-annotation-point-fill` and
-`--tri-annotation-point-stroke`, and change core's own marker to match.
+Point markers are the exception: they are core's, not this layer's. Their size is
+`--tri-annotation-point-size` and their colour `--tri-annotation-color`, the same
+two tokens core's read-only overlay draws and measures a marker from, so a point
+looks the same open for editing as it does at rest and one declaration restyles
+both. This plugin declares neither of its own, deliberately — a second setting
+could only disagree with the first, and a point would change under the reader the
+moment it was opened. `--tri-annotation-point-fill` and
+`--tri-annotation-point-stroke` still override the colour for this layer alone,
+which is the only way to make the two disagree on purpose.
 
 ## Upgrading from `1.0.0-rc.7`
 
@@ -306,13 +304,11 @@ call site:
 { User } from '@annotorious/openseadragon'` with `AnnotationEditorUser` from
   this package.
 - **`pointStyle` is removed from this plugin's config.** It only ever styled the
-  Annotorious marker, which is why it goes the way `drawingStyle` does. The
-  replacement is the VIEWER config's `pointStyle` (`viewer.config.pointStyle`) —
-  the one place both core's read-only marker and this editor read, which is what
-  makes a point the same size selected and not. Only `radius` is read there, in
-  screen pixels; `fill`, `stroke` and `strokeWidth` are inert on both sides, and
-  the marker's colour comes from the two `--tri-annotation-point-*` custom
-  properties above.
+  Annotorious marker, which is why it goes the way `drawingStyle` does. Nothing
+  replaces it in configuration: a marker is theming now, and both core's
+  read-only marker and this editor read the same two tokens —
+  `--tri-annotation-point-size` and `--tri-annotation-color` — which is what
+  makes a point the same size and colour selected and not.
 
 Nothing about persisted data changed. The v1 LocalStorage namespace and the W3C
 annotation format are the same, so annotations written by `rc.7` load and edit

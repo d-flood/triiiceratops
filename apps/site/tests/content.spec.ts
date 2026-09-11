@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const DOCUMENT = fileURLToPath(
-    new URL('../content/access.json', import.meta.url),
+    new URL('../content/accessibility.json', import.meta.url),
 );
 
 /** The autosave debounce plus room for the write, which is what "~1s" means. */
@@ -94,7 +94,7 @@ test.afterEach(async ({ page }) => {
 
 test.describe('a content route', () => {
     test('renders its document', async ({ page }) => {
-        await page.goto('/access/');
+        await page.goto('/accessibility/');
 
         const body = page.locator('main .doc');
         for (const heading of document().content.filter(
@@ -114,7 +114,7 @@ test.describe('a content route', () => {
 
 test.describe('the edit variant', () => {
     test('writes a keystroke to the backing document', async ({ page }) => {
-        await page.goto('/access/edit/');
+        await page.goto('/accessibility/edit/');
         const surface = await editor(page);
 
         await surface.locator('> p').first().click();
@@ -131,7 +131,7 @@ test.describe('the edit variant', () => {
     test('reflects a reorder of two blocks in the document’s block order', async ({
         page,
     }) => {
-        await page.goto('/access/edit/');
+        await page.goto('/accessibility/edit/');
         const surface = await editor(page);
         const [heading, first, second, ...rest] = blockOrder();
 
@@ -160,14 +160,14 @@ test.describe('the edit variant', () => {
     test('renders the site’s own layout around the editor', async ({
         page,
     }) => {
-        await page.goto('/access/edit/');
+        await page.goto('/accessibility/edit/');
         await editor(page);
 
         // The head, the rail, the next-page link and the footer: the measure and
         // rule weights a reader sees, which is the point of editing in place.
         await expect(
             page.getByRole('heading', {
-                name: 'Accessibility and standards',
+                name: 'Built for more ways to read',
                 level: 1,
             }),
         ).toHaveCount(1);
@@ -210,12 +210,12 @@ test.describe('the edit variant', () => {
                 };
             });
 
-        await page.goto('/access/');
+        await page.goto('/accessibility/');
         const read = await typography(
             page.locator('main .doc .uncial-content > p'),
         );
 
-        await page.goto('/access/edit/');
+        await page.goto('/accessibility/edit/');
         await editor(page);
         const editing = await typography(
             page.locator('.uncial-cms-editor-page .ProseMirror > p'),
@@ -241,15 +241,11 @@ test.describe('the edit variant', () => {
     test('leaves the rail navigable, so one page’s editor leads to the next', async ({
         page,
     }) => {
-        await page.goto('/access/edit/');
+        await page.goto('/accessibility/edit/');
         await editor(page);
 
-        // The rail's list, not the action block below it: the builder is in
-        // both, and this screen is about the list still navigating.
-        await page
-            .locator('nav.rail .rail__list a[href="/configure/"]')
-            .click();
+        await page.locator('nav.rail .rail__list a[href="/install/"]').click();
 
-        await expect(page).toHaveURL(/\/configure\/$/);
+        await expect(page).toHaveURL(/\/install\/$/);
     });
 });

@@ -47,7 +47,7 @@ import desktopConfig from 'lighthouse/core/config/desktop-config.js';
 import {
     DOC_ROUTES,
     ROUTES,
-    isNavigable,
+    isIndexed,
     type SiteRoute,
 } from '../src/lib/routes';
 import { CDP_PORT_BASE, PUBLISHED_ORIGIN } from './helpers/origin';
@@ -151,12 +151,12 @@ type Audit = {
  * decision, not a defect: the `/system/` appendix is unindexed so that it cannot
  * compete with a real page for a query.
  *
- * The condition is `isNavigable`, the same predicate the sitemap and the
+ * The condition is `isIndexed`, the same predicate the sitemap and the
  * `robots` meta already derive from — deliberately not a second list of paths to
  * hand-maintain. A real route that is accidentally made `noindex` still fails.
  */
 function exemptAudits(route: SiteRoute): readonly string[] {
-    return isNavigable(route) ? [] : ['is-crawlable'];
+    return isIndexed(route) ? [] : ['is-crawlable'];
 }
 
 /**

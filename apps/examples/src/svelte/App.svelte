@@ -60,7 +60,7 @@
             showInfo: true,
             showViewingMode: true,
         },
-        gallery: { open: false, showCloseButton: true },
+        gallery: { open: false },
         search: { open: false, showCloseButton: true, query: '' },
         annotations: { open: false, showCloseButton: true },
         information: { open: false, showCloseButton: true, showButton: true },

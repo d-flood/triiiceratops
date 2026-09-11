@@ -29,6 +29,7 @@
         "@triiiceratops/comparison": "workspace:*",
         "@triiiceratops/config": "workspace:*",
         "@triiiceratops/cookbook": "workspace:*",
+        "@triiiceratops/plugin-annotation-editor": "workspace:*",
         "@triiiceratops/plugin-av": "workspace:*",
         "@triiiceratops/plugin-image-export": "workspace:*",
         "@triiiceratops/plugin-image-manipulation": "workspace:*",

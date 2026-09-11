@@ -1,5 +1,5 @@
 /**
- * `/handles/`, in a browser: every feature through one stage.
+ * `/features/`, in a browser: every feature through one stage.
  *
  * Three properties, none of which can be seen anywhere but here. That the page
  * costs what it looks like it costs — one viewer, with only the feature showing
@@ -125,7 +125,7 @@ test('serves one stage and the open tab’s rail before anything is fetched', as
     // run: one reserved stage, the whole tab strip, and the first tab's options
     // under it, or the page shifts as the viewer arrives.
     await page.route('**/_app/**', (route) => route.abort());
-    await page.goto('/handles/');
+    await page.goto('/features/');
 
     await expect(stage(page)).toHaveCount(1);
     await expect(stage(page)).toHaveCSS('aspect-ratio', /^\d+ \/ \d+$/);
@@ -138,7 +138,7 @@ test('serves one stage and the open tab’s rail before anything is fetched', as
 });
 
 test('a tab shows its own features and nothing else', async ({ page }) => {
-    await page.goto('/handles/');
+    await page.goto('/features/');
     await expect(stage(page).locator('.viewer-root')).toBeAttached();
     const plugins = FEATURES.filter(
         (feature) => feature.group === 'First Party Plugins',
@@ -161,7 +161,7 @@ test('a tab shows its own features and nothing else', async ({ page }) => {
 
 test('fetches a feature only once it is picked', async ({ page }) => {
     const requested = recordRequests(page);
-    await page.goto('/handles/');
+    await page.goto('/features/');
     await page.waitForLoadState('load');
     // The embed starts after load, so a settle is needed before the absence
     // below means anything.
@@ -180,7 +180,7 @@ test('fetches a feature only once it is picked', async ({ page }) => {
 
 test('the rail sits left of the stage on wide screens', async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
-    await page.goto('/handles/');
+    await page.goto('/features/');
 
     const railBox = await page.locator('.featstage__rail').boundingBox();
     const stageBox = await stage(page).boundingBox();
@@ -209,7 +209,7 @@ test('stacks the rail and the stage full-width on narrow screens', async ({
     page,
 }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/handles/');
+    await page.goto('/features/');
 
     const railBox = await page.locator('.featstage__rail').boundingBox();
     // The pane, not the viewer box inside it: the viewer sits in the pane's
@@ -238,7 +238,7 @@ test('stacks the rail and the stage full-width on narrow screens', async ({
 test('wears the route’s rounded chrome on every feature', async ({ page }) => {
     // The 1rem radius is the route's, not one feature's theming comparison: it
     // must survive every switch rather than arriving with a feature.
-    await page.goto('/handles/');
+    await page.goto('/features/');
     await expect(stage(page).locator('.viewer-root')).toBeAttached();
     for (let at = 0; at < FEATURES.length; at += 1) {
         await choose(page, at);
@@ -264,7 +264,7 @@ test('wears the route’s rounded chrome on every feature', async ({ page }) => 
 });
 
 test('opens on the feature a shared link names', async ({ page }) => {
-    await page.goto(`/handles/?feature=${FEATURES.length}`);
+    await page.goto(`/features/?feature=${FEATURES.length}`);
     await expect(stage(page)).toBeAttached();
     await expect(stage(page)).toHaveAttribute('aria-label', LAST.example.label);
     await expect(rail(page).last()).toHaveAttribute('aria-checked', 'true');
@@ -275,7 +275,7 @@ test('shows the linked feature in the rail, not below it', async ({ page }) => {
     // would otherwise arrive with the checked option far below the fold and
     // nothing to say which feature the reader had been sent to.
     await page.setViewportSize({ width: 1500, height: 950 });
-    await page.goto(`/handles/?feature=${FEATURES.length}`);
+    await page.goto(`/features/?feature=${FEATURES.length}`);
     await expect(rail(page).last()).toHaveAttribute('aria-checked', 'true');
 
     const option = await rail(page).last().boundingBox();
@@ -319,7 +319,7 @@ test('switches the stage over its box without moving the page', async ({
         }).observe({ type: 'layout-shift', buffered: true });
     });
 
-    await page.goto('/handles/');
+    await page.goto('/features/');
     await expect(stage(page).locator('.viewer-root')).toBeAttached();
     const reserved = await stage(page).evaluate(
         (box) => box.getBoundingClientRect().height,
@@ -374,7 +374,7 @@ test('switches the stage over its box without moving the page', async ({
 for (const [at, feature] of FEATURES.entries()) {
     test(`${feature.name} puts its material on the stage`, async ({ page }) => {
         const requested = recordRequests(page);
-        await page.goto('/handles/');
+        await page.goto('/features/');
         await expect(stage(page).locator('.viewer-root')).toBeAttached();
         await choose(page, at);
 
@@ -410,7 +410,7 @@ test('brings the plugin back when its feature is picked again', async ({
         name: 'Image Adjustments',
     });
 
-    await page.goto('/handles/');
+    await page.goto('/features/');
     await expect(stage(page).locator('.viewer-root')).toBeAttached();
 
     await choose(page, at);
@@ -436,7 +436,7 @@ async function pick(page: Page, name: string) {
  */
 async function open(page: Page, name: string) {
     const feature = FEATURES.find((entry) => entry.name === name)!;
-    await page.goto('/handles/');
+    await page.goto('/features/');
     await expect(stage(page).locator('.viewer-root')).toBeAttached();
     await pick(page, name);
     await expect(stage(page)).toHaveAttribute(
@@ -707,7 +707,7 @@ test('fetches the annotation page the canvas only names', async ({ page }) => {
     const requested = recordRequests(page);
     const PAGE_URL = '/material/referenced/annotations.json';
 
-    await page.goto('/handles/');
+    await page.goto('/features/');
     await expect(stage(page).locator('.viewer-root')).toBeAttached();
     // The manifest carries no notes at all, so nothing can have asked for them
     // before the canvas that names the page is on screen.
@@ -1065,7 +1065,7 @@ test('takes a whole manifest dragged onto the stage', async ({ page }) => {
 
 test('the first feature loads without being picked', async ({ page }) => {
     const requested = recordRequests(page);
-    await page.goto('/handles/');
+    await page.goto('/features/');
     await expect
         .poll(() => asked(requested, FIRST.example.manifest))
         .not.toEqual([]);
@@ -1075,7 +1075,7 @@ test('the first feature loads without being picked', async ({ page }) => {
 });
 
 test('names no recipe and claims no compliance', async ({ page }) => {
-    await page.goto('/handles/');
+    await page.goto('/features/');
     // The whole main column: the stage is a full-bleed strip now, so no single
     // wrapper holds the page's words anymore.
     const read = await page.locator('main').innerText();
@@ -1099,7 +1099,7 @@ test('is set in the page’s own face and turns with the page’s own scheme', a
     const surfaces = new Set<string>();
     for (const scheme of ['light', 'dark'] as const) {
         await page.emulateMedia({ colorScheme: scheme });
-        await page.goto('/handles/');
+        await page.goto('/features/');
         const viewer = stage(page).locator('.viewer-root');
         await expect(viewer).toBeAttached();
 

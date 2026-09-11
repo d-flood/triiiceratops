@@ -45,14 +45,23 @@ function toPixels(probe: HTMLElement, value: string): number {
 }
 
 /**
- * Every named token's current value on the probe, as a hex colour or a pixel
- * count according to what the caller asked for.
+ * Every named token's current value on the probe, as a hex colour, a pixel count
+ * or a bare percentage according to what the caller asked for.
+ *
+ * A percentage needs none of the machinery the other two do: a custom property
+ * computes to the text the author wrote, and `20%` is already the number the
+ * slider stands at.
  */
 export function readTokenValues(
     probe: HTMLElement,
     colours: readonly string[],
     lengths: readonly string[],
-): { colours: Record<string, string>; lengths: Record<string, number> } {
+    percents: readonly string[] = [],
+): {
+    colours: Record<string, string>;
+    lengths: Record<string, number>;
+    percents: Record<string, number>;
+} {
     const computed = getComputedStyle(probe);
     const raw = (name: string) => computed.getPropertyValue(name).trim();
 
@@ -62,6 +71,9 @@ export function readTokenValues(
         ),
         lengths: Object.fromEntries(
             lengths.map((name) => [name, toPixels(probe, raw(name))]),
+        ),
+        percents: Object.fromEntries(
+            percents.map((name) => [name, parseFloat(raw(name)) || 0]),
         ),
     };
 }

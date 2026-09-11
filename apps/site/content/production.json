@@ -19,19 +19,19 @@
 		{
 			"type": "linkRows",
 			"attrs": {
-				"note": "Open any of these and you are looking at the viewer doing its job.",
+				"note": "",
 				"id": "11e91d40-d55b-410c-b809-2456c93023f2"
 			},
 			"content": [
 				{
 					"type": "linkRow",
 					"attrs": {
-						"label": "CSNTM",
-						"href": "https://collections.csntm.org/",
-						"note": "The Center for the Study of New Testament Manuscripts’ photographed manuscript collection.",
+						"label": "Black Teacher Archive",
+						"href": "https://bta.gse.harvard.edu/",
+						"note": "The Harvard Graduate School of Education’s archive of the Colored Teachers Associations’ journals.",
 						"actionLabel": "Open an example",
-						"actionHref": "https://collections.csntm.org/manuscripts/MNTGRCP1",
-						"id": "1140b83f-4d5e-4339-89cd-b8482e652abc"
+						"actionHref": "https://bta.gse.harvard.edu/collection/gut50000c05777",
+						"id": "2e2cf36a-eb7f-4a78-8a8f-3166b3b2939a"
 					}
 				},
 				{
@@ -48,23 +48,23 @@
 				{
 					"type": "linkRow",
 					"attrs": {
+						"label": "CSNTM",
+						"href": "https://collections.csntm.org/",
+						"note": "The Center for the Study of New Testament Manuscripts’ photographed manuscript collection.",
+						"actionLabel": "Open an example",
+						"actionHref": "https://collections.csntm.org/manuscripts/MNTGRCP1",
+						"id": "1140b83f-4d5e-4339-89cd-b8482e652abc"
+					}
+				},
+				{
+					"type": "linkRow",
+					"attrs": {
 						"label": "Digital Giza",
 						"href": "https://giza.fas.harvard.edu/",
 						"note": "Harvard’s archive of the Giza Necropolis, reading excavation photography site by site.",
 						"actionLabel": "Open an example",
 						"actionHref": "https://giza.fas.harvard.edu/sites/5274/full/",
 						"id": "7d9a4381-80ac-4663-8ed9-a053153f41e0"
-					}
-				},
-				{
-					"type": "linkRow",
-					"attrs": {
-						"label": "Black Teacher Archive",
-						"href": "https://bta.gse.harvard.edu/",
-						"note": "The Harvard Graduate School of Education’s archive of the Colored Teachers Associations’ journals.",
-						"actionLabel": "Open an example",
-						"actionHref": "https://bta.gse.harvard.edu/collection/gut50000c05777",
-						"id": "2e2cf36a-eb7f-4a78-8a8f-3166b3b2939a"
 					}
 				},
 				{
@@ -97,7 +97,7 @@
 		{
 			"type": "linkRows",
 			"attrs": {
-				"note": "Software that generates pages carrying the viewer, rather than a collection to browse.",
+				"note": "",
 				"id": "558cf5b9-bae1-4272-a6e4-3fd42d5916bc"
 			},
 			"content": [
@@ -111,138 +111,6 @@
 						"actionHref": "",
 						"id": "14048a0a-ee3b-4854-ba29-9bb6a3885b71"
 					}
-				}
-			]
-		},
-		{
-			"type": "heading",
-			"attrs": {
-				"id": "7155b28e-951c-51c5-a05e-155d131d9756",
-				"slug": "placeholder-section",
-				"level": 2
-			},
-			"content": [
-				{
-					"type": "text",
-					"text": "Placeholder section"
-				}
-			]
-		},
-		{
-			"type": "paragraph",
-			"attrs": {
-				"id": "a4c2c964-501c-5e37-b8e4-35b33d05f4ec"
-			},
-			"content": [
-				{
-					"type": "text",
-					"text": "Placeholder paragraph. This block exists so the page's measure, rhythm and rule weights can be judged at the width a reader will see them, and so the route is a real document rather than an empty one."
-				}
-			]
-		},
-		{
-			"type": "paragraph",
-			"attrs": {
-				"id": "95b1565e-60d6-53c2-991e-cee8c90a8ae8"
-			},
-			"content": [
-				{
-					"type": "text",
-					"text": "Placeholder paragraph. A second paragraph, because a single one does not show how the spacing between them reads."
-				}
-			]
-		},
-		{
-			"type": "heading",
-			"attrs": {
-				"id": "875b3877-0465-5955-802e-8f5f335c1b9a",
-				"slug": "a-second-placeholder-section",
-				"level": 2
-			},
-			"content": [
-				{
-					"type": "text",
-					"text": "A second placeholder section"
-				}
-			]
-		},
-		{
-			"type": "paragraph",
-			"attrs": {
-				"id": "6d122ed5-245d-5635-b98f-0d7306555ed0"
-			},
-			"content": [
-				{
-					"type": "text",
-					"text": "Placeholder paragraph. Ideas on this site sit on ruled rows and lists rather than in cards, so the list below stands in for whatever the finished page arranges here."
-				}
-			]
-		},
-		{
-			"type": "bulletList",
-			"attrs": {
-				"id": "414f8a88-c9b0-53ab-bafc-1b7478981843"
-			},
-			"content": [
-				{
-					"type": "listItem",
-					"attrs": {
-						"id": "f3916c95-25cc-54e0-8dc5-eb1e8da4ebce"
-					},
-					"content": [
-						{
-							"type": "paragraph",
-							"attrs": {
-								"id": "0f67d323-6ff9-5999-bbdb-d72d79822aad"
-							},
-							"content": [
-								{
-									"type": "text",
-									"text": "Placeholder item."
-								}
-							]
-						}
-					]
-				},
-				{
-					"type": "listItem",
-					"attrs": {
-						"id": "72ead702-f0d7-545b-8c6f-e2ab42a04909"
-					},
-					"content": [
-						{
-							"type": "paragraph",
-							"attrs": {
-								"id": "3222f1e6-5395-5cf2-b63d-6cca664b44c9"
-							},
-							"content": [
-								{
-									"type": "text",
-									"text": "Placeholder item."
-								}
-							]
-						}
-					]
-				},
-				{
-					"type": "listItem",
-					"attrs": {
-						"id": "56c8b9b8-4c40-504b-a78f-f6458ed88f05"
-					},
-					"content": [
-						{
-							"type": "paragraph",
-							"attrs": {
-								"id": "5083fb82-606a-52d1-8f95-d353baf4211f"
-							},
-							"content": [
-								{
-									"type": "text",
-									"text": "Placeholder item."
-								}
-							]
-						}
-					]
 				}
 			]
 		},

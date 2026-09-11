@@ -60,15 +60,17 @@
             });
 
             const params = new URLSearchParams(location.search);
-            // `pointStyle` is the ONE place a point marker's size is set: core's
-            // read-only overlay and the editor's drawing layer both resolve it
-            // from the viewer config. Parameterised so a spec can drive a
-            // non-default radius and read both sides at it.
-            const pointRadius = params.get('pointRadius');
+            // `--tri-annotation-point-size` is the ONE place a point marker's
+            // size is set: core's read-only overlay and the editor's drawing
+            // layer both measure it off the element they are drawn in.
+            // Parameterised so a spec can drive a non-default size and read both
+            // sides at it, and set as a theme config rather than as a style on
+            // the host so it travels the way a theme author's would.
+            const pointSize = params.get('pointSize');
+            if (pointSize) {
+                viewer.themeConfig = { annotationPointSize: `${pointSize}px` };
+            }
             viewer.config = {
-                ...(pointRadius
-                    ? { pointStyle: { radius: Number(pointRadius) } }
-                    : {}),
                 // The editor panel starts open so its tools are reachable
                 // without driving the toolbar. The annotations panel starts open
                 // too: core's shape overlay draws nothing while annotations are

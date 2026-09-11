@@ -9,7 +9,6 @@ import type {
 } from './panels';
 import type { RequestConfig } from './requests';
 import type { ToolbarConfig } from './toolbar';
-import type { PointStyle } from '../../utils/pointMarker';
 
 /**
  * The viewer chrome layout is configured by a few independent knobs, each of
@@ -408,13 +407,6 @@ export interface ViewerConfig {
      * Renderer tuning. See {@link RendererConfig} — a small, closed set.
      */
     renderer?: RendererConfig;
-
-    /**
-     * Marker styling for point annotations, shared by the read-only overlay and
-     * the annotation editor so a point renders consistently whether selected or
-     * not. `radius` is in screen pixels (default 5).
-     */
-    pointStyle?: PointStyle;
 
     /**
      * Enable opt-in developer diagnostics. Production distributions are quiet
