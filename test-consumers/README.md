@@ -76,7 +76,7 @@ journey in `fixtures/framework-consumer-assert.mjs`:
 - `index.html` — the whole client contract: automatic shared registration, all
   three prop tiers (including a function-valued `searchProvider` and a new
   plugin array every render), post-mount updates, suppressed unchanged writes,
-  both selector cadences against a real OpenSeadragon zoom, every translated
+  both selector cadences against a real renderer zoom, every translated
   event channel with exact payload identity, a callable `PluginError.retry()`,
   the imperative handle, a consumer projection failure reaching framework-native
   error capture, the `triiiceratops/testing` handle, unmount/remount, two

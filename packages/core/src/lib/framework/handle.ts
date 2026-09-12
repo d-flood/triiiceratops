@@ -21,6 +21,7 @@
  * - a handle whose viewer unmounts reverts to unbound and rebinds cleanly.
  */
 
+import { once } from '../utils/once.js';
 import { logger } from '../logging/logger.js';
 import {
     describeViewerElement,
@@ -87,12 +88,7 @@ export function createViewerHandleSlot(): ViewerHandleSlot {
         get: () => handle,
         subscribe(listener: () => void): () => void {
             listeners.add(listener);
-            let released = false;
-            return () => {
-                if (released) return;
-                released = true;
-                listeners.delete(listener);
-            };
+            return once(() => listeners.delete(listener));
         },
         armUnboundWarning(): () => void {
             if (everClaimed || warnedUnbound) return () => {};
@@ -105,11 +101,8 @@ export function createViewerHandleSlot(): ViewerHandleSlot {
                 if (everClaimed || warnedUnbound) return;
                 warnedUnbound = true;
                 logger.warn(
-                    'A Triiiceratops viewer handle was created but never passed ' +
-                        'to a <TriiiceratopsViewer>. Reads through it will stay ' +
-                        'null forever. Pass it to the viewer (React: the `handle` ' +
-                        'prop; Vue: the template ref) — or drop the handle if ' +
-                        'nothing reads viewer state.',
+                    'A viewer handle was created but never passed to a ' +
+                        '<TriiiceratopsViewer>; reads through it stay null.',
                 );
             }, 0);
             let cancelled = false;

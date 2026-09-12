@@ -1,8 +1,3 @@
-// Import OpenSeadragon types as a MODULE (not the ambient UMD global) so the
-// emitted `ViewerConfig` d.ts references `import('openseadragon').Options` —
-// resolvable by a strict-TS consumer via core's `@types/openseadragon`
-// dependency (ticket 21).
-import type OpenSeadragon from 'openseadragon';
 import type { GalleryConfig } from './gallery';
 import type {
     AnnotationsConfig,
@@ -12,9 +7,9 @@ import type {
     SearchConfig,
     StructuresConfig,
 } from './panels';
+import type { LocaleCatalog } from '../plugin';
 import type { RequestConfig } from './requests';
 import type { ToolbarConfig } from './toolbar';
-import type { PointStyle } from '../../utils/pointMarker';
 
 /**
  * The viewer chrome layout is configured by a few independent knobs, each of
@@ -40,6 +35,19 @@ import type { PointStyle } from '../../utils/pointMarker';
  * - `unified` — the toolbar buttons are embedded into the canvas nav bar.
  */
 export type ControlsMode = 'split' | 'unified';
+
+/**
+ * A flyout menu of the control bar, named so a host can open one.
+ *
+ * `captions` is the transport's; the rest are the toolbar's. They share one
+ * name because they share the bar and its one-at-a-time rule.
+ */
+export type BarMenu =
+    | 'gallery'
+    | 'viewing-mode'
+    | 'sequence'
+    | 'locale'
+    | 'captions';
 
 /**
  * How the canvas nav (control bar) sits relative to its edge.
@@ -74,6 +82,13 @@ export interface NavConfig {
     /**
      * Where the nav bar sits along its edge. In `unified` mode this also aligns
      * the embedded toolbar buttons, since they form one bar.
+     *
+     * **Inert while a plugin has registered transport chrome**
+     * (`ViewerState.registerTransportChrome`): the bar then spans its full
+     * available width so the seek bar can take the slack, and a full-width bar
+     * has nowhere to align. The setting is not deprecated and nothing is
+     * warned about — it resumes meaning the moment the chrome deregisters.
+     * `style`, `edge` and the nav inset go on meaning what they meant.
      * @default 'center'
      */
     align?: NavAlign;
@@ -89,12 +104,172 @@ export const DEFAULT_NAV_STYLE: NavStyle = 'docked';
 export const DEFAULT_NAV_EDGE: NavEdge = 'bottom';
 export const DEFAULT_NAV_ALIGN: NavAlign = 'center';
 
+/**
+ * Renderer tuning — a **small, closed, typed set**.
+ *
+ * There is deliberately no open partial-options escape hatch into renderer
+ * internals. An escape hatch would make the renderer's own surface part of what
+ * consumers depend on, which is exactly the pass-through this viewer removed:
+ * once someone sets an undocumented internal, changing it becomes a breaking
+ * change and the renderer can no longer be rewritten. Every member below is a
+ * knob core has decided to support and will keep supporting under its own
+ * semver.
+ *
+ * Every value is optional; omitting one takes core's default, and the defaults
+ * are provisional — they are tuned as the renderer is measured, so nothing
+ * should assert against a shipped number.
+ *
+ * If a knob you need is missing, that is a request for core to add it, not a
+ * gap for a consumer to reach through.
+ */
+export interface RendererConfig {
+    /**
+     * How quickly programmatic and discrete motion — a zoom button, a
+     * double-tap, a fit, canvas navigation — settles onto its target, as the
+     * time constant in **seconds** of an exponential approach: the time to
+     * cover about 63% of the remaining distance. Smaller is stiffer.
+     *
+     * Ignored under `prefers-reduced-motion: reduce`, where every viewport
+     * change is instant.
+     */
+    animationTimeConstant?: number;
+
+    /**
+     * Multiplicative zoom factor for one step of `zoomIn` / `zoomOut` and the
+     * toolbar buttons behind them. `2` doubles the zoom per press. Must be
+     * greater than 1; zooming out applies its reciprocal, so a step out
+     * undoes a step in exactly.
+     */
+    zoomPerClick?: number;
+
+    /**
+     * How far past a whole-canvas fit the reader may zoom in, as a multiple of
+     * the fit scale: `8` stops eight times closer than the scale at which the
+     * canvas fits the viewport. Must be greater than 1.
+     *
+     * The fit is measured against the live viewport, so this term follows a
+     * window resize and a phone rotation. It is the ceiling's answer for a
+     * source with **fewer pixels than its viewport**, which can only be
+     * inspected by magnifying it: raise it to allow a small scan more
+     * magnification, lower it to stop the reader short of visible blur.
+     *
+     * Deep material is governed by {@link maxZoomPixelRatio} instead, and the
+     * ceiling is the more generous of the two.
+     */
+    maxZoomFactor?: number;
+
+    /**
+     * How far past 1:1 the reader may magnify a source pixel, as device pixels
+     * per pixel the image actually has: `2` stops where one source pixel covers
+     * a 2x2 block of the display. Must be greater than 0.
+     *
+     * The zoom ceiling is the more generous of this and {@link maxZoomFactor}.
+     * This term says nothing about the viewport, so it holds across a resize
+     * and a rotation and gives a deep scan its own resolution with no per-image
+     * tuning; `maxZoomFactor` answers for a source with fewer pixels than the
+     * viewport, which has no resolution left for this knob to reach.
+     *
+     * Resolution comes from the image service's `info.json` where one has been
+     * fetched, and from the manifest Canvas's declared dimensions otherwise —
+     * the IIIF convention that a Canvas is sized in its image's pixels. Lower
+     * it to stop the reader at visible blur; raise it to allow magnification
+     * past the source's own pixels.
+     */
+    maxZoomPixelRatio?: number;
+
+    /**
+     * Multiplicative zoom factor for one **wheel notch** — the detent of a
+     * classic mouse wheel, which the wheel event reports as about 100 pixels of
+     * `deltaY`. `1.15` takes roughly five notches to double the zoom. Must be
+     * greater than 1; scrolling the other way applies its reciprocal, so a
+     * notch out undoes a notch in exactly.
+     *
+     * This governs the **trackpad as well**, and there is deliberately no
+     * separate knob for one. A trackpad never emits a notch: it emits a stream
+     * of much smaller deltas, covers the same 100 pixels over several events,
+     * and so gets the same zoom for the same scroll distance. Nothing in the
+     * viewer detects which device is in use, because the usual heuristics are
+     * unreliable and that branch is a permanent source of hardware-specific
+     * bugs. If the trackpad feels different from the mouse here, this one value
+     * moves both.
+     */
+    zoomPerWheelNotch?: number;
+
+    /**
+     * The least **device** pixels per level pixel a pyramid level may carry
+     * before the next coarser one is taken instead. At `0.5`, up to 2×
+     * oversampling is tolerated; a *higher* value accepts a blurrier image for
+     * fewer bytes.
+     */
+    minPixelRatio?: number;
+
+    /**
+     * Decoded-byte ceiling for the opportunistic tile cache. Core picks a
+     * lower default on devices where memory pressure is fatal rather than slow.
+     * This is a ceiling on what is held *beyond* what the current view
+     * requires, so lowering it costs re-fetches, never blank canvases.
+     */
+    byteBudget?: number;
+
+    /**
+     * How far beyond the viewport a canvas is still kept resident, as the
+     * factor the viewport rect is inflated by. `1` holds only what is on
+     * screen; larger values pre-empt more of a scroll at the cost of memory.
+     */
+    residencyMargin?: number;
+
+    /**
+     * Projected on-screen size, in CSS pixels, at or above which a canvas is
+     * given the full tile pyramid.
+     */
+    pyramidThreshold?: number;
+
+    /**
+     * Projected on-screen size, in CSS pixels, below which a canvas is drawn as
+     * a plain box with no image fetched at all. Between this and
+     * {@link pyramidThreshold} a canvas gets a single thumbnail.
+     */
+    boxThreshold?: number;
+}
+
 export interface ViewerConfig {
     /**
-     * Preferred locale for resolving IIIF language maps.
-     * When unset, the viewer follows the app locale.
+     * Preferred locale for the viewer's chrome and for resolving IIIF language
+     * maps. When unset, the viewer follows the app locale. The toolbar's
+     * language picker outranks this for as long as the host leaves it alone;
+     * naming a different `locale` here hands control back.
      */
     locale?: string;
+
+    /**
+     * Chrome translations this host supplies, keyed by BCP 47 tag. Merged over
+     * core's English PER KEY, so a catalog covering a handful of strings
+     * translates those and leaves the rest in English — and an `en` entry
+     * rewords core's own copy.
+     *
+     * A locale mapped to an empty object declares one {@link loadMessages} can
+     * supply: the language picker offers it, and the chrome renders English
+     * until the catalog arrives. Core ships only English inline; the German
+     * catalog it maintains is published as the importable
+     * `triiiceratops/locales/de.json` asset.
+     *
+     * Plugin catalogs are plugin-owned and are not translatable here.
+     */
+    messages?: LocaleCatalog;
+
+    /**
+     * Fetch the chrome catalog for a locale this viewer cannot yet render, so a
+     * reader downloads only the language they read in.
+     *
+     * Called at most once per locale per viewer, whenever one is requested by
+     * the picker, by `locale`, or by the page's own language. The chrome renders
+     * English while the promise is pending and swaps when it resolves; a
+     * rejection, or a resolution with no catalog, leaves the chrome as it is and
+     * is reported through the debug logger rather than as a `viewererror`.
+     */
+    loadMessages?: (
+        locale: string,
+    ) => Promise<Record<string, string> | undefined>;
 
     /**
      * How the toolbar relates to the canvas nav — `split` (separate toolbar rail,
@@ -144,7 +319,7 @@ export interface ViewerConfig {
     pagedViewOffset?: boolean;
 
     /**
-     * Preserve authored IIIF canvas scale in multi-canvas OpenSeadragon layouts.
+     * Preserve authored IIIF canvas scale in multi-canvas layouts.
      * When false, paged and continuous modes normalize canvas display heights
      * so unusually wide/tall canvases remain readable and comparable.
      * Single-canvas individuals mode is unchanged.
@@ -231,6 +406,18 @@ export interface ViewerConfig {
     toolbar?: ToolbarConfig;
 
     /**
+     * Which of the control bar's flyout menus stands open, or `null` for none.
+     *
+     * The bar holds at most one open at a time, and each control owns its own:
+     * the toolbar's four are dismissed by the toolbar, and `captions` — the
+     * caption-track list a timed-media claimant registers into the transport —
+     * is dismissed by the transport. Naming a menu no visible control offers
+     * opens nothing.
+     * @default null
+     */
+    openMenu?: BarMenu | null;
+
+    /**
      * Whether the Table of Contents (Structures) toolbar button is shown.
      * Prefer `toolbar.showStructures` for new configurations.
      * @default true
@@ -248,30 +435,13 @@ export interface ViewerConfig {
     plugins?: Record<string, PluginUiConfig>;
 
     /**
-     * Additional OpenSeadragon viewer options.
-     * These are merged into the OSD constructor options, allowing you to
-     * override defaults or set any OSD option (e.g. maxZoomPixelRatio,
-     * zoomPerScroll, animationTime, etc.).
-     * @see https://openseadragon.github.io/docs/OpenSeadragon.html#.Options
+     * Renderer tuning. See {@link RendererConfig} — a small, closed set.
      */
-    openSeadragonConfig?: Partial<OpenSeadragon.Options>;
+    renderer?: RendererConfig;
 
     /**
-     * Marker styling for point annotations, shared by the read-only overlay and
-     * the annotation editor so a point renders consistently whether selected or
-     * not. `radius` is in screen pixels (default 5).
-     */
-    pointStyle?: PointStyle;
-
-    /**
-     * Enable drag-and-drop loading of IIIF manifest URLs/content state text.
-     * @default false
-     */
-    enableDragDrop?: boolean;
-
-    /**
-     * Enable opt-in developer diagnostics (ticket 18). Production distributions
-     * are quiet by default: when `false`, the viewer emits no unsolicited
+     * Enable opt-in developer diagnostics. Production distributions are quiet
+     * by default: when `false`, the viewer emits no unsolicited
      * console output. When `true`, viewer diagnostics are logged through the
      * core logger (prefixed `[triiiceratops]`). Actionable failures always
      * surface through the structured `viewererror`/`pluginerror` channels

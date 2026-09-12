@@ -1,3 +1,5 @@
+import { isPositiveFinite } from './numbers';
+
 export type CanvasImageSpaceDimensions = {
     canvasWidth: number;
     canvasHeight: number;
@@ -19,20 +21,16 @@ type Point = {
 
 type SpaceDirection = 'canvas-to-image' | 'image-to-canvas';
 
-function isPositiveNumber(value: unknown): value is number {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0;
-}
-
 function getScaleFactors(
     dimensions: CanvasImageSpaceDimensions | null | undefined,
     direction: SpaceDirection,
 ): { scaleX: number; scaleY: number } | null {
     if (
         !dimensions ||
-        !isPositiveNumber(dimensions.canvasWidth) ||
-        !isPositiveNumber(dimensions.canvasHeight) ||
-        !isPositiveNumber(dimensions.imageWidth) ||
-        !isPositiveNumber(dimensions.imageHeight)
+        !isPositiveFinite(dimensions.canvasWidth) ||
+        !isPositiveFinite(dimensions.canvasHeight) ||
+        !isPositiveFinite(dimensions.imageWidth) ||
+        !isPositiveFinite(dimensions.imageHeight)
     ) {
         return null;
     }

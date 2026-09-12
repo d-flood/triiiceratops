@@ -1,0 +1,223 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/collection/paintings.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Paintings and prints"]
+    },
+    "summary": {
+        "en": [
+            "3 plates from this site's public-domain set, gathered as one volume of a collection."
+        ]
+    },
+    "items": [
+        {
+            "id": "/material/collection/paintings/canvas/milkmaid",
+            "type": "Canvas",
+            "label": {
+                "en": ["Johannes Vermeer, The Milkmaid, ca. 1660"]
+            },
+            "width": 4649,
+            "height": 5177,
+            "rights": "https://creativecommons.org/publicdomain/mark/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Johannes Vermeer, The Milkmaid, ca. 1660, Rijksmuseum, SK-A-2344."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["Rijksmuseum, SK-A-2344"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.rijksmuseum.nl/en/collection/SK-A-2344"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/collection/paintings/page/milkmaid",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/collection/paintings/annotation/milkmaid",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/milkmaid/0,0,4649,5177/291,324/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 4649,
+                                "height": 5177,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/milkmaid",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/collection/paintings/canvas/milkmaid"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/collection/paintings/canvas/hiroshige",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Utagawa Hiroshige, Sudden Shower over Shin-Ohashi Bridge and Atake, 1857"
+                ]
+            },
+            "width": 1335,
+            "height": 1908,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Utagawa Hiroshige, Sudden Shower over Shin-Ohashi Bridge and Atake, 1857, The Metropolitan Museum of Art, JP643."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["The Metropolitan Museum of Art, object 36461"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.metmuseum.org/art/collection/search/36461"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/collection/paintings/page/hiroshige",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/collection/paintings/annotation/hiroshige",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/hiroshige/0,0,1335,1908/334,477/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 1335,
+                                "height": 1908,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/hiroshige",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/collection/paintings/canvas/hiroshige"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/collection/paintings/canvas/shahnama",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "The Feast of Sada, folio 22v from the Shahnama of Shah Tahmasp, ca. 1525"
+                ]
+            },
+            "width": 2802,
+            "height": 4000,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "The Feast of Sada, folio 22v from the Shahnama of Shah Tahmasp, ca. 1525, The Metropolitan Museum of Art, 1970.301.2."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["The Metropolitan Museum of Art, object 452111"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.metmuseum.org/art/collection/search/452111"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/collection/paintings/page/shahnama",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/collection/paintings/annotation/shahnama",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/shahnama/0,0,2802,4000/351,500/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 2802,
+                                "height": 4000,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/shahnama",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/collection/paintings/canvas/shahnama"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

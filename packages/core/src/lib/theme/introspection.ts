@@ -2,9 +2,9 @@ import type { ThemeConfig } from './types';
 import { CSS_VAR_MAP } from './cssVarMap';
 
 export function getThemeCssVariables(): string[] {
-    return Object.values(CSS_VAR_MAP).filter(
-        (value) => value !== 'color-scheme',
-    );
+    return Object.values(CSS_VAR_MAP)
+        .map((token) => token.cssVar)
+        .filter((cssVar) => cssVar !== 'color-scheme');
 }
 
 export function getThemePropertyNames(): (keyof ThemeConfig)[] {

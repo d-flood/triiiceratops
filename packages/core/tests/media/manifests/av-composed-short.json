@@ -1,0 +1,57 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/media/manifests/av-composed-short.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Temporally composed canvas — a window shorter than its media"]
+    },
+    "summary": {
+        "en": [
+            "One canvas whose 2.4 seconds are tiled by two painting annotations targeting #t=0,0.4 and #t=0.4,2.4, where the FIRST body is the two-second colour-bars clip. Its window closes 1.6 seconds before its media runs out, so `ended` never fires at the seam and only the sequencer's per-frame check can take it — the case the frame check and the `atEnd` latch exist for, which the evenly-tiled fixtures cannot exercise (spec, canvas timeline and segment seam; user stories 48 and 49)."
+        ]
+    },
+    "items": [
+        {
+            "id": "/media/manifests/av-composed-short.json/canvas/composed",
+            "type": "Canvas",
+            "label": { "en": ["Four tenths of a second of bars, then tone"] },
+            "width": 320,
+            "height": 180,
+            "duration": 2.4,
+            "items": [
+                {
+                    "id": "/media/manifests/av-composed-short.json/page/composed",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-composed-short.json/annotation/segment-1",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/media/bars.mp4",
+                                "type": "Video",
+                                "format": "video/mp4",
+                                "width": 320,
+                                "height": 180,
+                                "duration": 2.0
+                            },
+                            "target": "/media/manifests/av-composed-short.json/canvas/composed#t=0,0.4"
+                        },
+                        {
+                            "id": "/media/manifests/av-composed-short.json/annotation/segment-2",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/media/tone.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 2.0
+                            },
+                            "target": "/media/manifests/av-composed-short.json/canvas/composed#t=0.4,2.4"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

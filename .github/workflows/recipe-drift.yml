@@ -1,0 +1,80 @@
+# Cookbook recipe drift (scheduled, NON-BLOCKING).
+#
+# The repository's recipe catalog, its vendored cookbook manifests and its
+# content-state fixtures all make claims about what iiif.io publishes. On a
+# schedule this job fetches the live Cookbook and reports where those claims no
+# longer hold, as a GitHub issue.
+#
+# It NEVER blocks a pull request, and MUST NEVER be made a required check: it has
+# no `pull_request` trigger, the fetching step is `continue-on-error`, and the
+# workflow always succeeds. Gating on it would make CI depend on third-party
+# infrastructure being up, and an upstream cookbook edit would fail a build for a
+# reason invisible in the diff. It reports; a human decides.
+name: Recipe Drift
+
+on:
+    schedule:
+        # Every Thursday 09:00 UTC — deliberately away from the adapter canary's
+        # Monday 06:00 slot.
+        - cron: '0 9 * * 4'
+    workflow_dispatch:
+
+concurrency: ${{ github.workflow }}
+
+permissions:
+    contents: read
+    issues: write
+
+jobs:
+    drift:
+        name: Catalog and fixtures vs the live IIIF Cookbook
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - uses: actions/checkout@v7
+
+            # No install step: the script imports only node builtins and the
+            # recipe catalog, whose TypeScript Node 24 reads directly.
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: '24'
+
+            # The script exits 0 whether or not it finds drift, and sets a
+            # `drift` output instead, so "drift found" and "the job failed" stay
+            # separate. `continue-on-error` covers the remaining case: the script
+            # itself blowing up must not redden the workflow either.
+            - name: Fetch the live cookbook and report drift (non-blocking)
+              id: fetch
+              continue-on-error: true
+              run: node scripts/recipe-drift.mjs --report recipe-drift-report.md
+
+            - name: File drift report issue
+              if: steps.fetch.outputs.drift == 'true'
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  TITLE="Recipe drift: the live IIIF Cookbook no longer matches this repository"
+                  BODY_FILE=recipe-drift-report.md
+                  {
+                    echo ""
+                    echo "_Drift run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}_"
+                    echo "_This is a non-blocking scheduled check. It never fails PRs; it feeds a reviewed catalog or fixture update._"
+                  } >> "$BODY_FILE"
+                  EXISTING=$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[0].number' || true)
+                  if [ -n "$EXISTING" ]; then
+                    gh issue comment "$EXISTING" --body-file "$BODY_FILE"
+                    echo "Commented on existing issue #$EXISTING."
+                  else
+                    gh issue create --title "$TITLE" --body-file "$BODY_FILE" --label drift || \
+                      gh issue create --title "$TITLE" --body-file "$BODY_FILE"
+                  fi
+
+            - name: Report status
+              run: |
+                  if [ "${{ steps.fetch.outcome }}" = "failure" ]; then
+                    echo "::warning::The drift script did not complete — see the step log."
+                  elif [ "${{ steps.fetch.outputs.drift }}" = "true" ]; then
+                    echo "::warning::Cookbook drift detected — see the filed issue."
+                  else
+                    echo "No cookbook drift: the catalog, vendored manifests and fixtures match the live recipes."
+                  fi

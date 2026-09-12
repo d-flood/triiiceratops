@@ -1,8 +1,3 @@
----
-search:
-  exclude: true
----
-
 # Undo/redo replays inverse operations through the adapter
 
 Annotorious's built-in undo stack only mutates its in-memory store, while saves have

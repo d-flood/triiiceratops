@@ -1,0 +1,16 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "https://example.org/content-state/object-target-time",
+    "type": "Annotation",
+    "motivation": ["contentState"],
+    "target": {
+        "id": "https://iiif.io/api/cookbook/recipe/0002-mvm-audio/canvas#t=120,150",
+        "type": "Canvas",
+        "partOf": [
+            {
+                "id": "https://iiif.io/api/cookbook/recipe/0002-mvm-audio/manifest.json",
+                "type": "Manifest"
+            }
+        ]
+    }
+}

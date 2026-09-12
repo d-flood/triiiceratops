@@ -6,19 +6,22 @@
     let {
         manifest,
         manifestId,
+        locale = 'en',
     }: {
         manifest: any;
         manifestId?: string;
+        /** The viewer's active locale — the content locale the panel resolves in. */
+        locale?: string;
     } = $props();
 
     // `manifestEntry` is the whole contract the panel reads: the raw IIIF
-    // Manifest JSON the cache holds, v2 or v3 as authored. This used to hand
-    // back a `manifesto.js`-shaped double carrying `getLabel`/`getDescription`/
-    // `getRequiredStatement`/`getLicense`, which is the abstraction the
-    // `remove-manifesto` epic removes (ticket 09).
+    // Manifest JSON the cache holds, v2 or v3 as authored.
     const viewerState = {
         config: {},
         showMetadataPanel: true,
+        get activeLocale() {
+            return locale;
+        },
         get manifestId() {
             return manifestId ?? manifest.id;
         },

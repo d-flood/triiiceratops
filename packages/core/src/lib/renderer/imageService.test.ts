@@ -1,0 +1,580 @@
+// @vitest-environment node
+/**
+ * Image-service metadata: what `info.json` parses to, and that it is fetched
+ * once, ever.
+ *
+ * Node environment, with `fetch` and `Image` stubbed per test — the cache's
+ * decisions (dedupe, the permanent failure entry, the separate lifetime from
+ * decoded pixels) are ordinary data decisions and need no browser to assert.
+ */
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { createImageServiceCache, parseImageService } from './imageService';
+import { METADATA_IN_FLIGHT_LIMIT } from './rendererDefaults';
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
+
+/**
+ * Stub the global `fetch` with a responder stated as the status and document
+ * the cache will see, and answer with the spy that records the URLs asked for.
+ */
+function stubFetch(
+    respond: (url: string) => Promise<{ status: number; json: unknown }>,
+) {
+    const fetchJson = vi.fn(respond);
+    vi.stubGlobal('fetch', async (url: string) => {
+        const { status, json } = await fetchJson(url);
+        return { ok: status < 400, status, json: async () => json };
+    });
+    return fetchJson;
+}
+
+/**
+ * Stub the global `Image` the whole-image probe measures through: `raster` is
+ * what it decodes to, or `null` for an image that will not decode at all.
+ * Answers with the spy that records the URLs probed.
+ */
+function stubImage(raster: { width: number; height: number } | null) {
+    const measureImage = vi.fn((_url: string) => {});
+    vi.stubGlobal(
+        'Image',
+        class {
+            onload: (() => void) | null = null;
+            onerror: (() => void) | null = null;
+            naturalWidth = raster?.width ?? 0;
+            naturalHeight = raster?.height ?? 0;
+            set src(url: string) {
+                measureImage(url);
+                // A decode is asynchronous, and the probe is awaited inside the
+                // concurrency slot: settling synchronously here would hide any
+                // ordering the cache depends on.
+                queueMicrotask(() =>
+                    raster ? this.onload?.() : this.onerror?.(),
+                );
+            }
+        },
+    );
+    return measureImage;
+}
+
+const SERVICE = 'https://images.test/abc';
+
+const LEVEL2_V3 = {
+    '@context': 'http://iiif.io/api/image/3/context.json',
+    id: SERVICE,
+    type: 'ImageService3',
+    protocol: 'http://iiif.io/api/image',
+    profile: 'level2',
+    width: 4096,
+    height: 3072,
+    tiles: [{ width: 512, scaleFactors: [1, 2, 4, 8] }],
+    sizes: [{ width: 512, height: 384 }],
+};
+
+describe('parseImageService', () => {
+    it('reads the facts a version 3 level 2 service advertises', () => {
+        expect(parseImageService(LEVEL2_V3)).toEqual({
+            requestBaseUri: SERVICE,
+            width: 4096,
+            height: 3072,
+            version: 3,
+            tileSize: 512,
+            scaleFactors: [1, 2, 4, 8],
+            sizes: [{ width: 512, height: 384 }],
+        });
+    });
+
+    it('recognises a version 2 service from its context', () => {
+        const facts = parseImageService({
+            '@context': 'http://iiif.io/api/image/2/context.json',
+            '@id': SERVICE,
+            profile: ['http://iiif.io/api/image/2/level2.json'],
+            width: 1000,
+            height: 800,
+            tiles: [{ width: 256, scaleFactors: [1, 2] }],
+        });
+
+        expect(facts).toMatchObject({ version: 2, tileSize: 256 });
+    });
+
+    it('reads a preferred format, so tiles are asked for in one the server likes', () => {
+        expect(
+            parseImageService({ ...LEVEL2_V3, preferredFormats: ['png'] }),
+        ).toMatchObject({ format: 'png' });
+    });
+
+    it('records no tiling for a service that advertises only sizes', () => {
+        const facts = parseImageService({
+            ...LEVEL2_V3,
+            profile: 'level0',
+            tiles: undefined,
+        });
+
+        expect(facts?.tileSize).toBeUndefined();
+        expect(facts?.sizes).toEqual([{ width: 512, height: 384 }]);
+    });
+
+    it('records the declared compliance level0, which no advertised key implies', () => {
+        // The one fact read off `profile`. "Advertises no tiles" is NOT the
+        // same claim — level 1/2 services omit `tiles` too, and answer any
+        // region anyway — so without this the renderer cannot tell a size
+        // ladder from a service it may tile itself.
+        expect(parseImageService(LEVEL2_V3)?.level0).toBeUndefined();
+        expect(
+            parseImageService({ ...LEVEL2_V3, profile: 'level0' })?.level0,
+        ).toBe(true);
+        expect(
+            parseImageService({
+                '@context': 'http://iiif.io/api/image/2/context.json',
+                '@id': SERVICE,
+                profile: ['http://iiif.io/api/image/2/level0.json'],
+                width: 1000,
+                height: 800,
+            })?.level0,
+        ).toBe(true);
+    });
+
+    it('rejects a document with no usable dimensions', () => {
+        expect(parseImageService({ width: 0, height: 10 })).toBeNull();
+        expect(parseImageService({})).toBeNull();
+        expect(parseImageService(null)).toBeNull();
+        expect(parseImageService('not a service')).toBeNull();
+    });
+});
+
+describe('createImageServiceCache', () => {
+    function cacheWith(
+        respond: (url: string) => Promise<{ status: number; json: unknown }>,
+    ) {
+        const fetchJson = stubFetch(respond);
+        return { cache: createImageServiceCache(), fetchJson };
+    }
+
+    const ok = async () => ({ status: 200, json: LEVEL2_V3 });
+
+    it('fetches info.json from the service id', async () => {
+        const { cache, fetchJson } = cacheWith(ok);
+
+        await cache.ensure(SERVICE);
+
+        expect(fetchJson).toHaveBeenCalledWith(`${SERVICE}/info.json`);
+    });
+
+    it('fetches once however many times it is asked — a frame loop asks every frame', async () => {
+        const { cache, fetchJson } = cacheWith(ok);
+
+        await Promise.all([
+            cache.ensure(SERVICE),
+            cache.ensure(SERVICE),
+            cache.ensure(SERVICE),
+        ]);
+        await cache.ensure(SERVICE);
+
+        expect(fetchJson).toHaveBeenCalledTimes(1);
+    });
+
+    it('answers from cache without a fetch once the facts are known', async () => {
+        const { cache, fetchJson } = cacheWith(ok);
+
+        await cache.ensure(SERVICE);
+        expect(cache.get(SERVICE)).toMatchObject({ width: 4096 });
+
+        // Re-entering a canvas must not refetch metadata: this is the whole
+        // reason it is a separate cache from the decoded pixels.
+        await cache.ensure(SERVICE);
+        expect(fetchJson).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives a failure one retry, then stops asking rather than retrying every frame', async () => {
+        const { cache, fetchJson } = cacheWith(async () => ({
+            status: 503,
+            json: null,
+        }));
+
+        // Called once per frame while the canvas is on screen.
+        for (let frame = 0; frame < 5; frame += 1) {
+            expect(await cache.ensure(SERVICE)).toBeNull();
+        }
+
+        expect(fetchJson).toHaveBeenCalledTimes(2);
+        expect(cache.failure(SERVICE)).toBe('load');
+    });
+
+    /*
+     * The query a HOST needs, and the reason it is not `failure()`. A failure
+     * with attempts left is a claim the next `ensure` may withdraw, so an error
+     * placeholder shown on it flashes: a 503 records `load`, the placeholder
+     * appears, the retry succeeds, and it disappears again. `spent` is "the
+     * question is closed".
+     */
+    it('reports a failure as spent only once nothing will ask again', async () => {
+        const { cache } = cacheWith(async () => ({ status: 503, json: null }));
+
+        // Nothing has failed at all.
+        expect(cache.spent(SERVICE)).toBe(false);
+
+        // Attempt one of two: a kind is already reportable, but the question is
+        // still open.
+        expect(await cache.ensure(SERVICE)).toBeNull();
+        expect(cache.failure(SERVICE)).toBe('load');
+        expect(cache.spent(SERVICE)).toBe(false);
+
+        // Attempt two exhausts the allowance.
+        expect(await cache.ensure(SERVICE)).toBeNull();
+        expect(cache.spent(SERVICE)).toBe(true);
+    });
+
+    it('reports a deterministic failure as spent on the first attempt', async () => {
+        // A 401 is an ANSWER, so there is no second attempt to wait for and a
+        // reader can be told immediately.
+        const auth = cacheWith(async () => ({ status: 401, json: null }));
+        await auth.cache.ensure(SERVICE);
+        expect(auth.cache.spent(SERVICE)).toBe(true);
+
+        const junk = cacheWith(async () => ({ status: 200, json: {} }));
+        await junk.cache.ensure(SERVICE);
+        expect(junk.cache.spent(SERVICE)).toBe(true);
+    });
+
+    it('reopens the question on a mount, so a spent transient failure stops being spent', async () => {
+        const { cache } = cacheWith(async () => ({ status: 503, json: null }));
+
+        await cache.ensure(SERVICE);
+        await cache.ensure(SERVICE);
+        expect(cache.spent(SERVICE)).toBe(true);
+
+        cache.retryTransientFailures();
+        expect(cache.spent(SERVICE)).toBe(false);
+    });
+
+    it('distinguishes an authentication failure from a load failure', async () => {
+        const { cache } = cacheWith(async () => ({ status: 401, json: null }));
+
+        expect(await cache.ensure(SERVICE)).toBeNull();
+        expect(cache.failure(SERVICE)).toBe('auth');
+    });
+
+    it('never retries an answer: 401 and an unparseable document are permanent', async () => {
+        // Both are the server telling us something true. Repeating the question
+        // cannot change either, so neither is reopened by a remount.
+        const auth = cacheWith(async () => ({ status: 401, json: null }));
+        await auth.cache.ensure(SERVICE);
+        await auth.cache.ensure(SERVICE);
+        auth.cache.retryTransientFailures();
+        await auth.cache.ensure(SERVICE);
+        expect(auth.fetchJson).toHaveBeenCalledTimes(1);
+
+        const junk = cacheWith(async () => ({ status: 200, json: {} }));
+        await junk.cache.ensure(SERVICE);
+        await junk.cache.ensure(SERVICE);
+        junk.cache.retryTransientFailures();
+        await junk.cache.ensure(SERVICE);
+        expect(junk.fetchJson).toHaveBeenCalledTimes(1);
+    });
+
+    it('reopens a transient failure on the next mount rather than blanking the canvas forever', async () => {
+        // This cache outlives the renderer, the manifest, and SPA navigation. A
+        // dropped connection recorded permanently means that canvas paints
+        // nothing for the rest of the page's life, with nothing on screen to
+        // say why.
+        let offline = true;
+        const { cache, fetchJson } = cacheWith(async () => {
+            if (offline) throw new Error('offline');
+            return { status: 200, json: LEVEL2_V3 };
+        });
+
+        expect(await cache.ensure(SERVICE)).toBeNull();
+        expect(cache.failure(SERVICE)).toBe('load');
+
+        offline = false;
+        cache.retryTransientFailures();
+
+        expect(await cache.ensure(SERVICE)).toMatchObject({ width: 4096 });
+        expect(cache.failure(SERVICE)).toBeUndefined();
+        expect(fetchJson).toHaveBeenCalledTimes(2);
+    });
+
+    it('bounds what it holds: it is page-shared and nothing else evicts it', async () => {
+        // The ceiling is a fixed 512 entries, so one past it is the only way
+        // to ask.
+        const { cache } = cacheWith(ok);
+        const services = Array.from(
+            { length: 513 },
+            (_, index) => `https://images.test/${index}`,
+        );
+
+        for (const service of services) await cache.ensure(service);
+
+        expect(cache.get(services[0])).toBeUndefined();
+        expect(cache.get(services[1])).toBeDefined();
+        expect(cache.get(services[512])).toBeDefined();
+    });
+
+    it('keeps services apart', async () => {
+        const { cache, fetchJson } = cacheWith(ok);
+
+        await cache.ensure(SERVICE);
+        await cache.ensure('https://images.test/other');
+
+        expect(fetchJson).toHaveBeenCalledTimes(2);
+    });
+
+    describe('the bounded in-flight window', () => {
+        /**
+         * A fetch that never settles on its own, so the number of calls made IS
+         * the number outstanding. The cap is the shipped
+         * `METADATA_IN_FLIGHT_LIMIT`, which every case below is stated against
+         * rather than against a literal.
+         */
+        function blockingCache() {
+            const release: Array<(status?: number) => void> = [];
+            const fetchJson = stubFetch(
+                () =>
+                    new Promise<{ status: number; json: unknown }>(
+                        (resolve) => {
+                            release.push((status = 200) =>
+                                resolve({
+                                    status,
+                                    json: status < 400 ? LEVEL2_V3 : null,
+                                }),
+                            );
+                        },
+                    ),
+            );
+
+            return { cache: createImageServiceCache(), fetchJson, release };
+        }
+
+        const services = (count: number) =>
+            Array.from({ length: count }, (_, index) => `${SERVICE}/${index}`);
+
+        it('never has more than the cap outstanding, however many are asked at once', async () => {
+            // The failure this prevents: at the derived zoom floor ~50 canvases
+            // are in the residency window, every one is thumbnail tier, and a
+            // level0 manifest resolves every one to "fetch info.json". Gated but
+            // uncapped, the first frame after a flick settles starts fifty
+            // simultaneous requests — a fetch storm, one frame later rather
+            // than not at all.
+            const { cache, fetchJson, release } = blockingCache();
+
+            for (const service of services(50)) void cache.ensure(service);
+            await Promise.resolve();
+
+            expect(fetchJson).toHaveBeenCalledTimes(METADATA_IN_FLIGHT_LIMIT);
+
+            // A slot freed admits exactly one more.
+            release[0]();
+            await vi.waitFor(() =>
+                expect(fetchJson).toHaveBeenCalledTimes(
+                    METADATA_IN_FLIGHT_LIMIT + 1,
+                ),
+            );
+        });
+
+        it('drains the queue in the order it was asked, which is centre-out', async () => {
+            // The planner emits its list ordered by distance from the viewport
+            // centre and re-emits it every frame, so FIFO here is the priority
+            // the reader cares about.
+            const { cache, fetchJson, release } = blockingCache();
+
+            // One more than the window holds, so the last one is queued.
+            const asked = services(METADATA_IN_FLIGHT_LIMIT + 2);
+            for (const service of asked) void cache.ensure(service);
+            await Promise.resolve();
+
+            // The window filled in the order asked, so the last one started is
+            // the last one it had room for.
+            expect(fetchJson).toHaveBeenLastCalledWith(
+                `${asked[METADATA_IN_FLIGHT_LIMIT - 1]}/info.json`,
+            );
+
+            release[0]();
+            await vi.waitFor(() =>
+                expect(fetchJson).toHaveBeenLastCalledWith(
+                    `${asked[METADATA_IN_FLIGHT_LIMIT]}/info.json`,
+                ),
+            );
+        });
+
+        it('still dedupes a queued service, so a frame loop does not fill the queue', async () => {
+            // `ensure` is called every frame with the planner's whole list. A
+            // service waiting for a slot must join the pending promise exactly
+            // as an in-flight one does, or sixty frames of waiting would become
+            // sixty queue entries.
+            const { cache, fetchJson, release } = blockingCache();
+
+            // The window filled first, so `/b` can only be waiting.
+            for (const service of services(METADATA_IN_FLIGHT_LIMIT)) {
+                void cache.ensure(service);
+            }
+            void cache.ensure(`${SERVICE}/b`);
+            const again = cache.ensure(`${SERVICE}/b`);
+            void cache.ensure(`${SERVICE}/b`);
+            await Promise.resolve();
+            expect(fetchJson).toHaveBeenCalledTimes(METADATA_IN_FLIGHT_LIMIT);
+
+            release[0]();
+            await vi.waitFor(() =>
+                expect(fetchJson).toHaveBeenCalledTimes(
+                    METADATA_IN_FLIGHT_LIMIT + 1,
+                ),
+            );
+
+            release[METADATA_IN_FLIGHT_LIMIT]();
+            await expect(again).resolves.toMatchObject({ width: 4096 });
+            // Three frames asked for `/b`; one request answered all of them.
+            expect(fetchJson).toHaveBeenCalledTimes(
+                METADATA_IN_FLIGHT_LIMIT + 1,
+            );
+        });
+
+        it('frees its slot when a service fails, so one bad server cannot stall the queue', async () => {
+            const { cache, fetchJson, release } = blockingCache();
+
+            for (const service of services(METADATA_IN_FLIGHT_LIMIT + 1)) {
+                void cache.ensure(service);
+            }
+            await Promise.resolve();
+            expect(fetchJson).toHaveBeenCalledTimes(METADATA_IN_FLIGHT_LIMIT);
+
+            release[0](500);
+            await vi.waitFor(() =>
+                expect(fetchJson).toHaveBeenCalledTimes(
+                    METADATA_IN_FLIGHT_LIMIT + 1,
+                ),
+            );
+        });
+    });
+});
+
+/**
+ * A service caught serving a different extent than it declares.
+ *
+ * The numbers are Harvard MPS's, which derives `info.json` from a file's EXIF
+ * header rather than its raster: this asset's header says 900x610 landscape and
+ * its pixels are 357x524 portrait, so every region request past 357,524 errors
+ * and the canvas falls apart as soon as it is zoomed in.
+ */
+describe('dimensions the service will not honour', () => {
+    const LYING = {
+        '@context': 'http://iiif.io/api/image/2/context.json',
+        '@id': SERVICE,
+        profile: ['http://iiif.io/api/image/2/level2.json'],
+        width: 900,
+        height: 610,
+        tiles: [{ width: 512, scaleFactors: [1, 2, 4, 8] }],
+        sizes: [{ width: 450, height: 305 }],
+    };
+
+    /** The Canvas box the manifest declares for this picture. */
+    const CANVAS = { width: 357, height: 524 };
+
+    function cacheThatMeasures(
+        raster: { width: number; height: number } | null,
+        json: unknown = LYING,
+    ) {
+        stubFetch(async () => ({ status: 200, json }));
+        return {
+            cache: createImageServiceCache(),
+            measureImage: stubImage(raster),
+        };
+    }
+
+    it('measures nothing while the manifest and info.json agree', async () => {
+        const { cache, measureImage } = cacheThatMeasures(null, LEVEL2_V3);
+
+        // 4096x3072 is 4:3, and so is the Canvas.
+        await cache.ensure(SERVICE, { width: 1024, height: 768 });
+
+        expect(measureImage).not.toHaveBeenCalled();
+    });
+
+    it('measures nothing for a canvas the manifest never sized', async () => {
+        const { cache, measureImage } = cacheThatMeasures(CANVAS);
+
+        await cache.ensure(SERVICE);
+
+        expect(measureImage).not.toHaveBeenCalled();
+        expect(cache.get(SERVICE)?.width).toBe(900);
+    });
+
+    it('asks the service for its own whole image, spelled for its version', async () => {
+        const { cache, measureImage } = cacheThatMeasures(CANVAS);
+
+        await cache.ensure(SERVICE, CANVAS);
+
+        // `full` rather than `max`: this is a version 2 service.
+        expect(measureImage).toHaveBeenCalledWith(
+            `${SERVICE}/full/full/0/default.jpg`,
+        );
+    });
+
+    it('takes the measured raster and drops every request derived from the lie', async () => {
+        const { cache } = cacheThatMeasures(CANVAS);
+
+        const facts = await cache.ensure(SERVICE, CANVAS);
+
+        expect(facts).toEqual({
+            requestBaseUri: SERVICE,
+            width: 357,
+            height: 524,
+            version: 2,
+            regionsUntrusted: true,
+        });
+    });
+
+    it('holds the corrected facts, so nothing refetches to rediscover the lie', async () => {
+        const { cache, measureImage } = cacheThatMeasures(CANVAS);
+
+        await cache.ensure(SERVICE, CANVAS);
+        await cache.ensure(SERVICE, CANVAS);
+
+        expect(measureImage).toHaveBeenCalledTimes(1);
+        expect(cache.get(SERVICE)?.regionsUntrusted).toBe(true);
+    });
+
+    it('acquits the service when the raster sides with it — the manifest is the wrong one', async () => {
+        const { cache } = cacheThatMeasures({ width: 900, height: 610 });
+
+        const facts = await cache.ensure(SERVICE, CANVAS);
+
+        // Geometry already ignores these dimensions, so the disagreement is
+        // harmless and the pyramid stays.
+        expect(facts?.width).toBe(900);
+        expect(facts?.tileSize).toBe(512);
+        expect(facts?.regionsUntrusted).toBeUndefined();
+    });
+
+    it('convicts nobody when the whole image will not decode', async () => {
+        const { cache } = cacheThatMeasures(null);
+
+        const facts = await cache.ensure(SERVICE, CANVAS);
+
+        expect(facts?.width).toBe(900);
+        expect(facts?.regionsUntrusted).toBeUndefined();
+    });
+
+    it('compares aspect and not size, so a maxWidth-capped whole image acquits', async () => {
+        const { cache } = cacheThatMeasures({ width: 450, height: 305 });
+
+        const facts = await cache.ensure(SERVICE, CANVAS);
+
+        expect(facts?.width).toBe(900);
+        expect(facts?.regionsUntrusted).toBeUndefined();
+    });
+
+    it("tolerates the rounding a publisher's own pipeline introduces", async () => {
+        const { cache, measureImage } = cacheThatMeasures(CANVAS, {
+            ...LYING,
+            width: 357,
+            height: 523,
+        });
+
+        await cache.ensure(SERVICE, CANVAS);
+
+        expect(measureImage).not.toHaveBeenCalled();
+    });
+});

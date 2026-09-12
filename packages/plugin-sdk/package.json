@@ -10,7 +10,7 @@
         "url": "git+https://github.com/d-flood/triiiceratops.git",
         "directory": "packages/plugin-sdk"
     },
-    "homepage": "https://d-flood.github.io/triiiceratops/",
+    "homepage": "https://triiiceratops.org/",
     "publishConfig": {
         "access": "public",
         "provenance": true
@@ -36,6 +36,10 @@
             "types": "./dist/register.d.ts",
             "import": "./dist/register.js"
         },
+        "./register-shared": {
+            "types": "./dist/register-shared.d.ts",
+            "import": "./dist/register-shared.js"
+        },
         "./react": {
             "types": "./dist/react.d.ts",
             "import": "./dist/react.js"
@@ -58,7 +62,7 @@
         }
     },
     "scripts": {
-        "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.types.json",
+        "build": "pnpm clean && tsc -p tsconfig.build.json && tsc -p tsconfig.types.json",
         "check": "tsc -p tsconfig.build.json --noEmit",
         "test": "vitest run",
         "clean": "rm -rf dist",
@@ -99,7 +103,7 @@
         "lit": "3.3.3",
         "react": "19.2.7",
         "react-dom": "19.2.7",
-        "svelte": "5.45.5",
+        "svelte": "5.56.10",
         "triiiceratops": "workspace:*",
         "typescript": "~5.9.3",
         "vitest": "^4.0.15",

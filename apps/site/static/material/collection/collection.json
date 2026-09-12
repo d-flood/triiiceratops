@@ -1,0 +1,71 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/collection/collection.json",
+    "type": "Collection",
+    "label": {
+        "en": ["A public-domain set, gathered into four volumes"]
+    },
+    "summary": {
+        "en": [
+            "Eleven plates grouped by subject. Each member is a manifest of its own with several canvases in it, so moving between members is moving between documents rather than between leaves."
+        ]
+    },
+    "items": [
+        {
+            "id": "/material/collection/botany.json",
+            "type": "Manifest",
+            "label": {
+                "en": ["Botany and zoology"]
+            },
+            "thumbnail": [
+                {
+                    "id": "/material/landing/images/haeckel/0,0,3645,5267/228,330/0/default.jpg",
+                    "type": "Image",
+                    "format": "image/jpeg"
+                }
+            ]
+        },
+        {
+            "id": "/material/collection/manuscripts.json",
+            "type": "Manifest",
+            "label": {
+                "en": ["Manuscripts"]
+            },
+            "thumbnail": [
+                {
+                    "id": "/material/landing/images/spinola-hours/0,0,4262,6422/267,402/0/default.jpg",
+                    "type": "Image",
+                    "format": "image/jpeg"
+                }
+            ]
+        },
+        {
+            "id": "/material/collection/maps.json",
+            "type": "Manifest",
+            "label": {
+                "en": ["Maps and star charts"]
+            },
+            "thumbnail": [
+                {
+                    "id": "/material/landing/images/cellarius/0,0,2928,2469/366,309/0/default.jpg",
+                    "type": "Image",
+                    "format": "image/jpeg"
+                }
+            ]
+        },
+        {
+            "id": "/material/collection/paintings.json",
+            "type": "Manifest",
+            "label": {
+                "en": ["Paintings and prints"]
+            },
+            "thumbnail": [
+                {
+                    "id": "/material/landing/images/milkmaid/0,0,4649,5177/291,324/0/default.jpg",
+                    "type": "Image",
+                    "format": "image/jpeg"
+                }
+            ]
+        }
+    ]
+}

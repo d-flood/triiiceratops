@@ -19,13 +19,7 @@ build/
 
 # Generated code (see SPEC "Dependency, Type, And Generated-Code Policy"):
 # emitted under ignored, clearly named generated dirs; type-checked via build.
-# icons.ts (ticket 02) + the paraglide message runtime (compiled from
-# ./messages into ./src/paraglide, then staged into ./src/lib/paraglide by
-# build:lib). Ignored here via config rather than relying on paraglide's own
-# self-generated .gitignore.
 packages/core/src/lib/generated/
-packages/core/src/lib/paraglide/
-packages/core/src/paraglide/
 
 # Editor directories and files
 .vscode/*
@@ -113,15 +107,9 @@ release-artifacts/
 storybook-static/
 
 
-# docs
-.venv/
-__pycache__
-site/
-# Generated effective zensical config (docs-build.mjs); never committed.
-.zensical.effective.toml
-docs/demo*
-docs/viewer*
-# Built Svelte-consumer demo output only. NOT `docs/svelte*` — that pattern also
-# swallowed the authored `docs/svelte.md` guide, which owns the /svelte/ URL.
-docs/svelte-demo/
+# Specs the maintainer holds locally; source comments cite paths inside it.
 .tracker/
+
+# Advisory cookbook drift report (scripts/recipe-drift.mjs); posted as a GitHub
+# issue by .github/workflows/recipe-drift.yml, never committed.
+recipe-drift-report.md

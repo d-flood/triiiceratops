@@ -1,8 +1,6 @@
 # Triiiceratops IIIF Viewer
 
-A modern IIIF viewer with a small footprint (despite the name) distributed as a web component that can be dropped into any HTML page or frontend framework.
-
-This is a work in progress and does not support all required IIIF client features (_yet_).
+A modern IIIF viewer with a small footprint (despite the name) distributed as a web component that can be dropped into any HTML page or frontend framework. Read the [documentation](https://triiiceratops.org/docs/) for guides, or open the [live feature tour](https://triiiceratops.org/features/) to see what the viewer can do with a IIIF manifest.
 
 This project is heavily inspired by Mirador 4, which I still view as the premier IIIF viewer.
 
@@ -21,25 +19,23 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
     - Supports rectangle (`xywh`), polygon (SVG selector), and point (`PointSelector`) geometries
     - Tagging annotations displayed as badges; full-canvas annotations listed without an overlay
     - Toggle per-annotation or all-annotations visibility
+    - Creating and editing annotations with the optional `annotation-editor` plugin: rectangle, ellipse, polygon, point and whole-canvas tools, every one of them operable from the keyboard, persisting through a storage adapter the consumer supplies (LocalStorage by default). See the annotation editor guide at `/docs/plugin-annotation-editor/`.
 - **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
 - **Multi-image Canvases**: Canvases with multiple painting annotations (e.g., compositions, foldouts, maps) are composited correctly with per-image positioning
+- **Audio and Video**: Canvases with a `duration` are played by the optional `av` plugin — a media stage over the canvas rect, transport in the viewer's own control bar, waveforms, WebVTT captions, and a transcript panel holding caption cues, timed `commenting` annotations or a linked transcript. Core alone renders such a canvas as an honest placard rather than dropping it. See the plugins guide at `/docs/plugins/`.
 - **IIIF Search**: Full Content Search API support with hit highlighting
-- **Content State API**: Accepts the `iiif-content` URL parameter (base64-encoded JSON or plain URL) to open a manifest at a specific canvas and region
+- **Content State API**: Accepts a content state — a bare IIIF URI or an Annotation, base64url-encoded or not — as the `content-state` input, and will read the `iiif-content` URL parameter itself when the host opts in
 - **Direct Manifest Injection**: Svelte and web component consumers can pass manifest JSON directly instead of loading over HTTP
 - **Custom Search Providers**: Svelte consumers can supply local or app-backed search results without exposing an HTTP IIIF Search endpoint
 - **Metadata Display**: Shows manifest metadata, description, attribution, rights/license, `homepage`, `rendering` (alternative format links), `seeAlso`, and `provider` (with logo and homepage)
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
 - **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom; supports `ImageApiSelector` for region-specific image requests
 - **Theming**: Four built-in CSS-variable themes plus typed `themeConfig` and raw CSS-variable overrides
-- **OpenSeadragon Customization**: Pass custom OSD options (e.g. max zoom level, animation speed) via `openSeadragonConfig`
+- **Renderer Tuning**: A small, closed set of renderer knobs (zoom per click, animation timing, cache budgets) via `config.renderer`
 
 ## Current Limitations
 
 This project is actively developed. The following IIIF features are not yet supported:
-
-### Content
-
-- **Audio/Video**: Time-based media (canvases with `duration`) not supported
 
 ### Navigation
 
@@ -48,17 +44,16 @@ This project is actively developed. The following IIIF features are not yet supp
 
 ### Annotations
 
-- **Annotation creation**: Core viewer is read-only; editing is available through optional plugins such as `annotation-editor`
+- **Time-based annotation editing**: `@triiiceratops/plugin-annotation-editor` annotates image canvases only. A canvas claimed by the `av` plugin is outside its reach, so annotating a point in a recording is not yet possible; editing timed annotations is a separate future plugin that pairs with `av`.
+- **Multi-target annotations**: An annotation with several geometries is rendered on read, but the editor writes one target per annotation.
 
-The `annotation-editor` plugin supports custom storage adapters plus extension hooks for host apps that need to inject create rules, draft enrichment, lazy body hydration, or selection-linked workflows without forking the plugin. See `docs/plugins.md`.
+There is also an optional `pdf-export` plugin for downloading a selected flat range of canvases as a client-side PDF, with optional consumer-configured cover-sheet metadata and an optional OCR annotation-source selector for PDF text. When canvases include IIIF OCR annotations with `supplementing` text bodies and `xywh` targets, the plugin embeds that OCR as selectable PDF text. For private or non-CORS image services, consumers can supply their own image loader/proxy path. See the plugins guide at `/docs/plugins/`.
 
-There is also an optional `pdf-export` plugin for downloading a selected flat range of canvases as a client-side PDF, with optional consumer-configured cover-sheet metadata and an optional OCR annotation-source selector for PDF text. When canvases include IIIF OCR annotations with `supplementing` text bodies and `xywh` targets, the plugin embeds that OCR as selectable PDF text. For private or non-CORS image services, consumers can supply their own image loader/proxy path. See `docs/plugins.md`.
-
-For downloading raster images instead of a PDF, the optional `image-download` plugin handles composite canvases (canvases painted with more than one image) correctly, offering composite-canvas, single-image, and current-view (e.g. a paged two-canvas spread) download modes, each with a resolution picker that respects IIIF `level0` services' fixed size lists. See `docs/plugins.md`.
+For downloading raster images instead of a PDF, the optional `image-download` plugin handles composite canvases (canvases painted with more than one image) correctly, offering composite-canvas, single-image, and current-view (e.g. a paged two-canvas spread) download modes, each with a resolution picker that respects IIIF `level0` services' fixed size lists. See the plugins guide at `/docs/plugins/`.
 
 ### Other
 
-- **`placeholderCanvas`/`accompanyingCanvas`**: Not supported
+- **`placeholderCanvas`/`accompanyingCanvas`**: Painted only on a canvas a plugin has claimed — a recording staged by `av`, where a poster is what there is to show before playback. On an ordinary image canvas neither is read; the canvas’s own painting bodies are the content.
 
 The goal is to support all IIIF client mandatory features with pluggable optional features. The footprint of Triiiceratops, despite the name, is intended to remain considerably smaller than other fully featured viewers while attaining feature parity.
 
@@ -169,11 +164,19 @@ The web component can also load manifest JSON directly via the `manifestJson` pr
 
 ## Development
 
+The whole published site — the marketing routes, the documentation and the
+bare viewer — is one SvelteKit application, so the workspace dependencies are
+the only install:
+
 ```bash
 pnpm install
+```
 
-pnpm dev           # Start local demo server
-pnpm build:all     # Build library, web component, and demo
+```bash
+pnpm build:all     # Build the packages, the site and the example pages
+pnpm dev           # Serve the whole site (resolves the packages to source)
+pnpm site          # Build and serve the whole published site on one origin
+pnpm cms           # Serve it with an editor on every page's /edit/ variant
 pnpm test          # Run unit tests
 pnpm test:e2e      # Run end-to-end tests
 ```

@@ -141,12 +141,12 @@ describe('published declaration graph', () => {
         expect(checkDeclarationGraph(packageDir).violations).toEqual([]);
     });
 
-    // The wave-1 guard hole (framework-wrappers ticket 12). A `.svelte.ts` rune
-    // module emits `<name>.svelte.d.ts` too, so the old extension-based
-    // allowance let it import `svelte` — and `state/viewer.svelte.d.ts` is a
-    // rune module reachable from the Svelte-free `./selectors` and framework
-    // subpaths. Only a compiled component has its `.svelte` SOURCE copied
-    // alongside; a rune module has just the emitted `.js`.
+    // A `.svelte.ts` rune module emits `<name>.svelte.d.ts` too, so an
+    // extension-based allowance would let it import `svelte` — and
+    // `state/viewer.svelte.d.ts` is a rune module reachable from the
+    // Svelte-free `./selectors` and framework subpaths. Only a compiled
+    // component has its `.svelte` SOURCE copied alongside; a rune module has
+    // just the emitted `.js`.
     it('fails on a svelte type import in a .svelte.ts rune module declaration', () => {
         writePackage(singleEntry, {
             'index.d.ts':
@@ -169,9 +169,8 @@ describe('published declaration graph', () => {
         ]);
     });
 
-    // Framework-wrappers ticket 12 removed the last per-file exception (the
-    // Svelte-only `PluginDef` chrome path in `types/plugin.d.ts`). A plain
-    // declaration importing `svelte` is a violation wherever it lives.
+    // No per-file exceptions: a plain declaration importing `svelte` is a
+    // violation wherever it lives.
     it('has no per-file Svelte import exceptions', () => {
         expect([...ALLOWED_SVELTE_IMPORTS_BY_FILE.keys()]).toEqual([]);
     });
@@ -282,7 +281,7 @@ describe('published declaration graph', () => {
 });
 
 /*
- * Framework-wrappers ticket 10: the no-Svelte promise is PER ENTRY POINT.
+ * The no-Svelte promise is PER ENTRY POINT.
  * `triiiceratops` as a whole cannot be Svelte-free — `.` is the Svelte-consumer
  * entry and deliberately exports the compiled component — so the criterion is
  * enforced against each subpath's own declaration graph instead.
@@ -296,13 +295,12 @@ describe('strictly Svelte-free subpaths', () => {
     };
 
     // A compiled component's declaration IS allowed to import `svelte` — but
-    // only where `./svelte` reaches it. This is the leak tickets 06 and 07 were
-    // constrained to avoid, and the whole-package pass alone cannot see it,
-    // because its allowance is keyed by FILE rather than by entry point.
+    // only where `./svelte` reaches it. The whole-package pass alone cannot see
+    // this leak, because its allowance is keyed by FILE rather than by entry
+    // point.
     //
-    // `.` is deliberately included among the violators here: it used to be the
-    // exempt entry, and the `./svelte` split is precisely the change that made it
-    // strict. If a future edit re-exports the component from `.`, this fails.
+    // `.` is deliberately included among the violators here: if a future edit
+    // re-exports the component from `.`, this fails.
     it('rejects a component declaration reached from `.` or a framework subpath while allowing it from `./svelte`', () => {
         writePackage(frameworkExports, {
             'svelte.d.ts':

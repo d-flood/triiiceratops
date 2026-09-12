@@ -4,15 +4,17 @@
  *
  * Svelte component consumers import this once (`import 'triiiceratops/style.css'`)
  * to get the global layer their bundler can't derive from the components:
- * the element reset, design tokens + built-in themes, base styles, and chrome
- * layout vars. Per-component styling still comes from each `.svelte` file's
- * scoped <style> at the consumer's build.
+ * the element reset, design tokens + built-in themes, base styles, chrome
+ * layout vars, the CSS-only tooltip shared by chrome that hangs a tooltip
+ * off an element it already renders, the menu surface shared by the
+ * viewer's selectors, and the shapes every side panel is built from.
+ * Per-component styling still comes from each `.svelte` file's scoped <style>
+ * at the consumer's build.
  *
- * CORE ONLY — no plugin CSS here. The Annotorious annotation layer is shipped
- * BY the annotation-editor plugin (AnnotationEditorPanel.svelte imports its
- * stylesheet, and AnnotationManager injects it into the shadow root), so a
- * consumer only pays for it when they use that plugin. Core has no Annotorious
- * dependency.
+ * CORE ONLY — no plugin CSS here. A plugin's own styling is shipped BY that
+ * plugin — the annotation editor, for one, installs its build-extracted
+ * component CSS through the SDK style service, which reaches the element
+ * build's shadow root — so a consumer only pays for it when they use it.
  *
  * These same sheets feed the custom element's shadow root via `app.css?inline`
  * (see TriiiceratopsViewerElement.svelte). The difference: this bundle is run
@@ -25,3 +27,6 @@ import '../styles/preflight.css';
 import '../styles/themes.css';
 import '../styles/base.css';
 import '../styles/layout.css';
+import '../styles/tooltip.css';
+import '../styles/menu.css';
+import '../styles/panel.css';

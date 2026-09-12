@@ -1,12 +1,12 @@
 /// <reference types="vite/client" />
-// Plugin distribution-cleanup regression guard (ticket 28).
+// Plugin distribution-cleanup regression guard.
 //
 // Extends the core guard (`packages/core/src/lib/logging/distribution-cleanup
 // .guard.test.ts`) to the extracted plugin packages: production distributions
 // are quiet by default. NO bare console call may appear in this package's
 // `src/` — diagnostics are dropped or routed through the debug-gated logger,
 // and actionable failures surface on the structured `pluginerror` / plugin
-// error channels (user stories 12–13).
+// error channels.
 //
 // A console call is allowed ONLY when it carries the documented
 // `triiiceratops-console-allow` marker on the call line or in the few comment

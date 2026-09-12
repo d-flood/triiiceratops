@@ -119,7 +119,7 @@ export interface W3CAnnotation<TBody = W3CAnnotationBody> {
 /**
  * Shape an adapter's `load()`/`hydrate()` may return. Beyond a stored
  * annotation it may carry the internal skeleton markers the plugin reads exactly
- * once and strips before anything enters the cache or Annotorious (ticket 03):
+ * once and strips before anything enters the cache:
  * `__fullBodyLoaded: false` signals a skeleton whose body must be fetched via
  * `hydrate()`. These markers are NOT part of the stored annotation contract —
  * they never round-trip — so they live here rather than on {@link W3CAnnotation}.
@@ -147,7 +147,7 @@ export type { AnnotationStorageAdapter };
  * ```
  */
 export { createAnnotationEditorPlugin, AnnotationEditorPlugin } from './plugin';
-export type { AnnotationEditorConfig, AnnotationBodyEditor, AnnotationBodyEditorApi, AnnotationEditorExtension, AnnotationEditorRuntimeContext, AnnotationEditorUiConfig, AnnotationPersistenceError, AnnotationPersistenceOp, DrawingTool, PointStyle, W3CAnnotationBody, W3CPurpose, AnnotationStorageAdapter, } from './types';
+export type { AnnotationEditorConfig, AnnotationBodyEditor, AnnotationBodyEditorApi, AnnotationEditorExtension, AnnotationEditorRuntimeContext, AnnotationEditorUiConfig, AnnotationEditorUser, AnnotationPersistenceError, AnnotationPersistenceOp, DrawingTool, W3CAnnotationBody, W3CPurpose, AnnotationStorageAdapter, } from './types';
 export { W3C_PURPOSES } from './types';
 export type { W3CAnnotation, W3CTarget, W3CSelector, FragmentSelector, PointSelector, SvgSelector, UnknownSelector, AdapterLoadResult, } from './adapters/types';
 export { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
@@ -160,11 +160,15 @@ export { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
  *
  * `definePlugin` returns the framework-neutral factory core activates through the
  * structural seam (it carries its own `activate(host)`); core never imports this
- * package or its Svelte runtime. The full domain machinery — Store, Adapter seam,
- * per-viewer display sync, undo/redo, body editors, Annotorious integration — is
- * carried intact and driven from the neutral `view.mount(container, context)`
- * contract (see `mount.svelte.ts`). Annotorious needs the raw OSD viewer, so the
- * plugin declares `requiredCapabilities: ['osd@5']` (ADR 0009).
+ * package or its Svelte runtime. The domain machinery — Store, Adapter seam,
+ * per-viewer display sync, undo/redo, body editors, the drawing layer — is driven
+ * from the neutral `view.mount(container, context)` contract (see
+ * `mount.svelte.ts`).
+ *
+ * `uiId` is load-bearing, not cosmetic: core decides whether an annotation shape
+ * is editable by finding a toolbar button whose plugin id is the literal
+ * `'annotation-editor'` (`AnnotationShapeOverlay.svelte`). Renaming it makes
+ * every shape non-editable, and no test in this package would catch it.
  */
 import { type SdkPlugin } from '@triiiceratops/plugin-sdk';
 import type { AnnotationEditorConfig } from './types';
@@ -199,8 +203,8 @@ export declare const AnnotationEditorPlugin: SdkPlugin;
 import type { AnnotationStorageAdapter } from '../types';
 /**
  * Adapter authoring kit — a reusable conformance suite so adapter authors can
- * verify their implementation against the contract the plugin relies on (ticket
- * 10, F28 / SPEC §2.6).
+ * verify their implementation against the contract the plugin relies on (F28 /
+ * SPEC §2.6).
  *
  * An adapter is pure storage: the plugin owns display sync, caching, id
  * bookkeeping, timestamp/attribution stamping, and error handling. This suite
@@ -248,18 +252,24 @@ export declare function runAdapterContractTests(factory: () => AnnotationStorage
 // ======================================================================
 // FILE: dist/types.d.ts
 // ======================================================================
-import type { User, DrawingStyle } from '@annotorious/openseadragon';
 import type { Component } from 'svelte';
 import type { PluginUiTarget } from '@triiiceratops/plugin-sdk';
-import type { PointStyle } from 'triiiceratops/image-export';
 import type { W3CAnnotation, AdapterLoadResult } from './adapters/types';
-export type { PointStyle };
+/**
+ * The person an annotation is attributed to. Only `id` and `name` are ever
+ * read — they are what creator stamping writes onto a new annotation — so the
+ * shape is declared here rather than borrowed from a drawing library.
+ */
+export interface AnnotationEditorUser {
+    id: string;
+    name?: string;
+}
 export interface AnnotationEditorRuntimeContext<HostContext = unknown, TBody = W3CAnnotationBody> {
     manifestId: string | null;
     canvasId: string | null;
     isEditing: boolean;
     selectedAnnotation: W3CAnnotation<TBody> | null;
-    user?: User;
+    user?: AnnotationEditorUser;
     hostContext: HostContext | null;
 }
 export interface AnnotationEditorExtension<HostContext = unknown, TBody = W3CAnnotationBody> {
@@ -365,16 +375,7 @@ export interface AnnotationEditorConfig<TBody = W3CAnnotationBody, THostContext 
     /** Storage adapter for persistence */
     adapter?: AnnotationStorageAdapter<TBody>;
     /** Current user for attribution */
-    user?: User;
-    /** Drawing style for annotations while editing */
-    drawingStyle?: DrawingStyle;
-    /**
-     * Marker styling for point annotations (`PointSelector`). Consumed by both
-     * the read-only overlay and the editor so a point looks the same selected or
-     * not; `radius` is in screen pixels. Defaults to a red marker of radius 5
-     * (spec §3.4).
-     */
-    pointStyle?: PointStyle;
+    user?: AnnotationEditorUser;
     /** Available drawing tools */
     tools?: DrawingTool[];
     /** Default drawing tool */
@@ -407,7 +408,7 @@ export interface AnnotationEditorConfig<TBody = W3CAnnotationBody, THostContext 
      */
     onPersistenceError?: (error: AnnotationPersistenceError) => void;
 }
-export type DrawingTool = 'rectangle' | 'polygon' | 'point';
+export type DrawingTool = 'rectangle' | 'ellipse' | 'polygon' | 'point' | 'wholeCanvas';
 /** W3C Annotation Body */
 export interface W3CAnnotationBody {
     type?: string;

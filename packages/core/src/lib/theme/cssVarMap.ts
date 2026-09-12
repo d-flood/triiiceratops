@@ -7,110 +7,98 @@
 import type { ThemeConfig } from './types';
 
 /**
+ * One friendly name's target. `color` marks the entries whose values are colors;
+ * they are applied verbatim like every other token, in whatever syntax the author
+ * wrote, because every rule consumes them through `color-mix(in oklab, …)`.
+ */
+export interface ThemeToken {
+    cssVar: string;
+    color?: true;
+}
+
+/**
  * Map friendly ThemeConfig property names to CSS variable names.
  * `cssVars` is handled separately (it's a raw escape hatch, not a single token).
  */
 export const CSS_VAR_MAP: Record<
     Exclude<keyof ThemeConfig, 'cssVars'>,
-    string
+    ThemeToken
 > = {
     // Palette
-    primary: '--tri-color-primary',
-    primaryContent: '--tri-color-primary-content',
-    neutral: '--tri-color-neutral',
-    neutralContent: '--tri-color-neutral-content',
-    success: '--tri-color-success',
-    successContent: '--tri-color-success-content',
-    warning: '--tri-color-warning',
-    warningContent: '--tri-color-warning-content',
-    error: '--tri-color-error',
-    errorContent: '--tri-color-error-content',
+    primary: { cssVar: '--tri-color-primary', color: true },
+    primaryContent: { cssVar: '--tri-color-primary-content', color: true },
+    neutral: { cssVar: '--tri-color-neutral', color: true },
+    neutralContent: { cssVar: '--tri-color-neutral-content', color: true },
+    success: { cssVar: '--tri-color-success', color: true },
+    successContent: { cssVar: '--tri-color-success-content', color: true },
+    warning: { cssVar: '--tri-color-warning', color: true },
+    warningContent: { cssVar: '--tri-color-warning-content', color: true },
+    error: { cssVar: '--tri-color-error', color: true },
+    errorContent: { cssVar: '--tri-color-error-content', color: true },
 
-    // Surfaces (region-named; replace the old base-100/200/300 scale)
-    viewerBg: '--tri-viewer-bg',
-    toolbarBg: '--tri-toolbar-bg',
-    panelBg: '--tri-panel-bg',
-    galleryBg: '--tri-gallery-bg',
-    inputBg: '--tri-input-bg',
-    surfaceBorder: '--tri-surface-border',
+    // Surfaces
+    viewerBg: { cssVar: '--tri-viewer-bg', color: true },
+    toolbarBg: { cssVar: '--tri-toolbar-bg', color: true },
+    panelBg: { cssVar: '--tri-panel-bg', color: true },
+    galleryBg: { cssVar: '--tri-gallery-bg', color: true },
+    inputBg: { cssVar: '--tri-input-bg', color: true },
+    surfaceBorder: { cssVar: '--tri-surface-border', color: true },
 
     // Content/foreground (each inherits --tri-content by default)
-    content: '--tri-content',
-    panelContent: '--tri-panel-content',
-    toolbarContent: '--tri-toolbar-content',
-    viewerContent: '--tri-viewer-content',
-    galleryContent: '--tri-gallery-content',
+    content: { cssVar: '--tri-content', color: true },
+    panelContent: { cssVar: '--tri-panel-content', color: true },
+    toolbarContent: { cssVar: '--tri-toolbar-content', color: true },
+    viewerContent: { cssVar: '--tri-viewer-content', color: true },
+    galleryContent: { cssVar: '--tri-gallery-content', color: true },
 
     // Per-panel overrides (built-in panels; each inherits --tri-panel-bg/--tri-panel-content)
-    metadataPanelBg: '--tri-metadata-panel-bg',
-    metadataPanelContent: '--tri-metadata-panel-content',
-    annotationsPanelBg: '--tri-annotations-panel-bg',
-    annotationsPanelContent: '--tri-annotations-panel-content',
-    searchPanelBg: '--tri-search-panel-bg',
-    searchPanelContent: '--tri-search-panel-content',
-    structuresPanelBg: '--tri-structures-panel-bg',
-    structuresPanelContent: '--tri-structures-panel-content',
-    collectionPanelBg: '--tri-collection-panel-bg',
-    collectionPanelContent: '--tri-collection-panel-content',
+    metadataPanelBg: { cssVar: '--tri-metadata-panel-bg', color: true },
+    metadataPanelContent: {
+        cssVar: '--tri-metadata-panel-content',
+        color: true,
+    },
+    annotationsPanelBg: { cssVar: '--tri-annotations-panel-bg', color: true },
+    annotationsPanelContent: {
+        cssVar: '--tri-annotations-panel-content',
+        color: true,
+    },
+    searchPanelBg: { cssVar: '--tri-search-panel-bg', color: true },
+    searchPanelContent: { cssVar: '--tri-search-panel-content', color: true },
+    structuresPanelBg: { cssVar: '--tri-structures-panel-bg', color: true },
+    structuresPanelContent: {
+        cssVar: '--tri-structures-panel-content',
+        color: true,
+    },
+    collectionPanelBg: { cssVar: '--tri-collection-panel-bg', color: true },
+    collectionPanelContent: {
+        cssVar: '--tri-collection-panel-content',
+        color: true,
+    },
+
+    // Annotation shapes
+    annotationColor: { cssVar: '--tri-annotation-color', color: true },
+    annotationHitColor: { cssVar: '--tri-annotation-hit-color', color: true },
+    annotationBorderWidth: { cssVar: '--tri-annotation-border-width' },
+    annotationFillOpacity: { cssVar: '--tri-annotation-fill-opacity' },
+    annotationPointSize: { cssVar: '--tri-annotation-point-size' },
 
     // Border radius (top-level + per-region overrides)
-    radiusBox: '--tri-radius-box',
-    radiusButtons: '--tri-radius-buttons',
-    radiusSelector: '--tri-radius-selector',
-    radiusToolbar: '--tri-radius-toolbar',
-    radiusPanels: '--tri-radius-panels',
-    radiusControls: '--tri-radius-controls',
-    radiusControlsButtons: '--tri-radius-controls-buttons',
+    radiusBox: { cssVar: '--tri-radius-box' },
+    radiusButtons: { cssVar: '--tri-radius-buttons' },
+    radiusSelector: { cssVar: '--tri-radius-selector' },
+    radiusToolbar: { cssVar: '--tri-radius-toolbar' },
+    radiusPanels: { cssVar: '--tri-radius-panels' },
+    radiusControls: { cssVar: '--tri-radius-controls' },
+    radiusControlsButtons: { cssVar: '--tri-radius-controls-buttons' },
 
     // Sizing
-    sizeSelector: '--tri-size-selector',
-    sizeField: '--tri-size-field',
+    sizeSelector: { cssVar: '--tri-size-selector' },
+    sizeField: { cssVar: '--tri-size-field' },
 
     // Border + effects
-    border: '--tri-border',
-    depth: '--tri-depth',
+    border: { cssVar: '--tri-border' },
+    depth: { cssVar: '--tri-depth' },
 
     // Color scheme (handled specially, not a CSS variable)
-    colorScheme: 'color-scheme',
+    colorScheme: { cssVar: 'color-scheme' },
 };
-
-/**
- * Properties whose values are colors and therefore get normalized to oklch.
- */
-export const COLOR_PROPS = new Set<keyof ThemeConfig>([
-    // Palette
-    'primary',
-    'primaryContent',
-    'neutral',
-    'neutralContent',
-    'success',
-    'successContent',
-    'warning',
-    'warningContent',
-    'error',
-    'errorContent',
-    // Surfaces
-    'viewerBg',
-    'toolbarBg',
-    'panelBg',
-    'galleryBg',
-    'inputBg',
-    'surfaceBorder',
-    // Content
-    'content',
-    'panelContent',
-    'toolbarContent',
-    'viewerContent',
-    'galleryContent',
-    // Per-panel overrides
-    'metadataPanelBg',
-    'metadataPanelContent',
-    'annotationsPanelBg',
-    'annotationsPanelContent',
-    'searchPanelBg',
-    'searchPanelContent',
-    'structuresPanelBg',
-    'structuresPanelContent',
-    'collectionPanelBg',
-    'collectionPanelContent',
-]);

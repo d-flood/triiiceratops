@@ -10,7 +10,7 @@
         "url": "git+https://github.com/d-flood/triiiceratops.git",
         "directory": "packages/plugin-image-manipulation"
     },
-    "homepage": "https://d-flood.github.io/triiiceratops/",
+    "homepage": "https://triiiceratops.org/",
     "publishConfig": {
         "access": "public",
         "provenance": true
@@ -37,7 +37,7 @@
         "./iife": "./dist/iife.js"
     },
     "scripts": {
-        "build": "pnpm build:esm && pnpm build:iife && pnpm build:types",
+        "build": "pnpm clean && pnpm build:esm && pnpm build:iife && pnpm build:types",
         "build:esm": "BUILD_FORMAT=es vite build",
         "build:iife": "BUILD_FORMAT=iife vite build",
         "build:types": "tsc -p tsconfig.build.json",
@@ -53,11 +53,11 @@
         "@triiiceratops/plugin-sdk": "workspace:^"
     },
     "devDependencies": {
-        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "@sveltejs/vite-plugin-svelte": "^6.2.4",
         "@triiiceratops/plugin-sdk": "workspace:*",
         "@triiiceratops/ui": "workspace:*",
         "@vitest/coverage-v8": "4.0.15",
-        "svelte": "5.45.5",
+        "svelte": "5.56.10",
         "svelte-check": "^4.3.4",
         "triiiceratops": "workspace:*",
         "typescript": "~5.9.3",

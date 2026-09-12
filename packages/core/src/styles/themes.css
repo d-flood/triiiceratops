@@ -3,7 +3,7 @@
  *
  * Two layers:
  *   1. Per-theme tokens — palette, surfaces, content, and the radius trio. Defined in
- *      each theme block below (defaults / prefers-dark / [data-theme=…]).
+ *      each theme block below (defaults / [data-theme=…]).
  *   2. Derived / inherited / per-panel tokens — gallery/input surfaces, the per-region
  *      content slots, the per-panel override slots, and the per-region radius overrides.
  *      Defined ONCE in the :where(:root, :host) defaults block. Custom properties
@@ -19,10 +19,21 @@
  *      token from outside (e.g. `triiiceratops-viewer { --tri-panel-bg: … }`); custom
  *      properties inherit through the shadow boundary. This is the CSS-variable theming
  *      method.
- *   2. prefers-color-scheme: dark default — applied when no explicit theme is set.
- *   3. [data-theme="…"] block — set by the `theme` prop via applyTheme(); normal
+ *   2. [data-theme="…"] block — set by the `theme` prop via applyTheme(); normal
  *      specificity, so a selected theme wins over external CSS-var overrides.
- *   4. Inline styles on the root — set by the `themeConfig` prop; win over everything.
+ *   3. Inline styles on the root — set by the `themeConfig` prop; win over everything.
+ *
+ * FOUR themes ship, and no more: light, dark, teal, dracula. The defaults block IS
+ * `light` rather than a fifth palette — a viewer with no `theme` paints `light` — and
+ * the two share one selector list so they cannot drift apart again. They did once: a
+ * `prefers-color-scheme: dark` block survived the removal of Tailwind and daisyUI
+ * carrying daisyUI's indigo primary, and because no name selected it, nothing rendered
+ * it on purpose and nothing tested it. `theme/defaults.test.ts` holds this shape.
+ *
+ * Following the reader's own scheme is the HOST's decision, not this stylesheet's. A
+ * component that turned dark inside a light page would be overruling the page it was
+ * embedded in, and a media query cannot be resolved when a host prerenders. One line
+ * does it where a host wants it: `theme={prefersDark ? 'dark' : 'light'}`.
  *
  * Per-panel inheritance: every panel root carries `data-panel-id`. The attribute rules
  * at the bottom publish the resolved surface/foreground into the inherited
@@ -30,8 +41,15 @@
  * panel components and their descendants consume.
  */
 
-/* ---- Default tokens (light) — zero-specificity so host overrides win ---- */
-:where(:root, :host) {
+/* ---- Default tokens — `light`'s own set, stated once ----
+ *
+ * The defaults and `[data-theme='light']` are one selector list rather than two
+ * blocks: they were token-for-token identical, and a list keeps each selector's
+ * own specificity, so the defaults stay zero-specificity (host overrides win)
+ * while a named `light` still outranks them. `theme/defaults.test.ts` holds them
+ * to this shape. */
+:where(:root, :host),
+[data-theme='light'] {
     color-scheme: light;
 
     /* Palette */
@@ -55,7 +73,7 @@
 
     /* Radius (top-level trio) */
     --tri-radius-selector: 0.5rem;
-    --tri-radius-buttons: 0.25rem;
+    --tri-radius-buttons: 1rem;
     --tri-radius-box: 0.5rem;
 
     /* Sizing / border / depth */
@@ -107,6 +125,36 @@
     --tri-collection-panel-bg: var(--tri-panel-bg);
     --tri-collection-panel-content: var(--tri-panel-content);
 
+    /* Annotation shapes. One hue for every shape the read-only overlay and the
+       editor draw — rectangle, polygon and point — with each state mixed off it,
+       and a second hue for a shape that is a search hit.
+
+       Declared here rather than per theme because a shape is drawn over the
+       material and not over a themed surface: it has to stay legible against
+       somebody's photograph, which is not a question the reader's colour scheme
+       answers. A theme that wants its own may still redeclare either, and a
+       `[data-theme=…]` block outranks this one. */
+    --tri-annotation-color: oklch(63.7% 0.237 25.331);
+    --tri-annotation-hit-color: oklch(85.2% 0.199 91.936);
+    --tri-annotation-border-width: 2px;
+
+    /* How much of that hue a shape with an interior — a rectangle, a polygon —
+       is filled with at rest. Every other fill in the overlay is a multiple of
+       it: twice for a shape under the pointer or selected and for a search hit
+       at rest, three times for a search hit under the pointer, so one value
+       moves the whole ladder and keeps its steps.
+
+       A point is not on the ladder. It is a solid disc of the hue, because a
+       marker only a few pixels across has no interior to speak of and a
+       translucent one disappears into the material. */
+    --tri-annotation-fill-opacity: 20%;
+
+    /* The point marker's diameter, in the same screen pixels at every zoom:
+       what a marker marks is a position, so it does not grow with the image
+       under it. The viewer measures this token to know what a tap on a marker
+       is, so it may be given in any unit CSS resolves. */
+    --tri-annotation-point-size: 10px;
+
     /* Per-region radius overrides; inherit the top-level trio by default */
     --tri-radius-toolbar: var(--tri-radius-buttons);
     --tri-radius-panels: var(--tri-radius-box);
@@ -114,66 +162,16 @@
     --tri-radius-controls-buttons: var(--tri-radius-buttons);
 }
 
-/* ---- Default tokens (dark) when the user prefers dark and no theme is set ---- */
-@media (prefers-color-scheme: dark) {
-    :where(:root, :host) {
-        color-scheme: dark;
-
-        --tri-color-primary: oklch(58% 0.233 277.117);
-        --tri-color-primary-content: oklch(96% 0.018 272.314);
-        --tri-color-neutral: oklch(14% 0.005 285.823);
-        --tri-color-neutral-content: oklch(92% 0.004 286.32);
-        --tri-color-success: oklch(76% 0.177 163.223);
-        --tri-color-success-content: oklch(37% 0.077 168.94);
-        --tri-color-warning: oklch(82% 0.189 84.429);
-        --tri-color-warning-content: oklch(41% 0.112 45.904);
-        --tri-color-error: oklch(71% 0.194 13.428);
-        --tri-color-error-content: oklch(27% 0.105 12.094);
-
-        --tri-viewer-bg: oklch(25.33% 0.016 252.42);
-        --tri-toolbar-bg: oklch(20% 0.014 253.1);
-        --tri-panel-bg: oklch(20% 0.014 253.1);
-        --tri-surface-border: oklch(17.5% 0.012 254.09);
-        --tri-content: oklch(97.807% 0.029 256.847);
-
-        --tri-radius-selector: 0.5rem;
-        --tri-radius-buttons: 0.25rem;
-        --tri-radius-box: 0.5rem;
-        --tri-size-selector: 0.25rem;
-        --tri-size-field: 0.25rem;
-        --tri-border: 1px;
-        --tri-depth: 1;
-    }
-}
-
-/* ---- Explicit themes (set via the `theme` prop / data-theme attribute) ---- */
-[data-theme='light'] {
-    color-scheme: light;
-
-    --tri-color-primary: oklch(78% 0.15 80);
-    --tri-color-primary-content: oklch(28% 0.08 70);
-    --tri-color-neutral: oklch(14% 0.005 285.823);
-    --tri-color-neutral-content: oklch(92% 0.004 286.32);
-    --tri-color-success: oklch(76% 0.177 163.223);
-    --tri-color-success-content: oklch(37% 0.077 168.94);
-    --tri-color-warning: oklch(82% 0.189 84.429);
-    --tri-color-warning-content: oklch(41% 0.112 45.904);
-    --tri-color-error: oklch(71% 0.194 13.428);
-    --tri-color-error-content: oklch(27% 0.105 12.094);
-
-    --tri-viewer-bg: oklch(100% 0 0);
-    --tri-toolbar-bg: oklch(98% 0 0);
-    --tri-panel-bg: oklch(98% 0 0);
-    --tri-surface-border: oklch(95% 0 0);
-    --tri-content: oklch(21% 0.006 285.885);
-
-    --tri-radius-selector: 0.5rem;
-    --tri-radius-buttons: 1rem;
-    --tri-radius-box: 0.5rem;
+/* ---- Explicit themes (set via the `theme` prop / data-theme attribute) ----
+ *
+ * `light` is declared with the defaults above. The sizing trio is the same in
+ * all four themes, so it is stated once here for any named theme; a theme that
+ * wants its own redeclares it, since a `[data-theme=…]` block ties on
+ * specificity and wins on source order. */
+[data-theme] {
     --tri-size-selector: 0.25rem;
     --tri-size-field: 0.25rem;
     --tri-border: 1px;
-    --tri-depth: 1;
 }
 
 [data-theme='dark'] {
@@ -199,9 +197,6 @@
     --tri-radius-selector: 0.5rem;
     --tri-radius-buttons: 1rem;
     --tri-radius-box: 0.5rem;
-    --tri-size-selector: 0.25rem;
-    --tri-size-field: 0.25rem;
-    --tri-border: 1px;
     --tri-depth: 1;
 }
 
@@ -217,8 +212,7 @@
     --tri-color-warning: oklch(79% 0.184 86.047);
     --tri-color-warning-content: oklch(28% 0.066 53.813);
     --tri-color-error: oklch(64% 0.246 16.439);
-    /* Darkened from L27% to L22% so error text meets WCAG AA (4.5:1) on the
-       error fill — the RC teal value was 4.12:1 (ticket 23 contrast fix). */
+    /* L22% so error text meets WCAG AA (4.5:1) contrast on the error fill. */
     --tri-color-error-content: oklch(22% 0.105 12.094);
 
     --tri-viewer-bg: oklch(97.788% 0.004 56.375);
@@ -230,9 +224,6 @@
     --tri-radius-selector: 0;
     --tri-radius-buttons: 0;
     --tri-radius-box: 0;
-    --tri-size-selector: 0.25rem;
-    --tri-size-field: 0.25rem;
-    --tri-border: 1px;
     --tri-depth: 1;
 }
 
@@ -259,9 +250,6 @@
     --tri-radius-selector: 0;
     --tri-radius-buttons: 0;
     --tri-radius-box: 0;
-    --tri-size-selector: 0.25rem;
-    --tri-size-field: 0.25rem;
-    --tri-border: 1px;
     --tri-depth: 0;
 }
 

@@ -1,20 +1,37 @@
 <script lang="ts" module>
     import type { Component } from 'svelte';
+    import type { IconName } from '../generated/icons';
     import type { IconDescriptor } from '../types/plugin';
 
     export interface PanelStackItem {
         id: string;
         title: string;
-        icon?: Component<any>;
+        /** Core glyph for the section header, resolved through `Icon`. */
+        iconName?: IconName;
         /**
-         * Framework-neutral header icon descriptor (SDK core-owned chrome path,
-         * ticket 02). Rendered by `PluginIcon` when set; takes precedence over
-         * {@link icon}.
+         * Framework-neutral header icon descriptor. Rendered by `PluginIcon`
+         * when set; takes precedence over {@link iconName}.
          */
         iconDescriptor?: IconDescriptor;
         component: Component<any>;
         props?: Record<string, unknown>;
         close?: () => void;
+        /**
+         * Give the whole section — header, close button and content — a `dialog`
+         * role named by {@link title}. Core panel components render their own
+         * inside their content; a plugin panel's content is a bare mount host,
+         * so the section supplies one. Without it the panel has no accessible
+         * name and two stacked panels are two identical "Close" buttons. Naming
+         * the section rather than the content is what puts the close button
+         * inside the named dialog.
+         */
+        dialog?: boolean;
+        /**
+         * This panel scrolls its own content, so give it the height left over in
+         * the column instead of sizing it to its content. The section becomes the
+         * scroller; the panel's body needs no height cap of its own.
+         */
+        fills?: boolean;
     }
 </script>
 
@@ -24,6 +41,7 @@
     import { flip } from 'svelte/animate';
     import { cubicOut } from 'svelte/easing';
     import PanelStackSection from './PanelStackSection.svelte';
+    import { useReducedMotion } from '../state/reducedMotion';
 
     const DURATION = 200;
 
@@ -43,16 +61,16 @@
     let { panels, closeAlign = 'end', side = 'right' }: Props = $props();
     let hasMounted = $state(false);
 
-    // Honor prefers-reduced-motion by collapsing animations to 0ms.
-    const prefersReducedMotion =
-        typeof window !== 'undefined' &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const duration = prefersReducedMotion ? 0 : DURATION;
+    // Honor prefers-reduced-motion by collapsing animations to 0ms, from the
+    // viewer's one live watcher: a reader who turns the preference on with a
+    // panel open gets the stillness at the next transition, not at reload.
+    const reducedMotion = useReducedMotion();
+    const duration = $derived(reducedMotion.current ? 0 : DURATION);
 
     // A newly-opened panel slides in from the column's outer edge (left column
     // from the left, right column from the right).
     const flyParams = $derived({
-        x: prefersReducedMotion ? 0 : side === 'left' ? -32 : 32,
+        x: reducedMotion.current ? 0 : side === 'left' ? -32 : 32,
         duration,
         easing: cubicOut,
     });
@@ -66,6 +84,7 @@
     {#each panels as panel (panel.id)}
         <div
             class="panel-slot"
+            class:fills={panel.fills}
             transition:fly|global={flyParams}
             animate:flip={{ duration, easing: cubicOut }}
         >
@@ -92,9 +111,40 @@
         padding-bottom: 1.5rem;
     }
 
+    /* The padding above keeps the last of a SCROLLING column of panels off the
+       bottom edge. A filling panel makes the column not scroll, so the same
+       padding is only a strip of viewer background under the panel — and one
+       almost exactly a transport bar tall, which reads as space reserved for
+       something rather than as breathing room. */
+    .panel-stack:has(.panel-slot.fills) {
+        padding-bottom: 0;
+    }
+
     /* Flex child wrapper so animate:flip / transition:fly have a measurable box
        without collapsing the section under the stack's flex column. */
     .panel-slot {
         flex-shrink: 0;
+    }
+
+    /* The column is flush with the top of the viewer, so the leading panel's top
+       edge is a frame edge, not a card edge. Panels below it float in the column
+       and stay fully rounded. */
+    .panel-slot:first-child {
+        --panel-radius-block-start: 0;
+    }
+
+    /* Same rule at the other end: only a filling panel reaches the bottom edge
+       (it is what drops the column's bottom padding). */
+    .panel-stack:has(.panel-slot.fills) .panel-slot:last-child {
+        --panel-radius-block-end: 0;
+    }
+
+    /* Takes the height the content-sized panels leave, so the column itself
+       needs no scroll. The floor is for when they already fill it — the one case
+       where this stack's own overflow still does the work. */
+    .panel-slot.fills {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 14rem;
     }
 </style>

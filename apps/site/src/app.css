@@ -1,0 +1,2830 @@
+@import '@triiiceratops/shell/tokens.css';
+
+/*
+ * The site's shell: base type, the rail, the mobile chrome, and the page frame.
+ * Direction "Warm Rail" — a flat rail of equally weighted tinted bands down the
+ * right edge, on warm paper.
+ *
+ * The colour, type and space tokens and the three self-hosted faces are not
+ * here: they are `@triiiceratops/shell`, imported above and shared with the
+ * bare viewer at /viewer/, so the two surfaces cannot drift into two
+ * identities. That package's `src/palette.ts` carries the measured contrast
+ * table, and its unit suite holds the two to the same values.
+ */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+html {
+    -webkit-text-size-adjust: 100%;
+}
+body {
+    margin: 0;
+    background: var(--bone);
+    color: var(--ink);
+    font: 400 var(--t-body) / 1.6 var(--face);
+    -webkit-font-smoothing: antialiased;
+}
+h1,
+h2,
+h3 {
+    margin: 0;
+    font-weight: 400;
+    line-height: 1.06;
+}
+h1 {
+    font-size: var(--t-h1);
+}
+h2 {
+    font-size: var(--t-h2);
+}
+h3 {
+    font-size: var(--t-h3);
+    font-weight: 600;
+}
+p {
+    margin: 0;
+}
+a {
+    color: inherit;
+}
+button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-align: left;
+}
+img,
+svg {
+    max-width: 100%;
+}
+:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+    border-radius: 1px;
+}
+code {
+    font: 400 0.92em / 1.5 var(--mono);
+}
+
+.aside {
+    font-style: italic;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+.link {
+    color: var(--link);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+.vh {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.skip {
+    position: absolute;
+    left: var(--s4);
+    top: -100px;
+    z-index: 60;
+    background: var(--ink);
+    color: var(--paper);
+    padding: var(--s3) var(--s4);
+    text-decoration: none;
+    transition: top 0.15s;
+}
+.skip:focus {
+    top: var(--s4);
+}
+
+/* ---- The page frame's horizontal padding ----------------------------
+   Every full-bleed strip of the main column — the hero, a page's heading, a
+   band, the next-page link, the footer — paints its ground, its top rule and
+   its tint across the whole column, and stops the content it lays out at
+   --content-max. The stop is padding rather than a max-width on an inner
+   wrapper: no strip needs a wrapper element, and block margins between a
+   band's children still collapse the way they do at narrow widths.
+
+   The slack above --content-max is split evenly between the two sides, so the
+   content sits centred in the column instead of banking its whole surplus
+   against the rail. Percentages inside a custom property resolve where the
+   property is used, so --frame-inline measures against the strip it pads, not
+   against the root; below --content-max it collapses to --frame-pad.
+   -------------------------------------------------------------------- */
+:root {
+    --frame-pad: clamp(var(--s5), 4vw, var(--s8));
+    --frame-inline: max(var(--frame-pad), (100% - var(--content-max)) / 2);
+}
+
+/* ---- Shell ---------------------------------------------------------- */
+.shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--rail-w);
+    min-height: 100dvh;
+}
+.main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+.main > .pagebody {
+    flex: 1;
+}
+
+/* ---- The rail: the whole navigation, flat and equally weighted ------ */
+.rail {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--rule);
+    background: var(--rail-bg);
+}
+.rail__top {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: 19px var(--s5);
+    border-bottom: 1px solid var(--rule);
+}
+.rail__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    text-decoration: none;
+}
+.rail__brand svg {
+    width: 25px;
+    height: auto;
+    flex: none;
+}
+.rail__brand b {
+    font-weight: 600;
+}
+
+/* ---- The colour-scheme toggle ---------------------------------------
+   Which face the control shows is decided here rather than in script, from the
+   same two inputs the palette reads. Prerendered markup cannot know the
+   reader's scheme, so painting the icon from script would flash the wrong one
+   on the page whose whole point is not flashing.
+   -------------------------------------------------------------------- */
+.themebtn {
+    margin-left: auto;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--rule-2);
+    border-radius: 50%;
+    color: var(--ink-2);
+    flex: none;
+}
+.themebtn:hover {
+    color: var(--ink);
+    background: var(--paper);
+}
+.themebtn svg {
+    width: 16px;
+    height: 16px;
+}
+.themebtn .on-dark {
+    display: none;
+}
+:root[data-theme='dark'] .themebtn .on-dark {
+    display: block;
+}
+:root[data-theme='dark'] .themebtn .on-light {
+    display: none;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .themebtn .on-dark {
+        display: block;
+    }
+    :root:not([data-theme='light']) .themebtn .on-light {
+        display: none;
+    }
+}
+/* ---- Site search ----------------------------------------------------
+   In the rail, under the wordmark: one field over the marketing pages and the
+   documentation together, which is the whole point of their being one site. The
+   result list grows in place rather than floating over the rail — a rail is a
+   column with room to spare, and an overlay would need to trap focus to be
+   usable at all.
+   -------------------------------------------------------------------- */
+.search {
+    display: block;
+    padding: var(--s3) var(--s5);
+    border-bottom: 1px solid var(--rule);
+}
+.search__field {
+    width: 100%;
+    padding: var(--s2) var(--s3);
+    font: inherit;
+    font-size: var(--t-small);
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+}
+.search__status {
+    margin: var(--s2) 0 0;
+    font-size: var(--t-tiny);
+    color: var(--ink-2);
+}
+.search__status:empty {
+    display: none;
+}
+.search__results {
+    margin: var(--s2) 0 0;
+    padding: 0;
+    list-style: none;
+    max-height: 40dvh;
+    overflow: auto;
+}
+.search__results a {
+    display: block;
+    padding: var(--s2) 0;
+    text-decoration: none;
+    border-top: 1px solid var(--rule);
+}
+.search__results b {
+    display: block;
+    font-size: var(--t-small);
+    font-weight: 600;
+    color: var(--link);
+}
+.search__results span {
+    display: block;
+    font-size: var(--t-tiny);
+    color: var(--ink-2);
+}
+.search__results mark {
+    background: none;
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.rail__list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+.rail__item {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: 0 var(--s5);
+    height: 100%;
+    min-height: 46px;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.055);
+}
+.rail__item .n {
+    font-size: var(--t-tiny);
+    color: var(--ink-2);
+    width: 15px;
+    flex: none;
+    transition: color 0.15s;
+}
+.rail__item.g1 {
+    background: var(--band-1);
+}
+.rail__item.g2 {
+    background: var(--band-2);
+}
+.rail__item.g3 {
+    background: var(--band-3);
+}
+/* Hover: an underlined title, never a change of ground. Paper is the
+   selected marker in light mode and near-invisible against the bands in
+   dark mode, so a ground shift either collides or vanishes. */
+.rail__item:hover span:not(.n) {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+.rail__item:hover .n {
+    color: var(--ink);
+}
+/* Current page: a change of ground and of weight, never a left accent bar. */
+.rail__item[aria-current='page'] {
+    background: var(--paper);
+    font-weight: 600;
+}
+.rail__item[aria-current='page'] .n {
+    color: var(--link);
+}
+.rail__out {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+}
+.rail__out a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--s4) var(--s5);
+    text-decoration: none;
+    font-size: 16px;
+}
+.rail__out .viewer {
+    background: var(--amber);
+    color: var(--amber-ink);
+}
+.rail__out .builder {
+    background: var(--cta);
+    color: var(--cta-ink);
+}
+.rail__out .docs {
+    background: var(--ink-block);
+    color: var(--ink-on-dark);
+}
+.rail__out .plain {
+    background: transparent;
+    border-top: 1px solid var(--rule);
+}
+.rail__out a:hover {
+    filter: brightness(1.07);
+}
+
+/* ---- Mobile chrome: a slim bar plus a full-screen sheet -------------- */
+.mbar {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3) var(--s4);
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+}
+.mbar b {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-weight: 600;
+    font-size: 16px;
+}
+.mbar b svg {
+    width: 20px;
+    height: auto;
+}
+.mbar .where {
+    margin-left: auto;
+    font-style: italic;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+.mbar .open {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: var(--s2);
+    margin: calc(var(--s2) * -1);
+}
+.mbar .open i {
+    width: 19px;
+    height: 1.5px;
+    background: var(--ink);
+    display: block;
+}
+.sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: var(--bone);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+.sheet__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--s4);
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+}
+.sheet__top b {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-weight: 600;
+}
+.sheet__top b svg {
+    width: 20px;
+    height: auto;
+}
+/* The sheet is the rail at phone size, so it carries the rail's brand row —
+   including the scheme toggle, which is otherwise unreachable there. */
+.sheet__controls {
+    display: flex;
+    align-items: center;
+    gap: var(--s4);
+}
+.sheet__controls .themebtn {
+    margin-left: 0;
+}
+.sheet a.rail__item {
+    min-height: 52px;
+}
+
+/* ---- Page frame ----------------------------------------------------- */
+.pagehead {
+    padding: var(--s7) var(--frame-inline) var(--s6);
+}
+.pagehead h1 {
+    max-width: 24ch;
+}
+.pagehead .lede {
+    margin-top: var(--s4);
+    max-width: 56ch;
+    color: var(--ink-soft);
+    font-size: 1.08rem;
+}
+.band {
+    padding: var(--s7) var(--frame-inline);
+    border-top: 1px solid var(--rule);
+}
+.band--paper {
+    background: var(--paper);
+}
+.prose {
+    max-width: var(--measure);
+    margin-inline: 0;
+}
+.prose h2 {
+    margin: var(--s6) 0 var(--s3);
+}
+.prose h2:first-child {
+    margin-top: 0;
+}
+.prose p {
+    margin: 0 0 var(--s4);
+    color: var(--ink-soft);
+}
+.prose ul {
+    margin: 0 0 var(--s4);
+    padding-left: 1.2em;
+}
+.prose li {
+    margin-bottom: var(--s2);
+}
+
+/* ---- A content document --------------------------------------------------
+   Keyed on the content root that Uncial's renderer and its editor share, never
+   on the wrapper around either: an edit variant's editing surface is a shadow
+   root seeded with this stylesheet, so a selector naming an ancestor above that
+   root cannot reach inside it. Naming the root is what holds an edit variant to
+   the measure, rhythm and rule weights a reader will actually see.
+
+   The two surfaces differ in one way, and every structural rule here names
+   both: a document's blocks are children of that root in the renderer, and
+   children of the ProseMirror surface inside it in the editor, where a block
+   with a component of its own is wrapped in a node view.
+
+   The measure sits on the text rather than on the container, because a derived
+   block brings its own layout — a two-column grid, ruled rows — and lays out at
+   the band's full width, which a container capped at the measure would
+   collapse. */
+.uncial-rich-content h2 {
+    margin: var(--s6) 0 var(--s3);
+}
+.uncial-rich-content h2:first-child {
+    margin-top: 0;
+}
+.uncial-rich-content p {
+    margin: 0 0 var(--s4);
+    color: var(--ink-soft);
+}
+.uncial-rich-content ul {
+    margin: 0 0 var(--s4);
+    padding-left: 1.2em;
+}
+.uncial-rich-content li {
+    margin-bottom: var(--s2);
+}
+:is(.uncial-rich-content, .uncial-rich-content > .ProseMirror)
+    > :is(p, h2, h3, h4, ul, ol, blockquote) {
+    max-width: var(--measure);
+}
+/* A band is as wide as the widest derived block in it, which is wider than
+   anything set at the measure. Prose starts at the frame edge like the
+   headings do, so the page keeps one text edge; the extra width is for figures
+   and tables, not for longer lines. A heading stays flush with the frame, so
+   a document's headings line up with the ruled headings a derived block
+   draws for itself. */
+:is(.uncial-rich-content, .uncial-rich-content > .ProseMirror)
+    > :is(p, ul, ol, blockquote) {
+    margin-inline: 0;
+}
+/* Each derived block is a section of the page, so what separates it from what
+   precedes it is the band's vertical step rather than a paragraph's. The two
+   container blocks are not sections: a tab group is a paragraph's worth of
+   prose in panels, and the documentation carries twenty-five of them
+   mid-argument, and a callout brings its own spacing. */
+:is(.uncial-rich-content, .uncial-rich-content > .ProseMirror)
+    > *
+    + :is(
+        .install,
+        section:not(.uncial-tabs),
+        nav,
+        .uncial-nodeview:not(
+            [data-uncial-block-id='tabs'],
+            [data-uncial-block-id='callout']
+        )
+    ) {
+    margin-top: var(--s7);
+}
+:is(.uncial-rich-content, .uncial-rich-content > .ProseMirror)
+    > *
+    + :is(.uncial-tabs, .uncial-nodeview[data-uncial-block-id='tabs']) {
+    margin-top: var(--s4);
+}
+.uncial-rich-content .uncial-tabs {
+    margin-bottom: var(--s5);
+}
+
+/* ---- The read view's guard against the edit variant's chrome -------------
+   The edit variant loads Uncial's chrome stylesheet from inside its DEV-only
+   route, and Vite keeps dynamically imported CSS for the life of the page: on
+   the dev server, visiting an edit variant and then navigating client-side to
+   a read view leaves that chrome in the document, where its card rules for the
+   shared renderer wrapper (ground, border, shadow) and its content box
+   (minimum height, padding) restyle the read view into something centred and
+   dark that a refresh clears. A production build never loads that stylesheet,
+   so this reset is a no-op there: it only out-specifies the leaked rules while
+   developing. Scoped to bands outside the edit variant, so the editing surface
+   itself is untouched. */
+.band:not(.band--editing) .uncial-renderer {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    color: inherit;
+    font: inherit;
+    line-height: inherit;
+}
+.band:not(.band--editing) .uncial-renderer > .uncial-content {
+    min-height: 0;
+    padding: 0;
+    line-height: inherit;
+}
+
+/* ---- The documentation: the site's chrome, plus a sidebar and contents ----
+   Uncial's own tokens are scoped custom properties on its renderer, and this
+   application loads none of its stylesheets, so a documentation page inherits
+   the type, palette and rules above the way every other page does. */
+.docspage {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: clamp(var(--s5), 3vw, var(--s7));
+    align-items: start;
+}
+.docspage__body {
+    min-width: 0;
+}
+.docsnav {
+    position: sticky;
+    top: var(--s5);
+    font-size: var(--t-small);
+}
+.docsnav__section {
+    margin: var(--s5) 0 var(--s2);
+    font-size: var(--t-tiny);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+.docsnav__section:first-child {
+    margin-top: 0;
+}
+.docsnav__list {
+    margin: 0 0 var(--s3);
+    padding: 0;
+    list-style: none;
+    border-left: 1px solid var(--rule);
+}
+.docsnav__list a {
+    display: block;
+    padding: var(--s2) var(--s3);
+    color: var(--ink-soft);
+    text-decoration: none;
+}
+.docsnav__list a:hover {
+    background: var(--bench);
+}
+.docsnav__list a[aria-current='page'] {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.toc {
+    margin-bottom: var(--s6);
+    padding: var(--s4) var(--s5);
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    font-size: var(--t-small);
+}
+.toc__title {
+    margin: 0 0 var(--s2);
+    font-size: var(--t-tiny);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+.toc ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.toc li {
+    margin: var(--s1) 0;
+}
+/* One indent step per heading level below the page's own, so the contents show
+   the page's shape rather than a flat list of its headings. */
+.toc__l3 {
+    padding-left: var(--s4);
+}
+.toc__l4,
+.toc__l5,
+.toc__l6 {
+    padding-left: var(--s6);
+}
+.toc a {
+    color: var(--ink-soft);
+    text-decoration: none;
+}
+.toc a:hover {
+    color: var(--link);
+    text-decoration: underline;
+}
+
+/* A heading a reader has just followed a contents link to must not sit against
+   the top edge of the window. */
+.uncial-rich-content :is(h2, h3, h4, h5, h6)[id] {
+    scroll-margin-top: var(--s5);
+}
+
+/* ---- Documentation prose ---------------------------------------------
+   The constructs the ported documentation brought with it: code blocks,
+   tables, callouts and links. They are described once here rather than per
+   page, because a documentation page is a content document like any other and
+   a marketing page may use any of them.
+
+   Code blocks and tables are deliberately outside the measure rule above: a
+   line of TypeScript and a five-column reference table both read worse wrapped
+   than scrolled, so they lay out at the band's width and scroll within it. */
+.uncial-rich-content h3,
+.uncial-rich-content h4 {
+    margin: var(--s5) 0 var(--s3);
+}
+.uncial-rich-content h4 {
+    font-size: 1.06rem;
+    font-weight: 600;
+}
+.uncial-rich-content ol {
+    margin: 0 0 var(--s4);
+    padding-left: 1.4em;
+}
+.uncial-rich-content a {
+    color: var(--link);
+}
+.uncial-rich-content code {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    overflow-wrap: anywhere;
+}
+.uncial-rich-content blockquote {
+    margin: 0 0 var(--s4);
+    padding-left: var(--s4);
+    border-left: 2px solid var(--rule-2);
+    color: var(--ink-2);
+}
+.uncial-rich-content hr {
+    margin: var(--s6) 0;
+    border: 0;
+    border-top: 1px solid var(--rule);
+}
+
+/* The element rather than the renderer's class on it: the editor's own code
+   block carries no class, and a fence must read the same in both. */
+.uncial-rich-content pre {
+    margin: 0 0 var(--s4);
+    padding: var(--s4);
+    background: var(--code-bg);
+    color: var(--ink-on-dark);
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.55;
+}
+.uncial-rich-content pre code {
+    font-family: var(--mono);
+    /* The block scrolls; a line must not be broken to avoid scrolling it. */
+    overflow-wrap: normal;
+    white-space: pre;
+}
+
+/* Lowlight's class names, in the palette the rest of the site already owns.
+   Four roles rather than a token per grammar: a documentation page is prose
+   with code in it, not an editor. */
+.hljs-comment,
+.hljs-quote {
+    color: var(--ink-dim-on-dark);
+    font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag,
+.hljs-meta {
+    color: var(--amber);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-number,
+.hljs-attr,
+.hljs-attribute,
+.hljs-template-variable {
+    color: #d9a68a;
+}
+.hljs-title,
+.hljs-name,
+.hljs-type,
+.hljs-built_in,
+.hljs-tag,
+.hljs-section {
+    color: #a8c7b5;
+}
+
+/* The scroll box is the renderer's, and a derived block that builds its own
+   table brings one too; the editor's table has no box around it, so there the
+   box's spacing sits on the table. The rules a cell reads by are on the table
+   either way. */
+.uncial-table-scroll {
+    margin: 0 0 var(--s4);
+    overflow-x: auto;
+}
+.uncial-rich-content .ProseMirror > table {
+    margin: 0 0 var(--s4);
+}
+.uncial-rich-content table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--t-small);
+}
+.uncial-rich-content :is(th, td) {
+    padding: var(--s2) var(--s4) var(--s2) 0;
+    border-bottom: 1px solid var(--rule);
+    text-align: left;
+    vertical-align: baseline;
+}
+.uncial-rich-content th {
+    color: var(--ink-2);
+    font-weight: 600;
+    border-bottom-color: var(--rule-2);
+}
+.uncial-rich-content :is(th, td) p {
+    margin: 0;
+    max-width: none;
+    color: inherit;
+}
+
+/* An aside the reader is meant to stop at. The kind is carried by the left
+   rule's colour alone: a tinted panel at this measure reads as a different
+   page, and the documentation has sixteen of these. */
+.callout {
+    margin: 0 0 var(--s4);
+    padding: var(--s3) 0 var(--s3) var(--s4);
+    border-left: 3px solid var(--rule-2);
+    max-width: var(--measure);
+}
+.callout--tip,
+.callout--info {
+    border-left-color: var(--link);
+}
+.callout--warning,
+.callout--important {
+    border-left-color: var(--amber);
+}
+.callout__title {
+    color: var(--ink);
+    font-weight: 600;
+}
+.callout > :last-child {
+    margin-bottom: 0;
+}
+
+/* The public-token table: one derived block rendering a heading and a table per
+   category, so the headings match the prose headings around it. */
+.tokentable h4:first-child {
+    margin-top: 0;
+}
+
+.next {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s4);
+    padding: var(--s6) var(--frame-inline);
+    border-top: 1px solid var(--rule-2);
+    text-decoration: none;
+}
+.next:hover {
+    background: var(--paper);
+}
+/* Deliberately not italic, for the reason `.hero__pick` is not.
+   The next-page link is on every listed route, so italicising two words here
+   makes the 164 KB italic slice a load-time dependency of all of them; measured
+   on the front page it cost three points, because the slice competes with the
+   preloaded roman for the throttled link. */
+.next .lbl {
+    color: var(--ink-2);
+    font-size: var(--t-small);
+    display: block;
+    margin-bottom: var(--s1);
+}
+.next .ttl {
+    font-size: 1.3rem;
+}
+.next .go {
+    color: var(--link);
+}
+
+.sitefoot {
+    padding: var(--s6) var(--frame-inline);
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s3) var(--s6);
+    font-size: var(--t-small);
+    color: var(--ink-2);
+}
+.sitefoot a {
+    color: var(--ink-2);
+}
+
+/* ---- Ruled rows: the default container, in place of cards ----------- */
+.rows {
+    border-top: 1px solid var(--rule-2);
+}
+.rows a,
+.rows div {
+    display: grid;
+    grid-template-columns: 2.2ch minmax(0, 22ch) minmax(0, 1fr) auto;
+    gap: var(--s4);
+    align-items: baseline;
+    padding: var(--s5) 0;
+    border-bottom: 1px solid var(--rule);
+    text-decoration: none;
+    transition: padding 0.2s;
+}
+.rows a:hover {
+    padding-left: var(--s3);
+}
+.rows .n {
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.rows .ttl {
+    font-size: 1.2rem;
+}
+.rows .say {
+    color: var(--ink-2);
+}
+.rows .go {
+    color: var(--link);
+    font-size: var(--t-small);
+}
+
+/* ---- The design-token appendix -------------------------------------- */
+.swatches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--s4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.sw {
+    border: 1px solid var(--rule);
+}
+/* Two chips for a token that re-steps between the schemes, one for a filled
+   colour field that deliberately keeps its value in both. */
+.sw .chips {
+    display: flex;
+}
+.sw .chip {
+    flex: 1;
+    height: 56px;
+}
+.sw .meta {
+    padding: var(--s2) var(--s3);
+    font-size: var(--t-tiny);
+    color: var(--ink-2);
+}
+.sw .meta b {
+    display: block;
+    color: var(--ink);
+    font-size: var(--t-small);
+    font-weight: 600;
+}
+.scale {
+    border-top: 1px solid var(--rule);
+    margin: 0;
+}
+.scale > div {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: var(--s4);
+    align-items: baseline;
+    padding: var(--s3) 0;
+    border-bottom: 1px solid var(--rule);
+}
+.scale .nm {
+    font-style: italic;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+/* Wide content scrolls in its own box: the page body never scrolls sideways. */
+.ratios {
+    overflow-x: auto;
+    margin: var(--s5) 0;
+}
+.ratios table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--t-small);
+}
+.ratios th,
+.ratios td {
+    text-align: left;
+    padding: var(--s3) var(--s4) var(--s3) 0;
+    border-bottom: 1px solid var(--rule);
+    font-weight: 400;
+    white-space: nowrap;
+}
+.ratios thead th {
+    border-bottom: 1px solid var(--rule-2);
+    font-style: italic;
+    color: var(--ink-2);
+}
+.ratios .nm {
+    font-style: italic;
+    color: var(--ink-2);
+}
+.ratios td {
+    color: var(--ink-soft);
+}
+.ratios .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+}
+
+/* ---- The comparison: bars, scatter and the checking material -------- */
+
+/* A muted explanatory paragraph. Deliberately not `.aside`, which is italic:
+   this page sets several of these above the fold, and the italic face is a
+   separate slice that first paint otherwise has no use for. */
+.explain {
+    max-width: var(--measure);
+    margin: var(--s4) 0 0;
+    color: var(--ink-2);
+}
+.figcap {
+    max-width: var(--measure);
+    margin: var(--s3) 0 0;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+
+/* ---- The comparison's two figures ------------------------------------
+   One figure per axis, the same viewers in the same order in both, so a reader
+   compares a row's position between them rather than holding two scales in
+   mind at once. Each encoding takes the whole width it is given and scales with
+   it: no fixed minimum, so nothing scrolls sideways at any width.
+
+   Cell states are three and none is colour alone: worked is solid, partial is
+   half, and the rest is the track colour. Every row is labelled with its own
+   figure, and the table under both carries all of it.
+   -------------------------------------------------------------------- */
+.figtitle {
+    margin: var(--s6) 0 var(--s3);
+    font-size: var(--t-h3);
+    font-weight: 400;
+}
+.figtitle__hint {
+    /* The direction that is better, said once per figure rather than trusted to
+       be obvious from a bar. */
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.figtitle__hint::before {
+    content: '— ';
+}
+.cov {
+    font-size: var(--t-small);
+}
+.cov__row {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: 0.3rem 0;
+}
+.cov__row + .cov__row {
+    border-top: 1px solid var(--rule);
+}
+.cov__name {
+    flex: 0 0 11rem;
+    color: var(--ink-2);
+    /* A name that wraps would break the rows' alignment. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cov__row.self .cov__name {
+    color: var(--ink);
+    font-weight: 600;
+}
+/* The two encodings, each taking whatever width is left. */
+.cov__cells,
+.cov__size {
+    flex: 1 1 0;
+    min-width: 0;
+}
+.cov__cells {
+    display: flex;
+    gap: 1px;
+}
+.cov__cell {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 0.62rem;
+    background: var(--grid);
+}
+.cov__cell--on {
+    background: var(--mark);
+}
+.cov__row.self .cov__cell--on {
+    background: var(--mark-emphasis);
+}
+.cov__cell--partial {
+    /* Half a cell, on the side the reader is already scanning from. */
+    background: linear-gradient(
+        to right,
+        var(--mark) 0 50%,
+        var(--grid) 50% 100%
+    );
+}
+.cov__track {
+    display: block;
+    height: 0.7rem;
+    background: var(--grid);
+}
+.cov__fill {
+    display: block;
+    height: 100%;
+    background: var(--mark);
+}
+.cov__row.self .cov__fill {
+    background: var(--mark-emphasis);
+}
+/* Left-justified and no wider than its widest value: right-aligning it in a
+   roomy box opened a gap between a row and its own total while crowding
+   whatever came next. */
+.cov__value {
+    flex: 0 0 5rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+}
+.cov__row.self .cov__value {
+    font-weight: 600;
+}
+.cov__plus {
+    color: var(--ink-2);
+}
+.cov__key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2) var(--s4);
+    margin: var(--s4) 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.cov__key li {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+}
+.cov__key .cov__cell {
+    flex: 0 0 auto;
+    width: 9px;
+    height: 9px;
+}
+.cov__key .cov__cell--off {
+    /* On its own beside a label, an empty cell needs an edge to be a cell. */
+    box-shadow: inset 0 0 0 1px var(--rule);
+}
+
+/* A table with no italic in it. The comparison's two lead tables sit near the
+   top of the one page whose whole argument is about bytes, and the italic slice
+   is 164 KB that its first paint otherwise has no use for — the same trade
+   `.hero__pick` and `.next .lbl` make. The appendix keeps the italic, because it
+   preloads that face for its captions anyway. */
+.ratios--roman thead th,
+.ratios--roman .nm {
+    font-style: normal;
+}
+
+/* The emphasised row of a data table, matching the emphasised mark. */
+.ratios tr.self th,
+.ratios tr.self td {
+    color: var(--ink);
+    font-style: normal;
+    font-weight: 600;
+}
+.ratios .wrap {
+    white-space: normal;
+    min-width: 24ch;
+}
+
+/* The checking material: present for the reader who wants it, closed for the
+   reader who does not, and adding no heading above it that the page's own
+   argument has to step around. */
+.disclose {
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule);
+}
+.disclose > summary {
+    padding: var(--s4) 0;
+    color: var(--link);
+    cursor: pointer;
+}
+.disclose h3 {
+    margin: var(--s6) 0 0;
+}
+.disclose > *:last-child {
+    margin-bottom: var(--s5);
+}
+.counted {
+    margin: var(--s4) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--t-small);
+}
+.counted > li {
+    padding: var(--s3) 0;
+    border-bottom: 1px solid var(--rule);
+}
+.counted .ver {
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+.counted .explain {
+    display: block;
+    margin-top: var(--s1);
+    font-size: var(--t-small);
+}
+.counted ul {
+    margin: var(--s2) 0 0;
+    padding-left: 1.2em;
+    color: var(--ink-soft);
+}
+
+/* ---- Responsive ----------------------------------------------------- */
+@media (max-width: 900px) {
+    .shell {
+        grid-template-columns: 1fr;
+    }
+    .rail {
+        display: none;
+    }
+    .mbar {
+        display: flex;
+    }
+    .pagehead {
+        padding: var(--s6) var(--s5) var(--s5);
+    }
+    .rows a,
+    .rows div {
+        grid-template-columns: 2.2ch minmax(0, 1fr) auto;
+        row-gap: var(--s1);
+    }
+    .rows .say {
+        grid-column: 2 / 4;
+    }
+    /* Side by side there is not enough width left for 67 countable cells, so
+       the name and the value share the top line and the encoding spans the
+       whole row beneath them — which is the widest either figure can be. */
+    .cov__row {
+        flex-wrap: wrap;
+        row-gap: var(--s1);
+    }
+    .cov__name {
+        flex: 1 1 auto;
+    }
+    .cov__value {
+        flex: 0 0 auto;
+    }
+    .cov__cells,
+    .cov__size {
+        flex: 1 1 100%;
+        order: 3;
+    }
+    /* The documentation sidebar is a column only while there is a column to
+       spare; on a phone it is a block of links above the page. */
+    .docspage {
+        grid-template-columns: 1fr;
+    }
+    .docsnav {
+        position: static;
+    }
+    /* The front page doubles as the site index at phone size, so its rail
+       stays fully unrolled there rather than collapsing into the sheet. */
+    .shell--index {
+        grid-template-columns: 1fr;
+    }
+    .shell--index .rail {
+        display: flex;
+        position: static;
+        height: auto;
+        border-left: 0;
+        border-top: 1px solid var(--rule);
+    }
+    .shell--index .rail__top {
+        display: none;
+    }
+}
+
+/* ---- The front page: heading, band, code -----------------------------
+   Three strips. The heading keeps the frame's padding; the band deliberately
+   does not, so the viewer and its settings run the whole width of the column —
+   that break is the page's one full-bleed moment, and it is what buys the
+   viewer the size its argument needs.
+
+   The band declares its height, and must clear the tallest state the panel can
+   reach — every knob present, every inert reason showing. Letting the row size
+   itself to the panel was the other way, and it is wrong here for a reason worth
+   recording: the panel's own height moves as knobs go inert, the cycle makes
+   that happen every turn, and a band that resized with it would move the whole
+   page below it. This page's layout stability is measured, so the band is fixed
+   and the panel is laid out to fit inside it.
+
+   That the viewer ends up nearly square is the point. It is what lets a portrait
+   folio fill the frame instead of letterboxing inside a landscape one.
+   -------------------------------------------------------------------- */
+.hero {
+    padding: var(--frame-pad) var(--frame-inline);
+    background: radial-gradient(
+        120% 90% at 12% 0%,
+        var(--paper) 0%,
+        var(--bone) 60%,
+        var(--bench) 100%
+    );
+}
+.hero h1 {
+    font-size: var(--t-display);
+    /* The display face has long extenders: tighter than this and a descender
+       lands on the ascender of the line below, which the headline's wrap puts
+       in a different place at every width. */
+    line-height: 1.08;
+    /* Wide enough that the headline sets in three lines rather than five. */
+    max-width: 26ch;
+}
+.hero__lede {
+    margin-top: var(--s5);
+    max-width: 52ch;
+    color: var(--ink-soft);
+    font-size: clamp(1.05rem, 0.95rem + 0.4vw, 1.26rem);
+}
+
+.heroband {
+    display: grid;
+    /* Wide enough for the longest configuration path beside its control, and a
+       different width from the rail it sits next to, so the two do not read as
+       one sidebar. */
+    grid-template-columns: minmax(0, 1fr) 486px;
+    height: 840px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bench);
+}
+
+/* The viewer is inset in the band rather than flush to its edges, so the band's
+   ground reads as a mount around a framed object. Flush on three sides and
+   running into the window on the fourth, it read as the band itself. */
+.heroband__stage {
+    display: grid;
+    /* The band's height is fixed and this cell is a grid item stretching to it;
+       without this the padded box floors at its content's height instead. */
+    min-height: 0;
+    padding: var(--s5);
+}
+
+.herocode {
+    padding: var(--s6) var(--frame-inline) var(--frame-pad);
+    background: var(--bone);
+}
+.hero__note {
+    margin-top: var(--s3);
+    max-width: 74ch;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+
+/* ---- The front page: the configuration panel -------------------------
+   Two labelled groups in one column under a transport row, neither scrolling
+    and neither behind a tab. What makes that fit is the shown set — five theme
+    knobs and seven layout ones — with each group's heading stating the count
+   behind them.
+
+   Native radios do the work: the input is taken out of the flow and its label
+   is the segment, so the label is the hit target, arrow keys move within a
+   group, and the focus ring lands on what a reader can see.
+   -------------------------------------------------------------------- */
+.hp {
+    /* The label column: wide enough for the longest configuration path this
+       panel shows, `themeConfig.radiusButtons`, set in the mono at 12.5px. A
+       column narrower than its longest label is not a column — the two paths
+       that overflowed it pushed their own controls right, and the panel read as
+       three ragged edges. */
+    --hp-label: 202px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: var(--s5) var(--s5) var(--s5) var(--s4);
+    border-left: 1px solid var(--rule);
+    /* A guard on the band's height, not a scroller: the panel is laid out to fit
+       and the height above carries slack. If this ever clips, the height is
+       wrong. */
+    overflow: hidden;
+}
+.hp__group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+/* ---- The panel's transport -------------------------------------------
+   What is moving the panel, and the controls over it. The timeline is the
+   reason the three buttons are worth having: a change a reader did not see
+   coming is one they cannot go back to on purpose.
+
+   A dot per example, in runs. Groups are separated by a wider gap and each
+   takes width in proportion to how many examples it holds, so the pitch stays
+   even across the row and the separation reads as grouping rather than as a
+   gap. Played dots stay filled, so the row is also how far through a lap the
+   sequence is.
+
+   The current dot fills rather than a bar sweeping: the two signals are
+   position and time remaining, and one element carrying both cannot come apart
+   from itself. Its duration is `--hp-dwell`, set on the panel from the same
+   value that arms the timer — and steps do not all hold for the same length —
+   so it cannot finish early or late.
+   -------------------------------------------------------------------- */
+/* Named, because three transport buttons and a bar say what they do to
+   whatever they are attached to but not what that is. In the row rather than
+   above it: the panel is laid out to fit its band with no scroller, and a line
+   of its own would push the last knob out through the clip. */
+.hp__what {
+    flex: none;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    font-weight: 600;
+}
+.hp__transport {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+}
+.hp__tbtn {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--rule-2);
+    color: var(--ink-2);
+}
+.hp__tbtn svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+.hp__tbtn:hover {
+    background: var(--paper);
+    color: var(--ink);
+}
+.hp__tbtn:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+}
+.hp__line {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    min-width: 0;
+}
+.hp__grp {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+}
+.hp__dot {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 7px;
+    height: 7px;
+    border: 1px solid var(--rule-2);
+    border-radius: 50%;
+}
+.hp__dot--done {
+    background: var(--rule-2);
+}
+.hp__dot--now {
+    border-color: var(--cta);
+}
+.hp__fill {
+    width: 5px;
+    height: 5px;
+    background: var(--cta);
+    border-radius: 50%;
+}
+.hp__fill--running {
+    animation: hp-count var(--hp-dwell) linear forwards;
+}
+@keyframes hp-count {
+    from {
+        transform: scale(0);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+/* Sized as a group label rather than as a page heading. The level is a
+   structural claim — these are the first headings under the page's h1 — and the
+   size is a separate question from it. */
+.hp__group h2 {
+    font-size: var(--t-h3);
+    font-weight: 600;
+}
+.hp__say {
+    margin-top: -8px;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.hp__rule {
+    height: 1px;
+    background: var(--rule);
+}
+.hp__knob {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+/* The wash that says which row just moved.
+   The selection itself animates — a segment's fill crosses from the old chip to
+   the new, a swatch grows into its ring — but a reader watching the viewer is
+   not watching the panel, and needs telling where to look.
+
+   Present from the first render and transparent until something changes; the
+   class is put on by `use:pulse` on update only, so hydrating the panel does
+   not flash every row at once. */
+.hp__pulse {
+    position: absolute;
+    inset: -3px -6px;
+    pointer-events: none;
+    opacity: 0;
+    background: color-mix(in srgb, var(--cta) 24%, transparent);
+}
+.hp__pulse--on {
+    animation: hp-pulse 620ms ease-out forwards;
+}
+@keyframes hp-pulse {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+/* The label beside its control rather than above it. Stacked labels cost a line
+   per knob, which across eleven knobs is the difference between a panel that
+   fits the band and one that scrolls. */
+.hp__row {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+}
+.hp__path {
+    flex: 0 0 var(--hp-label);
+    color: var(--ink-2);
+    font-family: var(--mono);
+    font-size: 12.5px;
+}
+.hp__seg {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    border: 1px solid var(--rule-2);
+    overflow: hidden;
+}
+/* An inert knob is marked by its border and by the reason under it, not by
+   fading: text at reduced opacity is text below the contrast floor, and the one
+   page on this site that must score full marks is this one. */
+.hp__knob--inert .hp__seg {
+    border-style: dashed;
+}
+.hp__why {
+    /* One of these under every knob, holding its line whether or not there is a
+       reason to show: a knob going inert cannot move the ones below it, and
+       every row is the same height as every other. Indented to sit under the
+       control it is about rather than under the label. */
+    min-height: 1lh;
+    padding-left: calc(var(--hp-label) + var(--s3));
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    font-style: italic;
+}
+.hp__opt {
+    position: relative;
+    /* Sized to its own value rather than to an equal share, and padded tightly:
+       the theme group sets `dracula` beside `dark`, and equal shares clip the
+       long one to fit the short one. */
+    flex: 1 1 auto;
+    min-width: 0;
+    display: grid;
+    place-items: center;
+    height: 30px;
+    padding: 0 5px;
+    color: var(--ink-2);
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    /* The selection is a state, so it crosses between chips rather than
+       cutting: the fill leaves the old one as it arrives on the new, which is
+       what makes a step something a reader sees happen rather than something
+       they notice has happened. */
+    transition:
+        background-color 260ms ease,
+        color 260ms ease,
+        box-shadow 260ms ease,
+        transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1.25);
+}
+.hp__opt + .hp__opt {
+    border-left: 1px solid var(--rule-2);
+}
+.hp__opt:hover {
+    color: var(--ink);
+}
+/* Filled, not tinted. The panel is read at a glance while the eye is on the
+   viewer, and a chip that differs from its neighbours only by a background a
+   shade lighter is not readable at that glance. The pair is the measured one:
+   pale ink on orange. */
+.hp__opt.on {
+    background: var(--cta);
+    color: var(--cta-ink);
+    font-weight: 600;
+}
+.hp__knob--inert .hp__opt.on {
+    color: var(--ink-2);
+    background: none;
+}
+/* Out of the flow rather than `display: none`, which takes a radio out of its
+   group's keyboard navigation as well as out of the layout. It stays clickable:
+   the label is the hit target either way, and an input that refuses a pointer
+   is one nothing can drive but the keyboard. */
+.hp__opt input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.hp__opt:has(input:focus-visible) {
+    outline: 2px solid var(--link);
+    outline-offset: -2px;
+}
+/* Orange on orange is not a focus ring. */
+.hp__opt.on:has(input:focus-visible) {
+    outline-color: var(--cta-ink);
+}
+/* A swatch's colour is what it sets, so the value names it for a screen reader
+   and paints it for everybody else. */
+.hp__seg--swatch {
+    gap: 6px;
+    border: 0;
+    /* The selected swatch rings and lifts outside its own box, and a colour is
+       the one thing here that cannot be shown by covering it. */
+    overflow: visible;
+}
+.hp__seg--swatch .hp__opt {
+    background: var(--swatch);
+    box-shadow: inset 0 0 0 1px var(--rule-2);
+}
+.hp__seg--swatch .hp__opt + .hp__opt {
+    border-left: 0;
+}
+/* Lifted and ringed from outside rather than ringed from within: an inset ring
+   eats the colour the swatch exists to show, and on a 44px chip it left too
+   little of it to read. Growing is also the change a reader catches in
+   peripheral vision, which an inset line is not. */
+.hp__seg--swatch .hp__opt.on {
+    z-index: 1;
+    transform: scale(1.16);
+    box-shadow:
+        0 0 0 2px var(--paper),
+        0 0 0 4px var(--cta),
+        0 3px 10px rgb(0 0 0 / 0.3);
+}
+.hp__seg--swatch .hp__opt__t {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+/* ---- Embedded viewers ------------------------------------------------
+   Every embed reserves its height from its first canvas's aspect ratio, so the
+   renderer starting cannot move anything below it. The first canvas is painted
+   into the box as an image and the viewer sits over it: the image is what a
+   reader sees in the frames before the renderer has a manifest, and what a
+   reader with no script sees for good.
+
+   The viewer takes its colour from the site's own measured palette and its type
+   from the site's face, so a dark page cannot contain a light island and the
+   viewer does not island in a system sans either. `--tri-*` are the viewer's
+   public theme tokens and the two font properties are its public type surface;
+   both are declared once here, in terms of tokens that already re-step between
+   the schemes, so the toggle carries the viewer with it.
+   -------------------------------------------------------------------- */
+.vw {
+    position: relative;
+    overflow: hidden;
+    /* A mount, not a hairline. The frame is the one part of an embed that is
+       neither the page nor the viewer, so it is the dark field in both schemes
+       rather than a rule that re-steps with the ground it sits on — a frame
+       that followed the scheme was a shade of the band at every width. */
+    border: 2px solid var(--ink-block);
+    /* The same ground `viewerBg` paints, so the box a reader is served and the
+       running viewer that replaces its contents are one colour: the stage is
+       transparent while the first-canvas image stands in, and a box that did
+       not match would pop when the manifest arrived. */
+    background: var(--stage);
+    box-shadow: var(--lift);
+
+    /* The viewer's two public type properties. It ships no font files and names
+       no family, so an embed set in the site's own face is a matter of letting
+       it inherit one. The colour half of matching the page is `themeConfig`,
+       in src/lib/viewerTheme.ts — the viewer declares its colour tokens on its
+       own root, where an inherited value cannot reach them. */
+    --default-font-family: var(--face);
+    --default-mono-font-family: var(--mono);
+}
+.vw__first,
+.vw__live {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+.vw__first {
+    object-fit: contain;
+}
+/* Above the placeholder, which is still in the box until the manifest is ready:
+   the stage is transparent, so the two are visible at once for that moment. */
+.vw__live {
+    z-index: 1;
+}
+/* An embed that takes its size from the row it is in rather than from the shape
+   it declares. The shape is still on the box, and still sizes it wherever the
+   parent stops giving it a row — see the narrow-width rules.
+
+   Both dimensions are explicit, and both have to be: a declared aspect ratio
+   drives whichever of the two is left as `auto`, so a box given only a height
+   sizes its own width and stops short of its column, and one given neither
+   grows straight through the band's bottom edge.
+
+   Size is all this changes. The border and the shadow stay, because they are
+   what say the viewer is an object on the page rather than part of it, and the
+   embed that most needs to say so is the one in the band. */
+.vw--fill {
+    width: 100%;
+    height: 100%;
+}
+
+/* ---- The chrome skeleton --------------------------------------------
+   The viewer's chrome as markup, drawn by this stylesheet, in the page a
+   reader is served. Its geometry is measured from the real chrome's first
+   arrangement — a 36px handle in the top-left corner and a 213x32 control
+   cluster centred on the bottom edge — and, like the real chrome, it is
+   anchored to the box's edges and sized in pixels rather than scaled with it,
+   so the two agree at every width. Both live inside the reserved box, so the
+   swap on mount is a change of contents, never of layout.
+   -------------------------------------------------------------------- */
+.vwc {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    color: var(--ink);
+}
+.vwc__handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3.75px;
+    background: color-mix(in srgb, var(--paper) 70%, transparent);
+    border-radius: 0 0 2px 0;
+}
+/* Phosphor `List` at 20px, which is the icon the real handle draws: its three
+   bars are 16 units thick on a 256 viewBox, spanning x 40-216, centred 64 units
+   apart — 1.25px, 13.75px and a 5px pitch once scaled.
+
+   The pitch matters as much as the weight. A fractional bar height only
+   rasterises evenly when every bar shares a subpixel phase, and an integer
+   pitch is what guarantees that; at the earlier 1.5px/4px the outer two landed
+   on .75 and the middle on .25, so the middle one antialiased lighter. */
+.vwc__handle span {
+    width: 13.75px;
+    height: 1.25px;
+    background: currentColor;
+}
+.vwc__bar {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    /* 8 + the 1px divider + 8 is the 17px the real cluster leaves between the
+       zoom group and the pager. */
+    gap: 8px;
+    height: 33px;
+    padding: 1px 9px 0;
+    /* The real cluster's ground is a scrim over the material rather than a
+       solid: `.control-bar::before`, the same 70% paper the handle uses, over
+       an 8px backdrop blur. */
+    border-radius: 4px 4px 0 0;
+    background: color-mix(in srgb, var(--paper) 70%, transparent);
+    backdrop-filter: blur(8px);
+}
+.vwc__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+}
+.vwc__btn {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+}
+.vwc__at {
+    /* The real counter sizes to its label, so this one has to as well or the
+       cluster changes width on mount: 41.6px of chrome either side of the
+       digits, and 8.4px a digit, measured off the live control bar. */
+    width: calc(41.6px + var(--digits) * 8.4px);
+    text-align: center;
+    font-size: 15px;
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+}
+.vwc__div {
+    width: 1px;
+    height: 18px;
+    background: currentColor;
+    opacity: 0.25;
+}
+.vwc__lens {
+    position: relative;
+    width: 13px;
+    height: 13px;
+    border: 1.6px solid currentColor;
+    border-radius: 50%;
+}
+/* The lens's handle, and the sign inside it. */
+.vwc__lens::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 11px;
+    width: 6px;
+    height: 1.6px;
+    background: currentColor;
+    transform: rotate(45deg);
+    transform-origin: left center;
+}
+.vwc__lens::before {
+    content: '';
+    position: absolute;
+    left: 1.7px;
+    top: 4.1px;
+    width: 6px;
+    height: 1.6px;
+    background: currentColor;
+}
+/* The second lens is the same glyph with a stroke across it, so one rule
+   draws both and only the plus needs an element of its own. */
+.vwc__lens span {
+    position: absolute;
+    left: 4.5px;
+    top: 1.2px;
+    width: 1.6px;
+    height: 6px;
+    background: currentColor;
+}
+.vwc__chev {
+    width: 8px;
+    height: 8px;
+    border: 1.6px solid currentColor;
+    border-width: 1.6px 1.6px 0 0;
+}
+.vwc__chev--prev {
+    transform: rotate(-135deg);
+    margin-left: 3px;
+}
+.vwc__chev--next {
+    transform: rotate(45deg);
+    margin-right: 3px;
+}
+
+/* ---- The front page: install ---------------------------------------- */
+.install {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: clamp(var(--s5), 3vw, var(--s7));
+}
+.install h2 {
+    margin-bottom: var(--s3);
+}
+/* Deliberately not `.aside`, which is italic. This note sits within the first
+   viewport on a desktop reading of the front page, and Chrome fetches a face
+   only for glyphs it actually paints — so italicising two sentences here makes
+   the 347 KB italic a first-paint dependency of the one route that must score
+   full marks. Same reasoning as the placeholder notice's. */
+.install__note {
+    margin-top: var(--s3);
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+/* Uncial's tabs, in the site's own hand: a ruled row of labels rather than a
+   strip of buttons, so a tab group reads as part of the page's structure. */
+.uncial-tabs [role='tablist'] {
+    display: flex;
+    border-bottom: 1px solid var(--rule);
+}
+.uncial-tabs [role='tablist'] button {
+    padding: var(--s2) var(--s4);
+    color: var(--ink-2);
+    font-size: 16px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.uncial-tabs [role='tablist'] button[aria-selected='true'] {
+    color: var(--ink);
+    font-weight: 600;
+    border-bottom-color: var(--ink);
+}
+.cmd {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s4);
+    padding: var(--s4);
+    background: var(--code-bg);
+    color: var(--ink-on-dark);
+    overflow-x: auto;
+}
+.cmd code {
+    flex: 1;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 15px;
+}
+.cmd button {
+    flex: none;
+    color: var(--ink-dim-on-dark);
+    font-size: var(--t-small);
+}
+.cmd button:hover {
+    color: var(--paper);
+}
+
+/* ---- Material classes, one stage --------------------------------------
+   One viewer and the five kinds of material it is switched between: the rail
+   of materials and the arrangement each one is shown in on the left, the stage
+   on the right, sharing the full width between them. The stage keeps a fixed
+   height owned by this stylesheet, so manifests with different aspects —
+   including the double-width paged opening — letterbox inside it rather than
+   resizing the page. The switcher stays outside the viewer chrome: the
+   viewer's own pager turns the leaves of the material showing, the rail turns
+   the materials. The rail's tab strip divides those materials by kind and
+   lists one kind at a time, so its height is a group's rather than the whole
+   list's.
+   -------------------------------------------------------------------- */
+.featstage {
+    display: grid;
+    /* Wide enough for the rail's material names beside their descriptions, and
+       a different width from the site rail it sits next to, so the two do not
+       read as one sidebar. */
+    grid-template-columns: 360px minmax(0, 1fr);
+    height: 720px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bench);
+}
+.featstage__viewer {
+    display: grid;
+    min-height: 0;
+    padding: var(--s5);
+}
+.featstage__rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s3);
+    min-height: 0;
+    padding: 0 var(--s4) var(--s5) var(--s5);
+    border-right: 1px solid var(--rule);
+    overflow-y: auto;
+}
+/* The strip that divides the rail into its five kinds of feature, in the site's
+   own tab hand — the ruled row of labels the configurator and the documentation
+   use, so a tab reads the same wherever the site sets one. It stays put while
+   the list under it scrolls: the strip is how a reader moves between kinds, and
+   one that scrolled away with the list would strand them among options with no
+   way back but the scrollbar. */
+.featstage__tabs {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: var(--s1);
+    padding-top: var(--s5);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bench);
+}
+.featstage__tab {
+    margin-bottom: -1px;
+    padding: var(--s2);
+    border-bottom: 2px solid transparent;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+    cursor: pointer;
+}
+.featstage__tab:hover {
+    color: var(--ink);
+}
+.featstage__tab.on {
+    border-bottom-color: var(--ink);
+    color: var(--ink);
+    font-weight: 600;
+}
+.featstage__tab:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: -2px;
+}
+.featstage__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+}
+.featstage__opt {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--s2) var(--s3);
+    border: 1px solid var(--rule-2);
+    text-align: left;
+    cursor: pointer;
+}
+.featstage__opt:hover {
+    background: var(--paper);
+}
+.featstage__opt.on {
+    border-color: var(--cta);
+    background: var(--paper);
+}
+.featstage__opt:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+}
+.featstage__name {
+    font-weight: 600;
+}
+.featstage__say {
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+/* The one control in the rail that is dragged rather than pressed. It sits
+   under the option that offers it, and says so with the grab cursor and the
+   handle glyph — a reader has to know it can be picked up before they will
+   try. */
+.featstage__chip {
+    display: flex;
+    gap: var(--s2);
+    align-items: center;
+    align-self: start;
+    margin: 2px 0 var(--s2) var(--s3);
+    padding: var(--s1) var(--s3);
+    border: 1px dashed var(--cta);
+    border-radius: 999px;
+    background: var(--paper);
+    font-size: var(--t-small);
+    cursor: grab;
+}
+.featstage__chip:active {
+    cursor: grabbing;
+}
+.featstage__chip:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+}
+/* Where the chip is going. The stage is the drop target, and a drag needs to
+   be told which box will take it. */
+.featstage__viewer.over {
+    outline: 2px dashed var(--cta);
+    outline-offset: -6px;
+}
+
+/* ---- Recipe bench: the catalog beside one viewer -----------------------
+   The same two-column stage as the material classes above, and deliberately
+   not the same rules: that stage's rail carries four kinds of feature and this
+   one carries every manifest the workspace tracks, so the two are free to move
+   apart. The list scrolls within a stage of fixed height rather than growing
+   the page — forty recipes above the viewer would put the thing they are all
+   about off the bottom of the screen.
+   -------------------------------------------------------------------- */
+.recstage {
+    display: grid;
+    /* Wider than the feature rail: a recipe's label carries its number and its
+       Cookbook name, which is longer than a feature's. */
+    grid-template-columns: 400px minmax(0, 1fr);
+    height: 720px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bench);
+}
+.recstage__viewer {
+    display: grid;
+    min-height: 0;
+    padding: var(--s5);
+}
+/* Standing in for the viewer until it has loaded, and centred in the box it
+   will take, so nothing moves when it arrives. */
+.recstage__wait {
+    place-self: center;
+    color: var(--ink-2);
+}
+.recstage__rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    min-height: 0;
+    padding: var(--s5) var(--s4) var(--s5) var(--s5);
+    border-right: 1px solid var(--rule);
+    overflow-y: auto;
+}
+.recstage__head {
+    margin-top: var(--s3);
+    padding-bottom: var(--s1);
+    border-bottom: 1px solid var(--rule-2);
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.recstage__head:first-child {
+    margin-top: 0;
+}
+.recstage__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.recstage__opt {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--s1) var(--s3);
+    border: 1px solid transparent;
+    text-align: left;
+    font-size: var(--t-small);
+    cursor: pointer;
+}
+.recstage__opt:hover {
+    background: var(--paper);
+}
+.recstage__opt.on {
+    border-color: var(--cta);
+    background: var(--paper);
+    font-weight: 600;
+}
+.recstage__opt:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+}
+/* The catalog's own verdict, and the only thing on the row that is not the
+   manifest's name. Italic rather than coloured: a row is already marked by its
+   ground when it is the one showing, and a second colour there would read as a
+   third state. */
+.recstage__say {
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    font-style: italic;
+}
+
+/* ---- Link rows: a ruled list of links ---------------------------------- */
+.linkrows__say {
+    /*
+     * The site's aside style, less its italic. Two sentences are not worth
+     * making the italic serif a first-paint dependency of `/`, which loads it
+     * for nothing else: the score gate measures that as a page that loads
+     * slower than its own copy claims.
+     */
+    margin-top: var(--s2);
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+.linkrows {
+    margin-top: var(--s5);
+    border-top: 1px solid var(--rule-2);
+}
+.linkrows__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--s4);
+    align-items: baseline;
+    padding: var(--s4) 0;
+    border-bottom: 1px solid var(--rule);
+}
+.linkrows__label {
+    font-size: 1.2rem;
+    text-decoration: none;
+}
+.linkrows__label:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+.linkrows__note {
+    display: block;
+    margin-top: 2px;
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+.linkrows__go {
+    color: var(--link);
+    font-size: var(--t-small);
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .hero h1 {
+        font-size: clamp(2.2rem, 9vw, 3rem);
+    }
+    /* The band stops being a band: the viewer takes a shape from the material
+       again, and the panel follows it down the page. The panel is the one
+       control here that needs no second design at this width — the same column
+       of groups, just wider — which is why it is a column and not a tab strip.
+       Its height stops being fixed with the band's, so nothing scrolls inside
+       it here either. */
+    /* A finger, not a pointer. */
+    .hp__opt {
+        height: 44px;
+    }
+}
+
+/* ---- The front page's band, at narrower widths -----------------------
+   Its own breakpoint, not the shell's. The rail leaves at 900px, but the band
+   is untenable long before that: with the rail still taking 290px and the panel
+   440px, a 1024px window leaves the viewer 294px — narrower than the two-column
+   hero this layout replaced. So the band stacks while the column it sits in is
+   too narrow to divide, which is a question about the band's own content.
+   -------------------------------------------------------------------- */
+@media (max-width: 1280px) {
+    .heroband {
+        display: block;
+        height: auto;
+    }
+    /* The declared shape sizes the box again, as it does on every other embed:
+       there is no row height to take now. */
+    .heroband .vw--fill {
+        width: auto;
+        height: auto;
+    }
+    .hp {
+        border-left: 0;
+        border-top: 1px solid var(--rule);
+        overflow: visible;
+    }
+    /* The stage stacks the same way: the rail first, then the viewer at a
+       fixed height of its own, each full width. */
+    .featstage {
+        display: block;
+        height: auto;
+    }
+    .featstage__viewer {
+        height: 62svh;
+        min-height: 420px;
+    }
+    /* The rail keeps a scroll of its own here rather than growing the page,
+       which it does not need on the wide layout and does need on this one: the
+       viewer is BELOW it when stacked, and a rail as long as the feature list
+       would put four screens of options between a phone reader and the thing
+       every one of them is about. Half the viewport, so the stage's own top is
+       on screen from the start. */
+    .featstage__rail {
+        max-height: 50svh;
+        border-right: 0;
+        border-bottom: 1px solid var(--rule);
+    }
+    /* The recipe bench stacks the same way, and needs the capped rail more
+       than the feature stage does: its list is every manifest the workspace
+       tracks. */
+    .recstage {
+        display: block;
+        height: auto;
+    }
+    .recstage__viewer {
+        height: 62svh;
+        min-height: 420px;
+    }
+    .recstage__rail {
+        max-height: 50svh;
+        border-right: 0;
+        border-bottom: 1px solid var(--rule);
+    }
+}
+
+/* Room for a label beside its control is the one thing a phone has none of, so
+   the label goes back above it. */
+@media (max-width: 700px) {
+    .hp__row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--s1);
+    }
+    .hp__path {
+        flex: none;
+    }
+    .hp__why {
+        padding-left: 0;
+    }
+}
+
+/* The panel's motion is what makes a step legible, so what is left when it is
+   refused is the state itself: the selection still lands, the swatch still
+   lifts, and the countdown reads full rather than sweeping. */
+@media (prefers-reduced-motion: reduce) {
+    .hp__opt {
+        transition: none;
+    }
+    .hp__pulse--on {
+        animation: none;
+    }
+    .hp__count--running::after {
+        animation: none;
+        transform: scaleX(1);
+    }
+}
+
+/* A finger's target rather than a pointer's, asked of the input device rather
+   than inferred from the width: a 1024px tablet needs this and a 1024px window
+   on a laptop does not. */
+@media (pointer: coarse) {
+    .hp__opt {
+        min-height: 44px;
+    }
+}
+
+/* ---- The configuration builder ---------------------------------------
+   Here rather than in the route's own `<style>`, as with every other page's
+   rules: a scoped block on this route emits a second stylesheet, and a second
+   render-blocking request costs the page a Lighthouse point it is gated on.
+
+   Every selector is under `.bstage`, which is the route's own section. The
+   names inside it — a row, a pane, a button — are too general to be safe loose
+   in a stylesheet the whole site shares.
+
+   The stage spans the whole column rather than stopping at the content
+   measure, which is `/features/`'s treatment of its own running viewer and for
+   the same reason: the material gets the width, and prose is what the measure
+   is for. It keeps a fixed height on desktop so the editor beside the viewer
+   can scroll inside itself — the viewer stays where it is, which is what makes
+   a change watchable as it lands.
+   -------------------------------------------------------------------- */
+.bstage {
+    display: grid;
+    /* `minmax(0, …)` rather than the implicit `auto`: the preview's aspect
+       ratio and minimum height give it a min-content width wider than a phone,
+       and an `auto` column cannot shrink below that — the page body would
+       scroll sideways, which no strip of this column may do. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--bench);
+}
+@media (width >= 1280px) {
+    /* The same threshold, and the same reasoning, as the front page's band:
+       with the rail taking its width and the editor 30rem of what is left, a
+       narrower window leaves the viewer too little to be worth watching. So
+       the stage divides only where the column can be divided, and stacks
+       below that. */
+    .bstage {
+        grid-template-columns: minmax(0, 1fr) 30rem;
+        height: 760px;
+    }
+}
+/* The picker sits above the viewer, and the viewer takes what is left. */
+.bstage__show {
+    display: grid;
+    /* The column is stated for the reason the stage's own is: an implicit
+       `auto` track takes the preview's min-content width, which its aspect
+       ratio makes wider than a phone. */
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    padding: var(--s5);
+}
+.bstage__frame {
+    margin-top: var(--s4);
+    /* The preview's aspect ratio and minimum height give it a min-content
+       width, and a grid item's automatic minimum size is that width. Zeroed, so
+       the box takes the column's width and the minimum height raises its
+       height instead of widening it. */
+    min-width: 0;
+    min-height: 0;
+}
+.bstage__set {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+    padding: var(--s5) var(--s5) var(--s4);
+    border-top: 1px solid var(--rule);
+}
+@media (width >= 1280px) {
+    .bstage__set {
+        border-top: 0;
+        border-left: 1px solid var(--rule);
+    }
+}
+
+.bstage .pick__label {
+    display: block;
+    font-size: var(--t-small);
+    font-weight: 600;
+    margin-bottom: var(--s2);
+}
+.bstage .pick__row {
+    display: flex;
+    gap: var(--s2);
+}
+.bstage .pick__url {
+    flex: 1 1 0%;
+    min-width: 0;
+    font: inherit;
+    font-size: var(--t-small);
+    padding: var(--s2) var(--s3);
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+}
+.bstage .pick__note {
+    margin-top: var(--s2);
+}
+
+/* The panel's microcopy is not an editorial aside, and must not be set in the
+   italic: this route's notes sit above the fold, and `.aside` would make the
+   italic face a first-paint dependency on the page whose own claim is that it
+   loads fast. */
+.bstage .note {
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+
+.bstage .btn {
+    font-size: var(--t-small);
+    padding: var(--s2) var(--s4);
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+    background: var(--paper);
+    white-space: nowrap;
+}
+.bstage .btn--go {
+    background: var(--cta);
+    color: var(--cta-ink);
+    border-color: var(--cta);
+}
+.bstage .linkish {
+    padding: 0;
+    color: var(--link);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font: inherit;
+}
+
+.bstage .bd__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--s4);
+    margin-bottom: var(--s3);
+}
+.bstage .bd__head .note {
+    margin: 0;
+}
+
+/* The site's own tab hand — a ruled row of labels rather than a strip of
+   buttons — wrapped, because this group has twelve labels and the column it
+   sits in is a column rather than a page. */
+.bstage .bd__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--rule);
+}
+/* Each half's name takes a line of its own rather than sitting inline with the
+   first of its tabs: a wrapped row puts the break wherever the column happens
+   to end, and a divider that lands mid-group divides nothing. */
+.bstage .bd__group {
+    flex: 0 0 100%;
+    margin-top: var(--s2);
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.bstage .bd__tabs .bd__group:first-child {
+    margin-top: 0;
+}
+.bstage .bd__tabs button {
+    padding: var(--s2);
+    color: var(--ink-2);
+    font-size: var(--t-small);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.bstage .bd__tabs button:hover {
+    color: var(--ink);
+}
+.bstage .bd__tabs button[aria-selected='true'] {
+    color: var(--ink);
+    font-weight: 600;
+    border-bottom-color: var(--ink);
+}
+.bstage .bd__tabs button:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: -2px;
+}
+
+/* The theming half's own head: the theme every control under it reads through,
+   which is why it stands outside the five panes rather than in one of them.
+   A fieldset for the group's name, so the choice is named without ARIA.
+
+   The chips are the front page's segmented control — native radios under labels
+   that cover them, for the arrow keys, the roving tab stop and the group
+   semantics — at this route's smaller type. */
+.bstage .bd__from {
+    margin: 0 0 var(--s4);
+    padding: 0;
+    border: 0;
+}
+.bstage .bd__from legend {
+    padding: 0;
+    margin-bottom: var(--s2);
+    font-size: var(--t-small);
+    font-weight: 600;
+}
+.bstage .bd__from .note {
+    margin: var(--s2) 0 0;
+    font-size: var(--t-tiny);
+}
+/* What stands where the switcher stood, holding the same place in the column
+   so the panes below do not move when it is replaced. */
+.bstage .bd__fixed {
+    margin: 0 0 var(--s4);
+}
+.bstage .bd__fixed strong {
+    font-weight: 600;
+    color: var(--ink);
+}
+.bstage .bd__seg {
+    /* Hugging its chips rather than filling the column: the box is the choice,
+       and a rule running on past the last chip reads as a field with room in
+       it. It wraps instead of overflowing — this column is 30rem at its
+       widest and narrower than that on a phone. */
+    display: inline-flex;
+    flex-wrap: wrap;
+    max-width: 100%;
+    border: 1px solid var(--rule-2);
+}
+.bstage .bd__opt {
+    position: relative;
+    /* Sized to its own text rather than to an equal share: the five labels are
+       not the same length, and this column is 30rem at its widest. */
+    flex: 0 1 auto;
+    min-width: 0;
+    display: grid;
+    place-items: center;
+    padding: var(--s1) var(--s2);
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+    text-align: center;
+    cursor: pointer;
+}
+.bstage .bd__opt + .bd__opt {
+    border-left: 1px solid var(--rule-2);
+}
+.bstage .bd__opt:hover {
+    color: var(--ink);
+}
+.bstage .bd__opt.on {
+    background: var(--cta);
+    color: var(--cta-ink);
+    font-weight: 600;
+}
+/* Out of the flow rather than `display: none`, which takes a radio out of its
+   group's keyboard navigation as well as out of the layout. */
+.bstage .bd__opt input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.bstage .bd__opt:has(input:focus-visible) {
+    outline: 2px solid var(--link);
+    outline-offset: -2px;
+}
+/* Orange on orange is not a focus ring. */
+.bstage .bd__opt.on:has(input:focus-visible) {
+    outline-color: var(--cta-ink);
+}
+
+/* Only the pane in view is in flow, so the scroller measures one group. */
+.bstage .bd__panes {
+    min-height: 0;
+    padding-top: var(--s4);
+    overflow-y: auto;
+}
+.bstage .pane__note {
+    margin: 0 0 var(--s3);
+    font-size: var(--t-tiny);
+}
+.bstage .pane__body {
+    display: grid;
+    gap: var(--s2);
+}
+
+/* Label over control. The column is narrow enough that a two-column row clips a
+   select's own text, which is the one thing a control naming a real key must
+   not do. */
+.bstage .row {
+    display: grid;
+    gap: var(--s1);
+    font-size: var(--t-small);
+}
+.bstage .row--check {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+}
+/* A plugin carries a sentence and a package name under its name, so its box
+   aligns with the first line rather than with the middle of the block. */
+.bstage .row--plug {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s2);
+    padding-bottom: var(--s2);
+}
+/* The box has no line box of its own, so it is centered on the label's first
+   line by hand. `line-height: inherit` is load-bearing: a bare input's
+   line-height is `normal`, which would resolve `1lh` against the box's own
+   17px rather than the row's 24px line. */
+.bstage .row--plug input {
+    flex: none;
+    width: 1em;
+    height: 1em;
+    margin: calc((1lh - 1em) / 2) 0 0;
+    font-size: inherit;
+    line-height: inherit;
+}
+.bstage .row__say {
+    display: block;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.bstage .row__value {
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.bstage .row__token {
+    display: block;
+    color: var(--ink-2);
+    font-size: var(--t-tiny);
+}
+.bstage .row select,
+.bstage .row input[type='range'] {
+    font: inherit;
+    font-size: var(--t-tiny);
+    width: 100%;
+    min-width: 0;
+}
+/* A range input carries a 2px margin from the platform, and the pane it fills is
+   the scroller: a full-width slider plus that margin is two pixels of sideways
+   scroll on every panel that has one. */
+.bstage .row input[type='range'] {
+    margin: 0;
+}
+/* `appearance: none` because the platform's own select paints its ground over
+   the left and right thirds of the box, leaving a border that runs along the
+   top and bottom and stops. Removing it takes the caret with it, so the caret
+   is the shell's: two gradient triangles, which cost no request. */
+.bstage .row select {
+    appearance: none;
+    padding: var(--s1) var(--s2);
+    padding-inline-end: var(--s5);
+    color: var(--ink);
+    background-color: var(--bone);
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+    cursor: pointer;
+    text-overflow: ellipsis;
+    background-image:
+        linear-gradient(45deg, #0000 50%, currentColor 50%),
+        linear-gradient(135deg, currentColor 50%, #0000 50%);
+    background-repeat: no-repeat;
+    background-position:
+        calc(100% - 15px) calc(50% + 1px),
+        calc(100% - 11px) calc(50% + 1px);
+    background-size:
+        4px 4px,
+        4px 4px;
+}
+/* The popup is the platform's, but engines that read option colours take them
+   from here rather than from their own light default. */
+.bstage .row select option {
+    background: var(--bone);
+    color: var(--ink);
+}
+/* A control fills the pane, and the pane is the scroller: an outward focus ring
+   is clipped on both sides by its own container, so the ring is drawn inside
+   the control's border, which is where the tabs and chips above draw theirs. */
+.bstage .row :is(select, input, textarea):focus-visible {
+    outline-offset: -2px;
+}
+.bstage .row input[type='color'] {
+    width: 4rem;
+    height: 1.9rem;
+    padding: 0;
+    border: 1px solid var(--rule-2);
+    background: var(--paper);
+}
+.bstage .row input[type='text'],
+.bstage .row textarea {
+    font: inherit;
+    font-size: var(--t-tiny);
+    width: 100%;
+    min-width: 0;
+    padding: var(--s1) var(--s2);
+    color: var(--ink);
+    background: var(--bone);
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+}
+/* Headers are written a line at a time, so the box does not reflow the text and
+   scrolls sideways for a long token instead of wrapping it mid-value. */
+.bstage .row--area textarea {
+    font-family: var(--mono);
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+    resize: vertical;
+}
+
+/* A chosen plugin's own UI keys, indented under it so the rule reads as
+   belonging to the plugin above rather than to the next one. */
+.bstage .plugui {
+    display: grid;
+    gap: var(--s2);
+    margin: 0 0 var(--s3) var(--s4);
+    padding-left: var(--s3);
+    border-left: 1px solid var(--rule-2);
+}
+
+/* ---- The builder's live viewer ---------------------------------------
+   The box holds its own height from the first paint, so nothing moves when the
+   viewer arrives or when a pasted manifest replaces the plate. Below the
+   stage's own breakpoint that height comes from an aspect ratio; at and above
+   it, from the row the stage gives it.
+   -------------------------------------------------------------------- */
+.bstage .pv {
+    position: relative;
+    /* The inline size is stated rather than left to `auto`. With an aspect
+       ratio and a minimum height, an automatic width is transferred from the
+       height the minimum forces — 22rem at 4/3 is wider than a phone — and the
+       box would push the page sideways instead of getting taller. */
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    min-height: 22rem;
+    border: 1px solid var(--rule-2);
+    background: var(--bench);
+    overflow: hidden;
+}
+@media (width >= 1280px) {
+    .bstage .pv {
+        aspect-ratio: auto;
+        height: 100%;
+    }
+}
+.bstage .pv__wait {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--s4);
+    color: var(--ink-2);
+    font-size: var(--t-small);
+}
+/* Read from, never seen. It is the viewer's theme in scope and nothing else,
+   untouched by the overrides, which are inline style on the viewer root. */
+.bstage .pv__probe {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+.bstage .pv__live {
+    position: absolute;
+    inset: 0;
+}
+
+/* ---- The builder's handoffs ------------------------------------------
+   Stacked at every width, never in columns. Each one is a block of code the
+   reader is meant to read before copying, and a column half the page wide
+   wraps the lines of the very thing that has to paste in finished.
+   -------------------------------------------------------------------- */
+.handoff .hand {
+    display: grid;
+    gap: var(--s6);
+    margin-top: var(--s5);
+}
+.handoff .hand__one h3 {
+    margin: 0 0 var(--s2);
+}
+.handoff .note {
+    margin: 0 0 var(--s3);
+    max-width: var(--measure);
+    color: var(--ink-soft);
+    font-size: var(--t-small);
+}
+.handoff .cmd + .note {
+    margin: var(--s3) 0 0;
+}

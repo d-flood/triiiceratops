@@ -37,7 +37,7 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
     await page.addInitScript(CAPTURE_BLOBS);
     await page.goto(`${baseURL}/${pathname}`, { waitUntil: 'load' });
 
-    // The custom element upgrades and OSD paints inside the shadow root.
+    // The custom element upgrades and the renderer paints inside the shadow root.
     await expect(page.locator('triiiceratops-viewer')).toBeVisible({
         timeout: 30_000,
     });
@@ -57,7 +57,7 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
         true,
     );
 
-    // Core owns the plugin chrome (epic restore-plugin-toolbar-chrome): the
+    // Core owns the plugin chrome: the
     // toolbar button is core-rendered from the plugin's icon and the panel docks
     // in the viewer chrome. Open the (default-closed) toolbar, then click the
     // plugin's core-rendered button to dock its panel. The viewer's DOM lives in

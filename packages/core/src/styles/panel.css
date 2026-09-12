@@ -1,0 +1,54 @@
+/*
+ * The shapes every side panel is built from.
+ *
+ * Global rather than component-scoped for the same reason as `menu.css`: five
+ * panels (annotations, search, collection, metadata, structures) are the same
+ * column of the same parts, and Svelte scopes a component's <style> to that
+ * component's own markup, so each of them carried its own copy. A panel adds
+ * whatever is its own — a bar that is also a flex row, a row that is also a
+ * positioning context — in its scoped block, which is one class more specific
+ * and therefore wins wherever both speak.
+ */
+
+/* The panel column itself. `min-height: 0` is what lets the scrolling region
+   inside it actually scroll instead of growing the column. */
+.tri-panel {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* A header or count strip across the top of the column. */
+.tri-panel-bar {
+    padding: 1rem;
+    border-bottom: 1px solid var(--tri-surface-border);
+    background-color: color-mix(in oklab, var(--tri-input-bg) 50%, transparent);
+}
+
+/* One selectable entry in a panel's list, and the hairline between two of them.
+   Only colours transition: nothing here changes its decoration or its SVG
+   paints, and a property that never changes still costs the engine a check. */
+.tri-panel-row {
+    width: 100%;
+    text-align: left;
+    padding: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    cursor: pointer;
+    transition-property: color, background-color, border-color;
+    transition-timing-function: var(--ui-ease);
+    transition-duration: 150ms;
+}
+.tri-panel-row + .tri-panel-row {
+    border-top: 1px solid var(--tri-surface-border);
+}
+
+/* The "nothing here" message a panel shows in place of its list. */
+.tri-panel-empty {
+    padding: 2rem;
+    text-align: center;
+    opacity: 0.5;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+}

@@ -1,7 +1,7 @@
 /**
- * Svelte adapter (`@triiiceratops/plugin-sdk/svelte`) — ticket 13.
+ * Svelte adapter (`@triiiceratops/plugin-sdk/svelte`).
  *
- * Bridges the SDK's memoized, equality-gated selector contract (ticket 07) to a
+ * Bridges the SDK's memoized, equality-gated selector contract to a
  * Svelte readable store, so viewer state is consumable with `$`-auto-subscription
  * in Svelte 5 components.
  *

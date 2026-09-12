@@ -1,0 +1,116 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/links/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Ernst Haeckel, Discomedusae (Plate 8), 1904"]
+    },
+    "summary": {
+        "en": [
+            "A plate published with the three links IIIF has for leaving the viewer: the record it came from, the data behind it, and the file to take away."
+        ]
+    },
+    "homepage": [
+        {
+            "id": "https://www.biodiversitylibrary.org/item/18431",
+            "type": "Text",
+            "label": {
+                "en": [
+                    "The catalogue record at the Biodiversity Heritage Library"
+                ]
+            },
+            "format": "text/html"
+        }
+    ],
+    "rendering": [
+        {
+            "id": "/material/links/haeckel-plate.jpg",
+            "type": "Image",
+            "label": {
+                "en": ["The whole plate as a JPEG (912 × 1317)"]
+            },
+            "format": "image/jpeg"
+        }
+    ],
+    "seeAlso": [
+        {
+            "id": "/material/landing/images/haeckel/info.json",
+            "type": "Dataset",
+            "label": {
+                "en": ["The IIIF Image API description of this scan"]
+            },
+            "format": "application/json",
+            "profile": "http://iiif.io/api/image/3/level0.json"
+        }
+    ],
+    "items": [
+        {
+            "id": "/material/links/canvas/haeckel",
+            "type": "Canvas",
+            "label": {
+                "en": ["Ernst Haeckel, Discomedusae (Plate 8), 1904"]
+            },
+            "width": 3645,
+            "height": 5267,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Ernst Haeckel, Kunstformen der Natur, Plate 8; Smithsonian Libraries and Archives / Biodiversity Heritage Library."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Smithsonian Libraries and Archives / Biodiversity Heritage Library, item 18431"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": ["https://www.biodiversitylibrary.org/item/18431"]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/links/page/haeckel",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/links/annotation/haeckel",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/haeckel/0,0,3645,5267/228,330/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 3645,
+                                "height": 5267,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/haeckel",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/links/canvas/haeckel"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

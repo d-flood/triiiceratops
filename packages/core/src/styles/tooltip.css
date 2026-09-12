@@ -1,0 +1,179 @@
+/*
+ * The CSS-only tooltip: bubble, tail, reveal, and placement.
+ *
+ * Global rather than component-scoped because several pieces of chrome hang a
+ * tooltip off an element they already render — the toolbar's menu items and
+ * toggle handle, the annotation overlay's shape buttons, the thumbnail
+ * gallery's expand caret — rather than wrapping it in `@triiiceratops/ui`'s
+ * `Tooltip`. Svelte scopes a component's <style> to that component's own
+ * markup, so each of those had to carry its own copy of these rules; one
+ * global layer is what lets them share.
+ *
+ * `@triiiceratops/ui`'s `Tooltip` keeps its own scoped copy on purpose: that
+ * package is consumed standalone by plugins that never load core's stylesheet.
+ * Its rules are component-scoped and therefore one class more specific than
+ * everything here, so wherever both apply the component's copy wins. The
+ * placement classes here are deliberately `place-*` where that component uses
+ * bare `top`/`bottom`/`left`/`right`, so the two vocabularies cannot tie on
+ * specificity and leave the winner to stylesheet order.
+ *
+ * An element opts in with `class="tooltip"` plus a non-empty `data-tip`; an
+ * empty `data-tip` renders nothing, so chrome can bind the attribute
+ * unconditionally. `--tt-bg`/`--tt-fg` are the recolouring seam (see
+ * `.tooltip-primary` in AnnotationShapeOverlay). Placement defaults to `top`.
+ */
+
+.tooltip {
+    --tt-bg: var(--tri-color-neutral);
+    --tt-fg: var(--tri-color-neutral-content);
+    --tt-off: calc(100% + 0.5rem);
+    --tt-tail: calc(100% + 1px + 0.25rem);
+    position: relative;
+}
+
+.tooltip[data-tip]:not([data-tip=''])::before {
+    border-radius: var(--tri-radius-buttons);
+    text-align: center;
+    white-space: normal;
+    max-width: 20rem;
+    color: var(--tt-fg);
+    opacity: 0;
+    background-color: var(--tt-bg);
+    pointer-events: none;
+    z-index: 2;
+    content: attr(data-tip);
+    width: max-content;
+    padding-block: 0.25rem;
+    padding-inline: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25;
+    position: absolute;
+}
+
+.tooltip[data-tip]:not([data-tip=''])::after {
+    opacity: 0;
+    background-color: var(--tt-bg);
+    content: '';
+    pointer-events: none;
+    width: 0.625rem;
+    height: 0.25rem;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    display: block;
+    position: absolute;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .tooltip[data-tip]::before,
+    .tooltip[data-tip]::after {
+        transition:
+            opacity 0.2s var(--ui-ease) 75ms,
+            transform 0.2s var(--ui-ease) 75ms;
+    }
+}
+
+/*
+ * `:has(:focus-visible)` rather than `:focus-visible` because the tooltip is
+ * usually on a wrapper (a menu `<li>`) whose focusable control is a child.
+ * `.tooltip-open` is the programmatic form, for chrome that positions a tooltip
+ * itself instead of hovering one.
+ */
+.tooltip[data-tip]:not([data-tip='']):hover::before,
+.tooltip[data-tip]:not([data-tip='']):hover::after,
+.tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::before,
+.tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::after,
+.tooltip-open[data-tip]:not([data-tip=''])::before,
+.tooltip-open[data-tip]:not([data-tip=''])::after {
+    opacity: 1;
+    --tt-pos: 0rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .tooltip[data-tip]:not([data-tip='']):hover::before,
+    .tooltip[data-tip]:not([data-tip='']):hover::after,
+    .tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::before,
+    .tooltip[data-tip]:not([data-tip='']):has(:focus-visible)::after {
+        transition:
+            opacity 0.2s var(--ui-ease),
+            transform 0.2s var(--ui-ease);
+    }
+}
+
+/* ---- Placement. The bare selectors are the default (top). ---- */
+
+.tooltip::before,
+.tooltip.place-top::before {
+    transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
+    inset: auto auto var(--tt-off) 50%;
+}
+.tooltip::after,
+.tooltip.place-top::after {
+    transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
+    inset: auto auto var(--tt-tail) 50%;
+}
+.tooltip.place-bottom::before {
+    transform: translateX(-50%) translateY(var(--tt-pos, -0.25rem));
+    inset: var(--tt-off) auto auto 50%;
+}
+.tooltip.place-bottom::after {
+    transform: translateX(-50%) translateY(var(--tt-pos, -0.25rem))
+        rotate(180deg);
+    inset: var(--tt-tail) auto auto 50%;
+}
+.tooltip.place-left::before {
+    transform: translateX(calc(var(--tt-pos, 0.25rem) - 0.25rem))
+        translateY(-50%);
+    inset: 50% var(--tt-off) auto auto;
+}
+.tooltip.place-left::after {
+    transform: translateX(var(--tt-pos, 0.25rem)) translateY(-50%)
+        rotate(-90deg);
+    inset: 50% calc(var(--tt-tail) + 1px) auto auto;
+}
+.tooltip.place-right::before {
+    transform: translateX(calc(var(--tt-pos, -0.25rem) + 0.25rem))
+        translateY(-50%);
+    inset: 50% auto auto var(--tt-off);
+}
+.tooltip.place-right::after {
+    transform: translateX(var(--tt-pos, -0.25rem)) translateY(-50%)
+        rotate(90deg);
+    inset: 50% auto auto calc(var(--tt-tail) + 1px);
+}
+
+/* ---- Edge corrections ----
+ *
+ * A control hugging its container's inline edge has nowhere to put a centred
+ * bubble: it overflows the viewer and is clipped. These two modifiers re-anchor
+ * the bubble to the edge the control sits on. CSS cannot ask whether a bubble
+ * would fit, so the chrome that knows its own leading and trailing controls
+ * applies them from markup (Toolbar's inline group, ViewerControls' bar).
+ *
+ * `tt-edge-start` moves the tail with the bubble — pinned just inboard of the
+ * start edge, under the bubble body — because the shifted bubble would
+ * otherwise leave it stranded. `tt-edge-end` leaves the tail at the control's
+ * centre, which is where the end-anchored bubble still covers it.
+ */
+.tooltip.tt-edge-start.place-top::before {
+    transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
+    inset: auto auto var(--tt-off) 0;
+}
+.tooltip.tt-edge-start.place-bottom::before {
+    transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
+    inset: var(--tt-off) auto auto 0;
+}
+.tooltip.tt-edge-start.place-top::after {
+    transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
+    inset: auto auto var(--tt-tail) 0.5rem;
+}
+.tooltip.tt-edge-start.place-bottom::after {
+    transform: translateX(0) translateY(var(--tt-pos, -0.25rem)) rotate(180deg);
+    inset: var(--tt-tail) auto auto 0.5rem;
+}
+.tooltip.tt-edge-end.place-top::before {
+    transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
+    inset: auto 0 var(--tt-off) auto;
+}
+.tooltip.tt-edge-end.place-bottom::before {
+    transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
+    inset: var(--tt-off) 0 auto auto;
+}

@@ -2,10 +2,12 @@
  * Layout variables for the viewer chrome (toolbar, canvas controls, panels, gallery).
  *
  * These `--ui-*` custom properties are LAYOUT-ONLY: spacing, sizing, positioning,
- * and shadow pattern. They are intentionally separate from the theme tokens in
- * themes.css — colors, border-radii (`--tri-radius-*`), border width (`--tri-border`),
- * size multipliers (`--tri-size-*`), and the shadow `--tri-depth` flag stay theme-controlled
- * and are never set here.
+ * shadow pattern, and the one timing curve the chrome animates on. They are
+ * intentionally separate from the theme tokens in themes.css — colors, border-radii
+ * (`--tri-radius-*`), border width (`--tri-border`), size multipliers (`--tri-size-*`),
+ * and the shadow `--tri-depth` flag stay theme-controlled and are never set here.
+ * The one exception is `--ui-glass-bg`, which is a recipe over a theme colour rather
+ * than a colour of its own; see the note on its block below.
  *
  * The layout is configured by independent knobs, resolved onto `.viewer-root`
  * as data-attributes (mirroring how `data-theme` works):
@@ -35,8 +37,6 @@
     --ui-icon: 20px;
     /* Minimum interactive hit-target size (raised on coarse pointers). */
     --ui-hit: 2.25rem;
-    /* Default side-panel column width (config.leftPanelWidth still overrides). */
-    --ui-panel-w: 320px;
     /* Vertical gap between stacked panel sections + section header padding. */
     --ui-section-gap: 0.75rem;
     --ui-panel-header-pad: 0.75rem;
@@ -45,15 +45,34 @@
     --ui-gallery-pad: 0.25rem;
 
     /* Nav-specific (decoupled from the toolbar so the `nav` axis affects only the
-       nav). Defaults match `docked`. */
+       nav). Defaults match `docked`, which therefore needs no block of its own. */
     --ui-nav-inset: 0;
     --ui-nav-shadow: none;
+
+    /* The one easing curve every piece of chrome animates on. */
+    --ui-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* The elevation ladder. One alpha, four spreads — a control that lifts off
+       the surface, a floating bar, a menu, a popover. */
+    --ui-shadow-sm: 0 1px 3px 0 #0000001a, 0 1px 2px -1px #0000001a;
+    --ui-shadow-md: 0 4px 6px -1px #0000001a, 0 2px 4px -2px #0000001a;
+    --ui-shadow-lg: 0 10px 15px -3px #0000001a, 0 4px 6px -4px #0000001a;
+    --ui-shadow-xl: 0 20px 25px -5px #0000001a, 0 8px 10px -6px #0000001a;
 }
 
-/* ---- nav: docked (flush to its edge, flat) — same as the base ---- */
-[data-nav-style='docked'] {
-    --ui-nav-inset: 0;
-    --ui-nav-shadow: none;
+/*
+ * The frosted-glass fill every floating piece of chrome paints itself with,
+ * paired at each site with `backdrop-filter: blur(8px)` — the blur cannot move
+ * here with it, because the element that carries it becomes a backdrop-filter
+ * isolation root and several sites deliberately put the two on different layers.
+ *
+ * `[data-theme]` is in the selector for the reason themes.css gives for its own
+ * derived block: this reads `--tri-toolbar-bg`, and a declaration only on `:host`
+ * would resolve it against the host's default rather than against the theme
+ * applied to the viewer root below it. `:where` keeps that at zero specificity.
+ */
+:where(:root, :host, [data-theme]) {
+    --ui-glass-bg: color-mix(in oklab, var(--tri-toolbar-bg) 70%, transparent);
 }
 
 /* ---- nav: floating (inset island off the edge, with a shadow) ---- */

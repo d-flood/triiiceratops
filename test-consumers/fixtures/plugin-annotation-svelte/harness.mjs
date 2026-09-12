@@ -1,5 +1,14 @@
 import { expect } from '@playwright/test';
 
+// NOT RUN. This fixture is deliberately absent from `FIXTURES` in
+// `test-consumers/driver/run.mjs`: the journey below is written against
+// Annotorious, which the first-party drawing layer replaced. It draws a
+// rectangle with click-move-click (the drawing layer drags a bounding box) and
+// counts shapes inside `.a9s-annotationlayer`, a class nothing renders. It is
+// kept intact — tarballs, app, assertions — as the specification a rewritten
+// journey has to satisfy before it is re-listed. Do not "fix" it by weakening
+// the assertions.
+//
 // plugin-annotation-svelte: a Vite + Svelte app that renders the real viewer from
 // the packed `triiiceratops` tarball and activates the migrated
 // `@triiiceratops/plugin-annotation-editor` plugin (packed ESM entry, its default
@@ -48,7 +57,7 @@ export default {
     async assert({ page, baseURL, pageErrors }) {
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // Viewer mounts and OSD paints the first canvas (OSD readiness).
+        // Viewer mounts and the renderer paints the first canvas (renderer readiness).
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });

@@ -1,5 +1,5 @@
 /**
- * API snapshot generator (ticket 21) — `pnpm api:report`.
+ * API snapshot generator — `pnpm api:report`.
  *
  * Regenerates every machine-readable public-contract snapshot under
  * `api-reports/`, so a contract change shows up as a reviewable diff and CI can
@@ -11,11 +11,11 @@
  *   - `custom-element.json`   custom-element properties / methods / events
  *   - `browser-runtime.json`  `TriiiceratopsBrowserRuntime` shape + capabilities
  *   - `plugin-api.json`       plugin API version + capability vocabulary
- *   - `css-tokens.json`       public `--tri-*` CSS token list (ticket 19)
+ *   - `css-tokens.json`       public `--tri-*` CSS token list
  *   - `state-inventory.json`  state inventory (member + classification + commands)
  *
  * Declaration mechanism: d.ts snapshot (reachability rollup), NOT api-extractor
- * — one mechanism, per ticket 21. Non-TS surfaces are simple JSON snapshots.
+ * — one mechanism. Non-TS surfaces are simple JSON snapshots.
  *
  * Determinism: run twice → no diff. The value/shape snapshots are read from the
  * checked-in source of truth (state inventory, public tokens, plugin/api
@@ -33,6 +33,7 @@ import { fileURLToPath } from 'node:url';
 
 import { renderDeclarationReport } from './api-report/dts.mjs';
 import { STATE_INVENTORY } from '../packages/core/src/lib/state/state-inventory.ts';
+import { CSS_VAR_MAP } from '../packages/core/src/lib/theme/cssVarMap.ts';
 import { PUBLIC_TOKENS } from '../packages/core/src/lib/theme/publicTokens.ts';
 import {
     pluginApiVersion,
@@ -63,6 +64,7 @@ const PACKAGES = [
         name: '@triiiceratops/plugin-annotation-editor',
         dir: 'plugin-annotation-editor',
     },
+    { name: '@triiiceratops/plugin-av', dir: 'plugin-av' },
 ];
 
 /** Slug used for a package's declaration-report filename. */
@@ -92,6 +94,7 @@ function buildDeclarations(): void {
     run('--filter @triiiceratops/plugin-image-export build:types');
     run('--filter @triiiceratops/plugin-pdf-export build:types');
     run('--filter @triiiceratops/plugin-annotation-editor build:types');
+    run('--filter @triiiceratops/plugin-av build:types');
 }
 
 // ── Per-package declaration reports (d.ts rollup) ───────────────────────────
@@ -150,8 +153,15 @@ function emitStateInventory(): void {
     );
 }
 
-// ── Public CSS tokens (ticket 19) ───────────────────────────────────────────
+// ── Public CSS tokens ────────────────────────────────────────────────────────
+// `themeConfigKey` is the friendly key that sets the token, or null where the
+// token can only be written as raw CSS. It is here so that the theming
+// documentation's token table can be derived from this report rather than
+// transcribed into a document and gated against drift.
 function emitCssTokens(): void {
+    const keyByVar = new Map(
+        Object.entries(CSS_VAR_MAP).map(([key, token]) => [token.cssVar, key]),
+    );
     writeFileSync(
         resolve(OUT, 'css-tokens.json'),
         stableJson({
@@ -160,6 +170,7 @@ function emitCssTokens(): void {
             tokens: PUBLIC_TOKENS.map((t) => ({
                 name: t.name,
                 category: t.category,
+                themeConfigKey: keyByVar.get(t.name) ?? null,
             })),
         }),
     );
@@ -227,7 +238,9 @@ function emitBrowserRuntime(): void {
                     'PluginFactoryRegistry',
                 ),
             },
-            // Semver-governed capability list (must include `osd@5`).
+            // Semver-governed capability list. Empty in the 1.0 line: the
+            // renderer capability was retired with no successor, and core’s own
+            // surface is negotiated through `coreRange` (see plugin/api.ts).
             capabilities: [...capabilities].sort(),
             pluginApiVersion,
         }),

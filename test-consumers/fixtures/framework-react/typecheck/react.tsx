@@ -1,5 +1,5 @@
 /**
- * The epic's headline promise, compiled rather than asserted: a React consumer
+ * The headline promise, compiled rather than asserted: a React consumer
  * type-checks against `triiiceratops/react` with **no Svelte installed** and
  * **`skipLibCheck: false`**, so any Svelte type reaching the published
  * declaration graph of this subpath fails the packed run.
@@ -209,8 +209,7 @@ function Readouts({ handle }: { handle: ViewerHandleSlot }): ReactElement {
     );
     const zoom: number | undefined = useViewerSelector(
         handle,
-        (viewer: ReadonlyViewerState) =>
-            viewer.osdViewer?.viewport.getZoom() ?? 1,
+        (viewer: ReadonlyViewerState) => viewer.viewportScale,
         selectorOptions,
     );
     // Context form: no handle argument at all.

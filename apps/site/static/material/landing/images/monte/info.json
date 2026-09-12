@@ -1,0 +1,15 @@
+{
+    "@context": "http://iiif.io/api/image/3/context.json",
+    "id": "/material/landing/images/monte",
+    "type": "ImageService3",
+    "profile": "level0",
+    "protocol": "http://iiif.io/api/image",
+    "tiles": [
+        {
+            "scaleFactors": [1, 2, 4, 8, 16, 32, 64],
+            "width": 512
+        }
+    ],
+    "width": 62079,
+    "height": 62160
+}

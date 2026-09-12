@@ -104,6 +104,34 @@ export interface ThemeConfig {
     /** Collection panel text color */
     collectionPanelContent?: string;
 
+    // ---- Annotation shapes ----
+    /**
+     * The hue every annotation shape is drawn in — rectangle, polygon and point,
+     * read-only and under edit. The overlay mixes each state off it: a fill at
+     * rest, a deeper one on hover and selection, and the border at full strength.
+     */
+    annotationColor?: string;
+    /** The hue an annotation that is a search hit is drawn in instead. */
+    annotationHitColor?: string;
+    /**
+     * The border a shape carries at rest, as a CSS length. A selected shape adds
+     * a pixel to whatever this says.
+     */
+    annotationBorderWidth?: string;
+    /**
+     * How much of the hue fills a shape that has an interior — a rectangle, a
+     * polygon — at rest, as a CSS percentage. Every other fill is a multiple of
+     * it: twice for a shape hovered or selected and for a search hit at rest,
+     * three times for a search hit hovered, so one value moves the ladder and
+     * keeps its steps. A point marker is a solid disc and is not on it.
+     */
+    annotationFillOpacity?: string;
+    /**
+     * The point marker's diameter, as a CSS length. Screen pixels at every zoom:
+     * a marker marks a position, so it does not grow with the image under it.
+     */
+    annotationPointSize?: string;
+
     // ---- Border radius ----
     /** Radius for large components like cards, modals, panels (e.g., '1rem') */
     radiusBox?: string;

@@ -1,0 +1,126 @@
+{
+    "$comment": "The published site's public URL contract. Asserted against the built tree by `pnpm urls:check` (scripts/url-contract.mjs) as a required merge gate. One build emits the whole published tree, so the tree asserted is the tree that ships. A trailing `/` resolves to that directory's index.html. `owner` names the build that emits the path: `site` for the site application's own output, `examples` for the consumer examples the site build places. `app` names which single-page application a path must serve, for the one path whose contents no other check can distinguish. Adding, moving or retiring a public URL is an edit to this file, reviewed as such.",
+    "urls": [
+        {
+            "url": "/",
+            "owner": "site",
+            "note": "The front door, and the first of the marketing site's routes. Served directly rather than redirecting anywhere, and the canonical URL for the project as a whole."
+        },
+        {
+            "url": "/404.html",
+            "owner": "site",
+            "note": "The not-found page the static host serves for every unmatched path. Retired documentation URLs land here by design; nothing is redirected. Prerendered at /404/ and relocated to this name by the site's own build."
+        },
+        {
+            "url": "/size/",
+            "owner": "site",
+            "note": "The comparative evidence: bundle size measured against how much of IIIF each viewer implements, with the method, the versions and the measurement date."
+        },
+        {
+            "url": "/features/",
+            "owner": "site",
+            "note": "What the viewer can do with a IIIF manifest, one feature at a time on one running viewer: how it moves through material, plays sound and video, reads notes and text, obeys what a publisher declares, and what a host adds to it."
+        },
+        {
+            "url": "/configure/",
+            "owner": "site",
+            "note": "The builder, and the site's only configuration surface: everything a reader can decide about the viewer's appearance and behaviour by looking at it. A share URL landing here rehydrates the sender's configuration against their manifest."
+        },
+        {
+            "url": "/install/",
+            "owner": "site",
+            "note": "The adoption page: web component, React, Vue and Svelte integration choices, with the builder as the configuration handoff and links to the detailed guides."
+        },
+        {
+            "url": "/accessibility/",
+            "owner": "site",
+            "note": "Reader-facing accessibility features, IIIF interoperability and the automated checks supporting those commitments."
+        },
+        {
+            "url": "/handles/",
+            "owner": "site",
+            "note": "Static redirect to /features/, preserving query strings and fragments when JavaScript is available. Kept for existing links; excluded from indexing."
+        },
+        {
+            "url": "/access/",
+            "owner": "site",
+            "note": "Static redirect to /accessibility/, preserving query strings and fragments when JavaScript is available. Kept for existing links; excluded from indexing."
+        },
+        {
+            "url": "/production/",
+            "owner": "site",
+            "note": "Real deployments, each an openable link into a live reading room."
+        },
+        {
+            "url": "/system/",
+            "owner": "site",
+            "note": "The design-token appendix. Served and promised, but absent from the rail and from the sitemap and carrying noindex, so it does not compete with a real page for a query: this file is the contract, not the crawl policy."
+        },
+        {
+            "url": "/demo/",
+            "owner": "site",
+            "note": "The recipe bench: every IIIF Cookbook recipe the workspace tracks, on one running viewer, with the catalog's own support verdict beside each. A page of the site like any other — it takes the rail, the heading and the words — and absent from the rail's list, so it carries noindex and stays out of the sitemap for the reason /system/ does: a maintainer's bench is not one of the arguments the site makes. The path is kept because it has been published and still answers with a viewer. It previously served the playground, which is retired; /configure/ is now the site's only configuration surface."
+        },
+        {
+            "url": "/viewer/",
+            "owner": "site",
+            "app": "viewer",
+            "note": "The bare content-state viewer: a viewer with no chrome at all, driven entirely by the content state in the URL. A route of the site application, prerendered to a shell that mounts the viewer client-side. The path is preserved rather than moved because published IIIF Cookbook recipes link it directly through the cookbook's own _includes/viewer_link.html, so the URL must keep resolving — and must keep serving a viewer and nothing else, which is what the `app` field above gates."
+        },
+        {
+            "url": "/docs/",
+            "owner": "site",
+            "note": "The documentation home. A route of the site application: the documentation is prose of this site, declared in src/lib/routes.ts and prerendered by the same content route as the marketing pages. One tree, no version segment, no version alias at /latest/, no version index at /versions/ and no version manifest at /versions.json — a retired versioned URL lands on /404.html, which is where the previously published /docs/1.0/ went."
+        },
+        {
+            "url": "/examples/svelte/",
+            "owner": "examples",
+            "note": "The Svelte consumer example, proving the framework component's packaging works in a browser. Unversioned — always the current build of the workspace, like the two examples below it."
+        },
+        {
+            "url": "/examples/web-component/",
+            "owner": "examples",
+            "note": "The web-component consumer example, loading the element bundle and the audiovisual plugin's own bundle directory from the sibling /dist/ directory."
+        },
+        {
+            "url": "/examples/plain-html/",
+            "owner": "examples",
+            "note": "The no-build, plain-HTML consumer example; it has no bundler at all, so its relative ../../dist/ reference is the only thing pinning the bundle location below. apps/site/scripts/place-examples.mjs asserts it resolves in the built tree."
+        },
+        {
+            "url": "/dist/triiiceratops-element.iife.js",
+            "owner": "examples",
+            "note": "The self-contained element bundle, at the sibling path the two no-bundler example pages load it from. This is the real published output of the triiiceratops package, copied out of the module tree by the examples build with no aliasing: the examples exist to consume what a reader installs."
+        },
+        {
+            "url": "/favicon.ico",
+            "owner": "site",
+            "note": "The tab icon, at the one path browsers request whether or not a document links to it. Nothing on the site references it, which is exactly why it is promised here: without the file every visit fetches it and takes a 404, and the site's own Lighthouse gate reads that back as a console error on every route."
+        },
+        {
+            "url": "/sitemap.xml",
+            "owner": "site",
+            "note": "The site's sitemap, prerendered by src/routes/sitemap.xml/+server.ts from the same route declaration the rail and each page's robots meta derive from. It names the rail's pages and every documentation page. The design-token appendix and the recipe bench are absent because they carry noindex, and the bare viewer is absent because a canvas application is not prose a crawler has any use for."
+        },
+        {
+            "url": "/robots.txt",
+            "owner": "site",
+            "note": "The crawl policy, prerendered by src/routes/robots.txt/+server.ts. It points crawlers at the sitemap and disallows nothing on purpose: a Disallow would stop the crawl, which would stop a crawler ever reading the noindex on the one page that must not compete for a query."
+        },
+        {
+            "url": "/pagefind/pagefind.js",
+            "owner": "site",
+            "note": "The search bundle's entry, which the rail's search field fetches on the first keystroke. Written by apps/site/scripts/search-index.mjs after the tree is built, from the built HTML: it indexes every page whose body region carries `data-pagefind-body` — every route wearing the marketing chrome, which is the marketing pages, the documentation, the appendix and the recipe bench — and so never the bare viewer. A noindex page is still indexed here on purpose: that directive is for a crawler, and somebody looking for the appendix or the bench would look in this field. The bench's own recipe list carries `data-pagefind-ignore`, so forty manifest names do not out-match real prose. Promised here because a page loads it by URL rather than importing it, and its siblings in the directory (the WebAssembly, the fragments and the index chunks) are content-hashed names this entry deliberately does not freeze."
+        },
+        {
+            "url": "/social/og-docs-v1.png",
+            "owner": "site",
+            "note": "The social preview image every documentation page's og:image points at. Unversioned and suffix-stamped because scrapers cache preview images by URL for weeks; renaming it invalidates that cache, moving it breaks every card already in circulation."
+        },
+        {
+            "url": "/social/og-landing-v1.png",
+            "owner": "site",
+            "note": "The social preview image the landing page's og:image points at. Same cache contract as the documentation card, and declared by the site's marketing-chrome layout."
+        }
+    ]
+}

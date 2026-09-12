@@ -1,3 +1,4 @@
+import type { IconName } from '../generated/icons';
 import { getCanvasId } from '../utils/iiifIds';
 import { getCanvasBehaviors, getCanvasChoices } from '../utils/iiifParsing';
 
@@ -21,14 +22,81 @@ export type PagedCanvasGroup = {
 
 export type CanvasNavDirection = 'previous' | 'next';
 
-export type CanvasNavIcon = 'left' | 'right' | 'up' | 'down';
-
 export type CanvasNavLayout = {
     leftButton: CanvasNavDirection;
     rightButton: CanvasNavDirection;
-    leftIcon: CanvasNavIcon;
-    rightIcon: CanvasNavIcon;
+    /** The caret the button wears — the glyph name `Icon` resolves, not a side. */
+    leftIcon: IconName;
+    rightIcon: IconName;
 };
+
+/** Row-centre difference still read as one row, absorbing subpixel layout noise. */
+export const SAME_ROW_EPSILON_PX = 1;
+
+/**
+ * Whether to draw the divider between two adjacent groups of the control bar.
+ *
+ * One rule, applied per boundary: a divider is shown when both groups sit on
+ * the same row, because a vertical rule between groups on different rows reads
+ * as noise rather than as a separator. Rows are compared by the groups' vertical
+ * CENTRES, not their tops: the bar centres its items, so groups of unequal
+ * height (the toolbar buttons are shorter than the nav buttons) share a row
+ * centre while their tops differ.
+ *
+ * `null` means the group is not rendered at all, and a boundary with only one
+ * side has nothing to divide.
+ */
+export function shouldShowGroupDivider(
+    beforeCentre: number | null,
+    afterCentre: number | null,
+): boolean {
+    return (
+        beforeCentre !== null &&
+        afterCentre !== null &&
+        Math.abs(beforeCentre - afterCentre) <= SAME_ROW_EPSILON_PX
+    );
+}
+
+/**
+ * How long the control bar waits, with nothing happening, before it hides
+ * itself over a claimed canvas.
+ *
+ * Three seconds is a feel decision, not a derived one: long enough that it does
+ * not snatch the chrome away from a reader who paused mid-reach, short enough
+ * that a reader settling in to watch is not looking at a bar over the caption
+ * cues for the first act.
+ */
+export const IDLE_CHROME_DELAY_MS = 3000;
+
+/**
+ * Whether the control bar may hide itself right now.
+ *
+ * Not four special cases but one rule stated four ways: chrome a reader is
+ * *using* is not idle. Playback stopped, a pointer resting on the bar, keyboard
+ * focus inside it, or a popover it owns left open each mean the reader's
+ * attention is on the chrome rather than through it.
+ *
+ * Two of these are absolute, and a viewer that broke either would be worse than
+ * one that never hid anything: never hide while paused, and never hide while
+ * the bar holds KEYBOARD focus — which is what the second rule protects, since
+ * its whole point is that keyboard focus must never land on something
+ * invisible. Focus a mouse reader left on the play button by clicking it is not
+ * that, and treating it as such would pin the chrome open for the whole of
+ * every recording started from the bar, which is every recording.
+ */
+export function canIdleHide(conditions: {
+    playing: boolean;
+    pointerInBar: boolean;
+    keyboardFocusInBar: boolean;
+    popoverOpen: boolean;
+}): boolean {
+    return (
+        conditions.playing &&
+        !conditions.pointerInBar &&
+        !conditions.keyboardFocusInBar &&
+        !conditions.popoverOpen
+    );
+}
 
 export function shouldUseAbbreviatedChoiceLabels(
     viewingMode: ViewingMode,
@@ -44,8 +112,8 @@ export function getCanvasNavLayout(
         return {
             leftButton: 'next',
             rightButton: 'previous',
-            leftIcon: 'left',
-            rightIcon: 'right',
+            leftIcon: 'CaretLeft',
+            rightIcon: 'CaretRight',
         };
     }
 
@@ -53,8 +121,8 @@ export function getCanvasNavLayout(
         return {
             leftButton: 'previous',
             rightButton: 'next',
-            leftIcon: 'up',
-            rightIcon: 'down',
+            leftIcon: 'CaretUp',
+            rightIcon: 'CaretDown',
         };
     }
 
@@ -62,16 +130,16 @@ export function getCanvasNavLayout(
         return {
             leftButton: 'next',
             rightButton: 'previous',
-            leftIcon: 'up',
-            rightIcon: 'down',
+            leftIcon: 'CaretUp',
+            rightIcon: 'CaretDown',
         };
     }
 
     return {
         leftButton: 'previous',
         rightButton: 'next',
-        leftIcon: 'left',
-        rightIcon: 'right',
+        leftIcon: 'CaretLeft',
+        rightIcon: 'CaretRight',
     };
 }
 

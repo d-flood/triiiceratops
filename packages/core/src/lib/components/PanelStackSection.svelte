@@ -1,10 +1,13 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
     import PluginIcon from './PluginIcon.svelte';
-    import { onMount } from 'svelte';
+    import { getContext, onMount } from 'svelte';
     import type { PanelStackItem } from './PanelStack.svelte';
     import { getMessages } from '../state/i18n.svelte';
     import { Button } from './ui';
+    import { dismissible, panelToggleSelector } from '../utils/dismissible';
+    import { FOCUS_MEMORY_KEY, type FocusMemory } from '../utils/focusMemory';
+    import { useReducedMotion } from '../state/reducedMotion';
 
     interface Props {
         panel: PanelStackItem;
@@ -17,67 +20,62 @@
     const m = getMessages();
     let sectionElement: HTMLElement | undefined = $state();
 
-    // The control that opened this panel (typically the toolbar toggle that had
-    // focus at open time). Captured so keyboard focus returns to it when the
-    // panel is closed by Escape or the close button (WCAG 2.4.3 Focus Order).
-    let invoker: HTMLElement | null = null;
+    // Filled by the `dismissible` action. The close button dismisses through it
+    // so it returns focus by the same rule Escape does.
+    const dismissal: { dismiss?: () => void } = {};
 
-    function returnFocus() {
-        invoker?.focus?.();
-    }
+    // The toolbar toggle that opens this panel, by identity rather than by node:
+    // opening a panel on the toolbar's own side docks the toolbar as a rail,
+    // which destroys the toggle the reader activated and builds an identical one
+    // in the rail. The panel id is the identity both sides agree on.
+    const invokerSelector = $derived(panelToggleSelector(panel.id));
+    const focusMemory = getContext<FocusMemory | undefined>(FOCUS_MEMORY_KEY);
+    const reducedMotion = useReducedMotion();
 
     function handleClose() {
         panel.close?.();
-        returnFocus();
-    }
-
-    function onSectionKeydown(e: KeyboardEvent) {
-        // Escape closes the panel when focus is within it and returns focus to
-        // the invoking control. Non-modal panel, so Escape is only handled while
-        // focused-within — it never hijacks the page's global Escape.
-        if (e.key === 'Escape' && panel.close) {
-            e.stopPropagation();
-            handleClose();
-        }
     }
 
     onMount(() => {
         const el = sectionElement;
-        const root = el?.getRootNode() as Document | ShadowRoot | undefined;
-        const active = root?.activeElement as HTMLElement | null;
-        if (active && el && !el.contains(active)) {
-            invoker = active;
-        }
-
-        // Focus-scoped Escape handler. Attached imperatively (not a declarative
-        // handler on the non-interactive <section>) so it carries no static/
-        // noninteractive-element a11y diagnostic while still only firing when
-        // focus is within the panel.
-        el?.addEventListener('keydown', onSectionKeydown);
 
         if (scrollOnMount && el) {
-            const reduce =
-                typeof window !== 'undefined' &&
-                window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             el.scrollIntoView({
-                behavior: reduce ? 'auto' : 'smooth',
+                behavior: reducedMotion.current ? 'auto' : 'smooth',
                 block: 'nearest',
             });
         }
-
-        return () => el?.removeEventListener('keydown', onSectionKeydown);
     });
 </script>
 
-<section bind:this={sectionElement} data-panel-id={panel.id} class="section">
+<section
+    bind:this={sectionElement}
+    use:dismissible={{
+        onDismiss: handleClose,
+        controls: dismissal,
+        invokerSelector,
+        focusMemory,
+        escape: !!panel.close,
+        outsidePointer: false,
+        // Only when the rail hand-off destroyed the toggle the reader was
+        // standing on, and only for a panel that can actually be dismissed —
+        // otherwise focus stays where it was and nothing is stolen.
+        focusOnMount: panel.close ? 'orphaned' : false,
+    }}
+    data-panel-id={panel.id}
+    class="section"
+    class:fills={panel.fills}
+    role={panel.dialog ? 'dialog' : undefined}
+    aria-label={panel.dialog ? panel.title : undefined}
+>
     <div class="header" class:close-start={closeAlign === 'start'}>
         {#if panel.iconDescriptor}
             <span class="icon">
                 <PluginIcon descriptor={panel.iconDescriptor} size={18} />
             </span>
-        {:else if panel.icon}
+        {:else if panel.iconName}
             <span class="icon">
-                <panel.icon size={18} weight="bold" />
+                <Icon name={panel.iconName} size={18} weight="bold" />
             </span>
         {/if}
         <span class="title">{panel.title}</span>
@@ -87,7 +85,7 @@
                 size="xs"
                 circle
                 ghost
-                onclick={handleClose}
+                onclick={() => dismissal.dismiss?.()}
                 aria-label={m.close()}
             >
                 <Icon name="X" size={16} />
@@ -95,6 +93,12 @@
         {/if}
     </div>
     <div class="content">
+        <!--
+        No core panel declares `embedded` any more — they render one way. It is
+        still passed because plugin panels may declare it, and the annotation
+        editor's does: this is the only signal telling a plugin panel it is
+        mounted in the stack rather than standing alone.
+        -->
         <panel.component {...panel.props ?? {}} embedded={true} />
     </div>
 </section>
@@ -107,7 +111,15 @@
            instead of overflowing, so the stack's overflow-y:auto never scrolls. */
         flex-shrink: 0;
         background-color: var(--panel-surface);
-        border-radius: var(--tri-radius-panels);
+        /* Rounded as a card, except on an edge the stack holds flush against the
+           viewer frame — the column sets the two block-axis overrides. */
+        /* Both inline corners of a block edge take the same radius, so the
+           physical shorthand and the logical longhands agree in either
+           direction. */
+        border-radius: var(--panel-radius-block-start, var(--tri-radius-panels))
+            var(--panel-radius-block-start, var(--tri-radius-panels))
+            var(--panel-radius-block-end, var(--tri-radius-panels))
+            var(--panel-radius-block-end, var(--tri-radius-panels));
         overflow: hidden;
     }
 
@@ -156,5 +168,19 @@
     .content {
         min-height: 0;
         width: 100%;
+    }
+
+    /* The content box is the scroller, so a filling panel's body needs no height
+       cap of its own and the sticky header above it stays put. */
+    .section.fills {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .section.fills .content {
+        flex: 1 1 auto;
+        overflow-y: auto;
     }
 </style>

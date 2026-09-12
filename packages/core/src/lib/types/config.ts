@@ -28,11 +28,13 @@ export {
     DEFAULT_TOOLBAR_ANCHOR,
 } from './config/toolbar';
 export type {
+    BarMenu,
     ControlsMode,
     NavStyle,
     NavEdge,
     NavAlign,
     NavConfig,
+    RendererConfig,
     ViewerConfig,
 } from './config/viewer';
 export {

@@ -2,9 +2,16 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { paraglideVitePlugin } from '@inlang/paraglide-js';
+
+import dropLightDomOnly from './src/packaging/dropLightDomOnly';
+import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
+import { minifyCssPreprocessor } from './src/packaging/minifyCss';
+import { terserElementBuilds } from './src/packaging/terserElement';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Upgrades the wrapper AND fails the build if the wrapper was never found.
+const customElementGuard = wrapperCustomElementGuard();
 
 export default defineConfig({
     // Never copy demo dev-server static assets into the published dist.
@@ -12,25 +19,47 @@ export default defineConfig({
     plugins: [
         svelte({
             configFile: false,
+            // Scoped component CSS ends up in JS string literals (see
+            // `emitCss: false` below), which never pass through Vite's CSS
+            // pipeline — so nothing else in this build would ever minify it.
+            // Registered here and in vite.config.element-esm.ts ONLY; the
+            // svelte-package path keeps shipping readable, commented CSS.
+            preprocess: [minifyCssPreprocessor()],
             // Keep scoped component CSS in the JS bundle (injected at runtime via
             // Svelte's append_styles, which targets getRootNode() — i.e. the
             // custom element's shadow root) instead of extracting it to a
             // light-DOM stylesheet that never reaches the shadow DOM.
             emitCss: false,
-            // `customElement: true` only turns components that declare
-            // `<svelte:options customElement>` into custom elements (just
-            // TriiiceratopsViewerElement here); all other components compile as
-            // normal Svelte components.
-            compilerOptions: { customElement: true },
+            // Upgrade ONLY the wrapper. A global `customElement: true` does not
+            // limit itself to components declaring `<svelte:options
+            // customElement>` — it puts every component through custom-element
+            // codegen, which emits a wrapper class and the accompanying
+            // `custom_element_props_identifier` warnings for components that
+            // will never be registered. `svelte.config.js` gets this right with
+            // the same `dynamicCompileOptions`; this build cannot read that file
+            // (see `configFile: false` above), so it repeats the rule.
+            compilerOptions: { customElement: false },
+            dynamicCompileOptions: customElementGuard.dynamicCompileOptions,
         }),
-        paraglideVitePlugin({
-            project: './project.inlang',
-            outdir: './src/lib/paraglide',
-        }),
+        customElementGuard.plugin,
+        // Second minification pass, over what esbuild writes. Deliberately not
+        // `build.minify: 'terser'`: replacing esbuild rather than following it
+        // measures thousands of gzip bytes worse. `'iife'` keeps terser in
+        // script semantics — Vite's IIFE wrapper is not a module, so the
+        // module-only licences the ESM config takes are unsound here. See
+        // src/packaging/terserElement.ts.
+        terserElementBuilds('iife'),
     ],
     esbuild: {
         pure: ['console.log', 'console.debug'],
         drop: ['debugger'],
+    },
+    css: {
+        // `app.css?inline` goes into the shadow root, which never holds the
+        // elements the marked reset rules target. Registered here and in
+        // vite.config.element-esm.ts ONLY; every other build — the demo
+        // documents and the published light-DOM sheet — gets the sheets whole.
+        postcss: { plugins: [dropLightDomOnly()] },
     },
     build: {
         // Lowering private fields leaks helpers outside Vite's generated IIFE.

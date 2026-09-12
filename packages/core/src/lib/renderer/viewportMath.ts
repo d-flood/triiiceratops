@@ -1,0 +1,624 @@
+/**
+ * The coordinate model, as pure functions.
+ *
+ * Two spaces, one number relating them:
+ *
+ * - **canvas space** — manifest Canvas pixel coordinates. Annotation geometry
+ *   is already persisted here, so keeping it as the renderer's world space is
+ *   what makes annotation geometry correct by construction.
+ * - **screen space** — CSS pixels within the viewport element.
+ *
+ * `Viewport.scale` is screen pixels per canvas-space unit, and `Viewport.centre`
+ * is the canvas-space point at the middle of the viewport. Everything else here
+ * follows from those two.
+ *
+ * This module is DOM-free on purpose: the geometric e2e assertions
+ * (`tests/helpers/numberedGrid.ts`) check what the *painter* did with these
+ * numbers, and these unit tests check the numbers themselves. Together that is
+ * what catches coordinate-transform regressions without a screenshot diff.
+ */
+
+import type { ViewportInset } from '../types/viewport';
+import type { PaintTransform } from './paintLayers';
+import type { Box } from './tilePyramid';
+import type { Point, Viewport } from './types';
+
+/**
+ * The viewport as a canvas-space box.
+ *
+ * What "on screen" means to anything reasoning in the world rather than about
+ * pixels: the residency window is this box inflated, the visible-canvas set is
+ * what intersects it, and `ViewerState.getVisibleBounds` is it converted into
+ * one canvas's space.
+ *
+ * Undefined for a `scale` of zero — an unmeasured surface shows nothing, and
+ * every caller has already answered that question its own way (an empty set, a
+ * null box) before asking this one.
+ */
+export function viewportBox(viewport: Viewport): Box {
+    const halfWidth = viewport.width / (2 * viewport.scale);
+    const halfHeight = viewport.height / (2 * viewport.scale);
+
+    return {
+        x: viewport.centre.x - halfWidth,
+        y: viewport.centre.y - halfHeight,
+        width: halfWidth * 2,
+        height: halfHeight * 2,
+    };
+}
+
+/**
+ * World space → device pixels: the matrix the tiles are drawn with.
+ *
+ * `dpr` is the backing-store ratio, folded into `scale` rather than applied
+ * separately — the context is sized in device pixels while the viewport is
+ * measured in CSS pixels, and folding it here is what keeps every other
+ * coordinate in the painter CSS-pixel-based.
+ *
+ * One function because there is one matrix: `paintScene` sets it on the context,
+ * its tile path applies it by hand to snap edges to whole device pixels, and the
+ * host hands the same numbers to every paint layer. Those are three readers of
+ * one fact, and a layer whose ink is half a device pixel off the tiles is what a
+ * second spelling of it looks like.
+ */
+export function viewportTransform(
+    viewport: Viewport,
+    dpr: number,
+): PaintTransform {
+    const scale = viewport.scale * dpr;
+
+    return {
+        scale,
+        offsetX: (viewport.width / 2) * dpr - viewport.centre.x * scale,
+        offsetY: (viewport.height / 2) * dpr - viewport.centre.y * scale,
+        dpr,
+    };
+}
+
+/** Canvas space → screen space. */
+export function canvasToScreen(point: Point, viewport: Viewport): Point {
+    return {
+        x: (point.x - viewport.centre.x) * viewport.scale + viewport.width / 2,
+        y: (point.y - viewport.centre.y) * viewport.scale + viewport.height / 2,
+    };
+}
+
+/** Screen space → canvas space. The exact inverse of {@link canvasToScreen}. */
+export function screenToCanvas(point: Point, viewport: Viewport): Point {
+    return {
+        x: (point.x - viewport.width / 2) / viewport.scale + viewport.centre.x,
+        y: (point.y - viewport.height / 2) / viewport.scale + viewport.centre.y,
+    };
+}
+
+export function clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * The scale at which a canvas-space box exactly fits inside the viewport, and
+ * the centre that puts it in the middle.
+ */
+export function fitBounds(
+    bounds: { x: number; y: number; width: number; height: number },
+    size: { width: number; height: number },
+): { centre: Point; scale: number } {
+    const scale =
+        bounds.width > 0 && bounds.height > 0
+            ? Math.min(size.width / bounds.width, size.height / bounds.height)
+            : 1;
+
+    return {
+        centre: {
+            x: bounds.x + bounds.width / 2,
+            y: bounds.y + bounds.height / 2,
+        },
+        scale,
+    };
+}
+
+/**
+ * {@link fitBounds}'s scale, framing into the part of the surface a plugin has
+ * left visible.
+ *
+ * A **viewport inset** reserves edges of the surface — the space under a
+ * plugin's own floating UI — so a fit lands the box in the rectangle the reader
+ * can actually see rather than behind that UI. This is the scale half of that
+ * fit; {@link insetFitCentre} is the other, and is deliberately separate
+ * because every caller clamps this answer before composing the centre against
+ * it.
+ *
+ * **Only fits consult the inset.** `canvasToScreen`/`screenToCanvas`,
+ * `constrainCentre`, `zoomRange`, and every pan and zoom are about the whole
+ * surface, and stay so: overlay-layer DOM spans the full surface, so an inset
+ * that changed the coordinate mapping would misplace every plugin's markers —
+ * including those of the plugin that set it.
+ *
+ * A zero inset is `fitBounds` exactly, which is why the fit path has one
+ * branch rather than two.
+ */
+export function insetFitScale(
+    bounds: { x: number; y: number; width: number; height: number },
+    size: { width: number; height: number },
+    inset: ViewportInset,
+): number {
+    return fitBounds(bounds, {
+        width: insetAxis(size.width, inset.left, inset.right).extent,
+        height: insetAxis(size.height, inset.top, inset.bottom).extent,
+    }).scale;
+}
+
+/**
+ * The centre that frames `bounds` into `inset` **at a scale the caller has
+ * already settled on**.
+ *
+ * The other half of {@link insetFitScale}, split out because a fit does not
+ * always get the scale it asked for. The inset's centre shift is a distance in
+ * SCREEN pixels and a viewport stores its centre in canvas units, so converting
+ * one to the other needs the scale the viewport will actually adopt — and
+ * `CanvasHost.applyFit` puts every fitted scale through `clampScale` first,
+ * because the public `fitBounds` command takes a box a caller chose and a
+ * two-unit box on a 4000-unit canvas fits hundreds of times past the zoom
+ * ceiling. Divide the shift by the scale the fit *wanted* and the realised shift
+ * comes out multiplied by `adopted / wanted`: a clamped fit lands off-centre, in
+ * the worst case behind the very panel the inset exists for.
+ *
+ * A non-positive or non-finite `scale` has no shift to express, so the box
+ * centre is returned unmoved — the honest answer for an unmeasured surface or a
+ * degenerate box.
+ */
+export function insetFitCentre(
+    bounds: { x: number; y: number; width: number; height: number },
+    size: { width: number; height: number },
+    inset: ViewportInset,
+    scale: number,
+): Point {
+    const centre = {
+        x: bounds.x + bounds.width / 2,
+        y: bounds.y + bounds.height / 2,
+    };
+    if (!(scale > 0) || !Number.isFinite(scale)) return centre;
+
+    // Screen offset → canvas space: the centre is what the transform subtracts,
+    // so moving the box DOWN the surface moves the centre UP the world.
+    return {
+        x:
+            centre.x -
+            insetAxis(size.width, inset.left, inset.right).offset / scale,
+        y:
+            centre.y -
+            insetAxis(size.height, inset.top, inset.bottom).offset / scale,
+    };
+}
+
+/**
+ * One axis of {@link insetFitScale}: the extent a fit frames into, and how far
+ * the middle of that extent sits from the middle of the surface, both in screen
+ * pixels.
+ *
+ * **An inset leaving no usable extent falls back to the whole axis, silently.**
+ * Per-axis, with no invented threshold and no clamping fraction: an inset that
+ * is reasonable on a tall window exceeds a short one, so this is a consequence
+ * of the reader's window rather than an author error, and it is the set-time
+ * validation on `ViewerState.setViewportInset` that tells an author about a bad
+ * number. Warning here would fire on every frame of a resize.
+ *
+ * Falling back keeps the standing guarantee that a reader can always zoom out
+ * far enough to see a whole canvas: no inset can put the home view out of
+ * reach.
+ */
+function insetAxis(
+    size: number,
+    before: number,
+    after: number,
+): { extent: number; offset: number } {
+    const extent = size - before - after;
+    // Written as `> 0` rather than `<= 0` so a NaN edge takes the fallback too.
+    if (!(extent > 0)) return { extent: size, offset: 0 };
+    return { extent, offset: (before - after) / 2 };
+}
+
+/**
+ * The legal scale range: the zoom floor, and a ceiling a fixed factor above the
+ * scale a fit lands at.
+ *
+ * ## The floor is the canvas against the viewport
+ *
+ * `minZoomFraction` is how small the canvas may get, as a fraction of the scale
+ * at which it exactly **fits** — so at the shipped half, the canvas covers half
+ * the viewport, with a quarter of it empty either side.
+ *
+ * "Half the viewport" needs an axis, and the fit has already chosen one:
+ * `fitBounds` takes `min(width ratio, height ratio)`, so a fraction of it is a
+ * fraction of whichever axis constrains the canvas. That is also why the two
+ * spellings of the rule — half the viewport's width, or half its height — are one
+ * number rather than two: `min(f·w/W, f·h/H)` is `f · min(w/W, h/H)`. The canvas
+ * may well be under half the OTHER axis; a portrait page in a wide window is half
+ * the height and a fraction of the width, and that is the intended reading.
+ *
+ * Measured against the live viewport every time it is asked, never stored, which
+ * is what makes it hold on a phone and across a window resize: shrink the window
+ * and the fit scale rises with it, so the floor follows.
+ *
+ * The fit reference is the current canvas (continuous mode) or the spread on
+ * screen (every other mode) — see `layoutQueries.fitTargetBounds`. Deliberately
+ * not the whole WORLD: fitting 800 folios is the one-pixel-per-page case, so a
+ * floor derived from it would be no floor at all.
+ *
+ * ## Seeing the whole canvas is a guarantee, so the floor is capped at the fit
+ *
+ * `minZoom` is the renderer's **derived** floor — the scale at which the median
+ * canvas reaches the box threshold, the point past which there is nothing left to
+ * draw. It is kept as a backstop for a world whose canvases are so small that
+ * half the fit is still below it, and it is capped at `fitScale`, because a
+ * reader must always be able to zoom out far enough to see an entire canvas
+ * whatever the viewport. A floor above the fit would make the home view itself
+ * unreachable, which no threshold is allowed to do.
+ *
+ * The cap is also what keeps the range from collapsing. The floor and the ceiling
+ * are derived from different things and the floor really could come out higher,
+ * which would leave a viewer that can neither zoom in nor out with nothing
+ * reported; bounded by the fit, and with `maxFactor` above 1, `min < max` always.
+ *
+ * `minZoom` of `0` means "no floor derived" — an empty world — and contributes a
+ * nominal floor far below the ceiling rather than a real bound.
+ *
+ * ## The ceiling is the more generous of two rules
+ *
+ * `maxFactor` is a multiple of the fit; `pixelCeiling`
+ * ({@link sourcePixelCeiling}) limits how far a source pixel may be magnified.
+ * The fit term is the only usable answer for a source with fewer pixels than
+ * its viewport; the pixel term the only usable one for a deep scan, whose fit
+ * is small precisely because it has so many pixels. Taking the **larger** means
+ * neither rule can take depth away from the other.
+ */
+export function zoomRange(
+    fitScale: number,
+    minZoom: number,
+    maxFactor: number,
+    minZoomFraction: number,
+    pixelCeiling = 0,
+): { min: number; max: number } {
+    const derived = minZoom > 0 ? minZoom : (fitScale * maxFactor) / 1e6;
+    // Both guarded on a usable fit, because an unmeasured surface has no fit to
+    // take a fraction of and none to be capped by: a floor invented from it
+    // would clamp the first real frame.
+    const readable = fitScale > 0 ? fitScale * minZoomFraction : 0;
+    const wholeCanvas = fitScale > 0 ? fitScale : Infinity;
+    const min = Math.min(Math.max(derived, readable), wholeCanvas);
+
+    // Over the floor rather than the raw fit, so whichever term wins still sits
+    // above `min` and the range cannot collapse.
+    const fitCeiling = Math.max(fitScale, min) * maxFactor;
+    return { min, max: Math.max(fitCeiling, pixelCeiling) };
+}
+
+/**
+ * The scale at which one source pixel covers `maxPixelRatio` device pixels —
+ * the zoom ceiling's second term.
+ *
+ * ```
+ * devicePixelsPerSourcePixel = scale * dpr / sourcePixelsPerWorldUnit
+ * ```
+ *
+ * solved for `maxPixelRatio`. Says nothing about the viewport, so it holds
+ * across a resize and a rotation. `sourcePixelsPerWorldUnit` comes from
+ * `planScene.planViewportLimits`, which is where the two reasons a world unit
+ * is not a source pixel are folded into one number.
+ *
+ * `0` — no ceiling of this kind, leaving it to the fit term — when the world's
+ * resolution is not known.
+ */
+export function sourcePixelCeiling(
+    sourcePixelsPerWorldUnit: number,
+    maxPixelRatio: number,
+    dpr: number,
+): number {
+    if (sourcePixelsPerWorldUnit <= 0 || maxPixelRatio <= 0 || dpr <= 0) {
+        return 0;
+    }
+    return (maxPixelRatio * sourcePixelsPerWorldUnit) / dpr;
+}
+
+/**
+ * The scale that keeps the reader looking at the same part of the canvas when
+ * **core itself** takes surface away or gives it back — a side panel, the
+ * toolbar docked as a rail, a top or bottom thumbnail band.
+ *
+ * ```
+ * ratio     = min over the axes whose extent CHANGED of (next / previous)
+ * floor     = min(scale, fitScale)
+ * ceiling   = scale <= previousFitScale ? fitScale : Infinity
+ * result    = clamp(scale * ratio, floor, ceiling)
+ * ```
+ *
+ * `scale * ratio` is the region-preserving term. The viewport shows
+ * `size / scale` canvas units around its centre, so multiplying the scale by
+ * the surviving fraction of the changed axis holds that number constant. The
+ * centre is a canvas-space point and needs no adjustment at all: the visible
+ * rect is unchanged on the changed axis and grows on the other. Taking `min`
+ * over the changed axes rather than a product or an average is what makes that
+ * true of the *constraining* axis while every other axis reveals strictly more,
+ * so nothing on screen is cropped.
+ *
+ * Both fit scales are the fit of the same target, measured in the two surfaces:
+ * `fitScale` in the one arriving, `previousFitScale` in the one leaving.
+ *
+ * ## The floor and the ceiling, which are what make the rule safe
+ *
+ * **No overhang is introduced**: if `scale <= previousFitScale` then the result
+ * is at most `fitScale`. A projection larger than the fit hangs off the edges of
+ * its own surface, and the overhanging part is clipped away — taking
+ * canvas-anchored chrome out of both the picture and the hit test — so a reader
+ * who had the whole canvas must still have it afterwards. Each bound covers one
+ * direction:
+ *
+ * - Narrowing (`ratio < 1`) is the floor's side, and there the inequality holds
+ *   of the ratio term by itself: `fitScale` is a `min` over the axes of
+ *   `next / canvasExtent`, so it falls by at most the largest axis ratio, while
+ *   `scale` falls by the smallest. The floor then stops the compensation zooming
+ *   out *past* the whole canvas, where there is nothing left to preserve — which
+ *   is also why a viewer that opens with a panel already docked does not open a
+ *   height-constrained canvas needlessly small.
+ * - Widening (`ratio > 1`) is the ceiling's side, and it is not optional. Where
+ *   the fit is constrained by an axis the chrome did not change, `ratio` and
+ *   `fitScale` are independent: a portrait folio in a landscape viewer is
+ *   height-constrained at every width, so returning a panel's 300 px multiplies
+ *   the scale by 1.6 while the fit does not move at all, leaving a reader who had
+ *   the whole folio with 62% of one. The floor cannot catch that, being a lower
+ *   bound.
+ *
+ * The ceiling gates on the **previous** fit, never the arriving one. A reader who
+ * was genuinely zoomed in is already overhanging by choice and must be allowed
+ * to stay there; gating on the arriving fit reads their compensated scale as
+ * "at the fit" and drags them down to it, which would make a widening surface
+ * lose the zoom a narrowing one preserved. Ungated, the ceiling never binds while
+ * narrowing anyway, since `scale * ratio < scale` there.
+ *
+ * ## Composition
+ *
+ * `ratio` is relative, so the product of the ratios over a run of intermediate
+ * sizes equals the ratio of the endpoints: stepping a panel's slide through
+ * twelve widths lands exactly where one step to the final width lands, and a
+ * single-axis change is exactly invertible while neither bound is active. That
+ * is what frees the caller from having to observe every frame of a resize.
+ *
+ * Two kinds of input return `scale` untouched: a previous extent that is
+ * unmeasured or non-finite (or a non-finite next one), because there is no ratio
+ * to take against it, and a `scale` that is non-positive or non-finite, because
+ * there is no region to preserve. A *zero* next extent is not among them — it
+ * yields a ratio of 0 and lands on the floor — and callers never present one,
+ * since a surface with no width has nothing to compensate for.
+ */
+export function compensatedScale(
+    scale: number,
+    previous: { width: number; height: number },
+    next: { width: number; height: number },
+    fitScale: number,
+    previousFitScale: number,
+): number {
+    if (!(scale > 0) || !Number.isFinite(scale)) return scale;
+
+    let ratio = Infinity;
+    for (const axis of ['width', 'height'] as const) {
+        const was = previous[axis];
+        const now = next[axis];
+        if (now === was) continue;
+        if (!(was > 0) || !Number.isFinite(was) || !Number.isFinite(now)) {
+            return scale;
+        }
+        ratio = Math.min(ratio, now / was);
+    }
+    if (ratio === Infinity) return scale;
+
+    const usable = fitScale > 0 && Number.isFinite(fitScale);
+    const floor = usable ? Math.min(scale, fitScale) : 0;
+    const ceiling =
+        usable && previousFitScale > 0 && scale <= previousFitScale
+            ? fitScale
+            : Infinity;
+
+    return clamp(scale * ratio, floor, ceiling);
+}
+
+/**
+ * Keep the world within reach of the viewport.
+ *
+ * Without this, pan is unbounded: a drag — and much more easily a flick, which
+ * keeps travelling after the finger has left — can put the world arbitrarily
+ * far off screen, at which point the viewer is a blank rectangle with no
+ * affordance for getting back. The previous renderer constrained the pan on
+ * release; this constrains it continuously, so the image never leaves at all
+ * rather than springing back afterwards.
+ *
+ * `visibilityRatio` is the fraction of the **smaller** of the two extents (the
+ * world's or the viewport's, per axis) that must stay in view. Taking the
+ * smaller of the two is what makes one rule cover both regimes: zoomed in, the
+ * world is larger than the viewport and the rule keeps the viewport covered;
+ * zoomed out, the viewport is larger and the rule keeps the world on screen.
+ * At `1` the world may never part from the viewport edge at all.
+ *
+ * The allowed centre range is never empty for `0 <= visibilityRatio <= 1`, so
+ * this always has an answer and never oscillates.
+ */
+export function constrainCentre(
+    centre: Point,
+    scale: number,
+    world: { x: number; y: number; width: number; height: number },
+    size: { width: number; height: number },
+    visibilityRatio: number,
+): Point {
+    if (!(scale > 0) || world.width <= 0 || world.height <= 0) return centre;
+
+    return {
+        x: constrainAxis(
+            centre.x,
+            world.x,
+            world.width,
+            size.width / scale,
+            visibilityRatio,
+        ),
+        y: constrainAxis(
+            centre.y,
+            world.y,
+            world.height,
+            size.height / scale,
+            visibilityRatio,
+        ),
+    };
+}
+
+/**
+ * One axis of {@link constrainCentre}. `window` is the visible extent in
+ * canvas space (screen extent ÷ scale).
+ */
+function constrainAxis(
+    centre: number,
+    worldMin: number,
+    worldExtent: number,
+    window: number,
+    visibilityRatio: number,
+): number {
+    if (window <= 0 || !Number.isFinite(window)) return centre;
+
+    const required = visibilityRatio * Math.min(worldExtent, window);
+    const worldMax = worldMin + worldExtent;
+    // The viewport spans [centre - window/2, centre + window/2]; requiring its
+    // overlap with [worldMin, worldMax] to be at least `required` is these two
+    // bounds, rearranged.
+    const low = worldMin + required - window / 2;
+    const high = worldMax - required + window / 2;
+
+    return clamp(centre, low, high);
+}
+
+/**
+ * Zoom about a screen point: the canvas-space point under `anchor` stays under
+ * `anchor` (spec §Input and animation, user story 7).
+ *
+ * Returns the centre the viewport must adopt at `nextScale` for that to hold.
+ * Expressed as a pure function rather than as a mutation inside the wheel
+ * handler so it can be asserted without a browser, and so the same anchoring is
+ * reused by double-click zoom and pinch without being reimplemented.
+ */
+export function anchoredZoomCentre(
+    viewport: Viewport,
+    anchor: Point,
+    nextScale: number,
+): Point {
+    const world = screenToCanvas(anchor, viewport);
+
+    // Solve `canvasToScreen(world, {…viewport, scale: nextScale, centre}) ===
+    // anchor` for `centre`.
+    return {
+        x: world.x - (anchor.x - viewport.width / 2) / nextScale,
+        y: world.y - (anchor.y - viewport.height / 2) / nextScale,
+    };
+}
+
+/**
+ * One step of a frame-rate-independent exponential approach to a target.
+ *
+ * `timeConstant` is the time (in the same unit as `elapsed`) in which the
+ * remaining distance falls to 1/e. Using elapsed time rather than a per-frame
+ * fraction is what keeps the motion identical at 60 and 120 Hz.
+ *
+ * A zero (or negative) `elapsed` is a **no-op**: no time has passed, so nothing
+ * has moved, and `current` is returned unchanged. This is not a pedantic edge
+ * case — a `requestAnimationFrame` callback scheduled from an input handler is
+ * given a timestamp from the frame that was already in flight, which can be
+ * *earlier* than the `performance.now()` the handler read, so the animation's
+ * very first step routinely has a non-positive elapsed. Returning `target`
+ * there would snap instantly and skip the easing altogether.
+ *
+ * A non-positive `timeConstant` is different: it means "no smoothing at all",
+ * for which arriving immediately is the correct answer.
+ */
+export function approach(
+    current: number,
+    target: number,
+    timeConstant: number,
+    elapsed: number,
+): number {
+    if (timeConstant <= 0) return target;
+    if (elapsed <= 0) return current;
+    return target + (current - target) * Math.exp(-elapsed / timeConstant);
+}
+
+/**
+ * `WheelEvent.deltaY` expressed in **pixels**, whatever unit the event used.
+ *
+ * `deltaMode` is part of the wheel event's contract and says what its deltas
+ * count: `0` pixels, `1` lines, `2` pages. Firefox on a mouse wheel reports
+ * lines — roughly 3 per notch, where the pixel mode of the same notch is around
+ * 100 — so consuming `deltaY` raw would zoom about a fortieth as far per notch
+ * there as elsewhere.
+ *
+ * This is a *unit conversion declared by the event*, not the trackpad-versus-
+ * mouse sniffing the spec bans (`rendererDefaults.WHEEL_TIME_CONSTANT`): all
+ * wheel input is still animated by the same constant, and nothing here inspects
+ * the hardware, the platform, or the user agent.
+ *
+ * `linePixels` and `pagePixels` are passed in rather than read from the shipped
+ * defaults so tests never assert against provisional numbers.
+ */
+export function normalizeWheelDelta(
+    delta: number,
+    deltaMode: number,
+    linePixels: number,
+    pagePixels: number,
+): number {
+    if (!Number.isFinite(delta)) return 0;
+    // `1` and `2` are DOM_DELTA_LINE and DOM_DELTA_PAGE. Anything else —
+    // including DOM_DELTA_PIXEL and any future mode — is treated as pixels,
+    // which is the only mode that needs no conversion.
+    if (deltaMode === 1) return delta * linePixels;
+    if (deltaMode === 2) return delta * pagePixels;
+    return delta;
+}
+
+/**
+ * The log-scale change per pixel of normalized `deltaY` that makes one wheel
+ * notch multiply the zoom by `zoomPerNotch`.
+ *
+ * The wheel's natural unit is a rate per pixel, because that is what the event
+ * supplies and what a trackpad's fractional deltas need. Nobody configures a
+ * viewer in those units, though: `0.0025` says nothing about how far a notch
+ * travels, while `1.15` says exactly. So the public knob is the per-notch
+ * factor (`ViewerConfig.renderer.zoomPerWheelNotch`) and this converts it once,
+ * at the edge, into the rate the accumulation actually uses.
+ *
+ * `notchPixels` is passed in rather than read from the shipped defaults, for
+ * the same reason `normalizeWheelDelta` takes its units: tests must never
+ * assert against a provisional number.
+ *
+ * A `zoomPerNotch` of 1 or less has no meaning — it would freeze the wheel or
+ * invert it — and yields `0`, which callers read as "no zoom from the wheel".
+ * Validation of the configured value belongs at the config edge; this stays
+ * total so a bad number cannot produce a `NaN` scale.
+ */
+export function wheelZoomRate(
+    zoomPerNotch: number,
+    notchPixels: number,
+): number {
+    if (!Number.isFinite(zoomPerNotch) || zoomPerNotch <= 1) return 0;
+    if (!Number.isFinite(notchPixels) || notchPixels <= 0) return 0;
+    return Math.log(zoomPerNotch) / notchPixels;
+}
+
+/**
+ * Interpolate scale in **log space**, so zooming feels uniform rather than
+ * lurching: a step from 1× to 2× and a step from 8× to 16× take the same time
+ * and cover the same perceived distance (spec §Input and animation).
+ */
+export function approachScale(
+    current: number,
+    target: number,
+    timeConstant: number,
+    elapsed: number,
+): number {
+    if (current <= 0 || target <= 0) return target;
+    return Math.exp(
+        approach(Math.log(current), Math.log(target), timeConstant, elapsed),
+    );
+}

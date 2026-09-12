@@ -2,48 +2,34 @@
     import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { getMessages, language } from '../state/i18n.svelte';
-    import {
-        normalizeIiifLinks,
-        normalizeMetadataEntries,
-    } from '../utils/metadataNormalization';
-    import { resolveLanguageValue } from '../utils/languageMap';
+    import { getMessages } from '../state/i18n.svelte';
+    import { normalizeDescriptiveMetadata } from '../utils/metadataNormalization';
     import SanitizedHtml from './SanitizedHtml.svelte';
     import { Button } from './ui';
+    import { dismissible } from '../utils/dismissible';
+
+    let { tooltipPlacement = 'place-top' }: { tooltipPlacement?: string } =
+        $props();
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
-    let viewerLocale = $derived(viewerState.config.locale ?? language.current);
+    let viewerLocale = $derived(viewerState.activeLocale);
 
     let canvas = $derived.by(() => {
         const idx = viewerState.currentCanvasIndex;
         return viewerState.canvases[idx] ?? null;
     });
 
-    // Raw IIIF Canvas JSON, v2 or v3 as authored. Every read below goes through
-    // `resolveLanguageValue` / `normalizeMetadataEntries`, which handle both
-    // versions' spellings.
-    let json = $derived(canvas);
+    // Raw IIIF Canvas JSON, v2 or v3 as authored. The version mapping is the
+    // same one the metadata panel reads a manifest through.
+    let described = $derived(
+        normalizeDescriptiveMetadata(canvas, viewerLocale),
+    );
 
-    let label = $derived.by(() => {
-        if (!json) return '';
-        return resolveLanguageValue(json.label, viewerLocale);
-    });
-
-    let summary = $derived.by(() => {
-        if (!json?.summary) return '';
-        return resolveLanguageValue(json.summary, viewerLocale);
-    });
-
-    let metadata = $derived.by(() => {
-        if (!json?.metadata) return [];
-        return normalizeMetadataEntries(
-            Array.isArray(json.metadata) ? json.metadata : [],
-            viewerLocale,
-        );
-    });
-
-    let rendering = $derived(normalizeIiifLinks(json?.rendering, viewerLocale));
+    let label = $derived(described.title);
+    let summary = $derived(described.summary);
+    let metadata = $derived(described.metadata);
+    let rendering = $derived(described.rendering);
 
     let hasAdditionalContent = $derived(
         !!(summary || metadata.length > 0 || rendering.length > 0),
@@ -53,36 +39,25 @@
         viewerState.config.information?.showButton !== false,
     );
 
-    // Focus management for the popover dialog (WCAG 2.1.2 / 2.4.3): remember the
-    // trigger that opened it, move focus into the dialog on open, close on
-    // Escape, and return focus to the trigger on close.
-    let popoverEl = $state<HTMLElement | undefined>();
-    let invoker: HTMLElement | null = null;
+    // Focus and dismissal (WCAG 2.1.2 / 2.4.3) come from the shared `dismissible`
+    // action: remember the trigger, move focus in, Escape and outside-pointer
+    // close, focus returns. It replaces the backdrop `<button>` this used to
+    // need, which was a focusable element in the tab order that announced
+    // nothing useful.
+    let invoker = $state<HTMLElement | null>(null);
 
     function openInfo(e: MouseEvent) {
         invoker = e.currentTarget as HTMLElement;
         viewerState.toggleCanvasInfo();
     }
 
+    // Filled by the `dismissible` action; the close button goes through it so it
+    // returns focus by the same rule Escape does.
+    const dismissal: { dismiss?: () => void } = {};
+
     function closeInfo() {
         if (viewerState.showCanvasInfo) viewerState.toggleCanvasInfo();
-        invoker?.focus();
     }
-
-    function onPopoverKeydown(e: KeyboardEvent) {
-        if (e.key === 'Escape') {
-            e.stopPropagation();
-            closeInfo();
-        }
-    }
-
-    $effect(() => {
-        const el = popoverEl;
-        if (!el) return;
-        el.focus();
-        el.addEventListener('keydown', onPopoverKeydown);
-        return () => el.removeEventListener('keydown', onPopoverKeydown);
-    });
 </script>
 
 {#if hasAdditionalContent && showButton}
@@ -91,26 +66,23 @@
             circle
             size="xs"
             ghost
-            class="trigger"
+            class="trigger tooltip {tooltipPlacement}"
+            data-tip={m.canvas_info_tooltip()}
             onclick={openInfo}
             aria-label={m.canvas_info_tooltip()}
-            title={m.canvas_info_tooltip()}
         >
             <Icon name="Info" size={14} weight="bold" />
         </Button>
 
         {#if viewerState.showCanvasInfo}
-            <!-- Backdrop to close popover -->
-            <button
-                class="backdrop"
-                onclick={closeInfo}
-                aria-label={m.close()}
-                tabindex="-1"
-            ></button>
-
             <!-- Popover -->
             <div
-                bind:this={popoverEl}
+                use:dismissible={{
+                    onDismiss: closeInfo,
+                    controls: dismissal,
+                    invoker,
+                    within: [invoker],
+                }}
                 class="popover"
                 style="left: 50%; transform: translateX(-50%); z-index: 1001;"
                 role="dialog"
@@ -125,7 +97,7 @@
                             circle
                             ghost
                             class="close"
-                            onclick={closeInfo}
+                            onclick={() => dismissal.dismiss?.()}
                             aria-label={m.close()}
                         >
                             <Icon name="X" size={14} />
@@ -189,13 +161,6 @@
         color: var(--tri-color-primary-text);
     }
 
-    .backdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 40;
-        cursor: default;
-    }
-
     .popover {
         position: absolute;
         bottom: 100%;
@@ -205,9 +170,7 @@
         border-style: solid;
         border-color: var(--tri-surface-border);
         border-radius: var(--tri-radius-panels);
-        box-shadow:
-            0 20px 25px -5px #0000001a,
-            0 8px 10px -6px #0000001a;
+        box-shadow: var(--ui-shadow-xl);
         width: 18rem;
         max-height: 16rem;
         overflow: hidden;

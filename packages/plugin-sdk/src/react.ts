@@ -1,7 +1,7 @@
 /**
- * React adapter (`@triiiceratops/plugin-sdk/react`) — ticket 13.
+ * React adapter (`@triiiceratops/plugin-sdk/react`).
  *
- * Turns the SDK's memoized, equality-gated selector contract (ticket 07) into
+ * Turns the SDK's memoized, equality-gated selector contract into
  * idiomatic React reactivity, built on `useSyncExternalStore` so reads stay
  * tear-free under concurrent rendering and `StrictMode` double-invocation.
  *

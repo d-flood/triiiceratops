@@ -1,0 +1,259 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/multilingual/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Three paintings, catalogued in several languages"],
+        "fr": ["Trois peintures, cataloguées en plusieurs langues"],
+        "ja": ["多言語で記述された三点の絵画"],
+        "nl": ["Drie schilderijen, in meerdere talen beschreven"]
+    },
+    "summary": {
+        "en": [
+            "Every descriptive field of this manifest is written in more than one language, so a reader can be served in the one they read."
+        ],
+        "fr": [
+            "Chaque champ descriptif de ce manifeste est rédigé en plusieurs langues, afin que le lecteur soit servi dans la sienne."
+        ],
+        "ja": [
+            "このマニフェストの記述項目はすべて複数の言語で書かれており、読者は自分の読む言語で読むことができます。"
+        ],
+        "nl": [
+            "Elk beschrijvend veld van dit manifest is in meer dan één taal geschreven, zodat een lezer bediend wordt in de taal die hij leest."
+        ]
+    },
+    "metadata": [
+        {
+            "label": {
+                "en": ["Held by"],
+                "fr": ["Conservé par"],
+                "ja": ["所蔵"],
+                "nl": ["Collectie"]
+            },
+            "value": {
+                "en": ["Public-domain reproductions, served from this site."],
+                "fr": [
+                    "Reproductions du domaine public, servies depuis ce site."
+                ],
+                "ja": [
+                    "パブリックドメインの複製。当サイトから配信しています。"
+                ],
+                "nl": [
+                    "Publiek-domeinreproducties, geserveerd vanaf deze site."
+                ]
+            }
+        }
+    ],
+    "items": [
+        {
+            "id": "/material/multilingual/canvas/hiroshige",
+            "type": "Canvas",
+            "label": {
+                "en": ["Sudden Shower over Shin-Ōhashi Bridge and Atake, 1857"],
+                "ja": ["大はしあたけの夕立、1857年"],
+                "fr": ["Averse soudaine sur le pont Shin-Ōhashi à Atake, 1857"]
+            },
+            "width": 1335,
+            "height": 1908,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Utagawa Hiroshige, Sudden Shower over Shin-Ohashi Bridge and Atake, 1857, The Metropolitan Museum of Art, JP643."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["The Metropolitan Museum of Art, object 36461"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.metmuseum.org/art/collection/search/36461"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/multilingual/page/hiroshige",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/multilingual/annotation/hiroshige",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/hiroshige/0,0,1335,1908/334,477/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 1335,
+                                "height": 1908,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/hiroshige",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/multilingual/canvas/hiroshige"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/multilingual/canvas/milkmaid",
+            "type": "Canvas",
+            "label": {
+                "en": ["The Milkmaid, ca. 1660"],
+                "nl": ["Het melkmeisje, ca. 1660"],
+                "fr": ["La Laitière, vers 1660"]
+            },
+            "width": 4649,
+            "height": 5177,
+            "rights": "https://creativecommons.org/publicdomain/mark/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Johannes Vermeer, The Milkmaid, ca. 1660, Rijksmuseum, SK-A-2344."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["Rijksmuseum, SK-A-2344"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.rijksmuseum.nl/en/collection/SK-A-2344"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/multilingual/page/milkmaid",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/multilingual/annotation/milkmaid",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/milkmaid/0,0,4649,5177/291,324/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 4649,
+                                "height": 5177,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/milkmaid",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/multilingual/canvas/milkmaid"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/multilingual/canvas/shahnama",
+            "type": "Canvas",
+            "label": {
+                "en": ["The Feast of Sada, ca. 1525"],
+                "fa": ["جشن سده، حدود ۱۵۲۵"],
+                "fr": ["La Fête de Sadeh, vers 1525"]
+            },
+            "width": 2802,
+            "height": 4000,
+            "rights": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "The Feast of Sada, folio 22v from the Shahnama of Shah Tahmasp, ca. 1525, The Metropolitan Museum of Art, 1970.301.2."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": ["The Metropolitan Museum of Art, object 452111"]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://www.metmuseum.org/art/collection/search/452111"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/multilingual/page/shahnama",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/multilingual/annotation/shahnama",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/shahnama/0,0,2802,4000/351,500/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 2802,
+                                "height": 4000,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/shahnama",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/multilingual/canvas/shahnama"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -6,7 +6,7 @@
      * runtime or `svelte/internal`, and reaches viewer state only through the
      * SDK-owned `PluginContext` (selectors, locale), never Svelte context.
      *
-     * Chrome ownership (epic restore-plugin-toolbar-chrome, ticket 05): core owns
+     * Chrome ownership: core owns
      * the toolbar button (rendered from the plugin's `icon`) and the docked panel
      * chrome (surface, sticky header with the plugin icon + title, and open/close).
      * This component renders ONLY the panel's content body into the content-only
@@ -26,6 +26,7 @@
 
     import {
         getCanvasLabel,
+        isUnsupportedCanvasFor,
         resolveLanguageValue,
     } from 'triiiceratops/image-export';
     import {
@@ -51,7 +52,6 @@
     // manual unsubscribe is needed.
     let canvases = $state<any[]>(viewerState.canvases ?? []);
     let manifestId = $state<string | null>(viewerState.manifestId);
-    let osd = $state<unknown>(viewerState.osdViewer ?? null);
 
     selectors
         .select((s) => s.canvases)
@@ -62,11 +62,6 @@
         .select((s) => s.manifestId)
         .subscribe((value) => {
             manifestId = value;
-        });
-    selectors
-        .select((s) => s.osdViewer)
-        .subscribe((value) => {
-            osd = value;
         });
 
     // Active-locale reactivity: bump a tick on change so `t()`-derived labels
@@ -148,7 +143,16 @@
         config.onSelectionChange?.(selectedRange);
     });
 
-    let selectedCount = $derived(normalizedRange?.indices.length ?? 0);
+    // Pages, not selections. A canvas whose painting bodies are all non-image —
+    // the **unsupported presentation** — produces no page (see
+    // `exportCanvasRangeAsPdf`), so counting the range would tell the reader to
+    // expect a page the file will not contain.
+    let selectedCount = $derived(
+        (normalizedRange?.indices ?? []).filter(
+            (index: number) =>
+                !isUnsupportedCanvasFor(viewerState, canvases[index]),
+        ).length,
+    );
     let disabledReason = $derived.by(() => {
         void localeTick;
 
@@ -201,9 +205,11 @@
     }
 
     function getTargetWidth(): number {
-        const container = (osd as { container?: { clientWidth?: number } })
-            ?.container;
-        const containerWidth = container?.clientWidth || 1200;
+        // The first-party container-size query, read on demand. It is
+        // query-only state, so it is deliberately NOT mirrored through a
+        // selector like the members above: it is read once per export, at the
+        // moment the export is asked for, which is exactly when it is true.
+        const containerWidth = viewerState.containerSize.width || 1200;
         const pixelRatio = window.devicePixelRatio || 1;
         return Math.min(
             1800,
@@ -238,10 +244,8 @@
         const messages = buildMessages();
 
         try {
-            // Raw IIIF Manifest JSON. This used to read `manifesto.js`'s
-            // `getLabel()`; the manifest cache holds only the document now, and
-            // `label` is spelled the same in v2 and v3 (the value shapes
-            // differ, which `resolveLanguageValue` absorbs).
+            // Raw IIIF Manifest JSON. `label` is spelled the same in v2 and v3
+            // (the value shapes differ, which `resolveLanguageValue` absorbs).
             const manifestJson = viewerState.manifestEntry?.json;
             const manifestLabel =
                 resolveLanguageValue(manifestJson?.label) || null;
@@ -292,11 +296,18 @@
                   });
         } catch (error) {
             progressMessage = '';
-            errorMessage =
+            // Two refusals the export states precisely enough to show as they
+            // are: an image source that forbids browser download, and a
+            // selection with nothing exportable in it — every canvas in it an
+            // **unsupported presentation**. Both would otherwise reach the
+            // reader as "Unable to export PDF", which describes neither.
+            const explained =
                 error instanceof Error &&
-                error.message === messages.errorNotAvailable()
-                    ? error.message
-                    : t('pdf_export_error_failed');
+                (error.message === messages.errorNotAvailable() ||
+                    error.message === messages.errorNoCanvasesExported());
+            errorMessage = explained
+                ? (error as Error).message
+                : t('pdf_export_error_failed');
             // Surface the failure to the host on the structured channel (in
             // addition to the panel-local message) so integrations can react
             // without scraping the browser console for diagnostics.

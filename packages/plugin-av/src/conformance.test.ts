@@ -1,0 +1,228 @@
+/**
+ * Plugin conformance suite.
+ *
+ * `runPluginConformance` mounts the plugin against a REAL test viewer context
+ * (real `ViewerState`, real batched notifications) with recording-double
+ * services, and asserts the lifecycle contracts every plugin must honor:
+ * mount/cleanup symmetry, subscription disposal, locale-change handling, style
+ * cleanup, and error isolation. A passing run reflects production semantics.
+ */
+
+import {
+    definePlugin,
+    negotiateCompatibility,
+    type PluginContext,
+    type PluginHost,
+    type PublishedState,
+} from '@triiiceratops/plugin-sdk';
+import {
+    conformanceCases,
+    createTestViewerContext,
+    runPluginConformance,
+} from '@triiiceratops/plugin-sdk/testing';
+import { CORE_VERSION, capabilities, pluginApiVersion } from 'triiiceratops';
+import { describe, expect, it } from 'vitest';
+
+// Safe in a test and not in the plugin source: a test is never bundled, so the
+// shipped artifact still carries no JSON module.
+import pkg from '../package.json';
+
+import { catalog } from './catalog';
+import { AvPlugin } from './plugin';
+
+runPluginConformance(() => AvPlugin);
+
+type DeclaredHost = Pick<
+    PluginHost,
+    'coreVersion' | 'pluginApiVersion' | 'capabilities'
+>;
+
+/** A host declaring `declared`, over otherwise real services. */
+function hostDeclaring(declared: DeclaredHost): PluginHost {
+    const tc = createTestViewerContext({ uiId: 'av' });
+    return {
+        container: document.createElement('div'),
+        viewerState: tc.viewerState,
+        styles: tc.styles,
+        locale: tc.locale,
+        ui: tc.ui,
+        surface: tc.surface,
+        reportError: () => {},
+        ...declared,
+    };
+}
+
+const THIS_CORE: DeclaredHost = {
+    coreVersion: CORE_VERSION,
+    pluginApiVersion,
+    capabilities,
+};
+
+/**
+ * The refusal message a host declaring `declared` produces, or `''` when it
+ * activates the plugin. Negotiation raises ONE formatted error naming every
+ * failed check, which is what core shows a host, so the message is what an
+ * assertion has to read.
+ */
+function refusalAgainst(declared: Partial<DeclaredHost>): string {
+    try {
+        negotiateCompatibility(
+            AvPlugin,
+            hostDeclaring({ ...THIS_CORE, ...declared }),
+        );
+    } catch (error) {
+        return (error as Error).message;
+    }
+    return '';
+}
+
+describe('declared compatibility', () => {
+    // A typo'd `title` key renders verbatim in the toolbar — the exact cosmetic
+    // bug key-or-literal resolution exists to fix.
+    it('declares a title that resolves against this plugin catalog', () => {
+        expect(AvPlugin.title).toBeTruthy();
+        expect(catalog.en?.[AvPlugin.title!]).toBeTruthy();
+    });
+
+    it('activates on the core this repository builds', () => {
+        expect(() =>
+            negotiateCompatibility(AvPlugin, hostDeclaring(THIS_CORE)),
+        ).not.toThrow();
+    });
+
+    // Without these the plugin activates on a core with no claim seam and renders
+    // its stages on top of an unsupported-content placard it cannot suppress; or
+    // on a core with no shared Svelte runtime and no curated utilities to
+    // consume — of neither of which its IIFE carries a copy; or on a core with
+    // nowhere to register playback controls, which would stage a recording and
+    // leave a reader no way to play it.
+    it('requires the seams it cannot work without', () => {
+        expect(AvPlugin.requiredCapabilities).toEqual([
+            'canvas-claim',
+            'shared-svelte-runtime',
+            'shared-core-utils',
+            'transport-chrome',
+        ]);
+    });
+
+    it('is refused by a core that renders no transport chrome', () => {
+        expect(
+            refusalAgainst({
+                capabilities: capabilities.filter(
+                    (name) => name !== 'transport-chrome',
+                ),
+            }),
+        ).toContain('"transport-chrome"');
+    });
+
+    it('is refused by a core that shares no Svelte runtime', () => {
+        expect(
+            refusalAgainst({
+                capabilities: capabilities.filter(
+                    (name) => name !== 'shared-svelte-runtime',
+                ),
+            }),
+        ).toContain('"shared-svelte-runtime"');
+    });
+
+    it('is refused by a core that shares no core utilities', () => {
+        expect(
+            refusalAgainst({
+                capabilities: capabilities.filter(
+                    (name) => name !== 'shared-core-utils',
+                ),
+            }),
+        ).toContain('"shared-core-utils"');
+    });
+
+    /**
+     * `svelte/internal` is private API with no semver guarantee, so the range
+     * must still refuse a future major: the caret over the 1.x line admits the
+     * prerelease this plugin was built against and every 1.x core after it —
+     * including the stable the release tooling mints from it — while 2.0.0
+     * stays refused. Pinned as a literal so the floor moves only deliberately,
+     * at a core major, and never drifts as release busywork.
+     */
+    it('holds core to the 1.x line, refusing older cores and future majors', () => {
+        expect(AvPlugin.coreRange).toBe('^1.0.0-rc.36');
+        expect(refusalAgainst({ coreVersion: '1.0.0-rc.35' })).toContain(
+            'requires core ^1.0.0-rc.36',
+        );
+        expect(refusalAgainst({ coreVersion: '2.0.0' })).toContain(
+            'requires core ^1.0.0-rc.36',
+        );
+    });
+});
+
+/**
+ * The classification gate, exercised in both directions.
+ *
+ * A conformance suite that cannot fail proves nothing, and this one's
+ * published-state checks became load-bearing the moment this plugin started
+ * publishing `AVState`. So the same case that the real plugin passes above is
+ * run here against a plugin publishing an AVState-shaped state with one member
+ * misclassified, and is required to reject it.
+ */
+describe('the published-state classification gate bites', () => {
+    const CLASSIFICATION_CASE = conformanceCases.find((c) =>
+        c.name.startsWith('classifies every member'),
+    )!;
+
+    /** An AVState-shaped publication whose `seek` carries a made-up classification. */
+    function misclassifiedAvPlugin() {
+        return definePlugin({
+            name: '@triiiceratops/plugin-av-misclassified-fixture',
+            uiId: 'av-misclassified',
+            version: '0.0.0',
+            coreRange: '>=1.0.0-rc.0',
+            pluginApiRange: '^1.0.0',
+            icon: AvPlugin.icon,
+            target: 'panel',
+            view: {
+                mount(_container: HTMLElement, context: PluginContext) {
+                    const published = {
+                        stateInventory: {
+                            play: 'command',
+                            // BUG: `mutator` is not one of the three.
+                            seek: 'mutator',
+                            paused: 'observable',
+                        },
+                        play: () => {},
+                        seek: () => {},
+                        paused: true,
+                        subscribe: () => () => {},
+                        subscribeFrame: () => () => {},
+                    };
+                    context.publishState(
+                        published as unknown as PublishedState,
+                    );
+                    return () => {};
+                },
+            },
+        });
+    }
+
+    it('accepts this plugin’s AVState classification', async () => {
+        await expect(
+            CLASSIFICATION_CASE.run(() => AvPlugin),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects an AVState-shaped state with a misclassified command', async () => {
+        await expect(
+            CLASSIFICATION_CASE.run(() => misclassifiedAvPlugin()),
+        ).rejects.toThrow(/classification/i);
+    });
+});
+
+// Declared-version drift guard. `version` is a hand-written literal (a JSON
+// module here would land package.json in the shipped bundle), and it is what
+// reaches consumers as `pluginerror.pluginVersion` and as the plugin's declared
+// identity. Nothing in the release tooling re-stamps it, so `changeset version`
+// would otherwise publish a package whose own metadata names a version that was
+// never released. Bump both together.
+describe('the declared plugin version', () => {
+    it('matches the version the package actually publishes', () => {
+        expect(AvPlugin.version).toBe(pkg.version);
+    });
+});

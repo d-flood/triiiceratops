@@ -6,6 +6,19 @@
  *
  * Works in both the light DOM (demo) and the shadow DOM (custom element) — the
  * `:host` selectors apply when this sheet is injected into the shadow root.
+ *
+ * A `light-dom-only` comment marks a rule the element build drops: the shadow
+ * root holds only the viewer's own markup, its plugins' panels, and IIIF rich
+ * text filtered through `utils/sanitizeHtml`'s element allowlist (`a b br i img
+ * p small span sub sup` — everything else is dropped, its text kept), so the
+ * marked elements cannot appear there. See packaging/dropLightDomOnly.ts.
+ *
+ * Between them, the components in the element bundle and the first-party plugins
+ * that mount into its shadow root emit `a audio button canvas code dd details
+ * dialog div dl dt form h2 h3 h4 img input label li mark ol option p section
+ * select span summary svg textarea track ul video`, and the only `<input>` types
+ * among them are `button checkbox range url`. Re-check that list before
+ * unmarking a rule or marking a new one; nothing in the build enforces it.
  */
 
 /*
@@ -16,8 +29,7 @@
 *,
 ::after,
 ::before,
-::backdrop,
-::file-selector-button {
+::backdrop {
     box-sizing: border-box; /* 1 */
     margin: 0; /* 2 */
     padding: 0; /* 2 */
@@ -28,7 +40,6 @@ html,
 :host {
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
-    tab-size: 4;
     font-family: var(
         --default-font-family,
         ui-sans-serif,
@@ -39,35 +50,33 @@ html,
         'Segoe UI Symbol',
         'Noto Color Emoji'
     );
-    font-feature-settings: var(--default-font-feature-settings, normal);
-    font-variation-settings: var(--default-font-variation-settings, normal);
+    font-feature-settings: normal;
+    font-variation-settings: normal;
     -webkit-tap-highlight-color: transparent;
 }
 
+/* light-dom-only */
 hr {
     height: 0;
     color: inherit;
     border-top-width: 1px;
 }
 
+/* light-dom-only */
 abbr:where([title]) {
     -webkit-text-decoration: underline dotted;
     text-decoration: underline dotted;
 }
 
-h1,
 h2,
 h3,
-h4,
-h5,
-h6 {
+h4 {
     font-size: inherit;
     font-weight: inherit;
 }
 
 a {
     color: inherit;
-    -webkit-text-decoration: inherit;
     text-decoration: inherit;
 }
 
@@ -76,26 +85,12 @@ strong {
     font-weight: bolder;
 }
 
-code,
-kbd,
-samp,
-pre {
-    font-family: var(
-        --default-mono-font-family,
-        ui-monospace,
-        SFMono-Regular,
-        Menlo,
-        Monaco,
-        Consolas,
-        'Liberation Mono',
-        'Courier New',
-        monospace
-    );
-    font-feature-settings: var(--default-mono-font-feature-settings, normal);
-    font-variation-settings: var(
-        --default-mono-font-variation-settings,
-        normal
-    );
+code {
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'Liberation Mono', 'Courier New', monospace;
+    font-feature-settings: normal;
+    font-variation-settings: normal;
     font-size: 1em;
 }
 
@@ -119,16 +114,19 @@ sup {
     top: -0.5em;
 }
 
+/* light-dom-only */
 table {
     text-indent: 0;
     border-color: inherit;
     border-collapse: collapse;
 }
 
+/* light-dom-only */
 :-moz-focusring {
     outline: auto;
 }
 
+/* light-dom-only */
 progress {
     vertical-align: baseline;
 }
@@ -138,8 +136,7 @@ summary {
 }
 
 ol,
-ul,
-menu {
+ul {
     list-style: none;
 }
 
@@ -147,10 +144,7 @@ img,
 svg,
 video,
 canvas,
-audio,
-iframe,
-embed,
-object {
+audio {
     display: block;
 }
 
@@ -163,9 +157,7 @@ video {
 button,
 input,
 select,
-optgroup,
-textarea,
-::file-selector-button {
+textarea {
     font: inherit;
     font-feature-settings: inherit;
     font-variation-settings: inherit;
@@ -176,50 +168,68 @@ textarea,
     opacity: 1;
 }
 
+/*
+ * Grouped options and a file picker's button: no viewer or plugin control is a
+ * multi-line `<select>`, groups its options, or takes a file.
+ */
+/* light-dom-only */
 :where(select:is([multiple], [size])) optgroup {
     font-weight: bolder;
 }
 
+/* light-dom-only */
 :where(select:is([multiple], [size])) optgroup option {
     padding-inline-start: 20px;
 }
 
+/* light-dom-only */
 ::file-selector-button {
     margin-inline-end: 4px;
 }
 
+/*
+ * The colour is the search field's own placeholder colour, so it stays in the
+ * element build. Preflight guarded it behind `@supports (not (-webkit-appearance:
+ * -apple-pay-button)) or (contain-intrinsic-size: 1px)` to keep Safari below 15.4
+ * on its UA placeholder; the supported floor is above that, so the condition is
+ * always true and the wrapper is bytes for nothing.
+ */
 ::placeholder {
     opacity: 1;
-}
-
-@supports (not (-webkit-appearance: -apple-pay-button)) or
-    (contain-intrinsic-size: 1px) {
-    ::placeholder {
-        color: color-mix(in oklab, currentcolor 50%, transparent);
-    }
+    color: color-mix(in oklab, currentcolor 50%, transparent);
 }
 
 textarea {
     resize: vertical;
 }
 
+/*
+ * The remaining `::-webkit-*` blocks reset the shadow parts of the search,
+ * date/time and number input types. No viewer or plugin control uses those
+ * types, and rich text cannot introduce an <input> at all.
+ */
+/* light-dom-only */
 ::-webkit-search-decoration {
     -webkit-appearance: none;
 }
 
+/* light-dom-only */
 ::-webkit-date-and-time-value {
     min-height: 1lh;
     text-align: inherit;
 }
 
+/* light-dom-only */
 ::-webkit-datetime-edit {
     display: inline-flex;
 }
 
+/* light-dom-only */
 ::-webkit-datetime-edit-fields-wrapper {
     padding: 0;
 }
 
+/* light-dom-only */
 ::-webkit-datetime-edit,
 ::-webkit-datetime-edit-year-field,
 ::-webkit-datetime-edit-month-field,
@@ -232,25 +242,28 @@ textarea {
     padding-block: 0;
 }
 
+/* light-dom-only */
 ::-webkit-calendar-picker-indicator {
     line-height: 1;
 }
 
+/* light-dom-only */
 :-moz-ui-invalid {
     box-shadow: none;
 }
 
 button,
-input:where([type='button'], [type='reset'], [type='submit']),
-::file-selector-button {
+input:where([type='button']) {
     appearance: button;
 }
 
+/* light-dom-only */
 ::-webkit-inner-spin-button,
 ::-webkit-outer-spin-button {
     height: auto;
 }
 
+/* light-dom-only */
 [hidden]:where(:not([hidden='until-found'])) {
     display: none !important;
 }

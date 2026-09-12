@@ -4,8 +4,17 @@ Third-party IIIF manifests vendored for the `remove-manifesto` epic
 (see `.tracker/remove-manifesto/SPEC.md`). They exist so parsing changes are
 verified against real manifests in CI rather than against synthetic ones only.
 
-**Retrieved:** 2026-08-06
-**Total:** 59 files, 0.8 MB
+The `av/` directory was added later, for the `plugin-av` epic
+(see `.tracker/plugin-av/SPEC.md`), under the same rules, and the three loose
+`cookbook/` files dated below later still for `cookbook-matrix-coverage`.
+
+**Retrieved:** 2026-08-06 (`cookbook/`, `demo/`, `vendored/`); 2026-08-13 (`av/`);
+2026-08-22 (`cookbook/0025-newspaper-article-index.json`,
+`cookbook/0346-multilingual-annotation-body.json`); 2026-08-23
+(`cookbook/0258-tagging-external-resource.json`); 2026-08-31
+(`production/mkiiif-docuverse.json`)
+**Total:** 79 files, 0.8 MB — 59 for `remove-manifesto`, 16 for `plugin-av`, 3 for
+`cookbook-matrix-coverage`, 1 for `finish-the-marketing-site`
 
 **Trimming.** The `cookbook/` and `demo/` files are the upstream response
 verbatim, re-serialised with 2-space indentation for diff readability; nothing
@@ -23,7 +32,11 @@ Image service URLs inside them are never dereferenced by the test suite. Several
 **Every file here is loaded by CI.** `../corpus.smoke.test.ts` discovers them by
 glob and asserts each one registers and enumerates. Adding a file needs no test
 edit — but a file that enumerates zero canvases fails until it is named, with a
-reason, in that test's explicit list.
+reason, in that test's explicit list. `av/` was held out by name
+(`DEFERRED_DIRS`) for exactly one ticket, while it sat in the tree ahead of the
+body classifier that reads it, so that sixteen pre-classifier records were never
+frozen as though they were the intended answer. `plugin-av` ticket 02 landed the
+classifier, deleted the skip and re-pinned both goldens in one reviewed commit.
 
 **The synthetic fixtures are elsewhere.** `../syntheticManifests.ts` carries the
 branches no real manifest here reaches. They stay in TypeScript by design.
@@ -71,6 +84,7 @@ and `0033-choice.json` from
 | `0019-html-in-annotations.json` | v3 | Manifest | 1 | 2 KB | general coverage |
 | `0021-tagging.json` | v3 | Manifest | 1 | 2 KB | general coverage |
 | `0024-book-4-toc.json` | v3 | Manifest | 6 | 11 KB | v3 structures / ranges (table of contents) |
+| `0025-newspaper-article-index.json` | v3 | Manifest | 5 | 11 KB | v3 range items that are `SpecificResource` — a canvas region as a table-of-contents target |
 | `0027-alternative-page-order.json` | v3 | Manifest | 4 | 8 KB | v3 ranges with `behavior: sequence` — multi-sequence path |
 | `0029-metadata-anywhere.json` | v3 | Manifest | 2 | 5 KB | general coverage |
 | `0030-multi-volume.json` | v3 | Collection | 2 | 1 KB | Collection with child manifests |
@@ -88,11 +102,13 @@ and `0033-choice.json` from
 | `0202-start-canvas.json` | v3 | Manifest | 5 | 7 KB | v3 `start` property (ticket 05) |
 | `0230-navdate-navdate-collection.json` | v3 | Collection | 2 | 1 KB | Collection with navDate |
 | `0234-provider.json` | v3 | Manifest | 1 | 4 KB | general coverage |
+| `0258-tagging-external-resource.json` | v3 | Manifest | 1 | 3 KB | annotation body that is an external resource — a `SpecificResource` with no text |
 | `0261-non-rectangular-commenting.json` | v3 | Manifest | 1 | 3 KB | non-rectangular selector |
 | `0266-full-canvas-annotation.json` | v3 | Manifest | 1 | 2 KB | general coverage |
 | `0269-embedded-or-referenced-annotations.json` | v3 | Manifest | 1 | 2 KB | external annotation pages (manifest annotations) |
 | `0283-missing-image.json` | v3 | Manifest | 4 | 5 KB | canvas with NO painting annotation — degradation case, expected partial |
 | `0299-region.json` | v3 | Manifest | 1 | 2 KB | canvas region targets |
+| `0346-multilingual-annotation-body.json` | v3 | Manifest | 1 | 3 KB | v3 `Choice` annotation body — one comment in English and Japanese |
 
 ### Collection members
 
@@ -107,6 +123,149 @@ collections resolve without network access.
 | `0032-collection-manifest-02.json` | v3 | Manifest | 1 | 2 KB | child manifest of a Collection fixture |
 | `0230-navdate-navdate_map_1-manifest.json` | v3 | Manifest | 1 | 2 KB | child manifest of a Collection fixture |
 | `0230-navdate-navdate_map_2-manifest.json` | v3 | Manifest | 1 | 2 KB | child manifest of a Collection fixture |
+
+## IIIF Cookbook audiovisual recipes (`av/`)
+
+Source: the same URL rule as the Cookbook table above — every file here came
+from `https://iiif.io/api/cookbook/recipe/<recipe>/manifest.json`, and no recipe
+in this set publishes more than one manifest. Same licensing as the Cookbook
+recipes above, and the same byte-for-byte rule: upstream's bytes plus the
+trailing newline the other vendored files carry.
+
+**Nothing here is trimmed.** The largest is 9 KB.
+
+### How the list was derived
+
+The methodology is the one the published comparison documents for its recipe
+counts: read the Cookbook
+[support matrix](https://iiif.io/api/cookbook/recipe/matrix/), which renders 80
+rows across eight categories, and deduplicate by recipe to 67 distinct ones.
+The audiovisual set is the matrix's own **Audio/Visual Recipes** category (13
+recipes) plus the audiovisual recipes that dedupe into another category and so
+are "filed elsewhere".
+
+The derivation was then **verified against the manifests themselves** rather
+than trusted: all 67 recipe manifests were fetched and searched for `Sound` or
+`Video` painting bodies. Exactly 15 carry one — the A/V category's 13, plus
+`0229-behavior-ranges` (filed under Structuring Resources) and
+`0489-multimedia-canvas` (filed under Annotation Recipes). All 15 are vendored
+here.
+
+This list of 15 — and the 52 image recipes it leaves — is what the recipe
+catalog (`packages/cookbook/src/recipes.ts`) groups as audiovisual, and so what
+the site's capability axis counts with.
+
+**The audiovisual recipe ids** — the list tickets 16 (comparison doc) and 17
+(demo picker) consume:
+
+```
+0002-mvm-audio
+0003-mvm-video
+0013-placeholderCanvas
+0014-accompanyingcanvas
+0015-start
+0017-transcription-av
+0026-toc-opera
+0064-opera-one-canvas
+0065-opera-multiple-canvases
+0074-multiple-language-captions
+0103-poetry-reading-annotations
+0219-using-caption-file
+0229-behavior-ranges
+0434-choice-av
+0489-multimedia-canvas
+```
+
+| File | IIIF | Type | Canvases | Size | Kept for |
+| --- | --- | --- | --- | --- | --- |
+| `0002-mvm-audio.json` | v3 | Manifest | 1 | 1 KB | the minimal audio canvas: `duration` and **no width or height** — the shape that vanishes from layout today |
+| `0003-mvm-video.json` | v3 | Manifest | 1 | 1 KB | the minimal video canvas: width, height and duration |
+| `0013-placeholderCanvas.json` | v3 | Manifest | 1 | 2 KB | `placeholderCanvas` — the poster image before playback (user story 11) |
+| `0014-accompanyingcanvas.json` | v3 | Manifest | 1 | 3 KB | `accompanyingCanvas` — album art above a waveform strip (user story 10). Its body is typed `Sound` with format `video/mp4`, so type and format disagree |
+| `0015-start.json` | v3 | Manifest | 1 | 2 KB | `start` as a `SpecificResource` with a `PointSelector` `t` — a temporal offset that is not a `#t=` fragment (user story 15) |
+| `0017-transcription-av.json` | v3 | Manifest | 1 | 2 KB | canvas `rendering` carrying a `text/plain` transcript — a non-VTT supplementary resource the captions path must not adopt |
+| `0026-toc-opera.json` | v3 | Manifest | 1 | 3 KB | `structures` whose canvas references carry `#t=` fragments — ranges as chapters (user story 14) |
+| `0064-opera-one-canvas.json` | v3 | Manifest | 1 | 4 KB | **temporal composition**: two Video bodies tiling one canvas's duration through `#t=` targets, under one canvas timeline (user stories 48, 49) |
+| `0065-opera-multiple-canvases.json` | v3 | Manifest | 2 | 5 KB | the same opera split across canvases — the multi-canvas counterpart to 0064 |
+| `0074-multiple-language-captions.json` | v3 | Manifest | 1 | 3 KB | a supplementing annotation whose body is a **`Choice` of VTT tracks** in several languages (user story 13) |
+| `0103-poetry-reading-annotations.json` | v3 | Manifest | 1 | 2 KB | commenting annotations targeting a `#t=` range on an audio canvas — time-based annotation, fenced out of this epic but must not crash |
+| `0219-using-caption-file.json` | v3 | Manifest | 1 | 2 KB | the plain single-track caption shape: one supplementing annotation with a `text/vtt` body (user story 12) |
+| `0229-behavior-ranges.json` | v3 | Manifest | 1 | 9 KB | ranges over one video canvas with per-range thumbnails and eight `#t=` spans — the largest structures tree in the set |
+| `0434-choice-av.json` | v3 | Manifest | 1 | 3 KB | a **Choice of six audio alternatives across five formats** — alac, mpeg, flac, ogg, wav, with `audio/mpeg` appearing twice (labelled MP3 and MPEG2). Playability-driven selection, not first-item-wins, and `format` alone does not identify an alternative (user story 20) |
+| `0489-multimedia-canvas.json` | v3 | Manifest | 1 | 4 KB | image and video painting one canvas together, **with `#xywh=…&t=` targets** — see below |
+
+### Findings this vendoring settles
+
+- **A cookbook recipe does use spatially placed A/V.**
+  `0489-multimedia-canvas` targets its Video body at
+  `#xywh=1000,500,5000,6000&t=11,42` on a 70399x31722 canvas, alongside an Image
+  body and three `TextualBody` annotations. The SPEC fences `#xywh=`-targeted A/V
+  out of v1 and says the fence "stands only while it costs no cookbook coverage" —
+  it costs exactly this recipe. Whoever implements the degradation contract owes
+  that a decision rather than an assumption.
+- **`t=` is not always a fragment.** `0015-start` expresses its start time as a
+  `SpecificResource` with a `PointSelector`, not as `#t=` on a URI. Both spellings
+  reach temporal-offset navigation.
+- **Every caption and annotation page in this set is embedded**, so nothing here
+  needs a network fetch to enumerate.
+- **Most of these DID resolve a "paintable image", and that was the bug.**
+  Measured through the baseline's own seam — `resolveAllCanvasImages` on a real
+  `ViewerState` — immediately before ticket 02's classifier landed, **11 of the
+  16 read `withPainting >= 1`**: `0003`, `0013`, `0017`, `0026`, `0064`, `0065`
+  (2, one per canvas), `0074`, `0219`, `0229`, `0489` and the Avalon file. Only
+  `0002`, `0014`, `0015`, `0103` and `0434` read 0 — and every one of those five
+  is an audio-shaped canvas declaring no `width` and no `height` (`0015`
+  included, despite its `Video` body). They fell out on geometry, having no rect
+  to be placed in, not because anything recognised them as time-based.
+
+  A plain `Video` or `Sound` body was resolved as an image tile source, which is
+  the SPEC's problem statement exactly: the viewer handed a video URL to the
+  image pipeline and asked it to tile an MP4.
+
+  That is why the skip existed: admitting these to the baseline first would have
+  pinned eleven non-zero counts as the intended answer for time-based media.
+  Ticket 02 landed the classifier and emptied `DEFERRED_DIRS` in one commit, and
+  the goldens now read **`withPainting=0` on fifteen of the sixteen**. That fall
+  from eleven to one, reproduced by re-measuring before the change, is the
+  evidence the classifier works.
+
+  `0489-multimedia-canvas` is the sixteenth and correctly reads
+  `withPainting=1`. Its row above already notes that it carries an Image body
+  (with an Image API service) alongside the Video one, and the classifier's rule
+  for that shape is to paint the images and ignore the rest silently. Any OTHER
+  `withPainting >= 1` appearing here would be a non-image body the classifier
+  missed, not a correct result.
+
+### The waveform-linked manifest
+
+| File | IIIF | Type | Canvases | Size | Source URL | Kept for |
+| --- | --- | --- | --- | --- | --- | --- |
+| `avalon-9g54xh933-skip-transcoding-mp3.json` | v3 | Manifest | 1 | 4 KB | `https://demo.avalonmediasystem.org/media_objects/9g54xh933/manifest.json` | **real waveform linkage** from a running Avalon Media System deployment: an audio canvas whose `seeAlso` is a `Dataset` of `application/json` pointing at `master_files/<id>/waveform.json`. Also carries `behavior: auto-advance`, a `structures` tree, and a `placeholderCanvas` |
+
+It has **no `rights` property**. The In Copyright statement
+(`http://rightsstatements.org/vocab/InC/1.0/`) appears only as an HTML anchor in
+a `metadata` row labelled "Rights Statement" — which is how Avalon publishes it,
+and a reminder that the rights slot and the rights *claim* are not the same
+place. This is Avalon's public demo instance; the media URLs carry expiring
+streaming tokens, which is harmless — nothing here is dereferenced.
+
+**The detection contract, as observed in the wild.** Two shapes exist and they
+disagree about everything except the `seeAlso` slot:
+
+| Publisher | Slot | `format` | `profile` | Payload |
+| --- | --- | --- | --- | --- |
+| Avalon | canvas `seeAlso` | `application/json` | *(none)* | `waveform.json` |
+| British Library | canvas `seeAlso` | `application/octet-stream` | `http://waveform.prototyping.bbc.co.uk` | audiowaveform `.dat` |
+
+Only the Avalon shape could be vendored. **The British Library's IIIF endpoint no
+longer resolves** — `api-beta.bl.uk` and `api.bl.uk` do not resolve DNS at all,
+following the 2023 cyber-attack on the Library — so the BL row above is recorded
+from the IIIF community's own workshop documentation
+(`https://training.iiif.io/iiif-bl-workshop/day-three/BL-Audio/`, which quotes
+the `seeAlso` block verbatim) rather than from a manifest anyone can still fetch.
+Both shapes are exercised locally instead, by
+`packages/core/tests/media/manifests/av-waveform.json`, against real
+`audiowaveform` output.
 
 ## Institutional manifests
 
@@ -124,6 +283,21 @@ including ranges, Choice, and `viewingHint` had no fixtures at all.
 
 - `collections-csntm-manifest.json` declares rights: URL to rights/usage statement
 - `iiif-wellcomecollection-b18035723.json` declares rights: http://creativecommons.org/licenses/by-nc/4.0/
+
+## Production deployments (`production/`)
+
+| File | IIIF | Type | Canvases | Size | Source URL | Kept for |
+| --- | --- | --- | --- | --- | --- | --- |
+| `mkiiif-docuverse.json` | v3 | Manifest | 2 | 3 KB | `https://docuver.se/iiif/p3tgsk8jqt/manifest.json` | a **static level0 tile tree** written by `vips dzsave --layout iiif3`: `tiles`, no `sizes`, and a painting body URL the generator never wrote |
+
+Generated by `mkiiif` (`atomotic/iiif`), which emits an `index.html` embedding
+`<triiiceratops-viewer>` from the unpkg CDN pair — third-party adoption of the
+no-build-step embed. Trimmed from 148 canvases to the first 2; nothing else
+changed. Unlike every other fixture here it **is** dereferenced, in the sense
+that the URLs it names were probed by hand when the fixture was taken: the
+service answers `page-001/full/362,501/0/default.jpg` and 404s
+`page-001/0,0,1446,2004/362,501/0/default.jpg`, which is the disagreement
+`renderer/level0TileTree.test.ts` exists for. The test itself fetches nothing.
 
 ## `manifesto.js`'s own corpus (`vendored/`)
 
@@ -197,6 +371,12 @@ These are point-in-time copies. Upstream may change.
 
 - `cookbook/` — re-fetch by expanding the URL rule at the head of the Cookbook
   table; each filename determines its own URL.
+- `av/` — the Cookbook files follow the same rule (each is that recipe's
+  `manifest.json`). Re-derive the recipe list from the support matrix before
+  refreshing, not after: the point of the list is that it tracks the matrix. The
+  Avalon file comes from the Source URL in its own table, and is a **pinned**
+  copy — Avalon's demo instance is not a preservation service and its media
+  tokens expire.
 - `demo/` — re-fetch from the **Source URL** column of the institutional table.
   Those URLs were recovered from the demo picker in the viewer's demo header,
   which remains the upstream list, but the column is authoritative here so the

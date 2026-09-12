@@ -1,11 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-// Ticket 18 — structured viewer-failure channel.
-//
 // An invalid/conflicting configuration surfaces as a typed `viewererror` — a
 // bubbling, composed CustomEvent from the viewer root — not merely console
-// output (user story 13). Here: `nav.edge: 'top'` while a top-anchored toolbar
-// already owns the top edge.
+// output. Here: `nav.edge: 'top'` while a top-anchored toolbar already owns
+// the top edge.
 
 const MANIFEST = '/demo-manifests/e2e/manifest.json';
 
@@ -30,7 +28,7 @@ test('conflicting nav config dispatches a structured viewererror event', async (
             toolbar: { anchor: 'top' },
         }),
     );
-    await page.goto(`/?manifest=${MANIFEST}&config=${config}`, {
+    await page.goto(`/e2e/harness.html?manifest=${MANIFEST}&config=${config}`, {
         waitUntil: 'domcontentloaded',
     });
 

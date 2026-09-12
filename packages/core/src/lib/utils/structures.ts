@@ -1,14 +1,20 @@
 /**
- * Utility for parsing IIIF Presentation 3.0 `structures` (Ranges)
- * into a flat tree suitable for rendering a table of contents.
- *
- * IIIF v3 structures are an array of Range objects at the manifest root.
- * Each Range has `items` which may be Canvases or nested Ranges.
- *
- * IIIF v2 structures use `structures` with `@type: "sc:Range"` and
- * `canvases` / `ranges` arrays.
+ * Parses a manifest's `structures` (Ranges) into a flat tree for a table of
+ * contents. IIIF v3 Ranges nest via `items`; IIIF v2 Ranges use `@type:
+ * "sc:Range"` with `canvases` / `ranges` arrays.
  */
 
+import type { CanvasRegion } from './contentState';
+import { getReferenceId, getResourceId } from './iiifIds';
+import { toBehaviorList } from './iiifParsing';
+import {
+    normalizeIiifTargets,
+    parseIiifSelectorTime,
+    parseIiifTime,
+    toCanvasRegion,
+    type NormalizedIiifTarget,
+} from './iiifTargets';
+import type { IiifTemporalFragment } from './iiifTime';
 import { resolveLanguageValue } from './languageMap';
 
 export interface StructureNode {
@@ -22,35 +28,80 @@ export interface StructureNode {
     depth: number;
     /** Canvas IDs directly referenced by this range (not children) */
     canvasIds: string[];
+    /**
+     * The `#t=` media time each entry of {@link canvasIds} was targeted at,
+     * index-aligned with it and `null` where the target carried no time. A
+     * range that targets the same canvas twice at different times — the shape
+     * chapters of a single recording take — appears twice in both arrays.
+     *
+     * {@link canvasRegions} holds the same alignment for the spatial half of a
+     * target, so a range whose items mix plain canvases, chapters and article
+     * regions keeps all three arrays in step: every target pushes one entry to
+     * each, whether or not it named a time or a region.
+     */
+    canvasTimes: (IiifTemporalFragment | null)[];
+    /**
+     * The `xywh` region each entry of {@link canvasIds} was targeted at,
+     * index-aligned with it and `null` where the target named none. The
+     * spatial peer of {@link canvasTimes}: a target may carry both, and a
+     * newspaper range that names four articles on two pages appears four times
+     * in every array.
+     */
+    canvasRegions: (CanvasRegion | null)[];
     /** Nested child ranges */
     children: StructureNode[];
 }
 
-/** Resolve a IIIF label value to a plain string. */
-function resolveLabel(label: any): string {
-    return resolveLanguageValue(label);
-}
-
-function normalizeBehavior(value: unknown): string {
-    return String(value).trim().toLowerCase();
-}
-
-function getBehaviors(resource: any): string[] {
-    const raw = resource?.behavior ?? resource?.viewingHint;
-    if (!raw) return [];
-
-    const behaviors = Array.isArray(raw) ? raw : [raw];
-    return behaviors.map(normalizeBehavior).filter(Boolean);
+/** The three index-aligned arrays a range's targets are recorded into. */
+interface RangeTargets {
+    canvasIds: string[];
+    canvasTimes: (IiifTemporalFragment | null)[];
+    canvasRegions: (CanvasRegion | null)[];
 }
 
 /**
- * Parse a single IIIF v3 Range object into a StructureNode.
+ * Record one range target, splitting the canvas it resolves by from the
+ * fragments that ride alongside it: a canvas id or a `SpecificResource`, with
+ * the time and the region each spelled either in a media fragment on the id or
+ * in a selector.
  */
+function pushCanvasTarget(target: unknown, targets: RangeTargets) {
+    const [normalized] = normalizeIiifTargets(target);
+    if (!normalized?.canvasId) return;
+
+    targets.canvasIds.push(normalized.canvasId);
+    targets.canvasTimes.push(targetTime(normalized));
+    targets.canvasRegions.push(toCanvasRegion(normalized.xywh));
+}
+
+/** A target's media time, from its selectors or from its own id's fragment. */
+function targetTime(target: NormalizedIiifTarget): IiifTemporalFragment | null {
+    for (const selector of target.selectors) {
+        const time = parseIiifSelectorTime(selector);
+        if (time) return time;
+    }
+    return target.targetId ? parseIiifTime(target.targetId) : null;
+}
+
+/**
+ * A range's display hints. `behavior` is the v3 spelling and `viewingHint` the
+ * v2 one; the v3 spelling wins wherever a document carries both.
+ */
+function getBehaviors(range: any): string[] {
+    return toBehaviorList(range?.behavior ?? range?.viewingHint).filter(
+        Boolean,
+    );
+}
+
 function parseV3Range(range: any, depth: number): StructureNode {
-    const id = range.id || range['@id'] || '';
-    const label = resolveLabel(range.label);
+    const id = getResourceId(range) ?? '';
+    const label = resolveLanguageValue(range.label);
     const behaviors = getBehaviors(range);
-    const canvasIds: string[] = [];
+    const targets: RangeTargets = {
+        canvasIds: [],
+        canvasTimes: [],
+        canvasRegions: [],
+    };
     const children: StructureNode[] = [];
 
     if (Array.isArray(range.items)) {
@@ -60,42 +111,41 @@ function parseV3Range(range: any, depth: number): StructureNode {
 
             if (itemType === 'Range') {
                 children.push(parseV3Range(item, depth + 1));
-            } else if (itemType === 'Canvas') {
-                const canvasId = (item.id || item['@id'] || '').split('#')[0];
-                if (canvasId) canvasIds.push(canvasId);
-            } else if (typeof item === 'string') {
-                // String reference to a canvas URI
-                const canvasId = item.split('#')[0];
-                if (canvasId) canvasIds.push(canvasId);
+            } else if (
+                itemType === 'Canvas' ||
+                itemType === 'SpecificResource' ||
+                typeof item === 'string'
+            ) {
+                pushCanvasTarget(item, targets);
             }
         }
     }
 
-    return { id, label, behaviors, depth, canvasIds, children };
+    return { id, label, behaviors, depth, ...targets, children };
 }
 
 /**
- * Parse a IIIF v2 Range object (`sc:Range`).
- * v2 ranges have `canvases` (array of canvas URIs) and `ranges` (array of range URIs or embedded ranges).
+ * v2 ranges have `canvases` (array of canvas URIs) and `ranges` (array of
+ * range URIs or embedded ranges).
  */
 function parseV2Range(
     range: any,
     depth: number,
     allRangesById: Map<string, any>,
 ): StructureNode {
-    const id = range['@id'] || range.id || '';
-    const label = resolveLabel(range.label);
+    const id = getResourceId(range) ?? '';
+    const label = resolveLanguageValue(range.label);
     const behaviors = getBehaviors(range);
-    const canvasIds: string[] = [];
+    const targets: RangeTargets = {
+        canvasIds: [],
+        canvasTimes: [],
+        canvasRegions: [],
+    };
     const children: StructureNode[] = [];
 
-    // Canvases
     if (Array.isArray(range.canvases)) {
         for (const c of range.canvases) {
-            const cid = (
-                typeof c === 'string' ? c : c['@id'] || c.id || ''
-            ).split('#')[0];
-            if (cid) canvasIds.push(cid);
+            pushCanvasTarget(getReferenceId(c) ?? '', targets);
         }
     }
 
@@ -104,10 +154,9 @@ function parseV2Range(
         for (const member of range.members) {
             const memberType = member['@type'] || member.type;
             if (memberType === 'sc:Canvas' || memberType === 'Canvas') {
-                const cid = (member['@id'] || member.id || '').split('#')[0];
-                if (cid) canvasIds.push(cid);
+                pushCanvasTarget(getResourceId(member) ?? '', targets);
             } else if (memberType === 'sc:Range' || memberType === 'Range') {
-                const memberId = member['@id'] || member.id;
+                const memberId = getResourceId(member) ?? '';
                 const childRange = allRangesById.get(memberId) || member;
                 children.push(
                     parseV2Range(childRange, depth + 1, allRangesById),
@@ -132,7 +181,7 @@ function parseV2Range(
         }
     }
 
-    return { id, label, behaviors, depth, canvasIds, children };
+    return { id, label, behaviors, depth, ...targets, children };
 }
 
 /**
@@ -154,10 +203,10 @@ export function parseStructures(manifest: any): StructureNode[] {
         (firstType.includes('Range') && !!structures[0]['@type']);
 
     if (isV2) {
-        // Build a lookup map of all ranges by @id for resolving references
+        // Build a lookup map of all ranges by id for resolving references
         const allRangesById = new Map<string, any>();
         for (const s of structures) {
-            const sid = s['@id'] || s.id;
+            const sid = getResourceId(s);
             if (sid) allRangesById.set(sid, s);
         }
 
@@ -175,10 +224,6 @@ export function parseStructures(manifest: any): StructureNode[] {
     return structures.map((r: any) => parseV3Range(r, 0));
 }
 
-/**
- * Given a canvas ID and a list of structure nodes, find the first
- * range node that directly contains the given canvas.
- */
 export function findRangeForCanvas(
     canvasId: string,
     nodes: StructureNode[],
@@ -191,9 +236,6 @@ export function findRangeForCanvas(
     return null;
 }
 
-/**
- * Whether a structure node directly contains the given canvas.
- */
 export function isStructureNodeActive(
     node: StructureNode,
     canvasId: string | null,
@@ -202,9 +244,6 @@ export function isStructureNodeActive(
     return node.canvasIds.includes(canvasId);
 }
 
-/**
- * Get the top-level sequence node index for a structure node id.
- */
 export function getSequenceNodeIndexById(
     nodes: StructureNode[],
     nodeId: string,

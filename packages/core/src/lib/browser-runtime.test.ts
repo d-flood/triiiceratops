@@ -7,6 +7,7 @@ import {
     installBrowserRuntime,
     type TriiiceratopsBrowserRuntime,
 } from './browser-runtime';
+import { SHARED_CORE_UTILS } from './shared-core-utils';
 import type { SdkPlugin } from './types/plugin';
 
 /**
@@ -18,8 +19,8 @@ function makePlugin(name: string, version: string): SdkPlugin {
         kind: 'triiiceratops-plugin',
         name,
         version,
-        coreRange: '*',
-        pluginApiRange: '*',
+        coreRange: '>=1.0.0-rc.0',
+        pluginApiRange: '^1.0.0',
         requiredCapabilities: [],
         icon: {
             kind: 'svg',
@@ -49,7 +50,7 @@ function uniqueTag(): string {
 const CORE = {
     coreVersion: '1.0.0',
     pluginApiVersion: '1.0.0',
-    capabilities: ['osd@5'] as const,
+    capabilities: ['example-feature@1'] as const,
 };
 
 beforeEach(() => {
@@ -88,6 +89,34 @@ describe('bootstrap', () => {
     });
 });
 
+describe('the shared core utilities', () => {
+    it('is an empty object on a namespace a plugin bootstrapped before core', () => {
+        expect(ensureBrowserRuntime().core).toEqual({});
+    });
+
+    it('carries exactly the curated set once core loads', () => {
+        installBrowserRuntime({
+            ...CORE,
+            elementCtor: makeElementCtor(),
+            tag: uniqueTag(),
+            coreUtils: SHARED_CORE_UTILS,
+        });
+
+        const shared = window.Triiiceratops!.core;
+        expect(Object.keys(shared).sort()).toEqual([
+            'companionPaintable',
+            'getPaintingAnnotations',
+            'isImageBody',
+            'isUnsupportedCanvasFor',
+            'paintingBodyAlternatives',
+            'parseIiifTime',
+        ]);
+        for (const name of Object.keys(shared)) {
+            expect(typeof shared[name]).toBe('function');
+        }
+    });
+});
+
 describe('order-independence', () => {
     it('plugin registers before core, then core completes the namespace', () => {
         // A plugin IIFE bootstraps and registers first.
@@ -105,7 +134,9 @@ describe('order-independence', () => {
 
         expect(window.Triiiceratops?.coreVersion).toBe('1.0.0');
         expect(window.Triiiceratops?.pluginApiVersion).toBe('1.0.0');
-        expect(window.Triiiceratops?.capabilities).toEqual(['osd@5']);
+        expect(window.Triiiceratops?.capabilities).toEqual([
+            'example-feature@1',
+        ]);
         // The pre-registered factory is still retrievable.
         expect(
             window.Triiiceratops?.plugins.get('@triiiceratops/plugin-x')
@@ -188,7 +219,9 @@ describe('one core per page, first wins', () => {
         // Namespace and custom element left untouched (first wins).
         expect(window.Triiiceratops?.coreVersion).toBe('1.0.0');
         expect(window.Triiiceratops?.pluginApiVersion).toBe('1.0.0');
-        expect(window.Triiiceratops?.capabilities).toEqual(['osd@5']);
+        expect(window.Triiiceratops?.capabilities).toEqual([
+            'example-feature@1',
+        ]);
         expect(customElements.get(tag)).toBe(firstCtor);
     });
 });

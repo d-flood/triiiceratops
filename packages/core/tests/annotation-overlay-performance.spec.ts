@@ -79,7 +79,7 @@ test('annotation connector avoids layout reads while the view is stationary', as
         JSON.stringify({ annotations: { open: true } }),
     );
     await page.goto(
-        `/?manifest=/annotation-performance-manifest.json&config=${config}`,
+        `/e2e/harness.html?manifest=/annotation-performance-manifest.json&config=${config}`,
         { waitUntil: 'domcontentloaded' },
     );
 

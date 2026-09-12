@@ -1,16 +1,33 @@
 import { getVisibleCanvasEntries } from '../components/viewerControls';
 import { getCanvasLabel } from './canvasLabels';
 import { getCanvasId, getResourceId } from './iiifIds';
+import { iiifImageRequestUrl, normalizeServiceId } from './iiifImageRequest';
+import { getPaintingAnnotations } from './iiifParsing';
 import {
-    getChoiceAlternatives,
-    getPaintingAnnotations,
-    getPaintingBody,
-    isChoiceBody,
-} from './iiifParsing';
-import { normalizeIiifTargets } from './iiifTargets';
+    findImageBody,
+    getImageService,
+    unwrapSpecificResource,
+} from './paintingBodies';
+import { normalizeIiifTargets, toCanvasRegion } from './iiifTargets';
 import { resolveLanguageValue } from './languageMap';
+import { isPositiveFinite } from './numbers';
 
-export type TileSource = string | { type: 'image'; url: string };
+/**
+ * Where a canvas's pixels come from.
+ *
+ * `static` is one known URL. `service` is an image service the consumer resolves
+ * once its `info.json` has been fetched — into a tile pyramid when it advertises
+ * tiles, and otherwise into a fixed-size ladder. Which of the two a service is
+ * comes from what it advertises, not from its declared `profile`, which is
+ * carried here only for the consumers that report it.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export type ImageSource =
+    | { kind: 'static'; url: string }
+    | { kind: 'service'; serviceId: string; profile: string | null };
 
 export type RegionRect = {
     x: number;
@@ -19,25 +36,30 @@ export type RegionRect = {
     height: number;
 };
 
-export type PositionedTileSource = {
-    canvasId: string;
-    tileSource: TileSource;
-    x: number;
-    y: number;
-    width: number;
-};
-
 type ResolveCanvasImageOptions = {
     getSelectedChoice?: (canvasId: string) => string | undefined;
+    /**
+     * Dimensions to stand in for a Canvas that declares none, instead of
+     * refusing to resolve it at all.
+     *
+     * Opt-in, and deliberately: every caller but one wants a spec-violating
+     * canvas dropped, because it has no geometry to place an image or an
+     * annotation in. The Canvas2D renderer is the exception — it must still lay
+     * such a canvas out, from a median of its siblings, and reflow it if an
+     * image service later reports real dimensions. It reads the
+     * declared dimensions separately, through
+     * {@link getDeclaredCanvasDimensions}, so what it gets back here is only
+     * ever the source descriptor; the placeholder never reaches layout.
+     */
+    fallbackCanvasDimensions?: CanvasDimensions;
 };
 
-type GetViewerTileSourcesParams = {
+type VisibleViewerCanvasesParams = {
     canvases: any[];
     currentCanvasIndex: number;
     currentCanvasId: string | null;
     viewingMode: 'individuals' | 'paged' | 'continuous';
     pagedOffset: number;
-    getSelectedChoice?: (canvasId: string) => string | undefined;
 };
 
 export type ResolvedCanvasImage = {
@@ -54,9 +76,19 @@ export type ResolvedCanvasImage = {
     serviceId: string | null;
     serviceProfile: string | null;
     imageApiRegion: RegionRect | null;
+    /**
+     * The box this image paints on its canvas, in manifest Canvas coordinates
+     * normalized by the canvas's *width* on both axes — the vertical axis
+     * included, so that one vertical unit equals one horizontal unit. A
+     * canvas-filling image is `x: 0, y: 0, width: 1`, making `height` the
+     * canvas's aspect ratio; a region-targeted image gets its target's own box.
+     * This is the authoritative geometry for laying the image out — the image
+     * service's own dimensions describe the pixels, not the placement.
+     */
     x: number;
     y: number;
     width: number;
+    height: number;
 };
 
 type CanvasDimensions = {
@@ -64,16 +96,8 @@ type CanvasDimensions = {
     height: number;
 };
 
-function normalizeServiceId(serviceId: string): string {
-    return serviceId.endsWith('/info.json')
-        ? serviceId.slice(0, -'/info.json'.length)
-        : serviceId;
-}
-
 function getNumericDimension(value: unknown): number | null {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0
-        ? value
-        : null;
+    return isPositiveFinite(value) ? value : null;
 }
 
 function getResourceDimensions(resource: any): {
@@ -88,45 +112,20 @@ function getResourceDimensions(resource: any): {
     };
 }
 
-function getSpecificResourceSource(resource: any): any | null {
-    return resource?.type === 'SpecificResource' && resource?.source
-        ? resource.source
-        : null;
-}
-
-function getCanvasDimensions(canvas: any): CanvasDimensions | null {
-    // Raw IIIF Canvas JSON spells these `width`/`height` in both v2 and v3.
-    // The trailing `|| null` is what the dead accessor rung evaluated to, and
-    // is load-bearing: a canvas declaring `width: 0` must still fall through to
-    // "no dimensions" rather than become a valid `0`.
-    const width = canvas?.width || null;
-    const height = canvas?.height || null;
-
-    if (typeof width !== 'number' || typeof height !== 'number') {
-        return null;
-    }
-
-    return { width, height };
-}
-
-function parseTargetRegion(annotation: any): {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-} | null {
-    const region = normalizeIiifTargets(annotation?.target).find(
-        (target) => target.xywh,
-    )?.xywh;
-
-    if (!region) return null;
-
-    return {
-        x: region[0],
-        y: region[1],
-        width: region[2],
-        height: region[3],
-    };
+/**
+ * The `#xywh=` fragment a painting annotation targets, if it targets one.
+ *
+ * `target` is the v3 spelling and `on` the v2 one, and both are read here.
+ * Reading only `target` would silently drop the region of every raw v2
+ * composite canvas — an image painting a sub-rectangle of its canvas would
+ * land at the origin at full size, on top of its siblings.
+ */
+function parseTargetRegion(annotation: any): RegionRect | null {
+    return toCanvasRegion(
+        normalizeIiifTargets(annotation?.target ?? annotation?.on).find(
+            (target) => target.xywh,
+        )?.xywh,
+    );
 }
 
 function parseImageApiRegionValue(
@@ -191,50 +190,6 @@ export function getRegionString(region: RegionRect): string {
         .join(',');
 }
 
-function getAnnotationResource(
-    annotation: any,
-    canvasId: string,
-    getSelectedChoice?: (canvasId: string) => string | undefined,
-): any | null {
-    let resource: any = null;
-
-    // The raw-JSON path, and now the only one. `getPaintingBody` reads the v2
-    // `resource` spelling as well as the v3 `body` one, and
-    // `getChoiceAlternatives` recognizes the v2 `oa:Choice`/`default`+`item`
-    // spelling as well as v3's `Choice`/`items`, with its array access guarded.
-    let body = getPaintingBody(annotation);
-    if (body) {
-        if (isChoiceBody(body)) {
-            const items = getChoiceAlternatives(body);
-            const selectedId = getSelectedChoice?.(canvasId);
-            const selectedItem = selectedId
-                ? items.find((item: any) => getResourceId(item) === selectedId)
-                : null;
-            body = selectedItem || items[0] || null;
-        }
-        resource = Array.isArray(body) ? body[0] : body;
-    }
-
-    return resource;
-}
-
-function isIiifImageProfile(profile: unknown): boolean {
-    if (typeof profile === 'string') {
-        return (
-            /^https?:\/\/iiif\.io\/api\/image\//.test(profile) ||
-            profile === 'level0' ||
-            profile === 'level1' ||
-            profile === 'level2'
-        );
-    }
-
-    if (Array.isArray(profile)) {
-        return profile.some((item) => isIiifImageProfile(item));
-    }
-
-    return false;
-}
-
 function normalizeProfile(profile: unknown): string | null {
     if (typeof profile === 'string') {
         return profile || null;
@@ -248,36 +203,6 @@ function normalizeProfile(profile: unknown): string | null {
     }
 
     return null;
-}
-
-function getImageService(resource: any): any | null {
-    let services: any[] = [];
-
-    if (resource?.service) {
-        services = Array.isArray(resource.service)
-            ? resource.service
-            : [resource.service];
-    }
-
-    if (!services.length) {
-        return null;
-    }
-
-    return (
-        services.find((item: any) => {
-            // v3 spells the service type `type`, v2 `@type`; `profile` is
-            // spelled the same in both.
-            const type = item.type || item['@type'] || '';
-            const profile = item.profile || '';
-
-            return (
-                type === 'ImageService1' ||
-                type === 'ImageService2' ||
-                type === 'ImageService3' ||
-                isIiifImageProfile(profile)
-            );
-        }) || null
-    );
 }
 
 function getImageLabel(resource: any, annotation: any): string | null {
@@ -311,6 +236,16 @@ function getImageServiceDetails(resource: any): {
     };
 }
 
+/**
+ * An Image API base URI guessed from the shape of a resource id that declares
+ * no service — `.../iiif/<identifier>/full/...` reduced to `.../iiif/<identifier>`.
+ *
+ * A guess, and it must only ever be made about an **image**: the test is that
+ * the URL contains `/iiif/`, which a IIIF-hosted media file also does, and a
+ * fabricated service id sends the tile pipeline off building `info.json` and
+ * region requests against a video. Reached only from a body the classifier
+ * passed (see {@link findImageBody}), which is what makes that safe.
+ */
 function getHeuristicServiceId(resourceId: string | null): string | null {
     if (!resourceId || !resourceId.includes('/iiif/')) {
         return null;
@@ -325,6 +260,34 @@ function getHeuristicServiceId(resourceId: string | null): string | null {
 }
 
 export { getCanvasLabel, getCanvasId };
+
+/**
+ * The dimensions a raw Canvas actually declares, or `null` where it declares
+ * none usable.
+ *
+ * Exported so a caller can tell "the manifest says 1200x900" apart from "the
+ * manifest says nothing and something guessed for it" — a distinction
+ * {@link ResolvedCanvasImage} cannot carry, because its `canvasWidth`/
+ * `canvasHeight` are always numbers. The renderer needs it: a declared
+ * dimension is authoritative forever, while a missing one is a placeholder to
+ * be replaced the moment an image service reports the truth.
+ */
+export function getDeclaredCanvasDimensions(
+    canvas: unknown,
+): CanvasDimensions | null {
+    // Raw IIIF Canvas JSON spells these `width`/`height` in both v2 and v3.
+    // The trailing `|| null` is load-bearing: a canvas declaring `width: 0`
+    // must still fall through to "no dimensions" rather than become a valid
+    // `0`.
+    const width = (canvas as any)?.width || null;
+    const height = (canvas as any)?.height || null;
+
+    if (typeof width !== 'number' || typeof height !== 'number') {
+        return null;
+    }
+
+    return { width, height };
+}
 
 export function resolveCanvasImage(
     canvas: any,
@@ -343,7 +306,10 @@ export function resolveAllCanvasImages(
         return [];
     }
 
-    const canvasDimensions = getCanvasDimensions(canvas);
+    const canvasDimensions =
+        getDeclaredCanvasDimensions(canvas) ??
+        options.fallbackCanvasDimensions ??
+        null;
     if (!canvasDimensions) {
         return [];
     }
@@ -355,13 +321,19 @@ export function resolveAllCanvasImages(
 
     return annotations
         .map((annotation) => {
-            const rawResource = getAnnotationResource(
+            // The classifier is the gate (`utils/paintingBodies`): a `Video`,
+            // `Sound` or `TextualBody` body answers `null` and therefore never
+            // reaches `getHeuristicServiceId`, the source descriptors, the
+            // static-image loader, or the negative cache. Body-array
+            // unwrapping and Choice selection are the classifier's too, in
+            // that order — the array first, so a
+            // `body: [Choice(videos), Text(vtt)]` resolves its Choice instead
+            // of handing back the Choice object itself.
+            const rawResource = findImageBody(
                 annotation,
-                canvasId,
-                options.getSelectedChoice,
+                options.getSelectedChoice?.(canvasId),
             );
-            const resource =
-                getSpecificResourceSource(rawResource) || rawResource;
+            const resource = unwrapSpecificResource(rawResource);
 
             if (!resource) {
                 return null;
@@ -394,29 +366,45 @@ export function resolveAllCanvasImages(
                 serviceProfile: serviceDetails.serviceProfile,
                 imageApiRegion,
                 x: region ? region.x / canvasDimensions.width : 0,
-                // OSD viewport coordinates normalize BOTH axes to the reference
-                // image's width (aspect ratio preserved: 1 vertical unit = 1
-                // horizontal unit = the base image width in px). So the y offset
-                // is divided by width, exactly like x and width — not by height.
+                // This world normalizes BOTH axes by the Canvas's width (aspect
+                // ratio preserved: 1 vertical unit = 1 horizontal unit = the
+                // Canvas's width). So the y offset is divided by width, exactly
+                // like x and width — not by height. The rule outlived the
+                // renderer that introduced it: it is the normalized world the
+                // export path still lays out in (see `components/canvasLayout`,
+                // whose `canvasBoxWidth` is 1 unit wide for the same reason).
                 y: region ? region.y / canvasDimensions.width : 0,
                 width: region ? region.width / canvasDimensions.width : 1,
+                height: region
+                    ? region.height / canvasDimensions.width
+                    : canvasDimensions.height / canvasDimensions.width,
             } satisfies ResolvedCanvasImage;
         })
         .filter((result): result is ResolvedCanvasImage => result !== null);
 }
 
-export function getCanvasTileSource(
-    canvas: any,
-    options: ResolveCanvasImageOptions = {},
-): TileSource | null {
-    const resolved = resolveCanvasImage(canvas, options);
-    if (!resolved) {
-        return null;
-    }
-
+/**
+ * Where one resolved painting image's pixels come from — the three-branch source
+ * decision, made in one place for every consumer:
+ *
+ * 1. a service **plus** an Image API region is a prebuilt image request — a
+ *    single static image of the cropped region;
+ * 2. a service alone is a service to resolve against a tile pyramid or size
+ *    ladder;
+ * 3. otherwise the painting resource's own id is a plain static image.
+ *
+ * `null` where the image names no source at all.
+ *
+ * @internal Not exported from any package entry point. It appears in
+ * `api-reports/core.api.md` because that report is a file-level rollup and a
+ * sibling in this module is public — importing it from `triiiceratops` fails.
+ */
+export function toImageSource(
+    resolved: ResolvedCanvasImage,
+): ImageSource | null {
     if (resolved.serviceId && resolved.imageApiRegion) {
         return {
-            type: 'image',
+            kind: 'static',
             url: buildIiifImageRequestUrl(resolved.serviceId, {
                 region: getRegionString(resolved.imageApiRegion),
                 size: 'max',
@@ -425,51 +413,43 @@ export function getCanvasTileSource(
     }
 
     if (resolved.serviceId) {
-        return `${resolved.serviceId}/info.json`;
+        return {
+            kind: 'service',
+            serviceId: resolved.serviceId,
+            profile: resolved.serviceProfile,
+        };
     }
 
     if (resolved.resourceId) {
-        return { type: 'image', url: resolved.resourceId };
+        return { kind: 'static', url: resolved.resourceId };
     }
 
     return null;
 }
 
-export function getCanvasTileSources(
+/**
+ * Whether a canvas paints at least one image core could actually request.
+ *
+ * The viewer's **renderability** gate, and the same decision painting makes:
+ * {@link resolveAllCanvasImages} for the painting bodies, {@link toImageSource}
+ * for whether each names a source. Existence only — it stops at the first image
+ * that does — because the gate asks whether to mount the renderer at all and
+ * nothing downstream of it reads a list.
+ *
+ * Deliberately WITHOUT `fallbackCanvasDimensions`, unlike the renderer's own
+ * descriptors: a canvas declaring no usable dimensions resolves nothing here,
+ * which is the gate's long-standing answer for it. The renderer's placeholder
+ * exists so such a canvas can still be laid out once the gate has let it
+ * through, and threading it in here would change what the viewer says about a
+ * dimensionless canvas rather than what it does with a rendered one.
+ */
+export function canvasPaintsImage(
     canvas: any,
     options: ResolveCanvasImageOptions = {},
-): PositionedTileSource[] {
-    return resolveAllCanvasImages(canvas, options)
-        .map((resolved) => {
-            let tileSource: TileSource | null = null;
-
-            if (resolved.serviceId && resolved.imageApiRegion) {
-                tileSource = {
-                    type: 'image',
-                    url: buildIiifImageRequestUrl(resolved.serviceId, {
-                        region: getRegionString(resolved.imageApiRegion),
-                        size: 'max',
-                    }),
-                };
-            } else if (resolved.serviceId) {
-                tileSource = `${resolved.serviceId}/info.json`;
-            } else if (resolved.resourceId) {
-                tileSource = { type: 'image', url: resolved.resourceId };
-            }
-
-            if (!tileSource) {
-                return null;
-            }
-
-            return {
-                canvasId: resolved.canvasId,
-                tileSource,
-                x: resolved.x,
-                y: resolved.y,
-                width: resolved.width,
-            } satisfies PositionedTileSource;
-        })
-        .filter((result): result is PositionedTileSource => result !== null);
+): boolean {
+    return resolveAllCanvasImages(canvas, options).some(
+        (resolved) => toImageSource(resolved) !== null,
+    );
 }
 
 export function buildIiifImageRequestUrl(
@@ -485,10 +465,6 @@ export function buildIiifImageRequestUrl(
         width: 1600,
     },
 ): string {
-    const base = normalizeServiceId(serviceId);
-    const region = options.region || 'full';
-    const quality = options.quality || 'default';
-    const format = options.format || 'jpg';
     const width =
         typeof options.width === 'number'
             ? Math.max(1, Math.round(options.width))
@@ -497,33 +473,44 @@ export function buildIiifImageRequestUrl(
         typeof options.height === 'number'
             ? Math.max(1, Math.round(options.height))
             : null;
-    const size = options.size || (width ? `${width},` : `,${height || 1600}`);
 
-    return `${base}/${region}/${size}/0/${quality}.${format}`;
+    return iiifImageRequestUrl(
+        serviceId,
+        options.size || (width ? `${width},` : `,${height || 1600}`),
+        options.quality || 'default',
+        options.format || 'jpg',
+        options.region || 'full',
+    );
 }
 
-export function getViewerTileSources({
+/**
+ * The canvases a frame of the viewer shows: the current one, its spread mate in
+ * paged mode, or all of them in continuous mode.
+ *
+ * Exists so that "which canvases resolved an image" and "which canvases core
+ * cannot render" are answered over the same set: the viewer asks both of this
+ * one list, so on a spread they cannot disagree about which canvases were
+ * being talked about.
+ */
+export function getVisibleViewerCanvases({
     canvases,
     currentCanvasIndex,
     currentCanvasId,
     viewingMode,
     pagedOffset,
-    getSelectedChoice,
-}: GetViewerTileSourcesParams): PositionedTileSource[] | null {
+}: VisibleViewerCanvasesParams): any[] {
     if (
         !canvases.length ||
         currentCanvasIndex < 0 ||
         !canvases[currentCanvasIndex]
     ) {
-        return null;
+        return [];
     }
 
-    let visibleCanvases = [canvases[currentCanvasIndex]];
+    if (viewingMode === 'continuous') return canvases;
 
-    if (viewingMode === 'continuous') {
-        visibleCanvases = canvases;
-    } else if (viewingMode === 'paged') {
-        visibleCanvases = getVisibleCanvasEntries({
+    if (viewingMode === 'paged') {
+        return getVisibleCanvasEntries({
             canvases,
             currentCanvasId,
             currentCanvasIndex,
@@ -532,9 +519,5 @@ export function getViewerTileSources({
         }).map(({ canvas }) => canvas);
     }
 
-    const tileSources = visibleCanvases.flatMap((canvas) =>
-        getCanvasTileSources(canvas, { getSelectedChoice }),
-    );
-
-    return tileSources.length ? tileSources : null;
+    return [canvases[currentCanvasIndex]];
 }

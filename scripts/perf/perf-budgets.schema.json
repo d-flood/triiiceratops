@@ -3,22 +3,53 @@
     "title": "triiiceratops perf-budgets",
     "description": "Accepted post-cleanup absolute performance ceilings enforced by scripts/perf/compare.mjs (ticket 25). The comparison job enforces base-vs-head deltas; this file guards absolute drift and fails even when base == head.",
     "type": "object",
-    "required": ["baselineRef", "thresholds", "size", "runtime"],
+    "required": ["baselineRef", "thresholds", "size", "runtime", "memory"],
     "properties": {
         "$schema": { "type": "string" },
         "baselineRef": {
             "type": "string",
-            "description": "The measurement baseline reference (e.g. 1.0.0-rc.25)."
+            "description": "What was MEASURED to produce this file: a commit SHA, a git ref, or `working-tree` for a --head-root capture. Never inherited from the previous file — inheriting made one stale value self-perpetuating, so regenerations kept naming a ref whose build could not produce the numbers here."
+        },
+        "renderer": {
+            "type": "string",
+            "enum": ["canvas", "unknown"],
+            "description": "Which renderer the measured dist mounted, detected from the built artifact. `unknown` means no first-party renderer root appeared — a dist predating it, or one whose renderer never mounted — and its numbers are not this renderer's ceilings."
+        },
+        "tracing": {
+            "type": "string",
+            "enum": ["off", "playwright"],
+            "description": "Whether Playwright tracing was on for the runs whose medians these runtime ceilings derive from. Recorded for the same reason as `renderer` — it changes what the numbers mean, not merely their noise: tracing's DOM snapshots cost `activate_image-manipulation` roughly 10x while leaving the load phases alone. `compare.mjs` refuses to enforce these ceilings against a run measured in the other mode, so `--no-traces` on the enforcing job is a checked property of this file rather than a convention."
         },
         "capturedAt": { "type": "string", "format": "date-time" },
         "note": { "type": "string" },
         "thresholds": {
             "type": "object",
-            "required": ["sizeRegressionPct", "runtimePct", "runtimeAbsMs"],
+            "required": [
+                "sizeRegressionPct",
+                "runtimePct",
+                "runtimeAbsMs",
+                "memoryPct",
+                "memoryBytesFloorPct",
+                "memoryBytesFloorMinBytes",
+                "memoryAbsTiles"
+            ],
             "properties": {
                 "sizeRegressionPct": { "type": "number" },
                 "runtimePct": { "type": "number" },
-                "runtimeAbsMs": { "type": "number" }
+                "runtimeAbsMs": { "type": "number" },
+                "memoryPct": { "type": "number" },
+                "memoryBytesFloorPct": {
+                    "type": "number",
+                    "description": "The byte floor a memory regression must also exceed, as a fraction of the BASE reading for that scenario. Proportional rather than flat: a flat floor has to be sized for the largest scenario, and at 4 MiB it exceeded the entire thumbnail-tier measurement — so a thumbnail rung 256 -> 512 regression (a 4x increase in decoded bytes) cleared every gate."
+                },
+                "memoryBytesFloorMinBytes": {
+                    "type": "number",
+                    "description": "Lower bound on the proportional byte floor, so a near-zero baseline does not make the gate hair-trigger."
+                },
+                "memoryAbsTiles": {
+                    "type": "number",
+                    "description": "Absolute resident-tile increase a memory regression must also exceed."
+                }
             }
         },
         "size": {
@@ -57,6 +88,45 @@
                 "properties": {
                     "medianMs": { "type": "number" },
                     "ceilingMs": { "type": "number" }
+                }
+            }
+        },
+        "memory": {
+            "type": "object",
+            "description": "Per-scenario renderer residency ceilings, fed by the renderer's OWN counters and not by a browser heap metric: decoded tiles are ImageBitmaps living outside the JS heap, so a heap ceiling reads near-flat while tiles leak. Measured against the generated 800-canvas continuous fixture. A budgeted scenario that produces no counters fails rather than passing, so a dist built without the Canvas2D renderer cannot slip through; a MEASURED scenario with no entry here fails too, so the object being present but empty cannot pass as enforcement. Always emitted, empty when nothing was measured (a `--size-only` capture), because a missing key wrote a file this schema rejects.",
+            "additionalProperties": {
+                "type": "object",
+                "required": [
+                    "residentTileCount",
+                    "ceilingResidentTileCount",
+                    "requiredBytes",
+                    "ceilingRequiredBytes",
+                    "decodedBytes",
+                    "ceilingDecodedBytes"
+                ],
+                "properties": {
+                    "residentTileCount": {
+                        "type": "integer",
+                        "description": "Tiles held in the required set once the traverse has settled. The load-bearing counter: the required set is never evicted, so this is where a residency leak shows up."
+                    },
+                    "ceilingResidentTileCount": { "type": "integer" },
+                    "requiredBytes": {
+                        "type": "integer",
+                        "description": "The required set alone, in decoded bytes. Budgeted because it is the only counter that moves when the residency tier or the thumbnail rung changes and nothing else does: a rung regression resolves the SAME canvases at twice the size, so residentTileCount is unchanged, and decodedBytes carries the opportunistic cache's jitter."
+                    },
+                    "ceilingRequiredBytes": { "type": "integer" },
+                    "decodedBytes": {
+                        "type": "integer",
+                        "description": "Required set plus opportunistic cache — the total the scheduler's byte budget governs."
+                    },
+                    "ceilingDecodedBytes": {
+                        "type": "integer",
+                        "description": "Must stay BELOW `byteBudget`: above it, the scheduler's own trim() already guarantees the bound and this ceiling asserts nothing. compare.mjs reports that as a failure."
+                    },
+                    "byteBudget": {
+                        "type": "integer",
+                        "description": "The decoded-byte ceiling in force during the measurement (the shipped desktop default, per ADR 0014). Recorded for context and to validate ceilingDecodedBytes; not itself enforced."
+                    }
                 }
             }
         }

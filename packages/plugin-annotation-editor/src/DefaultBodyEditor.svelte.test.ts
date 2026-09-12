@@ -389,6 +389,7 @@ describe('AnnotationEditorController UI config', () => {
                     {
                         manifestId: 'manifest-1',
                         canvasId: 'canvas-1',
+                        annotatableCanvasIds: ['canvas-1'],
                         osdViewer: null,
                     },
                 ],
@@ -419,6 +420,7 @@ describe('AnnotationEditorController UI config', () => {
                     {
                         manifestId: 'manifest-1',
                         canvasId: 'canvas-1',
+                        annotatableCanvasIds: ['canvas-1'],
                         osdViewer: null,
                     },
                 ],
@@ -460,6 +462,7 @@ describe('AnnotationEditorController UI config', () => {
                     {
                         manifestId: 'manifest-1',
                         canvasId: 'canvas-1',
+                        annotatableCanvasIds: ['canvas-1'],
                         osdViewer: null,
                         annotationEditBus: {
                             requestEdit: vi.fn(),
@@ -481,5 +484,80 @@ describe('AnnotationEditorController UI config', () => {
 
         await unmount(app);
         expect(unsubscribe).toHaveBeenCalledTimes(1);
+    });
+});
+
+/**
+ * The **canvas claim** edge. A canvas a media plugin has claimed — an
+ * audiovisual canvas whose video the claimant renders — is absent from core's
+ * `annotatableCanvasIds`, and every annotation surface scopes through that
+ * list. Offering a drawing layer there would persist rectangles nothing then
+ * displays, so the editor refuses creation for the same reason, and through the
+ * same inactive state, as a host that refuses it: create mode unavailable, no
+ * drawing tools, and no invented copy explaining either.
+ */
+describe('AnnotationEditorController canvas claim gate', () => {
+    let target: HTMLElement;
+
+    beforeEach(() => {
+        target = document.createElement('div');
+        document.body.appendChild(target);
+    });
+
+    afterEach(() => {
+        target.remove();
+        vi.restoreAllMocks();
+    });
+
+    function mountOn(annotatableCanvasIds: string[]) {
+        return mount(AnnotationEditorController, {
+            target,
+            props: {
+                config: {
+                    ui: { startInCreateMode: true },
+                },
+            },
+            context: new Map([
+                [
+                    VIEWER_STATE_KEY,
+                    {
+                        manifestId: 'manifest-1',
+                        canvasId: 'canvas-1',
+                        annotatableCanvasIds,
+                        osdViewer: null,
+                    },
+                ],
+            ]),
+        });
+    }
+
+    it('offers the drawing tools on a canvas core is painting', async () => {
+        const app = mountOn(['canvas-1']);
+        await tick();
+
+        expect(target.textContent).toContain('Drawing Tool');
+
+        await unmount(app);
+    });
+
+    it('offers no drawing layer and no tools on a claimed canvas', async () => {
+        const app = mountOn(['canvas-2']);
+        await tick();
+
+        // The configured create mode fell back to edit mode, which is the
+        // panel's existing "nothing to draw on" state — no tool section...
+        expect(target.textContent).not.toContain('Drawing Tool');
+        expect(target.textContent).toContain(
+            'Click on an annotation to select and edit it',
+        );
+
+        // ...and the create-mode button is offered but inert, exactly as it is
+        // when a host refuses creation.
+        const createButton = [...target.querySelectorAll('button')].find(
+            (button) => button.textContent?.includes('Create'),
+        );
+        expect(createButton?.disabled).toBe(true);
+
+        await unmount(app);
     });
 });

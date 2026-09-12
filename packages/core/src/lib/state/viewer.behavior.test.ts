@@ -75,6 +75,24 @@ function v3Manifest(
     };
 }
 
+/**
+ * A canvas whose id read is counted. `getResourceId` reads `id` first, so this
+ * counter observes every canvas-id resolution the viewer performs over the
+ * canvas list — the unit paged-lookup work is measured in.
+ */
+function countingV3Canvas(id: string, reads: { count: number }) {
+    const canvas = v3Canvas(id);
+    Object.defineProperty(canvas, 'id', {
+        get() {
+            reads.count += 1;
+            return id;
+        },
+        enumerable: true,
+        configurable: true,
+    });
+    return canvas;
+}
+
 function v2Canvas(id: string, extra: Record<string, unknown> = {}) {
     return {
         '@id': id,
@@ -288,6 +306,49 @@ describe('ViewerState manifest behavior', () => {
         expect(state.canvasId).toBe(CANVAS_2);
     });
 
+    /*
+     * The two spellings a dropped content state produces. The Content State
+     * API requires the state to name its target absolutely; a manifest is free
+     * to declare relative canvas ids, and plenty do. Everything downstream —
+     * the renderer's placement map, the region carried by the navigation, a
+     * plugin's media element — is keyed by the manifest's spelling, so the
+     * canvas is stored as the manifest spells it.
+     */
+    it('stores a canvas named absolutely as its manifest spells it', async () => {
+        await load(
+            v3Manifest('http://example.org/manifest/relative-canvases', {
+                canvases: [v3Canvas('/canvas/one'), v3Canvas('/canvas/two')],
+            }),
+        );
+
+        const absolute = new URL('/canvas/two', document.baseURI).href;
+        state.setCanvas(absolute, null, {
+            x: 1,
+            y: 2,
+            width: 3,
+            height: 4,
+        });
+
+        expect(state.canvasId).toBe('/canvas/two');
+        // The region travels with the canvas, so it has to be filed under the
+        // same spelling or the fit that would spend it never finds it.
+        expect(state.takeNavigationRegion('/canvas/two')).toEqual({
+            canvasId: '/canvas/two',
+            x: 1,
+            y: 2,
+            width: 3,
+            height: 4,
+        });
+    });
+
+    it('leaves a canvas its manifest does not declare alone', async () => {
+        await load(v3Manifest('http://example.org/manifest/unknown-canvas'));
+
+        state.setCanvas('http://example.org/canvas/nowhere');
+
+        expect(state.canvasId).toBe('http://example.org/canvas/nowhere');
+    });
+
     it('keeps a pre-requested canvas when loading manifest data directly', async () => {
         state.setCanvas(CANVAS_2);
         await load(
@@ -393,6 +454,66 @@ describe('ViewerState manifest behavior', () => {
 
         state.previousCanvas();
         expect(state.canvasId).toBe(CANVAS_2);
+    });
+
+    it('resolves the current canvas index once per paged group lookup', async () => {
+        const CANVAS_COUNT = 200;
+        const reads = { count: 0 };
+        const ids = Array.from(
+            { length: CANVAS_COUNT },
+            (_, index) => `http://example.org/canvas/large/${index}`,
+        );
+
+        await load(
+            v3Manifest('http://example.org/manifest/large-paged', {
+                canvases: ids.map((id) => countingV3Canvas(id, reads)),
+            }),
+        );
+
+        state.viewingMode = 'paged';
+        state.canvasId = ids[CANVAS_COUNT - 1];
+
+        // A paged lookup resolves the current canvas index (one scan of the
+        // list) and builds the groups (one pass, two id reads per group). Both
+        // are linear, so the whole lookup is a small multiple of the canvas
+        // count. Resolving the index inside the group predicate instead makes
+        // it quadratic — over 40,000 reads at this size.
+        const linearBudget = CANVAS_COUNT * 12;
+
+        reads.count = 0;
+        expect(state.hasNext).toBe(false);
+        expect(reads.count).toBeLessThan(linearBudget);
+
+        reads.count = 0;
+        expect(state.hasPrevious).toBe(true);
+        expect(reads.count).toBeLessThan(linearBudget);
+
+        // Last and first spread still bound navigation, and stepping still
+        // moves a spread at a time. The default offset leaves the first canvas
+        // alone in its own group, so the last one ends up alone in its own too.
+        expect(state.pagedOffset).toBe(1);
+
+        state.previousCanvas();
+        expect(state.canvasId).toBe(ids[CANVAS_COUNT - 3]);
+
+        state.canvasId = ids[0];
+        expect(state.hasPrevious).toBe(false);
+        expect(state.hasNext).toBe(true);
+        state.nextCanvas();
+        expect(state.canvasId).toBe(ids[1]);
+
+        // Dropping the pairing offset repairs the spreads without
+        // reintroducing the nested scan.
+        state.togglePagedOffset();
+        expect(state.pagedOffset).toBe(0);
+        expect(state.canvasId).toBe(ids[0]);
+
+        reads.count = 0;
+        expect(state.hasPrevious).toBe(false);
+        expect(reads.count).toBeLessThan(linearBudget);
+
+        state.nextCanvas();
+        expect(state.canvasId).toBe(ids[2]);
     });
 
     it('auto-loads the earliest manifest when opening a chronology collection', async () => {
@@ -612,12 +733,56 @@ describe('ViewerState manifest behavior', () => {
         expect(state.annotationVisibilityTouched).toBe(true);
     });
 
-    it('setGalleryPosition and setGallerySize replace their values', () => {
-        state.setGalleryPosition({ x: 42, y: 84 });
-        expect(state.galleryPosition).toEqual({ x: 42, y: 84 });
+    it('setAllAnnotationsVisible(true) reaches the whole spread, not just the current canvas', async () => {
+        await load(
+            annotatedManifest('http://example.org/manifest/annotations-paged', {
+                [CANVAS_1]: [{ id: 'anno-1' }],
+                [CANVAS_2]: [{ id: 'anno-2' }],
+            }),
+        );
+        state.viewingMode = 'paged';
+        // What the renderer publishes once the spread is on screen; without it
+        // `annotatableCanvasIds` falls back to the current canvas alone.
+        state.visibleCanvasIds = [CANVAS_1, CANVAS_2];
 
-        state.setGallerySize({ width: 500, height: 600 });
-        expect(state.gallerySize).toEqual({ width: 500, height: 600 });
+        state.setAllAnnotationsVisible(true);
+
+        // The facing page's annotation is toggleable in the panel, so "all"
+        // has to include it — reading only `canvasId` left it behind.
+        expect([...state.visibleAnnotationIds].sort()).toEqual([
+            'anno-1',
+            'anno-2',
+        ]);
+    });
+
+    it('setAllAnnotationsVisible(true) leaves search hits out of the visibility set', async () => {
+        await load(
+            annotatedManifest('http://example.org/manifest/annotations-hits', {
+                [CANVAS_1]: [{ id: 'anno-1' }],
+            }),
+        );
+        await state.search('anything');
+
+        state.setAllAnnotationsVisible(true);
+
+        // A search hit is always drawn and never toggled.
+        for (const hit of state.searchAnnotations) {
+            expect(state.visibleAnnotationIds.has(hit['@id'])).toBe(false);
+        }
+    });
+
+    it('setDockSide keeps the derived docked flags in step', () => {
+        state.setDockSide('bottom');
+        expect(state.isGalleryDockedBottom).toBe(true);
+        expect(state.isGalleryDockedRight).toBe(false);
+
+        state.setDockSide('right');
+        expect(state.isGalleryDockedBottom).toBe(false);
+        expect(state.isGalleryDockedRight).toBe(true);
+
+        state.setDockSide('left');
+        expect(state.isGalleryDockedBottom).toBe(false);
+        expect(state.isGalleryDockedRight).toBe(false);
     });
 
     it('setDockSide keeps the derived docked flags in sync', () => {
@@ -631,7 +796,7 @@ describe('ViewerState manifest behavior', () => {
         expect(state.isGalleryDockedBottom).toBe(true);
         expect(state.isGalleryDockedRight).toBe(false);
 
-        state.setDockSide('none');
+        state.setDockSide('top');
         expect(state.isGalleryDockedBottom).toBe(false);
         expect(state.isGalleryDockedRight).toBe(false);
     });
@@ -707,5 +872,78 @@ describe('ViewerState manifest behavior', () => {
 
         expect(state.preserveCanvasScale).toBe(true);
         expect(state.getSnapshot().preserveCanvasScale).toBe(true);
+    });
+
+    it('reports the canvas index within the selected sequence', async () => {
+        const id = 'http://example.org/manifest/multi-sequence-snapshot';
+        await load({
+            '@context': 'http://iiif.io/api/presentation/2/context.json',
+            '@id': id,
+            '@type': 'sc:Manifest',
+            label: 'Multi-sequence fixture',
+            sequences: [
+                {
+                    '@id': `${id}/sequence/1`,
+                    '@type': 'sc:Sequence',
+                    canvases: [v2Canvas(CANVAS_1), v2Canvas(CANVAS_2)],
+                },
+                {
+                    '@id': `${id}/sequence/2`,
+                    '@type': 'sc:Sequence',
+                    canvases: [v2Canvas(CANVAS_3), v2Canvas(CANVAS_4)],
+                },
+            ],
+        });
+
+        expect(state.sequenceCount).toBe(2);
+        expect(state.getSnapshot().currentCanvasIndex).toBe(0);
+
+        state.setSequenceIndex(1);
+        state.setCanvas(CANVAS_4);
+
+        // Read against the SELECTED sequence, not sequence 0, where CANVAS_4
+        // does not appear at all.
+        expect(state.getSnapshot().currentCanvasIndex).toBe(1);
+    });
+
+    it('resets the selected sequence when a new manifest is set, so a stale index cannot empty the viewer', async () => {
+        const multi = 'http://example.org/manifest/stale-sequence-source';
+        const single = 'http://example.org/manifest/stale-sequence-target';
+        serve({
+            [multi]: {
+                '@context': 'http://iiif.io/api/presentation/2/context.json',
+                '@id': multi,
+                '@type': 'sc:Manifest',
+                label: 'Two sequences',
+                sequences: [
+                    {
+                        '@id': `${multi}/sequence/1`,
+                        '@type': 'sc:Sequence',
+                        canvases: [v2Canvas(CANVAS_1), v2Canvas(CANVAS_2)],
+                    },
+                    {
+                        '@id': `${multi}/sequence/2`,
+                        '@type': 'sc:Sequence',
+                        canvases: [v2Canvas(CANVAS_3), v2Canvas(CANVAS_4)],
+                    },
+                ],
+            },
+            [single]: v3Manifest(single, {
+                canvases: [v3Canvas(CANVAS_1), v3Canvas(CANVAS_2)],
+            }),
+        });
+
+        await state.setManifest(multi);
+        state.setSequenceIndex(1);
+        expect(state.selectedSequenceIndex).toBe(1);
+
+        // The incoming manifest has one sequence, so sequence 1 does not exist
+        // in it: carrying the index over would leave the viewer with no
+        // canvases at all.
+        await state.setManifest(single);
+
+        expect(state.selectedSequenceIndex).toBe(0);
+        expect(state.canvases.length).toBe(2);
+        expect(state.canvasId).toBe(CANVAS_1);
     });
 });

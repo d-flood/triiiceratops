@@ -11,7 +11,6 @@ import { join } from 'node:path';
 import {
     isPackageExcluded,
     pruneDist,
-    DEMO_ONLY_COMPONENTS,
     EXCLUDED_DIRS,
     EXCLUDED_DIR_NAMES,
 } from './pruneDist';
@@ -29,11 +28,22 @@ describe('isPackageExcluded', () => {
         }
     });
 
-    it('excludes demo-only components (.svelte and .svelte.d.ts)', () => {
-        for (const c of DEMO_ONLY_COMPONENTS) {
+    /*
+     * Matched by suffix rather than enumerated, because the enumeration drifted:
+     * `assert-tarball-contents.mjs` forbids any `…TestHost` file in the tarball,
+     * so a newly added one has to be pruned without anybody remembering a list.
+     */
+    it('excludes any test-host component, named or not', () => {
+        for (const c of [
+            'MetadataPanelTestHost',
+            'AnnotationShapeOverlayTestHost',
+            'SomethingNobodyHasWrittenYetTestHost',
+        ]) {
             expect(isPackageExcluded(`${c}.svelte`)).toBe(true);
             expect(isPackageExcluded(`${c}.svelte.d.ts`)).toBe(true);
         }
+        // Not every file with "Host" in it: only the TestHost suffix.
+        expect(isPackageExcluded('PluginMountHost.svelte')).toBe(false);
     });
 
     it('keeps public API components and modules', () => {
@@ -44,7 +54,7 @@ describe('isPackageExcluded', () => {
             'index.d.ts',
             'colorUtils.js',
             'AnnotationOverlay.svelte',
-            'ThemeToggle.svelte',
+            'Icon.svelte',
             // not a test file just because "test" appears mid-word
             'contestants.js',
         ]) {
@@ -54,14 +64,14 @@ describe('isPackageExcluded', () => {
 });
 
 describe('pruneDist', () => {
-    it('removes excluded dirs and test/demo files, keeps public modules', () => {
+    it('removes excluded dirs and test files, keeps public modules', () => {
         const dir = mkdtempSync(join(tmpdir(), 'prune-'));
         try {
             // Internal test fixtures/mocks dir (must be dropped wholesale).
             mkdirSync(join(dir, 'test', 'fixtures'), { recursive: true });
             writeFileSync(join(dir, 'test', 'fixtures', 'manifests.js'), '');
             writeFileSync(join(dir, 'test', 'utils.js'), '');
-            // A compiled test file and a demo-only component (basename matches).
+            // A compiled test file and a test-host component (basename matches).
             writeFileSync(join(dir, 'colorUtils.test.js'), '');
             writeFileSync(join(dir, 'MetadataPanelTestHost.svelte'), '');
             // Public modules that must survive.

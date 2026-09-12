@@ -1,0 +1,27 @@
+/*
+ * The plugin's package-owned GLOBAL stylesheet, installed through the SDK style
+ * service (see styles.ts) and minified on its way into the bundle.
+ *
+ * Almost all of the Flyout's look is idiomatic, Svelte-scoped CSS in
+ * `Flyout.svelte`'s `<style>` block, extracted at build time by `bundledCss()`
+ * and installed CSP-safe under the `bundled` id, together with the shared
+ * `@triiiceratops/ui` Range/Tooltip primitives it renders.
+ *
+ * What remains here is the small set of rules that are GENUINELY global: the
+ * downward-flyout flip, keyed off the ancestor `[data-flyout-panel]` element that
+ * core (not this component) owns and stamps with the growth-direction class. A
+ * Svelte-scoped rule cannot reach an ancestor outside the component, so these
+ * stay an installed global sheet. They match the component's plain (un-hashed)
+ * class names, which the scoped elements still carry, so they compose correctly.
+ *
+ * Placement: the default (upward flyout, viewer's inline bottom bar) stacks the
+ * sliders ABOVE the base; a downward flyout (top toolbar) flips both the cluster
+ * and the base so the sliders still hang toward the canvas.
+ */
+
+[data-flyout-panel].down .tri-im-cluster {
+    flex-direction: column-reverse;
+}
+[data-flyout-panel].down .tri-im-base {
+    flex-direction: column-reverse;
+}

@@ -12,14 +12,10 @@
 // Every fixture consumes ONLY the packed tarball, never workspace source.
 // All browser journeys use a local manifest (no network IIIF).
 //
-// ── Seams for later tickets ────────────────────────────────────────────────
-//  · PACKAGES_TO_PACK: ticket 12/13/15–17 add the SDK + plugin packages here.
-//  · FIXTURES: ticket 12 (plugin fixtures), 13 (adapter), 15–17 (per-plugin),
-//    and the SDK-adapter fixtures append to this list.
-//  · Ticket 20 assertions run after the pack step, before fixtures:
-//    assert-tarball-css (stylesheet), assert-tarball-contents (allowlist contract
-//    for all six packages + planted-test self-check), and the core-only
-//    dependency-absence check.
+// Assertions run after the pack step, before fixtures: assert-tarball-css
+// (stylesheet), assert-tarball-contents (allowlist contract for every packed
+// package + planted-test self-check), and the core-only dependency-absence
+// check.
 // ---------------------------------------------------------------------------
 
 import { chromium, firefox, webkit } from '@playwright/test';
@@ -37,8 +33,10 @@ import {
     assertCoreExportTargets,
     assertCoreOptionalPeers,
     assertTarballContents,
+    assertTarballNoEmbeddedFonts,
     assertTarballPeerRanges,
     selfCheckFrameworkSubpathAssertions,
+    selfCheckNoFonts,
     selfCheckPeerRangeRejectsPin,
     selfCheckPlantedTest,
 } from './assert-tarball-contents.mjs';
@@ -61,15 +59,19 @@ import {
     step,
 } from './lib.mjs';
 
-// Publishable packages packed into tarballs. Core first (its dist must exist
-// before the SDK type-checks against it); the SDK (ticket 13) follows. Plugin
-// packages join here in later tickets.
+// Packages packed into tarballs for the fixtures below. Core first (its dist must
+// exist before the SDK type-checks against it); the SDK follows.
+//
+// This list and `scripts/release/packages.mjs` (the packages that reach npm) hold
+// the same set today, but they answer different questions and must stay separate:
+// packing proves a tarball's contents, and a package may need packing for a
+// fixture without being something we publish.
 const PACKAGES_TO_PACK = [
     {
         filter: 'triiiceratops',
         // Build steps required so the packed dist is complete. `build:testing`
-        // (ticket 14) compiles the headless `triiiceratops/testing` entry AFTER
-        // `build:lib` (it needs the generated paraglide runtime + dist types).
+        // compiles the headless `triiiceratops/testing` entry AFTER
+        // `build:lib` (it needs the dist types).
         build: ['build:lib', 'build:testing', 'build:element'],
         tarballName: 'triiiceratops.tgz',
     },
@@ -81,16 +83,16 @@ const PACKAGES_TO_PACK = [
         tarballName: '_triiiceratops_plugin-sdk.tgz',
     },
     {
-        // Ticket 12 tracer plugin. `build` = ESM + IIFE (vite) + types (tsc);
+        // Tracer plugin. `build` = ESM + IIFE (vite) + types (tsc);
         // resolves `triiiceratops` and `@triiiceratops/plugin-sdk` types/dist
-        // from the entries built above, so it must stay AFTER both. Tickets
-        // 15–17 add their plugin packages here the same way (AFTER the SDK).
+        // from the entries built above, so it must stay AFTER both. Other
+        // plugin packages are added here the same way (AFTER the SDK).
         filter: '@triiiceratops/plugin-image-manipulation',
         build: ['build'],
         tarballName: '_triiiceratops_plugin-image-manipulation.tgz',
     },
     {
-        // Ticket 15 image-download plugin. Same shape as the tracer: `build` =
+        // Image-download plugin. Same shape as the tracer: `build` =
         // ESM + IIFE (vite) + types (tsc). Its export helpers consume core's
         // `triiiceratops/image-export` seam, so it must stay AFTER core and the
         // SDK.
@@ -99,8 +101,17 @@ const PACKAGES_TO_PACK = [
         tarballName: '_triiiceratops_plugin-image-export.tgz',
     },
     {
-        // Ticket 16 pdf-export plugin. `build` = ESM + IIFE (vite) + types (tsc);
-        // it carries its own `pdf-lib` runtime dependency (moved out of core) and
+        // Audiovisual plugin. `build` = ESM + IIFE + lazy IIFE chunks (vite) +
+        // types (tsc), then a shared-runtime guard. Its IIFE deliberately bundles
+        // no Svelte and no core utilities — it reads both off
+        // `window.Triiiceratops` — so it must stay AFTER core and the SDK.
+        filter: '@triiiceratops/plugin-av',
+        build: ['build'],
+        tarballName: '_triiiceratops_plugin-av.tgz',
+    },
+    {
+        // Pdf-export plugin. `build` = ESM + IIFE (vite) + types (tsc);
+        // it carries its own `pdf-lib` runtime dependency (outside core) and
         // resolves `triiiceratops` + `@triiiceratops/plugin-sdk` types/dist from
         // the entries built above, so it must stay AFTER both.
         filter: '@triiiceratops/plugin-pdf-export',
@@ -108,7 +119,7 @@ const PACKAGES_TO_PACK = [
         tarballName: '_triiiceratops_plugin-pdf-export.tgz',
     },
     {
-        // Ticket 17: the annotation-editor plugin. `build` = ESM + IIFE (vite) +
+        // The annotation-editor plugin. `build` = ESM + IIFE (vite) +
         // types (tsc); resolves `triiiceratops` and `@triiiceratops/plugin-sdk`
         // from the entries built above, so it must stay AFTER both.
         filter: '@triiiceratops/plugin-annotation-editor',
@@ -117,9 +128,9 @@ const PACKAGES_TO_PACK = [
     },
 ];
 
-// Fixtures. Ticket 11 seeded the core-only consumers; ticket 13 appends the SDK
-// framework-adapter fixtures (each consumes the packed SDK subpath + a live
-// packed `ViewerState`). Later tickets append per-plugin fixtures.
+// Fixtures: core-only consumers, plus the SDK framework-adapter fixtures (each
+// consumes the packed SDK subpath + a live packed `ViewerState`), plus
+// per-plugin fixtures.
 export const FIXTURES = [
     'svelte-vite',
     'sveltekit-ssr',
@@ -129,54 +140,56 @@ export const FIXTURES = [
     'plugin-vue',
     'plugin-lit',
     'plugin-svelte',
-    // Ticket 14: plain vitest project (no Svelte tooling) exercising the SDK
+    // Plain vitest project (no Svelte tooling) exercising the SDK
     // test kit + compiled `triiiceratops/testing` entry against real state.
     'vitest-kit',
-    // Ticket 12: the migrated image-manipulation plugin, consumed from its
+    // The image-manipulation plugin, consumed from its
     // packed tarball. `-svelte` activates the ESM entry on a real viewer and
-    // asserts the OSD canvas gets the CSS filter; `-iife` loads core + plugin
+    // asserts the renderer's canvas gets the CSS filter; `-iife` loads core + plugin
     // IIFEs in BOTH script orders; `-failure` proves plugin failure isolation
-    // (ticket 09) for a real SDK plugin.
+    // for a real SDK plugin.
     'plugin-image-manip-svelte',
     'plugin-image-manip-iife',
     'plugin-image-manip-failure',
-    // Ticket 15: the migrated image-download plugin, consumed from its packed
+    // The image-download plugin, consumed from its packed
     // tarball. `-svelte` activates the ESM entry on a real viewer, triggers an
     // export, and asserts a download-ready binary Blob is produced (async +
     // binary output validation duty); `-iife` loads core + plugin IIFEs in BOTH
     // script orders and asserts the same.
     'plugin-image-export-svelte',
     'plugin-image-export-iife',
-    // Ticket 16: the migrated pdf-export plugin, consumed from its packed
+    // The pdf-export plugin, consumed from its packed
     // tarball. `-svelte` activates the ESM entry on a real viewer and asserts a
     // real multi-page PDF export completes (download intercepted; bytes start
     // `%PDF`); `-iife` loads core + plugin IIFEs in BOTH script orders and
     // asserts the same export from the self-contained no-bundler path.
     'plugin-pdf-export-svelte',
     'plugin-pdf-export-iife',
-    // Ticket 17: the migrated annotation-editor plugin, consumed from its packed
-    // tarball. `-svelte` drives the full annotate journey (create a point + a
-    // region, edit a body, undo, redo, reload) against the packed
-    // `LocalStorageAdapter`, asserting persisted annotations render via the
-    // read-only overlay while Annotorious holds only the edited one.
-    // `-conformance` runs the adapter conformance suite from the packed
+    // The annotation-editor plugin, consumed from its packed
+    // tarball. `-conformance` runs the adapter conformance suite from the packed
     // `@triiiceratops/plugin-annotation-editor/testing` subpath in a plain vitest
-    // project (no Svelte tooling).
-    'plugin-annotation-svelte',
+    // project (no Svelte tooling, no viewer).
+    //
+    // `plugin-annotation-svelte` is absent from this list: that fixture's journey
+    // drives Annotorious's click-move-click rectangle gesture and asserts against
+    // `.a9s-annotationlayer`, and the editing surface is first-party, so neither
+    // the gesture nor the class exists. Its directory is retained, unrun, to be
+    // re-listed once the journey is rewritten against the drawing layer's own
+    // gestures and DOM. Do not weaken its assertions to make it pass.
     'plugin-annotation-conformance',
-    // Ticket 21: strict-TS declaration consumer. Type-checks a consumer that
-    // uses `viewerState.osdViewer` against the packed core tarball under
-    // `skipLibCheck: false` + `types: []`, proving core's public `.d.ts`
-    // resolves the `OpenSeadragon` types without the consumer installing
-    // `@types/openseadragon` by hand.
-    'strict-osd-types',
-    // Ticket 26: doc-example compilation. A non-browser fixture that type-checks
+    // Strict-TS declaration consumer. Type-checks a consumer of the
+    // public viewport API against the packed core tarball under
+    // `skipLibCheck: false` + `types: []`, proving core's public `.d.ts` stands
+    // on its own — no ambient global, and no third-party type the consumer
+    // would have to install by hand.
+    'strict-dts',
+    // Doc-example compilation. A non-browser fixture that type-checks
     // (`tsc --noEmit`) every `ts`/`tsx`/`js` code sample importing package code
-    // (extracted from `docs/**/*.md` into its `generated/` dir by
-    // `scripts/docs-examples.mjs`) against the packed tarballs of all six
-    // packages, so published documentation matches what users can install.
+    // (extracted from the site's content documents into its `generated/` dir by
+    // `scripts/docs-examples.mjs`) against the packed tarballs of every packed
+    // package, so published documentation matches what users can install.
     'docs-examples',
-    // Ticket 24: CSP + Trusted Types fixtures. Each is a packed-consumer page
+    // CSP + Trusted Types fixtures. Each is a packed-consumer page
     // served under a strict Content-Security-Policy (delivered via a
     // `<meta http-equiv>` in its HTML) and asserts zero `securitypolicyviolation`
     // events. `csp-svelte` (light DOM) and `csp-wc-iife` (Web Component) run on
@@ -187,7 +200,7 @@ export const FIXTURES = [
     'csp-svelte',
     'csp-wc-iife',
     'csp-trusted-types',
-    // Ticket 09 (framework-wrappers epic): the framework-wrapper release seam.
+    // The framework-wrapper release seam.
     // Each is a plain Vite app whose ONLY package dependency is the packed core
     // tarball plus its own framework — no Svelte, no Svelte Vite plugin, no
     // plugin SDK — and each serves three routes driven by one Playwright pass:
@@ -271,7 +284,7 @@ async function assertCssFromTarball(tarballPath, tarballDir) {
 }
 
 async function assertContentsFromTarballs(tarballs) {
-    heading('Tarball content contract (allowlist, all six packages)');
+    heading('Tarball content contract (allowlist, every packed package)');
     let ok = true;
 
     // One-time guard that the allowlist actually rejects a planted test file.
@@ -283,7 +296,7 @@ async function assertContentsFromTarballs(tarballs) {
     results.push({ label: 'tarball-contents-planted', ok: planted.ok });
     ok = ok && planted.ok;
 
-    // Ticket 35: one-time guard that the peer-range check rejects an exact pin /
+    // One-time guard that the peer-range check rejects an exact pin /
     // residual `workspace:` and accepts a caret/tilde range.
     const peerSelf = selfCheckPeerRangeRejectsPin();
     (peerSelf.ok ? pass : fail)(
@@ -293,7 +306,7 @@ async function assertContentsFromTarballs(tarballs) {
     results.push({ label: 'tarball-peer-range-self', ok: peerSelf.ok });
     ok = ok && peerSelf.ok;
 
-    // Framework-wrappers ticket 10: one-time guard that the framework-subpath
+    // One-time guard that the framework-subpath
     // assertions below reject a missing `dist/react.js` and a `./vue` subpath
     // that lost its `types` condition.
     const subpathSelf = selfCheckFrameworkSubpathAssertions();
@@ -303,6 +316,16 @@ async function assertContentsFromTarballs(tarballs) {
     );
     results.push({ label: 'tarball-subpath-self', ok: subpathSelf.ok });
     ok = ok && subpathSelf.ok;
+
+    // One-time guard that the no-font rule rejects both a planted `.woff2` and
+    // a face embedded in a stylesheet as a data URI.
+    const fontSelf = selfCheckNoFonts();
+    (fontSelf.ok ? pass : fail)(
+        'contract: no-font rule rejects a planted face, file or embedded',
+        fontSelf.detail,
+    );
+    results.push({ label: 'tarball-fonts-self', ok: fontSelf.ok });
+    ok = ok && fontSelf.ok;
 
     for (const pkg of PACKAGES_TO_PACK) {
         const tarball = tarballs[pkg.filter];
@@ -316,8 +339,8 @@ async function assertContentsFromTarballs(tarballs) {
         results.push({ label: `tarball-contents:${pkg.filter}`, ok: pkgOk });
         ok = ok && pkgOk;
 
-        // Ticket 35: published peers must be ranges, not the exact pins that
-        // `workspace:*` used to produce (which mismatched on every core patch).
+        // Published peers must be ranges, not exact pins — an exact pin from
+        // `workspace:*` would mismatch on every core patch.
         const { ok: peerOk, checks: peerChecks } = assertTarballPeerRanges(
             tarball,
             pkg.filter,
@@ -328,7 +351,19 @@ async function assertContentsFromTarballs(tarballs) {
         results.push({ label: `tarball-peers:${pkg.filter}`, ok: peerOk });
         ok = ok && peerOk;
 
-        // Framework-wrappers ticket 10 — core only: the export map must be
+        // No typeface, in any form. The extension half is the allowlist's; this
+        // reads every published stylesheet for a declared face.
+        const { ok: fontOk, checks: fontChecks } = assertTarballNoEmbeddedFonts(
+            tarball,
+            pkg.filter,
+        );
+        for (const chk of fontChecks) {
+            (chk.ok ? pass : fail)(chk.name, chk.detail);
+        }
+        results.push({ label: `tarball-fonts:${pkg.filter}`, ok: fontOk });
+        ok = ok && fontOk;
+
+        // Core only: the export map must be
         // backed by real files (the framework wrappers among them) and the
         // framework peers must be optional, ranged, and absent from
         // `dependencies`.
@@ -465,27 +500,39 @@ export async function installFixture(pm, fixtureDir) {
 }
 
 // Playwright browser types, keyed by the name a fixture declares in its
-// `browsers` list. Desktop-CSP fixtures (ticket 24) run on all three engines;
+// `browsers` list. Desktop-CSP fixtures run on all three engines;
 // every other fixture defaults to chromium only (see runFixture).
 const BROWSER_TYPES = { chromium, firefox, webkit };
 
-// Launch options per engine. Chromium needs software WebGL (SwiftShader) so
-// OpenSeadragon's WebGL drawer works in headless CI without a GPU; firefox and
-// webkit reject those Chromium flags, so they launch with defaults.
+// Launch options per engine. Locally Chromium runs on the machine's real GPU
+// through Vulkan (mirrors `scripts/playwright-gpu.ts`, the Playwright-config
+// path); CI runners have no GPU, so there — and only there — Chromium falls
+// back to software WebGL (SwiftShader). Firefox and WebKit reject those
+// Chromium flags, so they launch with defaults.
 const LAUNCH_OPTIONS = {
-    chromium: {
-        args: [
-            '--use-gl=angle',
-            '--use-angle=swiftshader',
-            '--enable-unsafe-swiftshader',
-        ],
-    },
+    chromium: process.env.CI
+        ? {
+              args: [
+                  '--use-gl=angle',
+                  '--use-angle=swiftshader',
+                  '--enable-unsafe-swiftshader',
+              ],
+          }
+        : {
+              channel: 'chromium',
+              args: [
+                  '--use-angle=vulkan',
+                  '--enable-features=Vulkan',
+                  '--ignore-gpu-blocklist',
+                  '--enable-gpu-rasterization',
+              ],
+          },
     firefox: {},
     webkit: {},
 };
 
 /**
- * Ticket 09: the one genuinely DOM-free case. Import both packed framework
+ * The one genuinely DOM-free case. Import both packed framework
  * subpaths in plain Node — no `window`, no `document`, no `customElements` —
  * and assert evaluation succeeds with no registration side effect. It needs the
  * optional `react` and `vue` peers resolvable, but no fixture: the whole
@@ -645,7 +692,7 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
 
     // An optional type-check step, run BEFORE the build and reported as its own
     // step so a compile failure is not mistaken for a bundler failure. The
-    // framework fixtures use it for the epic's headline promise: `tsc` with
+    // framework fixtures use it for the headline promise: `tsc` with
     // `skipLibCheck: false` and no Svelte installed, so a Svelte type leaking
     // into `triiiceratops/react` / `/vue` / `/selectors` / `/testing` fails the
     // packed run rather than waiting for a human to notice.
@@ -667,7 +714,7 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
 
     const serveRoot = join(fixtureDir, cfg.serveDir);
     if (cfg.browser) {
-        // Most fixtures run on chromium only; CSP fixtures (ticket 24) declare a
+        // Most fixtures run on chromium only; CSP fixtures declare a
         // wider `browsers` list and run their assertion once per engine.
         const browsers = cfg.browsers ?? ['chromium'];
         for (const browserName of browsers) {
@@ -675,7 +722,7 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
             await withBrowser(
                 serveRoot,
                 // `fixtureDir` lets a browser fixture also assert on what the
-                // package manager actually installed (ticket 09: no Svelte
+                // package manager actually installed (no Svelte
                 // package, no Svelte Vite plugin, no plugin SDK).
                 (ctx) => cfg.assert({ ...ctx, fixtureDir, serveRoot }),
                 browserName,

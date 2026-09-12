@@ -1,12 +1,17 @@
 {
-    "count": 60,
+    "count": 87,
     "byClassification": {
-        "command": 34,
-        "observable": 12,
-        "internal": 14,
-        "query-only": 0
+        "command": 37,
+        "observable": 16,
+        "internal": 30,
+        "query-only": 4
     },
     "entries": [
+        {
+            "member": "_localeOverride",
+            "classification": "internal",
+            "commands": null
+        },
         {
             "member": "_viewingDirection",
             "classification": "internal",
@@ -23,9 +28,19 @@
             "commands": null
         },
         {
+            "member": "activeAnnotationId",
+            "classification": "command",
+            "commands": [
+                "setActiveAnnotationId"
+            ]
+        },
+        {
             "member": "activeLocale",
-            "classification": "observable",
-            "commands": null
+            "classification": "command",
+            "commands": [
+                "setLocale",
+                "updateConfig"
+            ]
         },
         {
             "member": "annotationEditBus",
@@ -47,6 +62,20 @@
                 "setCanvas",
                 "nextCanvas",
                 "previousCanvas"
+            ]
+        },
+        {
+            "member": "chromeInset",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "claimedCanvases",
+            "classification": "command",
+            "commands": [
+                "claimCanvas",
+                "unregisterPlugin",
+                "destroyAllPlugins"
             ]
         },
         {
@@ -75,6 +104,11 @@
             "commands": null
         },
         {
+            "member": "companionPhases",
+            "classification": "internal",
+            "commands": null
+        },
+        {
             "member": "config",
             "classification": "command",
             "commands": [
@@ -82,16 +116,16 @@
             ]
         },
         {
+            "member": "containerSize",
+            "classification": "query-only",
+            "commands": null
+        },
+        {
             "member": "dockSide",
             "classification": "command",
             "commands": [
                 "setDockSide"
             ]
-        },
-        {
-            "member": "dragOverSide",
-            "classification": "internal",
-            "commands": null
         },
         {
             "member": "errorReporter",
@@ -104,12 +138,7 @@
             "commands": null
         },
         {
-            "member": "galleryCenterPanelRect",
-            "classification": "internal",
-            "commands": null
-        },
-        {
-            "member": "galleryDragOffset",
+            "member": "frameListeners",
             "classification": "internal",
             "commands": null
         },
@@ -122,24 +151,18 @@
             ]
         },
         {
-            "member": "galleryPosition",
-            "classification": "command",
-            "commands": [
-                "setGalleryPosition"
-            ]
-        },
-        {
-            "member": "gallerySize",
-            "classification": "command",
-            "commands": [
-                "setGallerySize"
-            ]
-        },
-        {
             "member": "hoveredAnnotationId",
             "classification": "command",
             "commands": [
                 "setHoveredAnnotationId"
+            ]
+        },
+        {
+            "member": "imageAdjustments",
+            "classification": "command",
+            "commands": [
+                "setImageAdjustments",
+                "resetImageAdjustments"
             ]
         },
         {
@@ -156,21 +179,12 @@
         },
         {
             "member": "isGalleryDockedBottom",
-            "classification": "command",
-            "commands": [
-                "setDockSide"
-            ]
+            "classification": "observable",
+            "commands": null
         },
         {
             "member": "isGalleryDockedRight",
-            "classification": "command",
-            "commands": [
-                "setDockSide"
-            ]
-        },
-        {
-            "member": "isGalleryDragging",
-            "classification": "internal",
+            "classification": "observable",
             "commands": null
         },
         {
@@ -200,8 +214,31 @@
             ]
         },
         {
-            "member": "osdViewer",
-            "classification": "observable",
+            "member": "navigationRegion",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "openMenu",
+            "classification": "command",
+            "commands": [
+                "setOpenMenu",
+                "toggleMenu"
+            ]
+        },
+        {
+            "member": "overlayLayerRegistry",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "overlayLayerRevision",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "overlayLayers",
+            "classification": "internal",
             "commands": null
         },
         {
@@ -210,6 +247,26 @@
             "commands": [
                 "togglePagedOffset"
             ]
+        },
+        {
+            "member": "paintLayerRegistry",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "paintLayerRevision",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "paintLayers",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "pendingPreWireEvents",
+            "classification": "internal",
+            "commands": null
         },
         {
             "member": "pendingSearchQuery",
@@ -253,11 +310,31 @@
                 "closePluginFlyouts",
                 "setPluginTarget",
                 "setPluginPosition",
+                "setPluginAvailable",
                 "updateConfig",
                 "registerSdkChrome",
                 "unregisterPlugin",
                 "destroyAllPlugins"
             ]
+        },
+        {
+            "member": "publishedPluginStates",
+            "classification": "command",
+            "commands": [
+                "publishPluginState",
+                "unregisterPlugin",
+                "destroyAllPlugins"
+            ]
+        },
+        {
+            "member": "rendererPort",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "rendererReady",
+            "classification": "observable",
+            "commands": null
         },
         {
             "member": "searchAnnotations",
@@ -352,6 +429,26 @@
             "commands": null
         },
         {
+            "member": "startTemporalOffset",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "surfaceTapListeners",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "temporalOffset",
+            "classification": "observable",
+            "commands": null
+        },
+        {
+            "member": "tickingPort",
+            "classification": "internal",
+            "commands": null
+        },
+        {
             "member": "tileSourceError",
             "classification": "observable",
             "commands": null
@@ -362,6 +459,31 @@
             "commands": [
                 "toggleToolbar"
             ]
+        },
+        {
+            "member": "transportChrome",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "transportChromeRegistry",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "transportChromeRevision",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "unsubscribeFrame",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "unsubscribeSurfaceTap",
+            "classification": "internal",
+            "commands": null
         },
         {
             "member": "userAnnotations",
@@ -392,13 +514,60 @@
             ]
         },
         {
+            "member": "viewportBounds",
+            "classification": "query-only",
+            "commands": [
+                "panTo",
+                "zoomTo",
+                "fitBounds",
+                "fitCanvas",
+                "fitView"
+            ]
+        },
+        {
+            "member": "viewportCentre",
+            "classification": "query-only",
+            "commands": [
+                "panTo",
+                "fitBounds",
+                "fitCanvas",
+                "fitView"
+            ]
+        },
+        {
+            "member": "viewportInset",
+            "classification": "command",
+            "commands": [
+                "setViewportInset",
+                "resetViewportInset"
+            ]
+        },
+        {
+            "member": "viewportScale",
+            "classification": "query-only",
+            "commands": [
+                "zoomIn",
+                "zoomOut",
+                "holdZoom",
+                "zoomTo",
+                "fitBounds",
+                "fitCanvas",
+                "fitView"
+            ]
+        },
+        {
             "member": "visibleAnnotationIds",
             "classification": "command",
             "commands": [
-                "showCurrentCanvasAnnotations",
+                "showVisibleCanvasAnnotations",
                 "setAnnotationVisible",
                 "setAllAnnotationsVisible"
             ]
+        },
+        {
+            "member": "visibleCanvasIds",
+            "classification": "observable",
+            "commands": null
         }
     ]
 }

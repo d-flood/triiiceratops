@@ -1,0 +1,78 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/media/manifests/av-cover.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Audio canvas — cover art and waveform on one canvas"]
+    },
+    "summary": {
+        "en": [
+            "One Sound canvas carrying all three at once: the recording, an `accompanyingCanvas` holding the cover image core paints in the rect, and `seeAlso` waveform data. The combination decides where the peaks go — a canvas core paints a companion into gets no timeline lane, so the waveform reaches the reader as the transport scrubber's strip instead. Single-bodied on purpose: a temporally composed canvas takes no waveform at all, whatever else it carries."
+        ]
+    },
+    "items": [
+        {
+            "id": "/media/manifests/av-cover.json/canvas/tone",
+            "type": "Canvas",
+            "label": { "en": ["440 Hz tone, with a cover"] },
+            "duration": 2.0,
+            "accompanyingCanvas": {
+                "id": "/media/manifests/av-cover.json/canvas/tone/cover",
+                "type": "Canvas",
+                "label": { "en": ["Cover art"] },
+                "width": 8,
+                "height": 8,
+                "items": [
+                    {
+                        "id": "/media/manifests/av-cover.json/page/cover",
+                        "type": "AnnotationPage",
+                        "items": [
+                            {
+                                "id": "/media/manifests/av-cover.json/annotation/cover",
+                                "type": "Annotation",
+                                "motivation": "painting",
+                                "body": {
+                                    "id": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGM4YWODFTEMLQkAZZlQAVIPr1MAAAAASUVORK5CYII=",
+                                    "type": "Image",
+                                    "format": "image/png",
+                                    "width": 8,
+                                    "height": 8
+                                },
+                                "target": "/media/manifests/av-cover.json/canvas/tone/cover"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "items": [
+                {
+                    "id": "/media/manifests/av-cover.json/page/tone",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-cover.json/annotation/tone",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/media/tone.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 2.0
+                            },
+                            "target": "/media/manifests/av-cover.json/canvas/tone"
+                        }
+                    ]
+                }
+            ],
+            "seeAlso": [
+                {
+                    "id": "/media/tone.dat",
+                    "type": "Dataset",
+                    "label": { "en": ["Waveform data"] },
+                    "format": "application/octet-stream",
+                    "profile": "http://waveform.prototyping.bbc.co.uk"
+                }
+            ]
+        }
+    ]
+}

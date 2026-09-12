@@ -1,44 +1,48 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
-    import { getContext } from 'svelte';
+    import { getContext, untrack } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages } from '../state/i18n.svelte';
     import SanitizedHtml from './SanitizedHtml.svelte';
     import { extractBody } from '../utils/annotationAdapter';
+    import { collectCanvasAnnotations } from '../utils/canvasAnnotations';
+    import { getAnnotationId } from '../utils/iiifIds';
+    import { isSafeUrl } from '../utils/sanitizeHtml';
     import { Button, Badge } from './ui';
+    import { useReducedMotion } from '../state/reducedMotion';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
-    let { embedded = false }: { embedded?: boolean } = $props();
     const m = getMessages();
-
-    let position = $derived(
-        viewerState.config.annotations?.position ?? 'right',
+    const reducedMotion = useReducedMotion();
+    /**
+     * Every annotation on every canvas the reader is looking at, in layout order:
+     * one canvas in `individuals`, the whole spread in `paged`, the folios the
+     * viewport meets in `continuous`.
+     *
+     * The same collection the shape overlay draws from, through the same helper —
+     * so a row exists for every shape on screen and vice versa. Without that a
+     * facing page's annotations were shapeless AND rowless, and a connector, which
+     * is a line from a row to a shape, had nothing to join.
+     */
+    let annotations = $derived(
+        collectCanvasAnnotations({
+            manifestId: viewerState.manifestId,
+            canvasIds: viewerState.annotatableCanvasIds,
+            getAnnotations: (manifestId, canvasId) =>
+                viewerState.getAnnotations(manifestId, canvasId),
+            searchAnnotations: viewerState.searchAnnotations,
+        }).flatMap((entry) => entry.annotations),
     );
-    let annotations = $derived.by(() => {
-        if (!viewerState.manifestId || !viewerState.canvasId) {
-            return [];
-        }
-        const manifestAnnotations = viewerState.getAnnotations(
-            viewerState.manifestId,
-            viewerState.canvasId,
-        );
-        // Add search hits for current canvas
-        const searchAnnotations = viewerState.currentCanvasSearchAnnotations;
-
-        return [...manifestAnnotations, ...searchAnnotations];
-    });
-
-    // Helper to get ID from a raw JSON annotation — `id` in v3, `@id` in v2.
-    function getAnnotationId(anno: any): string {
-        return anno.id || anno['@id'] || '';
-    }
 
     let renderedAnnotations = $derived.by(() => {
         if (!annotations.length) return [];
 
         return annotations.map((anno: any) => {
-            const bodies = extractBody(anno);
+            // Derived, not an effect: a body is a pure function of the
+            // annotation and the viewer's active locale, so a `Choice` body
+            // re-picks its item when the reader switches language.
+            const bodies = extractBody(anno, viewerState.activeLocale);
 
             return {
                 id: getAnnotationId(anno),
@@ -53,7 +57,6 @@
         renderedAnnotations.filter((anno) => !anno.isSearchHit),
     );
 
-    // Derived state for "All Visible" status
     let isAllVisible = $derived.by(() => {
         if (toggleableAnnotations.length === 0) return false;
         return toggleableAnnotations.every((anno) => {
@@ -66,71 +69,123 @@
             return;
         }
 
-        viewerState.annotationVisibilityTouched = true;
-        if (viewerState.visibleAnnotationIds.has(anno.id)) {
-            viewerState.visibleAnnotationIds.delete(anno.id);
-        } else {
-            viewerState.visibleAnnotationIds.add(anno.id);
-        }
+        viewerState.setAnnotationVisible(
+            anno.id,
+            !viewerState.visibleAnnotationIds.has(anno.id),
+        );
     }
 
-    function shouldIgnoreRowToggle(target: EventTarget | null): boolean {
+    /**
+     * Whether the row itself was activated, or something inside it that has its
+     * own job — the visibility eye, a link in a body, a plugin's control. Those
+     * keep their own behaviour and must not also select the row.
+     */
+    function shouldIgnoreRowActivation(target: EventTarget | null): boolean {
         if (!(target instanceof Element)) {
             return false;
         }
 
         return Boolean(
             target.closest(
-                'a, button, input, select, textarea, summary, [role="button"], [data-annotation-interactive="true"]',
+                'a, button, input, select, textarea, summary, [role="button"]:not([data-annotation-row]), [data-annotation-interactive="true"]',
             ),
         );
     }
 
+    /**
+     * Selecting from the panel — the counterpart to tapping the shape on the
+     * image, and the same state, so a connector drawn from either stays until the
+     * reader picks something else or clears it.
+     *
+     * The row's click means SELECT, not show/hide. Visibility has its own
+     * control in every row (the eye button) and its own bulk control in the
+     * toolbar; before this the row was a second, unlabelled visibility toggle,
+     * so clicking the thing you wanted to look at was as likely to make it
+     * disappear.
+     */
+    function activateAnnotation(anno: { id: string }) {
+        if (!anno.id) return;
+        viewerState.setActiveAnnotationId(anno.id);
+    }
+
+    /**
+     * Bring the selected annotation's row into view.
+     *
+     * Selection happens on the IMAGE — a tap on a shape — and on a manifest with
+     * more annotations than fit the panel the marked row is then usually
+     * somewhere off-screen, which is a selection the reader cannot read. Scrolled
+     * within the list only (`block: 'nearest'`), so it never scrolls the host
+     * page around the viewer.
+     *
+     * Honours reduced motion: an unrequested smooth scroll is exactly the
+     * motion that setting asks to be spared.
+     */
+    $effect(() => {
+        const activeId = viewerState.activeAnnotationId;
+        if (!activeId || !listEl) return;
+
+        const row = listEl.querySelector(
+            `[data-annotation-row="${CSS.escape(activeId)}"]`,
+        );
+        if (!(row instanceof HTMLElement)) return;
+
+        // Untracked: this effect exists to follow the ACTIVE ANNOTATION, and a
+        // preference toggled with the panel open must not re-scroll the row the
+        // reader is already on.
+        const instant = untrack(() => reducedMotion.current);
+        row.scrollIntoView({
+            block: 'nearest',
+            behavior: instant ? 'auto' : 'smooth',
+        });
+    });
+
+    let listEl: HTMLElement | undefined = $state();
+
     function toggleAllAnnotations() {
-        viewerState.annotationVisibilityTouched = true;
-        if (isAllVisible) {
-            // Hide all
-            viewerState.visibleAnnotationIds.clear();
-        } else {
-            // Show all
-            viewerState.visibleAnnotationIds.clear();
-            toggleableAnnotations.forEach((anno) => {
-                if (anno.id) viewerState.visibleAnnotationIds.add(anno.id);
-            });
-        }
+        viewerState.setAllAnnotationsVisible(!isAllVisible);
     }
 </script>
+
+<!--
+    An outward link from an annotation body. Opened in a new context so the
+    reader does not lose the viewer's place, and `rel="noopener noreferrer"`
+    because the destination is named by an untrusted manifest. The click is
+    stopped from reaching the row, which would otherwise also select the
+    annotation.
+-->
+{#snippet bodyLink(href: string, text: string)}
+    <a
+        {href}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="link"
+        onclick={(e) => e.stopPropagation()}
+    >
+        <!-- Link Icon -->
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="12"
+            height="12"
+            fill="currentColor"
+            viewBox="0 0 256 256"
+            ><path
+                d="M136.37,187.53a12,12,0,0,1,0,17l-5.94,5.94a60,60,0,0,1-84.88-84.88l24.12-24.12A60,60,0,0,1,152.06,99,12,12,0,1,1,135,116a36,36,0,0,0-50.93,1.57L60,141.66a36,36,0,0,0,50.93,50.93l5.94-5.94A12,12,0,0,1,136.37,187.53Zm81.51-149.41a60,60,0,0,0-84.88,0l-5.94,5.94a12,12,0,0,0,17,17l5.94-5.94a36,36,0,0,1,50.93,50.93l-24.11,24.12A36,36,0,0,1,121,140a12,12,0,1,0-17.08,17,60,60,0,0,0,82.39,2.46l24.12-24.12A60,60,0,0,0,217.88,38.12Z"
+            ></path></svg
+        >
+        <span class="link-text">{text}</span>
+    </a>
+{/snippet}
 
 <!-- Drawer / Panel -->
 {#if viewerState.showAnnotations}
     <div
         data-panel-id="annotations"
-        class="panel"
-        class:floating={!embedded}
-        class:transparent={!embedded &&
-            viewerState.config.transparentBackground}
-        class:border-left={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position !== 'left'}
-        class:border-right={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position === 'left'}
+        class="tri-panel"
         role="dialog"
         aria-label={m.settings_submenu_annotations()}
     >
-        {#if !embedded}
-            <div class="header">
-                <div class="header-title">
-                    <Icon name="ListDashes" size={20} weight="bold" />
-                    <h2>
-                        {m.settings_submenu_annotations()}
-                    </h2>
-                </div>
-            </div>
-        {/if}
-
         <!-- Toolbar / Stats -->
-        <div class="toolbar">
+        <div class="toolbar tri-panel-bar">
             <div class="count">
                 {m.annotations_count({ count: annotations.length })}
             </div>
@@ -152,38 +207,37 @@
         </div>
 
         <!-- List -->
-        <div class="list" class:scrollable={!embedded}>
+        <div bind:this={listEl} class="list">
             {#each renderedAnnotations as anno, i (anno.id)}
                 {@const isVisible =
                     anno.isSearchHit ||
                     viewerState.visibleAnnotationIds.has(anno.id)}
+                {@const isActive = viewerState.activeAnnotationId === anno.id}
                 <!-- List Item Row -->
                 <div
-                    class="row"
-                    class:search-hit={anno.isSearchHit}
+                    class="row tri-panel-row"
                     class:dimmed={!isVisible}
+                    class:active={isActive}
                     role="button"
                     tabindex="0"
-                    aria-disabled={anno.isSearchHit}
+                    aria-current={isActive ? 'true' : undefined}
+                    data-annotation-row={anno.id}
                     id="annotation-list-item-{anno.id}"
                     onmouseenter={() =>
-                        (viewerState.hoveredAnnotationId = anno.id)}
+                        viewerState.setHoveredAnnotationId(anno.id)}
                     onmouseleave={() =>
-                        (viewerState.hoveredAnnotationId = null)}
+                        viewerState.setHoveredAnnotationId(null)}
                     onclick={(e) => {
-                        if (shouldIgnoreRowToggle(e.target)) {
+                        if (shouldIgnoreRowActivation(e.target)) {
                             return;
                         }
                         e.preventDefault();
-                        toggleAnnotation(anno);
+                        activateAnnotation(anno);
                     }}
                     onkeypress={(e) => {
-                        if (anno.isSearchHit) {
-                            return;
-                        }
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            toggleAnnotation(anno);
+                            activateAnnotation(anno);
                         }
                     }}
                 >
@@ -217,7 +271,25 @@
                         <div class="viewer-html bodies">
                             {#each anno.bodies as body, i (i)}
                                 <div class="body-row">
-                                    {#if body.purpose === 'tagging'}
+                                    <!--
+                                        A body that names an external resource
+                                        is rendered as a link whatever its
+                                        `purpose`, ahead of the purpose
+                                        branches below: the URI is often the
+                                        only thing such a body carries (IIIF
+                                        Cookbook 0258 tags a region with a
+                                        Wikidata record and nothing else), so
+                                        any presentation that drops it leaves
+                                        the row empty. `href` is already
+                                        constrained to `http`/`https` by
+                                        `extractBody`.
+                                    -->
+                                    {#if body.href}
+                                        {@render bodyLink(
+                                            body.href,
+                                            body.value || body.href,
+                                        )}
+                                    {:else if body.purpose === 'tagging'}
                                         <Badge
                                             variant="primary"
                                             outline
@@ -226,28 +298,29 @@
                                             {body.value}
                                         </Badge>
                                     {:else if body.purpose === 'linking'}
-                                        <a
-                                            href={body.value}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            class="link"
-                                            onclick={(e) => e.stopPropagation()}
-                                        >
-                                            <!-- Link Icon -->
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                width="12"
-                                                height="12"
-                                                fill="currentColor"
-                                                viewBox="0 0 256 256"
-                                                ><path
-                                                    d="M136.37,187.53a12,12,0,0,1,0,17l-5.94,5.94a60,60,0,0,1-84.88-84.88l24.12-24.12A60,60,0,0,1,152.06,99,12,12,0,1,1,135,116a36,36,0,0,0-50.93,1.57L60,141.66a36,36,0,0,0,50.93,50.93l5.94-5.94A12,12,0,0,1,136.37,187.53Zm81.51-149.41a60,60,0,0,0-84.88,0l-5.94,5.94a12,12,0,0,0,17,17l5.94-5.94a36,36,0,0,1,50.93,50.93l-24.11,24.12A36,36,0,0,1,121,140a12,12,0,1,0-17.08,17,60,60,0,0,0,82.39,2.46l24.12-24.12A60,60,0,0,0,217.88,38.12Z"
-                                                ></path></svg
-                                            >
+                                        <!--
+                                            The URL is the manifest's, so it gets
+                                            the same scheme check an `<a>` rebuilt
+                                            by the rich-text renderer gets: a
+                                            `javascript:` body would otherwise be
+                                            a live sink. A refused URL keeps its
+                                            text but loses the anchor as well as
+                                            the link: an `<a>` with no `href` is
+                                            neither focusable nor activatable, so
+                                            leaving one behind would offer a
+                                            keyboard user a link that is not
+                                            there.
+                                        -->
+                                        {#if isSafeUrl(body.value)}
+                                            {@render bodyLink(
+                                                body.value,
+                                                body.value,
+                                            )}
+                                        {:else}
                                             <span class="link-text"
                                                 >{body.value}</span
                                             >
-                                        </a>
+                                        {/if}
                                     {:else if body.isHtml}
                                         <SanitizedHtml html={body.value} />
                                     {:else}
@@ -263,7 +336,7 @@
                     </div>
                 </div>
             {:else}
-                <div class="empty">
+                <div class="tri-panel-empty">
                     {m.no_annotations_available()}
                 </div>
             {/each}
@@ -272,66 +345,7 @@
 {/if}
 
 <style>
-    .panel {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-    }
-
-    .panel.floating {
-        height: 100%;
-        background-color: var(--panel-surface);
-        box-shadow: 0 25px 50px -12px #00000040;
-        z-index: 100;
-        transition-property: width;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.2s;
-    }
-
-    .panel.border-left {
-        border-left-width: 1px;
-        border-left-style: solid;
-        border-left-color: var(--tri-surface-border);
-    }
-
-    .panel.border-right {
-        border-right-width: 1px;
-        border-right-style: solid;
-        border-right-color: var(--tri-surface-border);
-    }
-
-    .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem;
-        border-bottom-width: 1px;
-        border-bottom-style: solid;
-        border-bottom-color: var(--tri-surface-border);
-    }
-
-    .header-title {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .header-title h2 {
-        font-weight: 700;
-        font-size: 1.125rem;
-        line-height: 1.75rem;
-    }
-
     .toolbar {
-        padding: 1rem;
-        border-bottom-width: 1px;
-        border-bottom-style: solid;
-        border-bottom-color: var(--tri-surface-border);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-input-bg) 50%,
-            transparent
-        );
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -355,32 +369,10 @@
         flex-direction: column;
     }
 
-    /* divide-y divide-base-300 */
-    .list > :global(* + *) {
-        border-top-width: 1px;
-        border-top-style: solid;
-        border-top-color: var(--tri-surface-border);
-    }
-
-    .list.scrollable {
-        flex: 1 1 0%;
-        overflow-y: auto;
-    }
-
+    /* The row's own contribution to `.tri-panel-row`: the connector line and
+       the search-hit marker are positioned against it. */
     .row {
-        width: 100%;
-        text-align: left;
-        padding: 1rem;
-        transition-property:
-            color, background-color, border-color, text-decoration-color, fill,
-            stroke;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.15s;
-        display: flex;
-        gap: 0.75rem;
-        align-items: flex-start;
         position: relative;
-        cursor: pointer;
     }
 
     .row:focus {
@@ -400,8 +392,35 @@
         );
     }
 
-    .row.search-hit {
-        cursor: default;
+    /*
+     * The SELECTED annotation's row.
+     *
+     * An accent bar on the panel's inner edge plus a tinted background, and
+     * `aria-current` on the row itself so the selection is not colour-only. It
+     * has to read as marked even while another row is hovered, which is why the
+     * bar carries it rather than the background alone — a 10% tint and a 5% tint
+     * are not reliably tellable apart, and the hover rule may win the cascade.
+     *
+     * `--tri-color-primary-text`, not the raw primary: on a panel surface only
+     * the `-text` variant of the palette has a contrast guarantee, and this bar
+     * is a non-text UI component (WCAG 1.4.11). Its pairing against the panel
+     * background is one `pnpm test:contrast` already carries.
+     */
+    .row.active {
+        background-color: color-mix(
+            in oklab,
+            var(--tri-color-primary) 12%,
+            transparent
+        );
+    }
+
+    .row.active::before {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: 0;
+        width: 3px;
+        background-color: var(--tri-color-primary-text);
     }
 
     .row.dimmed {
@@ -471,10 +490,8 @@
         padding: 0.25rem;
         border-radius: 0.25rem;
         margin-left: -0.25rem;
-        transition-property:
-            color, background-color, border-color, text-decoration-color, fill,
-            stroke;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-property: color, background-color, border-color;
+        transition-timing-function: var(--ui-ease);
         transition-duration: 0.15s;
     }
 
@@ -496,13 +513,5 @@
         font-style: italic;
         font-size: 0.75rem;
         line-height: 1rem;
-    }
-
-    .empty {
-        padding: 2rem;
-        text-align: center;
-        opacity: 0.5;
-        font-size: 0.875rem;
-        line-height: 1.25rem;
     }
 </style>

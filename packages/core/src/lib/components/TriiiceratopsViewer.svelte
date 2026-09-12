@@ -11,18 +11,20 @@
 
 <script lang="ts">
     import Icon from './Icon.svelte';
-    import MagnifyingGlassIcon from './icons/MagnifyingGlassIcon.svelte';
-    import ChatCenteredTextIcon from './icons/ChatCenteredTextIcon.svelte';
-    import InfoIcon from './icons/InfoIcon.svelte';
-    import ListBulletsIcon from './icons/ListBulletsIcon.svelte';
-    import FolderIcon from './icons/FolderIcon.svelte';
     import { onDestroy, setContext, untrack } from 'svelte';
     import { cubicOut } from 'svelte/easing';
     import {
+        createHostCatalogs,
         language,
         getMessages,
         provideActiveLocale,
+        resolveChromeName,
     } from '../state/i18n.svelte';
+    import {
+        provideReducedMotion,
+        watchReducedMotion,
+    } from '../state/reducedMotion';
+    import { FOCUS_MEMORY_KEY, createFocusMemory } from '../utils/focusMemory';
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
     import type { BuiltInTheme, ThemeConfig } from '../theme/types';
@@ -69,16 +71,25 @@
     import { createPluginUiService } from '../plugin/uiService';
     import { createPluginSurface } from '../plugin/surface';
     import type { CanvasRegion } from '../utils/contentState';
+    import {
+        readContentStateFromLocation,
+        resolveContentState,
+    } from '../utils/contentStateIngestion';
     import { sdkPluginChromeId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
-    import { getViewerTileSources } from '../utils/resolveCanvasImage';
-    import { parseContentState } from '../utils/contentState';
+    import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
+    import {
+        canvasPaintsImage,
+        getVisibleViewerCanvases,
+    } from '../utils/resolveCanvasImage';
+    import { findCanvasIndexById } from '../utils/iiifIds';
     import { getCanvasId } from './viewerControls';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
+    import AnnotationShapeOverlay from './AnnotationShapeOverlay.svelte';
+    import CanvasHost from './CanvasHost.svelte';
     import AnnotationPanel from './AnnotationPanel.svelte';
     import CollectionPanel from './CollectionPanel.svelte';
     import MetadataPanel from './MetadataPanel.svelte';
-    import OSDViewer from './OSDViewer.svelte';
     import PanelStack, { type PanelStackItem } from './PanelStack.svelte';
     import PluginMountHost from './PluginMountHost.svelte';
     import SearchPanel from './SearchPanel.svelte';
@@ -88,12 +99,33 @@
     import ViewerControls from './ViewerControls.svelte';
     import { Spinner } from './ui';
 
-    // SSR-safe browser detection for library consumers
     const browser = typeof window !== 'undefined';
 
-    const prefersReducedMotion =
-        browser &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /**
+     * `prefers-reduced-motion`, from the viewer-wide watcher.
+     *
+     * WATCHED, not read once at init: the renderer honors the preference live
+     * (`CanvasHost` stops the viewport the moment it is turned on), and a
+     * chrome that only sampled it at mount would go on gliding its drawer and
+     * its panels after the same toggle — one viewer giving two answers about
+     * whether it respects the setting. Every transition below reads this at the
+     * instant it starts, so a change reaches the next one. SSR-safe: the helper
+     * reports `false` off the browser and never calls back.
+     *
+     * This is the viewer's only watcher: the panel stack, its sections and the
+     * annotations panel read the same value out of context.
+     */
+    let prefersReducedMotion = $state(false);
+    onDestroy(
+        watchReducedMotion((reduced) => {
+            prefersReducedMotion = reduced;
+        }),
+    );
+    provideReducedMotion({
+        get current() {
+            return prefersReducedMotion;
+        },
+    });
 
     /**
      * Open the expanded gallery as a drawer sliding out of its dock edge — a
@@ -103,25 +135,16 @@
      *
      * Animates `clip-path`, not `height`: clip-path is composited, so the grid
      * lays out once and is uncovered, where an animated height would reflow every
-     * thumbnail on every frame. A floating gallery has no edge to slide from, so
-     * it just fades up.
+     * thumbnail on every frame.
      */
     function expandGallery(
         node: HTMLElement,
         {
             edge,
             from,
-        }: { edge: 'top' | 'bottom' | 'left' | 'right' | 'none'; from: number },
+        }: { edge: 'top' | 'bottom' | 'left' | 'right'; from: number },
     ) {
         const duration = prefersReducedMotion ? 0 : 260;
-        if (edge === 'none') {
-            return {
-                duration,
-                easing: cubicOut,
-                css: (t: number) =>
-                    `opacity: ${t}; transform: scale(${0.98 + 0.02 * t});`,
-            };
-        }
         // `u` is the un-revealed fraction: at u=1 only the docked footprint shows.
         const closed = (u: number) => `calc(${u} * (100% - ${from}px))`;
         const inset = (u: number) => {
@@ -144,18 +167,46 @@
     }
 
     /**
-     * Animate a side panel column's width (0 → full) so the center viewer
-     * resizes smoothly as the panel opens/closes, instead of the layout snapping
-     * to the panel's width in a single frame. Paired with the panel's own
-     * slide-in transition in PanelStack.
+     * Animate a docked region's extent along one axis (0 → full) so the center
+     * viewer resizes smoothly as the region opens and closes, instead of the
+     * layout snapping to its size in a single frame. Paired, on the `width`
+     * axis, with the panel's own slide-in transition in PanelStack.
+     *
+     * `clip` hides the contents behind the animated edge, which is what a side
+     * panel wants — its body is laid out at the full width and would otherwise
+     * reflow every frame. The docked toolbar rail passes `false`: it pins its
+     * buttons to the screen edge at full size and lets them overhang the
+     * shrinking column, so the toolbar stays exactly where it is while the
+     * surface it sat beside grows back (see `.rail-pin`).
+     *
+     * The `height` axis defaults to no clip, and no caller asks for one: a
+     * docked band's own track already clips on this axis
+     * (`.gallery-content.content-horizontal` is `overflow-y: hidden`), and a clip
+     * here would also cut off the gallery's drop shadow — which for a TOP-docked
+     * band falls across the canvas, so it stayed hidden for the whole slide and
+     * then snapped in on the last frame. Left unclipped, the shadow travels with
+     * the growing edge.
      */
-    function slideWidth(node: HTMLElement, { duration = 200 } = {}) {
-        const width = node.getBoundingClientRect().width;
+    function slideAxis(
+        node: HTMLElement,
+        {
+            axis,
+            duration = 200,
+            clip = axis === 'width',
+        }: {
+            axis: 'width' | 'height';
+            duration?: number;
+            clip?: boolean;
+        },
+    ) {
+        const extent = node.getBoundingClientRect()[axis];
+        const minProperty = axis === 'width' ? 'min-width' : 'min-height';
         return {
             duration: prefersReducedMotion ? 0 : duration,
             easing: cubicOut,
             css: (t: number) =>
-                `width: ${t * width}px; min-width: 0; overflow: hidden;`,
+                `${axis}: ${t * extent}px; ${minProperty}: 0;` +
+                (clip ? ' overflow: hidden;' : ''),
         };
     }
 
@@ -163,8 +214,41 @@
         manifestId?: string;
         manifestJson?: any;
         canvasId?: string;
+        /**
+         * A IIIF Content State naming the view to open (ADR 0006): a bare IIIF
+         * URI, an Annotation as JSON, or that Annotation base64url-encoded.
+         *
+         * Ignored whenever {@link manifestId} or {@link manifestJson} is set,
+         * and its canvas and region yield to {@link canvasId} and
+         * {@link initialCanvasRegion} — the discrete inputs are the
+         * manual-driving API and win. Ingestion never throws: what cannot be
+         * honored degrades, reporting on the `content-state` scope of the
+         * `viewererror` channel.
+         */
+        contentState?: string;
+        /**
+         * Opt in to reading the `iiif-content` parameter from the host's
+         * address, once on mount (ADR 0006). Off by default, and the
+         * lowest-precedence source: a viewer dropped into a page it does not
+         * own must not consume a parameter meant for the host application. The
+         * address bar is never mutated.
+         */
+        readContentStateFromUrl?: boolean;
+        /**
+         * Opt in to opening a IIIF content state dropped onto the viewer
+         * (cookbook recipe 0599). Off by default, for the reason the URL
+         * parameter is: a viewer dropped into a page it does not own must not
+         * swallow a drop the host meant to handle itself.
+         *
+         * A drop is the reader's own gesture rather than a view source the
+         * host declared, so it opens what it names even when the host drives
+         * this viewer with {@link manifestId}. The precedence ADR 0006 sets
+         * out orders the DECLARED sources among themselves; it does not make
+         * a host's initial choice permanent against the reader.
+         */
+        acceptDroppedContentState?: boolean;
         plugins?: readonly SdkPlugin[] | null | boolean;
-        /** Built-in theme name. Defaults to 'light' or 'dark' based on prefers-color-scheme. */
+        /** Built-in theme name. Unset paints the defaults, which are `light`. */
         theme?: BuiltInTheme;
         /** Custom theme configuration to override the base theme's values. */
         themeConfig?: ThemeConfig;
@@ -200,6 +284,9 @@
         manifestId,
         manifestJson,
         canvasId,
+        contentState,
+        readContentStateFromUrl = false,
+        acceptDroppedContentState = false,
         plugins: rawPlugins = [],
         theme,
         themeConfig,
@@ -214,25 +301,28 @@
     let allPlugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
     // The SDK path (ticket 07) is the one plugin path.
     let sdkPlugins = $derived(allPlugins.filter(isSdkPlugin));
-    let isDragOver = $state(false);
-    // Active locale (CONTEXT.md **Active locale**, ticket 06): the viewer's typed
-    // `config.locale` if set, otherwise the page default. Published to chrome via
-    // Svelte context (below) so every `m.*()` call renders in it; also mirrored
-    // onto ViewerState.activeLocale as observable state.
-    let viewerLocale = $derived(config.locale ?? language.current);
 
-    // Reference to root element for applying theme
     let rootElement: HTMLElement | undefined = $state();
 
-    // Reactively apply theme when element is available or theme/themeConfig changes
+    // One memory per viewer, torn down with it: a control this viewer's chrome
+    // destroyed must never be something ANOTHER viewer on the page acts on, and
+    // the remembered node is usually detached, so holding it past unmount would
+    // pin the whole torn-down subtree.
+    const focusMemory = createFocusMemory();
+    setContext(FOCUS_MEMORY_KEY, focusMemory);
+    onDestroy(() => focusMemory.destroy());
+
+    // Everything the root element itself is wired into, in one place: the theme
+    // attributes and custom properties, the element viewer state hands to
+    // plugins, and the focus recorder's scope. `attach` is idempotent, so a
+    // theme change re-runs this without re-subscribing.
     $effect(() => {
-        if (rootElement) {
-            applyTheme(rootElement, theme, themeConfig);
-            internalViewerState.setViewerElement(rootElement);
-        }
+        if (!rootElement) return;
+        applyTheme(rootElement, theme, themeConfig);
+        internalViewerState.setViewerElement(rootElement);
+        focusMemory.attach(rootElement);
     });
 
-    // Create per-instance viewer state
     // Note: We pass empty initial values and use $effect blocks below to set
     // manifestId, canvasId, and plugins reactively, avoiding Svelte's
     // "state_referenced_locally" warning about capturing initial prop values.
@@ -264,105 +354,82 @@
             logger.warn(`[${error.code}] ${error.message}`, error.detail ?? '');
         }
 
-        // Bubbling + composed so it escapes the shadow root to WC hosts.
-        rootElement?.dispatchEvent(
-            new CustomEvent(VIEWER_ERROR_EVENT, {
-                detail: error,
-                bubbles: true,
-                composed: true,
-            }),
-        );
+        dispatchFromRoot(VIEWER_ERROR_EVENT, error);
         // Host callback — the SAME object.
         onviewererror?.(error);
     }
 
-    // Publish this viewer's active locale to its chrome subtree, and route all
-    // core message rendering through it. `getMessages()` returns a drop-in `m`
-    // whose calls render in `viewerLocale`; chrome uses `m.*()` unchanged.
+    /**
+     * Dispatch one of the viewer's structured channels from the viewer root.
+     *
+     * Bubbling + composed so it escapes the shadow root to WC hosts — the whole
+     * reason these go out from `rootElement` rather than from the component.
+     */
+    function dispatchFromRoot(type: string, detail: unknown): void {
+        rootElement?.dispatchEvent(
+            new CustomEvent(type, { detail, bubbles: true, composed: true }),
+        );
+    }
+
+    // Active locale (CONTEXT.md **Active locale**, ticket 06): the chrome's
+    // language picker if the user has chosen one, otherwise the viewer's typed
+    // `config.locale`, otherwise the page default. Published to chrome via
+    // Svelte context (below) so every `m.*()` call renders in it; also mirrored
+    // onto ViewerState.activeLocale.
+    let viewerLocale = $derived(
+        internalViewerState._localeOverride ??
+            config.locale ??
+            language.current,
+    );
+
+    // The host catalogs this viewer renders chrome from: `config.messages`
+    // merged over core's English, plus whatever `config.loadMessages` resolves.
+    // Owned per viewer, so two viewers on one page keep separate catalogs and
+    // separate loader gates.
+    const hostCatalogs = createHostCatalogs(() => config);
+
+    // Publish this viewer's active locale and host catalogs to its chrome
+    // subtree, and route all core message rendering through them.
+    // `getMessages()` returns a drop-in `m` whose calls render in
+    // `viewerLocale`; chrome uses `m.*()` unchanged.
     provideActiveLocale({
         get current() {
             return viewerLocale;
         },
+        host: hostCatalogs,
     });
     const m = getMessages();
 
-    // Mirror the resolved active locale onto ViewerState as observable state so
-    // subscribers (and ticket 08's PluginLocaleService) are notified on change.
-    // `viewerLocale` already resolves `config.locale ?? page default` reactively,
-    // so this keeps the observable identical to the locale the chrome renders in.
+    // Ask the host's loader for the active locale when nothing already covers
+    // it. `request` is gated per locale, so this settles after one call however
+    // often the config or the locale churns.
+    $effect(() => {
+        hostCatalogs.request(viewerLocale);
+    });
+
+    // Mirror the props that are plain assignments onto ViewerState. Each writes
+    // a distinct field, so one effect covering all four re-runs harmlessly when
+    // any of them changes — nothing here refuses, diffs or fetches.
+    //
+    // `activeLocale` carries the resolved active locale so subscribers (and
+    // ticket 08's PluginLocaleService) are notified on change. `viewerLocale`
+    // already resolves picker/config/page reactively, so this keeps the
+    // notifying member identical to the locale the chrome renders in.
     $effect(() => {
         internalViewerState.activeLocale = viewerLocale;
-    });
-
-    $effect(() => {
         internalViewerState.setManifestRequestConfig(config?.requests);
-    });
-
-    $effect(() => {
         internalViewerState.setSearchProvider(searchProvider);
-    });
-
-    $effect(() => {
         internalViewerState.setInitialCanvasRegion(initialCanvasRegion);
     });
 
-    function clearDragState() {
-        isDragOver = false;
-    }
-
     function hasCanvas(canvasId: string) {
-        return internalViewerState.canvases.some(
-            (canvas: any) => getCanvasId(canvas) === canvasId,
-        );
-    }
-
-    function handleDragOver(event: DragEvent) {
-        if (!internalViewerState.config.enableDragDrop) return;
-        event.preventDefault();
-        isDragOver = true;
-    }
-
-    function handleDragLeave(event: DragEvent) {
-        if (!internalViewerState.config.enableDragDrop) return;
-        if (event.currentTarget === event.target) {
-            isDragOver = false;
-        }
-    }
-
-    async function handleDrop(event: DragEvent) {
-        if (!internalViewerState.config.enableDragDrop) return;
-        event.preventDefault();
-        clearDragState();
-
-        const text = event.dataTransfer?.getData('text/plain')?.trim();
-        if (!text) return;
-
-        const parsed = parseContentState(text);
-        if (parsed?.manifestId) {
-            internalViewerState.setInitialCanvasRegion(parsed.region ?? null);
-            if (parsed.canvasId) {
-                internalViewerState.setCanvas(parsed.canvasId);
-            }
-            await internalViewerState.setManifest(parsed.manifestId, {
-                requestConfig: config?.requests,
-            });
-            if (parsed.canvasId) {
-                internalViewerState.setCanvas(parsed.canvasId);
-            }
-            return;
-        }
-
-        if (/^https?:\/\//i.test(text)) {
-            internalViewerState.setInitialCanvasRegion(null);
-            await internalViewerState.setManifest(text, {
-                requestConfig: config?.requests,
-            });
-        }
+        return findCanvasIndexById(internalViewerState.canvases, canvasId) >= 0;
     }
 
     $effect(() => {
         if (manifestId && manifestJson) {
             const requestedCanvasId = canvasId || undefined;
+            lastAppliedManifestId = manifestId;
             void (async () => {
                 await internalViewerState.setManifestData(
                     manifestId,
@@ -374,7 +441,16 @@
             return;
         }
 
-        if (manifestId && manifestId !== internalViewerState.manifestId) {
+        /*
+         * Keyed to the PROP's own changes, exactly as `lastAppliedCanvasId`
+         * keys the canvas below. Re-applying whenever viewer state merely
+         * drifts from the prop would make the manifest unnavigable at runtime:
+         * a dropped content state, like a canvas the reader picks, is a move
+         * the host did not make and must not be snapped back.
+         */
+        if (manifestId && manifestId !== lastAppliedManifestId) {
+            lastAppliedManifestId = manifestId;
+            if (manifestId === internalViewerState.manifestId) return;
             // Don't re-trigger setManifest if the prop points to the active collection.
             // When a collection is loaded, internalViewerState.manifestId is the
             // currently-selected manifest inside the collection, which differs from
@@ -400,6 +476,7 @@
     });
 
     // Track last applied canvasId PROP value to prevent reverting internal navigation
+    let lastAppliedManifestId = '';
     let lastAppliedCanvasId = '';
 
     $effect(() => {
@@ -416,7 +493,6 @@
                 ) {
                     return;
                 }
-                // Only apply if different from current internal state
                 if (canvasId !== internalViewerState.canvasId) {
                     internalViewerState.setCanvas(canvasId);
                 }
@@ -424,24 +500,133 @@
         }
     });
 
-    // Track last applied config to prevent redundant updates and loops
-    let lastConfigStr = '';
+    // ── Content-state ingestion (ADR 0006) ─────────────────────────────────
+    // Precedence: discrete props > `contentState` > the `iiif-content` URL
+    // parameter. The URL is read at most once, on mount, and only when the host
+    // opted in; the address bar is never written.
+    let urlContentStateChecked = false;
+    let ingestedContentState: string | undefined;
 
     $effect(() => {
-        if (config) {
-            const str = JSON.stringify(config);
-            if (str !== lastConfigStr) {
-                lastConfigStr = str;
-                internalViewerState.updateConfig(config);
+        const drivenByProps = !!(manifestId || manifestJson);
+        const explicit = contentState?.trim();
+
+        const fromUrl = untrack(() => {
+            if (urlContentStateChecked) return undefined;
+            // "Once on mount" is unconditional: a manifest prop cleared later
+            // must not make the viewer reach into the address bar long after the
+            // host's own routing has moved on.
+            urlContentStateChecked = true;
+            if (drivenByProps || explicit || !readContentStateFromUrl) {
+                return undefined;
             }
-        }
+            return readContentStateFromLocation();
+        });
+
+        if (drivenByProps) return;
+
+        const value = explicit || fromUrl;
+        if (!value || value === ingestedContentState) return;
+        ingestedContentState = value;
+        untrack(() => void ingestContentState(value));
     });
+
+    /*
+     * Cookbook recipe 0599, which is `text/plain` and nothing else: a drag
+     * source sets the content state there and a destination reads it from
+     * there. Notably not `text/uri-list` — the recipe's own drag source is an
+     * `<img>`, and a browser fills that flavour with the image's `src`.
+     */
+    function onDragOver(event: DragEvent) {
+        if (!acceptDroppedContentState) return;
+        if (!event.dataTransfer?.types.includes('text/plain')) return;
+        // Without this the browser treats the root as a non-target and never
+        // fires `drop`.
+        event.preventDefault();
+    }
+
+    function onDrop(event: DragEvent) {
+        if (!acceptDroppedContentState) return;
+        const value = event.dataTransfer?.getData('text/plain').trim();
+        if (!value) return;
+        event.preventDefault();
+        ingestedContentState = value;
+        void ingestContentState(value, true);
+    }
+
+    /**
+     * Resolve one delivered content state and drive the viewer with it. The
+     * region is staged before the manifest load so the canvas selection it
+     * triggers already has it; the time is applied after, once the canvas the
+     * target names is the current one.
+     *
+     * Each part of the target yields to the discrete prop that covers it: the
+     * whole discrete tier outranks a content state, not just its manifest.
+     */
+    async function ingestContentState(
+        value: string,
+        dropped = false,
+    ): Promise<void> {
+        const resolved = await resolveContentState(value, {
+            requestConfig: config?.requests,
+            report: emitViewerError,
+        });
+        // A second content state delivered while this one was dereferencing
+        // owns the viewer now — and so does a discrete manifest prop that
+        // arrived meanwhile, which outranks every content state.
+        if (
+            !resolved ||
+            value !== ingestedContentState ||
+            (!dropped && (manifestId || manifestJson))
+        ) {
+            return;
+        }
+        const { target, manifestJson: dereferenced } = resolved;
+
+        if (target.region && !initialCanvasRegion) {
+            internalViewerState.setInitialCanvasRegion(target.region);
+        }
+        // A `canvasId` prop is already applied by its own effect, and outranks
+        // the canvas the content state names.
+        const requestedCanvasId = canvasId ? undefined : target.canvasId;
+        if (dereferenced) {
+            await internalViewerState.setManifestData(
+                target.manifestId,
+                dereferenced,
+                { canvasId: requestedCanvasId },
+            );
+        } else {
+            await internalViewerState.setManifest(target.manifestId, {
+                requestConfig: config?.requests,
+                canvasId: requestedCanvasId,
+            });
+        }
+        // The manifest load selected the canvas but dropped the time the target
+        // carried — `setCanvas` clears the temporal offset unless it is handed
+        // one — so this second selection is what applies it. Guarded like the
+        // `canvasId` prop's own effect: a canvas the manifest does not contain
+        // is not navigable.
+        if (requestedCanvasId && target.time && hasCanvas(requestedCanvasId)) {
+            internalViewerState.setCanvas(requestedCanvasId, target.time);
+        }
+    }
+
+    // Track last applied config to prevent redundant updates and loops
+    let lastConfigStr = '';
 
     // Opt-in developer diagnostics (ticket 18): production is quiet by default.
     // `config.debug` gates the core logger; actionable failures still surface
     // through the structured `viewererror`/`pluginerror` channels regardless.
+    // Configured ahead of `updateConfig` so a config that turns `debug` on is
+    // itself logged by anything the update reports.
     $effect(() => {
         configureLogging({ debug: config?.debug ?? false });
+        if (!config) return;
+        const str = JSON.stringify(config);
+        if (str !== lastConfigStr) {
+            lastConfigStr = str;
+            internalViewerState.updateConfig(config);
+        }
     });
 
     // ---- SDK plugin activation (ticket 07 + services ticket 08) ------------
@@ -454,17 +639,23 @@
     // icon-rendering UI service.
 
     // One activation record per mounted SDK plugin. `deactivate` runs the
-    // instance's teardown (view cleanup + drop subscriptions + release styles) and
-    // — for core-owned-chrome plugins — unregisters its toolbar chrome.
+    // instance's teardown (view cleanup + drop subscriptions + release styles);
+    // tearing the record down also unregisters the plugin from viewer state (its
+    // chrome, its overlay layers, its UI state) — see `deactivateSdkRecord`.
     // `primaryReported` de-dupes repeated command/subscription failures from the
     // same still-live instance so the channel fires once per failure, not once per
-    // flush. `chromeId` is the id of the plugin's core-owned toolbar chrome;
+    // flush. `chromeId` is the id core knows this plugin by: the key under
+    // `config.plugins`, the prefix of its chrome record ids, and the prefix of
+    // its overlay layer ids. It is set when the record is CREATED, before the
+    // plugin's view mounts — not after a successful activation — because it is
+    // also the handle everything registered DURING that mount is released by,
+    // and a mount that throws registers things too (see `activateSdkPlugin`).
     // `failed` records that setup/mount failed so core renders NO button (fail
     // closed, ADR 0010).
     interface SdkActivationRecord {
         plugin: SdkPlugin;
         el: HTMLElement;
-        chromeId?: string;
+        chromeId: string;
         deactivate: () => void;
         primaryReported: boolean;
         failed: boolean;
@@ -523,18 +714,11 @@
         // Debug-gated developer log; production stays quiet unless a host wires a
         // channel or enables debug.
         logger.error(
-            `[triiiceratops] Plugin "${record.plugin.name}" failed in phase "${phase}".`,
+            `Plugin "${record.plugin.name}" failed in "${phase}"`,
             error,
         );
 
-        // Bubbling + composed so it escapes the shadow root to WC hosts.
-        rootElement?.dispatchEvent(
-            new CustomEvent(PLUGIN_ERROR_EVENT, {
-                detail: payload,
-                bubbles: true,
-                composed: true,
-            }),
-        );
+        dispatchFromRoot(PLUGIN_ERROR_EVENT, payload);
         // Host callback — the SAME object.
         onpluginerror?.(payload);
     }
@@ -616,6 +800,14 @@
         const record: SdkActivationRecord = {
             plugin,
             el,
+            // Recorded HERE, not after a successful activation. The plugin's
+            // `view.mount` runs below and may register things core knows by this
+            // id — its overlay layers, and the UI state its surface seeded — so a
+            // record whose `chromeId` were only filled in on success would leave
+            // a failed mount's registrations with no owner: `unregisterPlugin`
+            // would never be called for them, and a retry's identical layer id
+            // would then hit the duplicate-id refusal forever.
+            chromeId,
             deactivate: () => {},
             primaryReported: false,
             failed: false,
@@ -645,11 +837,16 @@
             try {
                 record.deactivate();
             } catch (error) {
-                logger.error(
-                    'SDK plugin teardown threw after failed activation; continuing.',
-                    error,
-                );
+                logger.error('SDK plugin teardown threw', error);
             }
+            // Leave nothing of this plugin behind in viewer state either. A
+            // mount that threw half-way may already have registered overlay
+            // layers — DOM on the image with nothing left to remove it — and its
+            // surface seeded plugin UI state, which is what `registerOverlayLayer`
+            // validates ids against, so a plugin that does not exist would keep
+            // looking like a known one. No chrome was registered, so the chrome
+            // filters in `unregisterPlugin` simply match nothing.
+            internalViewerState.unregisterPlugin(chromeId);
             el.remove();
             return;
         }
@@ -661,7 +858,6 @@
         // down; a layout change that recreates the node simply re-parents `el`.
         // The plugin observes open/close through `PluginContext.surface` instead
         // of through a mount lifecycle event (see `plugin/surface.ts`).
-        record.chromeId = chromeId;
         const mountThunk: PluginMountThunk = (node) => {
             node.appendChild(el);
             return () => {
@@ -681,26 +877,28 @@
             target: plugin.target,
             dismiss: plugin.dismiss ?? 'light',
             mount: mountThunk,
+            fills: plugin.fills,
         });
     }
 
     /**
-     * Tear one activation down: unregister its core-owned chrome (if any), run
-     * its deactivation (view cleanup + drop subscriptions + release styles), and
-     * remove its content element. Isolated so a throwing teardown never blocks
-     * the rest.
+     * Tear one activation down: unregister everything core knows by this
+     * plugin's id — its chrome records, its overlay layers, and its UI state —
+     * run its deactivation (view cleanup + drop subscriptions + release styles),
+     * and remove its content element. Isolated so a throwing teardown never
+     * blocks the rest.
+     *
+     * Unconditional: `unregisterPlugin` on a plugin that never got as far as
+     * registering chrome matches no chrome record and simply drops whatever the
+     * failed activation did leave behind, so a record for a failed mount is torn
+     * down by exactly this path too.
      */
     function deactivateSdkRecord(record: SdkActivationRecord) {
-        if (record.chromeId) {
-            internalViewerState.unregisterPlugin(record.chromeId);
-        }
+        internalViewerState.unregisterPlugin(record.chromeId);
         try {
             record.deactivate();
         } catch (error) {
-            logger.error(
-                'SDK plugin deactivation threw; teardown continues.',
-                error,
-            );
+            logger.error('SDK plugin deactivation threw', error);
         }
         record.el.remove();
     }
@@ -893,68 +1091,120 @@
     function toPluginPanelItem(
         panel: (typeof internalViewerState.pluginPanels)[number],
     ): PanelStackItem {
-        const resolveTitle = (
-            m as unknown as Record<string, (() => string) | undefined>
-        )[panel.name];
-        const title =
-            panel.label?.() ?? (resolveTitle ? resolveTitle() : panel.name);
+        const title = panel.label?.() ?? resolveChromeName(m, panel.name);
         return {
             id: panel.id,
             title,
             iconDescriptor: panel.iconDescriptor,
             component: PluginMountHost,
             props: { mount: panel.mount },
+            fills: panel.fills,
+            // A plugin author cannot reach the section element, so core names
+            // the panel here — the same `dialog` role a core panel component
+            // renders for itself.
+            dialog: true,
+            close: showPanelCloseButton(
+                internalViewerState.config.plugins?.[panel.pluginId]
+                    ?.showCloseButton,
+            )
+                ? () => internalViewerState.setPluginOpen(panel.pluginId, false)
+                : undefined,
         };
     }
 
-    let visiblePanelsLeft = $derived.by<PanelStackItem[]>(() => {
+    /**
+     * One core panel. Every field is a thunk so the table below is built once
+     * and still reads live state: `open` is the panel's own visibility flag,
+     * `position` the column it asks for, `showClose` its close-button config,
+     * `toggle` how it closes.
+     *
+     * `position` is absent on the panels that have no left-hand position at all
+     * (structures, collection) — like an unset or unrecognized `position`, that
+     * resolves to the right column.
+     */
+    type CorePanel = {
+        id: string;
+        title: () => string;
+        iconName: PanelStackItem['iconName'];
+        component: PanelStackItem['component'];
+        open: () => boolean;
+        position?: () => 'left' | 'right' | undefined;
+        showClose: () => boolean | undefined;
+        toggle: () => void;
+    };
+
+    /** The core panels, in the order they stack within a column. */
+    const corePanels: CorePanel[] = [
+        {
+            id: 'search',
+            title: () => m.search(),
+            iconName: 'MagnifyingGlass',
+            component: SearchPanel,
+            open: () => internalViewerState.showSearchPanel,
+            position: () => internalViewerState.config.search?.position,
+            showClose: () => internalViewerState.config.search?.showCloseButton,
+            toggle: () => internalViewerState.toggleSearchPanel(),
+        },
+        {
+            id: 'annotations',
+            title: () => m.settings_submenu_annotations(),
+            iconName: 'ChatCenteredText',
+            component: AnnotationPanel,
+            open: () => internalViewerState.showAnnotations,
+            position: () => internalViewerState.config.annotations?.position,
+            showClose: () =>
+                internalViewerState.config.annotations?.showCloseButton,
+            toggle: () => internalViewerState.toggleAnnotations(),
+        },
+        {
+            id: 'metadata',
+            title: () => m.metadata(),
+            iconName: 'Info',
+            component: MetadataPanel,
+            open: () => internalViewerState.showMetadataPanel,
+            position: () => internalViewerState.config.information?.position,
+            showClose: () =>
+                internalViewerState.config.information?.showCloseButton,
+            toggle: () => internalViewerState.toggleMetadataPanel(),
+        },
+        {
+            id: 'structures',
+            title: () => m.structures_title(),
+            iconName: 'ListBullets',
+            component: StructuresPanel,
+            open: () => internalViewerState.showStructuresPanel,
+            showClose: () =>
+                internalViewerState.config.structures?.showCloseButton,
+            toggle: () => internalViewerState.toggleStructuresPanel(),
+        },
+        {
+            id: 'collection',
+            title: () => m.collection_title(),
+            iconName: 'Folder',
+            component: CollectionPanel,
+            open: () => showCollectionSidebar,
+            showClose: () =>
+                internalViewerState.config.collection?.showCloseButton,
+            toggle: () => internalViewerState.toggleCollectionPanel(),
+        },
+    ];
+
+    /** The panels docked to one column: core's first, then the plugins'. */
+    function buildPanels(column: 'left' | 'right'): PanelStackItem[] {
         const panels: PanelStackItem[] = [];
 
-        if (
-            internalViewerState.showSearchPanel &&
-            internalViewerState.config.search?.position === 'left'
-        ) {
+        for (const panel of corePanels) {
+            if (!panel.open()) continue;
+            if ((panel.position?.() === 'left' ? 'left' : 'right') !== column) {
+                continue;
+            }
             panels.push({
-                id: 'search',
-                title: m.search(),
-                icon: MagnifyingGlassIcon,
-                component: SearchPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.search?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleSearchPanel()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showAnnotations &&
-            internalViewerState.config.annotations?.position === 'left'
-        ) {
-            panels.push({
-                id: 'annotations',
-                title: m.settings_submenu_annotations(),
-                icon: ChatCenteredTextIcon,
-                component: AnnotationPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.annotations?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleAnnotations()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showMetadataPanel &&
-            internalViewerState.config.information?.position === 'left'
-        ) {
-            panels.push({
-                id: 'metadata',
-                title: m.metadata(),
-                icon: InfoIcon,
-                component: MetadataPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.information?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleMetadataPanel()
+                id: panel.id,
+                title: panel.title(),
+                iconName: panel.iconName,
+                component: panel.component,
+                close: showPanelCloseButton(panel.showClose())
+                    ? panel.toggle
                     : undefined,
             });
         }
@@ -962,112 +1212,23 @@
         for (const panel of internalViewerState.pluginPanels) {
             if (
                 panel.isVisible() &&
-                internalViewerState.getPluginPosition(panel.pluginId) === 'left'
+                internalViewerState.getPluginPosition(panel.pluginId) === column
             ) {
                 panels.push(toPluginPanelItem(panel));
             }
         }
 
         return panels;
-    });
+    }
 
-    let visiblePanelsRight = $derived.by<PanelStackItem[]>(() => {
-        const panels: PanelStackItem[] = [];
-
-        if (
-            internalViewerState.showSearchPanel &&
-            internalViewerState.config.search?.position !== 'left'
-        ) {
-            panels.push({
-                id: 'search',
-                title: m.search(),
-                icon: MagnifyingGlassIcon,
-                component: SearchPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.search?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleSearchPanel()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showAnnotations &&
-            internalViewerState.config.annotations?.position !== 'left'
-        ) {
-            panels.push({
-                id: 'annotations',
-                title: m.settings_submenu_annotations(),
-                icon: ChatCenteredTextIcon,
-                component: AnnotationPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.annotations?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleAnnotations()
-                    : undefined,
-            });
-        }
-        if (
-            internalViewerState.showMetadataPanel &&
-            internalViewerState.config.information?.position !== 'left'
-        ) {
-            panels.push({
-                id: 'metadata',
-                title: m.metadata(),
-                icon: InfoIcon,
-                component: MetadataPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.information?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleMetadataPanel()
-                    : undefined,
-            });
-        }
-        if (internalViewerState.showStructuresPanel) {
-            panels.push({
-                id: 'structures',
-                title: m.structures_title(),
-                icon: ListBulletsIcon,
-                component: StructuresPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.structures?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleStructuresPanel()
-                    : undefined,
-            });
-        }
-        if (showCollectionSidebar) {
-            panels.push({
-                id: 'collection',
-                title: m.collection_title(),
-                icon: FolderIcon,
-                component: CollectionPanel,
-                close: showPanelCloseButton(
-                    internalViewerState.config.collection?.showCloseButton,
-                )
-                    ? () => internalViewerState.toggleCollectionPanel()
-                    : undefined,
-            });
-        }
-
-        for (const panel of internalViewerState.pluginPanels) {
-            if (
-                panel.isVisible() &&
-                internalViewerState.getPluginPosition(panel.pluginId) ===
-                    'right'
-            ) {
-                panels.push(toPluginPanelItem(panel));
-            }
-        }
-
-        return panels;
-    });
+    let visiblePanelsLeft = $derived.by(() => buildPanels('left'));
+    let visiblePanelsRight = $derived.by(() => buildPanels('right'));
 
     /**
      * The gallery, expanded to fill the center column as a thumbnail grid. It
      * renders in exactly one place — the `.gallery-expanded` overlay — so the
-     * docked/floating render sites below all stand down while it is up. Two
-     * mounted `ThumbnailGallery` instances would both run the dockSide sync
-     * effects and fight over them.
+     * docked render sites below all stand down while it is up. Two mounted
+     * `ThumbnailGallery` instances would put two galleries on screen at once.
      */
     let galleryExpanded = $derived(
         internalViewerState.showThumbnailGallery &&
@@ -1103,12 +1264,13 @@
             | 'top'
             | 'bottom'
             | 'left'
-            | 'right'
-            | 'none',
+            | 'right',
         // The band's height or the rail's width, whichever edge it slides out of —
         // one number either way, since that is what `gallery.size` is.
         from: galleryExtent,
     });
+
+    let opaque = $derived(!internalViewerState.config.transparentBackground);
 
     let isLeftSidebarVisible = $derived(
         (galleryDocked && internalViewerState.dockSide === 'left') ||
@@ -1120,65 +1282,79 @@
             visiblePanelsRight.length > 0,
     );
 
-    // Latch the "sidebar present" signal so it trails the column's close
-    // animation. When the last same-side panel closes, `isLeftSidebarVisible`
-    // flips false instantly, but the panel column keeps sliding shut for ~200ms
-    // (slideWidth outro). Holding this signal true across that window lets the
-    // docked rail stay put — full size, not collapsing — until the column is
-    // actually gone, then hand off to the floating toolbar in one atomic swap.
-    const SIDEBAR_ANIM_MS = prefersReducedMotion ? 0 : 200;
-
-    let leftSidebarPresent = $state(false);
-    $effect(() => {
-        if (isLeftSidebarVisible) {
-            leftSidebarPresent = true;
-            return;
-        }
-        const id = setTimeout(
-            () => (leftSidebarPresent = false),
-            SIDEBAR_ANIM_MS,
-        );
-        return () => clearTimeout(id);
-    });
-
-    let rightSidebarPresent = $state(false);
-    $effect(() => {
-        if (isRightSidebarVisible) {
-            rightSidebarPresent = true;
-            return;
-        }
-        const id = setTimeout(
-            () => (rightSidebarPresent = false),
-            SIDEBAR_ANIM_MS,
-        );
-        return () => clearTimeout(id);
-    });
-
     // The toolbar docks as the screen-edge rail of a side bar when it shares that
     // side with an open panel/gallery. Only `split` controls use a side toolbar;
     // `unified` embeds the tools in the nav bar.
     //
-    // The rail is rendered as its OWN screen-edge column (a sibling of the panel
-    // column, not a child of it — see the markup), so it is not caught in the
-    // panel's slideWidth outro. That, plus the latched `…SidebarPresent` tail,
-    // means the rail stays mounted at full size through the close and then
-    // unmounts reactively the instant this flips false — in the SAME flush that
-    // mounts the floating toolbar. The result is an atomic hand-off: never two
-    // toolbars, never zero. `toolbarOpen` gates it directly (not via the latch)
-    // so collapsing the toolbar itself removes the rail immediately.
+    // The rail is its OWN screen-edge column (a sibling of the panel column, not
+    // a child of it — see the markup), and it slides open and shut on the same
+    // clock as the panel beside it. That is what makes the close one continuous
+    // motion: panel width and rail width come off the surface together over the
+    // one 200ms curve, where a rail that held full size and then vanished handed
+    // the center column its last ~37px in a single frame — a visible lurch at
+    // the very end of an otherwise smooth animation.
     let dockRailLeft = $derived(
         resolvedControls === 'split' &&
             toolbarSide === 'left' &&
             internalViewerState.toolbarOpen &&
-            (isLeftSidebarVisible || leftSidebarPresent),
+            isLeftSidebarVisible,
     );
     let dockRailRight = $derived(
         resolvedControls === 'split' &&
             toolbarSide === 'right' &&
             internalViewerState.toolbarOpen &&
-            (isRightSidebarVisible || rightSidebarPresent),
+            isRightSidebarVisible,
     );
     let toolbarDockedAsRail = $derived(dockRailLeft || dockRailRight);
+
+    /**
+     * True while an un-docking rail's outro is still on screen.
+     *
+     * The rail's buttons stay full size and pinned to the screen edge for the
+     * whole slide, so the floating toolbar must not mount into the same spot
+     * until they are gone — hence a signal taken from the transition itself
+     * rather than a timer sized to guess at it. Reset on `introstart` too,
+     * because reopening the panel mid-close reverses the outro and no
+     * `outroend` ever arrives.
+     */
+    let railLeaving = $state(false);
+
+    /**
+     * Which chrome core has docked beside the viewer, as one token each.
+     *
+     * Handed to `CanvasHost` purely as a CHANGE signal: the surface is about to
+     * change size because CORE took some of it, which is a different event from
+     * the window changing size — the first compensates the reader's whole view
+     * for the change, the second preserves their scale. Nothing downstream reads
+     * the tokens; they are here because a named string is far easier to reason
+     * about in a debugger than a bare counter would be.
+     *
+     * Both axes count. A gallery docked to the top or bottom edge takes a band
+     * of HEIGHT rather than a column of width, but it is docked chrome all the
+     * same, and the axis it takes from is the very one canvas-anchored transport
+     * chrome sits on. `dockSide` defaults to `'bottom'`, so leaving the
+     * horizontal edges out made the default configuration the broken one.
+     * A left/right gallery needs no token of its own — it already shows up
+     * through `isLeftSidebarVisible` / `isRightSidebarVisible`.
+     *
+     * A flyout contributes nothing: it floats over the viewer and takes no
+     * width or height from it.
+     */
+    let dockedChromeColumns = $derived(
+        [
+            isLeftSidebarVisible ? 'left' : '',
+            isRightSidebarVisible ? 'right' : '',
+            toolbarDockedAsRail ? 'rail' : '',
+            galleryDocked && internalViewerState.dockSide === 'top'
+                ? 'gallery-top'
+                : '',
+            galleryDocked && internalViewerState.dockSide === 'bottom'
+                ? 'gallery-bottom'
+                : '',
+        ]
+            .filter(Boolean)
+            .join(' '),
+    );
 
     /**
      * Which edge of the center column a floating toolbar occupies, or null when
@@ -1193,7 +1369,7 @@
      * centered), so one side's worth of inset covers every preset.
      */
     let floatingToolbarSide = $derived(
-        !toolbarDockedAsRail && resolvedControls !== 'unified'
+        !toolbarDockedAsRail && !railLeaving && resolvedControls !== 'unified'
             ? (internalViewerState.config.toolbar?.side ?? 'left')
             : null,
     );
@@ -1202,10 +1378,23 @@
     let canvases = $derived(internalViewerState.canvases);
     let currentCanvasIndex = $derived(internalViewerState.currentCanvasIndex);
 
-    // Effect to trigger deferred search once manifest is loaded
+    /**
+     * Run a queued search once the manifest it was queued for is the one
+     * loaded.
+     *
+     * `manifestId === internalViewerState.manifestId` is the load-bearing half.
+     * `setManifest` is asynchronous, so between a host changing both props and
+     * the fetch resolving the state still holds the OUTGOING manifest — fully
+     * loaded, and so indistinguishable here from an arrival — and a search run
+     * then goes to that manifest's search service and parses its hits against
+     * that manifest's canvases. A prop-less viewer (`manifestJson`,
+     * `contentState`, or the collection path) names nothing to agree with, and
+     * waits on the entry alone as before.
+     */
     $effect(() => {
         if (
             internalViewerState.pendingSearchQuery &&
+            (!manifestId || manifestId === internalViewerState.manifestId) &&
             manifestData &&
             !manifestData.isFetching &&
             !manifestData.error &&
@@ -1245,41 +1434,144 @@
             !canvases[currentCanvasIndex]
         )
             return null;
-        return getThumbnailSrc(canvases[currentCanvasIndex]) || null;
+        const canvas = canvases[currentCanvasIndex];
+        return (
+            getThumbnailSrc(
+                canvas,
+                200,
+                internalViewerState.getSelectedChoice(
+                    getCanvasId(canvas) ?? '',
+                ),
+            ) || null
+        );
     });
 
-    let tileSources = $derived.by(() => {
-        if (
-            !canvases ||
-            currentCanvasIndex === -1 ||
-            !canvases[currentCanvasIndex]
-        ) {
-            if (!manifestData?.isFetching) {
-                logger.debug('No canvas found');
-            }
-            return null;
-        }
-
-        const tileSourcesArray = getViewerTileSources({
-            canvases,
+    /**
+     * The canvases on screen this frame — the current one, its spread mate, or
+     * the whole manifest in continuous mode.
+     *
+     * Derived ONCE and asked two questions below, which is what keeps
+     * "something here paints" and "something here cannot be painted" answers
+     * about the same set. In continuous mode this is `canvases` itself, so
+     * navigating re-runs this derivation and hands back the identical array —
+     * and the two derivations that read it do not re-run at all.
+     */
+    let visibleCanvases = $derived(
+        getVisibleViewerCanvases({
+            canvases: canvases ?? [],
             currentCanvasIndex,
             currentCanvasId: internalViewerState.canvasId,
             viewingMode: internalViewerState.viewingMode,
             pagedOffset: internalViewerState.pagedOffset,
-            getSelectedChoice: (canvasId) =>
-                internalViewerState.getSelectedChoice(canvasId),
-        });
+        }),
+    );
 
-        if (!tileSourcesArray) {
-            if (!manifestData?.isFetching) {
-                logger.debug('No images/content in canvas');
-            }
-            return null;
-        }
+    /**
+     * Whether anything on screen resolves an image core can request — the
+     * renderability half of the gate below.
+     *
+     * A BOOLEAN rather than the resolved images, because nothing downstream
+     * wants a list: painting resolves its own descriptors
+     * (`renderer/canvasDescriptors.ts`), and the only questions asked here are
+     * whether to mount the renderer at all and — through {@link refitSignal} —
+     * whether the world under the reader has anything to fit. Existence is
+     * therefore all that is computed: {@link canvasPaintsImage} stops at the
+     * first canvas that paints anything, so a long continuous manifest does not
+     * resolve every folio's images to answer it (user story 7).
+     */
+    let canvasesRenderable = $derived(
+        visibleCanvases.some((canvas) =>
+            canvasPaintsImage(canvas, {
+                getSelectedChoice: (canvasId) =>
+                    internalViewerState.getSelectedChoice(canvasId),
+            }),
+        ),
+    );
 
-        logger.debug('Derived tileSources:', tileSourcesArray);
-        return tileSourcesArray;
+    /**
+     * The Choice selected on each visible canvas, joined.
+     *
+     * Its own derivation rather than part of {@link refitSignal}, and that is
+     * the whole reason navigation is cheap in continuous mode: `visibleCanvases`
+     * is the same array before and after a move there, so this does not re-run
+     * and the signal below is a string concatenation over a value already in
+     * hand. Selecting a different Choice is a different picture in the same
+     * rects, which the renderer cannot see in its geometry — so it has to
+     * arrive as a change signal.
+     */
+    let visibleChoiceKey = $derived(
+        visibleCanvases
+            .map((canvas) => {
+                const canvasId = getCanvasId(canvas) ?? '';
+                return `${canvasId}=${internalViewerState.getSelectedChoice(canvasId) ?? ''}`;
+            })
+            .join('|'),
+    );
+
+    /**
+     * The region the current navigation carried, as a value — `''` for none.
+     *
+     * Part of the refit signal because a navigation to the canvas ALREADY
+     * showing is still a navigation when it names a region: a content state
+     * dropped onto the viewer, or a table-of-contents entry pointing into the
+     * open leaf, changes no canvas, no spread and no Choice, so without this the
+     * renderer's guard would find nothing owed and never fit the region — which
+     * would then sit in viewer state unspent until some later navigation.
+     *
+     * Spending the region flips this back, and the refit that follows is the
+     * `'settled'` case `fitCurrentCanvas` documents: the region has already been
+     * framed under the geometry in force, so that fit leaves the view alone.
+     */
+    let navigationRegionKey = $derived.by(() => {
+        const region = internalViewerState.navigationRegion;
+        return region
+            ? `${region.x},${region.y},${region.width},${region.height}`
+            : '';
     });
+
+    /**
+     * What the renderer refits on: the world under the reader, as a value.
+     *
+     * The renderer keys its idempotence guard on this (`refitForCurrentWorld`),
+     * so it carries exactly the changes a refit is owed and nothing else — the
+     * current canvas and its spread offset, which is how navigation arrives,
+     * the region that navigation carried, and the selected Choices. Mode,
+     * direction, manifest and pairing scale reach the renderer through its own
+     * world key, and geometry through `paintedGeometry`; none of them are
+     * repeated here.
+     *
+     * `null` when nothing paints, and that nullness is load-bearing: an
+     * unsupported-presentation manifest mounts the renderer with no image in
+     * it, and a constant null is what keeps navigating such a manifest from
+     * refitting a view that has nothing to fit.
+     */
+    let refitSignal = $derived(
+        canvasesRenderable
+            ? `${currentCanvasIndex}|${internalViewerState.canvasId ?? ''}|${internalViewerState.pagedOffset}|${visibleChoiceKey}|${navigationRegionKey}`
+            : null,
+    );
+
+    /**
+     * Whether any canvas on screen paints something core cannot render — a
+     * film, a sound recording.
+     *
+     * Such a canvas resolves NO image, which used to mean the viewer covered the
+     * whole surface with "no image found" and never mounted the renderer at all.
+     * It has to: the canvas keeps its layout rect and gets the **unsupported
+     * presentation** painted over it by the renderer, which is a per-canvas
+     * treatment and not a viewer-wide cover (CONTEXT.md; ADR 0017).
+     *
+     * Asked of the whole visible set rather than of the current canvas, for the
+     * reason {@link visibleCanvases} exists: in a spread or in continuous mode
+     * the current canvas may paint nothing at all while a sibling on screen is
+     * the audio one, and asking only about the current canvas would take the
+     * viewer-wide cover and lose the sibling's treatment.
+     */
+    let visibleCanvasUnsupported = $derived(
+        visibleCanvases.some((canvas) =>
+            isUnsupportedCanvasFor(internalViewerState, canvas),
+        ),
+    );
 
     let tileSourceError = $derived(
         internalViewerState.tileSourceError as ViewerTileSourceError,
@@ -1296,87 +1588,204 @@
             ? tileSourceError.details
             : null,
     );
+
+    /**
+     * The plugin **overlay layers** to place over the image.
+     *
+     * Reading the revision counter is what establishes the dependency: the
+     * registry's list is a plain frozen array rebuilt on change, not reactive
+     * state, exactly as the paint hook's is — the two registries are
+     * deliberately structurally identical, so this is one idiom rather than two.
+     *
+     * The read must be part of the returned EXPRESSION. A bare
+     * `void internalViewerState.overlayLayerRevision;` statement is deletable by
+     * any minifier that treats a property read as pure, and what that costs is
+     * invisible from source: the registry accepts layers, the counter
+     * increments, and no container is ever created — in the shipped web
+     * component only, because every test loads the element from source.
+     * `pure_getters` is off for that reason (`src/packaging/terserElement.ts`),
+     * and `distributions.test.ts` asserts the read survives minification. The
+     * guard is always true; it exists so the read cannot be dropped.
+     */
+    let overlayLayers = $derived.by(() =>
+        internalViewerState.overlayLayerRevision >= 0
+            ? internalViewerState.overlayLayers
+            : [],
+    );
 </script>
+
+<!-- The docked gallery in a side column's rail. -->
+{#snippet galleryRail()}
+    <div
+        class="gallery-host"
+        style="--ui-gallery-rail: {galleryExtent}px"
+        transition:slideAxis|global={{ axis: 'width' }}
+    >
+        <ThumbnailGallery />
+    </div>
+{/snippet}
+
+<!-- The docked gallery in a band across the top or bottom of the center column. -->
+{#snippet galleryBand()}
+    <div
+        class="gallery-band"
+        style="--ui-gallery-band: {galleryExtent}px"
+        transition:slideAxis|global={{ axis: 'height' }}
+    >
+        <ThumbnailGallery />
+    </div>
+{/snippet}
+
+<!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
+     sliding on the same clock as the panel beside it; `.rail-pin` holds the
+     buttons at full size against the screen edge so they neither collapse
+     nor move while it does. See dockRailLeft / dockRailRight. -->
+{#snippet toolbarRail(side: 'left' | 'right')}
+    <div
+        class="toolbar-rail-host rail-col rail-{side}"
+        class:opaque
+        transition:slideAxis|global={{ axis: 'width', clip: false }}
+        onintrostart={() => (railLeaving = false)}
+        onoutrostart={() => (railLeaving = true)}
+        onoutroend={() => (railLeaving = false)}
+    >
+        <div class="rail-pin">
+            <Toolbar docked />
+        </div>
+    </div>
+{/snippet}
+
+<!-- A side column: its panel stack, then the gallery when docked to that side.
+     `closeAlign` is physical, so only the right column needs the hint: its
+     close button would otherwise sit on the screen edge the docked rail takes,
+     where the left column's `end` is already the image-facing edge. -->
+{#snippet sideColumn(side: 'left' | 'right')}
+    {@const panels = side === 'left' ? visiblePanelsLeft : visiblePanelsRight}
+    <div class="side-col side-col-{side}" class:opaque>
+        {#if panels.length > 0}
+            <div
+                class="panel-host"
+                style="width: {side === 'left'
+                    ? leftPanelWidth
+                    : rightPanelWidth}"
+                transition:slideAxis|global={{ axis: 'width' }}
+            >
+                <PanelStack
+                    {panels}
+                    closeAlign={side === 'right' && dockRailRight
+                        ? 'start'
+                        : 'end'}
+                    {side}
+                />
+            </div>
+        {/if}
+
+        {#if galleryDocked && internalViewerState.dockSide === side}
+            {@render galleryRail()}
+        {/if}
+    </div>
+{/snippet}
+
+<!--
+    The plugin panels docked at one position. `overlay` floats over the image
+    inside `.viewer-area`, `bottom` is a band below it in the center column —
+    different DOM parents, which is why this is rendered twice rather than
+    looped once.
+-->
+{#snippet pluginPanelsAt(position: 'overlay' | 'bottom')}
+    {#each internalViewerState.pluginPanels as panel (panel.id)}
+        {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === position}
+            <div
+                class:plugin-overlay={position === 'overlay'}
+                class:plugin-bottom={position === 'bottom'}
+            >
+                {#if panel.mount}
+                    <PluginMountHost mount={panel.mount} />
+                {/if}
+            </div>
+        {/if}
+    {/each}
+{/snippet}
+
+<!--
+    The viewer-wide cover over the image surface: a blurred thumbnail of the
+    canvas it could not show, and a card naming the reason. `role="alert"` for a
+    failure the reader's action caused (an auth challenge, a tile that would not
+    load), `role="status"` for a canvas that simply paints nothing.
+-->
+{#snippet cover(
+    role: 'alert' | 'status',
+    locked: boolean,
+    message: string | null,
+    details: string | null,
+)}
+    <div class="overlay-cover" {role}>
+        {#if currentCanvasThumbnail}
+            <img src={currentCanvasThumbnail} alt="" class="blur-bg" />
+            <div class="dim-50"></div>
+        {/if}
+        <div class="error-card">
+            {#if locked}
+                <!-- Inline rather than a manifest glyph: the padlock is drawn
+                     here and nowhere else in the library, so enrolling it in the
+                     per-artifact icon tables would ship the lookup as well as
+                     the shape. -->
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="warn-icon"
+                >
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <p class="msg">{message}</p>
+            {:else}
+                <Icon
+                    name="ImageBroken"
+                    size={48}
+                    color="var(--tri-color-warning)"
+                />
+                <p class="msg msg-strong">{message}</p>
+                {#if details}
+                    <p class="msg-details">{details}</p>
+                {/if}
+            {/if}
+        </div>
+    </div>
+{/snippet}
 
 <div
     bind:this={rootElement}
     id="triiiceratops-viewer"
+    role="group"
+    ondragover={onDragOver}
+    ondrop={onDrop}
     class="viewer-root"
-    class:opaque={!internalViewerState.config.transparentBackground}
+    class:opaque
     data-controls={resolvedControls}
     data-nav-style={resolvedNavStyle}
     data-nav-edge={resolvedNavEdge}
     data-nav-align={resolvedNavAlign}
 >
-    <!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
-         OUTSIDE the panel column's slideWidth outro, so it stays full size
-         through the close and then swaps atomically with the floating toolbar
-         (see dockRailLeft) — no collapsing icons, no duplicate, no empty gap. -->
     {#if dockRailLeft}
-        <div
-            class="toolbar-rail-host rail-col"
-            class:opaque={!internalViewerState.config.transparentBackground}
-        >
-            <Toolbar docked />
-        </div>
+        {@render toolbarRail('left')}
     {/if}
 
-    <!-- Left Column -->
     {#if isLeftSidebarVisible}
-        <div
-            class="side-col side-col-left"
-            class:opaque={!internalViewerState.config.transparentBackground}
-        >
-            {#if visiblePanelsLeft.length > 0}
-                <div
-                    class="panel-host"
-                    style="width: {leftPanelWidth}"
-                    transition:slideWidth|global
-                >
-                    <PanelStack
-                        panels={visiblePanelsLeft}
-                        closeAlign="end"
-                        side="left"
-                    />
-                </div>
-            {/if}
-
-            <!-- Gallery (when docked left) -->
-            {#if galleryDocked && internalViewerState.dockSide === 'left'}
-                <div
-                    class="gallery-host"
-                    style="--ui-gallery-rail: {galleryExtent}px"
-                    transition:slideWidth|global
-                >
-                    <ThumbnailGallery {canvases} />
-                </div>
-            {/if}
-        </div>
+        {@render sideColumn('left')}
     {/if}
 
-    <!-- Center Column -->
-    <div id="triiiceratops-center-panel" class="center-col">
-        <!-- Top Area (Gallery) -->
+    <div class="center-col">
         {#if galleryDocked && internalViewerState.dockSide === 'top'}
-            <div
-                class="gallery-band"
-                style="--ui-gallery-band: {galleryExtent}px"
-            >
-                <ThumbnailGallery {canvases} />
-            </div>
+            {@render galleryBand()}
         {/if}
 
-        <!-- Main Viewer Area -->
-        <div
-            class="viewer-area"
-            class:opaque={!internalViewerState.config.transparentBackground}
-            role={internalViewerState.config.enableDragDrop
-                ? 'region'
-                : undefined}
-            ondragover={handleDragOver}
-            ondragleave={handleDragLeave}
-            ondrop={handleDrop}
-        >
+        <div class="viewer-area" class:opaque>
             {#if manifestData?.isFetching}
                 <div class="centered">
                     <Spinner
@@ -1389,150 +1798,110 @@
                     {m.error_prefix()}
                     {manifestData.error}
                 </div>
-            {:else if tileSources}
+            {:else if canvasesRenderable || visibleCanvasUnsupported}
                 {#if tileSourceError}
-                    <div class="overlay-cover" role="alert">
-                        {#if currentCanvasThumbnail}
-                            <img
-                                src={currentCanvasThumbnail}
-                                alt=""
-                                class="blur-bg"
-                            />
-                            <div class="dim-50"></div>
-                        {/if}
-                        <div class="error-card">
-                            {#if tileSourceError.type === 'auth'}
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    class="warn-icon"
-                                >
-                                    <rect
-                                        x="3"
-                                        y="11"
-                                        width="18"
-                                        height="11"
-                                        rx="2"
-                                        ry="2"
-                                    />
-                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                </svg>
-                                <p class="msg">
-                                    {m.error_auth_required()}
-                                </p>
-                            {:else}
-                                <Icon
-                                    name="ImageBroken"
-                                    size={48}
-                                    color="var(--tri-color-warning)"
-                                />
-                                <p class="msg msg-strong">
-                                    {tileSourceErrorMessage}
-                                </p>
-                                {#if tileSourceErrorDetails}
-                                    <p class="msg-details">
-                                        {tileSourceErrorDetails}
-                                    </p>
-                                {/if}
-                            {/if}
-                        </div>
-                    </div>
+                    {@const auth = tileSourceError.type === 'auth'}
+                    {@render cover(
+                        'alert',
+                        auth,
+                        auth ? m.error_auth_required() : tileSourceErrorMessage,
+                        auth ? null : tileSourceErrorDetails,
+                    )}
                 {:else}
-                    <OSDViewer
-                        {tileSources}
+                    <!--
+                        The one renderer. There is no renderer selection: the
+                        first-party Canvas2D host is what the viewer mounts, and
+                        no build flag, config option, or capability can change
+                        that (ADR 0012).
+                    -->
+                    <CanvasHost
+                        {refitSignal}
                         viewerState={internalViewerState}
+                        dockedChrome={dockedChromeColumns}
                     />
                 {/if}
-            {:else if manifestData && !manifestData.isFetching && !tileSources}
-                <div class="overlay-cover" role="status">
-                    {#if currentCanvasThumbnail}
-                        <img
-                            src={currentCanvasThumbnail}
-                            alt=""
-                            class="blur-bg"
-                        />
-                        <div class="dim-50"></div>
-                    {/if}
-                    <div class="error-card">
-                        <Icon
-                            name="ImageBroken"
-                            size={48}
-                            color="var(--tri-color-warning)"
-                        />
-                        <p class="msg msg-strong">
-                            {m.no_image_found()}
-                        </p>
-                    </div>
-                </div>
+            {:else if manifestData && !manifestData.isFetching}
+                <!--
+                    Nothing resolved AND nothing to be honest about: a canvas
+                    with no painting annotation at all (Cookbook recipe 0283, an
+                    IxIF element). A canvas whose content is merely
+                    undisplayable took the renderer branch above and gets the
+                    unsupported presentation over its own rect instead.
+                -->
+                {@render cover('status', false, m.no_image_found(), null)}
             {/if}
 
+            <!--
+                The annotation SHAPES, and then the connector lines between them
+                and the annotation panel. Two distinct concerns, both mounted
+                here rather than inside a renderer: they are bound to the `frame`
+                cadence and to the viewport coordinate helpers, so neither knows
+                which renderer is mounted.
+
+                The shape layer comes AFTER the renderer in DOM order, so Tab
+                reaches the image surface before the things marked on it, and it
+                is a SIBLING of the renderer root rather than a child — the
+                renderer root is `role="application"`, which suppresses browse
+                mode for its whole subtree and would hide these labels from NVDA
+                and JAWS. `.viewer-area` is the shared positioning context, which
+                is what makes the surface-local coordinates
+                `ViewerState.canvasToScreen` returns this layer's own.
+            -->
+            <AnnotationShapeOverlay />
             <AnnotationOverlay />
 
+            <!--
+                Plugin **overlay layers**: one container per registered layer,
+                which the plugin renders into and owns.
+
+                TWO INDEPENDENT REQUIREMENTS, both load-bearing, both easy to
+                break by a refactor that looks tidier:
+
+                1. This is OUTSIDE the `{#if}` that mounts `CanvasHost`, a
+                   sibling of the annotation overlays above. Grouping it with the
+                   renderer would put every plugin's DOM inside the gate a
+                   manifest change closes, destroying and rebuilding it — which
+                   fails invisibly in any test that only ever loads one manifest.
+                2. It is KEYED on layer id. Unkeyed, node reuse is positional, so
+                   registering or disposing one layer can hand a SURVIVING layer
+                   a different container node — and `PluginMountHost` remounts
+                   when its node is recreated. Same broken guarantee, different
+                   mechanism.
+
+                The wrapper is what provides the box: `PluginMountHost`'s own
+                element is `display: contents` and provides none, so positioning
+                it instead would leave plugin children measured against the wrong
+                ancestor — which looks almost right until a panel is docked.
+            -->
+            {#each overlayLayers as layer (layer.id)}
+                <div class="plugin-overlay-layer">
+                    <PluginMountHost mount={layer.mount} />
+                </div>
+            {/each}
+
             <!-- Floating Toolbar (suppressed while the docked rail occupies its
-                 side — including the tail of the un-dock animation, since
-                 toolbarDockedAsRail is latched — or in `unified` controls where
-                 the buttons live in the nav). The hand-off is atomic: this mounts
-                 in the same flush the rail column unmounts. -->
-            {#if !toolbarDockedAsRail && resolvedControls !== 'unified'}
+                 side — including the tail of the un-dock animation, which is
+                 what `railLeaving` covers — or in `unified` controls where the
+                 buttons live in the nav). The rail's pinned buttons end the
+                 slide at this toolbar's own position, so the hand-off at
+                 `outroend` moves nothing on screen. -->
+            {#if !toolbarDockedAsRail && !railLeaving && resolvedControls !== 'unified'}
                 <Toolbar />
             {/if}
 
-            <!-- Overlay Plugin Panels -->
-            {#each internalViewerState.pluginPanels as panel (panel.id)}
-                {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'overlay'}
-                    <div class="plugin-overlay">
-                        {#if panel.mount}
-                            <PluginMountHost mount={panel.mount} />
-                        {/if}
-                    </div>
-                {/if}
-            {/each}
+            {@render pluginPanelsAt('overlay')}
 
-            <!-- Viewer Controls (Canvas Navigation + Zoom + IIIF Choice Selector) -->
             <ViewerControls />
-
-            {#if internalViewerState.config.enableDragDrop && isDragOver}
-                <div class="drag-overlay">
-                    <div class="drag-hint">
-                        {m.drop_manifest_hint()}
-                    </div>
-                </div>
-            {/if}
-
-            <!-- Float-mode Gallery -->
-            {#if galleryDocked && internalViewerState.dockSide === 'none'}
-                <ThumbnailGallery {canvases} />
-            {/if}
         </div>
 
-        <!-- Bottom Area (Gallery) -->
         {#if galleryDocked && internalViewerState.dockSide === 'bottom'}
-            <div
-                class="gallery-band"
-                style="--ui-gallery-band: {galleryExtent}px"
-            >
-                <ThumbnailGallery {canvases} />
-            </div>
+            {@render galleryBand()}
         {/if}
 
-        <!-- Bottom Area (Plugin Panels) -->
-        {#each internalViewerState.pluginPanels as panel (panel.id)}
-            {#if panel.isVisible() && internalViewerState.getPluginPosition(panel.pluginId) === 'bottom'}
-                <div class="plugin-bottom">
-                    {#if panel.mount}
-                        <PluginMountHost mount={panel.mount} />
-                    {/if}
-                </div>
-            {/if}
-        {/each}
+        {@render pluginPanelsAt('bottom')}
 
         <!-- Expanded Gallery. An overlay layer covering the center column, so
-             OSD keeps its size underneath (no re-layout or re-fit when it
+             the renderer keeps its size underneath (no re-layout or re-fit when it
              collapses) and the side panels stay visible and usable. Last child
              of the column and z-index above the bands so it covers the docked
              strip site and the bottom plugin panels. -->
@@ -1543,55 +1912,17 @@
                 class:inset-right={floatingToolbarSide === 'right'}
                 transition:expandGallery|global={galleryExpandFrom}
             >
-                <ThumbnailGallery {canvases} />
+                <ThumbnailGallery />
             </div>
         {/if}
     </div>
 
-    <!-- Right Column -->
     {#if isRightSidebarVisible}
-        <div
-            class="side-col side-col-right"
-            class:opaque={!internalViewerState.config.transparentBackground}
-        >
-            {#if visiblePanelsRight.length > 0}
-                <div
-                    class="panel-host"
-                    style="width: {rightPanelWidth}"
-                    transition:slideWidth|global
-                >
-                    <PanelStack
-                        panels={visiblePanelsRight}
-                        closeAlign={dockRailRight ? 'start' : 'end'}
-                        side="right"
-                    />
-                </div>
-            {/if}
-
-            <!-- Gallery (when docked right) -->
-            {#if galleryDocked && internalViewerState.dockSide === 'right'}
-                <div
-                    class="gallery-host"
-                    style="--ui-gallery-rail: {galleryExtent}px"
-                    transition:slideWidth|global
-                >
-                    <ThumbnailGallery {canvases} />
-                </div>
-            {/if}
-        </div>
+        {@render sideColumn('right')}
     {/if}
 
-    <!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
-         OUTSIDE the panel column's slideWidth outro, so it stays full size
-         through the close and then swaps atomically with the floating toolbar
-         (see dockRailRight) — no collapsing icons, no duplicate, no empty gap. -->
     {#if dockRailRight}
-        <div
-            class="toolbar-rail-host rail-col"
-            class:opaque={!internalViewerState.config.transparentBackground}
-        >
-            <Toolbar docked />
-        </div>
+        {@render toolbarRail('right')}
     {/if}
 </div>
 
@@ -1618,7 +1949,7 @@
         display: flex;
         flex-direction: row;
         z-index: 20;
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.15s var(--ui-ease);
     }
     .side-col.opaque {
         background-color: var(--tri-viewer-bg);
@@ -1640,9 +1971,28 @@
        the panel region — win regardless of DOM order. */
     .toolbar-rail-host.rail-col {
         z-index: 21;
+        display: flex;
     }
     .toolbar-rail-host.rail-col.opaque {
         background-color: var(--tri-viewer-bg);
+    }
+    /* Anchor the buttons to the SCREEN edge while the column's width animates,
+       so the toolbar holds still and full size through the slide and the column
+       opens (or closes) behind it. Each rail aligns to the edge it is docked
+       against, which is what puts the overhang on the inboard side;
+       `flex-shrink: 0` on the pin is what makes it an overhang rather than a
+       squeeze. */
+    .toolbar-rail-host.rail-left {
+        justify-content: flex-start;
+    }
+    .toolbar-rail-host.rail-right {
+        justify-content: flex-end;
+    }
+    .rail-pin {
+        display: flex;
+        flex: 0 0 auto;
+        height: 100%;
+        min-height: 0;
     }
 
     .panel-host {
@@ -1682,7 +2032,13 @@
         width: 100%;
         position: relative;
         pointer-events: auto;
-        z-index: 20;
+        /* Above `.control-bar` (41) and `.plugin-overlay` (42), both children of
+           the sibling `.viewer-area` — which sets no z-index, so they stack in
+           this column directly against the band. The band's box never overlaps
+           them, but the expand tab's tooltip escapes the band toward the canvas
+           and would otherwise be painted under whichever chrome sits on that
+           edge. Below the annotation shapes (50). */
+        z-index: 43;
     }
 
     .gallery-expanded {
@@ -1738,7 +2094,6 @@
         align-items: center;
         justify-content: center;
         pointer-events: none;
-        overflow: hidden;
     }
     .blur-bg {
         position: absolute;
@@ -1775,9 +2130,7 @@
             transparent
         );
         border-radius: 0.75rem;
-        box-shadow:
-            0 10px 15px -3px #0000001a,
-            0 4px 6px -4px #0000001a;
+        box-shadow: var(--ui-shadow-lg);
     }
     .warn-icon {
         width: 3rem;
@@ -1800,95 +2153,53 @@
         max-width: 20rem;
     }
 
+    /*
+     * A plugin panel positioned `overlay`. Above `.control-bar` (41), which is
+     * itself above the plugin overlay LAYERS at 40. The two cases differ in
+     * what they contain: a layer spans the viewer area and its opted-in child
+     * is usually the content itself (a claimed AV canvas's media element), so
+     * the bar must paint over it or lose every control; a panel is discrete
+     * chrome the reader operates, and only its own content takes pointer
+     * events, so where a panel and the bar overlap the panel is the thing being
+     * used and has to win. Below the drag overlay (45) and core's annotation
+     * shapes (50).
+     */
     .plugin-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 42;
+        pointer-events: none;
+    }
+    /*
+     * A plugin overlay layer's box. Its origin is `.viewer-area`'s, which is
+     * what makes it `ViewerState.canvasToScreen`'s origin too — a published
+     * contract, so a plugin positions an element straight from a projected
+     * point.
+     *
+     * `z-index: 40` matches `.plugin-overlay` and sits BELOW core's annotation
+     * shapes at 50: those are focusable targets carrying the viewer's own
+     * accessible names, and a plugin layer painted over them would break that
+     * silently. Transparent to pointer events, so adding a layer cannot cost the
+     * reader panning; plugin children opt in with `pointer-events: auto`.
+     *
+     * `overflow: hidden` because a layer's children are positioned from
+     * projected canvas points, which routinely fall outside this box — a canvas
+     * fitted to the viewer's height overhangs it sideways, any zoom overhangs it
+     * in both axes. Without the clip a plugin child that opted into pointer
+     * events extends over the side columns and, at this z-index, takes the taps
+     * aimed at the toolbar and the panels docked there.
+     */
+    .plugin-overlay-layer {
         position: absolute;
         inset: 0;
         z-index: 40;
         pointer-events: none;
+        overflow: hidden;
     }
     .plugin-bottom {
         position: relative;
         width: 100%;
         z-index: 40;
         pointer-events: auto;
-    }
-
-    .drag-overlay {
-        position: absolute;
-        inset: 0;
-        z-index: 45;
-        pointer-events: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: color-mix(
-            in oklab,
-            var(--tri-viewer-bg) 70%,
-            transparent
-        );
-        backdrop-filter: blur(4px);
-    }
-    .drag-hint {
-        border-radius: var(--tri-radius-box);
-        border: 2px dashed var(--tri-color-primary);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-viewer-bg) 90%,
-            transparent
-        );
-        padding-inline: 1.5rem;
-        padding-block: 1rem;
-        font-size: 0.875rem;
-        line-height: 1.25rem;
-        font-weight: 500;
-        color: var(--tri-content);
-        box-shadow:
-            0 10px 15px -3px #0000001a,
-            0 4px 6px -4px #0000001a;
-    }
-
-    /* Scoped scrollbar styles for the viewer */
-    :global(#triiiceratops-viewer *) {
-        scrollbar-width: thin;
-        scrollbar-color: color-mix(
-                in oklab,
-                var(--tri-content) 20%,
-                transparent
-            )
-            transparent;
-    }
-
-    :global(#triiiceratops-viewer ::-webkit-scrollbar) {
-        width: 4px;
-        height: 4px;
-    }
-
-    :global(#triiiceratops-viewer ::-webkit-scrollbar-track) {
-        background: transparent;
-        border-radius: 9999px;
-    }
-
-    :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb) {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-content) 20%,
-            transparent
-        );
-        border-radius: 9999px;
-        border: 1px solid transparent;
-        background-clip: padding-box;
-    }
-
-    :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb:hover) {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-content) 40%,
-            transparent
-        );
-    }
-
-    :global(#triiiceratops-viewer ::-webkit-scrollbar-corner) {
-        background: transparent;
-        border-radius: 9999px;
     }
 </style>

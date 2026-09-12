@@ -9,6 +9,11 @@
 // This inspects the ACTUAL packed `.tgz` (not `dist/`). A file passes only if it
 // matches an ALLOW rule AND no REJECT rule — so an allowed extension (`.js`)
 // living in a rejected location (`dist/test/…`, `__fixtures__`) still fails.
+//
+// One rule needs more than the allowlist: no published package may ship a
+// typeface. A font FILE is already excluded by the extension allowlist, but a
+// face embedded in a stylesheet as a data URI is ordinary CSS bytes, so the
+// stylesheets are read as well — see `assertTarballNoEmbeddedFonts`.
 
 import { execFileSync } from 'node:child_process';
 
@@ -25,8 +30,8 @@ const TOP_LEVEL_ALLOWED = new Set([
     'CHANGELOG.md',
 ]);
 
-// Files the CORE tarball must CONTAIN, not merely be permitted to contain
-// (framework-wrappers ticket 10). The allowlist above is a ceiling; these are
+// Files the CORE tarball must CONTAIN, not merely be permitted to contain.
+// The allowlist above is a ceiling; these are
 // the floor. `dist/react.*` and `dist/vue.*` are the precompiled framework
 // wrappers `triiiceratops/react` and `triiiceratops/vue` resolve to — the
 // subpaths are part of core's published contract, so a build that silently
@@ -47,6 +52,16 @@ const REQUIRED_CORE_DIST_FILES = [
     // Svelte consumers being unable to import the component at all.
     'dist/svelte.js',
     'dist/svelte.d.ts',
+    // The German chrome catalog, published as an asset rather than bundled into
+    // the element artifacts. `./locales/*` is a wildcard subpath, so
+    // `assertCoreExportTargets` cannot derive this one from the export map —
+    // and a build that stopped emitting it would leave every German-reading
+    // host importing nothing.
+    'dist/locales/de.json',
+    // Imported by the shipped chrome itself (`dist/state/i18n.svelte.js`), so
+    // its absence is a runtime failure in every consumer, not a missing
+    // subpath.
+    'dist/messages/en.json',
 ];
 
 /**
@@ -66,6 +81,11 @@ const CORE_FORBIDDEN_RUNTIME_DEPS = ['react', 'react-dom', 'svelte', 'vue'];
 // Extensions permitted inside `dist/`: JS + Svelte source (core is
 // source-distributed), TypeScript declarations, CSS, and source maps. Notably
 // ABSENT: `.json` (would admit fixture manifests), `.ico`/images, `.html`.
+//
+// The one exception is the locale catalogs, admitted by `isAllowedPath` from
+// their two directories only — `dist/messages/en.json`, which the shipped
+// chrome imports, and `dist/locales/*.json`, the assets the
+// `triiiceratops/locales/*` subpath publishes.
 //
 // `dist/react.js`, `dist/react.d.ts`, `dist/vue.js`, and `dist/vue.d.ts` — the
 // framework wrapper entries — are admitted by the `.js` / `.d.ts` rules here and
@@ -106,12 +126,18 @@ function isRejectedPath(rel) {
     return null;
 }
 
+/** Directories under `dist/` whose `.json` files are locale catalogs. */
+const LOCALE_DIRS = ['messages', 'locales'];
+
 /** Does `rel` match an allow rule (correct location + permitted kind)? */
 function isAllowedPath(rel) {
     if (!rel.includes('/')) return TOP_LEVEL_ALLOWED.has(rel);
-    const [first] = rel.split('/');
-    if (first !== 'dist') return false;
-    const base = rel.slice(rel.lastIndexOf('/') + 1);
+    const segments = rel.split('/');
+    if (segments[0] !== 'dist') return false;
+    const base = segments[segments.length - 1];
+    if (base.endsWith('.json')) {
+        return segments.length === 3 && LOCALE_DIRS.includes(segments[1]);
+    }
     return ALLOWED_DIST_SUFFIXES.some((s) => base.endsWith(s));
 }
 
@@ -208,7 +234,7 @@ export function readTarballPackageJson(tarballPath) {
 }
 
 /**
- * Classify one `peerDependencies` value from a PACKED tarball (ticket 35).
+ * Classify one `peerDependencies` value from a PACKED tarball.
  *
  * A published peer must be a semver RANGE — never a bare exact pin and never a
  * residual `workspace:` protocol. Workspace-internal peers are declared
@@ -258,6 +284,10 @@ export function collectExportTargets(pkg) {
     const targets = new Set();
     const visit = (node) => {
         if (typeof node === 'string') {
+            // A wildcard subpath (`./dist/locales/*`) names a pattern, not a
+            // file; what it must actually resolve to is asserted by
+            // REQUIRED_CORE_DIST_FILES instead.
+            if (node.includes('*')) return;
             if (node.startsWith('./dist/')) targets.add(node.slice(2));
             return;
         }
@@ -273,7 +303,7 @@ export function collectExportTargets(pkg) {
 
 /**
  * Assert the CORE tarball actually ships what its export map promises, and that
- * the framework wrapper subpaths are among them (framework-wrappers ticket 10).
+ * the framework wrapper subpaths are among them.
  *
  * Two failure modes this catches that the allowlist cannot, because the
  * allowlist only says what MAY appear:
@@ -342,7 +372,7 @@ export function assertCoreExportTargets(tarballPath, pkgName) {
 }
 
 /**
- * Assert core's framework peer metadata (framework-wrappers ticket 10).
+ * Assert core's framework peer metadata.
  *
  * `react`, `vue`, and `svelte` must be declared peers, marked OPTIONAL, and must
  * not appear in `dependencies`. Getting this wrong is what turns "install
@@ -391,6 +421,117 @@ export function assertCoreOptionalPeers(tarballPath, pkgName) {
 }
 
 /**
+ * Every `@font-face` rule declared in a stylesheet, as its own text.
+ *
+ * A published package may not ship a typeface. The file-extension half of that
+ * rule is enforced by the allowlist above — no `.woff2` suffix is admitted
+ * anywhere — but the sharper failure is a face EMBEDDED in a stylesheet as a
+ * data URI, which arrives as ordinary CSS bytes and no extension rule can see.
+ * The comparison's own measurements record a competitor shipping 58% of its
+ * stylesheet that way.
+ *
+ * Any `@font-face` at all is the failure, embedded or linked: the viewer names
+ * two font custom properties and falls back to the reader's system faces (see
+ * the theming guide at `/docs/theming/`), so a consumer's page carries only the
+ * type it chose.
+ */
+export function findFontFaceRules(css) {
+    const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const rules = [];
+    const re = /@font-face\s*\{/gi;
+    let m;
+    while ((m = re.exec(withoutComments))) {
+        let depth = 1;
+        let i = m.index + m[0].length;
+        for (; i < withoutComments.length && depth; i++) {
+            if (withoutComments[i] === '{') depth++;
+            else if (withoutComments[i] === '}') depth--;
+        }
+        rules.push(withoutComments.slice(m.index, i).replace(/\s+/g, ' '));
+    }
+    return rules;
+}
+
+/** The stylesheet entries of a tarball, as `[relative path, contents]`. */
+function tarballStylesheets(tarballPath) {
+    return listTarball(tarballPath)
+        .filter(
+            (entry) => entry.startsWith('package/') && entry.endsWith('.css'),
+        )
+        .map((entry) => [
+            entry.slice('package/'.length),
+            execFileSync('tar', ['xzOf', tarballPath, entry], {
+                encoding: 'utf8',
+                maxBuffer: 64 * 1024 * 1024,
+            }),
+        ]);
+}
+
+/**
+ * Assert no stylesheet in a packed tarball declares a face. Returns
+ * { ok, checks }. Every offending rule is named with its file and its own text
+ * truncated, so the failure says which package and which rule rather than that
+ * something somewhere ships a font.
+ */
+export function assertTarballNoEmbeddedFonts(tarballPath, pkgName) {
+    const problems = [];
+    for (const [rel, css] of tarballStylesheets(tarballPath)) {
+        for (const rule of findFontFaceRules(css)) {
+            problems.push(`${rel}: ${rule.slice(0, 120)}`);
+        }
+    }
+    return {
+        ok: problems.length === 0,
+        checks: [
+            {
+                name: `${pkgName}: no @font-face in any published stylesheet`,
+                ok: problems.length === 0,
+                detail: problems.slice(0, 4).join(' | '),
+            },
+        ],
+    };
+}
+
+/**
+ * One-time self-check: prove the no-font rule bites on both halves — a planted
+ * `.woff2` in a `dist/`, and a face embedded in a stylesheet as a data URI.
+ * Kept as a permanent guard rather than mutating a real tarball, and paired with
+ * a clean stylesheet so the detector cannot pass by flagging everything.
+ * Returns { ok, detail }.
+ */
+export function selfCheckNoFonts() {
+    const planted = validateEntries([
+        'package/package.json',
+        'package/LICENSE',
+        'package/dist/index.js',
+        'package/dist/fonts/GenericSans-Variable.woff2', // the plant
+    ]);
+    const caughtFile = planted.problems.some(
+        (p) => p.entry === 'dist/fonts/GenericSans-Variable.woff2',
+    );
+
+    const embedded = findFontFaceRules(
+        '.viewer-root{color:red}' +
+            "@font-face{font-family:'X';src:url(data:font/woff2;base64,AA) format('woff2')}",
+    );
+    const commentedOut = findFontFaceRules(
+        '/* @font-face{font-family:"X"} */ .viewer-root{color:red}',
+    );
+
+    const ok =
+        caughtFile &&
+        embedded.length === 1 &&
+        embedded[0].includes('data:font/woff2') &&
+        commentedOut.length === 0;
+    return {
+        ok,
+        detail: ok
+            ? ''
+            : 'the no-font rule failed to reject a planted .woff2 or an embedded data-URI face',
+    };
+}
+
+/**
  * One-time self-check: prove the peer-range classifier REJECTS an exact pin and
  * a residual `workspace:*`, and ACCEPTS a caret range — a permanent guard so the
  * assertion can't silently degrade to a no-op. Returns { ok, detail }.
@@ -428,6 +569,7 @@ export function selfCheckFrameworkSubpathAssertions() {
                 svelte: './dist/svelte.js',
                 import: './dist/svelte.js',
             },
+            './locales/*': './dist/locales/*',
         },
     };
     const entries = [
@@ -439,6 +581,8 @@ export function selfCheckFrameworkSubpathAssertions() {
         'dist/vue.js',
         'dist/svelte.d.ts',
         'dist/svelte.js',
+        'dist/locales/de.json',
+        'dist/messages/en.json',
     ];
 
     const clean = classifyCoreExportTargets(healthy, entries);
@@ -461,11 +605,19 @@ export function selfCheckFrameworkSubpathAssertions() {
         },
         entries,
     );
+    // The locale asset the `./locales/*` wildcard promises. The wildcard itself
+    // is not a file, so a clean package must not report it missing, and the
+    // catalog behind it must be reported when it goes.
+    const droppedLocale = classifyCoreExportTargets(
+        healthy,
+        entries.filter((e) => e !== 'dist/locales/de.json'),
+    );
 
     const ok =
         clean.missingRequired.length === 0 &&
         clean.missingTargets.length === 0 &&
         clean.missingSubpaths.length === 0 &&
+        droppedLocale.missingRequired.includes('dist/locales/de.json') &&
         droppedFile.missingRequired.includes('dist/react.js') &&
         droppedFile.missingTargets.includes('dist/react.js') &&
         droppedSvelte.missingRequired.includes('dist/svelte.js') &&
@@ -491,14 +643,32 @@ export function selfCheckPlantedTest() {
         'package/package.json',
         'package/LICENSE',
         'package/dist/index.js',
+        'package/dist/messages/en.json',
+        'package/dist/locales/de.json',
         'package/dist/foo.test.js', // the plant
+        'package/dist/demo/manifest.json', // the second plant
     ];
     const { ok, problems } = validateEntries(planted);
-    const caught = problems.some((p) => p.entry === 'dist/foo.test.js');
+    // Both plants caught, and neither locale catalog mistaken for one: the
+    // `.json` exception has to stay narrow enough to keep rejecting a fixture
+    // manifest that lands anywhere else under dist/.
+    const missed = ['dist/foo.test.js', 'dist/demo/manifest.json'].filter(
+        (entry) => !problems.some((p) => p.entry === entry),
+    );
+    const overreached = problems
+        .map((p) => p.entry)
+        .filter(
+            (entry) =>
+                entry.startsWith('dist/locales/') ||
+                entry.startsWith('dist/messages/'),
+        );
     return {
-        ok: !ok && caught,
-        detail: caught
-            ? ''
-            : 'validator failed to reject a planted dist/foo.test.js',
+        ok: !ok && missed.length === 0 && overreached.length === 0,
+        detail:
+            missed.length > 0
+                ? `validator failed to reject planted ${missed.join(', ')}`
+                : overreached.length > 0
+                  ? `validator rejected the locale catalog(s) ${overreached.join(', ')}`
+                  : '',
     };
 }

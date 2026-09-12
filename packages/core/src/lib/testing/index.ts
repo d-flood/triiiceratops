@@ -11,7 +11,7 @@
  * - **Framework consumers.** {@link createTestViewerHandle} returns a real
  *   `ViewerHandle` over that same real state, so a React or Vue component that
  *   reads `useViewerSelector()` is unit-testable without mounting the custom
- *   element, loading OpenSeadragon, or fetching a manifest.
+ *   element, mounting a renderer, or fetching a manifest.
  *
  * Neither React, Vue, nor a DOM is required to import this module.
  *
@@ -68,6 +68,12 @@ import type { ViewerConfig } from '../types/config.js';
 import { createPluginLocaleService } from '../plugin/localeService.js';
 import type { ActiveLocaleSource } from '../plugin/localeService.js';
 
+import {
+    createRendererStub,
+    type RendererStub,
+    type RendererStubOptions,
+} from './rendererStub.js';
+
 export { ViewerState } from '../state/viewer.svelte.js';
 export type { ViewerStateSnapshot } from '../state/viewer.svelte.js';
 
@@ -86,6 +92,16 @@ export type { ActiveLocaleSource } from '../plugin/localeService.js';
 // re-exported so the kit's test context hands plugins the REAL surface — the
 // state is never fake, and neither is its open/close channel.
 export { createPluginSurface } from '../plugin/surface.js';
+
+// The headless renderer stand-in. Core ships it because the renderer is
+// first-party: there is one right answer to what a stand-in should report, and
+// a consumer inventing their own would be inventing that same one.
+export { createRendererStub, DEFAULT_STUB_VIEW } from './rendererStub.js';
+export type {
+    RendererStub,
+    RendererStubOptions,
+    StubView,
+} from './rendererStub.js';
 
 /**
  * Fixture data used to pre-load a headless {@link ViewerState}. All fields are
@@ -111,7 +127,7 @@ export interface HeadlessViewerFixtures {
 }
 
 /**
- * Construct a real, live `ViewerState` with no DOM viewer and no OpenSeadragon.
+ * Construct a real, live `ViewerState` with no DOM viewer and no renderer.
  * This is the headless core of the SDK test kit's test viewer context: commands,
  * `subscribe`, and the batched notification flush all behave exactly as they do
  * in a mounted viewer.
@@ -253,20 +269,29 @@ export interface TestViewerHandle extends ViewerHandle, ViewerHandleSlot {
      */
     readonly state: ViewerState;
     /**
-     * Inject an OpenSeadragon stand-in and fire the real readiness path
-     * (`ViewerState.notifyOSDReady`), which is what makes `cadence: 'frame'`
-     * exercisable headlessly. `state.osdViewer` is `null` until this is called.
+     * Mount a headless stand-in for the renderer and fire the real readiness
+     * path (`ViewerState.attachRenderer`), which is what makes `cadence:
+     * 'frame'` and the query-only viewport values exercisable with no DOM.
+     * Until it is called, `state.rendererReady` is `false`, the viewport
+     * queries answer with zeroes and `null`s, and viewport commands are no-ops.
      *
-     * No OSD fake ships here — the stub is the caller's, exactly as in the SDK
-     * test kit. A `frame`-cadence projection attaches to it through
-     * `addHandler`/`removeHandler`, so a stub needs at least those two and a way
-     * for the test to fire `animation` / `viewport-change` / `animation-finish`.
+     * Unlike the OSD stand-in this replaces, the stub is core's rather than the
+     * caller's: the renderer is first-party now, so there is a right answer to
+     * what a stand-in should do, and every consumer inventing their own would
+     * be inventing the same one.
      *
-     * `osdViewer` is an inventoried observable member, so the selector runtime
-     * only learns about the injection on the next flush: `await flush()` after
-     * calling this.
+     * Returns the stub, which is also the controller: `setView` moves the
+     * viewport, `emitFrame` fires one animation event, and `calls` records the
+     * commands it received. Pass `canvasIds` to make it answer `null` for any
+     * other canvas, the way a real host does for a canvas it has not laid out.
+     *
+     * `rendererReady` is an inventoried observable member, so the selector
+     * runtime only learns about the mount on the next flush: `await flush()`
+     * after calling this if a `state`-cadence consumer must see it.
      */
-    setOsdViewer(stub: unknown): void;
+    attachRenderer(options?: RendererStubOptions): RendererStub;
+    /** Unmount the stand-in {@link attachRenderer} mounted. Idempotent. */
+    detachRenderer(): void;
     /**
      * Release everything this handle owns: publish `null` to subscribers, drop
      * the selector runtime's registration, and remove its single underlying
@@ -286,7 +311,8 @@ export interface TestViewerHandle extends ViewerHandle, ViewerHandleSlot {
  * the helper drives the production code path rather than a parallel one.
  *
  * Nothing is mounted either: no custom element is defined or rendered, no
- * OpenSeadragon is created, and no network request is made.
+ * renderer is created (`attachRenderer` mounts a headless stand-in when a test
+ * needs one), and no network request is made.
  *
  * @example
  * ```ts
@@ -322,6 +348,7 @@ export function createTestViewerHandle(
     attachSelectorRuntime(state, runtime);
 
     let disposed = false;
+    let releaseRenderer: (() => void) | null = null;
 
     const handle: TestViewerHandle = {
         element,
@@ -330,14 +357,21 @@ export function createTestViewerHandle(
         subscribe: slot.subscribe,
         armUnboundWarning: slot.armUnboundWarning,
         claim: slot.claim,
-        setOsdViewer(stub: unknown): void {
-            state.notifyOSDReady(
-                stub as Parameters<ViewerState['notifyOSDReady']>[0],
-            );
+        attachRenderer(options?: RendererStubOptions): RendererStub {
+            releaseRenderer?.();
+            const stub = createRendererStub(options);
+            releaseRenderer = state.attachRenderer(stub);
+            return stub;
+        },
+        detachRenderer(): void {
+            releaseRenderer?.();
+            releaseRenderer = null;
         },
         dispose(): void {
             if (disposed) return;
             disposed = true;
+            releaseRenderer?.();
+            releaseRenderer = null;
             claim.release();
             detachSelectorRuntime(state, runtime);
             runtime.dispose();

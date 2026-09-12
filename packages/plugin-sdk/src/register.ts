@@ -12,32 +12,19 @@
  * **Registration**) — activation stays explicit and per viewer.
  *
  * Shipped as the `@triiiceratops/plugin-sdk/register` subpath and consumed by
- * every plugin's IIFE entry. It imports only a type (erased at build) and
+ * every plugin's IIFE entry. It imports only types (erased at build) and
  * nothing else from the SDK, so bundling it into a plugin IIFE pulls no runtime
  * and no Svelte into the bundle — the copy stays cheap and self-contained.
+ *
+ * A plugin that CANNOT load before core — one whose bundle reads core's shared
+ * Svelte runtime off the namespace — has nothing to bootstrap and uses
+ * `@triiiceratops/plugin-sdk/register-shared` instead, which is this file
+ * without the registry.
  */
 
 import type { SdkPlugin } from 'triiiceratops';
 
-interface PluginFactoryRegistry {
-    register(factory: SdkPlugin): void;
-    get(name: string): SdkPlugin | undefined;
-    has(name: string): boolean;
-    list(): readonly SdkPlugin[];
-}
-
-interface BrowserRuntime {
-    coreVersion: string;
-    pluginApiVersion: string;
-    capabilities: readonly string[];
-    plugins: PluginFactoryRegistry;
-}
-
-declare global {
-    interface Window {
-        Triiiceratops?: BrowserRuntime;
-    }
-}
+import type { PluginFactoryRegistry } from './browserNamespace.js';
 
 function createRegistry(): PluginFactoryRegistry {
     const byName = new Map<string, SdkPlugin>();

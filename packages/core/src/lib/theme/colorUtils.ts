@@ -201,7 +201,7 @@ export function isRgb(value: string): boolean {
 export function hexToOklch(hex: string): string {
     const rgb = parseHex(hex);
     if (!rgb) {
-        logger.warn(`Invalid hex color: ${hex}, returning as-is`);
+        logger.warn(`Invalid hex color: ${hex}`);
         return hex;
     }
 
@@ -217,7 +217,7 @@ export function hexToOklch(hex: string): string {
 export function rgbToOklchString(rgb: string): string {
     const parsed = parseRgb(rgb);
     if (!parsed) {
-        logger.warn(`Invalid rgb color: ${rgb}, returning as-is`);
+        logger.warn(`Invalid rgb color: ${rgb}`);
         return rgb;
     }
 
@@ -247,6 +247,6 @@ export function normalizeColor(color: string): string {
     }
 
     // Pass through as-is (could be a CSS variable, named color, etc.)
-    logger.warn(`Unrecognized color format: ${color}, passing through as-is`);
+    logger.warn(`Unrecognized color format: ${color}`);
     return color;
 }

@@ -1,8 +1,8 @@
-// The development-warning route — the artifact-level proof for EPIC-1.
+// The development-warning route — artifact-level proof of the wrapper warnings.
 //
 // The four wrapper-side development warnings (an unbound handle, a
 // property-tier prop rebuilt every render, a second `ViewerState`, and a
-// `state`-cadence projection reading through `osd`) are gated on
+// `state`-cadence projection reading a query-only viewport value) are gated on
 // `ViewerConfig.debug`. In the PUBLISHED package the wrappers and the element
 // bundle carry two different copies of the logger module, so for a while
 // `config: { debug: true }` configured the element's copy and left the
@@ -20,7 +20,7 @@
 //
 //   · Viewer A is mounted ONCE and lives through all three phases. Its `config`
 //     carries the `debug` flag, and the `state`-cadence projection that reads
-//     `osdViewer` hangs off it — so that projection is created and first read
+//     a query-only viewport value hangs off it — so that projection is created and first read
 //     while debug is still OFF, which is the ordering a published wrapper
 //     actually produces (the flag is bridged when the property tier is
 //     applied) and the one a probe decided too early would miss forever.
@@ -70,8 +70,8 @@ const STABLE_THEME_CONFIG = { cssVars: { '--tri-debug-token': '#000000' } };
 const store = reactive({
     phase: 0,
     keepAliveActive: true,
-    // Read by the OSD projection below purely so the fixture can invalidate its
-    // `computed` in a phase where the viewer itself is idle.
+    // Read by the viewport-scale projection below purely so the fixture can
+    // invalidate its `computed` in a phase where the viewer itself is idle.
     tick: 0,
 });
 
@@ -94,20 +94,23 @@ const viewerC = shallowRef(null);
  * viewer A is idle between phases, so without one nothing would invalidate the
  * selection and the projection would never be re-evaluated. This is the
  * documented Vue path (`recompute()` exists for exactly this) and the projection
- * is still an ordinary `state`-cadence one reading through `osdViewer`.
+ * is still an ordinary `state`-cadence one reading a query-only viewport value.
  */
+// Reads `viewportScale` UNCONDITIONALLY, which is the mistake this page exists
+// to provoke. Guarding the read on `rendererReady` made the probe's one chance
+// depend on whether a renderer happened to be attached the first time debug was
+// on — so the warning it is here to demonstrate never fired for the mounted
+// viewer at all.
 const selectZoomThousandths = (state) => {
     void store.tick;
-    return state.osdViewer
-        ? Math.round(state.osdViewer.viewport.getZoom() * 1000)
-        : -1;
+    return Math.round(state.viewportScale * 1000);
 };
 
 const selectCanvasId = (state) => state.canvasId ?? 'none';
 
 /**
  * A real `ViewerState` from `triiiceratops/testing` with no viewer, no element
- * and no OpenSeadragon behind it — and therefore genuinely IDLE: nothing ever
+ * and no renderer behind it — and therefore genuinely IDLE: nothing ever
  * notifies it, so a projection over it never sees its version advance.
  *
  * That is the strict version of the same ordering viewer A demonstrates. A
@@ -117,10 +120,16 @@ const selectCanvasId = (state) => state.canvasId ?? 'none';
  * `shallowRef` for the reason the Vue guide documents.
  */
 const idleHandleRef = shallowRef(createTestViewerHandle());
+// The headless renderer stand-in `triiiceratops/testing` ships, attached so the
+// projection below really does read a viewport value: `rendererReady` is false
+// on a bare handle, and the projection short-circuits on it, so without this the
+// probe has nothing to catch. The stand-in answers queries; it does not notify,
+// so "idle" is still literally true — which is the point of this case.
+idleHandleRef.value.attachRenderer();
 
 // --- components -------------------------------------------------------------
 
-/** The `state`-cadence projection that reads through the OSD pass-through. */
+/** The `state`-cadence projection that reads a query-only viewport value. */
 const ZoomAtStateCadence = defineComponent({
     name: 'ZoomAtStateCadence',
     setup() {
@@ -247,8 +256,8 @@ async function runPhase(debug) {
     store.keepAliveActive = true;
     await waitFor(boundA);
     await waitFor(() => stateOf(viewerC) !== null);
-    // Invalidate viewer A's OSD projection so its `computed` re-evaluates
-    // under the flag this phase just set.
+    // Invalidate viewer A's viewport-scale projection so its `computed`
+    // re-evaluates under the flag this phase just set.
     store.tick += 1;
     await nextTick();
     await delay(50);

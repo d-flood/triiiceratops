@@ -1,157 +1,50 @@
 <script lang="ts">
-    import Icon from './Icon.svelte';
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { getMessages, language } from '../state/i18n.svelte';
+    import { getMessages } from '../state/i18n.svelte';
     import { resolveThumbnailResourceSrc } from '../utils/getThumbnailSrc';
-    import {
-        normalizeIiifLinks,
-        normalizeMetadataEntries,
-        resolveHtmlValues,
-    } from '../utils/metadataNormalization';
-    import { resolveLanguageValue } from '../utils/languageMap';
+    import { normalizeDescriptiveMetadata } from '../utils/metadataNormalization';
     import SanitizedHtml from './SanitizedHtml.svelte';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
-    let { embedded = false }: { embedded?: boolean } = $props();
-    let viewerLocale = $derived(viewerState.config.locale ?? language.current);
+    let viewerLocale = $derived(viewerState.activeLocale);
 
-    // Raw IIIF Manifest JSON, v2 or v3 as the publisher authored it. Every read
-    // below covers BOTH versions: the `manifesto.js` accessors this panel used
-    // to fall back to (`getLabel`, `getDescription`, `getMetadata`,
-    // `getRequiredStatement`, `getLicense`) were the ONLY reader of the v2
-    // spelling for four of them, so deleting them without adding the v2
-    // property read would have blanked the panel on every v2 manifest
-    // (SPEC → "The governing rule for the whole epic").
+    // Raw IIIF Manifest JSON, v2 or v3 as the publisher authored it. The
+    // version mapping lives in `normalizeDescriptiveMetadata`; this panel only
+    // supplies the display fallbacks, which are locale-dependent and so cannot.
     let json = $derived(viewerState.manifestEntry?.json);
+    let described = $derived(normalizeDescriptiveMetadata(json, viewerLocale));
 
-    // --- Title ---
-    // v2 and v3 both spell it `label`; v2 may write a bare string or a
-    // `[{"@value","@language"}]` array, which `resolveLanguageValue` reads.
-    let title = $derived.by(() => {
-        if (!json) return m.loading();
-        const resolved = resolveLanguageValue(json.label, viewerLocale);
-        return resolved || m.metadata_label_fallback();
-    });
-
-    let manifestThumbnail = $derived.by(() => {
-        return resolveThumbnailResourceSrc(json?.thumbnail);
-    });
-
-    // --- Summary (v3) or Description (v2) ---
-    let summary = $derived.by(() => {
-        if (!json) return '';
-        return resolveLanguageValue(
-            json.summary ?? json.description,
-            viewerLocale,
-        );
-    });
-
-    // --- Metadata entries ---
-    // `metadata` is the same property name in both versions.
-    let metadata = $derived.by(() => {
-        return normalizeMetadataEntries(json?.metadata, viewerLocale);
-    });
-
-    // --- Attribution (requiredStatement) ---
-    let attributionLabel = $derived.by(() => {
-        const statement = json?.requiredStatement;
-        if (!statement?.label) return m.attribution();
-        return (
-            resolveLanguageValue(statement.label, viewerLocale) ||
-            m.attribution()
-        );
-    });
-
-    let attribution = $derived.by(() => {
-        // v3 `requiredStatement.value`; v2 spells the same idea `attribution`,
-        // as a bare value with no label of its own.
-        const statement = json?.requiredStatement;
-        if (statement?.value) {
-            return resolveHtmlValues(statement.value, viewerLocale);
-        }
-
-        return resolveHtmlValues(json?.attribution, viewerLocale);
-    });
-
-    // --- License / Rights ---
-    let license = $derived.by(() => {
-        // v3 uses `rights`, v2 uses `license`. v2 permits several; the panel
-        // renders one link, so take the first and ignore any non-URI shape
-        // rather than rendering `[object Object]`.
-        const raw = json?.rights || json?.license;
-        const value = Array.isArray(raw) ? raw[0] : raw;
-        return typeof value === 'string' ? value : '';
-    });
-
-    // --- Provider (0234) ---
-    let providers = $derived.by(() => {
-        if (!json?.provider) return [];
-        const raw = Array.isArray(json.provider)
-            ? json.provider
-            : [json.provider];
-        return raw.map((p: any) => {
-            const label = resolveLanguageValue(p.label, viewerLocale) || '';
-            const links = [
-                ...normalizeIiifLinks(p.homepage, viewerLocale),
-                ...normalizeIiifLinks(p.seeAlso, viewerLocale),
-            ];
-            const logos = (
-                Array.isArray(p.logo) ? p.logo : p.logo ? [p.logo] : []
-            )
-                .map((logo: any) =>
-                    typeof logo === 'string' ? logo : logo?.id || logo?.['@id'],
-                )
-                .filter(Boolean);
-            return { label, links, logos };
-        });
-    });
-
-    // --- Homepage (0047) ---
-    let homepages = $derived(normalizeIiifLinks(json?.homepage, viewerLocale));
-
-    // --- Rendering (0046) ---
-    let rendering = $derived(normalizeIiifLinks(json?.rendering, viewerLocale));
-
-    // --- See Also (0053) ---
-    let seeAlso = $derived(normalizeIiifLinks(json?.seeAlso, viewerLocale));
-
-    let position = $derived(
-        viewerState.config.information?.position ?? 'right',
+    let title = $derived(
+        !json ? m.loading() : described.title || m.metadata_label_fallback(),
     );
+    let attributionLabel = $derived(
+        described.attributionLabel || m.attribution(),
+    );
+
+    let manifestThumbnail = $derived(
+        resolveThumbnailResourceSrc(json?.thumbnail),
+    );
+
+    let summary = $derived(described.summary);
+    let metadata = $derived(described.metadata);
+    let attribution = $derived(described.attribution);
+    let license = $derived(described.license);
+    let providers = $derived(described.providers);
+    let homepages = $derived(described.homepages);
+    let rendering = $derived(described.rendering);
+    let seeAlso = $derived(described.seeAlso);
 </script>
 
 {#if viewerState.showMetadataPanel}
     <div
         data-panel-id="metadata"
-        class="panel"
-        class:floating={!embedded}
-        class:bordered={!embedded && !viewerState.config.transparentBackground}
-        class:border-left={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position === 'left'}
-        class:border-right={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position !== 'left'}
+        class="tri-panel"
         role="dialog"
         aria-label={m.metadata()}
     >
-        {#if !embedded}
-            <div class="header">
-                <div class="header-title">
-                    <Icon
-                        name="Info"
-                        size={20}
-                        weight="bold"
-                        class="header-icon"
-                    />
-                    <h2 class="header-heading">{m.metadata()}</h2>
-                </div>
-            </div>
-        {/if}
-
-        <div class="body" class:scrollable={!embedded}>
+        <div class="body">
             <h3 class="title">{title}</h3>
 
             {#if manifestThumbnail}
@@ -327,72 +220,8 @@
 {/if}
 
 <style>
-    .panel {
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .panel.floating {
-        height: 100%;
-        background-color: var(--panel-surface);
-        box-shadow: 0 25px 50px -12px #00000040;
-        z-index: 100;
-        transition-property: width;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.2s;
-    }
-
-    .panel.bordered.border-left {
-        border-right-width: 1px;
-        border-right-style: solid;
-        border-color: var(--tri-surface-border);
-    }
-
-    .panel.bordered.border-right {
-        border-left-width: 1px;
-        border-left-style: solid;
-        border-color: var(--tri-surface-border);
-    }
-
-    .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        padding: 1rem;
-        border-bottom-width: 1px;
-        border-bottom-style: solid;
-        border-color: var(--tri-surface-border);
-    }
-
-    .header-title {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        min-width: 0;
-    }
-
-    .header-title :global(.header-icon) {
-        flex-shrink: 0;
-    }
-
-    .header-heading {
-        font-weight: 700;
-        font-size: 1.125rem;
-        line-height: 1.75rem;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
     .body {
         padding: 1rem;
-    }
-
-    .body.scrollable {
-        flex: 1 1 0%;
-        overflow-y: auto;
     }
 
     .title {

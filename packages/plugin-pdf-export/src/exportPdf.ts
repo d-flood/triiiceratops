@@ -1,28 +1,27 @@
-import {
-    popGraphicsState,
-    pushGraphicsState,
-    rgb,
-    setTextRenderingMode,
-    StandardFonts,
-    TextRenderingMode,
-} from 'pdf-lib';
-
 // Shared canvas/image-export utilities consumed from core's public,
-// framework-neutral seam (ticket 15's `triiiceratops/image-export` barrel) — not
+// framework-neutral seam (the `triiiceratops/image-export` barrel) — not
 // duplicated into this package. Externalized in the ESM build; bundled (Svelte-
 // free) into the self-contained IIFE.
 import {
     buildIiifImageRequestUrl,
     composeImages,
     downloadBlob,
+    fetchExportImageBlob,
+    fetchImageBlob,
     getCanvasId,
     getCanvasLabel,
     getCompositeImagePlacement,
+    getDeclaredCanvasDimensions,
     getResolvedImageExportUrl,
     getThumbnailSrc,
+    isCrossOriginImageFailure,
+    isLevel0ImageService,
+    isUnsupportedCanvasFor,
+    loadImageElement,
     parseAnnotation,
     resolveAllCanvasImages,
     resolveCanvasImage,
+    sanitizeFilenamePart,
     type ResolvedCanvasImage,
 } from 'triiiceratops/image-export';
 
@@ -47,7 +46,7 @@ export interface PdfExportMessages {
     progressDownload(params: { filename: string }): string;
 }
 
-/** English fallbacks — the same strings core shipped in `messages/en.json`. */
+/** English fallbacks — the same strings core ships in its `src/lib/messages/en.json`. */
 export const DEFAULT_PDF_EXPORT_MESSAGES: PdfExportMessages = {
     errorNoCanvases: () => 'No canvases available to export.',
     errorNotAvailable: () =>
@@ -215,13 +214,6 @@ const DEFAULT_OCR_RENDER_OPTIONS: PdfOcrRenderOptions = {
     visibilityMode: 'transparent',
 };
 
-function sanitizeFilenamePart(value: string): string {
-    return value
-        .replace(/[^a-z0-9-_]+/gi, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-}
-
 function getManifestFilenameBase(
     manifestId: string | null,
     manifestLabel?: string | null,
@@ -369,23 +361,6 @@ function isOcrAnnotation(annotation: any, bodies: TextBody[]): boolean {
     );
 }
 
-function getCanvasDimensions(
-    canvas: any,
-): { width: number; height: number } | null {
-    // Raw IIIF Canvas JSON spells these `width`/`height` in both v2 and v3.
-    // The trailing `|| null` is what the dead accessor rung evaluated to, and
-    // is load-bearing: a canvas declaring `width: 0` must still fall through to
-    // "no dimensions" rather than become a valid `0`.
-    const width = canvas?.width || null;
-    const height = canvas?.height || null;
-
-    if (typeof width !== 'number' || typeof height !== 'number') {
-        return null;
-    }
-
-    return { width, height };
-}
-
 function getFontSizeToFit(
     font: any,
     text: string,
@@ -423,12 +398,17 @@ function getCanvasExportResource(
     getSelectedChoice?: (canvasId: string) => string | undefined,
 ): { imageUrl: string | null; resolvedImage: ResolvedCanvasImage | null } {
     const resolved = resolveCanvasImage(canvas, { getSelectedChoice });
-    const canvasDimensions = getCanvasDimensions(canvas);
-    if (
-        resolved?.resourceId &&
-        (resolved.serviceProfile === 'level0' ||
-            resolved.serviceProfile?.endsWith('/level0.json'))
-    ) {
+    const canvasDimensions = getDeclaredCanvasDimensions(canvas);
+    // A level0 service answers no constructed request, so there is no sized URL
+    // to build here — `loadCanvasImageBlob` retrieves these through core's export
+    // seam, which reads `info.json` first. `imageUrl` remains the published
+    // resource: the one URL such a manifest guarantees without a fetch, and what
+    // a host-supplied `loadImageBlob` has always been handed for this case.
+    //
+    // `isLevel0ImageService` rather than a local string comparison, which missed the
+    // version 1 `…#level0` fragment spelling and sent those canvases down the
+    // constructed-request path to 404.
+    if (resolved?.resourceId && isLevel0ImageService(resolved.serviceProfile)) {
         return { imageUrl: resolved.resourceId, resolvedImage: resolved };
     }
 
@@ -487,7 +467,14 @@ function getCanvasExportResource(
     }
 
     return {
-        imageUrl: getThumbnailSrc(canvas, targetWidth) || null,
+        // Same alternative `resolveCanvasImage` just took, so the last rung
+        // cannot hand back an image the selection ruled out.
+        imageUrl:
+            getThumbnailSrc(
+                canvas,
+                targetWidth,
+                getSelectedChoice?.(getCanvasId(canvas) ?? ''),
+            ) || null,
         resolvedImage: resolved,
     };
 }
@@ -740,26 +727,8 @@ function normalizeOverlayToCanvasSpace({
     };
 }
 
-async function loadImage(blob: Blob): Promise<HTMLImageElement> {
-    const objectUrl = URL.createObjectURL(blob);
-
-    try {
-        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-            const element = new Image();
-            element.onload = () => resolve(element);
-            element.onerror = () =>
-                reject(new Error('Unable to decode image for PDF export.'));
-            element.src = objectUrl;
-        });
-
-        return image;
-    } finally {
-        URL.revokeObjectURL(objectUrl);
-    }
-}
-
 async function convertBlobToPng(blob: Blob): Promise<Uint8Array> {
-    const image = await loadImage(blob);
+    const image = await loadImageElement(blob);
     const canvas = document.createElement('canvas');
     canvas.width = image.naturalWidth || image.width;
     canvas.height = image.naturalHeight || image.height;
@@ -794,30 +763,6 @@ export function buildImageRequestInit(
     };
 }
 
-function isLikelyCorsOrAuthFailure(error: unknown): boolean {
-    if (!(error instanceof Error)) {
-        return false;
-    }
-
-    return (
-        error.name === 'TypeError' ||
-        /failed to fetch/i.test(error.message) ||
-        /networkerror/i.test(error.message)
-    );
-}
-
-async function fetchImageBlobWithConfig(
-    url: string,
-    imageRequest?: PdfImageRequestConfig,
-): Promise<Blob> {
-    const response = await fetch(url, buildImageRequestInit(imageRequest));
-    if (!response.ok) {
-        throw new Error(`Image request failed with ${response.status}.`);
-    }
-
-    return response.blob();
-}
-
 async function loadCanvasImageBlob({
     canvas,
     canvasId,
@@ -827,7 +772,17 @@ async function loadCanvasImageBlob({
     imageRequest,
     resolvedImage,
     loadImageBlob,
-}: PdfImageLoaderParams & { loadImageBlob?: PdfImageLoader }): Promise<Blob> {
+    imageWidth,
+}: PdfImageLoaderParams & {
+    loadImageBlob?: PdfImageLoader;
+    /**
+     * The width this particular image occupies, where that differs from the
+     * page's `targetWidth` — a member image of a composite canvas. Internal:
+     * `PdfImageLoaderParams.targetWidth` is what a host-supplied loader is
+     * documented to receive and keeps meaning the page target.
+     */
+    imageWidth?: number;
+}): Promise<Blob> {
     if (loadImageBlob) {
         return loadImageBlob({
             canvas,
@@ -840,8 +795,33 @@ async function loadCanvasImageBlob({
         });
     }
 
-    return fetchImageBlobWithConfig(imageUrl, imageRequest);
+    // A level0 service cannot be asked for anything through a URL derived from
+    // the manifest. Which resolutions exist, and the base URI to request them
+    // at, live only in `info.json` — an auth gateway signs that base, so it need
+    // not match the advertised service id — and a static tile tree may hold the
+    // wanted resolution only as tiles. Core's export seam owns all of it, and is
+    // the same code the image-download plugin retrieves through, so the two
+    // cannot drift. Sending `imageUrl` here instead would fetch whatever single
+    // image the manifest happened to publish: for a signed tile tree, a
+    // thumbnail on a different host, silently embedded at page size.
+    if (resolvedImage && isLevel0ImageService(resolvedImage.serviceProfile)) {
+        return fetchExportImageBlob(resolvedImage, {
+            width: imageWidth ?? targetWidth,
+            imageRequest: buildImageRequestInit(imageRequest),
+        });
+    }
+
+    return fetchImageBlob(imageUrl, buildImageRequestInit(imageRequest));
 }
+
+/**
+ * pdf-lib's namespace, threaded from `exportCanvasRangeAsPdf`'s `await
+ * import('pdf-lib')` rather than imported at the top: the ESM consumer's
+ * bundler must be free to split it out, so nothing in this module may reach
+ * pdf-lib before an export starts. (The IIFE inlines dynamic imports, so its
+ * bundle is unaffected.)
+ */
+type PdfLib = typeof import('pdf-lib');
 
 async function embedImage(pdfDoc: any, blob: Blob) {
     const mimeType = blob.type.toLowerCase();
@@ -861,14 +841,17 @@ async function embedImage(pdfDoc: any, blob: Blob) {
 }
 
 async function addCoverSheetPage(
+    pdfLib: PdfLib,
     pdfDoc: any,
     coverSheet: PdfCoverSheetConfig,
     runtimeValues: CoverSheetRuntimeValues,
 ): Promise<void> {
     const page = pdfDoc.addPage(COVER_PAGE_SIZE);
-    const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const titleFont = await pdfDoc.embedFont(
+        pdfLib.StandardFonts.HelveticaBold,
+    );
     const labelFont = titleFont;
-    const valueFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const valueFont = await pdfDoc.embedFont(pdfLib.StandardFonts.Helvetica);
     const { width: pageWidth, height: pageHeight } = page.getSize();
     const contentWidth = pageWidth - COVER_MARGIN_X * 2;
     const labelColumnWidth = 140;
@@ -940,6 +923,7 @@ async function addCoverSheetPage(
 }
 
 async function addSelectableTextLayer(
+    pdfLib: PdfLib,
     page: any,
     pdfDoc: any,
     overlays: PdfTextOverlay[],
@@ -955,7 +939,7 @@ async function addSelectableTextLayer(
         return;
     }
 
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const font = await pdfDoc.embedFont(pdfLib.StandardFonts.Helvetica);
     const { width: pageWidth, height: pageHeight } = page.getSize();
     const scaleX = pageWidth / canvasDimensions.width;
     const scaleY = pageHeight / canvasDimensions.height;
@@ -984,7 +968,7 @@ async function addSelectableTextLayer(
             continue;
         }
 
-        drawOcrText(page, overlay.text, {
+        drawOcrText(pdfLib, page, overlay.text, {
             x: layout.x,
             y: layout.y,
             size: layout.fontSize,
@@ -1066,6 +1050,7 @@ function getOcrWordLayout({
 }
 
 function drawOcrText(
+    pdfLib: PdfLib,
     page: any,
     text: string,
     options: {
@@ -1086,7 +1071,7 @@ function drawOcrText(
     if (options.visibilityMode === 'debug') {
         page.drawText(text, {
             ...drawOptions,
-            color: rgb(1, 0, 0),
+            color: pdfLib.rgb(1, 0, 0),
             opacity: 1,
         });
         return;
@@ -1097,11 +1082,11 @@ function drawOcrText(
         typeof page.pushOperators === 'function'
     ) {
         page.pushOperators(
-            pushGraphicsState(),
-            setTextRenderingMode(TextRenderingMode.Invisible),
+            pdfLib.pushGraphicsState(),
+            pdfLib.setTextRenderingMode(pdfLib.TextRenderingMode.Invisible),
         );
         page.drawText(text, drawOptions);
-        page.pushOperators(popGraphicsState());
+        page.pushOperators(pdfLib.popGraphicsState());
         return;
     }
 
@@ -1199,8 +1184,8 @@ export async function exportCanvasRangeAsPdf({
         throw new Error(messages.errorNoCanvases());
     }
 
-    const { PDFDocument } = await import('pdf-lib');
-    const pdfDoc = await PDFDocument.create();
+    const pdfLib = await import('pdf-lib');
+    const pdfDoc = await pdfLib.PDFDocument.create();
     const failedCanvases: string[] = [];
     let exportedCount = 0;
     const ocrRenderOptions = normalizeOcrRenderOptions({
@@ -1214,6 +1199,7 @@ export async function exportCanvasRangeAsPdf({
     if (coverSheet && coverSheetFields.length > 0) {
         onProgress?.(messages.progressCoverSheet());
         await addCoverSheetPage(
+            pdfLib,
             pdfDoc,
             coverSheet,
             getRuntimeValues(createdAt, currentUrl),
@@ -1221,9 +1207,25 @@ export async function exportCanvasRangeAsPdf({
     }
 
     // Ensure indices is a plain array (might be Svelte proxy or reactive wrapper)
-    const plainIndices = Array.isArray(range.indices)
-        ? Array.from(range.indices)
-        : [];
+    //
+    // Canvases core cannot paint any of — the **unsupported presentation** —
+    // are dropped from the range here rather than failing inside the loop:
+    // there was never an image to fetch, so they are not a partial export, and
+    // an entry in `failedCanvases` would report a manifest doing exactly what
+    // it says it does as something gone wrong. Dropping them before the loop
+    // is also what keeps the poster thumbnail out of the PDF, which the
+    // single-image path would otherwise fall through to.
+    //
+    // Classified over the SELECTED body, which is the one
+    // `getCanvasExportResource` resolves: a mixed Choice resting on its video
+    // alternative resolves to no image, so classifying it over the alternatives
+    // as authored would keep the canvas in the range and export its poster as a
+    // page.
+    const plainIndices = (
+        Array.isArray(range.indices) ? Array.from(range.indices) : []
+    ).filter(
+        (index) => !isUnsupportedCanvasFor(getSelectedChoice, canvases[index]),
+    );
 
     for (const [offset, index] of plainIndices.entries()) {
         const canvas = canvases[index];
@@ -1263,6 +1265,10 @@ export async function exportCanvasRangeAsPdf({
                             imageRequest: requestInit,
                             resolvedImage: image.resolvedImage,
                             loadImageBlob,
+                            // The box this member image occupies on the page,
+                            // not the page width: a level0 source is served
+                            // from the nearest resolution it actually holds.
+                            imageWidth: image.width,
                         }),
                         x: image.x,
                         y: image.y,
@@ -1317,7 +1323,7 @@ export async function exportCanvasRangeAsPdf({
                 height: embeddedImage.height,
             });
 
-            const canvasDimensions = getCanvasDimensions(canvas);
+            const canvasDimensions = getDeclaredCanvasDimensions(canvas);
             const overlays =
                 canvasId && (getCanvasOcrOverlays || getCanvasAnnotations)
                     ? await resolveCanvasOcrOverlays({
@@ -1333,6 +1339,7 @@ export async function exportCanvasRangeAsPdf({
             if (canvasDimensions && overlays.length) {
                 try {
                     await addSelectableTextLayer(
+                        pdfLib,
                         page,
                         pdfDoc,
                         overlays,
@@ -1355,7 +1362,7 @@ export async function exportCanvasRangeAsPdf({
             // A CORS/auth failure is fatal for the whole export (every
             // canvas would fail the same way): surface it to the caller,
             // which reports it on the structured error channel.
-            if (isLikelyCorsOrAuthFailure(error)) {
+            if (isCrossOriginImageFailure(error)) {
                 throw new Error(messages.errorNotAvailable());
             }
             // A single-canvas failure is non-fatal: record it so the

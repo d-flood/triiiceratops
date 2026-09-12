@@ -6,16 +6,14 @@
     import { SvelteSet } from 'svelte/reactivity';
     import { getCanvasId } from './viewerControls';
     import { Button, TextInput, Badge, Spinner } from './ui';
+    import { segmentHighlights } from '../utils/highlightSegments';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
-    let { embedded = false }: { embedded?: boolean } = $props();
     const m = getMessages();
 
-    // We'll initialize from viewerState to preserve context.
     let searchQuery = $state('');
 
-    // Sync local query with viewerState
     $effect(() => {
         if (viewerState.searchQuery !== untrack(() => searchQuery)) {
             searchQuery = viewerState.searchQuery;
@@ -39,9 +37,7 @@
             viewerState.setCanvas(canvasId);
         }
     }
-    let position = $derived(viewerState.config.search?.position ?? 'right');
 
-    // Total matches across all pages
     let totalMatches = $derived(
         viewerState.searchResults.reduce(
             (sum, group) => sum + group.hits.length,
@@ -49,7 +45,6 @@
         ),
     );
 
-    // Track which canvas groups are expanded (by canvasIndex)
     let expandedGroups = new SvelteSet<number>();
 
     function toggleGroup(canvasIndex: number) {
@@ -60,13 +55,11 @@
         }
     }
 
-    // Number of excerpts to show before collapse
     const INITIAL_EXCERPT_COUNT = 2;
 
-    // Ref for the scrollable results container
     let resultsContainer = $state<HTMLElement | null>(null);
 
-    // Auto-scroll active search result into view (e.g. on init when canvas is set via props)
+    // Also runs on init, so a canvas set via props scrolls its result into view.
     $effect(() => {
         if (!resultsContainer || viewerState.searchResults.length === 0) return;
         const idx = viewerState.currentCanvasIndex;
@@ -80,27 +73,30 @@
     });
 </script>
 
+<!--
+    A search excerpt, rendered as TEXT.
+
+    `SearchHit.before`, `match` and `after` are plain text by contract, and any
+    host-supplied `SearchProvider` or remote IIIF Content Search service fills
+    them. They used to reach a raw HTML sink with nothing but a `&lt;mark&gt;`
+    un-escaper in the way, which let a search service execute script in the host
+    page. The segmenter consumes the `<mark>` delimiters and hands back runs of
+    text; everything else lands in a text node and is shown as characters.
+-->
+{#snippet excerpt(
+    text: string,
+)}{#each segmentHighlights(text) as segment, i (i)}{#if segment.highlighted}<mark
+                >{segment.text}</mark
+            >{:else}{segment.text}{/if}{/each}{/snippet}
+
 <!-- Drawer / Panel -->
 {#if viewerState.showSearchPanel}
     <div
         data-panel-id="search"
-        class="panel"
-        class:standalone={!embedded}
-        class:bordered-left={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position === 'left'}
-        class:bordered-right={!embedded &&
-            !viewerState.config.transparentBackground &&
-            position !== 'left'}
+        class="tri-panel"
         role="dialog"
         aria-label={m.search_panel_title()}
     >
-        {#if !embedded}
-            <div class="header">
-                <h2 class="title">{m.search()}</h2>
-            </div>
-        {/if}
-
         <!-- Search Input -->
         <div class="search-bar">
             <div class="search-input-wrap">
@@ -126,11 +122,7 @@
         </div>
 
         <!-- Results -->
-        <div
-            bind:this={resultsContainer}
-            class="results"
-            class:scrollable={!embedded}
-        >
+        <div bind:this={resultsContainer} class="results">
             {#if viewerState.isSearching}
                 <div class="loading-wrap">
                     <Spinner size="lg" class="loading-primary" />
@@ -187,15 +179,18 @@
                         <div class="excerpts">
                             {#each visibleHits as result, i (i)}{#if i > 0}<span
                                         class="separator">|</span
-                                    >{/if}{#if result.type === 'hit'}<!-- eslint-disable-next-line svelte/no-at-html-tags --><span
-                                        >{@html result.before}</span
-                                    ><span class="match">
-                                        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                                        {@html result.match}
-                                    </span><!-- eslint-disable-next-line svelte/no-at-html-tags --><span
-                                        >{@html result.after}</span
-                                    >{:else}<!-- eslint-disable-next-line svelte/no-at-html-tags --><span
-                                        >{@html result.match}</span
+                                    >{/if}{#if result.type === 'hit'}<span
+                                        >{@render excerpt(
+                                            result.before ?? '',
+                                        )}</span
+                                    ><span class="match"
+                                        >{@render excerpt(result.match)}</span
+                                    ><span
+                                        >{@render excerpt(
+                                            result.after ?? '',
+                                        )}</span
+                                    >{:else}<span
+                                        >{@render excerpt(result.match)}</span
                                     >{/if}{/each}{#if group.hits.length > INITIAL_EXCERPT_COUNT}
                                 <Button
                                     ghost
@@ -220,46 +215,6 @@
 {/if}
 
 <style>
-    .panel {
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
-    .panel.standalone {
-        height: 100%;
-        background-color: var(--panel-surface);
-        box-shadow: 0 25px 50px -12px #00000040;
-        z-index: 100;
-        transition-property: width;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.2s;
-    }
-    .panel.bordered-left {
-        border-right-width: 1px;
-        border-right-style: solid;
-        border-right-color: var(--tri-surface-border);
-    }
-    .panel.bordered-right {
-        border-left-width: 1px;
-        border-left-style: solid;
-        border-left-color: var(--tri-surface-border);
-    }
-
-    .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem;
-        border-bottom-width: 1px;
-        border-bottom-style: solid;
-        border-bottom-color: var(--tri-surface-border);
-    }
-    .title {
-        font-weight: 700;
-        font-size: 1.125rem;
-        line-height: 1.75rem;
-    }
-
     .search-bar {
         padding: 1rem;
         border-bottom-width: 1px;
@@ -290,11 +245,6 @@
     .results > * + * {
         margin-top: 1rem;
     }
-    .results.scrollable {
-        flex: 1 1 0%;
-        overflow-y: auto;
-    }
-
     .loading-wrap {
         display: flex;
         justify-content: center;
@@ -328,16 +278,14 @@
         width: 100%;
         text-align: left;
         background-color: var(--tri-input-bg);
-        box-shadow:
-            0 1px 3px 0 #0000001a,
-            0 1px 2px -1px #0000001a;
+        box-shadow: var(--ui-shadow-sm);
         border-width: 1px;
         border-style: solid;
         border-color: var(--panel-surface);
         border-radius: var(--tri-radius-panels);
         cursor: pointer;
         transition-property: all;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-timing-function: var(--ui-ease);
         transition-duration: 0.15s;
         display: block;
         padding: 0;
@@ -345,8 +293,7 @@
     .group.current {
         box-shadow:
             0 0 0 2px var(--tri-color-primary),
-            0 1px 3px 0 #0000001a,
-            0 1px 2px -1px #0000001a;
+            var(--ui-shadow-sm);
         background-color: color-mix(
             in oklab,
             var(--tri-color-primary) 5%,
@@ -354,15 +301,12 @@
         );
     }
     .group:hover {
-        box-shadow:
-            0 4px 6px -1px #0000001a,
-            0 2px 4px -2px #0000001a;
+        box-shadow: var(--ui-shadow-md);
     }
     .group.current:hover {
         box-shadow:
             0 0 0 2px var(--tri-color-primary),
-            0 4px 6px -1px #0000001a,
-            0 2px 4px -2px #0000001a;
+            var(--ui-shadow-md);
     }
 
     .group-header {

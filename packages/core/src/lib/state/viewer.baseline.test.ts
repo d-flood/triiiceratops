@@ -12,7 +12,10 @@ import { isCollection, parseCollection } from '../utils/collections';
 import { getThumbnailSrc } from '../utils/getThumbnailSrc';
 import { getCanvasId, getResourceId } from '../utils/iiifIds';
 import { getPaintingAnnotations } from '../utils/iiifParsing';
-import { getCanvasTileSources } from '../utils/resolveCanvasImage';
+import {
+    resolveAllCanvasImages,
+    toImageSource,
+} from '../utils/resolveCanvasImage';
 import type { StructureNode } from '../utils/structures';
 
 /**
@@ -81,13 +84,18 @@ function byCodeUnit(a: string, b: string): number {
     return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** Every `.json` under `./manifests/`, as a corpus-relative path. */
+/**
+ * Every `.json` under `./manifests/`, as a corpus-relative path — the whole
+ * tree, with nothing skipped. The `av/` hold-out and the reason it ended are
+ * explained in `../test/fixtures/corpus.smoke.test.ts`.
+ */
 function corpusPaths(dir = CORPUS_DIR, prefix = ''): string[] {
     return readdirSync(dir, { withFileTypes: true })
         .flatMap((entry) => {
             const name = `${prefix}${entry.name}`;
-            if (entry.isDirectory())
+            if (entry.isDirectory()) {
                 return corpusPaths(join(dir, entry.name), `${name}/`);
+            }
             return entry.name.endsWith('.json') ? [name] : [];
         })
         .sort(byCodeUnit);
@@ -309,27 +317,39 @@ function num(value: number): string {
     return String(Number(value.toFixed(6)));
 }
 
-/** A `TileSource` is a bare info.json URL or a `{type:'image', url}` record. */
-function tileSourceUrl(tileSource: any): string {
-    return typeof tileSource === 'string' ? tileSource : tileSource?.url || '';
+/**
+ * One resolved image source as this golden spells it: a service by its
+ * `info.json`, anything else by its own URL.
+ *
+ * The spelling is the GOLDEN's, not the product's, and lives here so the record
+ * stays comparable with every earlier run of it. Core resolves an image service
+ * to its base id and builds tiles, sizes and `info.json` from that as it needs
+ * them (`toImageSource`); what this file is recording is which image a canvas
+ * paints, and a service's `info.json` is the stable name for one.
+ */
+function imageSourceUrl(source: ReturnType<typeof toImageSource>): string {
+    if (!source) return '';
+    return source.kind === 'service'
+        ? `${source.serviceId}/info.json`
+        : source.url;
 }
 
 /**
- * The URLs the viewer would paint for one canvas, in document order, with the
- * position each occupies. Reached through `getCanvasTileSources` — the same
- * function `getViewerTileSources` calls — so this is the rendered result, not a
- * parsing internal.
+ * The images the viewer would paint for one canvas, in document order, with the
+ * position each occupies. Reached through `resolveAllCanvasImages` and
+ * `toImageSource` — the same two the renderer's descriptors paint from — so this
+ * is the rendered result, not a parsing internal.
  */
 function resolvedImages(
     canvas: any,
     getSelectedChoice: (canvasId: string) => string | undefined,
 ): string[] {
-    let sources;
+    let resolved;
     try {
-        sources = getCanvasTileSources(canvas, { getSelectedChoice });
+        resolved = resolveAllCanvasImages(canvas, { getSelectedChoice });
     } catch (error: any) {
-        // Unreached by the corpus, and kept anyway. `getCanvasTileSources` has
-        // no try/catch anywhere on its path to the viewer, so a throw here
+        // Unreached by the corpus, and kept anyway. `resolveAllCanvasImages`
+        // has no try/catch anywhere on its path to the viewer, so a throw here
         // would be a blank page in production; catching it is what makes that
         // legible in a diff rather than a failed test run with no record.
         // Rendered through `renderThrow` so the golden never pins an engine's
@@ -337,10 +357,13 @@ function resolvedImages(
         return [`<THROWS: ${renderThrow(error)}>`];
     }
 
-    return sources.map(
-        (source, index) =>
-            `[${index}] url=${tileSourceUrl(source.tileSource)} at=${num(source.x)},${num(source.y)},${num(source.width)}`,
-    );
+    return resolved
+        .map((image) => ({ url: imageSourceUrl(toImageSource(image)), image }))
+        .filter((entry) => entry.url !== '')
+        .map(
+            (entry, index) =>
+                `[${index}] url=${entry.url} at=${num(entry.image.x)},${num(entry.image.y)},${num(entry.image.width)}`,
+        );
 }
 
 /** Choice alternatives the viewer would offer for one canvas, as ids. */
@@ -474,11 +497,44 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 #     Ticket 07's totality contract: a Collection has members, not sequences, so
 #     it has no canvases — which is an answer, not a TypeError.
 #
+# THE AUDIOVISUAL SET — \`plugin-av\` ticket 02, the second re-pin of this file.
+#   Sixteen \`av/\` manifests (the fifteen audiovisual IIIF Cookbook recipes and
+#   one waveform-linked Avalon manifest) joined the corpus in the same commit as
+#   the painting-body classifier that reads them. They were vendored a ticket
+#   earlier and held out by name, precisely so that this file would never have
+#   frozen the answer a viewer gave them BEFORE it could tell an MP4 from a JPEG.
+#
+#   Measured through this file's own seam immediately before the classifier
+#   landed, ELEVEN of the sixteen read \`withPainting >= 1\` — 0003, 0013, 0017,
+#   0026, 0064, 0065 (both canvases), 0074, 0219, 0229, 0489, and the Avalon
+#   file. That was the bug, not the baseline: a plain \`Video\`/\`Sound\` body has
+#   an id like any other resource, so canvas→source resolution handed the media
+#   URL to the image pipeline and the viewer fetched an MP4 with \`new Image()\`.
+#   The other five (0002, 0014, 0015, 0103, 0434) read 0 already, and for an
+#   unrelated reason: they declare \`duration\` and no \`width\`/\`height\`, so they
+#   fell out on geometry before anything looked at what they painted.
+#
+#   Fifteen of the sixteen now read \`withPainting=0\`, and the fall from eleven
+#   to one IS the evidence the classifier works. A \`withPainting >= 1\` on any
+#   manifest but 0489 is a non-image body that got through.
+#
+#   \`av/0489-multimedia-canvas\` is the one exception and reads \`withPainting=1\`,
+#   which is correct rather than a miss. Its single canvas carries an Image body
+#   (with an Image API service) alongside a Video body and three \`TextualBody\`
+#   ones, and the classifier's rule for that shape is to paint the images and
+#   ignore the rest silently. The record says the viewer resolved the JPEG,
+#   which it did and should.
+#
+#   \`av/0434-choice-av\` keeps \`withChoice=1\`. Its Choice of six audio
+#   alternatives is still enumerated as a Choice — the classifier decides what
+#   gets PAINTED, and offering the reader alternatives is a different question
+#   that \`getCanvasChoices\` still answers.
+#
 # HOW TO READ A DIFF
 #   Each manifest gets one six-field record. The dominant failure mode of this
 #   epic is the silent empty result, and it reads here as \`withPainting=154\`
-#   becoming \`withPainting=0\` — the viewer would render blank pages and log at
-#   debug level.
+#   becoming \`withPainting=0\` — the viewer would render blank pages with no
+#   diagnostic at all.
 #
 #     canvases         canvases enumerated, summed over EVERY sequence
 #     withPainting     of those, the ones the viewer resolved >=1 image for
@@ -556,6 +612,13 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 #     lunchroom-manners enumerates 1, audio enumerates 0 (an IxIF \`element\` is
 #     a \`dctypes:Sound\` resource — the media IS the element, reached through
 #     \`rendering\`, so there is no painting annotation to find).
+#   - every \`av/\` manifest except \`0489-multimedia-canvas\`, for the reason the
+#     audiovisual section above gives. \`withPainting=0\` there does NOT mean the
+#     canvas vanished: it keeps its layout rect, its place in navigation and its
+#     place in the thumbnail strip, and the viewer paints an honest
+#     unsupported-content treatment over it. That is the intended answer for a
+#     plugin-less viewer rather than a degraded one — and this tier cannot see
+#     the difference, which is why it is written down here.
 `;
 
 const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
@@ -589,6 +652,37 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 #     thumbnail, an image, a \`choices:\` block and an \`images per selection:\`
 #     block. Ticket 06 taught the enumerator the v2 Choice spelling; the canvas
 #     rendered nothing before.
+#
+# MOVE ACCEPTED AT THE SECOND RE-PIN (\`plugin-av\` ticket 02):
+#   - \`vendored/lunchroom-manners.json\` canvas [0] went
+#     thumbnail=\`.../lunchroom_manners_1024kb.mp4\` -> \`<none>\`, and this is the
+#     ONE record in either tier that shows the thumbnail half of the classifier.
+#     That canvas declares no \`thumbnail\`, so the strip fell back to the
+#     painting body's own id — which here is an MP4, put straight into an
+#     \`<img src>\` and rendered as a broken image. The fallback is now gated by
+#     the painting-body classifier, so it declines to answer rather than
+#     answering with a video. \`<none>\` is what routes the canvas to the strip's
+#     no-thumbnail treatment, where it gets an audiovisual glyph instead of a
+#     broken picture (user story 29).
+#
+#     Reaching that body at all is itself the fix to a second, latent defect.
+#     This canvas's \`body\` is an ARRAY — \`[Choice(three Videos), Text(vtt)]\` —
+#     and the old code tested for a Choice BEFORE unwrapping the array, so it
+#     saw "not a Choice", took \`body[0]\`, and got the Choice object itself,
+#     which has no id. Its \`images:\` line read \`(none)\` by accident. The PAINT
+#     path now unwraps the array first and so resolves the Choice properly, and
+#     the classifier is what keeps that from turning an accident into an MP4 in
+#     the tile pipeline (user story 40). \`images: (none)\` is unchanged and now
+#     means what it says.
+#
+#     \`withChoice\` is unaffected, and this canvas still reads \`withChoice=0\`.
+#     \`getCanvasChoices\` (and \`ThumbnailGallery\`'s badge) still test for a
+#     Choice BEFORE unwrapping the body array, so on this shape they go on
+#     seeing "not a Choice" and offer no alternatives. Known follow-up rather
+#     than an oversight: user story 40 is about the image pipeline, and the only
+#     shape where the two paths would visibly disagree is a
+#     \`[Choice(imageA, imageB), Text(vtt)]\` — painting imageA while the choice
+#     picker lists nothing — which no corpus fixture has.
 #
 # RE-CURATION — three fixtures were swapped in and three out, inside the SPEC's
 # 15-20 budget. The original 20 gave this tier ZERO variance on two of the three
@@ -624,7 +718,7 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 #
 #   Per canvas: id, label, size, thumbnail URL, the number of painting
 #   annotations enumerated on it, the image URLs the viewer would paint (via the
-#   same \`getCanvasTileSources\` the viewer calls) each with its position
+#   same \`resolveAllCanvasImages\` the renderer paints from) each with its position
 #   \`at=x,y,width\` in viewport units, and the Choice alternatives on offer.
 #   Where a canvas has choices, the resolved images are re-recorded once per
 #   selection, driven through \`ViewerState.selectChoice\` — so this file pins
@@ -683,8 +777,10 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 #     dimensions are strings, not just the height, and \`getCanvasDimensions\`
 #     requires numbers, so the canvas renders blank.
 #   - \`vendored/lunchroom-manners.json\` — \`paintingAnnotations=1\` with
-#     \`images: (none)\`. Enumeration works; the annotation is a Choice of Video
-#     bodies and there is no image to paint.
+#     \`images: (none)\`. Enumeration works; the annotation's body array holds a
+#     Choice of Video bodies and a VTT, and none of that is an image to paint.
+#     Since \`plugin-av\` ticket 02 that is a decision rather than an accident —
+#     see the move recorded above.
 #   - \`vendored/audio.json\` — \`paintingAnnotations=0\` on both canvases, and
 #     that is CORRECT, not a loss. An IxIF \`element\` is a \`dctypes:Sound\`
 #     resource with no \`images\`, \`items\` or \`content\`: the media is the element
@@ -741,6 +837,15 @@ describe('behavioral baseline', () => {
         expect(new Set(DEEP_TIER.map(([name]) => name)).size).toBe(
             DEEP_TIER.length,
         );
+
+        // The audiovisual set specifically. It replaces the `DEFERRED_DIRS`
+        // guard that used to assert the skip still named something: the
+        // directory is in the baseline now, so what has to be asserted is that
+        // it is still being walked. Deleting it would otherwise take sixteen
+        // records out of the golden as quietly as it took them out of the walk.
+        expect(
+            fixtures.filter((f) => f.name.startsWith('av/')).length,
+        ).toBeGreaterThan(10);
     });
 
     it('broad tier — every manifest in the corpus', async () => {

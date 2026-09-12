@@ -22,7 +22,7 @@
  *
  * A thumbnail is fixed on the axis its gallery committed to and free on the other:
  *
- * - Band (top/bottom) and floating window: fixed HEIGHT, width from the image.
+ * - Band (top/bottom): fixed HEIGHT, width from the image.
  * - Rail (left/right): fixed WIDTH, height from the image.
  *
  * The EXPANDED overlay takes its constrained axis from the dock side too, not from
@@ -167,10 +167,10 @@ export function getGalleryThumbItemHeight(size: number) {
 }
 
 /**
- * Frame height for a HEIGHT-constrained thumbnail — the band, the floating window,
- * and an expanded overlay belonging to either. The button's chrome comes out of the
- * band's height, which is the number the host asked for; the frame gets the rest and
- * is as wide as the image itself at that height.
+ * Frame height for a HEIGHT-constrained thumbnail — the band and an expanded overlay
+ * belonging to it. The button's chrome comes out of the band's height, which is the
+ * number the host asked for; the frame gets the rest and is as wide as the image
+ * itself at that height.
  */
 export function getGalleryThumbFrameHeight(size: number) {
     return getGalleryThumbItemHeight(size) - ITEM_CHROME_H;

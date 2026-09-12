@@ -7,9 +7,12 @@ test.describe('Triiiceratops Viewer', () => {
     // (it is a core journey). See playwright.config.ts.
     test('smoke test: loads viewer and canvas @mobile', async ({ page }) => {
         // Navigate to the app
-        await page.goto('/?manifest=/demo-manifests/e2e/manifest.json', {
-            waitUntil: 'domcontentloaded',
-        });
+        await page.goto(
+            '/e2e/harness.html?manifest=/demo-manifests/e2e/manifest.json',
+            {
+                waitUntil: 'domcontentloaded',
+            },
+        );
 
         // Verify basic page structure
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible();
@@ -26,11 +29,13 @@ test.describe('Triiiceratops Viewer', () => {
             throw new Error(`Viewer failed to load: ${text}`);
         }
 
-        // Now check for OSD viewer
-        const viewer = page.locator('#triiiceratops-viewer .osd-background');
+        // Now check for the renderer's root
+        const viewer = page.locator(
+            '#triiiceratops-viewer [data-testid="canvas-renderer-root"]',
+        );
         await expect(viewer).toBeVisible({ timeout: 10000 });
 
-        // Check that the canvas element inside OSD is created
+        // Check that the renderer's canvas element is created
         const canvas = page.locator('#triiiceratops-viewer canvas').first();
         await expect(canvas).toBeVisible();
 

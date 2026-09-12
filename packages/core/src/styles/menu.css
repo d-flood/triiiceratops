@@ -1,0 +1,128 @@
+/*
+ * The menu surface shared by the viewer's selectors: the toolbar's built-in
+ * flyouts (viewing mode, gallery, sequence, locale) and the transport's
+ * caption-track list.
+ *
+ * Global rather than component-scoped for the same reason as tooltip.css:
+ * Svelte scopes a component's <style> to that component's own markup, and each
+ * of these selectors is rendered by the component that owns the control. A
+ * `@triiiceratops/ui` component cannot hold them either — the toolbar places
+ * its flyouts with CSS anchor positioning, from rules that have to match the
+ * panel element itself, which a caller cannot write against an element a child
+ * component renders. One global layer is what lets the selectors share a look.
+ *
+ * A selector is `.tri-menu` (layout and type) plus, when it floats over the
+ * canvas, `.tri-menu-surface` (glass, border, shadow). Its rows are
+ * `.tri-menu-item`; the current row carries `.is-active` (a menu of commands)
+ * or `aria-checked="true"` (a radio group), which look the same.
+ *
+ * Classes are `tri-`prefixed because this layer is inlined into the custom
+ * element's shadow root AND, for a light-DOM consumer, scoped only as far as
+ * `.viewer-root` — where bare `.menu` would collide with the host page's own.
+ */
+
+.tri-menu {
+    --menu-active-fg: var(--tri-color-neutral-content);
+    --menu-active-bg: var(--tri-color-neutral);
+    flex-flow: column wrap;
+    width: fit-content;
+    padding: var(--ui-chrome-pad, 0.5rem);
+    font-size: 0.875rem;
+    display: flex;
+}
+.tri-menu :where(li) {
+    flex-flow: column wrap;
+    flex-shrink: 0;
+    align-items: stretch;
+    display: flex;
+    position: relative;
+}
+
+.tri-menu-item {
+    border-radius: var(--tri-radius-buttons);
+    text-align: start;
+    user-select: none;
+    grid-auto-columns: minmax(auto, max-content) auto max-content;
+    grid-auto-flow: column;
+    align-content: flex-start;
+    align-items: center;
+    gap: 0.5rem;
+    padding-block: 0.25rem;
+    padding-inline: 0.625rem;
+    font-size: 0.75rem;
+    transition-property: color, background-color, box-shadow;
+    transition-duration: 0.2s;
+    transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    display: grid;
+    color: inherit;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+}
+/* Layout-driven glyph size: markup passes a nominal size and CSS scales the
+   rendered <svg> per preset. */
+.tri-menu-item svg {
+    width: var(--ui-icon, 24px);
+    height: var(--ui-icon, 24px);
+}
+/* 44px rows where a thumb has to aim at them; the compact rows above are for a
+   pointer that doesn't need the slack. */
+@media (pointer: coarse) {
+    .tri-menu-item {
+        min-height: 2.75rem;
+    }
+}
+.tri-menu-item:not(.is-active):not([aria-checked='true']):not(:active):hover {
+    cursor: pointer;
+    background-color: color-mix(
+        in oklab,
+        var(--tri-toolbar-content) 10%,
+        transparent
+    );
+    box-shadow:
+        inset 0 1px oklch(0% 0 0 / 0.01),
+        inset 0 -1px oklch(100% 0 0 / 0.01);
+}
+.tri-menu-item:active {
+    color: var(--menu-active-fg);
+    background-color: var(--menu-active-bg);
+}
+.tri-menu-item.is-active,
+.tri-menu-item[aria-checked='true'] {
+    background-color: var(--tri-color-primary);
+    color: var(--tri-color-primary-content);
+    cursor: pointer;
+}
+.tri-menu-item:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: -2px;
+}
+
+/* ===== Floating surface =====
+   The blur and fill live on a ::before layer rather than on the element itself
+   (which also carries `border`) — combining backdrop-filter with a border
+   breaks nested-content stacking; see the matching comment on
+   ImageManipulationFlyout's .base. */
+.tri-menu-surface {
+    /* An absolutely positioned box with only `left` set is shrink-to-fit
+       against the space from there to its containing block's edge — the ~24px
+       <li> a toolbar flyout is anchored inside — which collapses it to
+       min-content and wraps multi-word rows. Opt out of that squeeze. */
+    width: max-content;
+    color: var(--tri-toolbar-content);
+    border-radius: var(--tri-radius-toolbar);
+    border: 1px solid var(--tri-surface-border);
+    box-shadow: var(--ui-chrome-shadow, var(--ui-shadow-lg));
+}
+.tri-menu-surface::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: calc(var(--tri-radius-toolbar) - var(--tri-border));
+    background-color: var(--ui-glass-bg);
+    backdrop-filter: blur(8px);
+}
+.tri-menu-surface.wide {
+    min-width: 14rem;
+}

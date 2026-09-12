@@ -85,9 +85,7 @@ function idOf(state) {
 /** Hoisted so its identity is stable: a projection re-created every render
  * would recompute every render, which would mask the cadence contrast below. */
 const selectZoomThousandths = (state) =>
-    state.osdViewer
-        ? Math.round(state.osdViewer.viewport.getZoom() * 1000)
-        : -1;
+    state.rendererReady ? Math.round(state.viewportScale * 1000) : -1;
 
 const selectCanvasId = (state) => state.canvasId ?? 'none';
 
@@ -95,7 +93,7 @@ export function captureError(error) {
     live.errors.push(String((error && error.message) || error));
 }
 
-// The ticket-08 consumer testing helper, imported from the SAME packed tarball
+// The consumer testing helper, imported from the SAME packed tarball
 // with no Svelte, no viewer, no custom element and no network behind it.
 const testHandle = createTestViewerHandle();
 
@@ -184,13 +182,13 @@ function ViewerOne({ handle }) {
     const toolbar = useViewerSelector(handle, (state) =>
         state.toolbarOpen ? 'open' : 'closed',
     );
-    // `frame` cadence: continuous viewport values are woken by OpenSeadragon's
-    // own animation events, not by the batched state watcher.
+    // `frame` cadence: per-frame viewport values are woken by the renderer's own
+    // animation events, not by the batched state watcher.
     const zoom = useViewerSelector(handle, selectZoomThousandths, {
         cadence: 'frame',
     });
     // The SAME projection at the default `state` cadence, as the contrast: the
-    // batched watcher is never woken by OpenSeadragon, so this readout must
+    // batched watcher is never woken by the renderer, so this readout must
     // stay frozen while the `frame` one above follows the zoom.
     const zoomAtStateCadence = useViewerSelector(handle, selectZoomThousandths);
     // An INLINE projection whose closure changes between renders, with no
@@ -432,10 +430,10 @@ export function installControls() {
             // Through `useViewer()` in a deep, provider-resolved component.
             live.deepToggle();
         },
-        osdReady: () => !!(state1() && state1().osdViewer),
+        rendererReady: () => !!(state1() && state1().rendererReady),
         zoomIn: () => {
             const state = state1();
-            if (!state || !state.osdViewer) return false;
+            if (!state || !state.rendererReady) return false;
             state.zoomIn();
             return true;
         },

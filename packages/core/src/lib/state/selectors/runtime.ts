@@ -4,11 +4,13 @@
  * cadence**; ADR 0008, ADR 0011).
  *
  * This module is deliberately lightweight: it imports no Svelte runtime, no
- * OpenSeadragon, and nothing from the plugin SDK. Its only dependency on
- * `ViewerState` is `subscribe` plus synchronous property reads, so it is equally
- * usable from a plugin activation, a React wrapper, and a Vue wrapper.
+ * renderer, and nothing from the plugin SDK. Its only dependency on its source
+ * is {@link SelectorSource} — `subscribe`, an optional finer-cadence subscribe,
+ * and synchronous property reads — so it is equally usable from a plugin
+ * activation, a React wrapper, and a Vue wrapper, and equally usable over a
+ * plugin's published state as over `ViewerState` (ADR 0018).
  *
- * A runtime owns exactly ONE `ViewerState.subscribe` registration and fans out
+ * A runtime owns exactly ONE `SelectorSource.subscribe` registration and fans out
  * from it to cheap per-consumer projections. Each projection is created from a
  * `(projection, equality)` pair and is never mutated in place by a caller: a
  * framework helper that needs new inputs creates a NEW projection object, so
@@ -17,10 +19,9 @@
  * Two properties make a projection directly usable as a React `getSnapshot`:
  *
  * - **Equality gates the cached value, not only the notification.** A recompute
- *   whose result satisfies `equals` returns the PREVIOUSLY returned reference.
- *   (This is an intentional, documented change to what `Selector.get()` returns
- *   for plugins, which previously returned a fresh-but-equal value after any
- *   version bump.)
+ *   whose result satisfies `equals` returns the PREVIOUSLY returned reference,
+ *   rather than a fresh-but-equal value, so `Selector.get()` is stable across a
+ *   version bump that doesn't change the selected value.
  * - **Two read entry points share that one gated cache.** {@link
  *   SelectorProjection.read} is memoized by the runtime's notification version
  *   (React's external-store contract); {@link SelectorProjection.recompute}
@@ -34,33 +35,75 @@
  * selected value.
  */
 
+import { once } from '../../utils/once.js';
 import { isDebugEnabled, logger } from '../../logging/logger.js';
-import type { Selector, ViewerSelectors } from '../../types/plugin.js';
+import type { Selector } from '../../types/plugin.js';
 import type { ViewerState } from '../viewer.svelte.js';
 
-/** The live OpenSeadragon instance, as core hands it out (ADR 0009). */
-type OsdViewer = NonNullable<ViewerState['osdViewer']>;
+/**
+ * Everything the runtime needs of the state it projects: a batched,
+ * payload-free notification and synchronous property reads, plus an optional
+ * finer-cadence notification.
+ *
+ * `ViewerState` satisfies it unchanged (`subscribe` + `subscribeFrame`), and so
+ * does a plugin's published state (ADR 0018) — which is the point: ONE runtime
+ * serves viewer state and published state across the React, Vue, Svelte, and Lit
+ * adapters rather than published state growing a second reactivity system.
+ */
+export interface SelectorSource {
+    /**
+     * Batched, payload-free notification. `onError` is optional in both
+     * directions: `ViewerState` uses it to attribute a throwing listener to its
+     * owning plugin, and a source with no such seam simply ignores it. The
+     * runtime does not depend on either behavior — it guards its own fan-out on
+     * both cadences (see {@link SelectorRuntimeOptions.onListenerError}).
+     */
+    subscribe(
+        listener: () => void,
+        onError?: (error: unknown) => void,
+    ): () => void;
+    /**
+     * The FINER cadence, when the source has one — `ViewerState`'s per-frame
+     * renderer events, a published state's own high-frequency tick. A source
+     * without it serves `frame`-cadence projections from the batched
+     * notification alone.
+     */
+    subscribeFrame?(listener: () => void): () => void;
+}
+
+/**
+ * The `{ select }` factory a runtime hands out, typed to its own source. A
+ * runtime over `ViewerState` therefore satisfies core's `ViewerSelectors`, which
+ * is the shape a `PluginContext` carries.
+ */
+export interface SourceSelectors<S> {
+    /**
+     * Create a memoized selector. `equals` defaults to `Object.is`. Built only
+     * on `SelectorSource.subscribe` — never on Svelte reactivity.
+     */
+    select<T>(
+        fn: (source: S) => T,
+        equals?: (a: T, b: T) => boolean,
+    ): Selector<T>;
+}
 
 /**
  * Which notification wakes a projection (CONTEXT.md **Selector cadence**).
  *
  * - `state` (the default) — the batched, payload-free inventoried-member watcher
  *   behind `ViewerState.subscribe` (ADR 0008).
- * - `frame` — additionally the live OpenSeadragon instance's own animation
- *   events, so continuous viewport values (zoom, pan, rotation, bounds) are
- *   readable reactively without ever being mirrored into viewer state
+ * - `frame` — additionally the renderer's own animation events, delivered
+ *   through `ViewerState.subscribeFrame`, so the query-only viewport values
+ *   (`viewportScale`, `viewportCentre`, `viewportBounds`) are readable
+ *   reactively without ever being mirrored into notifying viewer state
  *   (ADR 0011). `frame` is the FINER cadence, never a coarser one: a
  *   frame-cadence projection also wakes on state notifications, so it never
  *   serves a stale inventoried member between animations.
+ *
+ * The cadence survives the renderer replacement unchanged as a concept; only
+ * its event source moved, from a third party's event names to core's own.
  */
 export type SelectorCadence = 'state' | 'frame';
-
-/** The OSD events a `frame`-cadence projection is woken by. */
-const FRAME_EVENTS = [
-    'animation',
-    'viewport-change',
-    'animation-finish',
-] as const;
 
 /** Per-projection options. */
 export interface SelectorProjectionOptions<T> {
@@ -112,41 +155,50 @@ export interface SelectorProjection<T> {
  *   Only the plugin path routes here; framework wrappers leave the failure to be
  *   rethrown through the consumer's own read.
  * - `onListenerError`: a subscription callback threw during delivery —
- *   `pluginerror` phase `subscription`. On the `state` cadence this is handed to
- *   `ViewerState.subscribe`, which owns that attribution seam; on the `frame`
- *   cadence the runtime routes it here itself, because no core guard sits on the
- *   OpenSeadragon event path.
+ *   `pluginerror` phase `subscription`. The runtime routes it here itself on
+ *   BOTH cadences, and keeps fanning out to the remaining projections. It cannot
+ *   delegate that to the source: a published plugin state (ADR 0018) has no
+ *   listener guard of its own, so an unguarded throw would kill this runtime's
+ *   sibling projections and then escape into the plugin's own notify loop.
+ *   Without a handler the failure is logged instead.
  */
 export interface SelectorRuntimeOptions {
     onProjectionError?: (error: unknown) => void;
     onListenerError?: (error: unknown) => void;
 }
 
-/** One isolated selector runtime bound to exactly one `ViewerState`. */
-export interface SelectorRuntime {
-    /** The `ViewerSelectors` factory handed to a plugin context. */
-    readonly selectors: ViewerSelectors;
+/** One isolated selector runtime bound to exactly one source. */
+export interface SelectorRuntime<S extends SelectorSource = ViewerState> {
+    /** The selector factory handed to a plugin context. */
+    readonly selectors: SourceSelectors<S>;
     /** Create a per-consumer memoized projection. */
     createProjection<T>(
-        projection: (state: ViewerState) => T,
+        projection: (source: S) => T,
         options?: SelectorProjectionOptions<T>,
     ): SelectorProjection<T>;
     /**
-     * Remove the underlying `ViewerState` subscription, drop all fan-out, and
-     * detach any frame ticker. Idempotent.
+     * Remove the underlying source subscription, drop all fan-out, and detach
+     * any frame ticker. Idempotent.
      */
     dispose(): void;
 }
 
 /**
- * Create an isolated selector runtime bound to one `ViewerState`. Subscribes to
- * the viewer state immediately so version memoization stays correct even before
- * any projection is individually subscribed.
+ * Create an isolated selector runtime bound to one source. Subscribes to it
+ * immediately so version memoization stays correct even before any projection is
+ * individually subscribed.
+ *
+ * A caller holding the result types the field as {@link SelectorRuntime} —
+ * `SelectorRuntime<ViewerState>` by default, since that is the type parameter's
+ * default. Do NOT reach for `ReturnType<typeof createSelectorRuntime>`: it
+ * resolves a generic signature against the parameter's CONSTRAINT, so it names
+ * a runtime over the bare `SelectorSource` rather than over the source the call
+ * actually passed.
  */
-export function createSelectorRuntime(
-    viewerState: ViewerState,
+export function createSelectorRuntime<S extends SelectorSource>(
+    source: S,
     options: SelectorRuntimeOptions = {},
-): SelectorRuntime {
+): SelectorRuntime<S> {
     let disposed = false;
     // One counter per cadence. A `state` projection memoizes on `stateVersion`;
     // a `frame` projection memoizes on their sum, because frame is the finer
@@ -157,64 +209,65 @@ export function createSelectorRuntime(
     const stateListeners = new Set<() => void>();
     const frameListeners = new Set<() => void>();
 
-    /** The OSD instance the frame ticker is currently attached to. */
-    let tickingOsd: OsdViewer | null = null;
+    /** Detach from the viewer's frame notification; set while attached. */
+    let untick: (() => void) | null = null;
+
+    /**
+     * Deliver one notification to one consumer, isolated. Every fan-out goes
+     * through here rather than trusting the source's own listener guard: over
+     * `ViewerState` that guard exists, but over a plugin's published state (ADR
+     * 0018) there is none, so an unguarded throw would abort delivery to this
+     * runtime's remaining projections, skip `onListenerError` entirely, and
+     * escape into the publisher's own notify loop.
+     */
+    const deliver = (listener: () => void): void => {
+        try {
+            listener();
+        } catch (error) {
+            if (options.onListenerError) options.onListenerError(error);
+            else logger.error('selector listener failed', error);
+        }
+    };
 
     const onFrameTick = (): void => {
         frameVersion++;
-        // No core listener guard sits on the OSD event path, so isolate delivery
-        // here rather than letting one consumer's throw abort the rest (and land
-        // inside OpenSeadragon's event dispatch).
-        for (const listener of [...frameListeners]) {
-            try {
-                listener();
-            } catch (error) {
-                if (options.onListenerError) options.onListenerError(error);
-                else logger.error('selector frame listener failed', error);
-            }
-        }
+        for (const listener of [...frameListeners]) deliver(listener);
     };
 
     /**
-     * Attach the frame ticker to the live OSD instance when — and only when — a
-     * `frame`-cadence projection is subscribed and an instance exists. Detaches
-     * on teardown and on OSD replacement, so an idle viewer costs nothing and no
-     * `requestAnimationFrame` loop is ever created.
+     * Attach the frame ticker when — and only when — a `frame`-cadence
+     * projection is subscribed. `ViewerState.subscribeFrame` is itself lazy
+     * about reaching the renderer, so an idle viewer costs nothing and no
+     * `requestAnimationFrame` loop is ever created; a viewer whose renderer has
+     * not mounted yet simply never ticks, and starts ticking when it does.
+     *
+     * A source with no finer cadence attaches nothing: its `frame`-cadence
+     * projections are served by the batched notification alone, which is
+     * correct — frame has always been the finer cadence layered ON TOP of it.
      */
     const syncFrameTicker = (): void => {
         const wanted =
-            !disposed && frameListeners.size > 0
-                ? (viewerState.osdViewer ?? null)
-                : null;
-        if (wanted === tickingOsd) return;
-        if (tickingOsd) {
-            for (const event of FRAME_EVENTS) {
-                tickingOsd.removeHandler(event, onFrameTick);
-            }
+            !disposed && frameListeners.size > 0 && !!source.subscribeFrame;
+        if (wanted === (untick !== null)) return;
+        if (untick) {
+            untick();
+            untick = null;
+            return;
         }
-        tickingOsd = wanted;
-        if (tickingOsd) {
-            for (const event of FRAME_EVENTS) {
-                tickingOsd.addHandler(event, onFrameTick);
-            }
-        }
+        untick = source.subscribeFrame?.(onFrameTick) ?? null;
     };
 
-    // The single `ViewerState.subscribe` registration for this runtime. It
-    // carries the caller's listener error handler so a throwing consumer
-    // callback keeps its attribution through core's guard.
-    const unsubscribe = viewerState.subscribe(() => {
+    // The single `SelectorSource.subscribe` registration for this runtime. The
+    // error handler is passed on for a source that guards its own delivery, but
+    // nothing here relies on it: `deliver` isolates every consumer already.
+    const unsubscribe = source.subscribe(() => {
         stateVersion++;
-        // `osdViewer` is an inventoried observable member, so this notification
-        // is also how the ticker learns that OSD appeared or was replaced. Sync
-        // BEFORE delivery: a throwing consumer callback must not strand it.
-        syncFrameTicker();
-        for (const listener of [...stateListeners]) listener();
-        for (const listener of [...frameListeners]) listener();
+        for (const listener of [...stateListeners]) deliver(listener);
+        for (const listener of [...frameListeners]) deliver(listener);
     }, options.onListenerError);
 
     function createProjection<T>(
-        projection: (state: ViewerState) => T,
+        projection: (source: S) => T,
         projectionOptions: SelectorProjectionOptions<T> = {},
     ): SelectorProjection<T> {
         const equals = projectionOptions.equals ?? Object.is;
@@ -227,17 +280,17 @@ export function createSelectorRuntime(
         // Retained consumer failure for the evaluated version; `null` when the
         // last evaluation succeeded.
         let failure: { error: unknown } | null = null;
-        let warnedOsdRead = false;
-        // Whether the `osdViewer` probe below has run at least once while debug
-        // mode was ON. Distinct from `warnedOsdRead`: a probe that ran and found
-        // nothing is still a probe that ran.
-        let probedOsdRead = false;
+        let warnedViewportRead = false;
+        // Whether the viewport probe below has run at least once while debug
+        // mode was ON. Distinct from `warnedViewportRead`: a probe that ran and
+        // found nothing is still a probe that ran.
+        let probedViewportRead = false;
 
         const currentVersion = (): number =>
             cadence === 'frame' ? stateVersion + frameVersion : stateVersion;
 
         /**
-         * Whether this projection still owes the debug-gated `osdViewer` probe
+         * Whether this projection still owes the debug-gated viewport probe
          * a run at the CURRENT version — i.e. debug mode was switched on after
          * the projection was already evaluated.
          *
@@ -252,32 +305,34 @@ export function createSelectorRuntime(
          * Costs nothing when debug is off: three field comparisons and one
          * boolean read, no allocation, no accessor installed, no timer, no
          * subscription. The forced re-evaluation happens at most ONCE per
-         * projection, since the probe sets `probedOsdRead`.
+         * projection, since the probe sets `probedViewportRead`.
          */
-        const owesOsdProbe = (): boolean =>
+        const owesViewportProbe = (): boolean =>
             cadence === 'state' &&
-            !probedOsdRead &&
-            !warnedOsdRead &&
+            !probedViewportRead &&
+            !warnedViewportRead &&
             isDebugEnabled();
 
         const compute = (): T => {
             // Development-only diagnostic (debug-gated, once per projection):
-            // a batched-cadence projection that reaches for the OSD pass-through
-            // is the one selector mistake that fails silently.
-            if (cadence === 'state' && !warnedOsdRead && isDebugEnabled()) {
-                probedOsdRead = true;
-                const probe = readingOsdViewer(viewerState, () =>
-                    projection(viewerState),
-                );
-                if (probe.readOsdViewer) {
-                    warnedOsdRead = true;
+            // a batched-cadence projection that reads a query-only viewport
+            // value is the one selector mistake that fails silently.
+            if (
+                cadence === 'state' &&
+                !warnedViewportRead &&
+                isDebugEnabled()
+            ) {
+                probedViewportRead = true;
+                const probe = readingViewport(source, () => projection(source));
+                if (probe.readViewport) {
+                    warnedViewportRead = true;
                     logger.warn(
-                        "A `state`-cadence selector read `osdViewer`. Values read THROUGH the OpenSeadragon instance (zoom, pan, rotation, bounds) never wake the batched state watcher, so such a projection appears frozen: pass `cadence: 'frame'` to wake it from OpenSeadragon's own animation events instead. (Reading `osdViewer` only to test readiness is correct at `state` cadence — it is an inventoried member.)",
+                        `A \`state\`-cadence selector read query-only \`${probe.readViewport}\`, so it will appear frozen. Pass \`cadence: 'frame'\`.`,
                     );
                 }
                 return probe.value;
             }
-            return projection(viewerState);
+            return projection(source);
         };
 
         /** Recompute into the gated cache. Never throws; retains the failure. */
@@ -322,7 +377,7 @@ export function createSelectorRuntime(
             },
             read() {
                 const version = currentVersion();
-                if (evaluatedVersion !== version || owesOsdProbe()) {
+                if (evaluatedVersion !== version || owesViewportProbe()) {
                     evaluatedVersion = version;
                     evaluate();
                 }
@@ -337,20 +392,17 @@ export function createSelectorRuntime(
                 if (disposed) return () => {};
                 listeners.add(listener);
                 syncFrameTicker();
-                let released = false;
-                return () => {
-                    if (released) return;
-                    released = true;
+                return once(() => {
                     listeners.delete(listener);
                     syncFrameTicker();
-                };
+                });
             },
         };
     }
 
-    const selectors: ViewerSelectors = {
+    const selectors: SourceSelectors<S> = {
         select<T>(
-            fn: (state: ViewerState) => T,
+            fn: (source: S) => T,
             equals: (a: T, b: T) => boolean = Object.is,
         ): Selector<T> {
             // Plugins get the same projection every wrapper gets — batched
@@ -380,7 +432,8 @@ export function createSelectorRuntime(
                         if (!equals(last, next)) {
                             last = next;
                             // Delivery: a throw here is the `subscription`
-                            // failure, left to bubble to the `ViewerState` guard.
+                            // failure, caught by `deliver` above and routed to
+                            // `onListenerError`.
                             callback(next);
                         }
                     });
@@ -392,60 +445,86 @@ export function createSelectorRuntime(
     return {
         selectors,
         createProjection,
-        dispose() {
-            if (disposed) return;
+        dispose: once(() => {
             disposed = true;
             stateListeners.clear();
             frameListeners.clear();
             syncFrameTicker();
             unsubscribe();
-        },
+        }),
     };
 }
 
 /**
- * True while an `osdViewer` probe is installed. A nested projection must not
- * install a second one: its restore would remove the outer probe's accessor.
+ * The query-only viewport members the probe watches for — the ones that change
+ * every frame and never notify. `containerSize` is deliberately absent: it is
+ * query-only too, but it changes only on resize, and a `state`-cadence
+ * projection reading it is not the silent-freeze mistake this warning is about.
+ */
+const QUERY_ONLY_VIEWPORT_MEMBERS = [
+    'viewportScale',
+    'viewportCentre',
+    'viewportBounds',
+] as const;
+
+/**
+ * True while a viewport probe is installed. A nested projection must not
+ * install a second one: its restore would remove the outer probe's accessors.
  */
 let probing = false;
 
 /**
- * Run `read` with `osdViewer` temporarily shadowed by an own accessor that
- * records whether it was read, then restore the object exactly as it was.
+ * Run `read` with the query-only viewport getters temporarily shadowed by own
+ * accessors that record whether they were read, then restore the object exactly
+ * as it was.
  *
  * Development-only (the caller gates on debug mode) and synchronous: the
- * shadowing accessor exists only for the duration of one projection call, and it
- * delegates to the real accessor, so the value the projection sees is the real
- * one. Objects without an `osdViewer` accessor — a test double, say — are run
- * unmodified.
+ * shadowing accessors exist only for the duration of one projection call, and
+ * they delegate to the real ones, so the values the projection sees are the real
+ * ones. Objects without those accessors — a published state, a test double — are
+ * run unmodified.
+ *
+ * @returns the projection's value, and the name of the first viewport member it
+ * read (`null` if it read none), so the warning can name it.
  */
-function readingOsdViewer<T>(
-    state: ViewerState,
+function readingViewport<T>(
+    state: object,
     read: () => T,
-): { value: T; readOsdViewer: boolean } {
-    const descriptor = inheritedAccessor(state, 'osdViewer');
-    if (!descriptor?.get || !Object.isExtensible(state) || probing) {
-        return { value: read(), readOsdViewer: false };
+): { value: T; readViewport: string | null } {
+    if (probing || !Object.isExtensible(state)) {
+        return { value: read(), readViewport: null };
     }
-    const { get, set } = descriptor;
-    let readOsdViewer = false;
+
+    const installed: string[] = [];
+    let readViewport: string | null = null;
+
+    for (const member of QUERY_ONLY_VIEWPORT_MEMBERS) {
+        const descriptor = inheritedAccessor(state, member);
+        if (!descriptor?.get) continue;
+        const { get } = descriptor;
+        Object.defineProperty(state, member, {
+            configurable: true,
+            enumerable: descriptor.enumerable ?? false,
+            get: () => {
+                readViewport ??= member;
+                return get.call(state);
+            },
+        });
+        installed.push(member);
+    }
+
+    if (installed.length === 0) {
+        return { value: read(), readViewport: null };
+    }
+
     probing = true;
-    Object.defineProperty(state, 'osdViewer', {
-        configurable: true,
-        enumerable: descriptor.enumerable ?? true,
-        get: () => {
-            readOsdViewer = true;
-            return get.call(state);
-        },
-        set: (next: unknown) => {
-            set?.call(state, next);
-        },
-    });
     try {
-        return { value: read(), readOsdViewer };
+        return { value: read(), readViewport };
     } finally {
         probing = false;
-        Reflect.deleteProperty(state, 'osdViewer');
+        for (const member of installed) {
+            Reflect.deleteProperty(state, member);
+        }
     }
 }
 

@@ -158,35 +158,29 @@ describe('a Vue consumer component reading the ref-wrapped headless handle', () 
     });
 
     it("reads continuous viewport values with cadence: 'frame'", async () => {
-        let zoomValue = 1;
-        const handlers = new Set<() => void>();
-        const osd = {
-            addHandler: (_event: string, handler: () => void) =>
-                handlers.add(handler),
-            removeHandler: (_event: string, handler: () => void) =>
-                handlers.delete(handler),
-            viewport: { getZoom: () => zoomValue },
-        };
         const Zoom = defineComponent({
             setup() {
                 const zoom = useViewerSelector(
                     viewer,
-                    (state) => state.osdViewer?.viewport.getZoom() ?? 0,
+                    (state) => state.viewportScale,
                     { cadence: 'frame' },
                 );
                 return () => h('span', { id: 'zoom' }, String(zoom.value));
             },
         });
         mount(Zoom);
+        // No renderer yet: the viewport queries answer with zero rather than
+        // making a consumer guard every read.
         expect(text('zoom')).toBe('0');
 
-        handle.setOsdViewer(osd);
+        const renderer = handle.attachRenderer({ scale: 1 });
         await settle();
         expect(text('zoom')).toBe('1');
 
-        // OpenSeadragon's own animation event — nothing in viewer state moved.
-        zoomValue = 2.5;
-        for (const handler of [...handlers]) handler();
+        // The renderer's own animation event — nothing in viewer state moved,
+        // and no state notification was delivered.
+        renderer.setView({ scale: 2.5 });
+        renderer.emitFrame();
         await nextTick();
 
         expect(text('zoom')).toBe('2.5');

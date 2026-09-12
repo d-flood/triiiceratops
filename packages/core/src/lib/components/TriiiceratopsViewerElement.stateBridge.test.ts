@@ -26,50 +26,6 @@ import type { SearchProvider, SearchResultGroup } from '../types/config';
  * destroy/re-mount cycle a detach-then-reattach produces.
  */
 
-// The viewer mounts OpenSeadragon as soon as a manifest resolves; happy-dom has
-// no WebGL/canvas for it. Same stub the other element-level component tests use.
-vi.mock('openseadragon', () => ({
-    default: Object.assign(
-        vi.fn(() => ({
-            addHandler: vi.fn(),
-            removeHandler: vi.fn(),
-            removeAllHandlers: vi.fn(),
-            destroy: vi.fn(),
-            open: vi.fn(),
-            close: vi.fn(),
-            forceRedraw: vi.fn(),
-            setMouseNavEnabled: vi.fn(),
-            addOverlay: vi.fn(),
-            removeOverlay: vi.fn(),
-            clearOverlays: vi.fn(),
-            viewport: {
-                getZoom: vi.fn(() => 1),
-                getMaxZoom: vi.fn(() => 10),
-                getMinZoom: vi.fn(() => 0.1),
-                zoomTo: vi.fn(),
-                zoomBy: vi.fn(),
-                panTo: vi.fn(),
-                goHome: vi.fn(),
-                fitBounds: vi.fn(),
-                imageToViewportCoordinates: vi.fn(),
-                imageToViewportRectangle: vi.fn(),
-                viewportToImageCoordinates: vi.fn(),
-                getBounds: vi.fn(() => ({ x: 0, y: 0, width: 1, height: 1 })),
-            },
-            world: {
-                getItemCount: vi.fn(() => 0),
-                getItemAt: vi.fn(),
-                addHandler: vi.fn(),
-                removeHandler: vi.fn(),
-            },
-            drawer: { canvas: null },
-            container: null,
-            element: null,
-        })),
-        { Rect: vi.fn(), Point: vi.fn(), ControlAnchor: {} },
-    ),
-}));
-
 const TAG = 'triiiceratops-viewer';
 
 /**
@@ -89,6 +45,8 @@ interface BridgeElement extends HTMLElement {
     manifestId?: string;
     manifestJson?: unknown;
     config?: unknown;
+    messages?: unknown;
+    loadMessages?: unknown;
 }
 
 const MANIFEST_ID = 'https://example.org/iiif/book/manifest';
@@ -436,6 +394,85 @@ describe('searchProvider property input', () => {
             [...el.attributes]
                 .map((a) => a.name)
                 .filter((n) => /search/.test(n)),
+        ).toEqual([]);
+    });
+});
+
+/**
+ * The chrome-catalog inputs. `messages` is the fourth JSON-valued prop, read
+ * from an attribute or assigned as a property through the same parser as
+ * `config`; `loadMessages` is a function, so it is property-only on the terms
+ * `searchProvider` set above. Both are a spelling of the `config` fields a
+ * framework wrapper uses, and win over them.
+ */
+describe('messages and loadMessages inputs', () => {
+    it('parses a messages attribute as JSON onto the config', async () => {
+        const el = createViewer();
+        el.setAttribute('messages', '{"de":{"search":"Suche"}}');
+        await connect(el);
+
+        expect(el.viewerState?.config.messages).toEqual({
+            de: { search: 'Suche' },
+        });
+    });
+
+    it('takes a messages property assigned before connection', async () => {
+        const el = createViewer();
+        const messages = { de: { search: 'Suche' } };
+        el.messages = messages;
+        await connect(el);
+
+        expect(el.viewerState?.config.messages).toEqual(messages);
+    });
+
+    it('lets the messages input win over config.messages', async () => {
+        const el = createViewer();
+        el.config = { messages: { de: { search: 'Von config' } } };
+        el.messages = { de: { search: 'Von messages' } };
+        await connect(el);
+
+        expect(el.viewerState?.config.messages).toEqual({
+            de: { search: 'Von messages' },
+        });
+    });
+
+    it('drops malformed messages JSON with a debug-gated warning', async () => {
+        const records: Array<{ level: LogLevel; message: string }> = [];
+        configureLogging({
+            debug: true,
+            sink: (level, args) =>
+                records.push({ level, message: args.join(' ') }),
+        });
+
+        const el = createViewer();
+        el.config = { debug: true };
+        el.setAttribute('messages', '{"de":');
+        await connect(el);
+
+        expect(el.viewerState?.config.messages).toBeUndefined();
+        expect(
+            records.filter(
+                (r) => r.level === 'warn' && r.message.includes('messages'),
+            ).length,
+        ).toBeGreaterThan(0);
+    });
+
+    it('carries a loadMessages function and ignores anything else', async () => {
+        const load = async () => ({ search: 'Suche' });
+        const el = createViewer();
+        el.loadMessages = load;
+        await connect(el);
+        expect(el.viewerState?.config.loadMessages).toBe(load);
+
+        const stray = createViewer();
+        // What the inert `loadmessages` attribute would deliver: a string.
+        stray.loadMessages = 'window.myLoader';
+        await connect(stray);
+        expect(stray.viewerState?.config.loadMessages).toBeUndefined();
+        expect(
+            [...stray.attributes]
+                .map((a) => a.name)
+                .filter((n) => /message/.test(n)),
         ).toEqual([]);
     });
 });

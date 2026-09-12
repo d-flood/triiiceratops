@@ -30,7 +30,7 @@ export interface ToolbarConfig {
      */
     showSearch?: boolean;
     /**
-     * Whether the Gallery toggle button is shown in this menu.
+     * Whether the Gallery placement picker is shown in this menu.
      * @default true
      */
     showGallery?: boolean;
@@ -60,6 +60,12 @@ export interface ToolbarConfig {
      * @default true
      */
     showStructures?: boolean;
+    /**
+     * Whether the Language button/menu is shown in this menu.
+     * Only visible when the manifest is authored in more than one language.
+     * @default true
+     */
+    showLocalePicker?: boolean;
     /**
      * Whether the Collection button is shown in this menu.
      * Only visible when a collection is loaded.

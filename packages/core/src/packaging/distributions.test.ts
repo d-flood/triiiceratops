@@ -14,16 +14,27 @@ import { PUBLIC_CSS_TOKENS } from '../lib/theme/publicTokens';
  * layout — so `import 'triiiceratops/style.css'` produced an unstyled viewer.
  */
 
-// src/build → repo root
-const REPO = resolve(__dirname, '..', '..');
-const dist = (f: string) => resolve(REPO, 'dist', f);
+// src/packaging → package root
+const PACKAGE_ROOT = resolve(__dirname, '..', '..');
+const dist = (f: string) => resolve(PACKAGE_ROOT, 'dist', f);
 
 const THEMES = ['light', 'dark', 'teal', 'dracula'] as const;
 
 function build(config: string) {
     execSync(`pnpm exec vite build --config ${config}`, {
-        cwd: REPO,
+        cwd: PACKAGE_ROOT,
         stdio: 'pipe',
+        // vitest sets NODE_ENV=test, and vite only defaults NODE_ENV when it is
+        // unset — so an inherited environment makes `isProduction` false and
+        // vite-plugin-svelte compile `dev: true`. These builds write into the
+        // real `dist/` with `emptyOutDir: false`, so that dev artifact would sit
+        // there afterwards, in exactly the place `scripts/size-check.mjs` and
+        // `pnpm size:baseline` read: running `pnpm test` and then
+        // `pnpm size:baseline` would re-record a ~1.4 MB bundle as the budget.
+        env: {
+            ...process.env,
+            NODE_ENV: 'production',
+        },
     });
 }
 
@@ -99,8 +110,8 @@ const ROOT_ONLY = /^(?::where\()?\.viewer-root(?:\[[^\]]*\]|\.[\w-]+)*\)?$/;
  *
  * Base tokens must land on the root ALONE. Declared on a descendant they beat
  * the root's `[data-theme=…]` block and `themeConfig` inline styles by cascade,
- * so that subtree silently reverts to the stock light theme — the OSDViewer
- * `class="viewer-root"` regression, from the other end (see
+ * so that subtree silently reverts to the stock light theme — the renderer
+ * wrapper's `class="viewer-root"` regression, from the other end (see
  * viewerRootUnique.test.ts, which guards the markup side).
  */
 function findNonRootTokenDeclarations(css: string): string[] {
@@ -128,8 +139,9 @@ beforeAll(() => {
     // styles MUST run last — the same order as the `build:lib` script.
     build('vite.config.lib.ts');
     build('vite.config.element.ts');
+    build('vite.config.element-esm.ts');
     build('vite.config.styles.ts');
-}, 240_000);
+}, 300_000);
 
 describe('published distributions ship styles + themes', () => {
     describe("Svelte package — 'triiiceratops/style.css' (dist/triiiceratops.css)", () => {
@@ -184,9 +196,10 @@ describe('published distributions ship styles + themes', () => {
             expect(css, 'layout --ui- vars').toContain('--ui-');
         });
 
-        it('does NOT bundle plugin CSS — core has no Annotorious layer', () => {
-            // The annotation layer ships with the annotation-editor plugin, not
-            // core. A consumer without that plugin must not pay for it.
+        it('does NOT bundle plugin CSS', () => {
+            // A plugin's styling ships with that plugin, not with core. The
+            // `a9s-` fossils are the annotation editor's former Annotorious
+            // layer: core never carried it and must not start.
             expect(css, 'no a9s classes').not.toContain('a9s-');
             expect(css, 'no annotorious').not.toContain('annotorious');
         });
@@ -222,11 +235,192 @@ describe('published distributions ship styles + themes', () => {
                 expect(js, `theme "${theme}" missing`).toContain(theme);
             }
         });
+
+        /*
+         * The plugin rendering substrate (ADR 0016) is DOM overlay layers plus
+         * paint hooks, and both are driven by a revision counter the render site
+         * reads to establish a reactive dependency. Written as a bare
+         * `void state.overlayLayerRevision;` expression statement, that read is
+         * deletable by any minifier that treats a property read as pure — and
+         * then in the SHIPPED web component a plugin registers an overlay layer,
+         * the registry accepts it, the counter increments, and no container is
+         * ever created. Every overlay and paint test stays green regardless,
+         * because they all load the element from source, not from this artifact.
+         * The render sites consume the counter instead of voiding it, and
+         * `compress.pure_getters` is off (`src/packaging/terserElement.ts`); this
+         * is the guard that would catch either of those being undone.
+         *
+         * Grepping the minified output is the only place that failure is
+         * visible, so it is asserted here rather than left to an e2e that would
+         * have to drive a real plugin against a real build.
+         */
+        it('keeps the overlay, paint and transport revision reads through minification', () => {
+            const js = readFileSync(
+                dist('triiiceratops-element.iife.js'),
+                'utf8',
+            );
+
+            // Each counter is written in three places the minifier always keeps
+            // — the getter, the setter and the `+= 1` bump. A surviving READ is
+            // therefore a fourth occurrence, and its absence is the bug.
+            for (const revision of [
+                'overlayLayerRevision',
+                'paintLayerRevision',
+                // The control bar's transport chrome is driven by the same
+                // idiom, so it is exposed to the same deletion.
+                'transportChromeRevision',
+            ]) {
+                const occurrences = js.split(revision).length - 1;
+                expect(
+                    occurrences,
+                    `${revision} is written 3 times and read at least once; ` +
+                        `${occurrences} occurrence(s) means the render site's ` +
+                        `read was dropped and the layer will never render`,
+                ).toBeGreaterThan(3);
+            }
+        });
+
+        /*
+         * The end of the chain the other guards check in pieces: whatever the
+         * compile options did, does loading this file put <triiiceratops-viewer>
+         * in the registry, and nothing else?
+         *
+         * Worth running rather than grepping. The entry point hands
+         * `customElements.define` a constructor it read off the compiled
+         * component through an `as unknown as { element: … }` cast, so an
+         * element that was never generated type-checks exactly like one that
+         * was, and reaches `define` as `undefined`. Executing the bundle is also
+         * the one assertion no minifier can mislead.
+         */
+        it('defines exactly the one custom element when loaded', () => {
+            const js = readFileSync(
+                dist('triiiceratops-element.iife.js'),
+                'utf8',
+            );
+            const defined: string[] = [];
+            const define = customElements.define.bind(customElements);
+            customElements.define = (tag, ctor, options) => {
+                defined.push(tag);
+                define(tag, ctor, options);
+            };
+            try {
+                new Function(js)();
+            } finally {
+                customElements.define = define;
+            }
+
+            expect(defined).toEqual(['triiiceratops-viewer']);
+            expect(customElements.get('triiiceratops-viewer')).toBeTypeOf(
+                'function',
+            );
+        });
     });
 
-    // The Annotorious single-source CSS rule moved to
-    // `@triiiceratops/plugin-annotation-editor` with the plugin (ticket 17); its
-    // `styles.ts` now imports `annotorious-openseadragon.css?inline` and installs
-    // it through the SDK style service. Core's own "no Annotorious layer" rule
-    // (above) is what stays here.
+    describe('web component ESM entry — dist/triiiceratops-element.js', () => {
+        /*
+         * The same end-of-chain check for the OTHER artifact. It needs its own
+         * run: the two bundles come out of two different Vite configs and two
+         * different esbuild transpile settings (Vite leaves `minifyWhitespace`
+         * off for an ES lib build), so "the IIFE executes" says nothing about
+         * this one. Nothing else executes it — every other guard on it is a
+         * regex over the text — which is exactly the wrong shape of evidence for
+         * a dead-code pass whose licence is to delete member expressions whose
+         * value is unused.
+         *
+         * The registration path is idempotent and first-wins
+         * (`defineViewerElement` returns early when the tag is taken), so the
+         * IIFE test above having really defined the tag would make this one
+         * observe nothing. Stub `get` as well as `define`, and the two tests
+         * stop depending on each other's order.
+         */
+        function loadAndCollectDefinitions(js: string): {
+            tags: string[];
+            ctor: CustomElementConstructor | undefined;
+        } {
+            const tags: string[] = [];
+            let ctor: CustomElementConstructor | undefined;
+            const define = customElements.define.bind(customElements);
+            const get = customElements.get.bind(customElements);
+            customElements.define = (tag, c) => {
+                tags.push(tag);
+                ctor = c;
+            };
+            customElements.get = () => undefined;
+            try {
+                new Function(js)();
+            } finally {
+                customElements.define = define;
+                customElements.get = get;
+            }
+            return { tags, ctor };
+        }
+
+        it('defines exactly the one custom element when executed', () => {
+            const js = readFileSync(dist('triiiceratops-element.js'), 'utf8');
+            const { tags, ctor } = loadAndCollectDefinitions(js);
+
+            expect(tags).toEqual(['triiiceratops-viewer']);
+            expect(ctor).toBeTypeOf('function');
+        });
+
+        /*
+         * The IIFE guard above, for the artifact with the EXTRA licence. This
+         * one is minified with terser's `module: true`
+         * (`src/packaging/terserElement.ts`), which turns on cross-statement
+         * compression and top-level mangling the IIFE does not get — so "the
+         * IIFE kept its reads" is not evidence that this file did.
+         * Property names are not mangled in either artifact, which is what
+         * makes the counting argument hold for both.
+         */
+        it('keeps the overlay, paint and transport revision reads through minification', () => {
+            const js = readFileSync(dist('triiiceratops-element.js'), 'utf8');
+
+            for (const revision of [
+                'overlayLayerRevision',
+                'paintLayerRevision',
+                'transportChromeRevision',
+            ]) {
+                const occurrences = js.split(revision).length - 1;
+                expect(
+                    occurrences,
+                    `${revision} is written 3 times and read at least once; ` +
+                        `${occurrences} occurrence(s) means the render site's ` +
+                        `read was dropped and the layer will never render`,
+                ).toBeGreaterThan(3);
+            }
+        });
+
+        it('observes every attribute the wrapper declares', () => {
+            // `observedAttributes` is a static getter on Svelte's
+            // custom-element base class, reading the compiled props
+            // definition. Asking the live constructor for it — rather than
+            // grepping the text, which is all the other guards on this
+            // artifact do — is what makes the attribute contract survive the
+            // round trip through two minifiers. Expected values come from the
+            // wrapper source, so the two cannot drift.
+            const wrapper = readFileSync(
+                resolve(
+                    PACKAGE_ROOT,
+                    'src/lib/components/TriiiceratopsViewerElement.svelte',
+                ),
+                'utf8',
+            );
+            const declared = [
+                ...wrapper.matchAll(/attribute:\s*'([a-z-]+)'/g),
+            ].map((m) => m[1]);
+            expect(declared.length).toBeGreaterThan(0);
+
+            const js = readFileSync(dist('triiiceratops-element.js'), 'utf8');
+            const { ctor } = loadAndCollectDefinitions(js);
+            const observed = (
+                ctor as unknown as { observedAttributes: string[] }
+            ).observedAttributes;
+
+            expect(observed).toEqual(expect.arrayContaining(declared));
+        });
+    });
+
+    // A plugin installs its own CSS through the SDK style service (the
+    // annotation editor's `mount.svelte.ts`, for one). Core's own "no plugin
+    // CSS" rule (above) is what stays here.
 });

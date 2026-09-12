@@ -1,0 +1,5359 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Core renders and selects the annotations a manifest publishes; it writes none. "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-annotation-editor",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " adds the writing half: a "
+				},
+				{
+					"type": "text",
+					"text": "drawing layer",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " over the image, a panel with a body editor and persistence-aware undo/redo, and an "
+				},
+				{
+					"type": "text",
+					"text": "AnnotationStorageAdapter",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " seam so annotations persist wherever your institution keeps them. Every tool is operable from the keyboard, for creating a shape as well as for editing one."
+				}
+			],
+			"attrs": {
+				"id": "67f9142d-0ab2-446d-b81e-cefb5bb90cd1"
+			}
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "info",
+				"title": "Annotation editing is opt-in",
+				"id": "b1e155f8-f144-4173-a29f-6938c6d5f034"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "None of it is in core’s bundle, and none of it activates unless you add the plugin to a viewer’s "
+						},
+						{
+							"type": "text",
+							"text": "plugins",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " list. A viewer without it still renders and selects the annotations a manifest publishes — it simply offers no way to write one."
+						}
+					],
+					"attrs": {
+						"id": "6312a475-377b-45ce-bf23-820267e90f75"
+					}
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Annotations are persisted as "
+				},
+				{
+					"type": "text",
+					"text": "W3C Web Annotations",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "https://www.w3.org/TR/annotation-model/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " targeting "
+				},
+				{
+					"type": "text",
+					"text": "canvas coordinates",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": a "
+				},
+				{
+					"type": "text",
+					"text": "FragmentSelector",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " ("
+				},
+				{
+					"type": "text",
+					"text": "xywh=",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ") for a rectangle, an "
+				},
+				{
+					"type": "text",
+					"text": "SvgSelector",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " carrying a "
+				},
+				{
+					"type": "text",
+					"text": "<polygon>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for an ellipse or a polygon, a "
+				},
+				{
+					"type": "text",
+					"text": "PointSelector",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for a point, and no selector at all for a whole-canvas note. Nothing in the format is this plugin’s invention, so an annotation written here is readable by anything that reads IIIF."
+				}
+			],
+			"attrs": {
+				"id": "20a22c25-b55a-4b55-ab87-1f1b4288160b"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "install",
+				"id": "a2274248-ffac-49f6-b4dc-d866ed46e9fa"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Install"
+				}
+			]
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "package-manager",
+				"id": "a78a88f4-4608-4417-9a54-9165cbe539ef"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "pnpm",
+						"id": "f9d9fa00-9d61-4a69-9996-a6f61252c998"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "8cb81de7-47b6-4005-901b-76d276a890e1"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pnpm add @triiiceratops/plugin-annotation-editor"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "npm",
+						"id": "26c8d34f-340e-4451-9920-8336bcc153bf"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "e9f42c38-4c0e-4833-bfe9-2631549f4398"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "npm install @triiiceratops/plugin-annotation-editor"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "bun",
+						"id": "bcd89572-ccb4-4bb7-818f-669df68306c2"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "bash",
+								"id": "ce1d20b2-6cf5-4959-8cff-d6545a5abb1d"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "bun add @triiiceratops/plugin-annotation-editor"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "triiiceratops",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-sdk",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "svelte",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are peers. The plugin declares a core floor — "
+				},
+				{
+					"type": "text",
+					"text": "coreRange: '>=1.0.0'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", the first core that ships overlay-layer registration — and refuses to activate against anything older, loudly, on core’s "
+				},
+				{
+					"type": "text",
+					"text": "plugin error channel",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-authoring/#failure-isolation-and-retry"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " rather than mounting a button that does nothing."
+				}
+			],
+			"attrs": {
+				"id": "3721e682-56c1-499b-bf16-e9f8b3defee8"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "registering-it",
+				"id": "e7ad35cf-15eb-42cb-9a24-5c2ea433efc1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Registering it"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "AnnotationEditorPlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the preconfigured plugin: every tool, rectangle armed by default, and the built-in "
+				},
+				{
+					"type": "text",
+					"text": "LocalStorageAdapter",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Hand it to the viewer the way you hand it any other plugin — see "
+				},
+				{
+					"type": "text",
+					"text": "adding a plugin to your viewer",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#adding-a-plugin-to-your-viewer"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for the full per-framework code:"
+				}
+			],
+			"attrs": {
+				"id": "15000626-3d5b-4d59-94fa-a2fa8e894f85"
+			}
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "framework",
+				"id": "2a64d47e-be39-4d8b-b4db-4b8e96e58e63"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "HTML",
+						"id": "7b01380c-83cc-464b-aa30-8376e4efe91f"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "ts",
+								"id": "e6a5f626-dee6-4667-8b92-2e2386428c0f"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import 'triiiceratops/element/register';\nimport { AnnotationEditorPlugin } from '@triiiceratops/plugin-annotation-editor';\n\nviewer.plugins = [AnnotationEditorPlugin];"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "React",
+						"id": "91b964ad-cf5c-4f3c-9809-f38732e89cbc"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "tsx",
+								"id": "ccbe3b70-b8c5-4cf7-afd5-75d8258c4536"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import { TriiiceratopsViewer } from 'triiiceratops/react';\nimport { AnnotationEditorPlugin } from '@triiiceratops/plugin-annotation-editor';\n\nconst plugins = [AnnotationEditorPlugin];\n\nexport function Reader() {\n    return (\n        <TriiiceratopsViewer\n            manifestId=\"https://example.org/manifest.json\"\n            plugins={plugins}\n            style={{ display: 'block', height: '600px' }}\n        />\n    );\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Vue",
+						"id": "9cdbb84d-5015-49f3-9790-437471622d07"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "vue",
+								"id": "8c57baa8-a047-4eca-ba60-4bb2bd4514b5"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script setup lang=\"ts\">\nimport { TriiiceratopsViewer, type SdkPlugin } from 'triiiceratops/vue';\nimport { AnnotationEditorPlugin } from '@triiiceratops/plugin-annotation-editor';\n\nconst plugins: readonly SdkPlugin[] = [AnnotationEditorPlugin];\n</script>\n\n<template>\n    <TriiiceratopsViewer\n        manifest-id=\"https://example.org/manifest.json\"\n        :plugins=\"plugins\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Svelte",
+						"id": "a959324f-24d1-40e5-8ef5-e51f2505a7e9"
+					},
+					"content": [
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "364e041a-b862-421a-9085-e3651ef42454"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script>\n    import { TriiiceratopsViewer } from 'triiiceratops/svelte';\n    import 'triiiceratops/style.css';\n    import { AnnotationEditorPlugin } from '@triiiceratops/plugin-annotation-editor';\n</script>\n\n<TriiiceratopsViewer\n    manifestId=\"https://example.org/manifest.json\"\n    plugins={[AnnotationEditorPlugin]}\n/>"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Use "
+				},
+				{
+					"type": "text",
+					"text": "createAnnotationEditorPlugin(config)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for anything else — your own adapter, a subset of the tools, the current user, or any of the "
+				},
+				{
+					"type": "text",
+					"text": "configuration",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "#configuration"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " below. It returns a plugin you hand to the same "
+				},
+				{
+					"type": "text",
+					"text": "plugins",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " list:"
+				}
+			],
+			"attrs": {
+				"id": "74b5bf5f-b785-463f-8de5-bb915e1ef131"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "2d64f099-71d5-4289-a0f4-6b3376f20f3a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import {\n    createAnnotationEditorPlugin,\n    LocalStorageAdapter,\n} from '@triiiceratops/plugin-annotation-editor';\n\nconst annotations = createAnnotationEditorPlugin({\n    adapter: new LocalStorageAdapter(),\n    user: { id: 'user-123', name: 'Jane Doe' },\n    tools: ['rectangle', 'polygon', 'point'],\n});\n\nviewer.plugins = [annotations];"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "as-a-script-tag-iife",
+				"id": "66c58359-d342-44d8-88ac-d63e346b99c1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "As a script tag (IIFE)"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The IIFE bundles its own Svelte runtime, so it shares nothing private with core and the two scripts may load in "
+				},
+				{
+					"type": "text",
+					"text": "either order",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — unlike "
+				},
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-av",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#script-order-triiiceratops-plugin-av-loads-after-core"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Loading the script only registers a factory; activation is per-viewer."
+				}
+			],
+			"attrs": {
+				"id": "cb630655-fb22-465e-9f2f-41c63710acc1"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "3fecfe74-719c-445a-a26c-f7fb169753ed"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script src=\"/assets/triiiceratops-element.iife.js\"></script>\n<script src=\"/assets/plugin-annotation-editor/iife.js\"></script>\n\n<triiiceratops-viewer id=\"viewer\"></triiiceratops-viewer>\n<script>\n    document.getElementById('viewer').plugins = [\n        window.Triiiceratops.plugins.get(\n            '@triiiceratops/plugin-annotation-editor',\n        ),\n    ];\n</script>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The IIFE path uses the built-in "
+				},
+				{
+					"type": "text",
+					"text": "LocalStorageAdapter",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": a custom adapter is a JavaScript object, so it needs the module entry."
+				}
+			],
+			"attrs": {
+				"id": "5fed11bc-020a-4f16-ac4d-0fd3891f9f1f"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "what-it-renders",
+				"id": "7ffac853-96c9-4547-b2de-68d1e62eba4f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "What it renders"
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A panel",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " with an Edit/Create toggle, the tool buttons for whichever tools are configured, a one-line instruction for the armed tool, undo/redo, and the body editor for the selected annotation. It opens in "
+								},
+								{
+									"type": "text",
+									"text": "Edit",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " mode, where clicking an annotation selects it."
+								}
+							],
+							"attrs": {
+								"id": "d769038f-60e1-483c-a9fd-2032c75b4814"
+							}
+						}
+					],
+					"attrs": {
+						"id": "db7d6ccd-3107-40fb-ace6-2287887fd094"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "A drawing layer",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " over the image, holding the annotation currently under edit, its handles, and the in-progress preview. It draws only that one annotation — the persisted set is core’s read-only overlay — and it is what makes drawing modal."
+								}
+							],
+							"attrs": {
+								"id": "a51702e8-aace-4873-8df9-0dad4d694c9c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "bd08b202-5bfd-45ae-ac92-8e2bf982ea9f"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Editable shapes.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " While the editor’s surface is open, every annotation core draws becomes selectable, focusable and operable. Close the panel and they go back to being the read-only overlay they were: the editing affordance is exactly as long-lived as the panel that explains it."
+								}
+							],
+							"attrs": {
+								"id": "a4149267-18ca-4a85-ab2e-e4c04753b146"
+							}
+						}
+					],
+					"attrs": {
+						"id": "fdc66386-5a13-48fb-adfa-6cae622220e2"
+					}
+				}
+			],
+			"attrs": {
+				"id": "6cf4e511-1e62-4933-9771-6c84446265eb"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The drawing layer is built on core’s own published primitives — an "
+				},
+				{
+					"type": "text",
+					"text": "overlay layer",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-authoring/#putting-dom-on-the-image-overlay-layers"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for its DOM, "
+				},
+				{
+					"type": "text",
+					"text": "canvasToScreen",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "/"
+				},
+				{
+					"type": "text",
+					"text": "screenToCanvas",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for projection, "
+				},
+				{
+					"type": "text",
+					"text": "subscribeFrame",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " for reprojection — so no third party’s object model sits between the editor and the viewer."
+				}
+			],
+			"attrs": {
+				"id": "46378f83-a945-4b83-aab0-8e1c5e71f812"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "drawing",
+				"id": "8390d7b0-fe08-48e1-b8b7-ff7bf4ac058f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Drawing"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Drawing is "
+				},
+				{
+					"type": "text",
+					"text": "modal",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": the reader arms a tool from the panel, and for as long as it is armed the drawing layer takes pointer events across the whole image, so a drag draws instead of panning. One tool, one gesture — nothing has to guess whether a press was a click or a drag."
+				}
+			],
+			"attrs": {
+				"id": "269fe82f-fd31-4d93-9b49-af168243d444"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Tool"
+										}
+									],
+									"attrs": {
+										"id": "b0c44e06-d5f7-4b84-9a11-16125462c7e1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7f287f42-3205-488b-acf7-5e10d54f892c"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Gesture"
+										}
+									],
+									"attrs": {
+										"id": "fa411e31-aaaa-4f4f-bf50-5be6ba0c553b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "de2bb72d-ba72-40b3-b259-0a1754c65749"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Persisted target"
+										}
+									],
+									"attrs": {
+										"id": "ca68c34c-659e-4e3f-ba7d-4abac9de974e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "698ca6e5-1435-4eaa-b77c-8dd0169fc545"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f8a5c412-a5c6-4732-9064-ad53ee203c53"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Rectangle"
+										}
+									],
+									"attrs": {
+										"id": "fd79c933-f834-4c5a-bb93-48f25fc9653c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5399c979-6b13-4f55-a4a2-dc9772154f2f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "drag a bounding box"
+										}
+									],
+									"attrs": {
+										"id": "cda11c35-a544-448d-9655-07f7d2707b3f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "47c35aab-c926-4ebe-a0f0-256309901935"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "FragmentSelector",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f15e41a8-1767-4254-ba99-8bcdbded4715"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d20eb5ad-d59c-40f0-821f-61774bc24ac3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "aa0733b0-f714-452e-8cc1-2580cb8fe719"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Ellipse"
+										}
+									],
+									"attrs": {
+										"id": "2c21ed50-bbb9-45ce-b9d5-da403b461d9f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "18897fb7-9c9f-461b-ae26-5aa239e8fe13"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "drag a bounding box"
+										}
+									],
+									"attrs": {
+										"id": "f301d875-6a2b-4942-a3b9-81b8f0ca779e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5285f0ce-bae5-46b6-9b83-3d1b065dc6c8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "SvgSelector",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " "
+										},
+										{
+											"type": "text",
+											"text": "<polygon>",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "6428fd3d-8c9e-4427-b712-5930ccfba45e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8748a051-6db6-464b-8008-1c0be8e9f3c4"
+							}
+						}
+					],
+					"attrs": {
+						"id": "965abf8a-67f3-4a66-a128-d45f385a59e8"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Polygon"
+										}
+									],
+									"attrs": {
+										"id": "de6eaefa-557d-436a-b4f6-a6f2c952aab0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "cfc42cc3-f388-4eff-b03a-a0babe8373f7"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "click once per vertex; Enter or a double-click closes the outline"
+										}
+									],
+									"attrs": {
+										"id": "02c986a7-574e-47c9-97c8-e4aebbd30825"
+									}
+								}
+							],
+							"attrs": {
+								"id": "bb8b0cc1-dce6-42c0-bc1e-457035bad3ae"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "SvgSelector",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " "
+										},
+										{
+											"type": "text",
+											"text": "<polygon>",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f8d05a46-b029-4a2b-ba75-81dce6292219"
+									}
+								}
+							],
+							"attrs": {
+								"id": "57956665-f4e2-455f-85ba-0a3232d4cb2f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "4d6e6c62-95d1-481a-9537-86feb38969e3"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Point"
+										}
+									],
+									"attrs": {
+										"id": "1a575aed-2fd3-47bb-8b97-1cb95011b10e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d1efe560-1d88-46cf-b37d-0f405517e934"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "a single click"
+										}
+									],
+									"attrs": {
+										"id": "b9561ecb-01cc-40b6-a39d-77bb1d3395ba"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d338d362-ee32-4f54-bc56-0a8e8c0038b4"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "PointSelector",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c0359891-6932-41cc-9af2-b16d024c6351"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f27296d9-7a26-4053-88e7-1d3c01b3c1da"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f04fe9b7-7a12-48f5-bfd1-a90daea23c79"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Whole canvas"
+										}
+									],
+									"attrs": {
+										"id": "5e0b9170-22ac-4e76-9953-420083baba14"
+									}
+								}
+							],
+							"attrs": {
+								"id": "0ebc9940-1c88-41cb-b867-c6168b0e10f0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "activate the tool — there is nothing to draw"
+										}
+									],
+									"attrs": {
+										"id": "73389c74-2cd5-4f4f-9caa-7a6bca103fad"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c4fe5175-7d8c-4496-8e83-9039f995f8a4"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "no selector"
+										}
+									],
+									"attrs": {
+										"id": "a39f3b43-ff5e-4fb4-8d4b-2c6808418636"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a6a09be5-9ee2-452f-ab14-33a6d2b83b37"
+							}
+						}
+					],
+					"attrs": {
+						"id": "0abfba80-d3db-484b-871a-41b142b39940"
+					}
+				}
+			],
+			"attrs": {
+				"id": "1a140d15-3667-4590-8418-043f814e49f7"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A region smaller than four canvas pixels in either dimension is discarded rather than committed, so hand jitter does not litter an annotation set with two-pixel shapes. A point is a click with no extent, so the guard does not apply to it."
+				}
+			],
+			"attrs": {
+				"id": "b4dd2c5b-1c56-4bc3-a0cf-31adf734bfb9"
+			}
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "note",
+				"title": "An ellipse is a creation affordance only",
+				"id": "7555bf79-adfd-4d1b-9a8e-9768c4ec836c"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "It persists as a 64-point polygon inscribed in the dragged box, and edits afterwards as the polygon it is — nothing records that it was once an ellipse. That is deliberate: IIIF has no ellipse selector, and a shape that round-trips as a polygon everywhere else must not pretend otherwise here ("
+						},
+						{
+							"type": "text",
+							"text": "ADR 0022",
+							"marks": [
+								{
+									"type": "link",
+									"attrs": {
+										"href": "https://github.com/d-flood/triiiceratops/blob/main/docs/adr/0022-an-ellipse-persists-as-a-polygon.md"
+									}
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": ")."
+						}
+					],
+					"attrs": {
+						"id": "208231b6-fbd3-4117-b8b8-eb63ccec9e32"
+					}
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "What still works while a tool is armed:"
+				}
+			],
+			"attrs": {
+				"id": "223e57d1-aafa-42f8-a5ca-7f14dd657663"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Wheel zoom",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", unchanged — place a vertex precisely without disarming."
+								}
+							],
+							"attrs": {
+								"id": "be1e0392-746e-4560-b711-7a66b7a0b5f3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ad10599d-e854-48c8-828a-3a13f8c37c3d"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Keyboard zoom and arrow-key panning",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", unchanged."
+								}
+							],
+							"attrs": {
+								"id": "9b52ad4d-11e2-4a02-96d2-ea97169d0984"
+							}
+						}
+					],
+					"attrs": {
+						"id": "f303e875-f38a-4297-975a-c59e350974b0"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Hold Space to pan by dragging.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " The layer drops its own pointer events for as long as Space is held and the viewer’s ordinary panning takes over underneath; a Space-pan never commits a shape."
+								}
+							],
+							"attrs": {
+								"id": "82683ca7-ef07-4e9d-a014-aa7612cdc6b7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8af11041-6dc7-4f80-bfda-18d81e8522bd"
+					}
+				}
+			],
+			"attrs": {
+				"id": "4756c429-adae-4979-9752-382d8c49d2f8"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Pointer-drag panning is the one thing arming suppresses, and Space is its escape hatch. A tool is armed only while the panel that explains it is on screen, and there are two exits — Escape, and closing the panel — both of which cancel rather than commit."
+				}
+			],
+			"attrs": {
+				"id": "38820b91-30f0-4fe9-9c28-f505b75d8d8f"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "keyboard",
+				"id": "b3fe44d3-bca7-4d06-8572-cdeb030d0e3e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Keyboard"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Creation from the keyboard is "
+				},
+				{
+					"type": "text",
+					"text": "place-then-shape",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": arming a tool and pressing Enter drops a default-sized shape at the centre of the current view, which the ordinary editing verbs then move and size. Creating and editing share one set of verbs."
+				}
+			],
+			"attrs": {
+				"id": "38d2f451-db88-4039-97dc-311acf749a2f"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Key"
+										}
+									],
+									"attrs": {
+										"id": "e5840263-44d8-4a79-968f-be881b225ab1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "355dd934-ea57-4ef5-b3fc-d1844e1c6a20"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Effect"
+										}
+									],
+									"attrs": {
+										"id": "74b887f9-5397-4d07-9eb8-1b1efe8e6718"
+									}
+								}
+							],
+							"attrs": {
+								"id": "eea3649b-0633-4aa8-b4f2-b167b0304071"
+							}
+						}
+					],
+					"attrs": {
+						"id": "26dc543c-a084-4df5-9918-646b737cd337"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Arrows"
+										}
+									],
+									"attrs": {
+										"id": "60777a1d-62e1-4b87-82a5-0f633038e455"
+									}
+								}
+							],
+							"attrs": {
+								"id": "2de54134-7882-4913-97f7-82aa6f5cfcdd"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "nudge the focused handle, vertex or whole shape by one canvas pixel"
+										}
+									],
+									"attrs": {
+										"id": "ecba2565-b017-4089-b453-e6707ec7dbaf"
+									}
+								}
+							],
+							"attrs": {
+								"id": "44a2ff97-ef43-496a-a355-91222f7b05ba"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7e51a4ce-34d7-4d14-8ab4-3c370ec9b83c"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Shift + arrows"
+										}
+									],
+									"attrs": {
+										"id": "4cdf4a19-4060-4bf6-b0e6-0a3fda64c256"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4574562a-75ff-4265-b9ae-ec8b94de141d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "the larger step, ten canvas pixels"
+										}
+									],
+									"attrs": {
+										"id": "04cedf88-6759-4e88-a68a-0cfa1f7c89a7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e277dfd4-ea6d-4d8e-96b5-8fabc8a790d2"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9d869c5a-67ec-4ca9-907e-ae74592d00a7"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Tab / Shift+Tab"
+										}
+									],
+									"attrs": {
+										"id": "eea852ab-0985-4a85-9b91-ef5b7cfade2e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4930f6bb-16c4-47de-a186-55d8c6ce97d0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "cycle the shape’s handles and vertices"
+										}
+									],
+									"attrs": {
+										"id": "56e37417-7213-4937-8686-f6e49172f5ae"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1c6d21b3-b198-4c97-b7ee-a1379d42a5a9"
+							}
+						}
+					],
+					"attrs": {
+						"id": "556a184b-8196-48de-845f-b24c7e1e36a4"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Enter"
+										}
+									],
+									"attrs": {
+										"id": "f2c1909d-a2f2-4c77-96ba-91110354b12c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "bcd1d74e-f3ee-42dd-8246-05a08bf825c2"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "commit; for a polygon in progress, close the outline"
+										}
+									],
+									"attrs": {
+										"id": "6e023faf-295d-49cc-8fc6-9855bd4947f3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7f34203b-d887-4fe3-a221-9d64c6d19100"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2b014588-dbb5-4013-ad63-d390dcaa9c95"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Escape"
+										}
+									],
+									"attrs": {
+										"id": "3b6d59bc-4830-4ad9-a841-ee75a0108f78"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3d766736-7d15-4245-9218-5d18b1ee9325"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "cancel the shape or edit in progress, else discard any pointer draft and disarm"
+										}
+									],
+									"attrs": {
+										"id": "0409b273-4af6-4ebb-bca3-5383de9fbb74"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8d69828c-8299-4da1-824e-66b14ba1860b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "81c7f244-733c-43ec-848d-b7360eb1a801"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Delete"
+										}
+									],
+									"attrs": {
+										"id": "c8268fe3-f635-4478-a5bf-6a42f130111e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "89097379-e045-4356-aa7f-b0fe8de5db00"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "remove the selected annotation"
+										}
+									],
+									"attrs": {
+										"id": "266e25e2-2185-42a3-bb7a-a1251c7e2341"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4ae35301-f5e4-43a9-b56e-9da43720f98d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "93ec7e3d-850d-481f-915b-4c0c37ab51d8"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "i",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "96391985-9988-4891-99af-1a75c7261699"
+									}
+								}
+							],
+							"attrs": {
+								"id": "bdafadf3-1a07-42b4-bdc0-032682585e86"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "insert a vertex after the focused polygon vertex"
+										}
+									],
+									"attrs": {
+										"id": "3e0be3eb-66cf-4993-a420-1f03b813b3f3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c0d5d032-6fc7-401d-8e96-774502e73440"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9c98b7db-2c60-4d8e-b746-f69bbaf55d10"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "x",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c7ba6931-f30f-45f3-a962-515819aba91f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fcd0c040-dc01-4353-930e-82ce46bfccce"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "remove the focused polygon vertex"
+										}
+									],
+									"attrs": {
+										"id": "b9970cef-f880-4597-b3b8-ca7f2969972c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5edde618-84aa-460b-9f13-f5e5b101a17a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6d6c59d4-c8c6-47ab-b655-6fd3b80329da"
+					}
+				}
+			],
+			"attrs": {
+				"id": "47673e6a-e136-4594-9c6b-414f7386c144"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Nudges are in "
+				},
+				{
+					"type": "text",
+					"text": "canvas",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " pixels, not screen pixels, so one press moves a vertex the same distance across the folio at fit zoom as at 8×."
+				}
+			],
+			"attrs": {
+				"id": "91b2ad0e-606d-457f-bd9e-2dcb6e1f507b"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "storage-the-adapter-seam",
+				"id": "cca76b81-1741-44d8-976a-c51a760e6674"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Storage: the adapter seam"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "An adapter is "
+				},
+				{
+					"type": "text",
+					"text": "pure storage",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". It knows nothing about how a shape is displayed: the plugin owns display sync, caching, create-versus-update resolution, id reconciliation, creator and timestamp stamping, hydration, and error handling around it. A conforming adapter is roughly these four functions."
+				}
+			],
+			"attrs": {
+				"id": "dca85cb6-8717-43cb-90e5-2803eec538d6"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "cc1bd9e8-ed97-40aa-abce-f3f2a0780c59"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type {\n    AdapterLoadResult,\n    AnnotationStorageAdapter,\n    W3CAnnotation,\n} from '@triiiceratops/plugin-annotation-editor';\n\nconst url = (manifestId: string, canvasId: string) =>\n    `/api/annotations?manifest=${encodeURIComponent(manifestId)}` +\n    `&canvas=${encodeURIComponent(canvasId)}`;\n\nexport const adapter: AnnotationStorageAdapter = {\n    id: 'my-server',\n    name: 'Institutional annotation server',\n\n    async load(manifestId, canvasId) {\n        const response = await fetch(url(manifestId, canvasId));\n        return (await response.json()) as AdapterLoadResult[];\n    },\n\n    // Return the canonical annotation (or just its id string) when your server\n    // mints its own IRI — the plugin then reconciles the id everywhere at once.\n    // Returning `void` keeps the client-generated one.\n    async create(manifestId, canvasId, annotation) {\n        const response = await fetch(url(manifestId, canvasId), {\n            method: 'POST',\n            body: JSON.stringify(annotation),\n        });\n        return (await response.json()) as W3CAnnotation;\n    },\n\n    async update(manifestId, canvasId, annotation) {\n        await fetch(url(manifestId, canvasId), {\n            method: 'PUT',\n            body: JSON.stringify(annotation),\n        });\n    },\n\n    async delete(manifestId, canvasId, annotationId) {\n        await fetch(`${url(manifestId, canvasId)}&id=${annotationId}`, {\n            method: 'DELETE',\n        });\n    },\n};"
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "load",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " may return "
+								},
+								{
+									"type": "text",
+									"text": "skeleton",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " entries — annotations whose bodies have not been fetched — marked "
+								},
+								{
+									"type": "text",
+									"text": "__fullBodyLoaded: false",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". Implement the optional "
+								},
+								{
+									"type": "text",
+									"text": "hydrate",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and the plugin fetches a full body when one is opened. The marker is read once and stripped; it never round-trips."
+								}
+							],
+							"attrs": {
+								"id": "d022eecd-1c42-43c4-9b17-e784abc00db7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "414157e5-8baf-4a44-9440-5b126c876e8d"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "update",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and "
+								},
+								{
+									"type": "text",
+									"text": "create",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " may return the server-normalized annotation to replace the cached copy, or "
+								},
+								{
+									"type": "text",
+									"text": "void",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " to keep the payload that was sent."
+								}
+							],
+							"attrs": {
+								"id": "831ba5c8-2c6c-4573-977f-bd17a72463b1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "c15e087e-4bc2-4dd2-8fb6-8c60cd7ae202"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "The optional "
+								},
+								{
+									"type": "text",
+									"text": "destroy",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is called on teardown."
+								}
+							],
+							"attrs": {
+								"id": "c7c3a1dc-3626-4566-ac12-226fdc8eaea7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b762e0eb-bb5b-4030-bb82-9c57b0db4c8b"
+					}
+				}
+			],
+			"attrs": {
+				"id": "da108576-8c11-46cd-9623-85e5d12e0008"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A failed write "
+				},
+				{
+					"type": "text",
+					"text": "rolls back",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " the plugin’s optimistic cache and display changes and then calls "
+				},
+				{
+					"type": "text",
+					"text": "onPersistenceError",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " with the operation, the annotation id, and a "
+				},
+				{
+					"type": "text",
+					"text": "retry()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " that re-runs the exact failed call:"
+				}
+			],
+			"attrs": {
+				"id": "b45b9ff4-d5fb-40dd-93ad-af3bb52de284"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "bb37b5ad-5c28-4cb2-a8ad-b50f6fd56f9f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import {\n    createAnnotationEditorPlugin,\n    type AnnotationPersistenceError,\n} from '@triiiceratops/plugin-annotation-editor';\n\nconst annotations = createAnnotationEditorPlugin({\n    onPersistenceError: (error: AnnotationPersistenceError) => {\n        // Already rolled back by the time this runs: decide how to surface it.\n        console.warn(`annotation ${error.op} failed`, error.cause);\n        void error.retry();\n    },\n});"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Omit the handler and the plugin logs and shows a dismissible error line in the panel, so a failure is never invisible."
+				}
+			],
+			"attrs": {
+				"id": "3473098e-b2d2-4abd-9652-2a59c18014bc"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Your adapter’s own host has to be reachable under your "
+				},
+				{
+					"type": "text",
+					"text": "Content Security Policy",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/csp/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — it is an ordinary "
+				},
+				{
+					"type": "text",
+					"text": "connect-src",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " the viewer knows nothing about."
+				}
+			],
+			"attrs": {
+				"id": "6da1b822-0a7b-4352-98ca-1213ef32f8ef"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "the-conformance-suite",
+				"id": "f7dbe4f3-bbb7-4248-9afe-5b84e2f47c15"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The conformance suite"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The suite the built-in adapter passes is exported for yours to run against. It checks storage behaviour only — load, create, update and delete round-trips, verbatim body preservation including structured and unknown shapes, key isolation, and the two opt-in capabilities — because storage behaviour is all an adapter owns."
+				}
+			],
+			"attrs": {
+				"id": "37c2bd4f-3b3b-415c-a544-a9177387ed1d"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "e4e84c30-f76c-4580-b6b0-92212cf1d5b9"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { runAdapterContractTests } from '@triiiceratops/plugin-annotation-editor/testing';\nimport { MyAdapter } from './MyAdapter';\n\nrunAdapterContractTests(() => new MyAdapter(), {\n    supportsIdReconciliation: true,\n    supportsHydrate: true,\n});"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Call it at the top level of a vitest file: it registers its own "
+				},
+				{
+					"type": "text",
+					"text": "describe",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "/"
+				},
+				{
+					"type": "text",
+					"text": "it",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " blocks, invokes the factory fresh before each test so a stateful adapter starts clean, and uses a unique manifest and canvas pair per test so a storage-backed adapter cannot bleed between them."
+				}
+			],
+			"attrs": {
+				"id": "69334b8b-8e36-482d-87cb-8d33de51cd0d"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "the-built-in-localstorage-adapter",
+				"id": "715f4a15-6283-46cf-9701-fbc5b1918f7a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "The built-in LocalStorage adapter"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "LocalStorageAdapter",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the default on "
+				},
+				{
+					"type": "text",
+					"text": "AnnotationEditorPlugin",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and the reference minimal adapter: "
+				},
+				{
+					"type": "text",
+					"text": "localStorage",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " reads and writes, nothing more. It writes under one frozen, versioned, package-qualified key per canvas:"
+				}
+			],
+			"attrs": {
+				"id": "650635a0-a768-4458-8b19-df9a72e4d6c5"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "plaintext",
+				"id": "4f621ba1-d743-4c42-aaca-4582155b94dc"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "@triiiceratops/plugin-annotation-editor:v1:<manifestId>:<canvasId>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "That key is the stable contract and will not change without a "
+				},
+				{
+					"type": "text",
+					"text": ":v2:",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " bump. It is single-browser storage — useful for a demo, a workshop, or a reader’s private notes, and not a multi-user production store. Bring an adapter for that."
+				}
+			],
+			"attrs": {
+				"id": "3e5690a2-0fc0-4a25-988c-f853d273249a"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "replacing-the-body-editor",
+				"id": "579f16de-1e08-4a5e-8545-fd31c0e51b1a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Replacing the body editor"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The built-in body editor edits W3C bodies — a value, a format, a language, and a purpose from the "
+				},
+				{
+					"type": "text",
+					"text": "W3C_PURPOSES",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " vocabulary — and leaves a structured body it does not understand read-only and untouched across a save. To edit your own metadata model in place, pass "
+				},
+				{
+					"type": "text",
+					"text": "bodyEditor",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": either a Svelte "
+				},
+				{
+					"type": "text",
+					"text": "component",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " taking an "
+				},
+				{
+					"type": "text",
+					"text": "api",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " prop, or a framework-neutral "
+				},
+				{
+					"type": "text",
+					"text": "render(container, api)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " returning its own cleanup."
+				}
+			],
+			"attrs": {
+				"id": "8f10fd66-da6a-4caf-974e-dafac328779e"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "c5ff0612-652f-4b99-9cd1-f1bdfe6986f1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import {\n    createAnnotationEditorPlugin,\n    type AnnotationBodyEditorApi,\n} from '@triiiceratops/plugin-annotation-editor';\n\nconst annotations = createAnnotationEditorPlugin({\n    bodyEditor: {\n        render(container: HTMLElement, api: AnnotationBodyEditorApi) {\n            const input = document.createElement('textarea');\n            const [body] = api.bodies as { value?: string }[];\n            input.value = body?.value ?? '';\n            input.onchange = () => {\n                void api.save([{ type: 'TextualBody', value: input.value }]);\n            };\n            container.append(input);\n            return () => input.remove();\n        },\n    },\n});"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "api",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " carries the full "
+				},
+				{
+					"type": "text",
+					"text": "annotation",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " in canvas space, its "
+				},
+				{
+					"type": "text",
+					"text": "bodies",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " normalized to an array, the runtime "
+				},
+				{
+					"type": "text",
+					"text": "context",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (manifest, canvas, user, host context), "
+				},
+				{
+					"type": "text",
+					"text": "isHydrating",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and "
+				},
+				{
+					"type": "text",
+					"text": "save",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "cancel",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "requestDelete",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". The plugin owns the geometry and the persistence; the body editor owns only the bodies."
+				}
+			],
+			"attrs": {
+				"id": "d4ad5d58-fa7d-4224-bbe2-84b1cc13b221"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "host-hooks-the-extension-seam",
+				"id": "b3565f77-5d6c-4eed-8863-d60103844e0b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Host hooks: the extension seam"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "extension",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is the other seam, for a host application rather than for a different body shape. Gate creation, prefill a draft, transform an annotation on its way out, or observe selection — without forking the plugin."
+				}
+			],
+			"attrs": {
+				"id": "aa52ecd4-dd58-4d28-ae08-56273aebefec"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "7bb35291-d133-4e8a-8c7a-21be3c8917c5"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import {\n    createAnnotationEditorPlugin,\n    type AnnotationEditorRuntimeContext,\n    type W3CAnnotation,\n} from '@triiiceratops/plugin-annotation-editor';\n\nconst annotations = createAnnotationEditorPlugin({\n    extension: {\n        canCreate: (context: AnnotationEditorRuntimeContext) =>\n            context.user !== undefined,\n        getCreateDisabledReason: () => 'Sign in to annotate.',\n        // The draft is what the reader sees in the panel AND what is saved.\n        prepareDraft: (annotation: W3CAnnotation) => ({\n            ...annotation,\n            motivation: 'describing',\n        }),\n        onSelectionChange: (annotation: W3CAnnotation | null) => {\n            console.log(annotation?.id ?? 'nothing selected');\n        },\n    },\n});"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The hooks are "
+				},
+				{
+					"type": "text",
+					"text": "getContext",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "subscribe",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "canCreate",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "getCreateDisabledReason",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "prepareDraft",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "beforeSave",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "onSelectionChange",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Every one of them receives a runtime context naming the current manifest and canvas, whether the editor is open, the selected annotation, the configured user, and whatever "
+				},
+				{
+					"type": "text",
+					"text": "getContext",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " returned — so a host decision can be made from host state without the plugin knowing what that state is. Call the "
+				},
+				{
+					"type": "text",
+					"text": "invalidate",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " that "
+				},
+				{
+					"type": "text",
+					"text": "subscribe",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is handed when "
+				},
+				{
+					"type": "text",
+					"text": "canCreate",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " should be re-evaluated."
+				}
+			],
+			"attrs": {
+				"id": "1fc03319-06ef-40e2-ada2-37cb98c60430"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "configuration",
+				"id": "16e4584f-bad2-4fa0-bb73-7db772fbf9b2"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Configuration"
+				}
+			]
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Option"
+										}
+									],
+									"attrs": {
+										"id": "9e10f6c4-ab2f-4b69-aa4a-9bf17b7eeabc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1f6227f6-428e-4447-8349-28b8a5ff33f0"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Default"
+										}
+									],
+									"attrs": {
+										"id": "b178ea73-ea42-4a57-bef0-a7bb286fe506"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e93bfe46-aeb8-4560-9bba-313a07cccf92"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Notes"
+										}
+									],
+									"attrs": {
+										"id": "5b302709-828e-48fb-a119-f43ff0c86294"
+									}
+								}
+							],
+							"attrs": {
+								"id": "44cd4512-dfd2-48f5-8810-0a1b7d0f0c99"
+							}
+						}
+					],
+					"attrs": {
+						"id": "2f5a23f6-9d6c-42ba-a831-7dcbf46c9f22"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "adapter",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "da1573a1-015b-42f9-a4cf-c226034812a2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a6dfa35d-43ef-4f52-a68e-7bc244aa2d09"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "—"
+										}
+									],
+									"attrs": {
+										"id": "bcaa03a3-1fb8-4889-916b-827ad00ca99b"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6820b89f-073a-4df0-97b0-3afe886326f3"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Storage. "
+										},
+										{
+											"type": "text",
+											"text": "LocalStorageAdapter",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " on the preconfigured plugin."
+										}
+									],
+									"attrs": {
+										"id": "cf721026-6a24-4c07-89b3-0f195e71eaa3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b569f3f5-d267-44a8-b26d-19f5738828c8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "0307c5b5-2740-4032-a6f0-b84837bab15d"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "user",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "34f66eaf-2330-4cbb-82b2-7b22422f72a7"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ae62b55d-7285-4849-b7aa-8721c78602ac"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "—"
+										}
+									],
+									"attrs": {
+										"id": "a9202587-0070-490a-aef0-6280c37379e9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7ba5796a-1487-4629-9a93-5e4688eb81ee"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "{ id, name? }",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", stamped onto a new annotation as its creator."
+										}
+									],
+									"attrs": {
+										"id": "2e06d9b4-d421-4256-9f4a-cf6f7982776d"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c8ebf4b0-31b5-480b-9042-ed09150bfd5f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6f4d2fce-9caa-43b8-9c05-56851d9ae91a"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "tools",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "01507f64-7866-4b3e-bb65-c5c1b602d643"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4c720adf-5f24-4edd-b253-b737cc48949c"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "all five"
+										}
+									],
+									"attrs": {
+										"id": "7130403d-9f97-46e5-81e1-b3892fc608b0"
+									}
+								}
+							],
+							"attrs": {
+								"id": "52d923d3-2362-460e-98e4-9cb2c00a588d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Which tools the panel offers, in the order given."
+										}
+									],
+									"attrs": {
+										"id": "526943d8-0a9f-48d6-a772-6731879c32c9"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6900742d-6337-435b-aa34-49c0755043d6"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b5dde756-c502-4c2a-a955-33a0ad2d83a1"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "defaultTool",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e9096b3e-730e-4094-a2b5-5c869ccaf983"
+									}
+								}
+							],
+							"attrs": {
+								"id": "214e688b-b6e9-40a2-ac9d-5c9e470d2b96"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "first in "
+										},
+										{
+											"type": "text",
+											"text": "tools",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "15c89486-e39c-4940-8370-ef5e35628247"
+									}
+								}
+							],
+							"attrs": {
+								"id": "954f8ad4-5b4b-484d-9ac8-eda2162e28e6"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Honoured only when it is within "
+										},
+										{
+											"type": "text",
+											"text": "tools",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									],
+									"attrs": {
+										"id": "068ef5d0-78ad-4096-abd2-dce5fc304724"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fc4e85ba-b49b-4186-98bd-f7176b87a8da"
+							}
+						}
+					],
+					"attrs": {
+						"id": "65d7082a-68c7-4bdb-9c72-ef2905c912c7"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "defaultMotivation",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f62de91d-c53f-4fed-be88-f18f137136e6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "43596010-5c0f-44e2-998d-99343cc501ef"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "'commenting'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "341872ee-7715-4aa7-8215-25656d83a4b8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ea940e81-b8dc-442a-b49e-615d6afdef31"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Never overwrites a motivation the host already set."
+										}
+									],
+									"attrs": {
+										"id": "c9f480e2-84bc-463a-8aa7-f15a1b3d375f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "ca9fabc6-b702-4127-8901-867740fb3a5b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8c8b87ee-9bd1-4efe-81a2-3d41e71ec8e4"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "target",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "1f9b1fcc-1a7d-4c14-8c96-d1549576a6bf"
+									}
+								}
+							],
+							"attrs": {
+								"id": "eed58e7b-7ab1-4246-8735-526eafda051d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "'panel'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7ca8fa1f-5d8b-42ce-9edf-b3239031e801"
+									}
+								}
+							],
+							"attrs": {
+								"id": "87939da3-fdbb-46cb-8b9c-47657a59d6f4"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Where the plugin chrome renders — "
+										},
+										{
+											"type": "text",
+											"text": "'panel'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " or "
+										},
+										{
+											"type": "text",
+											"text": "'flyout'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									],
+									"attrs": {
+										"id": "1d7b8311-0760-480d-8fff-f8bc89b89413"
+									}
+								}
+							],
+							"attrs": {
+								"id": "e550ff37-f6ed-4d4c-9cfe-52d448d70734"
+							}
+						}
+					],
+					"attrs": {
+						"id": "e33b6941-a283-4e8a-93c3-3a6135adf949"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "ui",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "703cde3a-921c-463e-82bf-4cd0340df21e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fe4105cd-b570-406f-82a9-8ca5617057c0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "—"
+										}
+									],
+									"attrs": {
+										"id": "66064c51-8172-462e-8afe-2db200dded22"
+									}
+								}
+							],
+							"attrs": {
+								"id": "7471d39e-a1f4-4a1a-ae2a-05f155868439"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "showModeToggle",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " ("
+										},
+										{
+											"type": "text",
+											"text": "true",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "), "
+										},
+										{
+											"type": "text",
+											"text": "startInCreateMode",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " ("
+										},
+										{
+											"type": "text",
+											"text": "false",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "), "
+										},
+										{
+											"type": "text",
+											"text": "showUndoRedo",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " ("
+										},
+										{
+											"type": "text",
+											"text": "true",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "), "
+										},
+										{
+											"type": "text",
+											"text": "purposes",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " ("
+										},
+										{
+											"type": "text",
+											"text": "W3C_PURPOSES",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "), "
+										},
+										{
+											"type": "text",
+											"text": "allowMultipleBodies",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " ("
+										},
+										{
+											"type": "text",
+											"text": "true",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")."
+										}
+									],
+									"attrs": {
+										"id": "63102fc4-4751-4eac-a904-d0048af407a8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "672b7023-d6e1-4b83-9a9e-3c18fd8474f0"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8d72f9f6-5575-42b9-8940-ae0777773b74"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "bodyEditor",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "extension",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "onPersistenceError",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "826ef4e9-80b9-44f1-a1f4-b81d43a03678"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3cf69ae4-c187-45a7-ac8b-725b7c63414d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "—"
+										}
+									],
+									"attrs": {
+										"id": "488686dd-ae44-4b8b-afc5-da8d263b2929"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a5878757-0bdc-4f3f-9595-5d0799fb8223"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "See the sections above."
+										}
+									],
+									"attrs": {
+										"id": "79746411-c24c-4ecc-b153-26beb982978c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f42b430f-861e-4123-81e9-4c04706e0830"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7ab978a6-1c3c-4bfb-9991-6a2e230208ac"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "prepareAnnotation",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "canCreateAnnotation",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "getCreateDisabledReason",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f918f91b-cf92-4f24-b3e6-6f6c3c9f4fe4"
+									}
+								}
+							],
+							"attrs": {
+								"id": "145e54c0-add4-42c9-b448-4522581eb93f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "—"
+										}
+									],
+									"attrs": {
+										"id": "be708a30-154e-4bbf-8041-282c60e8749e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "40cb012c-50a0-4eb8-a5a8-e6dbcf99ff45"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Flat equivalents of the matching "
+										},
+										{
+											"type": "text",
+											"text": "extension",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " hooks, for a host that needs one hook rather than the seam."
+										}
+									],
+									"attrs": {
+										"id": "7cd01882-bc6d-4a5d-ac45-79f54a1a1577"
+									}
+								}
+							],
+							"attrs": {
+								"id": "46e5d5b8-109e-418c-9a20-c0e5ab929fe8"
+							}
+						}
+					],
+					"attrs": {
+						"id": "33dd69e1-ea9a-4819-bc9a-ada332dbe8b0"
+					}
+				}
+			],
+			"attrs": {
+				"id": "1c96b80e-e266-4d64-9f1f-f3a21f6ed107"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Undo and redo are "
+				},
+				{
+					"type": "text",
+					"text": "persistence-aware",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": each step is replayed through the same write path a reader’s own edit takes, so display sync, id reconciliation and error rollback all apply to it. The history holds fifty steps and does not outlive the canvas — it is cleared on a canvas change and on teardown, because an annotation’s id is only meaningful against the canvas it targets."
+				}
+			],
+			"attrs": {
+				"id": "6b31cc1e-3f66-4231-9456-ece3495f9ac7"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "configuring-its-ui",
+				"id": "e257cefe-b6f2-4efb-9a71-eb999b61b64d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Configuring its UI"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The plugin’s "
+				},
+				{
+					"type": "text",
+					"text": "uiId",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is "
+				},
+				{
+					"type": "text",
+					"text": "annotation-editor",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so it is controlled through "
+				},
+				{
+					"type": "text",
+					"text": "config.plugins['annotation-editor']",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " like any other plugin — see "
+				},
+				{
+					"type": "text",
+					"text": "controlling plugin UI through config",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugins/#controlling-plugin-ui-through-config"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "7e84f538-02b2-4876-8d5d-a048f30563d1"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "38a192dc-0bf9-495e-9408-f01a2977df1e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "viewer.config = {\n    plugins: {\n        'annotation-editor': { position: 'right', open: true },\n    },\n};"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Hosted as a flyout it dismisses "
+				},
+				{
+					"type": "text",
+					"text": "explicitly",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " rather than on an outside click: while a tool is armed, a click on the canvas is how the reader draws, and a light-dismissing flyout would close itself on the first stroke."
+				}
+			],
+			"attrs": {
+				"id": "61c4628e-9e6e-4f19-a60a-866f6f5a5af5"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "styling",
+				"id": "e4976900-60d9-4398-a69f-b528fa6ddc34"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Styling"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The drawing layer is DOM and SVG, so CSS styles it — theming follows the viewer’s "
+				},
+				{
+					"type": "text",
+					"text": "--tri-",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " custom properties like everything else. There is no styling "
+				},
+				{
+					"type": "text",
+					"text": "option",
+					"marks": [
+						{
+							"type": "italic"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": set these on the viewer element or any ancestor."
+				}
+			],
+			"attrs": {
+				"id": "aaf758c1-0d3e-4146-ad95-92c60899d0a4"
+			}
+		},
+		{
+			"type": "table",
+			"content": [
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Custom property"
+										}
+									],
+									"attrs": {
+										"id": "cec5bd0f-0657-4d4c-b2bc-32f9b210e329"
+									}
+								}
+							],
+							"attrs": {
+								"id": "dd1c7724-cd72-4c14-9b11-be59ad8ddb6f"
+							}
+						},
+						{
+							"type": "tableHeader",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "Default"
+										}
+									],
+									"attrs": {
+										"id": "94da3b7e-0cef-49ee-9224-ff6b8d6422c5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "d5dfa867-3aec-4c46-b8dc-d6e74a05b9c3"
+							}
+						}
+					],
+					"attrs": {
+						"id": "55d920d2-2120-4c4f-9b39-6da5bce572f7"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-annotation-draw-stroke",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4e8f867e-337d-4882-b479-ceb05be7cd29"
+									}
+								}
+							],
+							"attrs": {
+								"id": "35dda974-074f-41f4-b62a-007b41a8800b"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "var(--tri-color-primary)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "cc970baa-788f-4628-a586-d645872b5efc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "23e29b7e-6109-4e7f-9bab-293a7d5be82c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ac6a1171-843c-4193-bd2b-fb0177e446fb"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-annotation-draw-stroke-width",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c91c30df-3fb3-4ca1-baa2-ee60687bbdd5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "96c85092-8ac1-484b-847c-2646afb57bb0"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "2px",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e614e638-6662-43d1-b1d5-2bcbe9ca60fa"
+									}
+								}
+							],
+							"attrs": {
+								"id": "aa3ad1fd-ad0e-4c9e-a559-0faf4656d32a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "bfbf37eb-a670-431f-a6dd-b21d4e32a6c5"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-annotation-draw-fill",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "e16bb0b4-c5d1-4ee0-8038-ec3899d36182"
+									}
+								}
+							],
+							"attrs": {
+								"id": "bb84535d-5f54-4b27-b4c5-cf6875359607"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "20% --tri-color-primary, mixed to transparent"
+										}
+									],
+									"attrs": {
+										"id": "19c5a806-2ca7-4e21-94ca-e6bb5a3d26b2"
+									}
+								}
+							],
+							"attrs": {
+								"id": "68cd16ea-c457-4b29-aea1-2acb80143230"
+							}
+						}
+					],
+					"attrs": {
+						"id": "5ea69b75-bf7c-4538-be3a-761cf4259864"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-annotation-draw-cursor",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a8f5214d-b96b-4f57-8aed-f6f48761bae8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "10439f3f-395f-4c4f-900e-5265f65564b7"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "crosshair",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "8b603db4-25c2-46f1-9e0c-a26998ece451"
+									}
+								}
+							],
+							"attrs": {
+								"id": "941d1fa2-6003-4cb0-aedd-9211807edf77"
+							}
+						}
+					],
+					"attrs": {
+						"id": "39d7113d-bfd1-442f-945d-beee1ed989f9"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-annotation-edit-move-cursor",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "fdabd13f-6438-441e-8513-9734ff0e049e"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6a32cc0a-ac7b-45b6-97f8-561b4197af44"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "move",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d2a1347e-246c-47f7-b3ca-2742db4c009c"
+									}
+								}
+							],
+							"attrs": {
+								"id": "acc4e53b-9cc6-46a1-9cee-90a2b7c51c7d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "69321c97-d05f-42d3-9d94-d0e9b180a254"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-annotation-handle-size",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "960b89e8-8613-4606-bfe0-9e133734c39a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "007997d3-534a-41f1-97ac-25d24ef8777f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "10px",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "84ba03b7-25ad-4050-85b5-1c6eac399de1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fc73c66b-40bc-4425-8382-b739630bdab1"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b7d496b7-14ae-4f2d-a21c-bd82966fd264"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-annotation-handle-fill",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4c678364-a515-4eb8-9c4d-3c4466d96429"
+									}
+								}
+							],
+							"attrs": {
+								"id": "4d17ed8e-7c1e-45b7-88aa-2f662fcd4933"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "var(--tri-color-primary)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f19bc308-f31c-4112-850e-abc122308fce"
+									}
+								}
+							],
+							"attrs": {
+								"id": "597952d5-e028-4400-8c09-3707d1d44540"
+							}
+						}
+					],
+					"attrs": {
+						"id": "fd6e6b81-93d9-4db7-8bb0-115231cae0c9"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-annotation-handle-stroke",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "6891c6b6-ebad-4636-aca5-5a3165aae905"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c4380c76-2939-45a2-8739-839dcec949e8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "var(--tri-color-base-100)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "c9785f04-83ce-4d1e-876b-3ce48076e2dc"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5c975a46-2554-4402-9850-2598e911f274"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d24486f7-fdd4-4b2a-b151-a0988925b919"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-annotation-point-fill",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "9e72707f-fea4-424d-88f1-f55e58d277cb"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5b92b7f5-37a0-40dd-8ffe-b3b76797221e"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "var(--tri-annotation-color)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "40aac772-1a5a-4b70-9a2c-39ca2e350d95"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f42962c6-a97d-484d-844c-590fc2a455e6"
+							}
+						}
+					],
+					"attrs": {
+						"id": "7aa37d95-9aa8-4dc4-a406-53d202c101a6"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "--tri-annotation-point-stroke",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "74cae048-3b3f-4ac7-ad5f-abbeed21def3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "50bb6728-4fa6-411d-9224-7ca0c09355b3"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "var(--tri-annotation-color)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "47d7a5d6-d425-44e1-9a80-9cebab5b4646"
+									}
+								}
+							],
+							"attrs": {
+								"id": "eeb10b46-1e0e-4620-a37e-d597739edd6f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "84dafb2e-c0a8-45a0-ba17-11bf2aba41ab"
+					}
+				}
+			],
+			"attrs": {
+				"id": "f1981dbc-d427-4c49-a84a-35392be071fe"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Point markers are the exception: they are core’s, not this layer’s. Their size is "
+				},
+				{
+					"type": "text",
+					"text": "--tri-annotation-point-size",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and their colour "
+				},
+				{
+					"type": "text",
+					"text": "--tri-annotation-color",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — the same two "
+				},
+				{
+					"type": "text",
+					"text": "public tokens",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/theming/#complete-public-token-reference"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " core’s read-only overlay draws and measures a marker from — so a point looks the same open for editing as it does at rest, and one declaration restyles both. This plugin declares neither of its own, deliberately: a second setting could only disagree with the first, and a point would change under the reader the moment it was opened. "
+				},
+				{
+					"type": "text",
+					"text": "--tri-annotation-point-fill",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "--tri-annotation-point-stroke",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " still override the colour for this layer alone, which is the only way to make the two disagree on purpose."
+				}
+			],
+			"attrs": {
+				"id": "96eb931c-71e6-416d-99b9-1d4af86363cb"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Panel chrome takes "
+				},
+				{
+					"type": "text",
+					"text": "panelBg",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " / "
+				},
+				{
+					"type": "text",
+					"text": "panelContent",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " like every other panel; the plugin’s own CSS reads the public palette, radius and input tokens, so retinting those retints it."
+				}
+			],
+			"attrs": {
+				"id": "da845b3a-f3b5-45d4-9a29-cf1b755fe19a"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "localization",
+				"id": "dddf9993-bb03-4e16-ba9d-1b42170cea5d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Localization"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The plugin ships its own catalog — English and German — and resolves every label in the viewer’s active locale, English fallback. Its toolbar tooltip and panel header come from the same catalog, so they follow a locale change with the rest of the viewer’s chrome."
+				}
+			],
+			"attrs": {
+				"id": "a2aacf0f-b342-4b1d-9083-b2749657f9c2"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "documented-limitations",
+				"id": "0d54070a-87f1-4b05-9715-6fae6450d13b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Documented limitations"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "These are contracts, not bugs. Each is a deliberate fence for this release:"
+				}
+			],
+			"attrs": {
+				"id": "94ff996e-b0a5-4905-b0ff-e35fba077c12"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Image canvases only.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " A canvas under a "
+								},
+								{
+									"type": "text",
+									"text": "canvas claim",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-authoring/#taking-over-a-canvas-the-canvas-claim"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — a recording played by "
+								},
+								{
+									"type": "text",
+									"text": "the AV plugin",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/plugin-av/"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", say — leaves "
+								},
+								{
+									"type": "text",
+									"text": "annotatableCanvasIds",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", because core paints nothing there for a comment to be anchored against. Annotating a point in a recording is a separate future plugin, not a gap in this one."
+								}
+							],
+							"attrs": {
+								"id": "1216ab2c-d731-4c84-9ca5-82c1a5d8b0ac"
+							}
+						}
+					],
+					"attrs": {
+						"id": "38377b6c-cbcf-47db-8de8-014ce2a8dbdb"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "One target per written annotation.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " An annotation carrying several geometries is rendered on read, and the editor writes one target."
+								}
+							],
+							"attrs": {
+								"id": "d3e7aaa9-22d0-467c-bdcc-0a170115cd8a"
+							}
+						}
+					],
+					"attrs": {
+						"id": "9f32cafb-141f-4660-81ee-f0438fd27d14"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "No ellipse on read-back.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " An ellipse is stored and re-edited as the polygon it persists as."
+								}
+							],
+							"attrs": {
+								"id": "17092c14-8445-4f40-88c4-cf2b722e4441"
+							}
+						}
+					],
+					"attrs": {
+						"id": "cac47917-2d59-423c-8fad-290f499f3163"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "No annotation list is published.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " The plugin writes through your adapter and syncs the viewer’s display; it does not serve an "
+								},
+								{
+									"type": "text",
+									"text": "AnnotationPage",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " for anyone else to fetch. Publishing what a reader wrote is your server’s decision, not the viewer’s."
+								}
+							],
+							"attrs": {
+								"id": "891fc892-f27e-4421-a7ac-01cdcc649764"
+							}
+						}
+					],
+					"attrs": {
+						"id": "ef42dfd7-cc14-4bad-b761-d90c61b4fa66"
+					}
+				}
+			],
+			"attrs": {
+				"id": "a5c68cd1-6b66-469e-aea1-1de5369b90c6"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "design-notes",
+				"id": "c9f3e23b-481f-4bec-bced-fe166539f358"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Design notes"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The plugin is authored entirely on the framework-neutral "
+				},
+				{
+					"type": "text",
+					"text": "plugin SDK",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-authoring/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " — core never imports it — and needs no "
+				},
+				{
+					"type": "text",
+					"text": "requiredCapabilities",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": overlay layers are not optional in core, so the "
+				},
+				{
+					"type": "text",
+					"text": "coreRange",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " floor is the whole compatibility statement."
+				}
+			],
+			"attrs": {
+				"id": "ff592d93-4126-4bf0-8ac0-f13dee8de2b0"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ADR 0020",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "https://github.com/d-flood/triiiceratops/blob/main/docs/adr/0020-modal-drawing-swallows-pointer-events-in-the-dom.md"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — why arming a tool takes pointer events in the DOM instead of claiming input at the gesture arbiter."
+								}
+							],
+							"attrs": {
+								"id": "19b47fbb-df86-49a2-b27a-441fc5c51c57"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6b9d8b00-a41a-492a-ae53-5bdf64e27564"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ADR 0021",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "https://github.com/d-flood/triiiceratops/blob/main/docs/adr/0021-the-editing-surface-is-first-party.md"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — why the editing surface is first-party, and why the editor draws one annotation while core draws the set."
+								}
+							],
+							"attrs": {
+								"id": "24e1b288-066c-4a13-bffc-46d6eb095ec6"
+							}
+						}
+					],
+					"attrs": {
+						"id": "189812b9-3bec-4c07-835a-402da54bf504"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "ADR 0022",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "https://github.com/d-flood/triiiceratops/blob/main/docs/adr/0022-an-ellipse-persists-as-a-polygon.md"
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " — why an ellipse is stored as a polygon."
+								}
+							],
+							"attrs": {
+								"id": "bd99dad4-277d-41a5-bb91-6ad9677edbde"
+							}
+						}
+					],
+					"attrs": {
+						"id": "44790cfd-f1ac-4257-8b05-b28b68541244"
+					}
+				}
+			],
+			"attrs": {
+				"id": "55d9319e-f98f-472b-b03d-2b3ca9a8bfc7"
+			}
+		}
+	],
+	"meta": {
+		"title": "Annotation Editor",
+		"shortTitle": "Annotation editor",
+		"intro": "Create and edit a canvas's annotations in the viewer: a first-party drawing layer with rectangle, ellipse, polygon, point and whole-canvas tools, full keyboard parity, and a storage adapter you supply."
+	}
+}

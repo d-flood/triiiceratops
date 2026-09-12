@@ -1,13 +1,26 @@
-// Single source of truth for the six publishable packages, in dependency order
+// Single source of truth for the publishable packages, in dependency order
 // (core first: the SDK and every plugin type-check against core's built dist,
 // so it must be built + packed before them).
 //
 // Shared by the release tooling so the pack step, the reproducibility check, and
 // the registry smoke job never drift on which packages ship or what order they
 // build in:
-//   · pack-artifacts.mjs     — builds + packs the six .tgz that CI promotes
+//   · pack-artifacts.mjs      — builds + packs the .tgz that CI promotes
 //   · verify-reproducible.mjs — two clean builds must yield identical checksums
 //   · smoke-registry.mjs      — installs the exact published versions post-publish
+//
+// Derive counts from `PUBLISHABLE_PACKAGES.length` rather than restating a
+// literal: the set has both shrunk and grown as packages were paused and
+// unpaused, and every consumer of this list that hard-coded a number had to be
+// chased down.
+//
+// Dropping a package from this list — not `private: true` — is what keeps it off
+// npm. npm does enforce `private` for `npm publish <tgz>` (EPRIVATE), but relying
+// on that alone would break the release rather than protect it: publish.yml runs
+// its promote loop under `set -euo pipefail` over the release manifest THIS list
+// generates, with core first, so a package we don't intend to publish left in the
+// list would pack, then fail mid-loop and abort the job with core already on the
+// registry — published, unsmoked, and with no GitHub release.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -20,20 +33,29 @@ export const REPO_ROOT = join(
 );
 
 /**
- * The six publishable packages. `build` lists the package scripts that must run
- * (in order) before packing so the packed `dist/` is complete — these mirror the
- * packed-consumer harness (`test-consumers/driver/run.mjs`) exactly, which is
- * itself part of required CI. `dir` is the package directory under `packages/`.
+ * The publishable packages. `build` lists the package scripts that must run (in
+ * order) before packing so the packed `dist/` is complete — these mirror the
+ * packed-consumer harness (`test-consumers/driver/run.mjs`), which packs the same
+ * set for its fixtures. Packing is not publishing. `dir` is the package directory
+ * under `packages/`.
  */
 export const PUBLISHABLE_PACKAGES = [
     {
         name: 'triiiceratops',
         dir: 'core',
         // build:testing compiles the headless `triiiceratops/testing` entry AFTER
-        // build:lib (needs the generated paraglide runtime + dist types).
+        // build:lib (it needs the dist types).
         build: ['build:lib', 'build:testing', 'build:element'],
     },
     { name: '@triiiceratops/plugin-sdk', dir: 'plugin-sdk', build: ['build'] },
+    {
+        // `build` also emits the four lazy IIFE chunks and then runs a
+        // shared-runtime guard, so the packed `dist/` is the whole directory a
+        // no-bundler consumer has to serve — not just `iife.js`.
+        name: '@triiiceratops/plugin-av',
+        dir: 'plugin-av',
+        build: ['build'],
+    },
     {
         name: '@triiiceratops/plugin-image-manipulation',
         dir: 'plugin-image-manipulation',

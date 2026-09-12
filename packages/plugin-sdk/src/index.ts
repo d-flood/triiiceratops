@@ -4,9 +4,9 @@
  * The base entry has zero runtime framework dependencies: everything imported
  * from `triiiceratops` here is type-only (erased at build), and the runtime code
  * (`definePlugin`, activation, selectors, compatibility) is self-contained.
- * Framework adapters (Svelte/React/Vue/Lit), the test kit, and real style/
- * locale/icon services arrive as separate subpaths in later tickets (08, 13,
- * 14).
+ * Framework adapters (Svelte/React/Vue/Lit) and the test kit — which carries the
+ * stub host services — are separate subpaths, so nothing a shipped plugin cannot
+ * reach is bundled into it.
  */
 
 // Authoring entry.
@@ -19,12 +19,15 @@ export { svgIcon, SvgIconError } from './svgIcon.js';
 // Shape a plugin's global stylesheet + install id for the SDK style service.
 export { definePluginStyles } from './pluginStyles.js';
 
-// Await OSD readiness before touching the raw OpenSeadragon viewer.
-export { whenOsdReady } from './osd.js';
-export type { WhenOsdReadyOptions } from './osd.js';
+// Await renderer readiness before asking the viewport for coordinates.
+export { whenRendererReady } from './renderer.js';
+export type { WhenRendererReadyOptions } from './renderer.js';
 
 // Report user-driven command failures through the structured host channel.
-export { dispatchPluginCommandError } from './reportError.js';
+export {
+    createCommandErrorReporter,
+    dispatchPluginCommandError,
+} from './reportError.js';
 
 // Activation (per viewer, isolated context).
 export { activatePlugin, runActivation } from './activate.js';
@@ -36,25 +39,19 @@ export type { SelectorRuntime } from './selectors.js';
 // Compatibility negotiation.
 export {
     satisfies,
-    collectIncompatibilities,
     negotiateCompatibility,
     PluginCompatibilityError,
 } from './compatibility.js';
-export type { PluginCompatibilityReason } from './compatibility.js';
-
-// Stub services (ticket 08 supplies real, host-owned implementations).
-export {
-    createStubStyleService,
-    createStubLocaleService,
-    createStubUiService,
-    createStubSurfaceService,
-} from './services.js';
 
 // Re-export the core-owned seam types so plugin authors import them from one
 // place. `export type` is erased at build, so this adds no runtime coupling.
 export type {
     PluginView,
     PluginContext,
+    PublishedState,
+    PublishedStateClassification,
+    SelectorSource,
+    SourceSelectors,
     ViewerSelectors,
     Selector,
     PluginStyleService,

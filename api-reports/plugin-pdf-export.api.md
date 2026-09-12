@@ -32,7 +32,7 @@ export interface PdfExportMessages {
         filename: string;
     }): string;
 }
-/** English fallbacks — the same strings core shipped in `messages/en.json`. */
+/** English fallbacks — the same strings core ships in its `src/lib/messages/en.json`. */
 export declare const DEFAULT_PDF_EXPORT_MESSAGES: PdfExportMessages;
 type NormalizeCanvasRangeResult = {
     startIndex: number;
@@ -184,8 +184,8 @@ export { buildCoverSheetFields, buildImageRequestInit, buildPdfFilename, extract
  * with its own configuration. A preconfigured default (`PdfExportPlugin`) is
  * exported alongside it.
  *
- * The plugin reads the raw OSD viewer (`ViewerState.osdViewer`) to size export
- * requests, so it declares `requiredCapabilities: ['osd@5']`.
+ * The plugin sizes export requests from `ViewerState.containerSize`, a
+ * first-party query-only read, so it requires no capability.
  */
 import { type SdkPlugin } from '@triiiceratops/plugin-sdk';
 import type { PdfExportConfig } from './types';
@@ -202,10 +202,8 @@ export declare const PdfExportPlugin: SdkPlugin;
 // ======================================================================
 import type { PdfCanvasOcrOverlayProvider, PdfCoverSheetConfig, PdfExportFilenameProvider, PdfImageLoader, PdfImageRequestConfig, PdfOcrPlacementMode, PdfOcrSizingMode, PdfOcrVisibilityMode } from './exportPdf';
 /**
- * Consumer-facing configuration for the PDF export plugin. This is the same
- * public shape the plugin exposed before it moved to its own package (ticket 16
- * moved it here unchanged), so `createPdfExportPlugin(config)` keeps its
- * factory-with-config authoring contract.
+ * Consumer-facing configuration for the PDF export plugin, preserving
+ * `createPdfExportPlugin(config)`'s factory-with-config authoring contract.
  */
 export type PdfExportConfig = {
     coverSheet?: PdfCoverSheetConfig;

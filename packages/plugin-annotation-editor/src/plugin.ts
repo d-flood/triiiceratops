@@ -3,11 +3,15 @@
  *
  * `definePlugin` returns the framework-neutral factory core activates through the
  * structural seam (it carries its own `activate(host)`); core never imports this
- * package or its Svelte runtime. The full domain machinery — Store, Adapter seam,
- * per-viewer display sync, undo/redo, body editors, Annotorious integration — is
- * carried intact and driven from the neutral `view.mount(container, context)`
- * contract (see `mount.svelte.ts`). Annotorious needs the raw OSD viewer, so the
- * plugin declares `requiredCapabilities: ['osd@5']` (ADR 0009).
+ * package or its Svelte runtime. The domain machinery — Store, Adapter seam,
+ * per-viewer display sync, undo/redo, body editors, the drawing layer — is driven
+ * from the neutral `view.mount(container, context)` contract (see
+ * `mount.svelte.ts`).
+ *
+ * `uiId` is load-bearing, not cosmetic: core decides whether an annotation shape
+ * is editable by finding a toolbar button whose plugin id is the literal
+ * `'annotation-editor'` (`AnnotationShapeOverlay.svelte`). Renaming it makes
+ * every shape non-editable, and no test in this package would catch it.
  */
 import {
     definePlugin,
@@ -17,8 +21,10 @@ import {
 
 import { catalog } from './catalog';
 import { ICON } from './icons';
+import { PLUGIN_META } from './identity';
 import { mountAnnotationEditor } from './mount.svelte';
 import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
+import { ALL_TOOLS } from './tools';
 import type { AnnotationEditorConfig } from './types';
 
 /**
@@ -49,13 +55,17 @@ export function createAnnotationEditorPlugin(
     };
 
     return definePlugin({
-        name: '@triiiceratops/plugin-annotation-editor',
+        name: PLUGIN_META.name,
         title: 'annotation_editor_title',
         uiId: 'annotation-editor',
-        version: '1.0.0-rc.0',
-        coreRange: '>=1.0.0-rc.0',
+        version: PLUGIN_META.version,
+        // The first core carrying `registerOverlayLayer`, which the drawing
+        // layer's container is registered through. No `requiredCapabilities`:
+        // overlay layers are not in core's capability list because core treats
+        // them as always present, so there is nothing optional to require and
+        // the floor is the whole compatibility statement.
+        coreRange: '>=1.0.0-rc.36',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
         icon: ICON,
         target: config.target ?? 'panel',
         // Editing surface: when hosted as a flyout, canvas clicks are how the
@@ -73,6 +83,6 @@ export function createAnnotationEditorPlugin(
  */
 export const AnnotationEditorPlugin: SdkPlugin = createAnnotationEditorPlugin({
     adapter: new LocalStorageAdapter(),
-    tools: ['rectangle', 'polygon', 'point'],
+    tools: ALL_TOOLS,
     defaultTool: 'rectangle',
 });

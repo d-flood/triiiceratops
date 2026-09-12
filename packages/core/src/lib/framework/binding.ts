@@ -26,6 +26,7 @@
  * is precisely what ADR 0007 rules out.
  */
 
+import { once } from '../utils/once.js';
 import { logger } from '../logging/logger.js';
 import {
     createSelectorRuntime,
@@ -149,12 +150,9 @@ export function createViewerBinding(
         if (availabilityCount > 1 && !warnedReavailability) {
             warnedReavailability = true;
             logger.warn(
-                'A <triiiceratops-viewer> published a second ViewerState. The ' +
-                    'element was detached long enough for its inner viewer to be ' +
-                    'destroyed (Vue <KeepAlive> does this on every deactivation), ' +
-                    'so the previous manifest, canvas, viewport, and plugin state ' +
-                    'are gone. The wrapper has rebound and every selector now ' +
-                    'reads the new state; restoring the old one is not attempted.',
+                'A <triiiceratops-viewer> published a second ViewerState: it ' +
+                    'was detached long enough for its viewer to be destroyed, ' +
+                    'so the previous state is gone. The wrapper has rebound.',
             );
         }
 
@@ -200,12 +198,7 @@ export function createViewerBinding(
         },
         subscribe(listener: () => void): () => void {
             listeners.add(listener);
-            let released = false;
-            return () => {
-                if (released) return;
-                released = true;
-                listeners.delete(listener);
-            };
+            return once(() => listeners.delete(listener));
         },
         attach(next: TriiiceratopsViewerElement): void {
             if (destroyed || element === next) return;
@@ -226,7 +219,7 @@ export function createViewerBinding(
                     options.onRegistrationError(error);
                 } else {
                     logger.error(
-                        'Registering <triiiceratops-viewer> failed.',
+                        '<triiiceratops-viewer> registration failed',
                         error,
                     );
                 }

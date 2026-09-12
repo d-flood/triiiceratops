@@ -1,4 +1,4 @@
-// SDK plugin activation integration tests (ticket 07).
+// SDK plugin activation integration tests.
 //
 // These exercise the framework-neutral seam end to end against a REAL
 // `ViewerState` (real commands, real batched `subscribe` notifications): a
@@ -20,6 +20,10 @@ import {
 
 import { ViewerState } from '../state/viewer.svelte';
 import { CORE_VERSION, pluginApiVersion, capabilities } from './api';
+import { createPluginLocaleService } from './localeService';
+import { createPluginStyleService } from './styleService';
+import { createPluginSurface } from './surface';
+import { createPluginUiService } from './uiService';
 
 vi.mock('../state/manifests.svelte', () => ({
     manifestsState: {
@@ -72,7 +76,7 @@ function makeTestPlugin(
         version: '1.0.0',
         coreRange: overrides.coreRange ?? '>=1.0.0-rc.0',
         pluginApiRange: overrides.pluginApiRange ?? '^1.0.0',
-        requiredCapabilities: overrides.requiredCapabilities ?? ['osd@5'],
+        requiredCapabilities: overrides.requiredCapabilities ?? [],
         icon: ICON,
         target: 'panel',
         view: {
@@ -101,9 +105,17 @@ function makeTestPlugin(
     });
 }
 
+/**
+ * A host over core's own per-activation services. `reportError` rethrows by
+ * default: these tests activate plugins that are expected to work, so a phase
+ * failure should surface as a failing test rather than a swallowed report.
+ */
 function makeHost(
     container: HTMLElement,
     viewerState: ViewerState,
+    reportError: PluginHost['reportError'] = (report) => {
+        throw report.error;
+    },
 ): PluginHost {
     return {
         container,
@@ -117,6 +129,14 @@ function makeHost(
         coreVersion: CORE_VERSION,
         pluginApiVersion,
         capabilities,
+        styles: createPluginStyleService(document, 'test'),
+        locale: createPluginLocaleService({
+            current: 'en',
+            subscribe: () => () => {},
+        }),
+        ui: createPluginUiService(),
+        surface: createPluginSurface(viewerState, 'test-plugin', 'panel'),
+        reportError,
     };
 }
 
@@ -278,8 +298,9 @@ describe('compatibility negotiation at activation', () => {
         const err = thrown as PluginCompatibilityError;
         expect(err.code).toBe('PLUGIN_INCOMPATIBLE');
         expect(err.pluginName).toBe('@triiiceratops/plugin-test');
-        expect(err.reasons.some((r) => r.kind === 'core')).toBe(true);
-        expect(err.message).toContain('^99.0.0');
+        // One formatted message carries every failed check; core surfaces it
+        // verbatim, so it is the whole contract.
+        expect(err.message).toContain('requires core ^99.0.0');
         expect(err.message).toContain(CORE_VERSION);
 
         // No side effects for an incompatible plugin: nothing was mounted.
@@ -288,12 +309,27 @@ describe('compatibility negotiation at activation', () => {
 
     it('reports a missing required capability', () => {
         const plugin = makeTestPlugin(captures, {
-            requiredCapabilities: ['osd@5', 'does-not-exist@1'],
+            requiredCapabilities: ['does-not-exist@1'],
         });
 
         expect(() => plugin.activate(makeHost(container, state))).toThrow(
             PluginCompatibilityError,
         );
+    });
+
+    it('activates a plugin that requires the canvas-claim capability', () => {
+        // The seam is optional runtime FEATURE, not a version: a claimant
+        // declares it and so fails closed on a core that predates
+        // `ViewerState.claimCanvas` rather than silently rendering over an
+        // unsupported-content placard it cannot suppress (ADR 0017).
+        const plugin = makeTestPlugin(captures, {
+            requiredCapabilities: ['canvas-claim'],
+        });
+
+        const activation = plugin.activate(makeHost(container, state));
+
+        expect(container.textContent).toBe('sdk-plugin-mounted');
+        activation.deactivate();
     });
 
     it('activates a compatible plugin', () => {

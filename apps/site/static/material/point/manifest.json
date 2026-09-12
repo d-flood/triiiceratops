@@ -1,0 +1,115 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/point/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": [
+            "Andreas Cellarius, Scenographia Systematis Copernicani (Plate 5), 1661"
+        ]
+    },
+    "summary": {
+        "en": ["One note, anchored to a point rather than to a region."]
+    },
+    "items": [
+        {
+            "id": "/material/point/canvas/cellarius",
+            "type": "Canvas",
+            "label": {
+                "en": [
+                    "Andreas Cellarius, Scenographia Systematis Copernicani (Plate 5), 1661"
+                ]
+            },
+            "width": 2928,
+            "height": 2469,
+            "rights": "https://creativecommons.org/publicdomain/mark/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "Andreas Cellarius, Harmonia Macrocosmica, Plate 5. Public-domain scan via Wikimedia Commons."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Wikimedia Commons, Cellarius Harmonia Macrocosmica - Scenographia Systematis Copernicani"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://commons.wikimedia.org/wiki/File:Cellarius_Harmonia_Macrocosmica_-_Scenographia_Systematis_Copernicani.jpg"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/point/page/cellarius",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/point/annotation/cellarius",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/cellarius/0,0,2928,2469/366,309/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 2928,
+                                "height": 2469,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/cellarius",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/point/canvas/cellarius"
+                        }
+                    ]
+                }
+            ],
+            "annotations": [
+                {
+                    "id": "/material/point/annotation-page/cellarius",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/point/annotation/sun",
+                            "type": "Annotation",
+                            "motivation": "commenting",
+                            "body": {
+                                "type": "TextualBody",
+                                "language": "en",
+                                "format": "text/plain",
+                                "value": "The Sun, drawn with a face, at the centre of the scheme. That is what makes the plate Copernican: in the Ptolemaic plates of the same atlas the Earth is here instead."
+                            },
+                            "target": {
+                                "type": "SpecificResource",
+                                "source": "/material/point/canvas/cellarius",
+                                "selector": {
+                                    "type": "PointSelector",
+                                    "x": 1448,
+                                    "y": 1216
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

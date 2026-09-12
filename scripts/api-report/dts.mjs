@@ -1,4 +1,4 @@
-// Shared helpers for the API snapshot tooling (ticket 21).
+// Shared helpers for the API snapshot tooling.
 //
 // The declaration mechanism is a d.ts SNAPSHOT (not api-extractor): starting from
 // each package's public entry `.d.ts` files (the `types` targets in its
@@ -7,8 +7,8 @@
 // hand-rolled d.ts rollup. That graph is:
 //   - the per-package "public declaration report" snapshot content, and
 //   - the exact set the no-`any`-in-public-declarations gate scans.
-// Internal modules not reachable from a public entry (e.g. the ~200 paraglide
-// message files, private components) are excluded by construction.
+// Internal modules not reachable from a public entry (e.g. private components)
+// are excluded by construction.
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, relative } from 'node:path';

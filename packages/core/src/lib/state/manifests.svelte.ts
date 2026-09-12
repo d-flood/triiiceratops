@@ -1,11 +1,12 @@
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-
 import type { RequestConfig } from '../types/config';
 import { fetchJson } from '../utils/fetchJson';
+import { getCanvasId, getResourceId } from '../utils/iiifIds';
 import {
+    asArray,
     getCanvasesForSequence,
     getSequenceCount as countSequences,
 } from '../utils/iiifParsing';
+import { parseStructures } from '../utils/structures';
 import { logger } from '../logging/logger';
 
 /**
@@ -22,7 +23,10 @@ export interface ManifestEntry {
 
 export class ManifestsState {
     manifests: Record<string, ManifestEntry> = $state({});
-    private pendingFetches = new SvelteMap<string, Promise<void>>();
+    // A plain `Map`: these promises are only ever awaited, never read
+    // reactively, so nothing gains from tracking them.
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    private pendingFetches = new Map<string, Promise<void>>();
 
     /**
      * Store a manifest's raw JSON under its id.
@@ -35,10 +39,9 @@ export class ManifestsState {
      * (SPEC → "Failure contract"). Reading the document is every enumerator's
      * job, and each of them is total.
      *
-     * `async` is vestigial — the parse it awaited is gone — but the
-     * `Promise<void>` signature is public and is kept deliberately.
+     * Synchronous, and safe for a caller to keep awaiting.
      */
-    async registerManifest(manifestId: string, json: any): Promise<void> {
+    registerManifest(manifestId: string, json: any): void {
         this.manifests[manifestId] = {
             json,
             isFetching: false,
@@ -72,7 +75,7 @@ export class ManifestsState {
 
         const pendingFetch = (async () => {
             const json = await fetchJson(manifestId, requestConfig);
-            await this.registerManifest(manifestId, json);
+            this.registerManifest(manifestId, json);
         })();
         this.pendingFetches.set(manifestId, pendingFetch);
 
@@ -96,44 +99,55 @@ export class ManifestsState {
         return this.manifests[manifestId];
     }
 
-    async fetchAnnotationList(url: string) {
-        if (this.manifests[url]) return; // Already fetched or fetching
+    /**
+     * External annotation lists already requested, whether or not they have
+     * arrived — the in-flight guard for {@link fetchAnnotationList}.
+     *
+     * The comment on that method's first line always claimed "already fetched or
+     * fetching", but `this.manifests[url]` is only written once the response has
+     * been parsed, so every call made before then started its own request. That
+     * was survivable while annotations were read for one canvas on one navigation;
+     * it is not now that the annotation surfaces follow the viewport and a scroll
+     * through a manifest asks about each folio as it arrives.
+     *
+     * A plain `Set`, deliberately not reactive: nothing renders from it.
+     */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    private inFlightAnnotationLists = new Set<string>();
 
+    async fetchAnnotationList(url: string) {
+        // Already fetched, or fetching.
+        if (this.manifests[url] || this.inFlightAnnotationLists.has(url))
+            return;
+
+        this.inFlightAnnotationLists.add(url);
         try {
             const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
                 this.manifests[url] = { json: data };
             } else {
-                logger.error(`Failed to fetch annotation list: ${url}`);
+                logger.error(`annotation list failed: ${url}`);
             }
         } catch (e) {
-            logger.error(`Error fetching annotation list: ${url}`, e);
+            logger.error(`annotation list errored: ${url}`, e);
+        } finally {
+            // Released either way: a failed list must be retryable, and leaving
+            // the url marked would make one network blip permanent.
+            this.inFlightAnnotationLists.delete(url);
         }
     }
 
     private getStructureSequences(manifestId: string): any[][] {
-        const manifestEntry = this.getManifestEntry(manifestId);
-        const manifestJson = manifestEntry?.json;
-        const structures = manifestJson?.structures;
+        const manifestJson = this.getManifestEntry(manifestId)?.json;
 
-        if (!Array.isArray(structures) || !structures.length) {
-            return [];
-        }
-
-        const sequenceRanges = structures.filter((range: any) => {
-            const rawBehavior = range?.behavior;
-            const behaviors = Array.isArray(rawBehavior)
-                ? rawBehavior
-                : rawBehavior
-                  ? [rawBehavior]
-                  : [];
-
-            return behaviors.some(
-                (value: unknown) =>
-                    String(value).trim().toLowerCase() === 'sequence',
-            );
-        });
+        // Top-level ranges only, as the sequence picker has always counted
+        // them: `parseStructures` nests a child Range under its parent rather
+        // than returning it here, so a `sequence` marker deeper in the tree
+        // defines no sequence of its own.
+        const sequenceRanges = parseStructures(manifestJson).filter((range) =>
+            range.behaviors.includes('sequence'),
+        );
 
         if (!sequenceRanges.length) {
             return [];
@@ -141,14 +155,19 @@ export class ManifestsState {
 
         // Every canvas the manifest declares, keyed by id, so that a range's
         // canvas references can be resolved to the canvases themselves. Walks
-        // the raw JSON through the first-party enumerator; it used to walk
-        // `manifesto.js` sequences, which no longer exist in this cache.
-        const canvasById = new SvelteMap<string, any>();
+        // the raw JSON through the first-party enumerator.
+        //
+        // Plain `Map`: this lookup is built and consumed inside this call and
+        // never escapes it, so nothing can observe its mutation. Reactivity
+        // here comes from the `manifests` read above, which registers the
+        // dependency on the source JSON.
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
+        const canvasById = new Map<string, any>();
         const sequenceCount = countSequences(manifestJson);
 
         for (let index = 0; index < sequenceCount; index++) {
             for (const canvas of getCanvasesForSequence(manifestJson, index)) {
-                const canvasId = canvas?.id || canvas?.['@id'];
+                const canvasId = getCanvasId(canvas);
 
                 if (canvasId && !canvasById.has(canvasId)) {
                     canvasById.set(canvasId, canvas);
@@ -157,98 +176,58 @@ export class ManifestsState {
         }
 
         return sequenceRanges
-            .map((range: any) => {
-                const items = Array.isArray(range?.items) ? range.items : [];
-                return items
-                    .map((item: any) => {
-                        const canvasId =
-                            typeof item === 'string'
-                                ? item
-                                : item?.type === 'Canvas' ||
-                                    item?.['@type'] === 'Canvas'
-                                  ? item.id || item['@id']
-                                  : null;
-
-                        return canvasId ? canvasById.get(canvasId) : null;
-                    })
-                    .filter(Boolean);
-            })
+            .map((range) =>
+                range.canvasIds
+                    .map((canvasId) => canvasById.get(canvasId))
+                    .filter(Boolean),
+            )
             .filter((sequence) => sequence.length > 0);
     }
 
-    private findCanvasInJson(resource: any, canvasId: string): any | null {
-        if (!resource || typeof resource !== 'object') {
-            return null;
-        }
-
-        const resourceId = resource.id || resource['@id'];
-        const resourceType = resource.type || resource['@type'];
-
-        if (
-            resourceId === canvasId &&
-            (resourceType === 'Canvas' || resourceType === 'sc:Canvas')
-        ) {
-            return resource;
-        }
-
-        const childCollections = [
-            resource.items,
-            resource.canvases,
-            resource.sequences,
-            resource.members,
-        ];
-
-        for (const collection of childCollections) {
-            if (!Array.isArray(collection)) {
-                continue;
-            }
-
-            for (const item of collection) {
-                const match = this.findCanvasInJson(item, canvasId);
-                if (match) {
-                    return match;
-                }
-            }
-        }
-
-        return null;
-    }
-
+    /**
+     * The enumerated canvases only — the same list the viewer renders, so an
+     * annotation is always read against the canvas that is on screen.
+     *
+     * A Canvas the enumerator does not reach is not looked for. That is not the
+     * same as a malformed manifest: `iiifParsing`'s enumeration reads
+     * `mediaSequences ?? sequences` as a *priority*, so a spec-valid IxIF
+     * wrapper carrying both (see the `vendored/audio.json` fixture) has the
+     * canvases of its `sequences` de-prioritized and therefore invisible here.
+     * Such a canvas is one this viewer never renders, so it has no annotations
+     * to read.
+     */
     private getCanvasJson(manifestId: string, canvasId: string): any | null {
         const manifestJson = this.getManifestEntry(manifestId)?.json;
 
-        // The enumerated canvases first — the same list the viewer renders, so
-        // an annotation is always read against the canvas that is on screen.
-        // This walked `manifesto.js` sequences and unwrapped `__jsonld`; the
-        // enumerator hands back that same raw JSON directly.
         const sequenceCount = countSequences(manifestJson);
         for (let index = 0; index < sequenceCount; index++) {
             const canvas = getCanvasesForSequence(manifestJson, index).find(
-                (candidate) =>
-                    (candidate?.id || candidate?.['@id']) === canvasId,
+                (candidate) => getCanvasId(candidate) === canvasId,
             );
             if (canvas) {
                 return canvas;
             }
         }
 
-        // A canvas that is in the manifest but in no sequence — inside a range,
-        // a collection member, or an otherwise unenumerated branch.
-        return this.findCanvasInJson(manifestJson, canvasId);
+        return null;
     }
 
     private getCanvasAnnotationListRefs(canvasJson: any): string[] {
-        const ids = new SvelteSet<string>();
+        // Plain `Set`: deduplicates the refs of one canvas and is spread into
+        // the returned array before this call ends, so its mutation is never
+        // observed.
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
+        const ids = new Set<string>();
 
         canvasJson?.otherContent?.forEach((content: any) => {
-            const id = content['@id'] || content.id;
+            const id = getResourceId(content);
             if (id && !content.resources) {
                 ids.add(id);
             }
         });
 
         canvasJson?.annotations?.forEach((content: any) => {
-            const id = content.id || content['@id'];
+            const id = getResourceId(content);
             if (id && !content.items) {
                 ids.add(id);
             }
@@ -262,7 +241,7 @@ export class ManifestsState {
             return true;
         }
 
-        return (content?.id || content?.['@id']) === sourceId;
+        return getResourceId(content) === sourceId;
     }
 
     async ensureCanvasAnnotations(
@@ -328,19 +307,14 @@ export class ManifestsState {
         );
     }
 
+    /**
+     * Manifest-defined annotations only, read synchronously from whatever the
+     * cache already holds. Plugin-written display state (user annotations) is
+     * per-viewer on `ViewerState` (ADR 0007); the shared manifest cache is not
+     * plugin-facing and no longer stores it. The viewer merges its own user
+     * annotations on top of this result.
+     */
     getAnnotations(manifestId: string, canvasId: string, sourceId?: string) {
-        // Manifest-defined annotations only. Plugin-written display state (user
-        // annotations) is per-viewer on `ViewerState` now (ADR 0007); the shared
-        // manifest cache is not plugin-facing and no longer stores it. The viewer
-        // merges its own user annotations on top of this result.
-        return this.manualGetAnnotations(manifestId, canvasId, sourceId);
-    }
-
-    manualGetAnnotations(
-        manifestId: string,
-        canvasId: string,
-        sourceId?: string,
-    ) {
         const canvasJson = this.getCanvasJson(manifestId, canvasId);
         if (!canvasJson) return [];
 
@@ -354,7 +328,7 @@ export class ManifestsState {
             return {
                 ...annotation,
                 __triiiceratopsCanvas: {
-                    id: canvasJson.id || canvasJson['@id'] || canvasId,
+                    id: getCanvasId(canvasJson) || canvasId,
                     width: canvasJson.width,
                     height: canvasJson.height,
                 },
@@ -363,8 +337,7 @@ export class ManifestsState {
         };
 
         const appendItems = (value: any) => {
-            const items = Array.isArray(value) ? value : value ? [value] : [];
-            for (const item of items) {
+            for (const item of asArray(value)) {
                 annotations.push(attachCanvasContext(item));
             }
         };
@@ -378,7 +351,7 @@ export class ManifestsState {
                     return;
                 }
 
-                const id = content['@id'] || content.id;
+                const id = getResourceId(content);
                 const inlineItems = content[inlineField];
                 if (id && !inlineItems) {
                     const externalJson = this.manifests[id]?.json;

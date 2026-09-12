@@ -1,6 +1,10 @@
 {
-    "pluginApiVersion": "1.0.0",
+    "pluginApiVersion": "1.6.0",
     "capabilities": [
-        "osd@5"
+        "canvas-claim",
+        "published-state",
+        "shared-core-utils",
+        "shared-svelte-runtime",
+        "transport-chrome"
     ]
 }

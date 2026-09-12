@@ -115,13 +115,10 @@ export function createViewerPropApplier(
         if (count > threshold && !warned.has(prop)) {
             warned.add(prop);
             logger.warn(
-                `The \`${prop}\` viewer prop has been re-assigned ${count} times ` +
-                    `on one <triiiceratops-viewer>. Property-tier inputs are ` +
-                    `compared with a one-level shallow equality, so a value that ` +
-                    `is rebuilt on every render is written every render — which ` +
-                    `can reload the manifest, move the viewport, or restart ` +
-                    `plugins. Hoist the value, memoize it, or keep its identity ` +
-                    `stable between renders.`,
+                `The \`${prop}\` viewer prop was re-assigned ${count} times on ` +
+                    `one <triiiceratops-viewer>. Property-tier inputs compare ` +
+                    `shallowly, so a value rebuilt every render is written ` +
+                    `every render. Keep its identity stable.`,
             );
         }
     }

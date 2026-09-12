@@ -50,6 +50,7 @@ import {
     buildCoverSheetFields,
     buildImageRequestInit,
     buildPdfFilename,
+    DEFAULT_PDF_EXPORT_MESSAGES,
     exportCanvasRangeAsPdf,
     extractOcrTextOverlays,
     normalizeCanvasRange,
@@ -127,12 +128,9 @@ function createCanvasWithImage(
  * Wrap painting annotations in an `AnnotationPage`, the way a IIIF v3 canvas
  * carries them.
  *
- * These canvases used to be `manifesto.js`-shaped doubles — a `getContent()` or
- * `getImages()` accessor over annotations with a `getBody()` accessor. Core's
- * painting-annotation enumeration is first-party as of the `remove-manifesto`
- * epic (ticket 03 for v3, ticket 06 for v2) and reads `canvas.items[].items[]`
- * or `canvas.images[]` directly, so they now carry the JSON the accessors used
- * to wrap.
+ * Core's painting-annotation enumeration reads `canvas.items[].items[]` (v3)
+ * or `canvas.images[]` (v2) directly, so these canvases carry that raw JSON
+ * shape rather than any accessor wrapper.
  */
 function annotationPages(...annotations: unknown[]) {
     return [
@@ -160,6 +158,47 @@ function createIiifCanvas(
                     id: `https://example.org/iiif/${encodeURIComponent(id)}`,
                     type: 'ImageService3',
                 },
+            },
+        }),
+    };
+}
+
+/**
+ * A COMPOSITE of two traits no single vendored fixture carries together, so one
+ * canvas exercises both at once. Core gets the **unsupported presentation** for
+ * it either way.
+ *
+ * - A lone `Video` painting body, from `av/0003-mvm-video` — whose canvas has no
+ *   `thumbnail` at all.
+ * - A poster `thumbnail`, from the opera fixtures (`av/0064-opera-one-canvas`),
+ *   whose entry is `{id, type: 'Image'}`. The `format` here is added, not
+ *   vendored: the thumbnail is what an export that merely failed to resolve an
+ *   image would fall through to, so the fixture has to carry one for the test to
+ *   mean anything.
+ */
+function createVideoCanvas(id: string) {
+    return {
+        id,
+        label: id,
+        width: 640,
+        height: 360,
+        duration: 12,
+        thumbnail: [
+            {
+                id: `https://example.org/poster/${id}.jpg`,
+                type: 'Image',
+                format: 'image/jpeg',
+            },
+        ],
+        items: annotationPages({
+            target: id,
+            body: {
+                id: `https://example.org/media/${id}.mp4`,
+                type: 'Video',
+                format: 'video/mp4',
+                width: 640,
+                height: 360,
+                duration: 12,
             },
         }),
     };
@@ -315,8 +354,8 @@ describe('exportCanvasRangeAsPdf', () => {
     });
 
     it('falls back to manifest annotations when the provider throws (silently)', async () => {
-        // The fallback is best-effort and quiet (ticket 28): no console output,
-        // only the observable behavior — manifest annotations are used instead.
+        // The fallback is best-effort and quiet: no console output, only the
+        // observable behavior — manifest annotations are used instead.
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const getCanvasAnnotations = vi.fn(() => [
             createOcrAnnotation('fallback text'),
@@ -515,8 +554,8 @@ describe('exportCanvasRangeAsPdf', () => {
     });
 
     it('falls back to canvas-space placement when image-space overlays lack source dimensions', async () => {
-        // The fallback is best-effort and quiet (ticket 28): no console output,
-        // only the observable legacy canvas-space placement.
+        // The fallback is best-effort and quiet: no console output, only the
+        // observable legacy canvas-space placement.
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
         await exportCanvasRangeAsPdf({
@@ -941,6 +980,283 @@ describe('exportCanvasRangeAsPdf', () => {
             );
         },
     );
+
+    /**
+     * The **unsupported presentation** edge, as an export sees it: a canvas
+     * whose **painting annotations** place nothing core can render has no page
+     * in a PDF of the pictures, and is left out silently rather than recorded
+     * as a canvas that failed. It is not a failure — there was never an image
+     * to fetch — and the poster thumbnail such a canvas often carries is an
+     * accompanying image, not a stand-in for content this export cannot
+     * represent.
+     *
+     * A **canvas claim** does not enter into it: whether a raster can be
+     * produced is decided by the canvas's bodies, so the answer is the same
+     * whether or not a plugin is rendering the media on screen.
+     */
+    it('exports only the image canvases of a mixed manifest, with no failure entries', async () => {
+        const loadImageBlob = vi.fn(() => createImageBlob());
+
+        const result = await exportCanvasRangeAsPdf({
+            canvases: [
+                createCanvas('canvas-1'),
+                createVideoCanvas('film'),
+                createCanvas('canvas-3'),
+            ],
+            startIndex: 0,
+            endIndex: 2,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            loadImageBlob,
+        });
+
+        expect(result.exportedCount).toBe(2);
+        expect(result.failedCanvases).toEqual([]);
+        expect(mockPdfDoc.addPage).toHaveBeenCalledTimes(2);
+
+        // Neither the media file nor the poster frame was fetched.
+        expect(
+            loadImageBlob.mock.calls.map(([params]: any[]) => params.imageUrl),
+        ).toEqual([
+            'https://example.org/canvas-1.png',
+            'https://example.org/canvas-3.png',
+        ]);
+    });
+
+    /**
+     * The same edge reached through a Choice, where the classifier and the
+     * resolver must agree on which alternative they are looking at. Asked about
+     * the alternatives as authored, the classifier answers "not unsupported"
+     * because one of them is an image, while resolution takes only the selected
+     * one and finds none — leaving the canvas in the range for
+     * `getCanvasExportResource` to fall through to its poster.
+     */
+    it('leaves out a mixed Choice resting on its video alternative', async () => {
+        const loadImageBlob = vi.fn(() => createImageBlob());
+        const film = createVideoCanvas('film');
+        const mixed = {
+            ...film,
+            items: annotationPages({
+                target: 'film',
+                body: {
+                    type: 'Choice',
+                    items: [
+                        {
+                            id: 'https://example.org/media/film.mp4',
+                            type: 'Video',
+                            format: 'video/mp4',
+                        },
+                        {
+                            id: 'https://example.org/still/film.jpg',
+                            type: 'Image',
+                            format: 'image/jpeg',
+                        },
+                    ],
+                },
+            }),
+        };
+
+        const result = await exportCanvasRangeAsPdf({
+            canvases: [createCanvas('canvas-1'), mixed],
+            startIndex: 0,
+            endIndex: 1,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            loadImageBlob,
+            getSelectedChoice: () => 'https://example.org/media/film.mp4',
+        });
+
+        expect(result.exportedCount).toBe(1);
+        expect(result.failedCanvases).toEqual([]);
+        expect(
+            loadImageBlob.mock.calls.map(([params]: any[]) => params.imageUrl),
+        ).toEqual(['https://example.org/canvas-1.png']);
+    });
+
+    it('counts the pages it will make, not the canvases it was handed', async () => {
+        const progress: string[] = [];
+        const getFilename = vi.fn(() => 'mixed.pdf');
+        const canvases = [
+            createCanvas('canvas-1'),
+            createVideoCanvas('film'),
+            createCanvas('canvas-3'),
+        ];
+
+        await exportCanvasRangeAsPdf({
+            canvases,
+            startIndex: 0,
+            endIndex: 2,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            getFilename,
+            onProgress: (message) => progress.push(message),
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        // The reader is told about two pages, in order, with no gap where the
+        // AV canvas would have been.
+        expect(
+            progress.filter((message) => message.startsWith('Exporting')),
+        ).toEqual(['Exporting 1 of 2: canvas-1', 'Exporting 2 of 2: canvas-3']);
+
+        // And the filename provider is handed exactly what went in, so a host
+        // naming the file after its contents cannot name a canvas that is not
+        // in it. The RANGE the reader asked for is still reported as asked.
+        expect(getFilename).toHaveBeenCalledWith(
+            expect.objectContaining({
+                startIndex: 0,
+                endIndex: 2,
+                indices: [0, 2],
+                canvases: [canvases[0], canvases[2]],
+                exportedCount: 2,
+                failedCanvases: [],
+            }),
+        );
+    });
+
+    it('refuses an AV-only range rather than saving an empty PDF', async () => {
+        await expect(
+            exportCanvasRangeAsPdf({
+                canvases: [createVideoCanvas('film')],
+                startIndex: 0,
+                endIndex: 0,
+                targetWidth: 1000,
+                manifestId: 'https://example.org/manifest',
+                loadImageBlob: () => createImageBlob(),
+            }),
+        ).rejects.toThrow(
+            DEFAULT_PDF_EXPORT_MESSAGES.errorNoCanvasesExported(),
+        );
+        expect(mockPdfDoc.save).not.toHaveBeenCalled();
+    });
+});
+
+describe('level0 image sources', () => {
+    let createObjectUrlSpy: ReturnType<typeof vi.spyOn>;
+    let revokeObjectUrlSpy: ReturnType<typeof vi.spyOn>;
+    let anchorClickSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        mockPdfDoc = createMockPdfDoc();
+        createObjectUrlSpy = vi
+            .spyOn(URL, 'createObjectURL')
+            .mockReturnValue('blob:mock');
+        revokeObjectUrlSpy = vi
+            .spyOn(URL, 'revokeObjectURL')
+            .mockImplementation(() => {});
+        anchorClickSpy = vi
+            .spyOn(HTMLAnchorElement.prototype, 'click')
+            .mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        createObjectUrlSpy.mockRestore();
+        revokeObjectUrlSpy.mockRestore();
+        anchorClickSpy.mockRestore();
+        vi.restoreAllMocks();
+    });
+
+    /**
+     * A canvas painted by a signed level0 static tile tree: `info.json` is served
+     * at the advertised service id but declares a DIFFERENT base for image
+     * requests, and the manifest's published image is a small thumbnail on
+     * another host. Exactly the shape CSNTM publishes.
+     */
+    function createSignedLevel0Canvas() {
+        return {
+            id: 'level0-canvas',
+            label: 'level0-canvas',
+            width: 4000,
+            height: 3000,
+            items: annotationPages({
+                target: 'level0-canvas',
+                body: {
+                    id: 'https://thumbs.example.net/tiny-thumbnail.jpg',
+                    type: 'Image',
+                    format: 'image/jpeg',
+                    width: 4000,
+                    height: 3000,
+                    service: [
+                        {
+                            id: 'https://images.example.org/iiif/level0-image',
+                            type: 'ImageService3',
+                            profile: 'level0',
+                        },
+                    ],
+                },
+            }),
+        };
+    }
+
+    function stubLevel0Service(): string[] {
+        const requested: string[] = [];
+        vi.spyOn(globalThis, 'fetch').mockImplementation((async (
+            url: string,
+        ) => {
+            if (String(url).endsWith('/info.json')) {
+                return {
+                    ok: true,
+                    json: async () => ({
+                        '@context': 'http://iiif.io/api/image/3/context.json',
+                        id: 'https://images.example.org/t/signed/iiif/level0-image',
+                        type: 'ImageService3',
+                        profile: 'level0',
+                        width: 4000,
+                        height: 3000,
+                        tiles: [{ width: 512, scaleFactors: [1, 8] }],
+                    }),
+                } as Response;
+            }
+            requested.push(String(url));
+            return {
+                ok: true,
+                blob: async () => createImageBlob(),
+            } as Response;
+        }) as unknown as typeof fetch);
+        return requested;
+    }
+
+    it('embeds the image service, not the thumbnail the manifest publishes', async () => {
+        const requested = stubLevel0Service();
+
+        await exportCanvasRangeAsPdf({
+            canvases: [createSignedLevel0Canvas()],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 4000,
+            manifestId: 'https://example.org/manifest',
+        });
+
+        // The base uri from `info.json`, not the advertised service id — and
+        // nowhere near the published thumbnail, which is what this path embedded
+        // before and would have put a 4000px-wide postage stamp on the page.
+        expect(requested).toEqual([
+            'https://images.example.org/t/signed/iiif/level0-image/full/max/0/default.jpg',
+        ]);
+        expect(requested[0]).not.toContain('thumbs.example.net');
+    });
+
+    it('still hands a host-supplied loader the published resource URL', async () => {
+        stubLevel0Service();
+        const loadImageBlob = vi.fn(async () => createImageBlob());
+
+        await exportCanvasRangeAsPdf({
+            canvases: [createSignedLevel0Canvas()],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 4000,
+            manifestId: 'https://example.org/manifest',
+            loadImageBlob,
+        });
+
+        // A host that supplies a loader has taken over retrieval entirely, and
+        // the documented `imageUrl` for a level0 source does not change.
+        expect(loadImageBlob).toHaveBeenCalledWith(
+            expect.objectContaining({
+                imageUrl: 'https://thumbs.example.net/tiny-thumbnail.jpg',
+            }),
+        );
+    });
 });
 
 describe('normalizeCanvasRange', () => {

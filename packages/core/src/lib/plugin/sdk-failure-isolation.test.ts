@@ -1,5 +1,5 @@
-// Plugin failure isolation & retry (ticket 09), tested at the SDK contract
-// against a LIVE `ViewerState` (real commands, real batched notifications).
+// Plugin failure isolation & retry, tested at the SDK contract against a LIVE
+// `ViewerState` (real commands, real batched notifications).
 //
 // For every guarded phase — setup, mount, command, subscription, cleanup — a
 // failing plugin A is isolated: plugin B and core stay fully functional, and the
@@ -20,6 +20,10 @@ import {
 
 import { ViewerState } from '../state/viewer.svelte';
 import { CORE_VERSION, pluginApiVersion, capabilities } from './api';
+import { createPluginLocaleService } from './localeService';
+import { createPluginStyleService } from './styleService';
+import { createPluginSurface } from './surface';
+import { createPluginUiService } from './uiService';
 
 vi.mock('../state/manifests.svelte', () => ({
     manifestsState: {
@@ -63,7 +67,7 @@ function makePlugin(opts: {
         version: '1.2.3',
         coreRange: opts.coreRange ?? '>=1.0.0-rc.0',
         pluginApiRange: '^1.0.0',
-        requiredCapabilities: ['osd@5'],
+        requiredCapabilities: [],
         icon: ICON,
         target: 'panel',
         view: {
@@ -102,10 +106,16 @@ function makePlugin(opts: {
     });
 }
 
+/**
+ * A host over core's own per-activation services — the real ones, so what these
+ * tests exercise is the arrangement core ships. `reportError` is the channel
+ * under test, so it is always the caller's.
+ */
 function makeHost(
     container: HTMLElement,
     state: ViewerState,
-    reportError?: (report: PluginErrorReport) => void,
+    reportError: (report: PluginErrorReport) => void,
+    chromeId = 'test-plugin',
 ): PluginHost {
     return {
         container,
@@ -113,6 +123,13 @@ function makeHost(
         coreVersion: CORE_VERSION,
         pluginApiVersion,
         capabilities,
+        styles: createPluginStyleService(document, 'test'),
+        locale: createPluginLocaleService({
+            current: 'en',
+            subscribe: () => () => {},
+        }),
+        ui: createPluginUiService(),
+        surface: createPluginSurface(state, chromeId, 'panel'),
         reportError,
     };
 }

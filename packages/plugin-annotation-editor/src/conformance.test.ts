@@ -1,26 +1,36 @@
 /**
- * Plugin conformance suite (ticket 14 test kit).
+ * The plugin's compatibility declaration, checked against the core it is built
+ * beside.
  *
- * `runPluginConformance` mounts the plugin against a REAL test viewer context
- * (real `ViewerState`, real batched notifications) with recording-double
- * services, and asserts the lifecycle contracts every plugin must honor:
- * mount/cleanup symmetry, subscription disposal, locale-change handling, style
- * cleanup, and error isolation. A passing run reflects production semantics.
- *
- * The panel (and its Annotorious-backed manager) stays closed by default, so this
- * unit-level run needs no OSD; OSD/Annotorious-dependent editing behavior is
- * validated at the browser (packed-fixture) seam.
+ * The whole declaration is `coreRange`: the drawing layer's container comes from
+ * `registerOverlayLayer`, which core treats as always present and therefore does
+ * not list as a capability, so there is nothing optional left to require. A
+ * floor that this core does not satisfy would fail activation for every
+ * consumer in the workspace, and nothing else in this package's suite runs
+ * against a real viewer to catch it.
  */
 
 import { describe, expect, it } from 'vitest';
 
-import { runPluginConformance } from '@triiiceratops/plugin-sdk/testing';
+// Safe in a test and not in the plugin source: a test is never bundled, so the
+// shipped artifact still carries no JSON module.
+import pkg from '../package.json';
+
+import { satisfies } from '@triiiceratops/plugin-sdk';
+import { CORE_VERSION } from 'triiiceratops/testing';
 
 import { catalog } from './catalog';
 
 import { createAnnotationEditorPlugin } from './plugin';
 
-runPluginConformance(() => createAnnotationEditorPlugin());
+describe('plugin compatibility', () => {
+    it('declares a core floor this core satisfies, and requires no capability', () => {
+        const plugin = createAnnotationEditorPlugin();
+
+        expect(plugin.requiredCapabilities).toEqual([]);
+        expect(satisfies(CORE_VERSION, plugin.coreRange!)).toBe(true);
+    });
+});
 
 // Chrome-title drift guard. `title` is key-or-literal, so a typo'd key renders
 // verbatim in the toolbar — the exact cosmetic bug `title` exists to fix. Pin
@@ -30,5 +40,17 @@ describe('chrome title', () => {
         const plugin = createAnnotationEditorPlugin();
         expect(plugin.title).toBeTruthy();
         expect(catalog.en?.[plugin.title!]).toBeTruthy();
+    });
+});
+
+// Declared-version drift guard. `PLUGIN_META.version` is a hand-written literal
+// (a JSON module there would land package.json in the shipped bundle), and it is
+// what reaches consumers as the plugin's declared identity. Nothing in the
+// release tooling re-stamps it, so `changeset version` would otherwise publish a
+// package whose own metadata names a version that was never released. Bump both
+// together.
+describe('the declared plugin version', () => {
+    it('matches the version the package actually publishes', () => {
+        expect(createAnnotationEditorPlugin().version).toBe(pkg.version);
     });
 });

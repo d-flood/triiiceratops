@@ -4,17 +4,30 @@ on:
         branches:
             - main
     pull_request:
+    # Rollback, and any deploy of a ref other than the tip of main. See the
+    # `publish_ref` input's use in the `deploy` job below.
+    workflow_dispatch:
+        inputs:
+            publish_ref:
+                description: 'Git ref (tag or branch) to build and deploy. Defaults to the tip of the default branch.'
+                required: false
+                type: string
 permissions:
     contents: read
 jobs:
-    # Required PR gate: the docs site builds with zero warnings and zero broken
-    # internal links (`zensical build --strict`), and every extracted doc example
-    # is in sync with the Markdown (`docs:examples:check`). Runs on pull requests;
-    # the deploy job below runs only on pushes to main.
+    # Required PR gate: every extracted doc example is in sync with its source
+    # (`docs:examples:check`), the content-state conformance table matches its
+    # fixture index (`docs:content-state:check`), and every internal link in
+    # every content document resolves (`links:check`). Runs on pull requests; the
+    # deploy job below runs only on pushes to main and on a manual dispatch.
+    #
+    # The link check belongs beside the other two rather than in the url-contract
+    # job that builds the whole tree: it reads the content documents directly and
+    # needs no build.
     #
     # Skipped on the Changesets "Version Packages" PR (see the note in test.yml):
     # its diff is generated version bumps + CHANGELOG entries, which cannot break
-    # the docs build that already passed on the main it was cut from.
+    # the checks that already passed on the main it was cut from.
     build-check:
         if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
         runs-on: ubuntu-latest
@@ -33,34 +46,37 @@ jobs:
             - name: Install dependencies
               run: pnpm install
 
-            - uses: actions/setup-python@v7
-              with:
-                  python-version: 3.x
-
-            - name: Install zensical
-              run: pip install zensical
-
-            # `pnpm docs:build` = doc-example sync check + `zensical build
-            # --clean --strict` (warnings-as-failures + internal link check).
-            - name: Build docs (strict) + verify examples in sync
+            # `pnpm docs:build` = doc-example sync check + content-state
+            # conformance check.
+            - name: Verify the documentation's generated content is in sync
               run: pnpm docs:build
 
-    deploy:
-        if: github.event_name == 'push'
-        environment:
-            name: github-pages
-            url: ${{ steps.deployment.outputs.page_url }}
-        permissions:
-            # `contents: write` lets the job persist the accumulated, versioned
-            # site to the durable `docs-site` storage branch (see below). This
-            # branch is NOT the Pages source — Pages still serves the uploaded
-            # artifact via `deploy-pages`.
-            contents: write
-            pages: write
-            id-token: write
+            # Anchors are resolved against each heading's persisted slug, so a
+            # retitled section does not turn this red.
+            - name: Check every internal link resolves
+              run: pnpm links:check
+
+    # Required PR gate: the whole published tree is built and asserted against
+    # `site-urls.json`, the committed manifest of the site's public URLs.
+    #
+    # One build emits the whole tree, so the tree this asserts is byte for byte
+    # the tree the deploy job uploads. Nothing is restored and nothing is
+    # assembled; there is no state carried between deploys for a gate to have to
+    # reconstruct.
+    #
+    # This job builds the tree itself rather than reusing another job's output.
+    # The duplicated build is a deliberate cost: a required gate that depends on
+    # no other job cannot be skipped, starved or accidentally satisfied by a
+    # stale artifact, and that independence is worth more here than the minutes
+    # it costs.
+    #
+    # Unlike build-check, this job DOES run on the Changesets "Version Packages"
+    # pull request. That PR is a version bump, and a release is exactly when the
+    # site's promised URLs are most worth re-asserting.
+    url-contract:
+        if: github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/configure-pages@v6
             - uses: actions/checkout@v7
 
             - uses: pnpm/action-setup@v6
@@ -75,62 +91,79 @@ jobs:
             - name: Install dependencies
               run: pnpm install
 
-            # `build:all` builds the plugin packages (in dependency order)
-            # BEFORE the demos that import them — `build:demo` compiles
-            # Demo.svelte, which imports @triiiceratops/plugin-* whose dist/
-            # must already exist. The old hand-rolled list (build:lib →
-            # build:demo) never built the plugins, so the demo failed to
-            # resolve them on a clean CI checkout.
-            - name: Build Docs Assets
+            - name: Build the whole tree
               run: pnpm build:all
 
-            - uses: actions/setup-python@v7
+            - name: Check the URL contract
+              run: pnpm urls:check
+
+    # Build the tree and upload it. There is nothing else: no storage branch, no
+    # restore, no assembly, and so no state a deploy could carry forward or
+    # corrupt. Two deploys of the same commit produce the same tree, and the ONLY
+    # input is the ref.
+    #
+    # Rollback takes this same path. A `workflow_dispatch` with `publish_ref`
+    # builds and deploys that ref — which is more trustworthy than force-pushing
+    # a stored tree, because the thing that gets served is the thing this
+    # repository says at that ref rather than a snapshot nothing re-derives.
+    deploy:
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        # Queued, never cancelled: two deploys uploading the same Pages artifact
+        # concurrently is the one race left, and a cancelled deploy would leave
+        # the served tree describing neither ref.
+        #
+        # Job-level rather than workflow-level on purpose: a workflow-level group
+        # would queue every pull request's `build-check` and `url-contract` gate
+        # runs behind each other.
+        concurrency:
+            group: pages-deploy
+            cancel-in-progress: false
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        permissions:
+            # No `contents: write`. Nothing is pushed anywhere: Pages serves the
+            # uploaded artifact and that is the whole of the published state.
+            contents: read
+            pages: write
+            id-token: write
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/configure-pages@v6
+
+            # `ref` is empty on a push, which checks out the pushed commit. On a
+            # dispatch it is the ref to deploy — and an empty input falls back to
+            # the same default, so a dispatch with no ref deploys the tip of the
+            # default branch.
+            - uses: actions/checkout@v7
               with:
-                  python-version: 3.x
-            - name: Install zensical
-              run: pip install zensical
+                  ref: ${{ inputs.publish_ref }}
 
-            # Versioned documentation (ticket 39). Each release publishes into a
-            # `/<major.minor>/` subdirectory derived from the CORE package.json
-            # version; previously published version directories are IMMUTABLE and
-            # are preserved on every deploy. `docs-publish.mjs` also builds the
-            # versioned site (correct canonical/site_url) and maintains a
-            # `versions.json` version index plus root and `/latest/` redirects.
+            - uses: pnpm/action-setup@v6
+              with:
+                  version: 11.15.1
+
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install
+
+            # One application owns the whole published tree — the marketing
+            # routes, the documentation, the playground, the bare viewer and the
+            # consumer examples it carries — so every deploy builds all of it.
             #
-            # The accumulated site is kept on the durable `docs-site` branch,
-            # which is used only as storage — Pages continues to serve the
-            # uploaded artifact, so the Pages source is unchanged.
-            - name: Resolve docs version
-              id: docsver
-              run: echo "version=$(node scripts/docs-version.mjs)" >> "$GITHUB_OUTPUT"
-
-            - name: Restore previously published versions
-              run: |
-                  rm -rf published && mkdir -p published
-                  if git ls-remote --exit-code --heads origin docs-site >/dev/null 2>&1; then
-                      git fetch --depth 1 origin docs-site
-                      git archive FETCH_HEAD | tar -x -C published
-                  fi
-
-            - name: Publish this version (preserving older versions)
-              run: node scripts/docs-publish.mjs --dest published --version "${{ steps.docsver.outputs.version }}"
-
-            - name: Persist accumulated versions to docs-site
+            # The domain is bound in the repository's Pages settings, so the
+            # build writes the custom-domain file every deploy.
+            - name: Build the whole tree
+              run: pnpm build:all
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: |
-                  cd published
-                  git init -q -b docs-site
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-                  git add -A
-                  git commit -q -m "docs: publish ${{ steps.docsver.outputs.version }} [skip ci]"
-                  git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" docs-site
-                  # Drop the storage .git so it is not shipped in the Pages artifact.
-                  rm -rf .git
+                  PUBLISH_CNAME: '1'
 
             - uses: actions/upload-pages-artifact@v5
               with:
-                  path: published
+                  path: apps/site/build
             - uses: actions/deploy-pages@v5
               id: deployment

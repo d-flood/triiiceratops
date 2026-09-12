@@ -6,6 +6,7 @@ import {
     getPagedCanvasGroups,
     getVisibleCanvasEntries,
     getVisibleChoiceGroups,
+    shouldShowGroupDivider,
     shouldUseAbbreviatedChoiceLabels,
 } from './viewerControls';
 
@@ -608,22 +609,80 @@ describe('viewerControls helpers', () => {
             ).toEqual(['non-paged']);
         });
 
-        it('is total, and reads NOTHING for the IIIF v2 `viewingHint` spelling', () => {
+        it('reads the IIIF v2 `viewingHint` spelling too', () => {
+            // Raw v2 Canvas JSON, which is what the manifest cache holds. Left
+            // unread, `isSinglePageCanvas` never fired for a v2 manifest and a
+            // canvas the publisher marked as standing alone was paired into a
+            // spread with its neighbour — which then shifted every spread after
+            // it.
+            expect(getCanvasBehaviors({ viewingHint: 'non-paged' })).toEqual([
+                'non-paged',
+            ]);
+            expect(
+                getCanvasBehaviors({
+                    '@type': 'sc:Canvas',
+                    viewingHint:
+                        'http://iiif.io/api/presentation/2#facing-pages',
+                }),
+            ).toEqual(['facing-pages']);
+            expect(getCanvasBehaviors({ viewingHint: ['non-paged'] })).toEqual([
+                'non-paged',
+            ]);
+        });
+
+        it('prefers the v3 spelling when a document carries both', () => {
+            expect(
+                getCanvasBehaviors({
+                    behavior: 'facing-pages',
+                    viewingHint: 'non-paged',
+                }),
+            ).toEqual(['facing-pages']);
+        });
+
+        it('falls through an EMPTY v3 `behavior` to the v2 hint beside it', () => {
+            // `[]` is truthy, so "v3 if present" written as a truthiness test
+            // discards the only hint the document carries. This is not a
+            // hypothetical shape: v2→v3 converters emit `"behavior": []` on
+            // every canvas while leaving `viewingHint` in place, which would
+            // re-pair exactly the single-page plate the v2 reader exists to
+            // keep unpaired.
+            expect(
+                getCanvasBehaviors({
+                    behavior: [],
+                    viewingHint: 'non-paged',
+                }),
+            ).toEqual(['non-paged']);
+            expect(
+                getCanvasBehaviors({
+                    behavior: '',
+                    viewingHint: 'facing-pages',
+                }),
+            ).toEqual(['facing-pages']);
+        });
+
+        it('does not pair a converted canvas whose empty `behavior` shadows its hint', () => {
+            const canvases = [
+                createImageCanvas('canvas-1'),
+                {
+                    ...createImageCanvas('canvas-2'),
+                    behavior: [],
+                    viewingHint: 'non-paged',
+                },
+                createImageCanvas('canvas-3'),
+                createImageCanvas('canvas-4'),
+            ];
+
+            expect(
+                getPagedCanvasGroups(canvases, 1).map((group) =>
+                    group.entries.map((entry) => entry.canvasId),
+                ),
+            ).toEqual([['canvas-1'], ['canvas-2'], ['canvas-3', 'canvas-4']]);
+        });
+
+        it('is total', () => {
             expect(getCanvasBehaviors(null)).toEqual([]);
             expect(getCanvasBehaviors({})).toEqual([]);
-
-            // A KNOWN GAP, deliberately left as-is and pinned here so it is a
-            // recorded fact rather than an assumption. The deleted rung was
-            // `canvas.getBehavior()`, which `manifesto.js` defined on Range,
-            // Collection and Manifest but NEVER on Canvas — so it was dead the
-            // day it was written, and its removal is not evidence that the v2
-            // case is covered. `isSinglePageCanvas` looks for exactly these
-            // values, so a v2 canvas declaring `"viewingHint": "non-paged"` is
-            // still paired into a spread. Fixing it is a behavior change and
-            // out of scope for a cleanup ticket.
-            expect(getCanvasBehaviors({ viewingHint: 'non-paged' })).toEqual(
-                [],
-            );
+            expect(getCanvasBehaviors({ behavior: [] })).toEqual([]);
         });
     });
 
@@ -641,6 +700,44 @@ describe('viewerControls helpers', () => {
                     group.entries.map((entry) => entry.canvasId),
                 ),
             ).toEqual([['canvas-1'], ['canvas-2'], ['canvas-3', 'canvas-4']]);
+        });
+
+        it('does not pair a v2 canvas that declares `viewingHint: non-paged`', () => {
+            // Raw IIIF v2 Canvas JSON end to end — the shape the manifest cache
+            // actually holds. Before the v2 spelling was read, `canvas-2` was
+            // paired with `canvas-3` and every spread after it was off by one.
+            const canvases = [
+                createImageCanvas('canvas-1'),
+                {
+                    ...createImageCanvas('canvas-2'),
+                    viewingHint: 'non-paged',
+                },
+                createImageCanvas('canvas-3'),
+                createImageCanvas('canvas-4'),
+            ];
+
+            expect(
+                getPagedCanvasGroups(canvases, 1).map((group) =>
+                    group.entries.map((entry) => entry.canvasId),
+                ),
+            ).toEqual([['canvas-1'], ['canvas-2'], ['canvas-3', 'canvas-4']]);
+        });
+
+        it('does not pair a v2 canvas that declares `viewingHint: facing-pages`', () => {
+            const canvases = [
+                createImageCanvas('canvas-1'),
+                {
+                    ...createImageCanvas('canvas-2'),
+                    viewingHint: 'facing-pages',
+                },
+                createImageCanvas('canvas-3'),
+            ];
+
+            expect(
+                getPagedCanvasGroups(canvases, 0).map((group) =>
+                    group.entries.map((entry) => entry.canvasId),
+                ),
+            ).toEqual([['canvas-1'], ['canvas-2'], ['canvas-3']]);
         });
 
         it('shows only the non-paged canvas when it is selected in paged mode', () => {
@@ -668,8 +765,8 @@ describe('viewerControls helpers', () => {
             expect(getCanvasNavLayout('left-to-right')).toEqual({
                 leftButton: 'previous',
                 rightButton: 'next',
-                leftIcon: 'left',
-                rightIcon: 'right',
+                leftIcon: 'CaretLeft',
+                rightIcon: 'CaretRight',
             });
         });
 
@@ -677,8 +774,8 @@ describe('viewerControls helpers', () => {
             expect(getCanvasNavLayout('right-to-left')).toEqual({
                 leftButton: 'next',
                 rightButton: 'previous',
-                leftIcon: 'left',
-                rightIcon: 'right',
+                leftIcon: 'CaretLeft',
+                rightIcon: 'CaretRight',
             });
         });
 
@@ -686,8 +783,8 @@ describe('viewerControls helpers', () => {
             expect(getCanvasNavLayout('top-to-bottom')).toEqual({
                 leftButton: 'previous',
                 rightButton: 'next',
-                leftIcon: 'up',
-                rightIcon: 'down',
+                leftIcon: 'CaretUp',
+                rightIcon: 'CaretDown',
             });
         });
 
@@ -695,9 +792,31 @@ describe('viewerControls helpers', () => {
             expect(getCanvasNavLayout('bottom-to-top')).toEqual({
                 leftButton: 'next',
                 rightButton: 'previous',
-                leftIcon: 'up',
-                rightIcon: 'down',
+                leftIcon: 'CaretUp',
+                rightIcon: 'CaretDown',
             });
         });
+    });
+});
+
+describe('shouldShowGroupDivider', () => {
+    it('shows the divider when both groups sit on the same row', () => {
+        expect(shouldShowGroupDivider(0, 0)).toBe(true);
+        // The comparison is between the two groups, not against zero: a bar
+        // whose whole content sits on a second row still divides its groups.
+        expect(shouldShowGroupDivider(40, 40)).toBe(true);
+    });
+
+    it('hides the divider once the later group has dropped to its own row', () => {
+        expect(shouldShowGroupDivider(0, 40)).toBe(false);
+    });
+
+    it('hides the divider when either side is not rendered', () => {
+        // A boundary with only one side has nothing to divide — which is what
+        // makes one rule serve both of the bar's boundaries, whichever groups
+        // this viewer's configuration actually renders.
+        expect(shouldShowGroupDivider(null, 0)).toBe(false);
+        expect(shouldShowGroupDivider(0, null)).toBe(false);
+        expect(shouldShowGroupDivider(null, null)).toBe(false);
     });
 });

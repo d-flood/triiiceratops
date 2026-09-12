@@ -1,0 +1,16 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "https://example.org/content-state/motivation-string",
+    "type": "Annotation",
+    "motivation": "contentState",
+    "target": {
+        "id": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p1",
+        "type": "Canvas",
+        "partOf": [
+            {
+                "id": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
+                "type": "Manifest"
+            }
+        ]
+    }
+}

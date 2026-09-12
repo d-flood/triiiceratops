@@ -27,10 +27,9 @@ export interface AnnotationDisplayState {
  * A persisted operation captured for undo/redo (F6). Each entry is replayed
  * through the normal store write paths on undo/redo so display sync, id
  * reconciliation, and error rollback all apply — the visual state and storage
- * can never disagree (the fault of the old Annotorious-backed stack). A `create`
- * stores the canonical (post-reconcile) annotation; an `update` stores the
- * cached copy from both before and after the write; a `delete` stores the copy
- * that was removed so it can be re-created.
+ * can never disagree. A `create` stores the canonical (post-reconcile)
+ * annotation; an `update` stores the cached copy from both before and after the
+ * write; a `delete` stores the copy that was removed so it can be re-created.
  */
 type UndoableOp =
     | { kind: 'create'; annotation: W3CAnnotation }
@@ -38,17 +37,14 @@ type UndoableOp =
     | { kind: 'delete'; annotation: W3CAnnotation };
 
 /**
- * Plugin-internal persistence core. Owns everything the manager used to do "to
- * storage": the annotation cache, per-annotation hydration state, create-vs-update
+ * Plugin-internal persistence core. Owns everything "to storage": the
+ * annotation cache, per-annotation hydration state, create-vs-update
  * resolution, the per-id save queue, the load-race token, and the raw adapter.
  *
- * `AnnotationManager` talks only to this store for persistence and keeps the
- * Annotorious/OpenSeadragon mechanics (selection, tools, coordinate transforms).
- * The store deals exclusively in **canvas-space** W3C annotations — transforms
- * live at the manager/store boundary.
- *
- * This class is a refactor of code previously inlined in `AnnotationManager`
- * (issues 01–04); behavior is intentionally unchanged (issue 05).
+ * The drawing layer talks only to this store for persistence and keeps the
+ * geometry (selection, tools, coordinate transforms). The store deals
+ * exclusively in **canvas-space** W3C annotations — transforms live at the
+ * drawing-layer/store boundary.
  */
 export class AnnotationStore {
     private static readonly W3C_CONTEXT = 'http://www.w3.org/ns/anno.jsonld';
@@ -59,37 +55,37 @@ export class AnnotationStore {
 
     /**
      * Notified when a `create` reconciles an annotation onto a server-assigned
-     * id (F5), so the manager can re-open it in Annotorious under the canonical
-     * id and re-emit the active-edit-id signal. Set by the manager; the loader
-     * leaves it unset.
+     * id (F5), so the drawing layer can follow its in-flight create onto the
+     * canonical id and open the body editor on the id the annotation was
+     * actually stored under. Set by the drawing layer; the loader leaves it
+     * unset.
      */
     onReconcileId?: (oldId: string, canonical: W3CAnnotation) => void;
 
     /**
-     * Notified after an undo/redo replay so the manager can reconcile the open
-     * Annotorious editing session with the new storage state (F6): `annotation`
-     * is the annotation now in the cache under `affectedId`, or `null` when the
-     * replay removed it. Set by the manager; the loader leaves it unset.
+     * Notified after an undo/redo replay so the drawing layer can reconcile the
+     * open editing session with the new storage state (F6): `annotation` is the
+     * annotation now in the cache under `affectedId`, or `null` when the replay
+     * removed it. Set by the drawing layer; the loader leaves it unset.
      */
     onReplay?: (affectedId: string, annotation: W3CAnnotation | null) => void;
 
-    // Current canvas context — the store owns it; the manager reads it back
-    // through getters so its Annotorious/transform call sites are unchanged.
+    // Current canvas context — the store owns it; the drawing layer reads it
+    // back through getters.
     private manifestId: string | null = null;
     private canvasId: string | null = null;
 
     // The owning viewer's display state — display sync targets this per-viewer
     // surface, never the page-shared manifest cache (ADR 0001, amended). Set by
-    // the loader (and the manager) once the viewer is known; null until then, so
-    // sync is a safe no-op before wiring (e.g. store-only unit tests).
+    // the mount seam once the viewer is known; null until then, so sync is a
+    // safe no-op before wiring (e.g. store-only unit tests).
     private displayState: AnnotationDisplayState | null = null;
 
     // Cache of persisted annotations for the current canvas.
     private persistedAnnotations = new SvelteMap<string, W3CAnnotation>();
     // Per-annotation hydration state, kept internal because the
-    // `__fullBodyLoaded` marker does not survive Annotorious's parse/serialize
-    // round-trip (F7). Populated from adapter `load()` results; markers are then
-    // stripped before anything leaves the store.
+    // `__fullBodyLoaded` marker is stripped before anything leaves the store
+    // (F7). Populated from adapter `load()` results.
     private hydrationState = new SvelteMap<string, 'skeleton' | 'full'>();
 
     // Serializes adapter writes per annotation id so rapid saves of the same
@@ -103,8 +99,7 @@ export class AnnotationStore {
     // Canvas keys (`manifestId::canvasId`) whose overlay this store has pushed
     // into the owning viewer's display state. The plugin — not the adapter —
     // owns display sync (F10), so the store both injects on every successful
-    // read/write and clears what it injected on destroy (F11). Bookkeeping that
-    // used to live in `LocalStorageAdapter` moved here.
+    // read/write and clears what it injected on destroy (F11).
     private injectedCanvases = new SvelteSet<string>();
 
     // Persistence-aware undo/redo (F6). Each stack holds inverse-able operation
@@ -142,8 +137,9 @@ export class AnnotationStore {
 
     /**
      * Point display sync at the owning viewer's display state (ADR 0001,
-     * amended). Called by the loader (and the manager) when the viewer is known.
-     * Idempotent — re-attaching the same viewer is harmless.
+     * amended). Called by the mount seam when the viewer is known, and by the
+     * loader for a store it drives on its own. Idempotent — re-attaching the
+     * same viewer is harmless.
      */
     setDisplayState(displayState: AnnotationDisplayState | null): void {
         this.displayState = displayState;
@@ -198,8 +194,8 @@ export class AnnotationStore {
 
     /**
      * Point the store at a canvas and drop the previous canvas's cache. Does
-     * not load — the manager drives load timing (and, from issue 06, display
-     * sync) around this call.
+     * not load — the caller drives load timing and display sync around this
+     * call.
      */
     setCanvas(manifestId: string | null, canvasId: string | null): void {
         this.manifestId = manifestId;
@@ -268,12 +264,12 @@ export class AnnotationStore {
      *
      * On create the store stamps a complete W3C/IIIF annotation (F18) and, if the
      * adapter returns a canonical annotation or id, reconciles the cache/display
-     * onto the server-assigned id and notifies the manager (F5). On update it
+     * onto the server-assigned id and notifies its owner (F5). On update it
      * refreshes `modified` and adopts a server-normalized copy when returned.
      *
      * Cache and display are only advanced *after* the adapter resolves, so a
      * rejected write leaves both at their pre-operation state — the rollback the
-     * manager relies on to re-signal selection (F20). Returns `true` on success,
+     * drawing layer relies on to re-signal selection (F20). Returns `true` on success,
      * `false` when the adapter rejected (the failure has been reported).
      */
     async persist(annotation: W3CAnnotation): Promise<boolean> {
@@ -411,7 +407,7 @@ export class AnnotationStore {
      * Fetch a skeleton annotation's full body from the adapter and cache it.
      * Returns the full annotation, or null when there is nothing to do (no
      * hydrate support), the fetch came back empty, the canvas changed while
-     * awaiting (F14), or `shouldApply` vetoes committing the result (the manager
+     * awaiting (F14), or `shouldApply` vetoes committing the result (the caller
      * uses this to bail if the annotation is no longer being edited).
      */
     async hydrate(
@@ -707,8 +703,8 @@ export class AnnotationStore {
     /**
      * Commit a created annotation to the cache under its canonical id. When the
      * adapter returns a server-assigned annotation or id string, the cache key is
-     * swapped from the local id to the canonical one, and the manager is notified
-     * so it can re-open the annotation under the new id (F5).
+     * swapped from the local id to the canonical one, and `onReconcileId` fires
+     * so the owner can follow the annotation onto the new id (F5).
      */
     private reconcileCreate(
         localId: string,
@@ -747,7 +743,7 @@ export class AnnotationStore {
     /**
      * Stamp a complete, valid W3C/IIIF annotation before create without
      * clobbering host-provided values (F18). `extension.beforeSave` has already
-     * run (in the manager) and therefore still wins — stamping only fills gaps.
+     * run by the caller and therefore still wins — stamping only fills gaps.
      */
     private stampForCreate(annotation: W3CAnnotation): W3CAnnotation {
         const stamped: W3CAnnotation = { ...annotation };

@@ -1,0 +1,253 @@
+import { flushSync, mount, unmount } from 'svelte';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import ToolbarTestHost from './ToolbarTestHost.svelte';
+import { manifestsState } from '../state/manifests.svelte';
+import { ViewerState } from '../state/viewer.svelte';
+import type { ViewerConfig } from '../types/config';
+
+/**
+ * The toolbar's language picker: a manifest-driven flyout, like the sequence
+ * picker. It appears only when there is a choice to make, names each language
+ * in that language, and drives the viewer's active locale.
+ */
+
+let manifestCounter = 0;
+let mounted: ReturnType<typeof mount> | null = null;
+const loadedManifests: string[] = [];
+
+function makeCanvas(manifestId: string) {
+    const id = `${manifestId}/canvas/1`;
+    return {
+        id,
+        type: 'Canvas',
+        height: 1000,
+        width: 800,
+        items: [
+            {
+                id: `${id}/page`,
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        id: `${id}/anno`,
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        target: id,
+                        body: {
+                            id: `${id}/image.jpg`,
+                            type: 'Image',
+                            format: 'image/jpeg',
+                            height: 1000,
+                            width: 800,
+                        },
+                    },
+                ],
+            },
+        ],
+    };
+}
+
+/** A v3 manifest labelled in `label`'s languages. */
+function makeManifest(label: Record<string, string[]>) {
+    const manifestId = `http://example.org/manifest/locale-${++manifestCounter}`;
+    return {
+        manifestId,
+        json: {
+            '@context': 'http://iiif.io/api/presentation/3/context.json',
+            id: manifestId,
+            type: 'Manifest',
+            label,
+            items: [makeCanvas(manifestId)],
+        },
+    };
+}
+
+async function mountToolbar(
+    label: Record<string, string[]>,
+    config: ViewerConfig = {},
+) {
+    const { manifestId, json } = makeManifest(label);
+    const viewerState = new ViewerState();
+    await viewerState.setManifestData(manifestId, json);
+    loadedManifests.push(manifestId);
+    viewerState.config = config;
+    viewerState.toolbarOpen = true;
+
+    mounted = mount(ToolbarTestHost, {
+        target: document.body,
+        props: { viewerState },
+    });
+    flushSync();
+
+    return viewerState;
+}
+
+/** The picker's toggle button, or null when the toolbar renders none. */
+function localeButton(): HTMLButtonElement | null {
+    return document.body.querySelector<HTMLButtonElement>(
+        '[aria-controls="tri-flyout-locale"]',
+    );
+}
+
+function localeItems(): HTMLButtonElement[] {
+    return [
+        ...document.body.querySelectorAll<HTMLButtonElement>(
+            '#tri-flyout-locale [role="menuitemradio"]',
+        ),
+    ];
+}
+
+afterEach(async () => {
+    if (mounted) {
+        await unmount(mounted);
+        mounted = null;
+    }
+    document.body.innerHTML = '';
+    for (const manifestId of loadedManifests.splice(0)) {
+        manifestsState.clearManifest(manifestId);
+    }
+    vi.restoreAllMocks();
+});
+
+describe('Toolbar language picker', () => {
+    it('is absent when the manifest is authored in one language', async () => {
+        await mountToolbar({ en: ['Book'] });
+        expect(localeButton()).toBeNull();
+    });
+
+    it('is absent when the manifest carries no language-tagged values', async () => {
+        await mountToolbar({ none: ['MS 42'] });
+        expect(localeButton()).toBeNull();
+    });
+
+    it('appears when the manifest offers more than one language', async () => {
+        await mountToolbar({ en: ['Book'], fr: ['Livre'] });
+        expect(localeButton()).not.toBeNull();
+        expect(localeButton()?.getAttribute('aria-haspopup')).toBe('menu');
+        expect(localeButton()?.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('is suppressed by toolbar.showLocalePicker: false', async () => {
+        await mountToolbar(
+            { en: ['Book'], fr: ['Livre'] },
+            { toolbar: { showLocalePicker: false } },
+        );
+        expect(localeButton()).toBeNull();
+    });
+
+    it('names each language in that language, tagged with its own lang', async () => {
+        await mountToolbar({ en: ['Book'], fr: ['Livre'] });
+        localeButton()!.click();
+        flushSync();
+
+        const items = localeItems();
+        expect(items.map((item) => item.getAttribute('lang'))).toEqual([
+            'en',
+            'fr',
+        ]);
+        // Endonyms, not names in the active locale: 'français', never 'French'.
+        expect(items.map((item) => item.textContent?.trim())).toEqual([
+            'English',
+            'français',
+        ]);
+    });
+
+    /**
+     * The picker is rendered by the same shared flyout shell as the other
+     * built-in menus, wide (endonyms run long) and with no leading glyph on its
+     * rows — the language's own name is the whole item.
+     */
+    it('renders the language menu in the shared wide menu shell', async () => {
+        await mountToolbar({ en: ['Book'], fr: ['Livre'] });
+        localeButton()!.click();
+        flushSync();
+
+        const panel =
+            document.querySelector<HTMLElement>('#tri-flyout-locale')!;
+        expect(
+            [...panel.classList]
+                .filter((name) => !name.startsWith('svelte-'))
+                .sort()
+                .join(' '),
+        ).toBe('menu-flyout open right tri-menu tri-menu-surface wide');
+        expect(panel.getAttribute('role')).toBe('menu');
+        expect(panel.getAttribute('tabindex')).toBe('-1');
+        expect(panel.getAttribute('aria-label')).toBe('Language');
+        expect(panel.hasAttribute('data-flyout-panel')).toBe(true);
+        expect(panel.getAttribute('style')).toBe(
+            'position-anchor: --anchor-locale;',
+        );
+        expect(localeButton()!.getAttribute('style')).toBe(
+            'anchor-name: --anchor-locale;',
+        );
+        // No count badge here: the badge belongs to the sequence picker alone.
+        expect(localeButton()!.classList.contains('indicator')).toBe(false);
+
+        // One glyph per row and it is the check mark on the active locale only,
+        // so an endonym is never prefixed by an icon.
+        expect(
+            localeItems().map((item) => item.querySelectorAll('svg').length),
+        ).toEqual([1, 0]);
+    });
+
+    /**
+     * What the menu LISTS is wider than the manifest: a host that supplies a
+     * chrome catalog can be read in that language too. What it must never list
+     * is a locale nothing can supply — so a `loadMessages` the host declares no
+     * `messages` entry for contributes nothing, while an entry mapped to an
+     * empty object is the host saying its loader covers that one.
+     */
+    it('lists the locales a host catalog names, and none only a loader might supply', async () => {
+        await mountToolbar(
+            { en: ['Book'], fr: ['Livre'] },
+            {
+                messages: { de: { search: 'Suche' }, ja: {} },
+                loadMessages: async (locale) =>
+                    locale === 'ko' ? { search: '검색' } : undefined,
+            },
+        );
+        localeButton()!.click();
+        flushSync();
+
+        expect(localeItems().map((item) => item.getAttribute('lang'))).toEqual([
+            'de',
+            'en',
+            'fr',
+            'ja',
+        ]);
+    });
+
+    it('keeps its button manifest-driven when a host supplies a catalog', async () => {
+        // The appearance condition is unchanged: one authored language, no
+        // button, however many chrome catalogs the host hands over.
+        await mountToolbar(
+            { en: ['Book'] },
+            { messages: { de: { search: 'Suche' } } },
+        );
+        expect(localeButton()).toBeNull();
+    });
+
+    it('checks the active locale and sets it when another is chosen', async () => {
+        const viewerState = await mountToolbar({
+            en: ['Book'],
+            fr: ['Livre'],
+        });
+        localeButton()!.click();
+        flushSync();
+
+        const [english, french] = localeItems();
+        expect(english.getAttribute('aria-checked')).toBe('true');
+        expect(french.getAttribute('aria-checked')).toBe('false');
+
+        french.click();
+        flushSync();
+
+        expect(viewerState._localeOverride).toBe('fr');
+        // `activeLocale` is mirrored by the viewer root, which is not mounted
+        // here, so the toolbar's own checked state is asserted through it.
+        viewerState.activeLocale = 'fr';
+        flushSync();
+        expect(localeItems()[1].getAttribute('aria-checked')).toBe('true');
+        expect(localeItems()[0].getAttribute('aria-checked')).toBe('false');
+    });
+});

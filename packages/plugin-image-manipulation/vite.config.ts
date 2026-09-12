@@ -1,85 +1,37 @@
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { svelte } from '@sveltejs/vite-plugin-svelte';
-import { bundledCss } from '@triiiceratops/ui/vite';
 import { defineConfig } from 'vite';
+
+// Core's shared plugin packaging policy, by source path: it lives in
+// `src/packaging`, which core neither publishes nor exports, so there is no
+// package specifier to reach it by. It is monorepo build tooling, never shipped.
+import { pluginBuild } from '../core/src/packaging/pluginBuild';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Build the plugin into a SELF-CONTAINED bundle for one output format.
+ * Build the image-manipulation plugin into a SELF-CONTAINED bundle for one
+ * format.
  *
- * `BUILD_FORMAT=es`   → `dist/index.js`  (the ESM entry consumers import).
- * `BUILD_FORMAT=iife` → `dist/iife.js`   (a `<script>`-loadable bundle that
+ * `BUILD_FORMAT=es`   → `dist/index.js` (the ESM entry consumers import).
+ * `BUILD_FORMAT=iife` → `dist/iife.js`  (a `<script>`-loadable bundle that
  *                       registers into `window.Triiiceratops.plugins`).
  *
- * The UI is Svelte, but Svelte is BUNDLED IN (not externalized to a global) in
- * BOTH formats so the plugin shares neither a Svelte runtime nor `svelte/internal`
- * with core (SPEC.md — "Core and browser plugins do not share a Svelte runtime
- * or import private `svelte/internal` modules"). `emitCss: true` + `bundledCss()`
- * EXTRACT each component's (Svelte-scoped) CSS through Vite's CSS pipeline instead
- * of Svelte's runtime `append_styles` injection (which would append an un-nonced
- * `<style>` to the document head, blocked under a strict `style-src` CSP).
- * `bundledCss()` (from `@triiiceratops/ui/vite`) collects that extracted CSS into
- * the `virtual:tri-bundled-css` module and strips the stray `.css` asset, so the
- * plugin's entry installs it through the root-aware, nonce-aware SDK style service
- * and keeps shipping a single self-contained JS with no stylesheet. This is what
- * lets the Flyout and the `@triiiceratops/ui` Range/Tooltip primitives use
- * idiomatic `<style>` blocks while staying CSP-safe.
- *
- * The two formats differ only in how the peer packages are treated:
- * - ESM (`index.js`): `@triiiceratops/plugin-sdk` and `triiiceratops` stay
- *   external (declared peers a consumer's bundler resolves and dedupes) — the
- *   SDK is framework-neutral and carries no `svelte/internal`, so this keeps the
- *   grep clean while honoring the peer contract.
- * - IIFE (`iife.js`): everything is bundled so the `<script>`-loadable file is
- *   fully self-contained (SPEC.md — "self-contained no-bundler IIFE").
+ * The terser pass, the global-CSS minification, the bundled Svelte runtime and
+ * the peer externals are all `pluginBuild`'s; this package adds nothing to them.
+ * What the CSS handling buys here in particular is that almost all of the
+ * Flyout's look is Svelte-scoped CSS extracted by `bundledCss()`, and the small
+ * remainder — the downward-flyout flip, keyed off the core-owned
+ * `[data-flyout-panel]` ancestor a scoped rule cannot reach — is the global sheet
+ * `src/flyout.css` that the build now minifies on its way into the bundle.
  */
-const format = process.env.BUILD_FORMAT === 'iife' ? 'iife' : 'es';
-
-const lib =
-    format === 'iife'
-        ? {
-              entry: resolve(__dirname, 'src/iife.ts'),
-              formats: ['iife' as const],
-              name: 'TriiiceratopsPluginImageManipulation',
-              fileName: () => 'iife.js',
-          }
-        : {
-              entry: resolve(__dirname, 'src/index.ts'),
-              formats: ['es' as const],
-              fileName: () => 'index.js',
-          };
-
-// Externalize the declared peers for ESM only; bundle them for the IIFE.
-const external =
-    format === 'iife' ? [] : ['@triiiceratops/plugin-sdk', 'triiiceratops'];
-
-export default defineConfig({
-    plugins: [
-        svelte({
-            emitCss: true,
-            compilerOptions: { customElement: false },
-        }),
-        bundledCss(),
-    ],
-    build: {
-        // Lowering private fields leaks helpers outside Vite's generated IIFE.
-        target: 'es2022',
-        // Production build so no dev-only `svelte/internal` strings or warnings
-        // leak into the bundle (the dist is grepped for `svelte/internal` — it
-        // must be absent; plugins share no Svelte runtime with core).
-        minify: true,
-        // One extracted CSS asset (bundledCss concatenates + strips it), so the
-        // whole bundle's component CSS is installed through the style service.
-        cssCodeSplit: false,
-        lib,
-        rollupOptions: {
-            external,
-            output: { inlineDynamicImports: true },
-        },
-        outDir: 'dist',
-        emptyOutDir: false,
-    },
-});
+export default defineConfig(
+    pluginBuild({
+        root: __dirname,
+        name: 'tri-image-manipulation',
+        globalName: 'TriiiceratopsPluginImageManipulation',
+        entries: { index: 'src/index.ts' },
+        iifeEntry: 'src/iife.ts',
+    }),
+);

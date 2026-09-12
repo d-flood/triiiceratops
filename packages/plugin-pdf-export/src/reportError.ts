@@ -1,15 +1,5 @@
-import { dispatchPluginCommandError } from '@triiiceratops/plugin-sdk';
+import { createCommandErrorReporter } from '@triiiceratops/plugin-sdk';
 
-export function reportPdfExportError(
-    node: EventTarget,
-    error: unknown,
-    retry: () => void,
-): void {
-    dispatchPluginCommandError(
-        node,
-        '@triiiceratops/plugin-pdf-export',
-        '1.0.0-rc.0',
-        error,
-        retry,
-    );
-}
+import { PLUGIN_META } from './identity';
+
+export const reportPdfExportError = createCommandErrorReporter(PLUGIN_META);

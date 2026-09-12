@@ -1,5 +1,13 @@
 packages:
     - 'packages/*'
+    # The site's applications: private, never published, and allowed to import a
+    # package only through its published entrypoints. See eslint.boundaries.js.
+    #
+    # Two of them: the site, which owns the whole published tree — the marketing
+    # routes, the playground at /demo/ and the bare viewer at /viewer/ — and the
+    # framework consumer examples, which stay separate because one of them is
+    # no-build by definition and making it a route would destroy what it proves.
+    - 'apps/*'
     # The packed-consumer harness driver is a workspace tool (so `pnpm install`
     # provisions its devDeps, e.g. Playwright). Only the driver directory itself
     # is a workspace member — the fixtures under `test-consumers/fixtures/*` are
@@ -11,7 +19,22 @@ allowBuilds:
     esbuild: true
     simple-git-hooks: true
 
+minimumReleaseAgeExclude:
+    - uncial@2.0.0
+    - uncial-cms@2.0.0
+
 overrides:
+    # Vitest accepts Vite 6 or 7 and would otherwise take the highest in the
+    # tree, which Uncial's Vite 7 raised. Vitest's Vite is the one a project's
+    # `vite.config.ts` is typed against, so it has to match the Vite the
+    # project actually builds with.
+    vitest>vite: '^6.0.0'
+    # Same reason, one level out: uncial-cms's `createLocalVitePlugin` returns a
+    # `Plugin` typed against its own Vite, and the site's `vite.config.ts` is
+    # typed against the Vite it builds with. Two Vite majors in one tree make
+    # those the same shape under different identities, which type-checks as an
+    # error at the call site rather than at the version difference that caused it.
+    uncial-cms>vite: '^6.0.0'
     lodash@>=4.0.0 <4.18.0: '>=4.18.0'
     qs@<6.15.2: '>=6.15.2'
     uuid@>=13.0.0 <13.0.1: ^13.0.1

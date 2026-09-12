@@ -1,0 +1,70 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/media/manifests/av-choice.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["Choice canvas — three renditions, the first unplayable"]
+    },
+    "summary": {
+        "en": [
+            "One canvas painted by a Choice of three renditions of the colour-bars clip, in the shape the vendored recipes use (0434-choice-av offers six audio formats, and lunchroom-manners three video bitrates). The first alternative declares a format no browser decodes, which is what the vendored recipes do in practice — 0434's first entry is Apple Lossless — so a viewer taking the first item wins the wrong one and shows a canvas that cannot play. The unplayable format is spelled `video/x-unplayable` rather than a real mezzanine type: `canPlayType` is required to answer '' for an unregistered type, while every real candidate (Theora, HEVC, ProRes) is a codec some engine may start or stop decoding between browser releases. Its URL is deliberately not a file that exists: nothing should ever request it, and if selection regresses the stage says 'cannot be played' rather than quietly working. The two MP4 renditions are the same bytes under different query strings, so a spec can swap between them and compare the playhead across the swap (spec, user stories 20, 36)."
+        ]
+    },
+    "items": [
+        {
+            "id": "/media/manifests/av-choice.json/canvas/bars",
+            "type": "Canvas",
+            "label": { "en": ["SMPTE colour bars, three renditions"] },
+            "width": 320,
+            "height": 180,
+            "duration": 2.0,
+            "items": [
+                {
+                    "id": "/media/manifests/av-choice.json/page/bars",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/media/manifests/av-choice.json/annotation/bars",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "type": "Choice",
+                                "choiceHint": "user",
+                                "items": [
+                                    {
+                                        "id": "/media/unplayable-master.mov",
+                                        "type": "Video",
+                                        "format": "video/x-unplayable",
+                                        "width": 320,
+                                        "height": 180,
+                                        "duration": 2.0,
+                                        "label": { "en": ["Master"] }
+                                    },
+                                    {
+                                        "id": "/media/bars.mp4?rendition=high",
+                                        "type": "Video",
+                                        "format": "video/mp4",
+                                        "width": 320,
+                                        "height": 180,
+                                        "duration": 2.0,
+                                        "label": { "en": ["High"] }
+                                    },
+                                    {
+                                        "id": "/media/bars.mp4?rendition=low",
+                                        "type": "Video",
+                                        "format": "video/mp4",
+                                        "width": 320,
+                                        "height": 180,
+                                        "duration": 2.0,
+                                        "label": { "en": ["Low"] }
+                                    }
+                                ]
+                            },
+                            "target": "/media/manifests/av-choice.json/canvas/bars"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, it, expect } from 'vitest';
 import {
     extractBody,
@@ -72,21 +75,29 @@ describe('annotationAdapter', () => {
             }
         });
 
-        /**
-         * A test named "should handle Manifesto-style getTarget and getId
-         * methods" stood here. It built an annotation double carrying `getId`,
-         * `getTarget` and `getBody` accessors and pinned the three
-         * `manifesto.js`-shaped branches of `annotationAdapter.ts` that read
-         * them. Nothing in the product ever hands those branches such an
-         * object: every annotation reaching `parseAnnotation` comes from
-         * `ManifestsState.manualGetAnnotations`, from a content-search
-         * response, or from a plugin — raw JSON in all three cases. The test
-         * asserted on the abstraction the `remove-manifesto` epic removes and
-         * could not survive it, so it was dropped rather than migrated
-         * (ticket 08). Ticket 10 deleted those branches; `extractBody` below
-         * covers what replaced them, since this module is public API through
-         * `triiiceratops/image-export`.
-         */
+        it('reads a `<rect>` in an SVG selector as its four corners', () => {
+            const annotation = {
+                '@id': 'http://example.org/anno-rect',
+                on: {
+                    selector: {
+                        type: 'SvgSelector',
+                        value: '<svg><rect x="10" y="20" width="30" height="40" /></svg>',
+                    },
+                },
+            };
+
+            const result = parseAnnotation(annotation, 1);
+
+            expect(result?.geometry).toEqual({
+                type: 'POLYGON',
+                points: [
+                    [10, 20],
+                    [40, 20],
+                    [40, 60],
+                    [10, 60],
+                ],
+            });
+        });
 
         it('should return null for invalid annotations with no geometry', () => {
             const invalidAnno = {
@@ -202,10 +213,94 @@ describe('annotationAdapter', () => {
             );
         });
 
-        it('should treat manifest annotations as image space by default', () => {
+        // A manifest annotation on its Canvas is Canvas coordinates, per IIIF —
+        // the origin marker does not override what the target says. Read the
+        // other way round, every manifest annotation was image space, which
+        // scaled shapes by the Canvas/image ratio on any manifest whose body
+        // declares dimensions other than its Canvas's.
+        it('should treat a canvas-target manifest annotation as canvas space', () => {
             const annotation = {
                 id: 'manifest-fragment',
                 target: 'http://example.org/canvas1#xywh=10,20,100,200',
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+                __triiiceratopsAnnotationOrigin: 'manifest',
+            };
+
+            expect(parseAnnotation(annotation, 8)?.coordinateSpace).toBe(
+                'canvas',
+            );
+        });
+
+        /**
+         * A content-search hit, exactly as `buildSearchAnnotations` makes one:
+         * the v2 `on` spelling, no embedded canvas context, and the canvas
+         * supplied by the caller that asked for that canvas's annotations.
+         *
+         * The Content Search API returns annotations targeting the Canvas, so a
+         * hit is canvas coordinates. Read as image space — which is what it fell
+         * through to while the canvas could only come from an embedded context —
+         * every hit was rescaled by the Canvas/image ratio, the same
+         * mis-scaling that afflicted manifest annotations.
+         */
+        it('should treat a search hit as canvas space, from the canvas asked about', () => {
+            const hit = {
+                '@id': 'urn:search-hit:0',
+                '@type': 'oa:Annotation',
+                on: 'http://example.org/canvas1#xywh=10,20,100,200',
+                isSearchHit: true,
+            };
+
+            expect(
+                parseAnnotation(hit, 10, true, 'http://example.org/canvas1')
+                    ?.coordinateSpace,
+            ).toBe('canvas');
+        });
+
+        it('should keep a hit whose target is not that canvas in image space', () => {
+            const hit = {
+                '@id': 'urn:search-hit:1',
+                '@type': 'oa:Annotation',
+                on: 'http://example.org/image1#xywh=10,20,100,200',
+                isSearchHit: true,
+            };
+
+            expect(
+                parseAnnotation(hit, 11, true, 'http://example.org/canvas1')
+                    ?.coordinateSpace,
+            ).toBe('image');
+        });
+
+        it('should let an annotation’s own canvas context win over the caller’s', () => {
+            // The two agree in practice; when they do not, what the annotation
+            // itself states about its canvas is the more specific fact.
+            const annotation = {
+                id: 'contextual',
+                target: 'http://example.org/canvas1#xywh=10,20,100,200',
+                __triiiceratopsCanvas: {
+                    id: 'http://example.org/canvas1',
+                    width: 800,
+                    height: 600,
+                },
+            };
+
+            expect(
+                parseAnnotation(
+                    annotation,
+                    12,
+                    false,
+                    'http://example.org/other',
+                )?.coordinateSpace,
+            ).toBe('canvas');
+        });
+
+        it('should keep an image-target manifest annotation in image space', () => {
+            const annotation = {
+                id: 'manifest-image-fragment',
+                target: 'http://example.org/image1#xywh=10,20,100,200',
                 __triiiceratopsCanvas: {
                     id: 'http://example.org/canvas1',
                     width: 800,
@@ -338,10 +433,7 @@ describe('annotationAdapter', () => {
 
     /**
      * `extractBody` is exported, and reaches consumers through
-     * `triiiceratops/image-export`. Its `manifesto.js` half — an
-     * `if (typeof annotation.getBody === 'function')` whose `else` held the
-     * raw-JSON reads — was deleted in ticket 10, which promoted that `else`
-     * to the whole function. These pin what a real annotation now produces.
+     * `triiiceratops/image-export`. These pin what a real annotation produces.
      */
     describe('extractBody', () => {
         it('reads a IIIF v3 `body`', () => {
@@ -397,6 +489,90 @@ describe('annotationAdapter', () => {
             ).toEqual(['one', 'two']);
         });
 
+        /**
+         * IIIF defaults `TextualBody` to `text/plain`, so only a declared
+         * `format: "text/html"` may route a body through the rich-text path.
+         * Per ADR 0005 the format decision changes how a body renders, never
+         * whether it renders — every case below still yields a body.
+         */
+        describe('only a declared `text/html` format means rich text', () => {
+            it('treats a `TextualBody` with no format as plain text', () => {
+                expect(
+                    extractBody({
+                        id: 'anno-untyped-format',
+                        body: {
+                            type: 'TextualBody',
+                            value: 'Plain transcription',
+                        },
+                    }),
+                ).toEqual([
+                    {
+                        value: 'Plain transcription',
+                        isHtml: false,
+                        purpose: undefined,
+                        format: undefined,
+                    },
+                ]);
+            });
+
+            it('treats a declared `text/html` body as rich text', () => {
+                expect(
+                    extractBody({
+                        id: 'anno-html',
+                        body: {
+                            type: 'TextualBody',
+                            value: '<p>Hello</p>',
+                            format: 'text/html',
+                        },
+                    })[0],
+                ).toMatchObject({ value: '<p>Hello</p>', isHtml: true });
+            });
+
+            it('treats an unrelated format as plain text', () => {
+                expect(
+                    extractBody({
+                        id: 'anno-markdown',
+                        body: {
+                            type: 'TextualBody',
+                            value: '**not markup**',
+                            format: 'text/markdown',
+                        },
+                    })[0],
+                ).toMatchObject({ value: '**not markup**', isHtml: false });
+            });
+
+            it('leaves markup-looking characters in a plain-text body alone', () => {
+                const bodies = extractBody({
+                    id: 'anno-angle-brackets',
+                    body: {
+                        type: 'TextualBody',
+                        value: '<b>bold</b> & <i>italic</i>',
+                    },
+                });
+
+                // The panel renders a non-HTML body as a Svelte text
+                // expression, so the characters survive as characters.
+                expect(bodies).toHaveLength(1);
+                expect(bodies[0].value).toBe('<b>bold</b> & <i>italic</i>');
+                expect(bodies[0].isHtml).toBe(false);
+            });
+
+            it('keeps a v2 `resource` with no format as plain text', () => {
+                expect(
+                    extractBody({
+                        '@id': 'anno-v2-no-format',
+                        resource: {
+                            '@type': 'dctypes:Text',
+                            chars: '<script>alert(1)</script>',
+                        },
+                    })[0],
+                ).toMatchObject({
+                    value: '<script>alert(1)</script>',
+                    isHtml: false,
+                });
+            });
+        });
+
         it('falls back to the annotation label, then to a placeholder', () => {
             expect(
                 extractBody({ id: 'anno-label', label: 'Just a label' }),
@@ -406,6 +582,267 @@ describe('annotationAdapter', () => {
 
             expect(extractBody({ id: 'anno-empty' })).toEqual([
                 { value: 'Annotation', isHtml: false, purpose: 'commenting' },
+            ]);
+        });
+
+        it('resolves a language-map label in the active locale', () => {
+            const annotation = {
+                id: 'anno-language-map',
+                label: { de: ['Gänseliesel'], en: ['Goose Girl'] },
+            };
+
+            expect(extractBody(annotation, 'de')).toEqual([
+                { value: 'Gänseliesel', isHtml: false, purpose: 'commenting' },
+            ]);
+
+            // English is the fallback for a locale the map does not carry.
+            expect(extractBody(annotation, 'fr')).toEqual([
+                { value: 'Goose Girl', isHtml: false, purpose: 'commenting' },
+            ]);
+        });
+    });
+    /**
+     * IIIF Cookbook recipe 0346, whose comment body is a `Choice` of
+     * `TextualBody` items differing only in `language` and `value`.
+     */
+    describe('a `Choice` body picks one item by language', () => {
+        /**
+         * Read with `fs` rather than imported: a Vite-transformed JSON module
+         * is shared across the module graph, and manifest registration mutates
+         * whatever JSON it is handed.
+         */
+        const recipe0346 = JSON.parse(
+            readFileSync(
+                join(
+                    import.meta.dirname,
+                    '../test/fixtures/manifests/cookbook/0346-multilingual-annotation-body.json',
+                ),
+                'utf8',
+            ),
+        );
+        const comment = recipe0346.items[0].annotations[0].items[0];
+
+        const ENGLISH = 'Koto with a cover being carried';
+        const JAPANESE = '袋に収められた琴';
+
+        it('renders the English item under an English locale', () => {
+            expect(extractBody(comment, 'en')).toEqual([
+                {
+                    value: ENGLISH,
+                    isHtml: false,
+                    purpose: undefined,
+                    format: 'text/plain',
+                },
+            ]);
+        });
+
+        it('renders the Japanese item under a Japanese locale', () => {
+            expect(
+                extractBody(comment, 'ja').map((body) => body.value),
+            ).toEqual([JAPANESE]);
+        });
+
+        it('matches on the primary subtag when no item matches exactly', () => {
+            expect(
+                extractBody(comment, 'en-GB').map((body) => body.value),
+            ).toEqual([ENGLISH]);
+        });
+
+        it('falls back to the first item, the author’s own preference', () => {
+            expect(
+                extractBody(comment, 'de').map((body) => body.value),
+            ).toEqual([ENGLISH]);
+            expect(extractBody(comment).map((body) => body.value)).toEqual([
+                ENGLISH,
+            ]);
+        });
+
+        it('treats an item with no language as a fallback candidate', () => {
+            const untagged = {
+                id: 'anno-untagged-choice',
+                body: {
+                    type: 'Choice',
+                    items: [
+                        { type: 'TextualBody', value: 'Untagged' },
+                        {
+                            type: 'TextualBody',
+                            value: 'Deutsch',
+                            language: 'de',
+                        },
+                    ],
+                },
+            };
+
+            expect(
+                extractBody(untagged, 'fr').map((body) => body.value),
+            ).toEqual(['Untagged']);
+            expect(
+                extractBody(untagged, 'de').map((body) => body.value),
+            ).toEqual(['Deutsch']);
+        });
+
+        it('unwraps the v2 `oa:Choice` spelling in a `resource`', () => {
+            expect(
+                extractBody(
+                    {
+                        '@id': 'anno-v2-choice',
+                        resource: {
+                            '@type': 'oa:Choice',
+                            default: {
+                                '@type': 'cnt:ContentAsText',
+                                'cnt:chars': 'Marginal note',
+                                language: 'en',
+                            },
+                            item: [
+                                {
+                                    '@type': 'cnt:ContentAsText',
+                                    'cnt:chars': 'Marginalie',
+                                    language: 'de',
+                                },
+                            ],
+                        },
+                    },
+                    'de',
+                ).map((body) => body.value),
+            ).toEqual(['Marginalie']);
+        });
+
+        it('drops the alternatives rather than stacking them', () => {
+            expect(extractBody(comment, 'ja')).toHaveLength(1);
+        });
+    });
+
+    /**
+     * IIIF Cookbook recipe 0258, whose tagging annotation carries a
+     * `SpecificResource` body with no text — only the URI of the authority
+     * record it tags the region with.
+     */
+    describe('an external-resource body carries a link target', () => {
+        const recipe0258 = JSON.parse(
+            readFileSync(
+                join(
+                    import.meta.dirname,
+                    '../test/fixtures/manifests/cookbook/0258-tagging-external-resource.json',
+                ),
+                'utf8',
+            ),
+        );
+        const tag = recipe0258.items[0].annotations[0].items[0];
+
+        const WIKIDATA = 'http://www.wikidata.org/entity/Q18624915';
+
+        it('reads a `SpecificResource` source as the link target', () => {
+            expect(extractBody(tag)).toEqual([
+                { value: '', isHtml: false, href: WIKIDATA },
+                {
+                    value: 'Gänseliesel-Brunnen',
+                    isHtml: false,
+                    purpose: undefined,
+                    format: 'text/plain',
+                },
+            ]);
+        });
+
+        it('reads a body’s own `id` where there is no `SpecificResource`', () => {
+            expect(
+                extractBody({
+                    id: 'anno-dataset-body',
+                    body: { id: WIKIDATA, type: 'Dataset' },
+                }),
+            ).toEqual([{ value: '', isHtml: false, href: WIKIDATA }]);
+        });
+
+        it('keeps the body’s label as the link’s text', () => {
+            expect(
+                extractBody(
+                    {
+                        id: 'anno-labelled-body',
+                        body: {
+                            type: 'SpecificResource',
+                            source: WIKIDATA,
+                            label: { de: ['Gänseliesel'], en: ['Goose Girl'] },
+                        },
+                    },
+                    'en',
+                ),
+            ).toEqual([{ value: 'Goose Girl', isHtml: false, href: WIKIDATA }]);
+        });
+
+        it.each([
+            ['javascript:alert(1)'],
+            ['java\nscript:alert(1)'],
+            ['data:text/html,<script>alert(1)</script>'],
+            ['mailto:curator@example.org'],
+            ['/relative/record'],
+            ['//www.wikidata.org/entity/Q18624915'],
+        ])('refuses %s as a link target', (uri) => {
+            // No text and no usable identity is the placeholder case: the
+            // annotation still has a row, and it offers nothing to click.
+            expect(
+                extractBody({
+                    id: 'anno-hostile-body',
+                    body: { type: 'SpecificResource', source: uri },
+                }),
+            ).toEqual([
+                { value: 'Annotation', isHtml: false, purpose: 'commenting' },
+            ]);
+        });
+
+        it('still renders the text of a body that has both', () => {
+            expect(
+                extractBody({
+                    id: 'anno-text-and-id',
+                    body: {
+                        id: WIKIDATA,
+                        type: 'TextualBody',
+                        value: 'Gänseliesel-Brunnen',
+                    },
+                }),
+            ).toEqual([
+                {
+                    value: 'Gänseliesel-Brunnen',
+                    isHtml: false,
+                    purpose: undefined,
+                    format: undefined,
+                },
+            ]);
+        });
+    });
+
+    /**
+     * The text-bodied annotation recipes, asserted to be untouched by the
+     * external-resource branch: each still yields exactly its own text and no
+     * link target. `0269-embedded-or-referenced-annotations` is absent because
+     * its annotation page is a bare reference — there is no body in the
+     * manifest for this function to read.
+     */
+    describe.each([
+        ['0021-tagging', 'Gänseliesel-Brunnen'],
+        ['0261-non-rectangular-commenting', 'Gänseliesel-Brunnen'],
+        [
+            '0266-full-canvas-annotation',
+            'Göttinger Marktplatz mit Gänseliesel Brunnen',
+        ],
+    ])('recipe %s renders its text body unchanged', (recipe, text) => {
+        it('yields the text and no link target', () => {
+            const manifest = JSON.parse(
+                readFileSync(
+                    join(
+                        import.meta.dirname,
+                        `../test/fixtures/manifests/cookbook/${recipe}.json`,
+                    ),
+                    'utf8',
+                ),
+            );
+            const annotation = manifest.items[0].annotations[0].items[0];
+
+            expect(extractBody(annotation)).toEqual([
+                {
+                    value: text,
+                    isHtml: false,
+                    purpose: undefined,
+                    format: 'text/plain',
+                },
             ]);
         });
     });

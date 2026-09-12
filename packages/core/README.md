@@ -24,14 +24,14 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
 - **IIIF Choice**: Full support for the IIIF Choice spec—users can switch between alternate image views (e.g., color vs. infrared, different lighting conditions)
 - **Multi-image Canvases**: Canvases with multiple painting annotations (e.g., compositions, foldouts, maps) are composited correctly with per-image positioning
 - **IIIF Search**: Full Content Search API support with hit highlighting
-- **Content State API**: Accepts the `iiif-content` URL parameter (base64-encoded JSON or plain URL) to open a manifest at a specific canvas and region
+- **Content State API**: Accepts a content state — a bare IIIF URI or an Annotation, base64url-encoded or not — as the `content-state` input, and will read the `iiif-content` URL parameter itself when the host opts in
 - **Direct Manifest Injection**: Svelte and web component consumers can pass manifest JSON directly instead of loading over HTTP
 - **Custom Search Providers**: Svelte consumers can supply local or app-backed search results without exposing an HTTP IIIF Search endpoint
 - **Metadata Display**: Shows manifest metadata, description, attribution, rights/license, `homepage`, `rendering` (alternative format links), `seeAlso`, and `provider` (with logo and homepage)
 - **Multi-language**: Language-aware metadata with fallback chain; UI translations for English and German
 - **Image Services**: Detects and uses IIIF Image API services (v1, v2, v3) for tiled deep-zoom; supports `ImageApiSelector` for region-specific image requests
 - **Theming**: Four built-in CSS-variable themes plus typed `themeConfig` and raw CSS-variable overrides
-- **OpenSeadragon Customization**: Pass custom OSD options (e.g. max zoom level, animation speed) via `openSeadragonConfig`
+- **Renderer Tuning**: A small, closed set of renderer knobs (zoom per click, animation timing, cache budgets) via `config.renderer`
 
 ## Current Limitations
 
@@ -39,7 +39,14 @@ This project is actively developed. The following IIIF features are not yet supp
 
 ### Content
 
-- **Audio/Video**: Time-based media (canvases with `duration`) not supported
+- **Audio/Video**: Core is an image viewer and paints no time-based media. It is
+  honest about it rather than broken: a canvas whose painting bodies are `Sound`
+  or `Video` keeps its place in layout, navigation and the thumbnail strip and
+  shows an unsupported-content placard, and no media URL is ever handed to the
+  image pipeline. Audio, video and HLS playback are the optional
+  `@triiiceratops/plugin-av` plugin, which claims those canvases and renders a
+  media stage with a transport, waveforms, captions and a transcript panel over
+  them. See `packages/plugin-av/README.md` and the plugins guide at `/docs/plugins/`.
 
 ### Navigation
 
@@ -50,15 +57,19 @@ This project is actively developed. The following IIIF features are not yet supp
 
 - **Annotation creation**: Core viewer is read-only; editing is available through optional plugins such as `annotation-editor`
 
-The `annotation-editor` plugin supports custom storage adapters plus extension hooks for host apps that need to inject create rules, draft enrichment, lazy body hydration, or selection-linked workflows without forking the plugin. See `docs/plugins.md`.
+The `annotation-editor` plugin supports custom storage adapters plus extension hooks for host apps that need to inject create rules, draft enrichment, lazy body hydration, or selection-linked workflows without forking the plugin. See the plugins guide at `/docs/plugins/`.
 
-There is also an optional `pdf-export` plugin for downloading a selected flat range of canvases as a client-side PDF, with optional consumer-configured cover-sheet metadata and an optional OCR annotation-source selector for PDF text. When canvases include IIIF OCR annotations with `supplementing` text bodies and `xywh` targets, the plugin embeds that OCR as selectable PDF text. For private or non-CORS image services, consumers can supply their own image loader/proxy path. See `docs/plugins.md`.
+There is also an optional `pdf-export` plugin for downloading a selected flat range of canvases as a client-side PDF, with optional consumer-configured cover-sheet metadata and an optional OCR annotation-source selector for PDF text. When canvases include IIIF OCR annotations with `supplementing` text bodies and `xywh` targets, the plugin embeds that OCR as selectable PDF text. For private or non-CORS image services, consumers can supply their own image loader/proxy path. See the plugins guide at `/docs/plugins/`.
 
-For downloading raster images instead of a PDF, the optional `image-download` plugin handles composite canvases (canvases painted with more than one image) correctly, offering composite-canvas, single-image, and current-view (e.g. a paged two-canvas spread) download modes, each with a resolution picker that respects IIIF `level0` services' fixed size lists. See `docs/plugins.md`.
+For downloading raster images instead of a PDF, the optional `image-download` plugin handles composite canvases (canvases painted with more than one image) correctly, offering composite-canvas, single-image, and current-view (e.g. a paged two-canvas spread) download modes, each with a resolution picker that respects IIIF `level0` services' fixed size lists. See the plugins guide at `/docs/plugins/`.
+
+For audio and video there is the optional `plugin-av` plugin: it plays `Sound` and `Video` painting bodies (including HLS, via a chunk fetched only where the browser has no native support), lays a claimed canvas out into a visual lane and a timeline lane, draws linked audiowaveform data, honours `start`, `#t=` chapters, `auto-advance` and format Choices, and publishes an `AVState` object a host application can command playback through. See `packages/plugin-av/README.md`.
 
 ### Other
 
-- **`placeholderCanvas`/`accompanyingCanvas`**: Not supported
+- **`placeholderCanvas`/`accompanyingCanvas`**: Not supported by core. Both are
+  rendered on audiovisual canvases by the `plugin-av` plugin — a poster before
+  playback, and an accompanying image above the waveform strip.
 
 The goal is to support all IIIF client mandatory features with pluggable optional features. The footprint of Triiiceratops, despite the name, is intended to remain considerably smaller than other fully featured viewers while attaining feature parity.
 

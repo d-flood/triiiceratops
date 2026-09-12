@@ -1,0 +1,83 @@
+{
+    "type": "doc",
+    "version": 2,
+    "meta": {
+        "title": "Built for more ways to read",
+        "shortTitle": "Accessibility",
+        "intro": "Readers bring different ways of navigating. Collections bring different formats, languages, and structures. Triiiceratops is built to accommodate both."
+    },
+    "content": [
+        {
+            "type": "heading",
+            "attrs": { "id": "5c6151a6-4b3a-5705-a89e-706931f13bf2", "slug": "reading-without-a-mouse", "level": 2 },
+            "content": [{ "type": "text", "text": "Reading without a mouse" }]
+        },
+        {
+            "type": "paragraph",
+            "attrs": { "id": "e14fb7d7-7f93-5dfc-b5dd-7f86f5ee175f" },
+            "content": [{ "type": "text", "text": "Keyboard navigation reaches beyond the toolbar. Readers can move through pages, pan and zoom, and operate panels and menus. Closing a panel returns focus to the control that opened it, helping readers keep their place in the interface." }]
+        },
+        {
+            "type": "paragraph",
+            "attrs": { "id": "dac69338-4e36-50f8-b8ae-cfe1503a7d54" },
+            "content": [{ "type": "text", "text": "Controls expose names and states to assistive technology. Built-in themes have automated contrast checks, and the viewer respects reduced-motion preferences in both its interface and its pan-and-zoom animations." }]
+        },
+        {
+            "type": "heading",
+            "attrs": { "id": "09680da2-bf26-59f9-b69b-22728ababcc5", "slug": "more-ways-into-audio-and-video", "level": 2 },
+            "content": [{ "type": "text", "text": "More ways into audio and video" }]
+        },
+        {
+            "type": "paragraph",
+            "attrs": { "id": "6469772c-8618-5a5c-a10f-416ec89d37f5" },
+            "content": [{ "type": "text", "text": "With the optional audio and video plugin, playback controls support keyboard operation, and the viewer can present WebVTT captions and transcripts supplied with the collection. Timed transcript entries let readers jump to the corresponding moment. " }, { "type": "text", "text": "Explore audio and video support →", "marks": [{ "type": "link", "attrs": { "href": "/docs/plugin-av/" } }] }]
+        },
+        {
+            "type": "heading",
+            "attrs": { "id": "6403035e-48a6-58c9-b38a-e5b97cfd2f7b", "slug": "let-the-collection-lead", "level": 2 },
+            "content": [{ "type": "text", "text": "Let the collection lead" }]
+        },
+        {
+            "type": "paragraph",
+            "attrs": { "id": "1b294331-fc2f-5800-a6ac-ffb74337291a" },
+            "content": [{ "type": "text", "text": "Triiiceratops supports IIIF Presentation 2 and 3 and Image API services across versions 1–3. It uses the structure a collection already describes: page order, reading direction, tables of contents, multilingual labels, and annotations." }]
+        },
+        {
+            "type": "paragraph",
+            "attrs": { "id": "c50aa930-be8e-50ac-b6d4-0be57209c0b3" },
+            "content": [{ "type": "text", "text": "That means a right-to-left book can read right to left, a structured manuscript can offer chapter navigation, and alternative images can remain choices within the same view. " }, { "type": "text", "text": "See what the viewer can do →", "marks": [{ "type": "link", "attrs": { "href": "/features/" } }] }]
+        },
+        {
+            "type": "heading",
+            "attrs": { "id": "dd6013bd-7a20-5dd9-a07a-d27ee1925038", "slug": "checked-throughout-development", "level": 2 },
+            "content": [{ "type": "text", "text": "Checked throughout development" }]
+        },
+        {
+            "type": "paragraph",
+            "attrs": { "id": "fa8adef8-f603-5e5a-8257-4679d91c1325" },
+            "content": [{ "type": "text", "text": "Accessibility checks run in continuous integration: automated scans against WCAG 2.2 AA rules, contrast checks across all four built-in themes, and browser tests for keyboard interaction, focus return, and reduced motion." }]
+        },
+        {
+            "type": "paragraph",
+            "attrs": { "id": "be6bc567-26d1-570f-be1c-2ab34d9bead2" },
+            "content": [{ "type": "text", "text": "These checks make specific accessibility behaviours part of the development process. They provide concrete evidence toward the WCAG 2.2 AA target, rather than a blanket certification." }]
+        },
+        {
+            "type": "paragraph",
+            "attrs": { "id": "f027e535-5d75-5152-9e53-0b5224f81609" },
+            "content": [
+                { "type": "text", "text": "How we check: " },
+                { "type": "text", "text": "accessibility workflow", "marks": [{ "type": "link", "attrs": { "href": "https://github.com/d-flood/triiiceratops/blob/main/.github/workflows/test.yml" } }] },
+                { "type": "text", "text": " · " },
+                { "type": "text", "text": "keyboard tests", "marks": [{ "type": "link", "attrs": { "href": "https://github.com/d-flood/triiiceratops/blob/main/packages/core/tests/a11y-keyboard.spec.ts" } }] },
+                { "type": "text", "text": " · " },
+                { "type": "text", "text": "reduced-motion tests", "marks": [{ "type": "link", "attrs": { "href": "https://github.com/d-flood/triiiceratops/blob/main/packages/core/tests/a11y-reduced-motion.spec.ts" } }] }
+            ]
+        },
+        {
+            "type": "paragraph",
+            "attrs": { "id": "7ad66478-bf69-514d-ba4e-7d6b3591c3f1" },
+            "content": [{ "type": "text", "text": "Explore the IIIF Cookbook examples →", "marks": [{ "type": "link", "attrs": { "href": "/demo/" } }] }]
+        }
+    ]
+}

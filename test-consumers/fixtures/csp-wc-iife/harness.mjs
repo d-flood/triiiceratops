@@ -29,7 +29,7 @@ export default {
         const violations = await collectCspViolations(page);
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // The custom element upgrades and OSD paints inside the shadow root.
+        // The custom element upgrades and the renderer paints inside the shadow root.
         await expect(page.locator('triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });

@@ -1,4 +1,20 @@
-import { getIiifCanvasId, parseIiifXywh } from './iiifTargets';
+/**
+ * IIIF Content State resolution: a bare IIIF URI or a W3C Annotation (optionally
+ * base64url-encoded) becomes the `{ manifestId, canvasId?, region?, time? }`
+ * view target the viewer is driven by. Never throws, never fetches (ADR 0006).
+ */
+
+import { logger } from '../logging/logger';
+import { getResourceId } from './iiifIds';
+import { asArray } from './iiifParsing';
+import {
+    extractIiifTargetId,
+    getIiifCanvasId,
+    parseIiifTime,
+    parseIiifXywh,
+    toCanvasRegion,
+} from './iiifTargets';
+import type { IiifTemporalFragment } from './iiifTime';
 
 export type CanvasRegion = {
     x: number;
@@ -11,7 +27,43 @@ export type ContentStateTarget = {
     manifestId: string;
     canvasId?: string;
     region?: CanvasRegion;
+    /** Media time the target selected (`#t=`), the temporal peer of `region`. */
+    time?: IiifTemporalFragment;
 };
+
+type JsonRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is JsonRecord {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isHttpUri(value: unknown): value is string {
+    return typeof value === 'string' && /^https?:\/\//i.test(value);
+}
+
+function idOf(record: JsonRecord): string | undefined {
+    const id = getResourceId(record);
+    return typeof id === 'string' ? id : undefined;
+}
+
+/** The types a resource declares, in either spelling. */
+function declaredTypes(record: JsonRecord): string[] {
+    const declared = record.type ?? record['@type'];
+    return asArray(declared).filter(
+        (value): value is string => typeof value === 'string' && !!value,
+    );
+}
+
+/**
+ * Whether a resource declares the given IIIF type. The suffix match accepts the
+ * Presentation 2 vocabulary (`sc:Manifest`) alongside the bare Presentation 3
+ * name.
+ */
+function isType(record: JsonRecord, name: string): boolean {
+    return declaredTypes(record).some(
+        (value) => value === name || value.endsWith(`:${name}`),
+    );
+}
 
 function decodeContentState(value: string): string {
     try {
@@ -26,73 +78,208 @@ function decodeContentState(value: string): string {
     }
 }
 
+/**
+ * The JSON document a decoded payload carries. The Cookbook publishes its
+ * `iiif-content` values as JSON through `encodeURIComponent` and then base64url,
+ * so a payload that is not JSON is tried again percent-decoded. Which spelling a
+ * payload uses is decided by attempting the parse rather than by looking for a
+ * `%`: a percent sign inside a legitimate JSON string value must not provoke a
+ * second decode.
+ */
+function parseJsonDocument(text: string): unknown {
+    try {
+        return JSON.parse(text);
+    } catch {
+        // Not JSON as it stands; the percent-encoded spelling is the other form
+        // the specification permits.
+    }
+
+    try {
+        return JSON.parse(decodeURIComponent(text));
+    } catch {
+        return undefined;
+    }
+}
+
 function parseTarget(
     target: string,
-): Pick<ContentStateTarget, 'canvasId' | 'region'> {
-    const xywh = parseIiifXywh(target);
-
+): Pick<ContentStateTarget, 'canvasId' | 'region' | 'time'> {
     return {
         canvasId: getIiifCanvasId(target) || undefined,
-        region: xywh
-            ? {
-                  x: xywh[0],
-                  y: xywh[1],
-                  width: xywh[2],
-                  height: xywh[3],
-              }
-            : undefined,
+        region: toCanvasRegion(parseIiifXywh(target)) ?? undefined,
+        time: parseIiifTime(target) || undefined,
     };
 }
 
+/**
+ * The Manifest a `partOf` names. An array may list the Canvas's whole
+ * containment chain (a Manifest inside a Collection), so the Manifest-typed
+ * entry wins. An array whose entries declare no type at all degrades to the
+ * first entry — untyped `partOf` references are common in the wild — but typed
+ * entries with no Manifest among them resolve to nothing: ADR 0006 makes a
+ * Collection target a degrade case, and handing its URI back as the manifest id
+ * would have the viewer fetch a Collection as a Manifest.
+ */
+function manifestIdFrom(partOf: unknown): string | undefined {
+    if (typeof partOf === 'string') {
+        return partOf || undefined;
+    }
+
+    if (Array.isArray(partOf)) {
+        const entries = partOf.filter(isRecord);
+        const manifest = entries.find((entry) => isType(entry, 'Manifest'));
+        if (manifest) return idOf(manifest);
+
+        const typed = entries.filter((entry) => declaredTypes(entry).length);
+        if (typed.length) {
+            const found = typed
+                .map(
+                    (entry) =>
+                        `${declaredTypes(entry).join('/')} ${idOf(entry) ?? '(no id)'}`,
+                )
+                .join(', ');
+            logger.warn(
+                `content state: \`partOf\` names no Manifest, only ${found}.`,
+            );
+            return undefined;
+        }
+
+        if (entries[0]) return idOf(entries[0]);
+        return partOf.find((entry) => typeof entry === 'string') as
+            | string
+            | undefined;
+    }
+
+    if (isRecord(partOf)) {
+        return idOf(partOf);
+    }
+
+    return undefined;
+}
+
+/**
+ * A content state is an Annotation even when it says so only by shape. Some
+ * publishers omit `type`, and the distinction matters: an Annotation's own `id`
+ * is the annotation, never the manifest, which is the failure this predicate
+ * exists to prevent.
+ */
+function isAnnotation(document: JsonRecord): boolean {
+    return (
+        isType(document, 'Annotation') ||
+        document.target !== undefined ||
+        document.motivation !== undefined
+    );
+}
+
+/**
+ * A `motivation` that is missing or not `contentState` warns rather than
+ * rejects: ADR 0006 asks for the most that can be honored, and a document that
+ * names a Manifest is resolvable whatever it claims to motivate.
+ */
+function warnUnlessContentState(document: JsonRecord): void {
+    const names = asArray(document.motivation);
+    if (names.some((name) => name === 'contentState')) return;
+
+    logger.warn(
+        `content state ${idOf(document) ?? '(no id)'}: no \`motivation: contentState\`; resolved anyway.`,
+    );
+}
+
+function resolveAnnotation(document: JsonRecord): ContentStateTarget | null {
+    warnUnlessContentState(document);
+
+    const targets = asArray(document.target);
+    if (targets.length > 1) {
+        logger.warn(
+            `content state ${idOf(document) ?? '(no id)'}: ${targets.length} targets, all but the first dropped.`,
+        );
+    }
+
+    const target = targets[0];
+    const targetId = extractIiifTargetId(target) ?? undefined;
+
+    /*
+     * A target that IS a Manifest is the manifest, and names no view inside it.
+     * Cookbook recipe 0599's first drag source is exactly this — a Manifest
+     * target with no `partOf` — and reading its id as a canvas would open a
+     * manifest id as a view.
+     */
+    if (isRecord(target) && isType(target, 'Manifest')) {
+        return targetId ? { manifestId: targetId } : null;
+    }
+
+    const manifestId =
+        (isRecord(target) ? manifestIdFrom(target.partOf) : undefined) ??
+        manifestIdFrom(document.partOf);
+
+    if (!manifestId) return null;
+
+    return {
+        manifestId,
+        ...(targetId ? parseTarget(targetId) : {}),
+    };
+}
+
+/**
+ * A content state that is not an Annotation. A Manifest — or an untyped
+ * reference to one — is its own manifest id. A document declaring some other
+ * type (a Canvas, say) names its Manifest in `partOf` and contributes its own id
+ * as the view target, so a region or time on that id's fragment still applies.
+ */
+function resolveDocument(document: JsonRecord): ContentStateTarget | null {
+    const id = idOf(document);
+
+    if (declaredTypes(document).length && !isType(document, 'Manifest')) {
+        const manifestId = manifestIdFrom(document.partOf);
+        if (!manifestId) return null;
+        return { manifestId, ...(id ? parseTarget(id) : {}) };
+    }
+
+    if (isHttpUri(id)) {
+        return { manifestId: id };
+    }
+
+    const manifestId = manifestIdFrom(document.partOf);
+    return manifestId ? { manifestId } : null;
+}
+
+/**
+ * Whether a dereferenced document **is** the Manifest a target names, rather
+ * than a resource that merely points at one.
+ *
+ * Asked by `contentStateIngestion` of a document it has just fetched, to decide
+ * whether the manifest is already in hand. Deliberately not "its declared id
+ * equals the URL it came from": a Manifest served at `…/manifest.json` and
+ * declaring `…/` as its `id` is legal and common in generated trees, and the
+ * declared id is frequently not a manifest URL at all — for a `mkiiif` page it
+ * is the directory, which serves the embedding HTML.
+ *
+ * A Collection is not one: only the fetching manifest path expands a Collection
+ * into its members (ADR 0006). Nor is an Annotation or a Canvas, whose
+ * Manifest is a different resource named in `partOf` and genuinely has to be
+ * fetched. An untyped document with an http id is one, matching the branch
+ * {@link parseContentState} resolves it through.
+ */
+export function isManifestDocument(value: unknown): boolean {
+    if (!isRecord(value) || isAnnotation(value)) return false;
+
+    return declaredTypes(value).length
+        ? isType(value, 'Manifest')
+        : isHttpUri(idOf(value));
+}
+
 export function parseContentState(value: string): ContentStateTarget | null {
-    if (!value) return null;
+    const raw = value?.trim();
+    if (!raw) return null;
 
-    if (/^https?:\/\//i.test(value)) {
-        return { manifestId: value };
+    if (isHttpUri(raw)) {
+        return { manifestId: raw };
     }
 
-    const decoded = decodeContentState(value);
+    const document = parseJsonDocument(decodeContentState(raw));
+    if (!isRecord(document)) return null;
 
-    try {
-        const parsed = JSON.parse(decoded);
-        const manifestId = parsed.id || parsed['@id'];
-
-        if (
-            typeof manifestId === 'string' &&
-            /^https?:\/\//i.test(manifestId)
-        ) {
-            return { manifestId };
-        }
-
-        const target =
-            parsed?.target ||
-            parsed?.partOf?.id ||
-            parsed?.partOf?.['@id'] ||
-            parsed?.source?.id ||
-            parsed?.source?.['@id'];
-
-        const manifest =
-            parsed?.partOf?.id || parsed?.partOf?.['@id'] || manifestId;
-        if (!manifest || typeof manifest !== 'string') {
-            return null;
-        }
-
-        if (typeof target === 'string') {
-            return {
-                manifestId: manifest,
-                ...parseTarget(target),
-            };
-        }
-
-        if (typeof parsed?.source === 'string') {
-            return {
-                manifestId: manifest,
-                ...parseTarget(parsed.source),
-            };
-        }
-
-        return { manifestId: manifest };
-    } catch {
-        return null;
-    }
+    return isAnnotation(document)
+        ? resolveAnnotation(document)
+        : resolveDocument(document);
 }
