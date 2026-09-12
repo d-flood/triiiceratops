@@ -29,8 +29,6 @@ export const coverage = {
         'src/**/test/**',
         'src/**/__tests__/**',
         // Generated code (relocated + gitignored; type-checked via build).
-        'src/lib/paraglide/**',
-        'src/paraglide/**',
         'src/lib/generated/**',
         // Dev-server / example-page only sources (never shipped).
         'src/e2e/**',

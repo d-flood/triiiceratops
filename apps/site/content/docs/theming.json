@@ -731,7 +731,7 @@
 				},
 				{
 					"type": "text",
-					"text": "); they are normalized to OKLCH internally."
+					"text": "); the viewer applies the value exactly as you wrote it."
 				}
 			],
 			"attrs": {
@@ -5909,7 +5909,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", and values are applied verbatim (no color normalization), so a name nothing reads simply has no effect:"
+					"text": ", and the viewer does not check them against its own token list, so a name nothing reads simply has no effect:"
 				}
 			],
 			"attrs": {

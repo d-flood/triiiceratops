@@ -32,7 +32,7 @@ export interface PdfExportMessages {
         filename: string;
     }): string;
 }
-/** English fallbacks — the same strings core shipped in `messages/en.json`. */
+/** English fallbacks — the same strings core ships in its `src/lib/messages/en.json`. */
 export declare const DEFAULT_PDF_EXPORT_MESSAGES: PdfExportMessages;
 type NormalizeCanvasRangeResult = {
     startIndex: number;

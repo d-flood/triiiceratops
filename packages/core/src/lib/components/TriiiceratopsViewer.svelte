@@ -14,11 +14,16 @@
     import { onDestroy, setContext, untrack } from 'svelte';
     import { cubicOut } from 'svelte/easing';
     import {
+        createHostCatalogs,
         language,
         getMessages,
         provideActiveLocale,
+        resolveChromeName,
     } from '../state/i18n.svelte';
-    import { watchReducedMotion } from '../state/reducedMotion';
+    import {
+        provideReducedMotion,
+        watchReducedMotion,
+    } from '../state/reducedMotion';
     import { FOCUS_MEMORY_KEY, createFocusMemory } from '../utils/focusMemory';
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
     import { applyTheme } from '../theme/themeManager';
@@ -106,6 +111,9 @@
      * whether it respects the setting. Every transition below reads this at the
      * instant it starts, so a change reaches the next one. SSR-safe: the helper
      * reports `false` off the browser and never calls back.
+     *
+     * This is the viewer's only watcher: the panel stack, its sections and the
+     * annotations panel read the same value out of context.
      */
     let prefersReducedMotion = $state(false);
     onDestroy(
@@ -113,6 +121,11 @@
             prefersReducedMotion = reduced;
         }),
     );
+    provideReducedMotion({
+        get current() {
+            return prefersReducedMotion;
+        },
+    });
 
     /**
      * Open the expanded gallery as a drawer sliding out of its dock edge — a
@@ -154,50 +167,46 @@
     }
 
     /**
-     * Animate a side column's width (0 → full) so the center viewer resizes
-     * smoothly as the column opens/closes, instead of the layout snapping to its
-     * width in a single frame. Paired with the panel's own slide-in transition
-     * in PanelStack.
+     * Animate a docked region's extent along one axis (0 → full) so the center
+     * viewer resizes smoothly as the region opens and closes, instead of the
+     * layout snapping to its size in a single frame. Paired, on the `width`
+     * axis, with the panel's own slide-in transition in PanelStack.
      *
-     * `clip` hides the contents behind the animated edge, which is what a panel
-     * wants — its body is laid out at the full width and would otherwise reflow
-     * every frame. The docked toolbar rail passes `false`: it pins its buttons
-     * to the screen edge at full size and lets them overhang the shrinking
-     * column, so the toolbar stays exactly where it is while the surface it sat
-     * beside grows back (see `.rail-pin`).
+     * `clip` hides the contents behind the animated edge, which is what a side
+     * panel wants — its body is laid out at the full width and would otherwise
+     * reflow every frame. The docked toolbar rail passes `false`: it pins its
+     * buttons to the screen edge at full size and lets them overhang the
+     * shrinking column, so the toolbar stays exactly where it is while the
+     * surface it sat beside grows back (see `.rail-pin`).
+     *
+     * The `height` axis defaults to no clip, and no caller asks for one: a
+     * docked band's own track already clips on this axis
+     * (`.gallery-content.content-horizontal` is `overflow-y: hidden`), and a clip
+     * here would also cut off the gallery's drop shadow — which for a TOP-docked
+     * band falls across the canvas, so it stayed hidden for the whole slide and
+     * then snapped in on the last frame. Left unclipped, the shadow travels with
+     * the growing edge.
      */
-    function slideWidth(
+    function slideAxis(
         node: HTMLElement,
-        { duration = 200, clip = true } = {},
+        {
+            axis,
+            duration = 200,
+            clip = axis === 'width',
+        }: {
+            axis: 'width' | 'height';
+            duration?: number;
+            clip?: boolean;
+        },
     ) {
-        const width = node.getBoundingClientRect().width;
+        const extent = node.getBoundingClientRect()[axis];
+        const minProperty = axis === 'width' ? 'min-width' : 'min-height';
         return {
             duration: prefersReducedMotion ? 0 : duration,
             easing: cubicOut,
             css: (t: number) =>
-                `width: ${t * width}px; min-width: 0;` +
+                `${axis}: ${t * extent}px; ${minProperty}: 0;` +
                 (clip ? ' overflow: hidden;' : ''),
-        };
-    }
-
-    /**
-     * The band counterpart to {@link slideWidth}: animate a docked gallery band's
-     * height (0 → full) so the center viewer resizes smoothly as the band opens
-     * and closes, instead of the column snapping to its height in one frame.
-     *
-     * Sets no `overflow` of its own, unlike {@link slideWidth}: the band's own
-     * track already clips on this axis (`.gallery-content.content-horizontal` is
-     * `overflow-y: hidden`), and a clip here would also cut off the gallery's
-     * drop shadow — which for a TOP-docked band falls across the canvas, so it
-     * stayed hidden for the whole slide and then snapped in on the last frame.
-     * Left unclipped, the shadow travels with the growing edge.
-     */
-    function slideHeight(node: HTMLElement, { duration = 200 } = {}) {
-        const height = node.getBoundingClientRect().height;
-        return {
-            duration: prefersReducedMotion ? 0 : duration,
-            easing: cubicOut,
-            css: (t: number) => `height: ${t * height}px; min-height: 0;`,
         };
     }
 
@@ -295,23 +304,24 @@
 
     let rootElement: HTMLElement | undefined = $state();
 
-    $effect(() => {
-        if (rootElement) {
-            applyTheme(rootElement, theme, themeConfig);
-            internalViewerState.setViewerElement(rootElement);
-        }
-    });
-
     // One memory per viewer, torn down with it: a control this viewer's chrome
     // destroyed must never be something ANOTHER viewer on the page acts on, and
     // the remembered node is usually detached, so holding it past unmount would
     // pin the whole torn-down subtree.
     const focusMemory = createFocusMemory();
     setContext(FOCUS_MEMORY_KEY, focusMemory);
-    $effect(() => {
-        if (rootElement) focusMemory.attach(rootElement);
-    });
     onDestroy(() => focusMemory.destroy());
+
+    // Everything the root element itself is wired into, in one place: the theme
+    // attributes and custom properties, the element viewer state hands to
+    // plugins, and the focus recorder's scope. `attach` is idempotent, so a
+    // theme change re-runs this without re-subscribing.
+    $effect(() => {
+        if (!rootElement) return;
+        applyTheme(rootElement, theme, themeConfig);
+        internalViewerState.setViewerElement(rootElement);
+        focusMemory.attach(rootElement);
+    });
 
     // Note: We pass empty initial values and use $effect blocks below to set
     // manifestId, canvasId, and plugins reactively, avoiding Svelte's
@@ -344,16 +354,21 @@
             logger.warn(`[${error.code}] ${error.message}`, error.detail ?? '');
         }
 
-        // Bubbling + composed so it escapes the shadow root to WC hosts.
-        rootElement?.dispatchEvent(
-            new CustomEvent(VIEWER_ERROR_EVENT, {
-                detail: error,
-                bubbles: true,
-                composed: true,
-            }),
-        );
+        dispatchFromRoot(VIEWER_ERROR_EVENT, error);
         // Host callback — the SAME object.
         onviewererror?.(error);
+    }
+
+    /**
+     * Dispatch one of the viewer's structured channels from the viewer root.
+     *
+     * Bubbling + composed so it escapes the shadow root to WC hosts — the whole
+     * reason these go out from `rootElement` rather than from the component.
+     */
+    function dispatchFromRoot(type: string, detail: unknown): void {
+        rootElement?.dispatchEvent(
+            new CustomEvent(type, { detail, bubbles: true, composed: true }),
+        );
     }
 
     // Active locale (CONTEXT.md **Active locale**, ticket 06): the chrome's
@@ -367,33 +382,43 @@
             language.current,
     );
 
-    // Publish this viewer's active locale to its chrome subtree, and route all
-    // core message rendering through it. `getMessages()` returns a drop-in `m`
-    // whose calls render in `viewerLocale`; chrome uses `m.*()` unchanged.
+    // The host catalogs this viewer renders chrome from: `config.messages`
+    // merged over core's English, plus whatever `config.loadMessages` resolves.
+    // Owned per viewer, so two viewers on one page keep separate catalogs and
+    // separate loader gates.
+    const hostCatalogs = createHostCatalogs(() => config);
+
+    // Publish this viewer's active locale and host catalogs to its chrome
+    // subtree, and route all core message rendering through them.
+    // `getMessages()` returns a drop-in `m` whose calls render in
+    // `viewerLocale`; chrome uses `m.*()` unchanged.
     provideActiveLocale({
         get current() {
             return viewerLocale;
         },
+        host: hostCatalogs,
     });
     const m = getMessages();
 
-    // Mirror the resolved active locale onto ViewerState so subscribers (and
+    // Ask the host's loader for the active locale when nothing already covers
+    // it. `request` is gated per locale, so this settles after one call however
+    // often the config or the locale churns.
+    $effect(() => {
+        hostCatalogs.request(viewerLocale);
+    });
+
+    // Mirror the props that are plain assignments onto ViewerState. Each writes
+    // a distinct field, so one effect covering all four re-runs harmlessly when
+    // any of them changes — nothing here refuses, diffs or fetches.
+    //
+    // `activeLocale` carries the resolved active locale so subscribers (and
     // ticket 08's PluginLocaleService) are notified on change. `viewerLocale`
     // already resolves picker/config/page reactively, so this keeps the
     // notifying member identical to the locale the chrome renders in.
     $effect(() => {
         internalViewerState.activeLocale = viewerLocale;
-    });
-
-    $effect(() => {
         internalViewerState.setManifestRequestConfig(config?.requests);
-    });
-
-    $effect(() => {
         internalViewerState.setSearchProvider(searchProvider);
-    });
-
-    $effect(() => {
         internalViewerState.setInitialCanvasRegion(initialCanvasRegion);
     });
 
@@ -589,21 +614,19 @@
     // Track last applied config to prevent redundant updates and loops
     let lastConfigStr = '';
 
-    $effect(() => {
-        if (config) {
-            const str = JSON.stringify(config);
-            if (str !== lastConfigStr) {
-                lastConfigStr = str;
-                internalViewerState.updateConfig(config);
-            }
-        }
-    });
-
     // Opt-in developer diagnostics (ticket 18): production is quiet by default.
     // `config.debug` gates the core logger; actionable failures still surface
     // through the structured `viewererror`/`pluginerror` channels regardless.
+    // Configured ahead of `updateConfig` so a config that turns `debug` on is
+    // itself logged by anything the update reports.
     $effect(() => {
         configureLogging({ debug: config?.debug ?? false });
+        if (!config) return;
+        const str = JSON.stringify(config);
+        if (str !== lastConfigStr) {
+            lastConfigStr = str;
+            internalViewerState.updateConfig(config);
+        }
     });
 
     // ---- SDK plugin activation (ticket 07 + services ticket 08) ------------
@@ -691,18 +714,11 @@
         // Debug-gated developer log; production stays quiet unless a host wires a
         // channel or enables debug.
         logger.error(
-            `[triiiceratops] Plugin "${record.plugin.name}" failed in phase "${phase}".`,
+            `Plugin "${record.plugin.name}" failed in "${phase}"`,
             error,
         );
 
-        // Bubbling + composed so it escapes the shadow root to WC hosts.
-        rootElement?.dispatchEvent(
-            new CustomEvent(PLUGIN_ERROR_EVENT, {
-                detail: payload,
-                bubbles: true,
-                composed: true,
-            }),
-        );
+        dispatchFromRoot(PLUGIN_ERROR_EVENT, payload);
         // Host callback — the SAME object.
         onpluginerror?.(payload);
     }
@@ -821,10 +837,7 @@
             try {
                 record.deactivate();
             } catch (error) {
-                logger.error(
-                    'SDK plugin teardown threw after failed activation; continuing.',
-                    error,
-                );
+                logger.error('SDK plugin teardown threw', error);
             }
             // Leave nothing of this plugin behind in viewer state either. A
             // mount that threw half-way may already have registered overlay
@@ -885,10 +898,7 @@
         try {
             record.deactivate();
         } catch (error) {
-            logger.error(
-                'SDK plugin deactivation threw; teardown continues.',
-                error,
-            );
+            logger.error('SDK plugin deactivation threw', error);
         }
         record.el.remove();
     }
@@ -1081,11 +1091,7 @@
     function toPluginPanelItem(
         panel: (typeof internalViewerState.pluginPanels)[number],
     ): PanelStackItem {
-        const resolveTitle = (
-            m as unknown as Record<string, (() => string) | undefined>
-        )[panel.name];
-        const title =
-            panel.label?.() ?? (resolveTitle ? resolveTitle() : panel.name);
+        const title = panel.label?.() ?? resolveChromeName(m, panel.name);
         return {
             id: panel.id,
             title,
@@ -1263,6 +1269,8 @@
         // one number either way, since that is what `gallery.size` is.
         from: galleryExtent,
     });
+
+    let opaque = $derived(!internalViewerState.config.transparentBackground);
 
     let isLeftSidebarVisible = $derived(
         (galleryDocked && internalViewerState.dockSide === 'left') ||
@@ -1611,7 +1619,7 @@
     <div
         class="gallery-host"
         style="--ui-gallery-rail: {galleryExtent}px"
-        transition:slideWidth|global
+        transition:slideAxis|global={{ axis: 'width' }}
     >
         <ThumbnailGallery />
     </div>
@@ -1622,9 +1630,59 @@
     <div
         class="gallery-band"
         style="--ui-gallery-band: {galleryExtent}px"
-        transition:slideHeight|global
+        transition:slideAxis|global={{ axis: 'height' }}
     >
         <ThumbnailGallery />
+    </div>
+{/snippet}
+
+<!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
+     sliding on the same clock as the panel beside it; `.rail-pin` holds the
+     buttons at full size against the screen edge so they neither collapse
+     nor move while it does. See dockRailLeft / dockRailRight. -->
+{#snippet toolbarRail(side: 'left' | 'right')}
+    <div
+        class="toolbar-rail-host rail-col rail-{side}"
+        class:opaque
+        transition:slideAxis|global={{ axis: 'width', clip: false }}
+        onintrostart={() => (railLeaving = false)}
+        onoutrostart={() => (railLeaving = true)}
+        onoutroend={() => (railLeaving = false)}
+    >
+        <div class="rail-pin">
+            <Toolbar docked />
+        </div>
+    </div>
+{/snippet}
+
+<!-- A side column: its panel stack, then the gallery when docked to that side.
+     `closeAlign` is physical, so only the right column needs the hint: its
+     close button would otherwise sit on the screen edge the docked rail takes,
+     where the left column's `end` is already the image-facing edge. -->
+{#snippet sideColumn(side: 'left' | 'right')}
+    {@const panels = side === 'left' ? visiblePanelsLeft : visiblePanelsRight}
+    <div class="side-col side-col-{side}" class:opaque>
+        {#if panels.length > 0}
+            <div
+                class="panel-host"
+                style="width: {side === 'left'
+                    ? leftPanelWidth
+                    : rightPanelWidth}"
+                transition:slideAxis|global={{ axis: 'width' }}
+            >
+                <PanelStack
+                    {panels}
+                    closeAlign={side === 'right' && dockRailRight
+                        ? 'start'
+                        : 'end'}
+                    {side}
+                />
+            </div>
+        {/if}
+
+        {#if galleryDocked && internalViewerState.dockSide === side}
+            {@render galleryRail()}
+        {/if}
     </div>
 {/snippet}
 
@@ -1708,54 +1766,18 @@
     ondragover={onDragOver}
     ondrop={onDrop}
     class="viewer-root"
-    class:opaque={!internalViewerState.config.transparentBackground}
+    class:opaque
     data-controls={resolvedControls}
     data-nav-style={resolvedNavStyle}
     data-nav-edge={resolvedNavEdge}
     data-nav-align={resolvedNavAlign}
 >
-    <!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
-         sliding on the same clock as the panel beside it; `.rail-pin` holds the
-         buttons at full size against the screen edge so they neither collapse
-         nor move while it does. See dockRailLeft. -->
     {#if dockRailLeft}
-        <div
-            class="toolbar-rail-host rail-col rail-left"
-            class:opaque={!internalViewerState.config.transparentBackground}
-            transition:slideWidth|global={{ clip: false }}
-            onintrostart={() => (railLeaving = false)}
-            onoutrostart={() => (railLeaving = true)}
-            onoutroend={() => (railLeaving = false)}
-        >
-            <div class="rail-pin">
-                <Toolbar docked />
-            </div>
-        </div>
+        {@render toolbarRail('left')}
     {/if}
 
     {#if isLeftSidebarVisible}
-        <div
-            class="side-col side-col-left"
-            class:opaque={!internalViewerState.config.transparentBackground}
-        >
-            {#if visiblePanelsLeft.length > 0}
-                <div
-                    class="panel-host"
-                    style="width: {leftPanelWidth}"
-                    transition:slideWidth|global
-                >
-                    <PanelStack
-                        panels={visiblePanelsLeft}
-                        closeAlign="end"
-                        side="left"
-                    />
-                </div>
-            {/if}
-
-            {#if galleryDocked && internalViewerState.dockSide === 'left'}
-                {@render galleryRail()}
-            {/if}
-        </div>
+        {@render sideColumn('left')}
     {/if}
 
     <div class="center-col">
@@ -1763,10 +1785,7 @@
             {@render galleryBand()}
         {/if}
 
-        <div
-            class="viewer-area"
-            class:opaque={!internalViewerState.config.transparentBackground}
-        >
+        <div class="viewer-area" class:opaque>
             {#if manifestData?.isFetching}
                 <div class="centered">
                     <Spinner
@@ -1899,47 +1918,11 @@
     </div>
 
     {#if isRightSidebarVisible}
-        <div
-            class="side-col side-col-right"
-            class:opaque={!internalViewerState.config.transparentBackground}
-        >
-            {#if visiblePanelsRight.length > 0}
-                <div
-                    class="panel-host"
-                    style="width: {rightPanelWidth}"
-                    transition:slideWidth|global
-                >
-                    <PanelStack
-                        panels={visiblePanelsRight}
-                        closeAlign={dockRailRight ? 'start' : 'end'}
-                        side="right"
-                    />
-                </div>
-            {/if}
-
-            {#if galleryDocked && internalViewerState.dockSide === 'right'}
-                {@render galleryRail()}
-            {/if}
-        </div>
+        {@render sideColumn('right')}
     {/if}
 
-    <!-- Toolbar docked as the screen-edge rail (same-side fix). Its own column,
-         sliding on the same clock as the panel beside it; `.rail-pin` holds the
-         buttons at full size against the screen edge so they neither collapse
-         nor move while it does. See dockRailRight. -->
     {#if dockRailRight}
-        <div
-            class="toolbar-rail-host rail-col rail-right"
-            class:opaque={!internalViewerState.config.transparentBackground}
-            transition:slideWidth|global={{ clip: false }}
-            onintrostart={() => (railLeaving = false)}
-            onoutrostart={() => (railLeaving = true)}
-            onoutroend={() => (railLeaving = false)}
-        >
-            <div class="rail-pin">
-                <Toolbar docked />
-            </div>
-        </div>
+        {@render toolbarRail('right')}
     {/if}
 </div>
 
@@ -1966,7 +1949,7 @@
         display: flex;
         flex-direction: row;
         z-index: 20;
-        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.15s var(--ui-ease);
     }
     .side-col.opaque {
         background-color: var(--tri-viewer-bg);
@@ -2147,9 +2130,7 @@
             transparent
         );
         border-radius: 0.75rem;
-        box-shadow:
-            0 10px 15px -3px #0000001a,
-            0 4px 6px -4px #0000001a;
+        box-shadow: var(--ui-shadow-lg);
     }
     .warn-icon {
         width: 3rem;
@@ -2220,50 +2201,5 @@
         width: 100%;
         z-index: 40;
         pointer-events: auto;
-    }
-
-    /* Scoped scrollbar styles for the viewer */
-    :global(#triiiceratops-viewer *) {
-        scrollbar-width: thin;
-        scrollbar-color: color-mix(
-                in oklab,
-                var(--tri-content) 20%,
-                transparent
-            )
-            transparent;
-    }
-
-    :global(#triiiceratops-viewer ::-webkit-scrollbar) {
-        width: 4px;
-        height: 4px;
-    }
-
-    :global(#triiiceratops-viewer ::-webkit-scrollbar-track) {
-        background: transparent;
-        border-radius: 9999px;
-    }
-
-    :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb) {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-content) 20%,
-            transparent
-        );
-        border-radius: 9999px;
-        border: 1px solid transparent;
-        background-clip: padding-box;
-    }
-
-    :global(#triiiceratops-viewer ::-webkit-scrollbar-thumb:hover) {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-content) 40%,
-            transparent
-        );
-    }
-
-    :global(#triiiceratops-viewer ::-webkit-scrollbar-corner) {
-        background: transparent;
-        border-radius: 9999px;
     }
 </style>

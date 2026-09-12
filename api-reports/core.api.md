@@ -410,6 +410,15 @@ interface CanvasLayoutResult {
     layouts: CanvasDisplayLayout[];
 }
 /**
+ * The middle value, averaging the two middles of an even-length list.
+ *
+ * Exported because the renderer's planner takes the median of the SAME
+ * quantities this module lays out from — the sibling extents a normalization
+ * scale and an undeclared canvas's guessed box are both derived from — and two
+ * spellings of "middle" would put the two a rounding apart.
+ */
+export declare function median(values: number[]): number;
+/**
  * Position every canvas in the world, in the caller's own units.
  *
  * ## Why each canvas advances by its own extent
@@ -461,6 +470,7 @@ export {};
 // ======================================================================
 // FILE: dist/components/viewerControls.d.ts
 // ======================================================================
+import type { IconName } from '../generated/icons';
 import { getCanvasId } from '../utils/iiifIds';
 export type ChoiceGroup = {
     canvasId: string;
@@ -478,12 +488,12 @@ export type PagedCanvasGroup = {
     entries: VisibleCanvasEntry[];
 };
 export type CanvasNavDirection = 'previous' | 'next';
-export type CanvasNavIcon = 'left' | 'right' | 'up' | 'down';
 export type CanvasNavLayout = {
     leftButton: CanvasNavDirection;
     rightButton: CanvasNavDirection;
-    leftIcon: CanvasNavIcon;
-    rightIcon: CanvasNavIcon;
+    /** The caret the button wears — the glyph name `Icon` resolves, not a side. */
+    leftIcon: IconName;
+    rightIcon: IconName;
 };
 /** Row-centre difference still read as one row, absorbing subpixel layout noise. */
 export declare const SAME_ROW_EPSILON_PX = 1;
@@ -1225,6 +1235,17 @@ export interface ViewerEventDetailMap {
 /** The detail type for one channel. */
 export type ViewerEventDetail<C extends ViewerEventChannel> = ViewerEventDetailMap[C];
 export type { TriiiceratopsViewerElement };
+
+// ======================================================================
+// FILE: dist/generated/icons.d.ts
+// ======================================================================
+export type IconName = "ArrowCounterClockwise" | "ArrowsLeftRight" | "BookOpen" | "CaretDown" | "CaretLeft" | "CaretRight" | "CaretUp" | "ChatCenteredText" | "Check" | "CornersIn" | "CornersOut" | "Eye" | "EyeSlash" | "File" | "Folder" | "ImageBroken" | "Info" | "List" | "ListBullets" | "MagnifyingGlass" | "MagnifyingGlassMinus" | "MagnifyingGlassPlus" | "Scroll" | "Slideshow" | "Stack" | "Translate" | "X";
+export type IconWeight = "regular" | "bold" | "fill";
+type IconTable = Record<IconWeight, Partial<Record<IconName, string>>> & {
+    regular: Record<IconName, string>;
+};
+export declare const icons: IconTable;
+export {};
 
 // ======================================================================
 // FILE: dist/image-export.d.ts
@@ -1985,10 +2006,10 @@ export {};
  *
  * This is structurally the paint-layer registry minus its canvas-space maths and
  * minus ordering, and that similarity is intentional — one idiom to learn for
- * both. It is nonetheless a **separate module that does not import that one**,
- * so a change to canvas-space maths or to `PaintFrame` cannot ripple into a DOM
- * registry, and vice versa. The small overlap is duplicated on purpose; do not
- * "de-duplicate" it by importing across.
+ * both. The bookkeeping the two share comes from `utils/ownedRegistry.ts`; the
+ * contracts do not, and this module still **does not import the paint one**, so
+ * a change to canvas-space maths or to `PaintFrame` cannot ripple into a DOM
+ * registry, and vice versa.
  *
  * **There is no `order` field, and adding one would be a mistake.** Cross-plugin
  * ordering cannot be coordinated — a plugin cannot know what value another chose
@@ -2326,11 +2347,14 @@ export declare function drawPaintLayers(ctx: CanvasRenderingContext2D, layers: r
 /**
  * This frame's placements, from the scene plan's layout.
  *
- * A mapping function rather than the layout rects themselves: `LayoutRect` is
- * the planner's own type and carries whatever the planner needs it to, where
- * {@link PaintCanvasPlacement} is a public promise about four numbers and an id.
+ * The plan's own rect objects. {@link PaintCanvasPlacement} is the public
+ * promise — four numbers and an id — and the planner's `LayoutRect` is exactly
+ * that shape, so copying each rect would allocate hundreds of objects per frame
+ * on a long manifest to say the same thing. The narrower type is what keeps the
+ * promise: a layer is handed `readonly` placements and cannot see, or write,
+ * anything the planner might later add.
  */
-export declare function paintCanvasPlacements(layout: readonly LayoutRect[]): PaintCanvasPlacement[];
+export declare function paintCanvasPlacements(layout: readonly LayoutRect[]): readonly PaintCanvasPlacement[];
 /** A Canvas's declared dimensions, `null` where the manifest omits one. */
 export type DeclaredCanvasSize = (canvasId: string) => {
     width: number | null;
@@ -2756,10 +2780,10 @@ export interface PlannerBudgets {
      * may be promoted to.
      *
      * Only that source kind needs it, and only it can be defeated without it: a
-     * tile is bounded by the tile size, but a size ladder's top rung is the
+     * tile is bounded by the tile size, but a size ladder's top level is the
      * whole scan, and for a large manuscript that is a 100+ megapixel JPEG whose
      * decode pins hundreds of megabytes and can hard-crash a phone. Past the cap
-     * the blur is accepted. See `sizeLadder.chooseRung`.
+     * the blur is accepted. See `tilePyramid.chooseLevel`.
      */
     maxDecodedPixels: number;
 }
@@ -2868,7 +2892,8 @@ export interface TileDraw {
  * in-flight window, negative cache, off-thread decode, and byte-budgeted
  * **opportunistic cache** all apply to thumbnails without a second
  * implementation of any of them — the same reasoning that expresses a
- * **size-ladder source**'s rungs as one-tile levels (`planScene.planSizeLadder`).
+ * **size-ladder source** as a pyramid of one-tile levels
+ * (`sizeLadder.buildSizeLadder`).
  * The host hands the two lists to one scheduler, so the concurrency cap really
  * is global and a thumbnail and a tile compete on distance from the viewport
  * centre rather than on which list they arrived in.
@@ -2987,8 +3012,30 @@ export interface PlanWorldInput {
      */
     surfaceAspect?: number;
 }
+/**
+ * Where the canvases ended up, and the zoom floor that follows from it.
+ *
+ * The part of `planScene.planViewportLimits`' answer that a full plan consumes,
+ * named separately from the rest of it so {@link PlanSceneInput} can take one
+ * without reaching for the pan constraint's own outputs.
+ */
+export interface PlannedWorld {
+    layout: LayoutRect[];
+    minZoom: number;
+}
 export interface PlanSceneInput extends PlanWorldInput {
     viewport: Viewport;
+    /**
+     * This frame's limits, already computed.
+     *
+     * The host asks for them on every pointer sample and memoizes the answer
+     * (`canvasRenderer.viewportLimits`), so without this the frame loop pays
+     * for a second layout pass over the whole manifest to re-derive a value it
+     * is holding. Optional because layout is an input to the plan rather than a
+     * caller's responsibility: omit it and the plan computes its own, which is
+     * what every caller that only wants a plan is describing.
+     */
+    viewportLimits?: PlannedWorld;
     /**
      * Device pixels per CSS pixel of the backing store, defaulting to 1.
      *
@@ -3105,10 +3152,9 @@ export declare class ManifestsState {
      * (SPEC → "Failure contract"). Reading the document is every enumerator's
      * job, and each of them is total.
      *
-     * `async` is vestigial — the parse it awaited is gone — but the
-     * `Promise<void>` signature is public and is kept deliberately.
+     * Synchronous, and safe for a caller to keep awaiting.
      */
-    registerManifest(manifestId: string, json: any): Promise<void>;
+    registerManifest(manifestId: string, json: any): void;
     /**
      * Fetch a IIIF resource by URL and return the raw JSON.
      * Does not register it as a manifest. Used for collection detection.
@@ -3415,11 +3461,10 @@ export declare function createSelectorRuntime<S extends SelectorSource>(source: 
  *
  * This is structurally `renderer/overlayLayers.ts` — the same ownership rule,
  * the same idempotent dispose, the same frozen snapshot — and that similarity
- * is intentional: one idiom to learn for both. It is nonetheless a **separate
- * module that does not import that one**, so a change to the DOM-container
- * lifecycle cannot ripple into a view-model registry, and vice versa. The small
- * overlap is duplicated on purpose; do not "de-duplicate" it by importing
- * across.
+ * is intentional: one idiom to learn for both. The bookkeeping the two share
+ * comes from `utils/ownedRegistry.ts`; the contracts do not, and this module
+ * still **does not import that one**, so a change to the DOM-container
+ * lifecycle cannot ripple into a view-model registry, and vice versa.
  *
  * **There is no `order` field, and adding one would be a mistake**, for the
  * reason the overlay-layer registry gives: cross-plugin ordering cannot be
@@ -3677,8 +3722,6 @@ export declare class ViewerState {
      * transport opened, and vice versa.
      */
     openMenu: BarMenu | null;
-    isGalleryDockedBottom: boolean;
-    isGalleryDockedRight: boolean;
     isFullScreen: boolean;
     showMetadataPanel: boolean;
     showCanvasInfo: boolean;
@@ -3706,6 +3749,15 @@ export declare class ViewerState {
         canvasId: string;
     }) | null;
     dockSide: string;
+    /**
+     * Whether the thumbnail gallery is docked to the bottom or the right edge —
+     * the two edges the chrome and hosts ask about by name. Read-only
+     * projections of {@link dockSide}, so there is no state to keep in step
+     * with it; {@link setDockSide} remains the one way to move the dock.
+     */
+    readonly isGalleryDockedBottom: boolean;
+    /** See {@link isGalleryDockedBottom}. */
+    readonly isGalleryDockedRight: boolean;
     /** Reactive collection declared as a plain `Set` — see the note on the `svelte/reactivity` import. */
     visibleAnnotationIds: Set<string>;
     annotationVisibilityTouched: boolean;
@@ -3895,6 +3947,14 @@ export declare class ViewerState {
     setErrorReporter(reporter: ViewerErrorReporter | null): void;
     /** Deliver a structured viewer failure to the host, if a reporter is wired. */
     private reportError;
+    /**
+     * Refuse something a developer asked for: warn on the debug log AND report
+     * on the structured channel. Both, always — `logger` is a no-op unless
+     * `ViewerConfig.debug` is on, so a warning alone would leave a plugin whose
+     * layer, claim or publication was refused rendering nothing, silently, in
+     * every default viewer.
+     */
+    private refuse;
     /**
      * Get current state as a plain object snapshot.
      * Safe to use outside Svelte's reactive system.
@@ -4664,6 +4724,14 @@ export declare class ViewerState {
      */
     get structures(): StructureNode[];
     /**
+     * The top-level ranges marked `behavior: sequence` — the manifest's own
+     * sequences, which the sequence picker names and the table of contents must
+     * leave out.
+     */
+    get sequenceStructures(): StructureNode[];
+    /** The ranges that are a table of contents rather than a sequence. */
+    get nonSequenceStructures(): StructureNode[];
+    /**
      * Every language this manifest's descriptive properties are authored in,
      * sorted. Empty or single-entry for the overwhelming majority of manifests,
      * which is what lets the language picker hide itself.
@@ -4724,8 +4792,8 @@ export declare class ViewerState {
     toggleGalleryExpanded(): void;
     /**
      * Dock the thumbnail gallery to a side ('top' | 'bottom' | 'left' |
-     * 'right'), keeping the derived docked flags in sync. Maintaining that
-     * invariant is why this is a command, not a field write.
+     * 'right'). {@link isGalleryDockedBottom} and {@link isGalleryDockedRight}
+     * follow from it.
      */
     setDockSide(side: string): void;
     /** Plugin-registered menu buttons */
@@ -4755,6 +4823,18 @@ export declare class ViewerState {
      * position without re-registering.
      */
     private pluginUiState;
+    /**
+     * Merge `patch` into a plugin's UI entry, and report whether that changed
+     * anything. Every plugin-UI mutation goes through here, because every one
+     * of them owes the same two promises: an unknown plugin is a no-op, and a
+     * patch that changes no key must not notify — a redundant call must not
+     * wake every plugin's subscription for a change that did not happen.
+     *
+     * Notifying is the caller's, so a command that patches several plugins at
+     * once (see {@link closePluginFlyouts}) dispatches one event rather than
+     * one per plugin.
+     */
+    private patchPluginUi;
     private getPluginUiConfig;
     /**
      * Seed a plugin's UI state from its authored defaults plus any
@@ -5438,6 +5518,10 @@ export declare function applyBuiltInTheme(element: HTMLElement, theme: BuiltInTh
 /**
  * Apply custom theme configuration as CSS custom properties on an element.
  * These override the base theme's values.
+ *
+ * Values are applied exactly as the author wrote them: every rule consumes the
+ * tokens through `color-mix(in oklab, …)`, which accepts any colour syntax, so
+ * reading a token back gives the host its own string.
  */
 export declare function applyThemeConfig(element: HTMLElement, config: ThemeConfig): void;
 /**
@@ -5920,6 +6004,7 @@ export interface ToolbarConfig {
 // ======================================================================
 import type { GalleryConfig } from './gallery';
 import type { AnnotationsConfig, CollectionConfig, InformationConfig, PluginUiConfig, SearchConfig, StructuresConfig } from './panels';
+import type { LocaleCatalog } from '../plugin';
 import type { RequestConfig } from './requests';
 import type { ToolbarConfig } from './toolbar';
 /**
@@ -6127,6 +6212,32 @@ export interface ViewerConfig {
      * naming a different `locale` here hands control back.
      */
     locale?: string;
+    /**
+     * Chrome translations this host supplies, keyed by BCP 47 tag. Merged over
+     * core's English PER KEY, so a catalog covering a handful of strings
+     * translates those and leaves the rest in English — and an `en` entry
+     * rewords core's own copy.
+     *
+     * A locale mapped to an empty object declares one {@link loadMessages} can
+     * supply: the language picker offers it, and the chrome renders English
+     * until the catalog arrives. Core ships only English inline; the German
+     * catalog it maintains is published as the importable
+     * `triiiceratops/locales/de.json` asset.
+     *
+     * Plugin catalogs are plugin-owned and are not translatable here.
+     */
+    messages?: LocaleCatalog;
+    /**
+     * Fetch the chrome catalog for a locale this viewer cannot yet render, so a
+     * reader downloads only the language they read in.
+     *
+     * Called at most once per locale per viewer, whenever one is requested by
+     * the picker, by `locale`, or by the page's own language. The chrome renders
+     * English while the promise is pending and swaps when it resolves; a
+     * rejection, or a resolution with no catalog, leaves the chrome as it is and
+     * is reported through the debug logger rather than as a `viewererror`.
+     */
+    loadMessages?: (locale: string) => Promise<Record<string, string> | undefined>;
     /**
      * How the toolbar relates to the canvas nav — `split` (separate toolbar rail,
      * placed by `toolbar.side` / `toolbar.anchor`) or `unified` (toolbar buttons

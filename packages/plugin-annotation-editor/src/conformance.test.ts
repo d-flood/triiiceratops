@@ -12,6 +12,10 @@
 
 import { describe, expect, it } from 'vitest';
 
+// Safe in a test and not in the plugin source: a test is never bundled, so the
+// shipped artifact still carries no JSON module.
+import pkg from '../package.json';
+
 import { satisfies } from '@triiiceratops/plugin-sdk';
 import { CORE_VERSION } from 'triiiceratops/testing';
 
@@ -36,5 +40,17 @@ describe('chrome title', () => {
         const plugin = createAnnotationEditorPlugin();
         expect(plugin.title).toBeTruthy();
         expect(catalog.en?.[plugin.title!]).toBeTruthy();
+    });
+});
+
+// Declared-version drift guard. `PLUGIN_META.version` is a hand-written literal
+// (a JSON module there would land package.json in the shipped bundle), and it is
+// what reaches consumers as the plugin's declared identity. Nothing in the
+// release tooling re-stamps it, so `changeset version` would otherwise publish a
+// package whose own metadata names a version that was never released. Bump both
+// together.
+describe('the declared plugin version', () => {
+    it('matches the version the package actually publishes', () => {
+        expect(createAnnotationEditorPlugin().version).toBe(pkg.version);
     });
 });

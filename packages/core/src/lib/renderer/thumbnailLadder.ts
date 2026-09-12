@@ -54,8 +54,8 @@
  * canvas.
  *
  * Where a real ladder of advertised images exists, which rung of *that* is
- * taken is `sizeLadder.chooseRung` — the same `minPixelRatio` walk the pyramid
- * uses, which at 0.5 may be as narrow as half the width needed. Deliberately
+ * taken is `tilePyramid.chooseLevel` — the same `minPixelRatio` walk the tile
+ * tier uses, which at 0.5 may be as narrow as half the width needed. Deliberately
  * the same rule rather than "the nearest advertised image at or above what is
  * needed": one sharpness budget governs both source kinds, and it is how the
  * previous renderer chose.
@@ -66,26 +66,22 @@
 
 import {
     buildSizeLadder,
-    chooseRung,
     complianceLevel,
-    exceedsDecodedPixelCap,
     isLevel0Profile,
-    ladderFromPyramid,
     profileVersion,
-    rungFallback,
-    rungUrl,
-    type SizeLadder,
 } from './sizeLadder';
 import {
     buildPyramid,
-    tileFallback,
-    tileUrl,
+    chooseLevel,
+    exceedsDecodedPixelCap,
+    tileRequest,
     type TilePyramid,
 } from './tilePyramid';
 import {
-    iiifImageRequestUrl,
     iiifSizeParameter,
+    iiifWholeImageRequest,
 } from '../utils/iiifImageRequest';
+import { isPositiveFinite } from '../utils/numbers';
 import type { ImageServiceFacts, SourceDescriptor } from './types';
 
 /**
@@ -176,9 +172,9 @@ export interface ResolveThumbnailInput {
      * `budgets.maxDecodedPixels`, the one ceiling on how big a single decode may
      * be — and at this tier the ONLY thing that refuses a ladder outright.
      *
-     * `chooseRung` already caps against it and degrades to the cheapest rung
-     * when every rung is over; here that degradation is refused instead (see
-     * {@link resolveThumbnail}, step 5).
+     * `tilePyramid.chooseLevel` already caps against it and degrades to the
+     * cheapest level when every level is over; here that degradation is refused
+     * instead (see {@link resolveThumbnail}, step 5).
      */
     maxDecodedPixels: number;
     /**
@@ -195,47 +191,18 @@ export interface ResolveThumbnailInput {
 }
 
 /**
- * A whole-image request for a service that answers arbitrary sizes.
- *
- * The size parameter is the width-only form, EXCEPT when the rung is at or
- * above the image's own width, where it is the canonical whole-image spelling.
- * Without that, a small canvas — a seal, a binding fragment — burns both its
- * attempts plus the `native` fallback and then stays blank with nothing in
- * `unresolvedThumbnails` to explain it, because the ladder genuinely did
- * resolve; it resolved to a URL the server refuses. `iiifSizeParameter` carries
- * the rest of the rule, and `sizeLadder.rungUrl` applies the same one to a
- * ladder's top rung — this is the branch that constructs rather than selects.
- */
-function constructedUrl(
-    serviceId: string,
-    rung: number,
-    format: string,
-    version: 2 | 3,
-    imageWidth: number | null | undefined,
-    quality: 'default' | 'native' = 'default',
-): string {
-    const whole =
-        typeof imageWidth === 'number' &&
-        Number.isFinite(imageWidth) &&
-        imageWidth > 0 &&
-        rung >= imageWidth;
-    return iiifImageRequestUrl(
-        serviceId,
-        iiifSizeParameter(rung, whole, version),
-        quality,
-        format,
-    );
-}
-
-/**
  * A whole-image request built from manifest data or from `info.json`, for a
  * service that answers arbitrary sizes.
  *
- * Carries the same `native` fallback a size-ladder rung does, for the same
- * reason: the renderer asks every version 2 service for `default`, which is
- * right for every endpoint built since 2016 and wrong for a frozen static tree.
- * A deliberate deviation: one wasted request per broken service buys the
- * answer for the whole service.
+ * The size parameter is the width-only form, EXCEPT when the rung is at or above
+ * the image's own width, where it is the canonical whole-image spelling. Without
+ * that, a small canvas — a seal, a binding fragment — burns both its attempts
+ * plus the `native` fallback and then stays blank with nothing in
+ * `unresolvedThumbnails` to explain it, because the ladder genuinely did
+ * resolve; it resolved to a URL the server refuses. `iiifSizeParameter` carries
+ * the rest of the rule, and a size ladder's top level is spelled the same way —
+ * this is the branch that constructs rather than selects, which is the whole of
+ * the difference between them.
  */
 function fromConstruction(
     serviceId: string,
@@ -244,31 +211,23 @@ function fromConstruction(
     format: string,
     imageWidth: number | null | undefined,
 ): ThumbnailSource {
-    const url = constructedUrl(serviceId, rung, format, version, imageWidth);
-    if (version !== 2) return { kind: 'url', url };
+    const whole = isPositiveFinite(imageWidth) && rung >= imageWidth;
 
-    return {
-        kind: 'url',
-        url,
-        fallback: {
-            url: constructedUrl(
-                serviceId,
-                rung,
-                format,
-                version,
-                imageWidth,
-                'native',
-            ),
-            group: serviceId,
-        },
-    };
+    const { url, fallback } = iiifWholeImageRequest(
+        serviceId,
+        iiifSizeParameter(rung, whole, version),
+        format,
+        version,
+    );
+
+    return { kind: 'url', url, ...(fallback ? { fallback } : {}) };
 }
 
 /**
- * The rung of a real ladder of advertised images, or nothing when even its
+ * The level of a real ladder of advertised images, or nothing when even its
  * cheapest image is over the decoded-pixel ceiling.
  *
- * `chooseRung` degrades to the cheapest rung rather than to nothing, because a
+ * `chooseLevel` degrades to the cheapest level rather than to nothing, because a
  * blurry canvas beats a blank one when the alternative is a pyramid-tier canvas
  * with no pixels at all. At the **thumbnail** tier that trade is inverted: the
  * canvas is at most a few hundred pixels across, and decoding a 100-megapixel
@@ -278,9 +237,9 @@ function fromConstruction(
  *
  * The refusal is stated in **decoded pixels** and nothing else. Stating it
  * against `minPixelRatio` — "wider than `rung / minPixelRatio`" — reads like a
- * tighter version of the same idea and is not: `chooseRung` guarantees that
- * bound for every rung it selects except its `candidates[0]` fallback, so such
- * a test fires exactly when the SMALLEST image the service advertises is wider
+ * tighter version of the same idea and is not: `chooseLevel` guarantees that
+ * bound for every level it selects except its base-level fallback, so such a
+ * test fires exactly when the SMALLEST image the service advertises is wider
  * than twice the rung, which at a 32 px rung is nearly every real derivative
  * set. A 750x563 JPEG is 1.7 MB decoded and is a perfectly good thumbnail; a
  * 12000x9000 master is 108 megapixels and is the failure being refused. Only
@@ -288,13 +247,19 @@ function fromConstruction(
  * which rung the current zoom happens to ask for — which is what makes "box
  * tier **permanently**, never retried" true rather than an artefact of the
  * viewport (see `ScenePlan.unresolvedThumbnails`).
+ *
+ * Every level here holds one tile — either because the source is a size ladder,
+ * or because {@link singleTileLevels} kept only the levels of a tile tree that
+ * do — so `tileRequest` spells the request, including the explicit region and
+ * two-dimensional size a static version 3 tree requires. Asking it rather than
+ * reimplementing it is what keeps this tier on URLs the tile tier is already
+ * painting from.
  */
 function fromLadder(
-    ladder: SizeLadder,
+    ladder: TilePyramid,
     rung: number,
     minPixelRatio: number,
     maxDecodedPixels: number,
-    tiles: TilePyramid | null,
 ): ThumbnailSource {
     // Rung-independent, so this answer is a fact about the manifest and the
     // service rather than about the current zoom.
@@ -307,66 +272,41 @@ function fromLadder(
     // rule identical to the pyramid's — cap included, which is the capping this
     // tier needs and already has.
     const imageScale = rung / ladder.width;
-    const chosen = chooseRung(
+    const level = chooseLevel(
         ladder,
         imageScale,
         minPixelRatio,
         maxDecodedPixels,
     );
 
-    if (tiles) {
-        // Every rung of a tile-tree ladder is a level whose single tile IS the
-        // whole image, so the request is a tile request and `tileUrl` spells it
-        // — including the explicit region and two-dimensional size a static
-        // version 3 tree requires. Asking it rather than reimplementing it is
-        // what keeps this tier on URLs the tile tier is already painting from,
-        // which is the whole point of {@link ladderFromSingleTileLevels}.
-        //
-        // The fallback is `tileFallback`'s, not `rungFallback`'s: a whole-image
-        // tile is exactly the request two static trees spell differently, and
-        // its group is the service, so the answer the tile tier bought is the
-        // one this tier uses.
-        const level = tiles.levels[chosen.index];
-        const fallback = tileFallback(tiles, level, 0, 0);
-        return {
-            kind: 'url',
-            url: tileUrl(tiles, level, 0, 0),
-            ...(fallback ? { fallback } : {}),
-        };
-    }
-
-    const fallback = rungFallback(ladder, chosen);
-    return {
-        kind: 'url',
-        url: rungUrl(ladder, chosen),
-        ...(fallback ? { fallback } : {}),
-    };
+    const { url, fallback } = tileRequest(ladder, level, 0, 0);
+    return { kind: 'url', url, ...(fallback ? { fallback } : {}) };
 }
 
 /**
- * The thumbnail rungs of a level0 **tile tree**: every level coarse enough that
+ * The thumbnail levels of a level0 **tile tree**: every level coarse enough that
  * the whole image fits in one tile, or `null` when no level does.
  *
  * A static tile tree holds its tiles. At a coarse enough scale factor the grid
  * is 1x1 and that single tile is a whole-image derivative — a real file, at a
- * size this tier wants, needing no compositing. Those levels are the ladder.
+ * size this tier wants, needing no compositing. Those levels are the ladder, and
+ * they keep the tree's own request spelling, so this tier asks for the same
+ * files the tile tier is already painting the canvas from.
  *
  * Multi-tile levels are deliberately excluded rather than stitched: this tier is
  * "a single small image, two entries never more" (see `planScene.planThumbnail`)
  * and assembling one would break the budget model it is built on. The cost is a
  * ceiling at the largest single-tile level, so a service with a small `tileSize`
- * can leave the top of the tier's range mildly upscaled — `chooseRung` returns
- * the largest affordable rung and it is drawn soft — until the canvas grows past
+ * can leave the top of the tier's range mildly upscaled — `chooseLevel` returns
+ * the largest affordable level and it is drawn soft — until the canvas grows past
  * `pyramidThreshold` and the tile tier takes over with the real grid.
  *
  * The single-tile levels are a **prefix** of `levels` and no filtering is needed
  * to find them: `levels` is ordered coarsest first, and a level's column and row
  * counts never decrease as the scale factor shrinks, so once one level needs two
- * tiles no finer one is single-tile either. That is also what keeps each rung's
- * `index` a valid index into `pyramid.levels`, which is how `fromLadder` gets
- * back to the level it must build a tile URL for.
+ * tiles no finer one is single-tile either.
  */
-function ladderFromSingleTileLevels(pyramid: TilePyramid): SizeLadder | null {
+function singleTileLevels(pyramid: TilePyramid): TilePyramid | null {
     let count = 0;
     while (
         count < pyramid.levels.length &&
@@ -377,8 +317,7 @@ function ladderFromSingleTileLevels(pyramid: TilePyramid): SizeLadder | null {
     }
     if (count === 0) return null;
 
-    const ladder = ladderFromPyramid(pyramid);
-    return { ...ladder, rungs: ladder.rungs.slice(0, count) };
+    return { ...pyramid, levels: pyramid.levels.slice(0, count) };
 }
 
 /**
@@ -460,8 +399,8 @@ export function resolveThumbnail(
     //    static version 3 tree holds no `full/{w},` whole-image derivative for a
     //    size in that list, canonical form being `full/{w},{h}` and this tree
     //    keying its derivatives by explicit region besides. Every rung but the
-    //    largest 404'd, version 3 has no second spelling to fall back on
-    //    (`rungFallback`), and the canvas sat on its error placeholder while the
+    //    largest 404'd, version 3 has no second quality spelling to fall back
+    //    on, and the canvas sat on its error placeholder while the
     //    tile tier beside it drew the same picture perfectly.
     //
     //    Then `sizes[]`, which is the other list of files the service has
@@ -481,7 +420,7 @@ export function resolveThumbnail(
     //    canvas can be drawn from at any tier, so the thumbnail costs nothing
     //    the pyramid tier was not fetching anyway.
     const pyramid = buildPyramid(serviceId, facts);
-    const tiled = pyramid ? ladderFromSingleTileLevels(pyramid) : null;
+    const tiled = pyramid ? singleTileLevels(pyramid) : null;
     const advertisesSizes = (facts.sizes?.length ?? 0) > 0;
     const ladder =
         tiled ??
@@ -492,11 +431,5 @@ export function resolveThumbnail(
     // 5. Nothing usable. Box tier, permanently.
     if (!ladder) return { kind: 'none' };
 
-    return fromLadder(
-        ladder,
-        rung,
-        minPixelRatio,
-        maxDecodedPixels,
-        tiled ? pyramid : null,
-    );
+    return fromLadder(ladder, rung, minPixelRatio, maxDecodedPixels);
 }

@@ -10,6 +10,7 @@
  */
 
 import { logger } from '../logging/logger';
+import { getResourceId } from './iiifIds';
 
 /**
  * Coerce a field that should be an array into one.
@@ -60,17 +61,16 @@ function warnUnreadableCanvas(canvas: any): void {
     if (warnedCanvases.has(canvas)) return;
     warnedCanvases.add(canvas);
 
-    const id = canvas.id ?? canvas['@id'] ?? '(no id)';
+    const id = getResourceId(canvas) ?? '(no id)';
     const spellings = ['images', 'items', 'content'].filter(
         (key) => canvas[key] !== undefined,
     );
 
     logger.warn(
-        `[triiiceratops] Canvas ${id} yielded no painting annotations, so it will render blank. ` +
+        `canvas ${id}: no painting annotations, renders blank. ` +
             (spellings.length
-                ? `It declares ${spellings.map((s) => `\`${s}\``).join(' and ')}, but nothing readable inside. ` +
-                  `IIIF v2 puts painting annotations in \`images[]\`; v3 puts them in AnnotationPages under \`items[]\`.`
-                : `It declares none of \`images\`, \`items\` or \`content\`.`),
+                ? `Declares ${spellings.map((s) => `\`${s}\``).join(' and ')}, nothing readable inside.`
+                : 'Declares no `images`, `items` or `content`.'),
     );
 }
 

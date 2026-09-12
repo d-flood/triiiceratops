@@ -9,10 +9,11 @@
  * and used a focusable backdrop `<button>` for outside-dismiss; the panel
  * section resolved the invoker correctly and had no outside-dismiss at all.
  *
- * Not used by the toolbar or by `Select`: the toolbar arbitrates between many
- * flyouts at once through attribute matching rather than owning one node, and
- * `Select` is a listbox driven by the popover API. Those are different shapes,
- * not copies of this one.
+ * The toolbar uses it for the outside-pointer half only: its menus and plugin
+ * flyouts stay mounted while closed, so nothing here may take focus, and
+ * Escape has to reach a menu a host opened from config with focus elsewhere.
+ * `Select` does not use it at all — it is a listbox driven by the popover API,
+ * a different shape rather than a copy of this one.
  */
 
 import type { FocusMemory } from './focusMemory';

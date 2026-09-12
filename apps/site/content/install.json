@@ -82,6 +82,18 @@
 			]
 		},
 		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "d6829438-6b3c-406b-b19b-a5280d32211b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Either Web Component artifact — the self-contained script tag or the ESM registration entry — runs in Safari 16.4 and newer, Chrome 94 and newer, and Firefox 93 and newer. The framework components follow whatever your own build targets."
+				}
+			]
+		},
+		{
 			"type": "heading",
 			"attrs": {
 				"id": "890ff5ab-8e11-55d4-9052-24c03b703ffa",

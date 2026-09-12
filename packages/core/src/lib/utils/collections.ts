@@ -8,6 +8,7 @@
  * and/or `collections` arrays.
  */
 
+import { getResourceId } from './iiifIds';
 import { resolveLanguageValue } from './languageMap';
 import { resolveThumbnailResourceSrc } from './getThumbnailSrc';
 
@@ -24,9 +25,16 @@ export interface CollectionItem {
     navDate?: string;
 }
 
-/** Resolve a IIIF label value to a plain string. */
-function resolveLabel(label: any): string {
-    return resolveLanguageValue(label);
+/**
+ * A v2 member's id, `@id` first.
+ *
+ * The canonical spelling differs by version, so a hybrid document carrying a
+ * local `id` beside a canonical `@id` must resolve to the one the block it sits
+ * in is written in — and these three fields (`manifests`, `collections`,
+ * `members`) are the v2 ones.
+ */
+function v2MemberId(item: any): string | null {
+    return item?.['@id'] || getResourceId(item);
 }
 
 /**
@@ -56,7 +64,7 @@ export function isCollection(json: any): boolean {
  * Get the label of a collection from its JSON.
  */
 export function getCollectionLabel(json: any): string {
-    return resolveLabel(json?.label) || 'Collection';
+    return resolveLanguageValue(json?.label) || 'Collection';
 }
 
 /**
@@ -88,14 +96,12 @@ export function parseCollection(json: any): CollectionItem[] {
     const items: CollectionItem[] = [];
 
     /**
-     * `id` is resolved per branch because the canonical spelling differs by
-     * version: a hybrid document carrying a local `id` beside a canonical `@id`
-     * must resolve to the one its own block is written in. `forcedType` is for
+     * `id` is resolved per branch — see {@link v2MemberId}. `forcedType` is for
      * the v2 fields that type their members by the field they sit in.
      */
     const pushItem = (
         item: any,
-        id: string,
+        id: string | null,
         forcedType?: CollectionItem['type'],
     ) => {
         const type = forcedType ?? resolveItemType(item);
@@ -104,7 +110,7 @@ export function parseCollection(json: any): CollectionItem[] {
         items.push({
             id: id || '',
             type,
-            label: resolveLabel(item.label),
+            label: resolveLanguageValue(item.label),
             thumbnail: extractThumbnail(item),
             navDate: extractNavDate(item),
         });
@@ -115,24 +121,24 @@ export function parseCollection(json: any): CollectionItem[] {
     // place of any of them is not accepted — a Collection with one entry still
     // writes an array.
     if (Array.isArray(json.items)) {
-        for (const item of json.items) pushItem(item, item.id || item['@id']);
+        for (const item of json.items) pushItem(item, getResourceId(item));
     }
 
     if (Array.isArray(json.manifests)) {
         for (const item of json.manifests) {
-            pushItem(item, item['@id'] || item.id, 'Manifest');
+            pushItem(item, v2MemberId(item), 'Manifest');
         }
     }
 
     if (Array.isArray(json.collections)) {
         for (const item of json.collections) {
-            pushItem(item, item['@id'] || item.id, 'Collection');
+            pushItem(item, v2MemberId(item), 'Collection');
         }
     }
 
     if (Array.isArray(json.members)) {
         for (const item of json.members) {
-            pushItem(item, item['@id'] || item.id);
+            pushItem(item, v2MemberId(item));
         }
     }
 

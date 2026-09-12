@@ -12,7 +12,8 @@
  * (spec §Coordinate model and layout).
  */
 
-import { getCanvasId } from '../utils/iiifIds';
+import { getCanvasId, getResourceId } from '../utils/iiifIds';
+import { isPositiveFinite } from '../utils/numbers';
 import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
 import {
     getDeclaredCanvasDimensions,
@@ -49,8 +50,7 @@ export function getDeclaredThumbnailUrl(canvas: unknown): string | null {
     if (typeof resource === 'string') return resource || null;
     if (!resource || typeof resource !== 'object') return null;
 
-    const entry = resource as Record<string, unknown>;
-    const id = entry.id ?? entry['@id'];
+    const id = getResourceId(resource);
     return typeof id === 'string' && id.length > 0 ? id : null;
 }
 
@@ -65,11 +65,7 @@ export function getDeclaredThumbnailUrl(canvas: unknown): string | null {
  */
 export function getDeclaredDuration(canvas: unknown): number | null {
     const declared = (canvas as { duration?: unknown } | null)?.duration;
-    return typeof declared === 'number' &&
-        Number.isFinite(declared) &&
-        declared > 0
-        ? declared
-        : null;
+    return isPositiveFinite(declared) ? declared : null;
 }
 
 /**

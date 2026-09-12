@@ -1,12 +1,3 @@
-import {
-    popGraphicsState,
-    pushGraphicsState,
-    rgb,
-    setTextRenderingMode,
-    StandardFonts,
-    TextRenderingMode,
-} from 'pdf-lib';
-
 // Shared canvas/image-export utilities consumed from core's public,
 // framework-neutral seam (the `triiiceratops/image-export` barrel) — not
 // duplicated into this package. Externalized in the ESM build; bundled (Svelte-
@@ -55,7 +46,7 @@ export interface PdfExportMessages {
     progressDownload(params: { filename: string }): string;
 }
 
-/** English fallbacks — the same strings core shipped in `messages/en.json`. */
+/** English fallbacks — the same strings core ships in its `src/lib/messages/en.json`. */
 export const DEFAULT_PDF_EXPORT_MESSAGES: PdfExportMessages = {
     errorNoCanvases: () => 'No canvases available to export.',
     errorNotAvailable: () =>
@@ -823,6 +814,15 @@ async function loadCanvasImageBlob({
     return fetchImageBlob(imageUrl, buildImageRequestInit(imageRequest));
 }
 
+/**
+ * pdf-lib's namespace, threaded from `exportCanvasRangeAsPdf`'s `await
+ * import('pdf-lib')` rather than imported at the top: the ESM consumer's
+ * bundler must be free to split it out, so nothing in this module may reach
+ * pdf-lib before an export starts. (The IIFE inlines dynamic imports, so its
+ * bundle is unaffected.)
+ */
+type PdfLib = typeof import('pdf-lib');
+
 async function embedImage(pdfDoc: any, blob: Blob) {
     const mimeType = blob.type.toLowerCase();
 
@@ -841,14 +841,17 @@ async function embedImage(pdfDoc: any, blob: Blob) {
 }
 
 async function addCoverSheetPage(
+    pdfLib: PdfLib,
     pdfDoc: any,
     coverSheet: PdfCoverSheetConfig,
     runtimeValues: CoverSheetRuntimeValues,
 ): Promise<void> {
     const page = pdfDoc.addPage(COVER_PAGE_SIZE);
-    const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const titleFont = await pdfDoc.embedFont(
+        pdfLib.StandardFonts.HelveticaBold,
+    );
     const labelFont = titleFont;
-    const valueFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const valueFont = await pdfDoc.embedFont(pdfLib.StandardFonts.Helvetica);
     const { width: pageWidth, height: pageHeight } = page.getSize();
     const contentWidth = pageWidth - COVER_MARGIN_X * 2;
     const labelColumnWidth = 140;
@@ -920,6 +923,7 @@ async function addCoverSheetPage(
 }
 
 async function addSelectableTextLayer(
+    pdfLib: PdfLib,
     page: any,
     pdfDoc: any,
     overlays: PdfTextOverlay[],
@@ -935,7 +939,7 @@ async function addSelectableTextLayer(
         return;
     }
 
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const font = await pdfDoc.embedFont(pdfLib.StandardFonts.Helvetica);
     const { width: pageWidth, height: pageHeight } = page.getSize();
     const scaleX = pageWidth / canvasDimensions.width;
     const scaleY = pageHeight / canvasDimensions.height;
@@ -964,7 +968,7 @@ async function addSelectableTextLayer(
             continue;
         }
 
-        drawOcrText(page, overlay.text, {
+        drawOcrText(pdfLib, page, overlay.text, {
             x: layout.x,
             y: layout.y,
             size: layout.fontSize,
@@ -1046,6 +1050,7 @@ function getOcrWordLayout({
 }
 
 function drawOcrText(
+    pdfLib: PdfLib,
     page: any,
     text: string,
     options: {
@@ -1066,7 +1071,7 @@ function drawOcrText(
     if (options.visibilityMode === 'debug') {
         page.drawText(text, {
             ...drawOptions,
-            color: rgb(1, 0, 0),
+            color: pdfLib.rgb(1, 0, 0),
             opacity: 1,
         });
         return;
@@ -1077,11 +1082,11 @@ function drawOcrText(
         typeof page.pushOperators === 'function'
     ) {
         page.pushOperators(
-            pushGraphicsState(),
-            setTextRenderingMode(TextRenderingMode.Invisible),
+            pdfLib.pushGraphicsState(),
+            pdfLib.setTextRenderingMode(pdfLib.TextRenderingMode.Invisible),
         );
         page.drawText(text, drawOptions);
-        page.pushOperators(popGraphicsState());
+        page.pushOperators(pdfLib.popGraphicsState());
         return;
     }
 
@@ -1179,8 +1184,8 @@ export async function exportCanvasRangeAsPdf({
         throw new Error(messages.errorNoCanvases());
     }
 
-    const { PDFDocument } = await import('pdf-lib');
-    const pdfDoc = await PDFDocument.create();
+    const pdfLib = await import('pdf-lib');
+    const pdfDoc = await pdfLib.PDFDocument.create();
     const failedCanvases: string[] = [];
     let exportedCount = 0;
     const ocrRenderOptions = normalizeOcrRenderOptions({
@@ -1194,6 +1199,7 @@ export async function exportCanvasRangeAsPdf({
     if (coverSheet && coverSheetFields.length > 0) {
         onProgress?.(messages.progressCoverSheet());
         await addCoverSheetPage(
+            pdfLib,
             pdfDoc,
             coverSheet,
             getRuntimeValues(createdAt, currentUrl),
@@ -1333,6 +1339,7 @@ export async function exportCanvasRangeAsPdf({
             if (canvasDimensions && overlays.length) {
                 try {
                     await addSelectableTextLayer(
+                        pdfLib,
                         page,
                         pdfDoc,
                         overlays,

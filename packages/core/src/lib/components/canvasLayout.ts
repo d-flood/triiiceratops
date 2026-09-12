@@ -1,4 +1,5 @@
 import { clamp } from '../renderer/viewportMath';
+import { isPositiveFinite } from '../utils/numbers';
 
 // Gap (in normalized world units, where a canvas is one unit wide) inserted
 // between adjacent canvases in paged/continuous layouts. Deliberately *not*
@@ -152,12 +153,18 @@ interface PlacedGroups {
 }
 
 function getDimension(value: number | null | undefined) {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0
-        ? value
-        : null;
+    return isPositiveFinite(value) ? value : null;
 }
 
-function median(values: number[]) {
+/**
+ * The middle value, averaging the two middles of an even-length list.
+ *
+ * Exported because the renderer's planner takes the median of the SAME
+ * quantities this module lays out from — the sibling extents a normalization
+ * scale and an undeclared canvas's guessed box are both derived from — and two
+ * spellings of "middle" would put the two a rounding apart.
+ */
+export function median(values: number[]) {
     const sorted = [...values].sort((a, b) => a - b);
     const middle = Math.floor(sorted.length / 2);
     return sorted.length % 2 === 0

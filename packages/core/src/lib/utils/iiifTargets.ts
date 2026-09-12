@@ -1,8 +1,23 @@
+import type { CanvasRegion } from './contentState';
+import { getResourceId } from './iiifIds';
 import { parseIiifTime, type IiifTemporalFragment } from './iiifTime';
 
 export { parseIiifTime } from './iiifTime';
 
 export type IiifTargetBounds = [number, number, number, number];
+
+/**
+ * An `xywh` fragment as the `{x, y, width, height}` shape every consumer of a
+ * region holds it in. `null` passes through so a target that named no region
+ * needs no branch of its own at the call site.
+ */
+export function toCanvasRegion(
+    xywh: IiifTargetBounds | null | undefined,
+): CanvasRegion | null {
+    return xywh
+        ? { x: xywh[0], y: xywh[1], width: xywh[2], height: xywh[3] }
+        : null;
+}
 
 export type NormalizedIiifTarget = {
     raw: unknown;
@@ -82,12 +97,9 @@ export function extractIiifTargetId(target: unknown): string | null {
     }
 
     const record = target as Record<string, any>;
-    if (typeof record.id === 'string') {
-        return record.id;
-    }
-
-    if (typeof record['@id'] === 'string') {
-        return record['@id'];
+    const id = getResourceId(record);
+    if (typeof id === 'string') {
+        return id;
     }
 
     if (record.source) {

@@ -14,6 +14,11 @@
         "strict": true,
         "noImplicitAny": true,
 
+        // The English catalog is imported as JSON so `keyof typeof en` is the
+        // message-key union — no generator stands between the source strings
+        // and the type.
+        "resolveJsonModule": true,
+
         "allowJs": true,
         "checkJs": true,
         "moduleDetection": "force",

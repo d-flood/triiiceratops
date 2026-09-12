@@ -584,6 +584,22 @@ describe('annotationAdapter', () => {
                 { value: 'Annotation', isHtml: false, purpose: 'commenting' },
             ]);
         });
+
+        it('resolves a language-map label in the active locale', () => {
+            const annotation = {
+                id: 'anno-language-map',
+                label: { de: ['Gänseliesel'], en: ['Goose Girl'] },
+            };
+
+            expect(extractBody(annotation, 'de')).toEqual([
+                { value: 'Gänseliesel', isHtml: false, purpose: 'commenting' },
+            ]);
+
+            // English is the fallback for a locale the map does not carry.
+            expect(extractBody(annotation, 'fr')).toEqual([
+                { value: 'Goose Girl', isHtml: false, purpose: 'commenting' },
+            ]);
+        });
     });
     /**
      * IIIF Cookbook recipe 0346, whose comment body is a `Choice` of

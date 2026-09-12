@@ -9,3 +9,13 @@ declare module 'virtual:tri-bundled-css' {
     const css: string;
     export default css;
 }
+
+/**
+ * A stylesheet imported as a string instead of through Vite's CSS pipeline —
+ * `src/flyout.css`, which the SDK style service installs. The build minifies the
+ * string it resolves to; see core's `src/packaging/pluginBuild.ts`.
+ */
+declare module '*.css?raw' {
+    const css: string;
+    export default css;
+}

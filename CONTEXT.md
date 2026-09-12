@@ -225,12 +225,14 @@ recency and capped in bytes rather than tile count, with separate desktop and mo
 ceilings.
 
 **Size-ladder source**:
-A level0 image service advertising only fixed sizes, with no tiling. A rung is chosen by
-the same `minPixelRatio` walk a pyramid level is — the largest rung not oversampled past
-that ratio, which at 0.5 can be as narrow as half the width actually needed — and capped
-against a maximum decoded pixel count. Deliberately the same rule as the pyramid rather
-than "the nearest advertised image at or above what is needed": one budget governs
-sharpness for both source kinds, and it is how the previous renderer chose.
+A level0 image service advertising only fixed sizes, with no tiling. It is represented as
+a pyramid whose every level holds one tile, so a rung IS a pyramid level and the
+`minPixelRatio` walk that picks one (`tilePyramid.chooseLevel`) is a single
+implementation rather than two rules kept in agreement: the largest rung not oversampled
+past that ratio, which at 0.5 can be as narrow as half the width actually needed, capped
+against a maximum decoded pixel count. Deliberately that budget rather than "the nearest
+advertised image at or above what is needed": one budget governs sharpness for both
+source kinds, and it is how the previous renderer chose.
 _Avoid_: static source (that means a canvas with no image service at all)
 _Note_: a service that advertises no tiles is a size-ladder source only if it is also
 level0. Level 1/2 services omit `tiles` too, and serve arbitrary regions.
@@ -630,7 +632,7 @@ rule can end up policing only the single package it was written from.
 Why it exists. The playground used to live inside the library, at
 `packages/core/src/demo`, importing core's source directly. Three separate times,
 demo-only chrome was written inside `src/lib` and its strings and glyphs enrolled in
-the shared registries — core's inlang message set and the generated icon manifest.
+the shared registries — core's chrome message catalogs and the generated icon manifest.
 Both are indexed by a runtime string (`createLocalizedMessages`' Proxy,
 `icons[weight]?.[name]`), so no bundler can tree-shake them: every demo-only key and
 glyph became bytes in the shipped element artifact. The per-directory rules that

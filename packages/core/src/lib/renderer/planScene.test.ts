@@ -26,6 +26,7 @@ import type {
     PlannerBudgets,
     PlannerCanvas,
     PlannerImage,
+    PlanSceneInput,
     SourceDescriptor,
     ViewingDirection,
     TileKey,
@@ -1482,7 +1483,7 @@ describe('planScene — size-ladder sources', () => {
         // both ship configurations that omit it while still answering any
         // region at any size. Read as a ladder, such a service has exactly one
         // rung — the whole master — and the decoded-pixel cap cannot refuse it,
-        // because `chooseRung` must keep the cheapest rung rather than paint
+        // because `chooseLevel` must keep the cheapest level rather than paint
         // nothing. A 12000x9000 scan would be 108 megapixels on a phone.
         const result = plan([ladderCanvas], {
             viewport: viewport({ centre: { x: 500, y: 500 }, scale: 1 }),
@@ -2600,6 +2601,58 @@ describe('planViewportLimits', () => {
         // `viewportMath.sourcePixelCeiling` turns zero into no ceiling of that
         // kind rather than a ceiling of zero.
         expect(limits([]).sourcePixelsPerWorldUnit).toBe(0);
+    });
+
+    /**
+     * ONE layout pass per frame, counted rather than reasoned about.
+     *
+     * `gapFraction` is read in exactly one place — the call into the shared
+     * layout function, which only this entry point makes — so a getter on it
+     * counts layout passes exactly. The host memoizes its answer and asks for
+     * it on every pointer sample; a frame that then let the plan re-derive it
+     * laid the whole manifest out twice.
+     *
+     * The input object is mutated rather than spread, because spreading it
+     * would read the getter and be counted as a pass of its own.
+     */
+    it("is the frame's only layout pass when the caller hands its answer back", () => {
+        let passes = 0;
+        const input: PlanSceneInput = {
+            canvases: [
+                staticCanvas('a', 1000, 750),
+                staticCanvas('b', 900, 700),
+            ],
+            mode: 'continuous',
+            direction: 'left-to-right',
+            preserveCanvasScale: false,
+            gapFraction: GAP_FRACTION,
+            viewport: viewport(),
+            knownMetadata: {},
+            budgets: BUDGETS,
+        };
+        Object.defineProperty(input, 'gapFraction', {
+            get() {
+                passes += 1;
+                return GAP_FRACTION;
+            },
+        });
+
+        const hostLimits = planViewportLimits(input);
+        expect(passes).toBe(1);
+
+        input.viewportLimits = hostLimits;
+        const reused = planScene(input);
+        expect(passes).toBe(1);
+
+        input.viewportLimits = undefined;
+        const recomputed = planScene(input);
+        expect(passes).toBe(2);
+
+        // And the pass it skipped was the same pass: reusing the host's answer
+        // is an economy, not a different world.
+        expect(reused.layout).toBe(hostLimits.layout);
+        expect(reused.layout).toEqual(recomputed.layout);
+        expect(reused.minZoom).toBe(recomputed.minZoom);
     });
 });
 

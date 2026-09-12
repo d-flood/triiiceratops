@@ -38,14 +38,6 @@
         isAnnotationEditorOpen(viewerState.pluginMenuButtons),
     );
 
-    function escapeAttributeValue(value: string): string {
-        if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-            return CSS.escape(value);
-        }
-
-        return value.replace(/(["\\])/g, '\\$1');
-    }
-
     /**
      * While the reader has not touched visibility themselves, everything on
      * screen is shown — including annotations on a canvas that has only just
@@ -211,7 +203,7 @@
                 );
                 const visuals = Array.from(
                     root.querySelectorAll<HTMLElement>(
-                        `[data-annotation-id="${escapeAttributeValue(annotationId)}"]`,
+                        `[data-annotation-id="${CSS.escape(annotationId)}"]`,
                     ),
                 );
 

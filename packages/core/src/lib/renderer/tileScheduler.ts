@@ -29,8 +29,8 @@
  * ## Servers without CORS
  *
  * IIIF recommends CORS on image responses but does not require it, and the
- * renderer this replaces displayed such tiles through `<img>`. The default
- * loader therefore tries the abortable `fetch`/`createImageBitmap` path first,
+ * renderer this replaces displayed such tiles through `<img>`. The loader
+ * therefore tries the abortable `fetch`/`createImageBitmap` path first,
  * then falls back to an abortable image element only when `fetch` itself rejects
  * without an HTTP response. A successful fallback is remembered by image
  * service so later tiles do not pay for a fetch the browser is guaranteed to
@@ -79,7 +79,7 @@
  *
  * ## Counters
  *
- * Resident tile count and total decoded bytes are exposed as a first-class
+ * Total decoded bytes is exposed as a first-class
  * feature, not a test retrofit. Browser heap metrics cannot serve as the memory
  * gate: decoded images live outside the JS heap, so a heap ceiling reads
  * near-flat while tiles leak. `decodedBytes` counts everything held, cache
@@ -87,6 +87,7 @@
  * comfortably low while the cache was the thing filling memory.
  */
 
+import { once } from '../utils/once';
 import type { TileKey, TileRequest } from './types';
 
 /**
@@ -129,9 +130,6 @@ export interface TileSchedulerOptions {
     byteBudget: number;
     /** Called when the resident set changed, i.e. when a repaint is worthwhile. */
     onChange?: () => void;
-    /** Seams for tests; both reach for browser globals lazily, at call time. */
-    fetchTile?: (url: string, signal: AbortSignal) => Promise<Blob>;
-    decodeTile?: (blob: Blob) => Promise<DecodedTile>;
 }
 
 export interface TileScheduler {
@@ -142,10 +140,11 @@ export interface TileScheduler {
     update(requests: readonly TileRequest[]): void;
     /** The decoded tile for a key, if it is resident. */
     get(key: TileKey): DecodedTile | undefined;
-    /** Which tiles are resident — the planner's `residentTiles` input. */
+    /**
+     * Which tiles are resident — held **and required**, so what the planner may
+     * paint this frame, and its `residentTiles` input.
+     */
     residentKeys(): ReadonlySet<TileKey>;
-    /** Tiles held **and required**: what the planner may paint this frame. */
-    readonly residentTileCount: number;
     /** Tiles held in the opportunistic cache, i.e. no longer required. */
     readonly cachedTileCount: number;
     /**
@@ -153,24 +152,6 @@ export interface TileScheduler {
      * opportunistic cache. The number the byte budget is stated against.
      */
     readonly decodedBytes: number;
-    /**
-     * Decoded bytes held by the **required set** alone.
-     *
-     * Beside {@link decodedBytes} because the budget can only be enforced
-     * against the difference. `trim` evicts from the opportunistic cache and
-     * from nothing else — the required set is never evicted while it is
-     * required (CONTEXT.md) — so `requiredBytes > byteBudget` is the one state
-     * in which the ceiling is genuinely exceeded and no eviction can help.
-     *
-     * It is reachable: the declared-thumbnail rung is used **as-is** because the
-     * spec says so, and a manifest that declares its full-resolution image as
-     * each Canvas's `thumbnail` therefore requires fifty full-resolution
-     * decodes at the derived zoom floor. Refusing that is not the answer — the
-     * publisher's own answer is the first rung of the ladder for good reasons —
-     * but going over the ceiling silently is not either. This is the counter
-     * that says so.
-     */
-    readonly requiredBytes: number;
     /** Requests started, including retries. Test/diagnostic only. */
     readonly requestCount: number;
     /** The byte ceiling in force, for the host's counters to report. */
@@ -188,10 +169,7 @@ export interface TileScheduler {
     dispose(): void;
 }
 
-async function defaultFetchTile(
-    url: string,
-    signal: AbortSignal,
-): Promise<Blob> {
+async function fetchTileBlob(url: string, signal: AbortSignal): Promise<Blob> {
     const response = await fetch(url, { signal });
     if (!response.ok) {
         throw new TileResponseError(`tile request failed: ${response.status}`);
@@ -199,7 +177,7 @@ async function defaultFetchTile(
     return response.blob();
 }
 
-function defaultDecodeTile(blob: Blob): Promise<DecodedTile> {
+function decodeBlob(blob: Blob): Promise<DecodedTile> {
     // Off the main thread: `createImageBitmap` decodes on a browser-owned
     // thread, unlike an `<img>` whose decode competes with the frame loop.
     return createImageBitmap(blob);
@@ -209,10 +187,7 @@ function defaultDecodeTile(blob: Blob): Promise<DecodedTile> {
  * Decode through the browser's image loader, which may display a cross-origin
  * image without CORS. The element is never attached to the DOM.
  */
-function defaultLoadImageTile(
-    url: string,
-    signal: AbortSignal,
-): Promise<DecodedTile> {
+function loadImageTile(url: string, signal: AbortSignal): Promise<DecodedTile> {
     return new Promise((resolve, reject) => {
         const image = new Image();
         let settled = false;
@@ -286,9 +261,6 @@ function decodedBytesOf(tile: DecodedTile): number {
 export function createTileScheduler(
     options: TileSchedulerOptions,
 ): TileScheduler {
-    const fetchTile = options.fetchTile ?? defaultFetchTile;
-    const decodeTile = options.decodeTile ?? defaultDecodeTile;
-    const usesDefaultLoader = !options.fetchTile && !options.decodeTile;
     const imageElementServices = new Set<string>();
     const maxInFlight = Math.max(1, Math.floor(options.maxInFlight));
     const maxAttempts = Math.max(1, Math.floor(options.maxAttempts));
@@ -364,18 +336,14 @@ export function createTileScheduler(
         url: string,
         signal: AbortSignal,
     ): Promise<DecodedTile> {
-        if (!usesDefaultLoader) {
-            return decodeTile(await fetchTile(url, signal));
-        }
-
         const service = requestService(url);
         if (imageElementServices.has(service)) {
-            return defaultLoadImageTile(url, signal);
+            return loadImageTile(url, signal);
         }
 
         let blob: Blob;
         try {
-            blob = await defaultFetchTile(url, signal);
+            blob = await fetchTileBlob(url, signal);
         } catch (error) {
             // An HTTP answer is a real tile failure. Only a rejected fetch with
             // no response can be CORS, so only that path gets the display-only
@@ -384,12 +352,12 @@ export function createTileScheduler(
                 throw error;
 
             requestCount += 1;
-            const tile = await defaultLoadImageTile(url, signal);
+            const tile = await loadImageTile(url, signal);
             imageElementServices.add(service);
             return tile;
         }
 
-        return defaultDecodeTile(blob);
+        return decodeBlob(blob);
     }
 
     /**
@@ -442,9 +410,13 @@ export function createTileScheduler(
      * So the ceiling is a bound on the CACHE, and only a bound on the total
      * while the required set fits underneath it. Thumbnails ride this scheduler
      * and are therefore counted, which is the honest reading — but "thumbnail
-     * pixels sit under the byte ceiling" would be an overstatement, and
-     * {@link TileScheduler.requiredBytes} is what a host reads to tell the two
-     * apart.
+     * pixels sit under the byte ceiling" would be an overstatement. The
+     * required set's own bytes tell the two apart, summed from
+     * {@link TileScheduler.residentKeys} where they are asked for: the required
+     * set is never evicted while it is required, so it is the one place the
+     * ceiling can be genuinely exceeded with no eviction able to help — as it
+     * is by a manifest declaring its full-resolution image as each Canvas's
+     * `thumbnail`, which the spec requires to be used as-is.
      */
     function trim(): void {
         for (const key of cached.keys()) {
@@ -625,19 +597,11 @@ export function createTileScheduler(
         },
         get: (key) => resident.get(key)?.tile,
         residentKeys: () => new Set(resident.keys()),
-        get residentTileCount() {
-            return resident.size;
-        },
         get cachedTileCount() {
             return cached.size;
         },
         get decodedBytes() {
             return decodedBytes;
-        },
-        get requiredBytes() {
-            let bytes = 0;
-            for (const entry of resident.values()) bytes += entry.bytes;
-            return bytes;
         },
         get requestCount() {
             return requestCount;
@@ -649,7 +613,7 @@ export function createTileScheduler(
             byteBudget = Math.max(0, bytes);
             trim();
         },
-        dispose() {
+        dispose: once(() => {
             disposed = true;
             for (const controller of inFlight.values()) controller.abort();
             inFlight.clear();
@@ -657,6 +621,6 @@ export function createTileScheduler(
             required = new Map();
             for (const key of [...resident.keys()]) close(resident, key);
             for (const key of [...cached.keys()]) close(cached, key);
-        },
+        }),
     };
 }

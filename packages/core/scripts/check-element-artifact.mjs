@@ -14,6 +14,11 @@
  * This asserts, after `build:element`, that every relative specifier the
  * substrate dynamic-imports resolves to a file that is actually on disk.
  *
+ * It then asserts the artifacts touch nothing of the host's they were never
+ * asked to: embedding the viewer must have no side effect on the page's
+ * storage, so neither artifact may name `document.cookie` — nor `PARAGLIDE`,
+ * the localization library whose locale strategy used to write one.
+ *
  * It then asserts the artifacts themselves are worth importing: each must carry
  * the wrapper's custom-element attribute map. That failure mode is visible
  * nowhere else. Both entry points read the compiler's `element` static through
@@ -114,6 +119,54 @@ const CUSTOM_ELEMENT_ATTRIBUTE = /attribute\s*:\s*['"][a-z-]+['"]/g;
  */
 const OBSERVED_ATTRIBUTES = /static\s+get\s+observedAttributes\s*\(\s*\)/;
 
+/**
+ * Reaches for the host page's storage, and remains of the localization library
+ * whose locale strategy used to make one.
+ *
+ * The viewer's page-default locale is read from `<html lang>`; nothing in core
+ * persists a locale, or anything else, to `document.cookie`. Terser does not
+ * rename a property read off a global it does not control, and it keeps the
+ * `PARAGLIDE_*` global names verbatim for the same reason, so the literal text
+ * is the whole signal in both cases.
+ *
+ * A grep of the SOURCE tree would miss either: the artifacts inline every
+ * dependency, and both came from one.
+ */
+const FORBIDDEN_TEXT = [
+    {
+        pattern: /document\s*\.\s*cookie/,
+        problem: (name) =>
+            `${name} reads or writes \`document.cookie\`. Embedding the viewer ` +
+            `must have no side effect on the host page's storage: the ` +
+            `page-default locale comes from \`<html lang>\` and nothing in core ` +
+            `persists to cookies. Find the dependency or call site that ` +
+            `reintroduced it.`,
+    },
+    {
+        // A sentinel from the German catalog. Core ships English inline and
+        // publishes every other catalog as a `triiiceratops/locales/*` asset,
+        // so a German string inside an element artifact means a catalog was
+        // imported by a shipped module again — which every reader downloads,
+        // in every language.
+        pattern: /Diese Seite erfordert/,
+        problem: (name) =>
+            `${name} carries a German chrome string. Only the English catalog ` +
+            `(src/lib/messages/en.json) ships inline; the others are published ` +
+            `as assets under the \`./locales/*\` subpath and reach a viewer ` +
+            `through \`config.messages\`. Find the shipped module that ` +
+            `imported one.`,
+    },
+    {
+        pattern: /PARAGLIDE/,
+        problem: (name) =>
+            `${name} carries a \`PARAGLIDE\` identifier. Core resolves its ` +
+            `chrome messages itself (src/lib/state/i18n.svelte.ts) against the ` +
+            `catalogs under src/lib/messages; the localization library and its ` +
+            `cookie-backed locale strategy are gone and must not return with a ` +
+            `dependency.`,
+    },
+];
+
 /*
  * Reverse-coverage guard for `src/packaging/dropLightDomOnly.ts`.
  *
@@ -211,6 +264,10 @@ for (const artifact of ELEMENT_ARTIFACTS) {
     }
     const code = readFileSync(artifact, 'utf8');
 
+    for (const { pattern, problem } of FORBIDDEN_TEXT) {
+        if (pattern.test(code)) problems.push(problem(name));
+    }
+
     if ((code.match(CUSTOM_ELEMENT_ATTRIBUTE)?.length ?? 0) === 0) {
         problems.push(
             `${name} declares no custom-element attributes: the wrapper's ` +
@@ -267,6 +324,8 @@ if (problems.length > 0) {
 console.log(
     `check-element-artifact: ${checked} dynamic element-bundle import(s) resolve; ` +
         `${ELEMENT_ARTIFACTS.length} artifact(s) carry the wrapper's attribute map ` +
-        `and observe it, and emit none of the ${markerCount} light-dom-only ` +
-        `reset(s)' ${markedRules.length} element-type selector(s).`,
+        `and observe it, carry none of the ${FORBIDDEN_TEXT.length} forbidden ` +
+        `identifier(s), and emit none of the ` +
+        `${markerCount} light-dom-only reset(s)' ${markedRules.length} ` +
+        `element-type selector(s).`,
 );

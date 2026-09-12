@@ -43,6 +43,7 @@
                 "svelte": "./dist/image-export.js",
                 "import": "./dist/image-export.js"
             },
+            "./locales/*": "./dist/locales/*",
             "./element": "./dist/triiiceratops-element.iife.js",
             "./element/register": "./dist/triiiceratops-element.js",
             "./style.css": "./dist/triiiceratops.css"

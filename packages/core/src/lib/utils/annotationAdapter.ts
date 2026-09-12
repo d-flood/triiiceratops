@@ -6,7 +6,7 @@ import {
 import { getAnnotationId, getReferenceId } from './iiifIds';
 import { resolveLanguageValue } from './languageMap';
 import { isHttpUrl } from './sanitizeHtml';
-import { getChoiceAlternatives, isChoiceBody } from './iiifParsing';
+import { asArray, getChoiceAlternatives, isChoiceBody } from './iiifParsing';
 import { logger } from '../logging/logger';
 
 /**
@@ -298,7 +298,7 @@ function convertSvgToPolygon(svgString: string): PolygonGeometry | null {
         const doc = parser.parseFromString(svgString, 'image/svg+xml');
 
         if (doc.documentElement.nodeName === 'parsererror') {
-            logger.warn('Failed to parse SVG selector:', svgString);
+            logger.warn('unparseable SVG selector:', svgString);
             return null;
         }
 
@@ -349,7 +349,7 @@ function convertSvgToPolygon(svgString: string): PolygonGeometry | null {
             points,
         };
     } catch (e) {
-        logger.warn('Failed to convert SVG to polygon:', e);
+        logger.warn('SVG to polygon failed:', e);
         return null;
     }
 }
@@ -518,25 +518,15 @@ export function extractBody(
     };
 
     if (annotation.resource) {
-        const resources = Array.isArray(annotation.resource)
-            ? annotation.resource
-            : [annotation.resource];
-        resources.forEach(processResource);
+        asArray(annotation.resource).forEach(processResource);
     } else if (annotation.body) {
-        const bodyArr = Array.isArray(annotation.body)
-            ? annotation.body
-            : [annotation.body];
-        bodyArr.forEach(processResource);
+        asArray(annotation.body).forEach(processResource);
     }
 
     if (bodies.length === 0) {
-        let value = '';
-        if (annotation.label) {
-            value = Array.isArray(annotation.label)
-                ? annotation.label.join(' ')
-                : annotation.label;
-        }
-
+        // The annotation's own label, which a v3 manifest writes as a language
+        // map and a v2 one as a string or a JSON-LD value object.
+        const value = resolveLanguageValue(annotation.label, locale);
         if (value) {
             bodies.push({ value, isHtml: false, purpose: 'commenting' });
         }

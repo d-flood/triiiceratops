@@ -1,7 +1,12 @@
 import { isLevel0Profile } from '../renderer/sizeLadder';
-import { getPaintingAnnotations } from './iiifParsing';
+import { getResourceId } from './iiifIds';
+import { asArray, getPaintingAnnotations } from './iiifParsing';
 import { iiifImageRequestUrl } from './iiifImageRequest';
-import { findImageBody, unwrapSpecificResource } from './paintingBodies';
+import {
+    findImageBody,
+    getImageService,
+    unwrapSpecificResource,
+} from './paintingBodies';
 
 /**
  * A width request against an image service, or `''` where one cannot be built.
@@ -15,7 +20,7 @@ import { findImageBody, unwrapSpecificResource } from './paintingBodies';
  * matches it anywhere else in an id.
  */
 function getThumbnailServiceUrl(service: any, size: number): string {
-    const serviceId: string = service?.id || service?.['@id'] || '';
+    const serviceId = getResourceId(service);
     if (!serviceId || isLevel0Profile(service?.profile)) return '';
     return iiifImageRequestUrl(serviceId, `${size},`);
 }
@@ -30,19 +35,23 @@ export function resolveThumbnailResourceSrc(
     if (!resource) return '';
     if (typeof resource === 'string') return resource;
 
-    const services = resource?.service
-        ? Array.isArray(resource.service)
-            ? resource.service
-            : [resource.service]
-        : [];
+    // The Image API service first where the resource declares one, so a
+    // resource whose first service is an auth or physical-dimensions annex
+    // still yields a width request. The rest are tried after it rather than
+    // skipped: an Image API 1.1 service spelling its compliance level in
+    // `dcterms:conformsTo` is not recognizable as an image service, but it
+    // still answers a width request (`vendored/scroll.json`).
+    const imageService = getImageService(resource);
+    const services = asArray(resource.service);
 
-    for (const service of services) {
+    for (const service of imageService
+        ? [imageService, ...services]
+        : services) {
         const url = getThumbnailServiceUrl(service, size);
         if (url) return url;
     }
 
-    // v3 spells the id `id`, v2 `@id`; both are read.
-    return resource?.id || resource?.['@id'] || '';
+    return getResourceId(resource) ?? '';
 }
 
 /**
@@ -71,65 +80,24 @@ export function getThumbnailSrc(
     size = 200,
     selectedChoiceId?: string,
 ): string {
-    let src = '';
-
     // 1. The canvas's declared thumbnail.
     //
     // `thumbnail` is spelled the same in IIIF v2 and v3, and
     // `resolveThumbnailResourceSrc` already accepts the array form, a bare
     // string, and a resource with an image service.
-    try {
-        const thumb = canvas?.thumbnail;
-        if (thumb) {
-            src = resolveThumbnailResourceSrc(thumb, size);
-        }
-    } catch {
-        // ignore
-    }
+    const declared = resolveThumbnailResourceSrc(canvas?.thumbnail, size);
+    if (declared) return declared;
 
-    if (src) return src;
-
-    // 2. Fallback: first image annotation
-    try {
-        const images = getPaintingAnnotations(canvas);
-
-        if (images && images.length > 0) {
-            const annotation = images[0];
-
-            // `findImageBody` reads the v2 `resource` spelling as well as the
-            // v3 `body` one, unwraps a body array before testing for a Choice,
-            // and hands back only a body that classifies as an image.
-            const resource = unwrapSpecificResource(
-                findImageBody(annotation, selectedChoiceId),
-            );
-
-            if (resource) {
-                // Try IIIF image service
-                const getServices = () => {
-                    let s: any[] = [];
-                    if (resource.service) {
-                        s = Array.isArray(resource.service)
-                            ? resource.service
-                            : [resource.service];
-                    }
-                    return s;
-                };
-
-                const services = getServices();
-                if (services.length > 0) {
-                    const url = getThumbnailServiceUrl(services[0], size);
-                    if (url) {
-                        return url;
-                    }
-                }
-
-                // Fallback: raw resource ID — `id` in v3, `@id` in v2.
-                src = resource.id || resource['@id'] || '';
-            }
-        }
-    } catch {
-        // ignore
-    }
-
-    return src;
+    // 2 and 3. Fallback: the first painting annotation's body, resolved down
+    // the same service-then-id chain as a declared thumbnail.
+    //
+    // `findImageBody` reads the v2 `resource` spelling as well as the v3 `body`
+    // one, unwraps a body array before testing for a Choice, and hands back
+    // only a body that classifies as an image.
+    return resolveThumbnailResourceSrc(
+        unwrapSpecificResource(
+            findImageBody(getPaintingAnnotations(canvas)[0], selectedChoiceId),
+        ),
+        size,
+    );
 }

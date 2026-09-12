@@ -8,7 +8,7 @@
  *
  * It is not superseded by the public viewport API. What is here is the
  * renderer's own instrumentation — residency by canvas name, decoded bytes,
- * plan counts, metadata failures, which is how the renderer's claims are
+ * frame counts, metadata failures, which is how the renderer's claims are
  * asserted at all — plus a `setView` that adopts an exact viewport with no
  * easing, which no public command offers because programmatic input is always
  * animated (ADR 0015). Tests need a deterministic viewport rather than one
@@ -41,6 +41,17 @@ import type { Point } from '../lib/renderer/types';
  * `tests/helpers/numberedGrid.ts` does for every command it drives.
  */
 let settledPaintCount = 0;
+
+/**
+ * Frames this handle has seen painted, ever.
+ *
+ * Published as `scenePlanCount` because that is the claim it is read to assert:
+ * the renderer builds exactly one scene plan per painted frame, so a burst of
+ * pointer events inside one task must not move this at all
+ * (`canvas-renderer-input.spec.ts`). Counted here, from the frame hook, rather
+ * than inside the renderer, so no counter ships for it.
+ */
+let framePaintCount = 0;
 
 /**
  * Resolve once a frame has been painted and the view has stopped moving.
@@ -76,6 +87,11 @@ export const installCanvasRendererHandle: RendererDevtoolsInstaller = (
     internals: RendererInternals,
 ) => {
     const nextPaint = () => settledPaint(internals);
+    // Dropped with the rest of the frame listeners on detach; a remount
+    // installs the handle again and subscribes afresh.
+    internals.port.onFrame(() => {
+        framePaintCount += 1;
+    });
     (
         surface as HTMLCanvasElement & { __triiiceratopsRenderer?: unknown }
     ).__triiiceratopsRenderer = {
@@ -115,14 +131,25 @@ export const installCanvasRendererHandle: RendererDevtoolsInstaller = (
         },
         getStats: () => {
             const tiles = internals.tiles;
+            const resident = tiles.residentKeys();
+            // The required set's own bytes, which the budget can only be
+            // enforced against the difference from: `trim` evicts the
+            // opportunistic cache and nothing else, so a required set over the
+            // ceiling is the one genuinely unenforceable overrun. Four bytes
+            // per pixel, decoded RGBA — the same arithmetic the scheduler bills.
+            let requiredBytes = 0;
+            for (const key of resident) {
+                const tile = tiles.get(key);
+                if (tile) requiredBytes += tile.width * tile.height * 4;
+            }
             return {
-                residentTileCount: tiles.residentTileCount,
+                residentTileCount: resident.size,
                 cachedTileCount: tiles.cachedTileCount,
                 decodedBytes: tiles.decodedBytes,
-                requiredBytes: tiles.requiredBytes,
+                requiredBytes,
                 byteBudget: tiles.byteBudget,
                 tileRequestCount: tiles.requestCount,
-                scenePlanCount: internals.getScenePlanCount(),
+                scenePlanCount: framePaintCount,
             };
         },
         getResidency: () => {

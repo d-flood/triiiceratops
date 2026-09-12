@@ -13,22 +13,21 @@
  * canvas is an error placeholder in its own layout rect, and the viewer-level
  * condition is *derived* (spec §Errors, user stories 26 and 27).
  *
- * ## Both halves are pure
+ * ## Pure throughout
  *
- * Neither function here touches the DOM, and neither knows what a placeholder
- * looks like. `errorPlacements` answers "where, in surface-local CSS pixels" —
- * over the shared geometry in `canvasPlacements.ts`, which the unsupported
- * presentation uses too — and `viewerLevelErrorKind` answers "is there nothing
- * left to look at". `CanvasHost` owns the markup, because anything a user must
- * perceive lives in the DOM layer rather than in painted pixels, and painted
- * text has no accessible name.
+ * Nothing here touches the DOM or knows what a placeholder looks like. Where a
+ * failed canvas is on screen is the shared geometry in `canvasPlacements.ts`,
+ * which every kind of placeholder goes through; this module answers only "is
+ * there nothing left to look at" and what the viewer-level condition then is.
+ * `CanvasHost` owns the markup, because anything a user must perceive lives in
+ * the DOM layer rather than in painted pixels, and painted text has no
+ * accessible name.
  *
- * The auth/load distinction is carried through both, unreduced: a reader needs
- * to know whether logging in would help (user story 27).
+ * The auth/load distinction is carried through unreduced: a reader needs to
+ * know whether logging in would help (user story 27).
  */
 
-import { canvasPlacements, type CanvasPlacement } from './canvasPlacements';
-import type { LayoutRect, Viewport } from './types';
+import type { LayoutRect } from './types';
 
 /**
  * Why a canvas has no pixels.
@@ -48,21 +47,6 @@ export type CanvasErrorKind = 'auth' | 'load';
  * host wraps it in.
  */
 export type CanvasErrors = Readonly<Record<string, CanvasErrorKind>>;
-
-/** One error placeholder — a {@link CanvasPlacement} whose kind is the failure. */
-export type CanvasErrorPlacement = CanvasPlacement<CanvasErrorKind>;
-
-/**
- * Where the failed canvases are on screen, this frame — the shared placement
- * geometry, keyed on the error record.
- */
-export function errorPlacements(
-    layout: readonly LayoutRect[],
-    errors: CanvasErrors,
-    viewport: Viewport,
-): CanvasErrorPlacement[] {
-    return canvasPlacements(layout, (canvasId) => errors[canvasId], viewport);
-}
 
 /**
  * The viewer-level error condition, derived — or `null` while there is anything

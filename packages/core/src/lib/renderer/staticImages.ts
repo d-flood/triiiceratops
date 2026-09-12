@@ -20,31 +20,24 @@
  * URL; check the URL is still wanted on land; LEAVE a failed URL held; record
  * the held URL before the request starts) sat in a 3000-line component reachable
  * only through Playwright. The seam was cut at the DOM line rather than at an
- * abstraction. Here the browser enters as `loadImage`, so all of it is an
- * ordinary unit test.
+ * abstraction. Everything here but the `<img>` itself is ordinary data, so a
+ * unit test stubs the global `Image` and asserts all of it.
  */
 
 import type { StaticImageDraw } from './types';
-import {
-    staticImageFailures as defaultFailures,
-    type StaticImageFailures,
-} from './staticImageFailures';
+import { staticImageFailures } from './staticImageFailures';
 
 /** A decoded image the painter can draw. */
 export type DecodedImage = CanvasImageSource;
 
-/**
- * Start one image request. Calls back at most once.
- *
- * The seam for the browser. The default builds an `<img>`; a test passes a fake
- * and resolves it by hand.
- */
-export type ImageLoader = (
+/** Start one image request. Calls back at most once. */
+function loadImage(
     url: string,
-    handlers: { onLoad: (image: DecodedImage) => void; onError: () => void },
-) => void;
-
-export const loadImageElement: ImageLoader = (url, { onLoad, onError }) => {
+    {
+        onLoad,
+        onError,
+    }: { onLoad: (image: DecodedImage) => void; onError: () => void },
+): void {
     const image = new Image();
     // Decode off the main thread where the browser can.
     image.decoding = 'async';
@@ -55,13 +48,9 @@ export const loadImageElement: ImageLoader = (url, { onLoad, onError }) => {
     image.onload = () => onLoad(image);
     image.onerror = () => onError();
     image.src = url;
-};
+}
 
 export interface StaticImagesOptions {
-    /** Browser seam. Defaults to an `<img>` load. */
-    loadImage?: ImageLoader;
-    /** Page-lifetime negative cache. Injectable so a test starts clean. */
-    failures?: StaticImageFailures;
     /** Record that this canvas could not load. */
     onCanvasError: (canvasId: string) => void;
     /** Withdraw a recorded failure for this canvas. */
@@ -94,9 +83,6 @@ export interface StaticImages {
 }
 
 export function createStaticImages(options: StaticImagesOptions): StaticImages {
-    const loadImage = options.loadImage ?? loadImageElement;
-    const failures = options.failures ?? defaultFailures;
-
     const images: Record<string, DecodedImage> = Object.create(null);
     /** image key → the URL decoded **or in flight** for that placement. */
     const urls: Record<string, string> = Object.create(null);
@@ -123,10 +109,10 @@ export function createStaticImages(options: StaticImagesOptions): StaticImages {
         // placeholder over a Choice that loads perfectly well.
         //
         // Safe for eviction as well as for a Choice switch only because
-        // `failures` remembers the URL: the canvas coming back re-derives its
-        // error from that below, with no second request. Drop this and the
-        // per-canvas record is the only memory of the failure, which is the
-        // refetch-on-re-entry the renderer must not do.
+        // `staticImageFailures` remembers the URL: the canvas coming back
+        // re-derives its error from that below, with no second request. Drop
+        // this and the per-canvas record is the only memory of the failure,
+        // which is the refetch-on-re-entry the renderer must not do.
         if (canvasId) options.onCanvasErrorCleared(canvasId);
     }
 
@@ -148,7 +134,7 @@ export function createStaticImages(options: StaticImagesOptions): StaticImages {
 
                 owners[key] = canvasId;
 
-                if (failures.has(url)) {
+                if (staticImageFailures.has(url)) {
                     // Answered already, by a request this page made earlier.
                     // Recorded BEFORE the URL, so the state the placeholder is
                     // derived from is in place within this same frame.
@@ -180,7 +166,7 @@ export function createStaticImages(options: StaticImagesOptions): StaticImages {
                         // rather than about the canvas that happened to ask for
                         // it. A reader who switches Choice away mid-request and
                         // back must not re-issue it.
-                        failures.record(url);
+                        staticImageFailures.record(url);
                         if (urls[key] !== url) return;
                         // The URL is deliberately LEFT held, which is what stops
                         // the next frame's reconciliation from asking again: a

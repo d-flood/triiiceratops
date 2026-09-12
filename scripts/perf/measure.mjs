@@ -95,16 +95,27 @@ const { serveDir } = await import(
     pathToFileURL(join(REPO_ROOT, 'test-consumers', 'driver', 'lib.mjs')).href
 );
 
-// Software WebGL, kept so the plugin and demo graphs that still touch WebGL run
-// headless without a GPU (the same flags the packed-consumer harness uses). The
-// viewer's own renderer is Canvas2D and needs none of it.
-const LAUNCH = {
-    args: [
-        '--use-gl=angle',
-        '--use-angle=swiftshader',
-        '--enable-unsafe-swiftshader',
-    ],
-};
+// Real GPU locally through Vulkan (mirrors `scripts/playwright-gpu.ts`); CI
+// runners have no GPU, so there — and only there — fall back to software WebGL
+// for the plugin and demo graphs that still touch it. The viewer's own
+// renderer is Canvas2D and needs none of it.
+const LAUNCH = process.env.CI
+    ? {
+          args: [
+              '--use-gl=angle',
+              '--use-angle=swiftshader',
+              '--enable-unsafe-swiftshader',
+          ],
+      }
+    : {
+          channel: 'chromium',
+          args: [
+              '--use-angle=vulkan',
+              '--enable-features=Vulkan',
+              '--ignore-gpu-blocklist',
+              '--enable-gpu-rasterization',
+          ],
+      };
 
 // Two-canvas local manifest (data-URI images, no network). The second canvas
 // makes `core_interaction` (next-canvas navigation) a real state change.

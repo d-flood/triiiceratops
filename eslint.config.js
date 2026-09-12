@@ -33,8 +33,6 @@ export default ts.config(
             'dist/',
             '.svelte-kit/',
             'node_modules/',
-            'src/paraglide/',
-            'src/lib/paraglide/',
             'src/lib/generated/',
             'docs/',
             // Doc snippets extracted verbatim from the site's content documents

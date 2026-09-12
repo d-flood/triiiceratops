@@ -2,17 +2,33 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
     createTileSourceErrorMirror,
-    errorPlacements,
     viewerLevelErrorKind,
-    type CanvasErrorPlacement,
+    type CanvasErrorKind,
     type CanvasErrors,
 } from './canvasErrors';
 import {
+    canvasPlacements,
     samePlacements,
     MIN_LABEL_HEIGHT,
     MIN_LABEL_WIDTH,
+    type CanvasPlacement,
 } from './canvasPlacements';
 import type { LayoutRect, Viewport } from './types';
+
+type CanvasErrorPlacement = CanvasPlacement<CanvasErrorKind>;
+
+/**
+ * The failures among a frame's placeholders, which is what the host's `kindOf`
+ * answers for them (`canvasRenderer.updatePlaceholders`). Stated here so these
+ * cases read as "this error, placed" rather than as a predicate.
+ */
+function errorPlacements(
+    layout: readonly LayoutRect[],
+    errors: CanvasErrors,
+    viewport: Viewport,
+): CanvasErrorPlacement[] {
+    return canvasPlacements(layout, (canvasId) => errors[canvasId], viewport);
+}
 
 function rect(
     canvasId: string,

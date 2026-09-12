@@ -905,4 +905,45 @@ describe('ViewerState manifest behavior', () => {
         // does not appear at all.
         expect(state.getSnapshot().currentCanvasIndex).toBe(1);
     });
+
+    it('resets the selected sequence when a new manifest is set, so a stale index cannot empty the viewer', async () => {
+        const multi = 'http://example.org/manifest/stale-sequence-source';
+        const single = 'http://example.org/manifest/stale-sequence-target';
+        serve({
+            [multi]: {
+                '@context': 'http://iiif.io/api/presentation/2/context.json',
+                '@id': multi,
+                '@type': 'sc:Manifest',
+                label: 'Two sequences',
+                sequences: [
+                    {
+                        '@id': `${multi}/sequence/1`,
+                        '@type': 'sc:Sequence',
+                        canvases: [v2Canvas(CANVAS_1), v2Canvas(CANVAS_2)],
+                    },
+                    {
+                        '@id': `${multi}/sequence/2`,
+                        '@type': 'sc:Sequence',
+                        canvases: [v2Canvas(CANVAS_3), v2Canvas(CANVAS_4)],
+                    },
+                ],
+            },
+            [single]: v3Manifest(single, {
+                canvases: [v3Canvas(CANVAS_1), v3Canvas(CANVAS_2)],
+            }),
+        });
+
+        await state.setManifest(multi);
+        state.setSequenceIndex(1);
+        expect(state.selectedSequenceIndex).toBe(1);
+
+        // The incoming manifest has one sequence, so sequence 1 does not exist
+        // in it: carrying the index over would leave the viewer with no
+        // canvases at all.
+        await state.setManifest(single);
+
+        expect(state.selectedSequenceIndex).toBe(0);
+        expect(state.canvases.length).toBe(2);
+        expect(state.canvasId).toBe(CANVAS_1);
+    });
 });

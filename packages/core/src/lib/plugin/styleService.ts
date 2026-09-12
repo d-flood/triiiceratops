@@ -22,40 +22,46 @@
  * held when the activation is torn down.
  */
 
+import { once } from '../utils/once';
 import type { PluginStyleService } from '../types/plugin';
 
+/** A `<meta property="csp-nonce">`, whose nonce may be on the IDL property. */
+type CspNonceMeta = HTMLElement & { nonce?: string };
+
 /**
- * Nonce discovery: the host advertises its style nonce either as
- * `<meta property="csp-nonce" content="…">` (or the IDL `.nonce` on that meta)
- * or on any already-nonced `<style>`/`<script>`/`<link>` element. The `.nonce`
- * IDL property is read in preference to `getAttribute('nonce')` because browsers
+ * The host's `<meta property="csp-nonce">`, or `null` when it publishes none.
+ *
+ * Its presence is the "style nonce where required" signal from the SPEC: a host
+ * running a nonce-based `style-src 'self' 'nonce-…'` (without `unsafe-inline`)
+ * advertises its nonce so the service takes the nonce-aware `<style>` fallback —
+ * a nonce cannot be carried by a constructable/adopted stylesheet, so under such
+ * a policy the fallback is the CSP-correct path. Absent the meta, the
+ * constructable path remains the default (it is not governed by `style-src` at
+ * all). Its content is the nonce itself; see {@link discoverNonce}.
+ */
+function cspNonceMeta(doc: Document): CspNonceMeta | null {
+    return doc.querySelector<CspNonceMeta>('meta[property="csp-nonce"]');
+}
+
+/**
+ * Nonce discovery: the host advertises its style nonce either on its
+ * {@link cspNonceMeta} (as the IDL `.nonce` or the `content` attribute) or on
+ * any already-nonced `<style>`/`<script>`/`<link>` element. The `.nonce` IDL
+ * property is read in preference to `getAttribute('nonce')` because browsers
  * hide the attribute from `getAttribute` for injected markup but keep the IDL
  * property readable. Returns `undefined` when the host supplies no nonce.
  */
-function discoverNonce(doc: Document): string | undefined {
-    const meta = doc.querySelector('meta[property="csp-nonce"]');
+function discoverNonce(
+    doc: Document,
+    meta: CspNonceMeta | null,
+): string | undefined {
     if (meta) {
-        const idl = (meta as HTMLElement & { nonce?: string }).nonce;
-        return idl || meta.getAttribute('content') || undefined;
+        return meta.nonce || meta.getAttribute('content') || undefined;
     }
     const nonced = doc.querySelector<HTMLElement>(
         'style[nonce], script[nonce], link[nonce]',
     );
     return nonced?.nonce || undefined;
-}
-
-/**
- * Whether the host has explicitly opted into nonce-governed styles by publishing
- * a `<meta property="csp-nonce">` element. This is the "style nonce
- * where required" signal from the SPEC: a host running a nonce-based
- * `style-src 'self' 'nonce-…'` (without `unsafe-inline`) advertises its nonce so
- * the service takes the nonce-aware `<style>` fallback — a nonce cannot be
- * carried by a constructable/adopted stylesheet, so under such a policy the
- * fallback is the CSP-correct path. Absent the meta, the constructable path
- * remains the default (it is not governed by `style-src` at all).
- */
-function hasCspNonceMeta(doc: Document): boolean {
-    return doc.querySelector('meta[property="csp-nonce"]') !== null;
 }
 
 /**
@@ -135,9 +141,10 @@ export function createPluginStyleService(
 ): PluginStyleService {
     const doc = ownerDocumentOf(root);
     // Prefer the nonce-aware `<style>` fallback when the host forces it or has
-    // advertised a CSP style nonce (see hasCspNonceMeta); otherwise use the
+    // advertised a CSP style nonce (see cspNonceMeta); otherwise use the
     // constructable path where supported.
-    const preferFallback = options.forceFallback || hasCspNonceMeta(doc);
+    const nonceMeta = cspNonceMeta(doc);
+    const preferFallback = options.forceFallback || nonceMeta !== null;
     const useConstructable = !preferFallback && supportsConstructable(root);
     const sheets = sheetsFor(root);
 
@@ -156,7 +163,7 @@ export function createPluginStyleService(
         } else {
             const element = doc.createElement('style');
             element.setAttribute('data-triiiceratops-plugin-style', key);
-            const nonce = options.nonce ?? discoverNonce(doc);
+            const nonce = options.nonce ?? discoverNonce(doc, nonceMeta);
             if (nonce) element.nonce = nonce;
             element.textContent = css;
             // Shadow roots have no <head>; append to the root itself. Documents
@@ -189,12 +196,7 @@ export function createPluginStyleService(
         install(css: string, id: string): () => void {
             const key = `${pluginName}:${id}`;
             acquire(key, css);
-            let released = false;
-            return () => {
-                if (released) return;
-                released = true;
-                release(key);
-            };
+            return once(() => release(key));
         },
     };
 }

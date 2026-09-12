@@ -8,8 +8,9 @@ import {
     getImageService,
     unwrapSpecificResource,
 } from './paintingBodies';
-import { normalizeIiifTargets } from './iiifTargets';
+import { normalizeIiifTargets, toCanvasRegion } from './iiifTargets';
 import { resolveLanguageValue } from './languageMap';
+import { isPositiveFinite } from './numbers';
 
 /**
  * Where a canvas's pixels come from.
@@ -96,9 +97,7 @@ type CanvasDimensions = {
 };
 
 function getNumericDimension(value: unknown): number | null {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0
-        ? value
-        : null;
+    return isPositiveFinite(value) ? value : null;
 }
 
 function getResourceDimensions(resource: any): {
@@ -113,21 +112,6 @@ function getResourceDimensions(resource: any): {
     };
 }
 
-function getCanvasDimensions(canvas: any): CanvasDimensions | null {
-    // Raw IIIF Canvas JSON spells these `width`/`height` in both v2 and v3.
-    // The trailing `|| null` is what the dead accessor rung evaluated to, and
-    // is load-bearing: a canvas declaring `width: 0` must still fall through to
-    // "no dimensions" rather than become a valid `0`.
-    const width = canvas?.width || null;
-    const height = canvas?.height || null;
-
-    if (typeof width !== 'number' || typeof height !== 'number') {
-        return null;
-    }
-
-    return { width, height };
-}
-
 /**
  * The `#xywh=` fragment a painting annotation targets, if it targets one.
  *
@@ -136,24 +120,12 @@ function getCanvasDimensions(canvas: any): CanvasDimensions | null {
  * composite canvas — an image painting a sub-rectangle of its canvas would
  * land at the origin at full size, on top of its siblings.
  */
-function parseTargetRegion(annotation: any): {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-} | null {
-    const region = normalizeIiifTargets(
-        annotation?.target ?? annotation?.on,
-    ).find((target) => target.xywh)?.xywh;
-
-    if (!region) return null;
-
-    return {
-        x: region[0],
-        y: region[1],
-        width: region[2],
-        height: region[3],
-    };
+function parseTargetRegion(annotation: any): RegionRect | null {
+    return toCanvasRegion(
+        normalizeIiifTargets(annotation?.target ?? annotation?.on).find(
+            (target) => target.xywh,
+        )?.xywh,
+    );
 }
 
 function parseImageApiRegionValue(
@@ -218,26 +190,6 @@ export function getRegionString(region: RegionRect): string {
         .join(',');
 }
 
-/**
- * The image resource this painting annotation places, or `null` where it places
- * none.
- *
- * The classifier is the gate (`utils/paintingBodies`): a `Video`, `Sound`, or
- * `TextualBody` body answers `null` here and therefore never reaches
- * {@link getHeuristicServiceId}, the source descriptors, the static-image
- * loader, or the negative cache. Body-array unwrapping and Choice selection are
- * the classifier's too, in that order — the array first, so a
- * `body: [Choice(videos), Text(vtt)]` resolves its Choice instead of handing
- * back the Choice object itself.
- */
-function getAnnotationResource(
-    annotation: any,
-    canvasId: string,
-    getSelectedChoice?: (canvasId: string) => string | undefined,
-): any | null {
-    return findImageBody(annotation, getSelectedChoice?.(canvasId));
-}
-
 function normalizeProfile(profile: unknown): string | null {
     if (typeof profile === 'string') {
         return profile || null;
@@ -292,7 +244,7 @@ function getImageServiceDetails(resource: any): {
  * the URL contains `/iiif/`, which a IIIF-hosted media file also does, and a
  * fabricated service id sends the tile pipeline off building `info.json` and
  * region requests against a video. Reached only from a body the classifier
- * passed (see {@link getAnnotationResource}), which is what makes that safe.
+ * passed (see {@link findImageBody}), which is what makes that safe.
  */
 function getHeuristicServiceId(resourceId: string | null): string | null {
     if (!resourceId || !resourceId.includes('/iiif/')) {
@@ -323,7 +275,18 @@ export { getCanvasLabel, getCanvasId };
 export function getDeclaredCanvasDimensions(
     canvas: unknown,
 ): CanvasDimensions | null {
-    return getCanvasDimensions(canvas);
+    // Raw IIIF Canvas JSON spells these `width`/`height` in both v2 and v3.
+    // The trailing `|| null` is load-bearing: a canvas declaring `width: 0`
+    // must still fall through to "no dimensions" rather than become a valid
+    // `0`.
+    const width = (canvas as any)?.width || null;
+    const height = (canvas as any)?.height || null;
+
+    if (typeof width !== 'number' || typeof height !== 'number') {
+        return null;
+    }
+
+    return { width, height };
 }
 
 export function resolveCanvasImage(
@@ -344,7 +307,9 @@ export function resolveAllCanvasImages(
     }
 
     const canvasDimensions =
-        getCanvasDimensions(canvas) ?? options.fallbackCanvasDimensions ?? null;
+        getDeclaredCanvasDimensions(canvas) ??
+        options.fallbackCanvasDimensions ??
+        null;
     if (!canvasDimensions) {
         return [];
     }
@@ -356,10 +321,17 @@ export function resolveAllCanvasImages(
 
     return annotations
         .map((annotation) => {
-            const rawResource = getAnnotationResource(
+            // The classifier is the gate (`utils/paintingBodies`): a `Video`,
+            // `Sound` or `TextualBody` body answers `null` and therefore never
+            // reaches `getHeuristicServiceId`, the source descriptors, the
+            // static-image loader, or the negative cache. Body-array
+            // unwrapping and Choice selection are the classifier's too, in
+            // that order — the array first, so a
+            // `body: [Choice(videos), Text(vtt)]` resolves its Choice instead
+            // of handing back the Choice object itself.
+            const rawResource = findImageBody(
                 annotation,
-                canvasId,
-                options.getSelectedChoice,
+                options.getSelectedChoice?.(canvasId),
             );
             const resource = unwrapSpecificResource(rawResource);
 

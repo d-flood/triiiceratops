@@ -38,7 +38,14 @@
  * can be shown to be otherwise.
  */
 
-/** How many failed URLs to remember. See {@link createStaticImageFailures}. */
+/**
+ * How many failed URLs to remember.
+ *
+ * Insertion-ordered and oldest-first, the same bound and the same reasoning as
+ * the metadata cache's entry ceiling: this cache is page-shared and never
+ * expires, so an unbounded set grows with every canvas of every manifest a
+ * session ever opens.
+ */
 const MAX_ENTRIES = 512;
 
 export interface StaticImageFailures {
@@ -55,22 +62,15 @@ export interface StaticImageFailures {
     retryAll(): void;
 }
 
-export function createStaticImageFailures(
-    maxEntries = MAX_ENTRIES,
-): StaticImageFailures {
-    /**
-     * Insertion-ordered, so the oldest key is simply the first one — the same
-     * bound, and the same reasoning, as the metadata cache's entry ceiling: this
-     * cache is page-shared and never expires, so an unbounded set grows with
-     * every canvas of every manifest a session ever opens.
-     */
+export function createStaticImageFailures(): StaticImageFailures {
+    /** Insertion-ordered, so the oldest key is simply the first one. */
     const failed = new Set<string>();
 
     return {
         has: (url) => failed.has(url),
         record(url) {
             failed.add(url);
-            while (failed.size > maxEntries) {
+            while (failed.size > MAX_ENTRIES) {
                 const oldest = failed.values().next();
                 if (oldest.done) return;
                 failed.delete(oldest.value);

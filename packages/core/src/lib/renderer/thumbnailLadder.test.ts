@@ -392,7 +392,7 @@ describe('resolveThumbnail', () => {
             // is `full/{w},`, which is 2.x's own canonical form. So this rung is
             // spelled exactly as it was before — the fix is version 3 only.
             //
-            // What it does lose is `rungFallback`'s second spelling (version 2's
+            // What it does lose is the whole-image second spelling (version 2's
             // deprecated `native` quality). Tile requests carry no fallback
             // either, so a tile that 404s answers the same way at both tiers.
             const facts: ImageServiceFacts = {

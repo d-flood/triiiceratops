@@ -16,9 +16,17 @@
 // the entry's lazy halves live in sibling chunks, and an entry that quietly
 // swallowed one of them would also work perfectly well — it would just cost
 // every page hundreds of kilobytes of hls.js it need not. So the chunks are
-// checked for here too: present, referenced, free of the entry's markers and,
-// like the entry, free of a Svelte runtime of their own (they are built with
-// nothing external, so a stray Svelte import lands in them rather than failing).
+// checked for here too: present, referenced by BOTH entries as the one shared
+// set, free of the entry's markers, free of a Svelte runtime of their own, and
+// free of imports.
+//
+// That last one is what makes the shared set safe. The chunks are the ES build's
+// output, and that build externalizes Svelte, the SDK and core for a consumer's
+// bundler to resolve — but the same files are also `import()`ed by a `<script>`
+// page, which has no bundler and no import map, so a bare specifier left in one
+// would be unresolvable at runtime. All four are import-free today; an import in
+// one is either that unresolvable specifier or a shared eager chunk the ESM
+// entry also loads, and neither may ship, so the check is for none at all.
 //
 // Sharing the runtime has a second failure mode, and it is the quiet one: the
 // bundle can read a helper core does not publish. `svelte/internal/client` has
@@ -38,7 +46,8 @@
 //
 // To verify this gate once: drop `svelte` out of `external` in vite.config.ts,
 // rebuild, and watch it fail. For the chunk half, drop `chunkedIife()` out of
-// the IIFE build's plugin list. For the helper half,
+// the IIFE build's plugin list, or drop `chunkFileNames` out of the ES build's
+// output options so the chunks come out hashed. For the helper half,
 // put a bare text child on a component in `src/Panel.svelte` — `<Button …>x</Button>`
 // rather than `<Button …><span>x</span></Button>`: the compiler lowers a bare
 // text child of a component to `$.next()`, which core does not publish, and the
@@ -447,6 +456,14 @@ const CHUNK_MARKERS = {
  * that carries a copy of it. Both sibling plugin IIFEs contain all three; this
  * one must contain none.
  */
+/**
+ * A chunk's `import`/`export … from` statements, if it has any. Minified ESM
+ * writes them without spaces around the specifier and hoists them to the top,
+ * so the source shapes are `import"x"`, `import x from"y"` and `export{a}from"y"`.
+ */
+const IMPORT_STATEMENT =
+    /(?:^|[;\n])(?:import|export)\s*(?:[\w${},*\s]*?from)?\s*["'][^"']+["']/g;
+
 const BUNDLED_RUNTIME_FINGERPRINTS = [
     'effect_update_depth_exceeded',
     'lifecycle_outside_component',
@@ -580,7 +597,10 @@ const MAX_IIFE_GZIP = 15_950;
  *
  * These sit a few bytes above the measured actual for the same reason the entry
  * ceiling can: nothing here compiles from an absolute path, so a worktree build
- * and a mainline build agree to the byte. Their whole job is to fail if the
+ * and a mainline build agree to the byte. They include the ~120 bytes of
+ * `@__PURE__` annotations the ES build preserves for a consumer's bundler to
+ * tree-shake with, which a `<script>` page loading the same file reads as
+ * comments — the whole cost of one set of chunks rather than one per format. Their whole job is to fail if the
  * terser pass in `vite.config.ts` silently stops running over a chunk, which is
  * otherwise invisible — the chunk still works, it is just three times its size.
  * A chunk with no entry here is not checked; add one when a chunk is added.
@@ -589,7 +609,7 @@ const MAX_CHUNK_GZIP = {
     'av-timeline.js': 3_200,
     'av-sequencer.js': 1_837,
     'av-transcript.js': 2_698,
-    'av-hls.js': 178_022,
+    'av-hls.js': 178_300,
 };
 
 /**
@@ -692,11 +712,22 @@ if (iife !== null) {
         for (const fingerprint of BUNDLED_RUNTIME_FINGERPRINTS) {
             if (chunk.includes(fingerprint)) {
                 failures.push(
-                    `dist/${name} contains "${fingerprint}": a chunk is built ` +
-                        `with nothing external, so a Svelte import inside one ` +
-                        `bundles a second runtime rather than sharing core's.`,
+                    `dist/${name} contains "${fingerprint}": a chunk carries a ` +
+                        `Svelte runtime of its own rather than sharing core's.`,
                 );
             }
+        }
+        // A chunk must resolve to nothing but itself: the same file is fetched
+        // by a `<script>` page, which has no bundler to resolve an import and
+        // no import map to name one with.
+        const imports = chunk.match(IMPORT_STATEMENT) ?? [];
+        if (imports.length > 0) {
+            failures.push(
+                `dist/${name} imports ${imports.join(', ')}: a lazy chunk is ` +
+                    `\`import()\`ed straight from a <script> page, which can ` +
+                    `resolve neither a bare specifier the ES build left ` +
+                    `external nor a sibling chunk only a bundler would load.`,
+            );
         }
     }
 
@@ -710,13 +741,32 @@ if (iife !== null) {
         }
     }
 
-    // Nothing in `dist` may go unaccounted for. Every `.js` there is either the
-    // IIFE entry and a chunk it imports (all inspected below), or the ESM entry
-    // and a chunk it imports (deliberately out of this gate's scope — the ESM
-    // build leaves Svelte external for the consumer's bundler and reads no
-    // globals). A file matching neither is an artifact that ships and that this
-    // script has never opened, which is the one thing a gate must not allow.
+    // One set of chunk files, serving both loaders, so the published tarball
+    // carries each lazy half once — a per-format set would duplicate ~570 KB of
+    // hls.js that no runtime ever loads twice. The two entries must therefore
+    // name the same files, not merely each name some: every check above reads
+    // the chunks its own entry names and so passes over either layout.
     const esmChunks = esm === null ? [] : importedChunks(esm);
+    if (esm !== null) {
+        const onlyEsm = esmChunks.filter((name) => !iifeChunks.includes(name));
+        const onlyIife = iifeChunks.filter((name) => !esmChunks.includes(name));
+        if (onlyEsm.length > 0 || onlyIife.length > 0) {
+            failures.push(
+                `The entries do not share one set of lazy chunks: ` +
+                    `${onlyEsm.length ? `dist/index.js alone imports ${onlyEsm.join(', ')}. ` : ''}` +
+                    `${onlyIife.length ? `dist/iife.js alone imports ${onlyIife.join(', ')}. ` : ''}` +
+                    `Each half of the split then ships twice. The ES build ` +
+                    `emits the chunks under the fixed names in ` +
+                    `\`LAZY_CHUNKS\`, which is what the IIFE fetches by.`,
+            );
+        }
+    }
+
+    // Nothing in `dist` may go unaccounted for. Every `.js` there is an entry or
+    // a chunk an entry imports, all inspected above. A file matching neither is
+    // an artifact that ships and that this script has never opened, which is the
+    // one thing a gate must not allow — a hashed chunk left over from an ES
+    // build whose `chunkFileNames` stopped applying lands here.
     const accounted = new Set([
         'iife.js',
         ...iifeChunks,

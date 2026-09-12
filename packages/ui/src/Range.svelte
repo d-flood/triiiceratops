@@ -61,10 +61,38 @@
         cursor: pointer;
         vertical-align: middle;
         --radius-selector-max: calc(var(--tri-radius-selector) * 3);
-        border-radius: calc(
+        --range-r: calc(
             var(--tri-radius-selector) +
                 min(var(--range-p), var(--radius-selector-max))
         );
+
+        /*
+         * The thumb's depth treatment, the track it paints over itself, and the
+         * progress fill that reaches out of it. Named here rather than at the
+         * two thumb pseudo-elements because `::-webkit-slider-thumb` and
+         * `::-moz-range-thumb` cannot share a selector — a vendor pseudo-element
+         * one engine does not know invalidates the whole list — so the value
+         * would otherwise be written out twice.
+         *
+         * Every property it reads is declared on this element, so the inherited
+         * computed value is the same one each thumb would have resolved.
+         */
+        --range-thumb-shadow:
+            0 -1px oklch(0% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
+            0 8px 0 -4px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
+            0 1px
+                color-mix(
+                    in oklab,
+                    currentColor calc(var(--tri-depth) * 10%),
+                    #0000
+                ),
+            0 0 0 2rem var(--range-thumb) inset,
+            calc(
+                    (var(--range-dir, 1) * -100rem) -
+                        (var(--range-dir, 1) * var(--range-thumb-size) / 2)
+                )
+                0 0 calc(100rem * var(--range-fill));
+        border-radius: var(--range-r);
         width: clamp(3rem, 20rem, 100%);
         height: var(--range-thumb-size);
         background-color: #0000;
@@ -88,10 +116,7 @@
     }
     .range::-webkit-slider-thumb {
         box-sizing: border-box;
-        border-radius: calc(
-            var(--tri-radius-selector) +
-                min(var(--range-p), var(--radius-selector-max))
-        );
+        border-radius: var(--range-r);
         background-color: var(--range-thumb);
         height: var(--range-thumb-size);
         width: var(--range-thumb-size);
@@ -99,21 +124,7 @@
         -webkit-appearance: none;
         appearance: none;
         color: var(--range-progress);
-        box-shadow:
-            0 -1px oklch(0% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
-            0 8px 0 -4px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
-            0 1px
-                color-mix(
-                    in oklab,
-                    currentColor calc(var(--tri-depth) * 10%),
-                    #0000
-                ),
-            0 0 0 2rem var(--range-thumb) inset,
-            calc(
-                    (var(--range-dir, 1) * -100rem) -
-                        (var(--range-dir, 1) * var(--range-thumb-size) / 2)
-                )
-                0 0 calc(100rem * var(--range-fill));
+        box-shadow: var(--range-thumb-shadow);
         position: relative;
         top: 50%;
         transform: translateY(-50%);
@@ -127,29 +138,12 @@
     }
     .range::-moz-range-thumb {
         box-sizing: border-box;
-        border-radius: calc(
-            var(--tri-radius-selector) +
-                min(var(--range-p), var(--radius-selector-max))
-        );
+        border-radius: var(--range-r);
         height: var(--range-thumb-size);
         width: var(--range-thumb-size);
         border: var(--range-p) solid;
         color: var(--range-progress);
-        box-shadow:
-            0 -1px oklch(0% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
-            0 8px 0 -4px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
-            0 1px
-                color-mix(
-                    in oklab,
-                    currentColor calc(var(--tri-depth) * 10%),
-                    #0000
-                ),
-            0 0 0 2rem var(--range-thumb) inset,
-            calc(
-                    (var(--range-dir, 1) * -100rem) -
-                        (var(--range-dir, 1) * var(--range-thumb-size) / 2)
-                )
-                0 0 calc(100rem * var(--range-fill));
+        box-shadow: var(--range-thumb-shadow);
         background-color: currentColor;
         position: relative;
         top: 50%;

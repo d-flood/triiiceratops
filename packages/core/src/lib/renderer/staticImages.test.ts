@@ -1,34 +1,58 @@
 // @vitest-environment node
 //
-// No DOM: the browser enters through `loadImage`, which is the point of the
-// module — every ordering invariant below is asserted here rather than only
-// reachable through Playwright.
+// No DOM: the only browser thing this module touches is the `<img>` it builds,
+// so a stubbed global `Image` that lands by hand puts every ordering invariant
+// below in an ordinary unit test rather than only in Playwright.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createStaticImages, type ImageLoader } from './staticImages';
-import { createStaticImageFailures } from './staticImageFailures';
+import { createStaticImages } from './staticImages';
+import { staticImageFailures } from './staticImageFailures';
 import type { StaticImageDraw } from './types';
 
 function draw(key: string, canvasId: string, url: string): StaticImageDraw {
     return { key, canvasId, url } as StaticImageDraw;
 }
 
-/** A loader that hands back resolvers so a test lands requests by hand. */
+/**
+ * Stub `Image` with one that hands back its own load and error callbacks, so a
+ * test lands each request when it chooses — which is the only way to hold a
+ * request open across a reconciliation.
+ *
+ * The image handed to `onLoad` is the element itself, so {@link heldUrl} is
+ * how an assertion tells one landed request from another.
+ */
 function deferredLoader() {
     const pending: {
         url: string;
-        land: (image?: unknown) => void;
+        land: () => void;
         fail: () => void;
     }[] = [];
-    const loadImage: ImageLoader = (url, { onLoad, onError }) => {
-        pending.push({
-            url,
-            land: (image = { url }) => onLoad(image as CanvasImageSource),
-            fail: onError,
-        });
-    };
-    return { loadImage, pending };
+
+    vi.stubGlobal(
+        'Image',
+        class {
+            onload: (() => void) | null = null;
+            onerror: (() => void) | null = null;
+            decoding = 'auto';
+            url = '';
+            set src(url: string) {
+                this.url = url;
+                pending.push({
+                    url,
+                    land: () => this.onload?.(),
+                    fail: () => this.onerror?.(),
+                });
+            }
+        },
+    );
+
+    return { pending };
+}
+
+/** The URL of the image held for a placement — see {@link deferredLoader}. */
+function heldUrl(image: unknown): string {
+    return (image as { url: string }).url;
 }
 
 describe('createStaticImages', () => {
@@ -40,12 +64,18 @@ describe('createStaticImages', () => {
         onCanvasError = vi.fn<(canvasId: string) => void>();
         onCanvasErrorCleared = vi.fn<(canvasId: string) => void>();
         onChanged = vi.fn<() => void>();
+        // The negative cache is page-shared and module-scoped, which is the
+        // lifetime that makes re-entering a canvas free. Each case starts from
+        // the mount state the host puts it in.
+        staticImageFailures.retryAll();
     });
 
-    function build(loadImage: ImageLoader) {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    function build() {
         return createStaticImages({
-            loadImage,
-            failures: createStaticImageFailures(),
             onCanvasError,
             onCanvasErrorCleared,
             onChanged,
@@ -53,8 +83,8 @@ describe('createStaticImages', () => {
     }
 
     it('requests what is wanted and holds it once decoded', () => {
-        const { loadImage, pending } = deferredLoader();
-        const residency = build(loadImage);
+        const { pending } = deferredLoader();
+        const residency = build();
 
         residency.reconcile([draw('k1', 'c1', 'https://ex/a.jpg')]);
         expect(pending).toHaveLength(1);
@@ -62,13 +92,13 @@ describe('createStaticImages', () => {
 
         pending[0].land();
         expect(residency.has('k1')).toBe(true);
-        expect(residency.images['k1']).toEqual({ url: 'https://ex/a.jpg' });
+        expect(heldUrl(residency.images['k1'])).toBe('https://ex/a.jpg');
         expect(onChanged).toHaveBeenCalledOnce();
     });
 
     it('joins an in-flight request for the same URL rather than restarting it', () => {
-        const { loadImage, pending } = deferredLoader();
-        const residency = build(loadImage);
+        const { pending } = deferredLoader();
+        const residency = build();
         const wanted = [draw('k1', 'c1', 'https://ex/a.jpg')];
 
         residency.reconcile(wanted);
@@ -79,8 +109,8 @@ describe('createStaticImages', () => {
     });
 
     it('holds one image per placement, not per canvas', () => {
-        const { loadImage, pending } = deferredLoader();
-        const residency = build(loadImage);
+        const { pending } = deferredLoader();
+        const residency = build();
 
         // IIIF Cookbook 0036: a miniature painted over a folio, one canvas.
         residency.reconcile([
@@ -95,8 +125,8 @@ describe('createStaticImages', () => {
     });
 
     it('drops the pixels the moment a Choice supersedes them', () => {
-        const { loadImage, pending } = deferredLoader();
-        const residency = build(loadImage);
+        const { pending } = deferredLoader();
+        const residency = build();
 
         residency.reconcile([draw('k1', 'c1', 'https://ex/colour.jpg')]);
         pending[0].land();
@@ -111,8 +141,8 @@ describe('createStaticImages', () => {
     });
 
     it('discards a load that lands after its URL stopped being wanted', () => {
-        const { loadImage, pending } = deferredLoader();
-        const residency = build(loadImage);
+        const { pending } = deferredLoader();
+        const residency = build();
 
         residency.reconcile([draw('k1', 'c1', 'https://ex/colour.jpg')]);
         residency.reconcile([draw('k1', 'c1', 'https://ex/infrared.jpg')]);
@@ -121,14 +151,12 @@ describe('createStaticImages', () => {
         expect(residency.has('k1')).toBe(false);
 
         pending[1].land();
-        expect(residency.images['k1']).toEqual({
-            url: 'https://ex/infrared.jpg',
-        });
+        expect(heldUrl(residency.images['k1'])).toBe('https://ex/infrared.jpg');
     });
 
     it('drops anything held for a placement the plan no longer wants', () => {
-        const { loadImage, pending } = deferredLoader();
-        const residency = build(loadImage);
+        const { pending } = deferredLoader();
+        const residency = build();
 
         residency.reconcile([draw('k1', 'c1', 'https://ex/a.jpg')]);
         pending[0].land();
@@ -141,8 +169,8 @@ describe('createStaticImages', () => {
 
     describe('failures', () => {
         it('records the canvas error and stops asking again', () => {
-            const { loadImage, pending } = deferredLoader();
-            const residency = build(loadImage);
+            const { pending } = deferredLoader();
+            const residency = build();
 
             residency.reconcile([draw('k1', 'c1', 'https://ex/404.jpg')]);
             pending[0].fail();
@@ -156,17 +184,9 @@ describe('createStaticImages', () => {
         });
 
         it('refuses a request for a URL that already failed this page', () => {
-            const { loadImage, pending } = deferredLoader();
-            const failures = createStaticImageFailures();
-            failures.record('https://ex/404.jpg');
-
-            const residency = createStaticImages({
-                loadImage,
-                failures,
-                onCanvasError,
-                onCanvasErrorCleared,
-                onChanged,
-            });
+            const { pending } = deferredLoader();
+            staticImageFailures.record('https://ex/404.jpg');
+            const residency = build();
 
             residency.reconcile([draw('k1', 'c1', 'https://ex/404.jpg')]);
 
@@ -175,15 +195,8 @@ describe('createStaticImages', () => {
         });
 
         it('remembers a failure across eviction, so re-entry does not refetch', () => {
-            const { loadImage, pending } = deferredLoader();
-            const failures = createStaticImageFailures();
-            const residency = createStaticImages({
-                loadImage,
-                failures,
-                onCanvasError,
-                onCanvasErrorCleared,
-                onChanged,
-            });
+            const { pending } = deferredLoader();
+            const residency = build();
 
             residency.reconcile([draw('k1', 'c1', 'https://ex/404.jpg')]);
             pending[0].fail();
@@ -199,15 +212,8 @@ describe('createStaticImages', () => {
         });
 
         it('records the failure against the URL even when the placement moved on', () => {
-            const { loadImage, pending } = deferredLoader();
-            const failures = createStaticImageFailures();
-            const residency = createStaticImages({
-                loadImage,
-                failures,
-                onCanvasError,
-                onCanvasErrorCleared,
-                onChanged,
-            });
+            const { pending } = deferredLoader();
+            const residency = build();
 
             residency.reconcile([draw('k1', 'c1', 'https://ex/bad.jpg')]);
             // Reader switches Choice away while the request is in flight.
@@ -217,13 +223,13 @@ describe('createStaticImages', () => {
             // The canvas is not blamed — that request is no longer the one
             // being made — but the URL is remembered.
             expect(onCanvasError).not.toHaveBeenCalled();
-            expect(failures.has('https://ex/bad.jpg')).toBe(true);
+            expect(staticImageFailures.has('https://ex/bad.jpg')).toBe(true);
         });
     });
 
     it('clears everything, discarding in-flight loads', () => {
-        const { loadImage, pending } = deferredLoader();
-        const residency = build(loadImage);
+        const { pending } = deferredLoader();
+        const residency = build();
 
         residency.reconcile([
             draw('k1', 'c1', 'https://ex/a.jpg'),

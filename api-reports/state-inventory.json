@@ -1,8 +1,8 @@
 {
     "count": 87,
     "byClassification": {
-        "command": 39,
-        "observable": 14,
+        "command": 37,
+        "observable": 16,
         "internal": 30,
         "query-only": 4
     },
@@ -179,17 +179,13 @@
         },
         {
             "member": "isGalleryDockedBottom",
-            "classification": "command",
-            "commands": [
-                "setDockSide"
-            ]
+            "classification": "observable",
+            "commands": null
         },
         {
             "member": "isGalleryDockedRight",
-            "classification": "command",
-            "commands": [
-                "setDockSide"
-            ]
+            "classification": "observable",
+            "commands": null
         },
         {
             "member": "isSearching",

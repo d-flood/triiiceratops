@@ -14,7 +14,7 @@ import type { SearchHit, SearchResultGroup } from '../types/config/search';
 import { bodyText } from './annotationAdapter';
 import { getCanvasLabel } from './canvasLabels';
 import { segmentHighlights } from './highlightSegments';
-import { getCanvasId } from './iiifIds';
+import { getCanvasId, getResourceId } from './iiifIds';
 import { asArray } from './iiifParsing';
 import { normalizeIiifTargets } from './iiifTargets';
 
@@ -91,7 +91,7 @@ export function discoverSearchService(
     ];
     for (const [service, version] of resolved) {
         if (service) {
-            return { version, serviceId: service.id || service['@id'] };
+            return { version, serviceId: getResourceId(service) ?? '' };
         }
     }
 
@@ -190,10 +190,8 @@ function parseLegacy(
     if (data?.hits) {
         const resourcesById = new Map<string, any>();
         for (const resource of resources) {
-            for (const id of [resource['@id'], resource.id]) {
-                if (id && !resourcesById.has(id))
-                    resourcesById.set(id, resource);
-            }
+            const id = getResourceId(resource);
+            if (id && !resourcesById.has(id)) resourcesById.set(id, resource);
         }
 
         for (const hit of data.hits) {
@@ -287,7 +285,7 @@ function parseV2(
         );
         if (canvasIndex < 0) continue;
 
-        const context = contextMap.get(item.id || item['@id']);
+        const context = contextMap.get(getResourceId(item) ?? '');
         group(canvasIndex).hits.push(
             context
                 ? { type: 'hit', ...context, bounds, allBounds }

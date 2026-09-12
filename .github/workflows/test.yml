@@ -52,8 +52,8 @@ jobs:
     #
     # `build:all` runs first because `pnpm check` type-checks each package
     # against its dependencies' built `.d.ts` (the workspace is "type-checked
-    # through the build"), and the coverage run imports the compiled paraglide +
-    # generated modules produced by the build.
+    # through the build"), and the coverage run imports the generated modules
+    # produced by the build.
     quality:
         # Ticket 32: run the quality gates on every supported Node release (22
         # and 24) so a Node-version incompatibility in the build tooling surfaces

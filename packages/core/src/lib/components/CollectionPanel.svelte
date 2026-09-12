@@ -35,12 +35,12 @@
 {#if viewerState.showCollectionPanel}
     <div
         data-panel-id="collection"
-        class="panel"
+        class="tri-panel"
         role="dialog"
         aria-label={m.collection_title()}
     >
         {#if collectionLabel || collectionThumbnail}
-            <div class="panel-header-embedded">
+            <div class="panel-header-embedded tri-panel-bar">
                 <div class="embedded-row">
                     {#if collectionThumbnail}
                         <img
@@ -64,7 +64,7 @@
         {/if}
 
         <!-- Manifest Count -->
-        <div class="count-bar">
+        <div class="count-bar tri-panel-bar">
             <div class="count-text">
                 {m.collection_items_count({ count: items.length })}
             </div>
@@ -75,7 +75,7 @@
             {#each items as item, i (item.id)}
                 {@const isActive = item.id === currentManifestId}
                 <button
-                    class="item"
+                    class="item tri-panel-row"
                     class:active={isActive}
                     onclick={() => {
                         if (item.type === 'Manifest') {
@@ -121,7 +121,7 @@
                     </div>
                 </button>
             {:else}
-                <div class="empty">
+                <div class="tri-panel-empty">
                     {m.collection_empty()}
                 </div>
             {/each}
@@ -130,20 +130,6 @@
 {/if}
 
 <style>
-    .panel {
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
-    .panel-header-embedded {
-        padding: 1rem;
-        border-bottom: 1px solid var(--tri-surface-border);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-input-bg) 50%,
-            transparent
-        );
-    }
     .embedded-row {
         display: flex;
         align-items: flex-start;
@@ -174,13 +160,6 @@
     }
 
     .count-bar {
-        padding: 1rem;
-        border-bottom: 1px solid var(--tri-surface-border);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-input-bg) 50%,
-            transparent
-        );
         display: flex;
         align-items: center;
     }
@@ -195,23 +174,6 @@
         padding: 0;
         display: flex;
         flex-direction: column;
-    }
-    .items > * + * {
-        border-top: 1px solid var(--tri-surface-border);
-    }
-    .item {
-        width: 100%;
-        text-align: left;
-        padding: 1rem;
-        transition-property:
-            color, background-color, border-color, text-decoration-color, fill,
-            stroke;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 150ms;
-        cursor: pointer;
-        display: flex;
-        gap: 0.75rem;
-        align-items: flex-start;
     }
     .item.active {
         background-color: color-mix(
@@ -269,13 +231,5 @@
         font-size: 0.75rem;
         line-height: 1rem;
         opacity: 0.5;
-    }
-
-    .empty {
-        padding: 2rem;
-        text-align: center;
-        opacity: 0.5;
-        font-size: 0.875rem;
-        line-height: 1.25rem;
     }
 </style>

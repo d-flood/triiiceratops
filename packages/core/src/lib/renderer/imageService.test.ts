@@ -3,14 +3,62 @@
  * Image-service metadata: what `info.json` parses to, and that it is fetched
  * once, ever.
  *
- * Node environment, and a fake fetch — the cache's decisions (dedupe, the
- * permanent failure entry, the separate lifetime from decoded pixels) are
- * ordinary data decisions and need no browser to assert.
+ * Node environment, with `fetch` and `Image` stubbed per test — the cache's
+ * decisions (dedupe, the permanent failure entry, the separate lifetime from
+ * decoded pixels) are ordinary data decisions and need no browser to assert.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createImageServiceCache, parseImageService } from './imageService';
+import { METADATA_IN_FLIGHT_LIMIT } from './rendererDefaults';
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
+
+/**
+ * Stub the global `fetch` with a responder stated as the status and document
+ * the cache will see, and answer with the spy that records the URLs asked for.
+ */
+function stubFetch(
+    respond: (url: string) => Promise<{ status: number; json: unknown }>,
+) {
+    const fetchJson = vi.fn(respond);
+    vi.stubGlobal('fetch', async (url: string) => {
+        const { status, json } = await fetchJson(url);
+        return { ok: status < 400, status, json: async () => json };
+    });
+    return fetchJson;
+}
+
+/**
+ * Stub the global `Image` the whole-image probe measures through: `raster` is
+ * what it decodes to, or `null` for an image that will not decode at all.
+ * Answers with the spy that records the URLs probed.
+ */
+function stubImage(raster: { width: number; height: number } | null) {
+    const measureImage = vi.fn((_url: string) => {});
+    vi.stubGlobal(
+        'Image',
+        class {
+            onload: (() => void) | null = null;
+            onerror: (() => void) | null = null;
+            naturalWidth = raster?.width ?? 0;
+            naturalHeight = raster?.height ?? 0;
+            set src(url: string) {
+                measureImage(url);
+                // A decode is asynchronous, and the probe is awaited inside the
+                // concurrency slot: settling synchronously here would hide any
+                // ordering the cache depends on.
+                queueMicrotask(() =>
+                    raster ? this.onload?.() : this.onerror?.(),
+                );
+            }
+        },
+    );
+    return measureImage;
+}
 
 const SERVICE = 'https://images.test/abc';
 
@@ -101,19 +149,11 @@ describe('createImageServiceCache', () => {
     function cacheWith(
         respond: (url: string) => Promise<{ status: number; json: unknown }>,
     ) {
-        const fetchJson = vi.fn(respond);
-        return { cache: createImageServiceCache({ fetchJson }), fetchJson };
+        const fetchJson = stubFetch(respond);
+        return { cache: createImageServiceCache(), fetchJson };
     }
 
     const ok = async () => ({ status: 200, json: LEVEL2_V3 });
-
-    function createBoundedCache(maxEntries: number) {
-        const fetchJson = vi.fn(ok);
-        return {
-            cache: createImageServiceCache({ fetchJson, maxEntries }),
-            fetchJson,
-        };
-    }
 
     it('fetches info.json from the service id', async () => {
         const { cache, fetchJson } = cacheWith(ok);
@@ -258,14 +298,19 @@ describe('createImageServiceCache', () => {
     });
 
     it('bounds what it holds: it is page-shared and nothing else evicts it', async () => {
-        const { cache } = createBoundedCache(2);
+        // The ceiling is a fixed 512 entries, so one past it is the only way
+        // to ask.
+        const { cache } = cacheWith(ok);
+        const services = Array.from(
+            { length: 513 },
+            (_, index) => `https://images.test/${index}`,
+        );
 
-        await cache.ensure('https://images.test/a');
-        await cache.ensure('https://images.test/b');
-        await cache.ensure('https://images.test/c');
+        for (const service of services) await cache.ensure(service);
 
-        expect(cache.get('https://images.test/a')).toBeUndefined();
-        expect(cache.get('https://images.test/c')).toBeDefined();
+        expect(cache.get(services[0])).toBeUndefined();
+        expect(cache.get(services[1])).toBeDefined();
+        expect(cache.get(services[512])).toBeDefined();
     });
 
     it('keeps services apart', async () => {
@@ -280,26 +325,27 @@ describe('createImageServiceCache', () => {
     describe('the bounded in-flight window', () => {
         /**
          * A fetch that never settles on its own, so the number of calls made IS
-         * the number outstanding.
+         * the number outstanding. The cap is the shipped
+         * `METADATA_IN_FLIGHT_LIMIT`, which every case below is stated against
+         * rather than against a literal.
          */
-        function blockingCache(maxConcurrent: number) {
-            const release: Array<() => void> = [];
-            const fetchJson = vi.fn(
+        function blockingCache() {
+            const release: Array<(status?: number) => void> = [];
+            const fetchJson = stubFetch(
                 () =>
                     new Promise<{ status: number; json: unknown }>(
                         (resolve) => {
-                            release.push(() =>
-                                resolve({ status: 200, json: LEVEL2_V3 }),
+                            release.push((status = 200) =>
+                                resolve({
+                                    status,
+                                    json: status < 400 ? LEVEL2_V3 : null,
+                                }),
                             );
                         },
                     ),
             );
 
-            return {
-                cache: createImageServiceCache({ fetchJson, maxConcurrent }),
-                fetchJson,
-                release,
-            };
+            return { cache: createImageServiceCache(), fetchJson, release };
         }
 
         const services = (count: number) =>
@@ -312,35 +358,43 @@ describe('createImageServiceCache', () => {
             // uncapped, the first frame after a flick settles starts fifty
             // simultaneous requests — a fetch storm, one frame later rather
             // than not at all.
-            const { cache, fetchJson, release } = blockingCache(6);
+            const { cache, fetchJson, release } = blockingCache();
 
             for (const service of services(50)) void cache.ensure(service);
             await Promise.resolve();
 
-            expect(fetchJson).toHaveBeenCalledTimes(6);
+            expect(fetchJson).toHaveBeenCalledTimes(METADATA_IN_FLIGHT_LIMIT);
 
             // A slot freed admits exactly one more.
             release[0]();
-            await vi.waitFor(() => expect(fetchJson).toHaveBeenCalledTimes(7));
+            await vi.waitFor(() =>
+                expect(fetchJson).toHaveBeenCalledTimes(
+                    METADATA_IN_FLIGHT_LIMIT + 1,
+                ),
+            );
         });
 
         it('drains the queue in the order it was asked, which is centre-out', async () => {
             // The planner emits its list ordered by distance from the viewport
             // centre and re-emits it every frame, so FIFO here is the priority
             // the reader cares about.
-            const { cache, fetchJson, release } = blockingCache(1);
+            const { cache, fetchJson, release } = blockingCache();
 
-            for (const service of services(3)) void cache.ensure(service);
+            // One more than the window holds, so the last one is queued.
+            const asked = services(METADATA_IN_FLIGHT_LIMIT + 2);
+            for (const service of asked) void cache.ensure(service);
             await Promise.resolve();
 
+            // The window filled in the order asked, so the last one started is
+            // the last one it had room for.
             expect(fetchJson).toHaveBeenLastCalledWith(
-                `${SERVICE}/0/info.json`,
+                `${asked[METADATA_IN_FLIGHT_LIMIT - 1]}/info.json`,
             );
 
             release[0]();
             await vi.waitFor(() =>
                 expect(fetchJson).toHaveBeenLastCalledWith(
-                    `${SERVICE}/1/info.json`,
+                    `${asked[METADATA_IN_FLIGHT_LIMIT]}/info.json`,
                 ),
             );
         });
@@ -350,46 +404,48 @@ describe('createImageServiceCache', () => {
             // service waiting for a slot must join the pending promise exactly
             // as an in-flight one does, or sixty frames of waiting would become
             // sixty queue entries.
-            const { cache, fetchJson, release } = blockingCache(1);
+            const { cache, fetchJson, release } = blockingCache();
 
-            const first = cache.ensure(`${SERVICE}/a`);
+            // The window filled first, so `/b` can only be waiting.
+            for (const service of services(METADATA_IN_FLIGHT_LIMIT)) {
+                void cache.ensure(service);
+            }
             void cache.ensure(`${SERVICE}/b`);
             const again = cache.ensure(`${SERVICE}/b`);
             void cache.ensure(`${SERVICE}/b`);
+            await Promise.resolve();
+            expect(fetchJson).toHaveBeenCalledTimes(METADATA_IN_FLIGHT_LIMIT);
 
             release[0]();
-            await first;
-            await vi.waitFor(() => expect(fetchJson).toHaveBeenCalledTimes(2));
+            await vi.waitFor(() =>
+                expect(fetchJson).toHaveBeenCalledTimes(
+                    METADATA_IN_FLIGHT_LIMIT + 1,
+                ),
+            );
 
-            release[1]();
+            release[METADATA_IN_FLIGHT_LIMIT]();
             await expect(again).resolves.toMatchObject({ width: 4096 });
-            expect(fetchJson).toHaveBeenCalledTimes(2);
+            // Three frames asked for `/b`; one request answered all of them.
+            expect(fetchJson).toHaveBeenCalledTimes(
+                METADATA_IN_FLIGHT_LIMIT + 1,
+            );
         });
 
         it('frees its slot when a service fails, so one bad server cannot stall the queue', async () => {
-            const release: Array<(status: number) => void> = [];
-            const fetchJson = vi.fn(
-                () =>
-                    new Promise<{ status: number; json: unknown }>(
-                        (resolve) => {
-                            release.push((status) =>
-                                resolve({ status, json: null }),
-                            );
-                        },
-                    ),
-            );
-            const cache = createImageServiceCache({
-                fetchJson,
-                maxConcurrent: 1,
-            });
+            const { cache, fetchJson, release } = blockingCache();
 
-            void cache.ensure(`${SERVICE}/a`);
-            void cache.ensure(`${SERVICE}/b`);
+            for (const service of services(METADATA_IN_FLIGHT_LIMIT + 1)) {
+                void cache.ensure(service);
+            }
             await Promise.resolve();
-            expect(fetchJson).toHaveBeenCalledTimes(1);
+            expect(fetchJson).toHaveBeenCalledTimes(METADATA_IN_FLIGHT_LIMIT);
 
             release[0](500);
-            await vi.waitFor(() => expect(fetchJson).toHaveBeenCalledTimes(2));
+            await vi.waitFor(() =>
+                expect(fetchJson).toHaveBeenCalledTimes(
+                    METADATA_IN_FLIGHT_LIMIT + 1,
+                ),
+            );
         });
     });
 });
@@ -420,13 +476,10 @@ describe('dimensions the service will not honour', () => {
         raster: { width: number; height: number } | null,
         json: unknown = LYING,
     ) {
-        const measureImage = vi.fn(async () => raster);
+        stubFetch(async () => ({ status: 200, json }));
         return {
-            cache: createImageServiceCache({
-                fetchJson: async () => ({ status: 200, json }),
-                measureImage,
-            }),
-            measureImage,
+            cache: createImageServiceCache(),
+            measureImage: stubImage(raster),
         };
     }
 

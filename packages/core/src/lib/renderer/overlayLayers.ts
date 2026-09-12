@@ -29,10 +29,10 @@
  *
  * This is structurally the paint-layer registry minus its canvas-space maths and
  * minus ordering, and that similarity is intentional — one idiom to learn for
- * both. It is nonetheless a **separate module that does not import that one**,
- * so a change to canvas-space maths or to `PaintFrame` cannot ripple into a DOM
- * registry, and vice versa. The small overlap is duplicated on purpose; do not
- * "de-duplicate" it by importing across.
+ * both. The bookkeeping the two share comes from `utils/ownedRegistry.ts`; the
+ * contracts do not, and this module still **does not import the paint one**, so
+ * a change to canvas-space maths or to `PaintFrame` cannot ripple into a DOM
+ * registry, and vice versa.
  *
  * **There is no `order` field, and adding one would be a mistake.** Cross-plugin
  * ordering cannot be coordinated — a plugin cannot know what value another chose
@@ -57,6 +57,7 @@
  * (`docs/adr/0016-overlay-layers-are-dom-and-the-paint-hook-stays.md`).
  */
 
+import { createOwnedRegistry } from '../utils/ownedRegistry.js';
 import type { PluginMountThunk } from '../types/plugin.js';
 
 /** A layer, as a plugin registers it. */
@@ -150,107 +151,20 @@ export function createOverlayLayerRegistry(options?: {
      */
     isKnownPlugin?: (pluginId: string) => boolean;
 }): OverlayLayerRegistry {
-    // A plain Set, deliberately not a `SvelteSet`: the reactive signal is the
-    // `onChange` callback, which viewer state turns into exactly one state
-    // write. A reactive collection here would additionally wake the batched
-    // state watcher for every internal read the rebuild does.
-    const held = new Set<RegisteredOverlayLayer>();
-    let snapshot: readonly RegisteredOverlayLayer[] = [];
-
-    function rebuild(): void {
-        snapshot = Object.freeze([...held]);
-        options?.onChange?.();
-    }
-
-    /**
-     * Drop every matching record and announce once.
-     *
-     * The same path a returned dispose takes — leaving the list is what makes the
-     * render site remove the container and run the layer's mount cleanup — so a
-     * layer released here and then released again by its own dispose tears down
-     * exactly once.
-     */
-    function disposeWhere(matches: (id: string) => boolean): void {
-        let removed = false;
-        for (const layer of [...held]) {
-            if (!matches(layer.id)) continue;
-            held.delete(layer);
-            removed = true;
-        }
-        if (removed) rebuild();
-    }
+    const registry = createOwnedRegistry<OverlayLayer, RegisteredOverlayLayer>({
+        name: 'registerOverlayLayer',
+        shape: 'an { id, mount } layer: a non-empty string id and a mount function',
+        validate: (layer) => typeof layer?.mount === 'function',
+        project: (layer, id) => ({ id, mount: layer.mount }),
+        ...options,
+    });
 
     return {
         get layers() {
-            return snapshot;
+            return registry.snapshot;
         },
-
-        disposeOwnedBy(pluginId: string): void {
-            const prefix = `${pluginId}:`;
-            // The trailing colon is load-bearing: without it, unregistering
-            // `notes` would also evict `notes-extra`'s layers.
-            disposeWhere((id) => id.startsWith(prefix));
-        },
-
-        disposeAll(): void {
-            disposeWhere(() => true);
-        },
-
-        register(layer: OverlayLayer): () => void {
-            const id = typeof layer?.id === 'string' ? layer.id.trim() : '';
-            if (!id || typeof layer?.mount !== 'function') {
-                options?.onRefused?.(
-                    'registerOverlayLayer needs an { id, mount } layer: a non-empty string id and a mount function.',
-                );
-                return () => {};
-            }
-
-            // The prefix is everything before the FIRST colon, so a `<name>`
-            // containing one is the plugin's business. An id with no colon has
-            // no prefix, which no plugin id matches, so it lands here too.
-            const separator = id.indexOf(':');
-            const owner = separator > 0 ? id.slice(0, separator) : '';
-            if (options?.isKnownPlugin && !options.isKnownPlugin(owner)) {
-                // Loud at development time rather than a leak later: an id core
-                // cannot attribute is an id core cannot release when its plugin
-                // goes away.
-                options?.onRefused?.(
-                    `registerOverlayLayer ignored the layer id "${id}": an id must be \`<pluginId>:<name>\` naming a plugin of this viewer, so the layer is released when that plugin is.`,
-                );
-                return () => {};
-            }
-
-            // Refused rather than allowed to shadow. Two reasons, and the
-            // second is load-bearing: the id names this layer in a refusal
-            // report, and it is also the render site's key — two containers
-            // under one key is a duplicate-key error in a keyed `{#each}`, so a
-            // second registration under a taken name would take the whole
-            // overlay down rather than merely being confusing.
-            for (const existing of held) {
-                if (existing.id === id) {
-                    options?.onRefused?.(
-                        `registerOverlayLayer ignored a second layer with id "${id}"; ids are unique within a viewer.`,
-                    );
-                    return () => {};
-                }
-            }
-
-            const registered: RegisteredOverlayLayer = {
-                id,
-                mount: layer.mount,
-            };
-            held.add(registered);
-            rebuild();
-
-            // Idempotent, and keyed on the record still being held rather than on
-            // a "released" flag of its own: a layer already dropped by
-            // `disposeOwnedBy` must make this a no-op too, so a plugin that both
-            // releases its layer and is unregistered does not announce a second,
-            // empty change.
-            return () => {
-                if (!held.delete(registered)) return;
-                rebuild();
-            };
-        },
+        register: (layer) => registry.register(layer),
+        disposeOwnedBy: (pluginId) => registry.disposeOwnedBy(pluginId),
+        disposeAll: () => registry.disposeAll(),
     };
 }

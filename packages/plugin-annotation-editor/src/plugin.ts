@@ -21,6 +21,7 @@ import {
 
 import { catalog } from './catalog';
 import { ICON } from './icons';
+import { PLUGIN_META } from './identity';
 import { mountAnnotationEditor } from './mount.svelte';
 import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
 import { ALL_TOOLS } from './tools';
@@ -54,10 +55,10 @@ export function createAnnotationEditorPlugin(
     };
 
     return definePlugin({
-        name: '@triiiceratops/plugin-annotation-editor',
+        name: PLUGIN_META.name,
         title: 'annotation_editor_title',
         uiId: 'annotation-editor',
-        version: '1.0.0-rc.0',
+        version: PLUGIN_META.version,
         // The first core carrying `registerOverlayLayer`, which the drawing
         // layer's container is registered through. No `requiredCapabilities`:
         // overlay layers are not in core's capability list because core treats

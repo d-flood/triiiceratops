@@ -167,9 +167,9 @@
     is the only role NVDA and JAWS pass arrows through — so it stays. The price
     is that any non-canvas descendant becomes unreadable in browse mode:
     ordinary text, a heading, an error message, a list of annotations would all
-    be skipped over. Ticket 12's per-canvas error layer IS such a child — it is
-    the `.error-layer` below, and it carries `role="document"` for exactly this
-    reason. Each such child must either carry `role="document"` (which restores
+    be skipped over. Ticket 12's per-canvas placeholder layer IS such a child — it
+    is the `.placeholder-layer` below, and it carries `role="document"` for
+    exactly this reason. Each such child must either carry `role="document"` (which restores
     browse mode for its own subtree) or be hoisted OUT of this element and
     rendered as a sibling. Recorded in lint-allowlist.md entry 7.
 
@@ -213,8 +213,20 @@
     ></canvas>
 
     <!--
-        The per-canvas error layer: one placeholder over the layout rect of each
-        canvas that failed, and nothing at all when none did.
+        The per-canvas placeholder layer: one box over the layout rect of each
+        canvas that has no pixels to show, and nothing at all when every canvas
+        does.
+
+        THREE kinds through one layer, and the union is not a flattening. A
+        canvas that failed carries a retry, a negative-cache entry and an
+        error-channel event, and its message says whether logging in would help;
+        an **unsupported presentation** means core never asked, because the
+        canvas holds a sound recording or a film (CONTEXT.md; ADR 0017) — not a
+        failure, nothing to retry, and the canvas keeps its rect, its place in
+        navigation and its place in the thumbnail strip. What the reader MEETS is
+        the same thing either way: one box over one page, in reading order,
+        saying what is there. A canvas can be at most one of them, because an
+        unsupported canvas issues no request and so can never acquire an error.
 
         DOM rather than painted pixels, per ticket 14's rule — a message the reader
         must perceive needs an accessible name, and painted text has none.
@@ -229,32 +241,36 @@
         over the surface, and a reader must still be able to pan and zoom the page
         the failed folio is sitting next to.
     -->
-    {#if renderer.errorLayer.length > 0}
-        <div class="error-layer" role="document">
-            {#each renderer.errorLayer as placement (placement.canvasId)}
+    {#if renderer.placeholders.length > 0}
+        <div class="placeholder-layer" role="document">
+            {#each renderer.placeholders as placement (placement.canvasId)}
+                {@const failed = placement.kind !== 'unsupported'}
                 <div
-                    class="canvas-error"
+                    class:canvas-error={failed}
                     class:canvas-error-auth={placement.kind === 'auth'}
-                    data-testid="canvas-error-placeholder"
+                    class:canvas-unsupported={!failed}
+                    data-testid={failed
+                        ? 'canvas-error-placeholder'
+                        : 'canvas-unsupported-placeholder'}
                     data-canvas-id={placement.canvasId}
-                    data-error-kind={placement.kind}
+                    data-error-kind={failed ? placement.kind : undefined}
                     role="img"
-                    aria-label={renderer.errorLabel(placement.kind)}
+                    aria-label={renderer.placeholderLabel(placement.kind)}
                     style:left="{placement.left}px"
                     style:top="{placement.top}px"
                     style:width="{placement.width}px"
                     style:height="{placement.height}px"
                 >
                     <!--
-                        The VISIBLE message, centred in the part of the failed
-                        canvas that is actually on screen rather than in the
-                        canvas rect — see `CanvasErrorPlacement`. Zoomed into a
-                        failed folio (the ceiling is 128x home) the rect is many
-                        times the viewport, and a label centred in it is centred
-                        on a point nobody can see: a sighted reader gets a flat
-                        fill and no message while the accessible name goes on
-                        being correct. Positioned relative to the placeholder,
-                        which is this element, hence the offsets.
+                        The VISIBLE message, centred in the part of the canvas
+                        that is actually on screen rather than in the canvas
+                        rect — see `CanvasPlacement`. Zoomed into a failed folio
+                        (the ceiling is 128x home) the rect is many times the
+                        viewport, and a label centred in it is centred on a point
+                        nobody can see: a sighted reader gets a flat fill and no
+                        message while the accessible name goes on being correct.
+                        Positioned relative to the placeholder, which is this
+                        element, hence the offsets.
 
                         Omitted entirely below a minimum box, because a clipped
                         fragment of one glyph reads as a rendering bug rather
@@ -269,62 +285,16 @@
                     {#if placement.labelled}
                         <span
                             class="canvas-placeholder-text"
-                            data-testid="canvas-error-label"
+                            data-testid={failed
+                                ? 'canvas-error-label'
+                                : 'canvas-unsupported-label'}
                             aria-hidden="true"
                             style:left="{placement.labelLeft -
                                 placement.left}px"
                             style:top="{placement.labelTop - placement.top}px"
                             style:width="{placement.labelWidth}px"
                             style:height="{placement.labelHeight}px"
-                            >{renderer.errorLabel(placement.kind)}</span
-                        >
-                    {/if}
-                </div>
-            {/each}
-        </div>
-    {/if}
-
-    <!--
-        The unsupported presentation: one honest placeholder over the layout rect
-        of each canvas whose painting bodies core cannot render — a sound
-        recording, a film — and nothing at all on an image manifest.
-
-        A SEPARATE layer from the error one, because it is not an error
-        (CONTEXT.md → Unsupported presentation). Nothing failed, nothing was
-        fetched, and there is nothing to retry; the manifest simply describes
-        content this viewer does not display, and the canvas keeps its rect, its
-        place in navigation and its place in the thumbnail strip. The two layers
-        never overlap: an unsupported canvas issues no request, so it can never
-        acquire an error.
-
-        `role="document"` and `pointer-events: none` for the same two reasons the
-        error layer carries them — see the notes above it.
-    -->
-    {#if renderer.unsupportedLayer.length > 0}
-        <div class="unsupported-layer" role="document">
-            {#each renderer.unsupportedLayer as placement (placement.canvasId)}
-                <div
-                    class="canvas-unsupported"
-                    data-testid="canvas-unsupported-placeholder"
-                    data-canvas-id={placement.canvasId}
-                    role="img"
-                    aria-label={renderer.unsupportedLabel()}
-                    style:left="{placement.left}px"
-                    style:top="{placement.top}px"
-                    style:width="{placement.width}px"
-                    style:height="{placement.height}px"
-                >
-                    {#if placement.labelled}
-                        <span
-                            class="canvas-placeholder-text"
-                            data-testid="canvas-unsupported-label"
-                            aria-hidden="true"
-                            style:left="{placement.labelLeft -
-                                placement.left}px"
-                            style:top="{placement.labelTop - placement.top}px"
-                            style:width="{placement.labelWidth}px"
-                            style:height="{placement.labelHeight}px"
-                            >{renderer.unsupportedLabel()}</span
+                            >{renderer.placeholderLabel(placement.kind)}</span
                         >
                     {/if}
                 </div>
@@ -362,13 +332,12 @@
     }
 
     /*
-     * The error layer covers the surface and takes no input: the placeholders are
-     * positioned in surface coordinates by the frame loop, and the reader must
-     * still be able to pan and zoom from anywhere on the surface — including from
-     * over a folio that failed.
+     * The placeholder layer covers the surface and takes no input: the
+     * placeholders are positioned in surface coordinates by the frame loop, and
+     * the reader must still be able to pan and zoom from anywhere on the
+     * surface — including from over a folio that failed.
      */
-    .error-layer,
-    .unsupported-layer {
+    .placeholder-layer {
         position: absolute;
         inset: 0;
         pointer-events: none;
@@ -379,8 +348,8 @@
     }
 
     /*
-     * One placeholder, filling the failed canvas's layout rect exactly — which is
-     * what makes it read as "this page", rather than as a message about the viewer.
+     * One placeholder, filling its canvas's layout rect exactly — which is what
+     * makes it read as "this page", rather than as a message about the viewer.
      *
      * Theme tokens throughout, like the rest of the surface: the placeholder sits
      * among the working pages and has to belong to the same picture.

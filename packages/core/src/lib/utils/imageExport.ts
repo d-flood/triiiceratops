@@ -8,9 +8,6 @@ import {
     buildSizeLadder,
     isLevel0Profile,
     ladderFromPyramid,
-    rungUrl,
-    type LadderRung,
-    type SizeLadder,
 } from '../renderer/sizeLadder';
 import {
     buildPyramid,
@@ -298,7 +295,7 @@ export function isLevel0ImageService(profile: unknown): boolean {
  * {@link level0RungUrl}.
  */
 type Level0Export = {
-    ladder: SizeLadder;
+    ladder: TilePyramid;
     /** Non-null exactly when the service advertises a tile grid. */
     pyramid: TilePyramid | null;
 };
@@ -361,13 +358,13 @@ async function resolveLevel0Export(
  */
 function level0RungUrl(
     { ladder, pyramid }: Level0Export,
-    rung: LadderRung,
+    rung: PyramidLevel,
 ): string | null {
-    if (!pyramid) return rungUrl(ladder, rung);
+    if (!pyramid) return tileUrl(ladder, rung, 0, 0);
 
     const isFullSize =
         rung.width === ladder.width && rung.height === ladder.height;
-    return isFullSize ? rungUrl(ladder, rung) : null;
+    return isFullSize ? tileUrl(ladder, rung, 0, 0) : null;
 }
 
 /** Whether `composeImages` can hold an image this large. */
@@ -382,7 +379,7 @@ function canCompose(width: number, height: number): boolean {
 /** Whether an export can produce this rung at all, by either route. */
 function isRungExportable(
     source: Level0Export,
-    rung: LadderRung,
+    rung: PyramidLevel,
     level: PyramidLevel | undefined,
 ): boolean {
     if (level0RungUrl(source, rung)) return true;
@@ -437,8 +434,8 @@ async function composePyramidLevel(
  * available when none is big enough. With no width asked for, the largest —
  * "Original".
  */
-function pickRung(ladder: SizeLadder, width?: number): LadderRung {
-    const rungs = ladder.rungs;
+function pickRung(ladder: TilePyramid, width?: number): PyramidLevel {
+    const rungs = ladder.levels;
     const largest = rungs[rungs.length - 1];
     if (!width) return largest;
     return rungs.find((rung) => rung.width >= width) ?? largest;
@@ -455,14 +452,14 @@ async function fetchLevel0Blob(
     const url = level0RungUrl(source, rung);
     if (url) return fetchImageBlob(url, imageRequest);
 
-    const level = pyramid?.levels[rung.index];
+    const level = pyramid?.levels[rung.level];
     // A level too large to stitch onto one canvas falls back to the full-size
     // whole image, which is a single request and always exists. That is more
     // pixels than were asked for, never fewer, so a caller drawing it into a
     // placement box still gets the right picture.
     if (!level || !canCompose(rung.width, rung.height)) {
         return fetchImageBlob(
-            rungUrl(ladder, ladder.rungs[ladder.rungs.length - 1]),
+            tileUrl(ladder, ladder.levels[ladder.levels.length - 1], 0, 0),
             imageRequest,
         );
     }
@@ -543,14 +540,14 @@ async function resolveLevel0SizeOptions(
     const seen = new Set<string>();
     const options: ExportSizeOption[] = [];
 
-    for (const rung of ladder.rungs) {
+    for (const rung of ladder.levels) {
         const key = `${rung.width}x${rung.height}`;
         if (seen.has(key)) continue;
         seen.add(key);
 
         // Only offer what can actually be delivered. A picker listing a
         // resolution the service will not answer is worse than a shorter list.
-        if (!isRungExportable(source, rung, pyramid?.levels[rung.index])) {
+        if (!isRungExportable(source, rung, pyramid?.levels[rung.level])) {
             continue;
         }
 

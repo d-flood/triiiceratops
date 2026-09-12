@@ -22,9 +22,8 @@ Rules:
   setting. A project-wide `--compiler-warnings <code>:ignore` is allowed only
   when a per-line ignore is impossible (e.g. compiler directives) and only one
   file can emit the code.
-- Generated code (`packages/core/src/lib/generated/`,
-  `packages/core/src/lib/paraglide/`, `packages/core/src/paraglide/`) is
-  excluded from eslint and prettier **via config**, and is not an entry here.
+- Generated code (`packages/core/src/lib/generated/`) is excluded from eslint
+  and prettier **via config**, and is not an entry here.
 
 ---
 
@@ -182,11 +181,16 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   (`GetViewerTileSourcesParams` → `VisibleViewerCanvasesParams`) and lost the
   `getSelectedChoice` member that only the deleted function took, so the signature
   no longer spells an `Omit`; its `any[]` return is unchanged.
+  **2026-09-11 (`lean-core-and-host-supplied-locales` ticket 06):** ONE line
+  REWRITTEN, none added or removed. `registerManifest(manifestId, json: any)`
+  became synchronous, so the allowlisted line's return type reads `void` where it
+  read `Promise<void>`. The `any` is the same raw-manifest JSON at the same
+  boundary; only the signature the gate keys on moved.
 - **Behavior test / gate:** `scripts/check-public-api.mjs` (run via
   `pnpm api:check` in required CI) — fails the build on any non-allowlisted
   public `any`.
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
-- **Recorded:** 2026-07-19 · **Updated:** 2026-09-05 · **Review by:** 2027-01-19
+- **Recorded:** 2026-07-19 · **Updated:** 2026-09-11 · **Review by:** 2027-01-19
 
 ### 5. `@ts-expect-error` (TS2307) — `packages/core/src/lib/framework/registration.ts`
 
@@ -283,9 +287,10 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   descendant must therefore either carry `role="document"` (restoring browse
   mode for its own subtree) or be hoisted out and rendered as a sibling;
   otherwise its text becomes unreadable to NVDA and JAWS users. Ticket 12's
-  per-canvas error layer is the first such descendant and satisfies the
+  per-canvas placeholder layer is the first such descendant and satisfies the
   constraint the first way: it is a `role="document"` wrapper inside
-  `.renderer-root` holding one labelled placeholder per failed canvas. Ticket
+  `.renderer-root` holding one labelled placeholder per canvas that has no
+  pixels to show — one that failed, or one core cannot render at all. Ticket
   14's annotation shape overlay resolved it the OTHER way, and is the reason both
   ways are named here: every editable annotation is a focusable `<button>` with an
   accessible name, so nesting the layer under `role="application"` would have hidden
@@ -328,6 +333,9 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
       inside one call.
     - `packages/core/src/lib/state/viewer.svelte.ts` — `frameListeners`, the same
       listener set on the state side.
+    - `packages/core/src/lib/state/i18n.svelte.ts` — `attempted`, the per-viewer
+      chrome-catalog loader gate (written before a load starts so nothing asks
+      twice; no render depends on it).
     - `packages/core/src/lib/state/manifests.svelte.ts` — `inFlightAnnotationLists`
       (the in-flight annotation-list guard, which nothing renders from) and two
       function-local scratch lookups: `canvasById` in `getStructureSequences` and

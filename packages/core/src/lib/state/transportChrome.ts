@@ -38,11 +38,10 @@
  *
  * This is structurally `renderer/overlayLayers.ts` — the same ownership rule,
  * the same idempotent dispose, the same frozen snapshot — and that similarity
- * is intentional: one idiom to learn for both. It is nonetheless a **separate
- * module that does not import that one**, so a change to the DOM-container
- * lifecycle cannot ripple into a view-model registry, and vice versa. The small
- * overlap is duplicated on purpose; do not "de-duplicate" it by importing
- * across.
+ * is intentional: one idiom to learn for both. The bookkeeping the two share
+ * comes from `utils/ownedRegistry.ts`; the contracts do not, and this module
+ * still **does not import that one**, so a change to the DOM-container
+ * lifecycle cannot ripple into a view-model registry, and vice versa.
  *
  * **There is no `order` field, and adding one would be a mistake**, for the
  * reason the overlay-layer registry gives: cross-plugin ordering cannot be
@@ -52,6 +51,7 @@
  * honest outcome for a slot that cannot hold two.
  */
 
+import { createOwnedRegistry } from '../utils/ownedRegistry.js';
 import type { IconDescriptor } from '../types/plugin.js';
 
 /** The pictures this medium's controls wear. */
@@ -229,96 +229,33 @@ export function createTransportChromeRegistry(options?: {
      */
     isKnownPlugin?: (pluginId: string) => boolean;
 }): TransportChromeRegistry {
-    // A plain Set, deliberately not a `SvelteSet`: the reactive signal is the
-    // `onChange` callback, which viewer state turns into exactly one state
-    // write.
-    const held = new Set<RegisteredTransportChrome>();
-    let snapshot: readonly RegisteredTransportChrome[] = [];
-
-    function rebuild(): void {
-        snapshot = Object.freeze([...held]);
-        options?.onChange?.();
-    }
-
-    function disposeWhere(matches: (id: string) => boolean): void {
-        let removed = false;
-        for (const entry of [...held]) {
-            if (!matches(entry.id)) continue;
-            held.delete(entry);
-            removed = true;
-        }
-        if (removed) rebuild();
-    }
+    const registry = createOwnedRegistry<
+        TransportChrome,
+        RegisteredTransportChrome
+    >({
+        name: 'registerTransportChrome',
+        shape: 'an { id, icons, view, port, subscribe } chrome: a non-empty string id, an icon set, a view function, a command port and a subscribe function',
+        validate: (chrome) =>
+            typeof chrome?.view === 'function' &&
+            typeof chrome?.subscribe === 'function' &&
+            !!chrome?.port &&
+            !!chrome?.icons,
+        project: (chrome, id) => ({
+            id,
+            icons: chrome.icons,
+            view: chrome.view,
+            port: chrome.port,
+            subscribe: chrome.subscribe,
+        }),
+        ...options,
+    });
 
     return {
         get entries() {
-            return snapshot;
+            return registry.snapshot;
         },
-
-        disposeOwnedBy(pluginId: string): void {
-            const prefix = `${pluginId}:`;
-            // The trailing colon is load-bearing: without it, unregistering
-            // `notes` would also evict `notes-extra`'s chrome.
-            disposeWhere((id) => id.startsWith(prefix));
-        },
-
-        disposeAll(): void {
-            disposeWhere(() => true);
-        },
-
-        register(chrome: TransportChrome): () => void {
-            const id = typeof chrome?.id === 'string' ? chrome.id.trim() : '';
-            if (
-                !id ||
-                typeof chrome?.view !== 'function' ||
-                typeof chrome?.subscribe !== 'function' ||
-                !chrome?.port ||
-                !chrome?.icons
-            ) {
-                options?.onRefused?.(
-                    'registerTransportChrome needs an { id, icons, view, port, subscribe } chrome: a non-empty string id, an icon set, a view function, a command port and a subscribe function.',
-                );
-                return () => {};
-            }
-
-            // The prefix is everything before the FIRST colon, so a `<name>`
-            // containing one is the plugin's business. An id with no colon has
-            // no prefix, which no plugin id matches, so it lands here too.
-            const separator = id.indexOf(':');
-            const owner = separator > 0 ? id.slice(0, separator) : '';
-            if (options?.isKnownPlugin && !options.isKnownPlugin(owner)) {
-                options?.onRefused?.(
-                    `registerTransportChrome ignored the chrome id "${id}": an id must be \`<pluginId>:<name>\` naming a plugin of this viewer, so the chrome is released when that plugin is.`,
-                );
-                return () => {};
-            }
-
-            for (const existing of held) {
-                if (existing.id === id) {
-                    options?.onRefused?.(
-                        `registerTransportChrome ignored a second chrome with id "${id}"; ids are unique within a viewer.`,
-                    );
-                    return () => {};
-                }
-            }
-
-            const registered: RegisteredTransportChrome = {
-                id,
-                icons: chrome.icons,
-                view: chrome.view,
-                port: chrome.port,
-                subscribe: chrome.subscribe,
-            };
-            held.add(registered);
-            rebuild();
-
-            // Idempotent, and keyed on the record still being held rather than
-            // on a "released" flag of its own: chrome already dropped by
-            // `disposeOwnedBy` must make this a no-op too.
-            return () => {
-                if (!held.delete(registered)) return;
-                rebuild();
-            };
-        },
+        register: (chrome) => registry.register(chrome),
+        disposeOwnedBy: (pluginId) => registry.disposeOwnedBy(pluginId),
+        disposeAll: () => registry.disposeAll(),
     };
 }

@@ -17,15 +17,9 @@
     } from './galleryGeometry';
 
     // Canvases crossing the viewer boundary are raw IIIF Canvas JSON, v2 or v3
-    // as the manifest authored it — `id` in v3, `@id` in v2. The accessor- and
-    // `__jsonld`-shaped service/resource/annotation types this block used to
-    // declare described the removed library's objects and nothing else.
-    type ManifestCanvas =
-        | {
-              id?: string;
-              ['@id']?: string;
-          }
-        | any;
+    // as the manifest authored it. Read them through the version-neutral
+    // helpers — `getCanvasId`, `getCanvasLabel` — rather than by spelling.
+    type ManifestCanvas = any;
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
@@ -253,14 +247,16 @@
         return () => window.removeEventListener('keydown', onKeydown);
     });
 
+    type Thumb = (typeof thumbnails)[number];
+
     // One entry per thumbnail button: a paged pair, or a single canvas. Every
-    // viewing mode produces these, so the strip has one rendering path.
+    // viewing mode produces these, so the strip has one rendering path. `index`
+    // is the first thumb's canvas index, so the nth pane's displayed number is
+    // `index + 1 + n`.
     type ThumbnailGroup = {
         id: string;
-        labels: string[];
-        srcs: string[];
-        unsupported: boolean[];
         index: number;
+        thumbs: Thumb[];
         hasChoice: boolean;
     };
 
@@ -275,10 +271,8 @@
             return thumbs.map(
                 (thumb): ThumbnailGroup => ({
                     id: thumb.id,
-                    labels: [thumb.label],
-                    srcs: [thumb.src],
-                    unsupported: [thumb.unsupported],
                     index: thumb.index,
+                    thumbs: [thumb],
                     hasChoice: thumb.hasChoice,
                 }),
             );
@@ -296,25 +290,13 @@
                 pagedGroup.endIndex > pagedGroup.startIndex
                     ? thumbs[i + 1]
                     : null;
-            const groupId = first.id;
-            const groupLabels = [first.label];
-            const groupSrcs = [first.src];
-            const groupUnsupported = [first.unsupported];
-            if (second) {
-                groupLabels.push(second.label);
-                groupSrcs.push(second.src);
-                groupUnsupported.push(second.unsupported);
-            }
-            const groupHasChoice =
-                first.hasChoice || (second ? second.hasChoice : false);
+            const groupThumbs = second ? [first, second] : [first];
 
             groups.push({
-                id: groupId,
-                labels: groupLabels,
-                srcs: groupSrcs,
-                unsupported: groupUnsupported,
+                id: first.id,
                 index: i,
-                hasChoice: groupHasChoice,
+                thumbs: groupThumbs,
+                hasChoice: groupThumbs.some((thumb) => thumb.hasChoice),
             });
         }
         return groups;
@@ -412,18 +394,10 @@
                 ]}
             >
                 {#each groupedThumbnails as thumbGroup (thumbGroup.id)}
-                    {@const isGroupSelected = (() => {
-                        const idx = thumbGroup.index;
-                        const first = thumbnails[idx];
-                        const second =
-                            thumbGroup.srcs.length > 1
-                                ? thumbnails[idx + 1]
-                                : null;
-                        return (
-                            viewerState.canvasId === first?.id ||
-                            (second && viewerState.canvasId === second.id)
-                        );
-                    })()}
+                    {@const thumbs = thumbGroup.thumbs}
+                    {@const isGroupSelected = thumbs.some(
+                        (thumb) => thumb.id === viewerState.canvasId,
+                    )}
                     <button
                         class={['thumb-item', isGroupSelected && 'selected']}
                         style={isHorizontal
@@ -431,84 +405,63 @@
                             : undefined}
                         onclick={() => selectCanvas(thumbGroup.id)}
                         data-id={thumbGroup.id}
-                        aria-label="Select canvas {thumbGroup.labels.join(
-                            ' / ',
-                        )}"
+                        aria-label="Select canvas {thumbs
+                            .map((thumb) => thumb.label)
+                            .join(' / ')}"
                     >
                         <div
                             class={[
                                 'thumb-frame',
                                 isRTL && 'frame-rtl',
-                                thumbGroup.srcs.length > 1 && 'frame-paged',
+                                thumbs.length > 1 && 'frame-paged',
                             ]}
                         >
-                            <div class="thumb-pane">
-                                {#if thumbGroup.srcs[0]}
-                                    <img
-                                        src={thumbGroup.srcs[0]}
-                                        alt={thumbGroup.labels[0]}
-                                        class="thumb-img"
-                                        loading="lazy"
-                                        draggable="false"
-                                    />
-                                {:else}
-                                    {@render noThumbnail(
-                                        thumbGroup.unsupported[0],
-                                    )}
-                                {/if}
-                            </div>
-                            {#if thumbGroup.srcs.length > 1}
+                            {#each thumbs as thumb (thumb.id)}
                                 <div class="thumb-pane">
-                                    {#if thumbGroup.srcs[1]}
+                                    {#if thumb.src}
                                         <img
-                                            src={thumbGroup.srcs[1]}
-                                            alt={thumbGroup.labels[1]}
+                                            src={thumb.src}
+                                            alt={thumb.label}
                                             class="thumb-img"
                                             loading="lazy"
                                             draggable="false"
                                         />
                                     {:else}
-                                        {@render noThumbnail(
-                                            thumbGroup.unsupported[1],
-                                        )}
+                                        {@render noThumbnail(thumb.unsupported)}
                                     {/if}
                                 </div>
-                            {/if}
+                            {/each}
                         </div>
                         <div
                             class="thumb-label"
-                            title="{thumbGroup.index + 1}. {thumbGroup
-                                .labels[0]}{thumbGroup.labels.length > 1
-                                ? ` / ${thumbGroup.index + 2}. ${thumbGroup.labels[1]}`
-                                : ''}"
+                            title={thumbs
+                                .map(
+                                    (thumb, pane) =>
+                                        `${thumbGroup.index + 1 + pane}. ${thumb.label}`,
+                                )
+                                .join(' / ')}
                         >
                             <div
                                 class={[
                                     'label-stack',
-                                    thumbGroup.labels.length > 1 &&
-                                        'label-overlay',
+                                    thumbs.length > 1 && 'label-overlay',
                                 ]}
                             >
-                                <div class="label-line">
-                                    <span class="label-num"
-                                        >{thumbGroup.index + 1}.</span
-                                    >{thumbGroup
-                                        .labels[0]}{#if thumbGroup.hasChoice && thumbGroup.labels.length === 1}<span
-                                            class="choice-badge"
-                                            title="Has choices/layers"
-                                            ><Icon
-                                                name="Stack"
-                                                size={12}
-                                                class="choice-icon"
-                                            /></span
-                                        >{/if}
-                                </div>
-                                {#if thumbGroup.labels.length > 1}
+                                <!-- The choice badge marks the SECOND line of a
+                                     pair, or the only line of a single page —
+                                     never the first of two, where it would
+                                     collide with the second line overlaid on
+                                     it. -->
+                                {#each thumbs as thumb, pane (thumb.id)}
+                                    {@const badge =
+                                        thumbGroup.hasChoice &&
+                                        (pane === 1 || thumbs.length === 1)}
                                     <div class="label-line">
                                         <span class="label-num"
-                                            >{thumbGroup.index + 2}.</span
-                                        >{thumbGroup
-                                            .labels[1]}{#if thumbGroup.hasChoice}<span
+                                            >{thumbGroup.index +
+                                                1 +
+                                                pane}.</span
+                                        >{thumb.label}{#if badge}<span
                                                 class="choice-badge"
                                                 title="Has choices/layers"
                                                 ><Icon
@@ -518,7 +471,7 @@
                                                 /></span
                                             >{/if}
                                     </div>
-                                {/if}
+                                {/each}
                             </div>
                         </div>
                     </button>
@@ -544,16 +497,14 @@
         z-index: 50;
         width: 100%;
         height: 100%;
-        box-shadow:
-            0 20px 25px -5px #0000001a,
-            0 8px 10px -6px #0000001a;
+        box-shadow: var(--ui-shadow-xl);
         border-color: var(--tri-surface-border);
         /* Named rather than `all`: `all` animated the root's padding too, which
            opened from zero on every dock change and shifted the whole strip while
            the transition caught up. Only the colours and shadow were ever meant to
            move. */
         transition-property: background-color, border-color, box-shadow;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-timing-function: var(--ui-ease);
         transition-duration: 0.2s;
     }
     .gallery-root.dock-horizontal {
@@ -618,18 +569,14 @@
         padding: 0;
         cursor: pointer;
         color: var(--tri-toolbar-content);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-toolbar-bg) 70%,
-            transparent
-        );
+        background-color: var(--ui-glass-bg);
         backdrop-filter: blur(8px);
         border-width: var(--tri-border);
         border-style: solid;
         border-color: var(--tri-surface-border);
         box-shadow: var(--ui-chrome-shadow, none);
         transition-property: color, background-color, border-color;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-timing-function: var(--ui-ease);
         transition-duration: 0.15s;
     }
     .expand-toggle:hover,
@@ -806,10 +753,8 @@
         text-align: left;
         position: relative;
         flex-shrink: 0;
-        transition-property:
-            color, background-color, border-color, text-decoration-color, fill,
-            stroke;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-property: color, background-color, border-color;
+        transition-timing-function: var(--ui-ease);
         transition-duration: 0.15s;
     }
     .thumb-item:hover {
@@ -973,11 +918,7 @@
     .label-stack.label-overlay {
         padding: 0 0.125rem;
         border-radius: 0.25rem;
-        background-color: color-mix(
-            in oklab,
-            var(--tri-toolbar-bg) 70%,
-            transparent
-        );
+        background-color: var(--ui-glass-bg);
         backdrop-filter: blur(8px);
     }
     .label-line {

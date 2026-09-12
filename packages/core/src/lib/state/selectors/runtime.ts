@@ -35,6 +35,7 @@
  * selected value.
  */
 
+import { once } from '../../utils/once.js';
 import { isDebugEnabled, logger } from '../../logging/logger.js';
 import type { Selector } from '../../types/plugin.js';
 import type { ViewerState } from '../viewer.svelte.js';
@@ -326,7 +327,7 @@ export function createSelectorRuntime<S extends SelectorSource>(
                 if (probe.readViewport) {
                     warnedViewportRead = true;
                     logger.warn(
-                        `A \`state\`-cadence selector read \`${probe.readViewport}\`. The viewport's scale, centre, and bounds are query-only state: they change every frame and deliberately never wake the batched state watcher, so such a projection appears frozen. Pass \`cadence: 'frame'\` to wake it from the renderer's own animation events instead. (Reading \`rendererReady\` at \`state\` cadence is correct — that one is an inventoried observable member.)`,
+                        `A \`state\`-cadence selector read query-only \`${probe.readViewport}\`, so it will appear frozen. Pass \`cadence: 'frame'\`.`,
                     );
                 }
                 return probe.value;
@@ -391,13 +392,10 @@ export function createSelectorRuntime<S extends SelectorSource>(
                 if (disposed) return () => {};
                 listeners.add(listener);
                 syncFrameTicker();
-                let released = false;
-                return () => {
-                    if (released) return;
-                    released = true;
+                return once(() => {
                     listeners.delete(listener);
                     syncFrameTicker();
-                };
+                });
             },
         };
     }
@@ -447,14 +445,13 @@ export function createSelectorRuntime<S extends SelectorSource>(
     return {
         selectors,
         createProjection,
-        dispose() {
-            if (disposed) return;
+        dispose: once(() => {
             disposed = true;
             stateListeners.clear();
             frameListeners.clear();
             syncFrameTicker();
             unsubscribe();
-        },
+        }),
     };
 }
 

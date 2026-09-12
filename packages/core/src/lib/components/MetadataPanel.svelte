@@ -40,7 +40,7 @@
 {#if viewerState.showMetadataPanel}
     <div
         data-panel-id="metadata"
-        class="panel"
+        class="tri-panel"
         role="dialog"
         aria-label={m.metadata()}
     >
@@ -220,12 +220,6 @@
 {/if}
 
 <style>
-    .panel {
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
-
     .body {
         padding: 1rem;
     }

@@ -17,6 +17,7 @@
      */
     import { setContext } from 'svelte';
 
+    import { getAnnotationId } from '../utils/iiifIds';
     import { VIEWER_STATE_KEY } from '../state/viewer.svelte';
     import AnnotationShapeOverlay from './AnnotationShapeOverlay.svelte';
 
@@ -154,7 +155,7 @@
             return new Set(
                 Object.values(byCanvas)
                     .flat()
-                    .map((anno: any) => anno.id ?? anno['@id']),
+                    .map((anno: any) => getAnnotationId(anno)),
             );
         },
         annotationEditBus: {

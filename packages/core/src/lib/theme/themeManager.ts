@@ -4,8 +4,7 @@
 
 import type { ThemeConfig, BuiltInTheme } from './types';
 import { BUILTIN_THEMES } from './types';
-import { normalizeColor } from './colorUtils';
-import { CSS_VAR_MAP, COLOR_PROPS } from './cssVarMap';
+import { CSS_VAR_MAP } from './cssVarMap';
 
 /**
  * Attribute used to record the raw CSS variables a `cssVars` config applied, so a
@@ -33,6 +32,10 @@ export function applyBuiltInTheme(
 /**
  * Apply custom theme configuration as CSS custom properties on an element.
  * These override the base theme's values.
+ *
+ * Values are applied exactly as the author wrote them: every rule consumes the
+ * tokens through `color-mix(in oklab, …)`, which accepts any colour syntax, so
+ * reading a token back gives the host its own string.
  */
 export function applyThemeConfig(
     element: HTMLElement,
@@ -52,22 +55,14 @@ export function applyThemeConfig(
         // Handle the raw escape hatch separately
         if (propKey === 'cssVars') continue;
 
-        const cssVar = CSS_VAR_MAP[propKey];
-        if (!cssVar) continue;
+        const token = CSS_VAR_MAP[propKey];
+        if (!token) continue;
 
-        let cssValue = String(value);
-
-        // Convert colors to oklch format
-        if (COLOR_PROPS.has(propKey)) {
-            cssValue = normalizeColor(cssValue);
-        }
-
-        element.style.setProperty(cssVar, cssValue);
+        element.style.setProperty(token.cssVar, String(value));
     }
 
     // Apply raw CSS-variable overrides (e.g. per-panel overrides on plugin panels).
-    // Values are used verbatim (no oklch normalization). Record the names so a later
-    // clear can remove exactly these.
+    // Record the names so a later clear can remove exactly these.
     if (config.cssVars) {
         const applied: string[] = [];
         for (const [name, value] of Object.entries(config.cssVars)) {
@@ -86,11 +81,11 @@ export function applyThemeConfig(
  * Clear all custom theme CSS variables from an element
  */
 export function clearThemeConfig(element: HTMLElement): void {
-    for (const [key, cssVar] of Object.entries(CSS_VAR_MAP)) {
+    for (const [key, token] of Object.entries(CSS_VAR_MAP)) {
         if (key === 'colorScheme') {
             element.style.colorScheme = '';
         } else {
-            element.style.removeProperty(cssVar);
+            element.style.removeProperty(token.cssVar);
         }
     }
 

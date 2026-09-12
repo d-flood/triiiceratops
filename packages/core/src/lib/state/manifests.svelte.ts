@@ -1,13 +1,12 @@
-import { SvelteMap } from 'svelte/reactivity';
-
 import type { RequestConfig } from '../types/config';
 import { fetchJson } from '../utils/fetchJson';
+import { getCanvasId, getResourceId } from '../utils/iiifIds';
 import {
     asArray,
     getCanvasesForSequence,
     getSequenceCount as countSequences,
-    toBehaviorList,
 } from '../utils/iiifParsing';
+import { parseStructures } from '../utils/structures';
 import { logger } from '../logging/logger';
 
 /**
@@ -24,7 +23,10 @@ export interface ManifestEntry {
 
 export class ManifestsState {
     manifests: Record<string, ManifestEntry> = $state({});
-    private pendingFetches = new SvelteMap<string, Promise<void>>();
+    // A plain `Map`: these promises are only ever awaited, never read
+    // reactively, so nothing gains from tracking them.
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    private pendingFetches = new Map<string, Promise<void>>();
 
     /**
      * Store a manifest's raw JSON under its id.
@@ -37,10 +39,9 @@ export class ManifestsState {
      * (SPEC → "Failure contract"). Reading the document is every enumerator's
      * job, and each of them is total.
      *
-     * `async` is vestigial — the parse it awaited is gone — but the
-     * `Promise<void>` signature is public and is kept deliberately.
+     * Synchronous, and safe for a caller to keep awaiting.
      */
-    async registerManifest(manifestId: string, json: any): Promise<void> {
+    registerManifest(manifestId: string, json: any): void {
         this.manifests[manifestId] = {
             json,
             isFetching: false,
@@ -74,7 +75,7 @@ export class ManifestsState {
 
         const pendingFetch = (async () => {
             const json = await fetchJson(manifestId, requestConfig);
-            await this.registerManifest(manifestId, json);
+            this.registerManifest(manifestId, json);
         })();
         this.pendingFetches.set(manifestId, pendingFetch);
 
@@ -126,10 +127,10 @@ export class ManifestsState {
                 const data = await response.json();
                 this.manifests[url] = { json: data };
             } else {
-                logger.error(`Failed to fetch annotation list: ${url}`);
+                logger.error(`annotation list failed: ${url}`);
             }
         } catch (e) {
-            logger.error(`Error fetching annotation list: ${url}`, e);
+            logger.error(`annotation list errored: ${url}`, e);
         } finally {
             // Released either way: a failed list must be retryable, and leaving
             // the url marked would make one network blip permanent.
@@ -138,16 +139,14 @@ export class ManifestsState {
     }
 
     private getStructureSequences(manifestId: string): any[][] {
-        const manifestEntry = this.getManifestEntry(manifestId);
-        const manifestJson = manifestEntry?.json;
-        const structures = manifestJson?.structures;
+        const manifestJson = this.getManifestEntry(manifestId)?.json;
 
-        if (!Array.isArray(structures) || !structures.length) {
-            return [];
-        }
-
-        const sequenceRanges = structures.filter((range: any) =>
-            toBehaviorList(range?.behavior).includes('sequence'),
+        // Top-level ranges only, as the sequence picker has always counted
+        // them: `parseStructures` nests a child Range under its parent rather
+        // than returning it here, so a `sequence` marker deeper in the tree
+        // defines no sequence of its own.
+        const sequenceRanges = parseStructures(manifestJson).filter((range) =>
+            range.behaviors.includes('sequence'),
         );
 
         if (!sequenceRanges.length) {
@@ -160,7 +159,7 @@ export class ManifestsState {
         //
         // Plain `Map`: this lookup is built and consumed inside this call and
         // never escapes it, so nothing can observe its mutation. Reactivity
-        // here comes from the `manifests` reads above, which register the
+        // here comes from the `manifests` read above, which registers the
         // dependency on the source JSON.
         // eslint-disable-next-line svelte/prefer-svelte-reactivity
         const canvasById = new Map<string, any>();
@@ -168,7 +167,7 @@ export class ManifestsState {
 
         for (let index = 0; index < sequenceCount; index++) {
             for (const canvas of getCanvasesForSequence(manifestJson, index)) {
-                const canvasId = canvas?.id || canvas?.['@id'];
+                const canvasId = getCanvasId(canvas);
 
                 if (canvasId && !canvasById.has(canvasId)) {
                     canvasById.set(canvasId, canvas);
@@ -177,22 +176,11 @@ export class ManifestsState {
         }
 
         return sequenceRanges
-            .map((range: any) => {
-                const items = Array.isArray(range?.items) ? range.items : [];
-                return items
-                    .map((item: any) => {
-                        const canvasId =
-                            typeof item === 'string'
-                                ? item
-                                : item?.type === 'Canvas' ||
-                                    item?.['@type'] === 'Canvas'
-                                  ? item.id || item['@id']
-                                  : null;
-
-                        return canvasId ? canvasById.get(canvasId) : null;
-                    })
-                    .filter(Boolean);
-            })
+            .map((range) =>
+                range.canvasIds
+                    .map((canvasId) => canvasById.get(canvasId))
+                    .filter(Boolean),
+            )
             .filter((sequence) => sequence.length > 0);
     }
 
@@ -214,8 +202,7 @@ export class ManifestsState {
         const sequenceCount = countSequences(manifestJson);
         for (let index = 0; index < sequenceCount; index++) {
             const canvas = getCanvasesForSequence(manifestJson, index).find(
-                (candidate) =>
-                    (candidate?.id || candidate?.['@id']) === canvasId,
+                (candidate) => getCanvasId(candidate) === canvasId,
             );
             if (canvas) {
                 return canvas;
@@ -233,14 +220,14 @@ export class ManifestsState {
         const ids = new Set<string>();
 
         canvasJson?.otherContent?.forEach((content: any) => {
-            const id = content['@id'] || content.id;
+            const id = getResourceId(content);
             if (id && !content.resources) {
                 ids.add(id);
             }
         });
 
         canvasJson?.annotations?.forEach((content: any) => {
-            const id = content.id || content['@id'];
+            const id = getResourceId(content);
             if (id && !content.items) {
                 ids.add(id);
             }
@@ -254,7 +241,7 @@ export class ManifestsState {
             return true;
         }
 
-        return (content?.id || content?.['@id']) === sourceId;
+        return getResourceId(content) === sourceId;
     }
 
     async ensureCanvasAnnotations(
@@ -341,7 +328,7 @@ export class ManifestsState {
             return {
                 ...annotation,
                 __triiiceratopsCanvas: {
-                    id: canvasJson.id || canvasJson['@id'] || canvasId,
+                    id: getCanvasId(canvasJson) || canvasId,
                     width: canvasJson.width,
                     height: canvasJson.height,
                 },
@@ -364,7 +351,7 @@ export class ManifestsState {
                     return;
                 }
 
-                const id = content['@id'] || content.id;
+                const id = getResourceId(content);
                 const inlineItems = content[inlineField];
                 if (id && !inlineItems) {
                     const externalJson = this.manifests[id]?.json;

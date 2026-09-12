@@ -6,7 +6,7 @@
  * The corpus disagrees about that one URL, so neither spelling can be the only
  * one asked for: the whole-image tile carries the other as its
  * `TileRequest.fallback` and the scheduler learns which one the service holds
- * (see `tilePyramid.tileFallback`).
+ * (see `tilePyramid.tileRequest`).
  *
  * The canonical `full` region is asked first, per Image API 3.0 §4.8. A tree
  * written by `vips dzsave --layout iiif3` — which is what `atomotic/iiif`'s
@@ -25,13 +25,17 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { toPlannerCanvases } from './canvasDescriptors';
 import { createImageServiceCache, parseImageService } from './imageService';
 import { planScene } from './planScene';
-import { buildPyramid, tileFallback, tileUrl } from './tilePyramid';
+import { buildPyramid, tileRequest, tileUrl } from './tilePyramid';
 import type { ImageServiceFacts, PlannerBudgets, Viewport } from './types';
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
 
 const MANIFEST = JSON.parse(
     readFileSync(
@@ -131,7 +135,7 @@ describe('a level0 tile tree that declares tiles and no sizes', () => {
         expect(tileUrl(pyramid, pyramid.levels[0], 0, 0)).toBe(
             `${SERVICE}/full/362,501/0/default.jpg`,
         );
-        expect(tileFallback(pyramid, pyramid.levels[0], 0, 0)).toEqual({
+        expect(tileRequest(pyramid, pyramid.levels[0], 0, 0).fallback).toEqual({
             url: `${SERVICE}/0,0,1446,2004/362,501/0/default.jpg`,
             // The SERVICE, so one 404 answers for every whole-image request it
             // will ever be sent — the base level and the thumbnail tier's rungs.
@@ -142,8 +146,12 @@ describe('a level0 tile tree that declares tiles and no sizes', () => {
     it('offers no fallback for a tile that is not the whole image', () => {
         const pyramid = buildPyramid(SERVICE, facts())!;
 
-        expect(tileFallback(pyramid, pyramid.levels[1], 0, 0)).toBeNull();
-        expect(tileFallback(pyramid, pyramid.levels[2], 2, 3)).toBeNull();
+        expect(
+            tileRequest(pyramid, pyramid.levels[1], 0, 0).fallback,
+        ).toBeNull();
+        expect(
+            tileRequest(pyramid, pyramid.levels[2], 2, 3).fallback,
+        ).toBeNull();
     });
 
     it('offers no fallback for a service that answers arbitrary regions', () => {
@@ -154,7 +162,9 @@ describe('a level0 tile tree that declares tiles and no sizes', () => {
             level0: undefined,
         })!;
 
-        expect(tileFallback(dynamic, dynamic.levels[0], 0, 0)).toBeNull();
+        expect(
+            tileRequest(dynamic, dynamic.levels[0], 0, 0).fallback,
+        ).toBeNull();
     });
 });
 
@@ -169,13 +179,14 @@ describe('a canvas of it that genuinely cannot be rendered', () => {
      * one shape that fails silently.
      */
     it('is reported through the image-service failure the host paints from', async () => {
-        const cache = createImageServiceCache({
-            fetchJson: async () => ({ status: 404, json: null }),
-            maxAttempts: 1,
-        });
+        vi.stubGlobal('fetch', async () => ({ ok: false, status: 404 }));
+        const cache = createImageServiceCache();
 
+        // A 404 is transient, so the attempt allowance has to be spent before
+        // the question closes and the host may paint the placeholder.
         expect(await cache.ensure(SERVICE)).toBeNull();
         expect(cache.failure(SERVICE)).toBe('load');
+        expect(await cache.ensure(SERVICE)).toBeNull();
         expect(cache.spent(SERVICE)).toBe(true);
     });
 

@@ -160,7 +160,7 @@ function emitStateInventory(): void {
 // transcribed into a document and gated against drift.
 function emitCssTokens(): void {
     const keyByVar = new Map(
-        Object.entries(CSS_VAR_MAP).map(([key, cssVar]) => [cssVar, key]),
+        Object.entries(CSS_VAR_MAP).map(([key, token]) => [token.cssVar, key]),
     );
     writeFileSync(
         resolve(OUT, 'css-tokens.json'),

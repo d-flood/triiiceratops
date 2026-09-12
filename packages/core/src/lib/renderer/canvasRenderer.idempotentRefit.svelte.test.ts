@@ -23,7 +23,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
 
 import { createCanvasRenderer } from './canvasRenderer.svelte';
-import { m } from '../paraglide/messages.js';
+import { m } from '../state/i18n.svelte';
 import { ViewerState } from '../state/viewer.svelte';
 import { installViewerSurface } from '../test/utils/mockViewerSurface';
 
@@ -127,9 +127,7 @@ describe('the renderer’s world-refit', () => {
         disposeRoot = $effect.root(() => {
             renderer = createCanvasRenderer({
                 viewerState,
-                messages: m as unknown as Parameters<
-                    typeof createCanvasRenderer
-                >[0]['messages'],
+                messages: m,
                 getRefitSignal: () => signal,
             });
             detach = renderer.mount(root, canvas);

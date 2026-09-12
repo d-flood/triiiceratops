@@ -201,7 +201,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "interface ViewerConfig {\n    // Top-level UI Toggles\n    locale?: string; // Preferred locale for chrome and IIIF language maps (the toolbar's language picker overrides it)\n    showCanvasNav?: boolean; // Default: true\n    viewingMode?: 'individuals' | 'paged' | 'continuous'; // Default: 'individuals'\n    viewingDirection?:\n        | 'left-to-right'\n        | 'right-to-left'\n        | 'top-to-bottom'\n        | 'bottom-to-top';\n    pagedViewOffset?: boolean; // Default: true (Offset paged view by one canvas)\n    preserveCanvasScale?: boolean; // Default: false (Preserve authored IIIF canvas scale in multi-canvas layouts)\n    showZoomControls?: boolean; // Default: true\n    transparentBackground?: boolean; // Default: false\n\n    // Chrome layout\n    controls?: 'split' | 'unified'; // Default: 'split' (toolbar separate vs embedded in nav)\n\n    nav?: {\n        style?: 'docked' | 'floating'; // Default: 'docked' (flush vs inset island)\n        edge?: 'top' | 'bottom'; // Default: 'bottom' (which horizontal edge)\n        align?: 'start' | 'center' | 'end'; // Default: 'center' (alignment along the edge; inert while a plugin registers transport chrome — see below)\n    };\n\n    // Toolbar Settings\n    showToggle?: boolean; // Default: true (Toolbar toggle visible)\n    toolbarOpen?: boolean; // Default: false (Toolbar expanded)\n    openMenu?: 'gallery' | 'viewing-mode' | 'sequence' | 'locale' | 'captions' | null; // Default: null (one flyout of the control bar stands open; `captions` is the transport's caption-track list, the rest are the toolbar's)\n\n    toolbar?: {\n        side?: 'left' | 'right'; // Default: 'left' (which vertical side, split mode)\n        anchor?: 'top' | 'center'; // Default: 'center' (a top anchor claims the top edge)\n        showSearch?: boolean; // Default: true\n        showGallery?: boolean; // Default: true\n        showAnnotations?: boolean; // Default: true\n        showFullscreen?: boolean; // Default: true\n        showInfo?: boolean; // Default: true\n        showViewingMode?: boolean; // Default: true\n        showStructures?: boolean; // Default: true (only visible when manifest has structures)\n        showLocalePicker?: boolean; // Default: true (only visible when the manifest is multilingual)\n        showCollection?: boolean; // Default: true (only visible when a collection is loaded)\n    };\n\n    // Plugin UI Settings (keyed by plugin id — the SDK `uiId`)\n    plugins?: {\n        [pluginId: string]: {\n            visible?: boolean; // Default: true (Toolbar button visible)\n            open?: boolean; // Default: false (Plugin panel open)\n            showCloseButton?: boolean; // Default: true\n            target?: 'panel' | 'flyout'; // Override where the plugin renders\n            // Override the docked panel's position; ignored when target is 'flyout'\n            position?: 'left' | 'right' | 'bottom' | 'overlay';\n        };\n    };\n\n    // Thumbnail Gallery Settings\n    gallery?: {\n        open?: boolean; // Default: false\n        dockPosition?: 'left' | 'right' | 'top' | 'bottom'; // Default: 'bottom'\n        expanded?: boolean; // Default: false (fills the center column as a grid; implies open)\n        size?: number; // Default: 100 (strip height when top/bottom, rail width when left/right)\n    };\n\n    // Sidebar Stack Settings\n    leftPanelWidth?: string; // Default: '320px'\n    rightPanelWidth?: string; // Default: '320px'\n\n    // Search Panel Settings\n    search?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n        query?: string; // Programmatically set search query\n    };\n\n    // Annotations Settings\n    annotations?: {\n        open?: boolean; // Default: false (Sidebar panel, opening also shows annotations)\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n    };\n\n    // Information / Metadata Settings\n    information?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n        showButton?: boolean; // Default: true (canvas info button in the nav bar, shown when the current canvas has metadata)\n    };\n\n    // Structures / Table of Contents Settings\n    structures?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n    };\n\n    // Collection Navigation Settings\n    collection?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n    };\n\n    // Network Requests\n    requests?: {\n        headers?: Record<string, string>; // Extra headers for manifest requests\n        withCredentials?: boolean; // Use cookies/credentials\n    };\n\n    // Renderer tuning — a small, closed set (see \"Renderer tuning\" below)\n    renderer?: {\n        animationTimeConstant?: number;\n        zoomPerClick?: number;\n        zoomPerWheelNotch?: number;\n        minPixelRatio?: number;\n        byteBudget?: number;\n        residencyMargin?: number;\n        pyramidThreshold?: number;\n        boxThreshold?: number;\n    };\n\n    // Opt-in developer diagnostics. When true, viewer diagnostics are logged\n    // through the core logger (prefixed `[triiiceratops]`). Actionable\n    // failures always surface through `viewererror`/`pluginerror` regardless\n    // of this flag.\n    debug?: boolean; // Default: false\n}"
+					"text": "interface ViewerConfig {\n    // Top-level UI Toggles\n    locale?: string; // Preferred locale for chrome and IIIF language maps (the toolbar's language picker overrides it)\n    messages?: Record<string, Record<string, string>>; // Chrome translations by BCP 47 tag, merged over English per key\n    loadMessages?: (locale: string) => Promise<Record<string, string> | undefined>; // Fetch a catalog on demand\n    showCanvasNav?: boolean; // Default: true\n    viewingMode?: 'individuals' | 'paged' | 'continuous'; // Default: 'individuals'\n    viewingDirection?:\n        | 'left-to-right'\n        | 'right-to-left'\n        | 'top-to-bottom'\n        | 'bottom-to-top';\n    pagedViewOffset?: boolean; // Default: true (Offset paged view by one canvas)\n    preserveCanvasScale?: boolean; // Default: false (Preserve authored IIIF canvas scale in multi-canvas layouts)\n    showZoomControls?: boolean; // Default: true\n    transparentBackground?: boolean; // Default: false\n\n    // Chrome layout\n    controls?: 'split' | 'unified'; // Default: 'split' (toolbar separate vs embedded in nav)\n\n    nav?: {\n        style?: 'docked' | 'floating'; // Default: 'docked' (flush vs inset island)\n        edge?: 'top' | 'bottom'; // Default: 'bottom' (which horizontal edge)\n        align?: 'start' | 'center' | 'end'; // Default: 'center' (alignment along the edge; inert while a plugin registers transport chrome — see below)\n    };\n\n    // Toolbar Settings\n    showToggle?: boolean; // Default: true (Toolbar toggle visible)\n    toolbarOpen?: boolean; // Default: false (Toolbar expanded)\n    openMenu?: 'gallery' | 'viewing-mode' | 'sequence' | 'locale' | 'captions' | null; // Default: null (one flyout of the control bar stands open; `captions` is the transport's caption-track list, the rest are the toolbar's)\n\n    toolbar?: {\n        side?: 'left' | 'right'; // Default: 'left' (which vertical side, split mode)\n        anchor?: 'top' | 'center'; // Default: 'center' (a top anchor claims the top edge)\n        showSearch?: boolean; // Default: true\n        showGallery?: boolean; // Default: true\n        showAnnotations?: boolean; // Default: true\n        showFullscreen?: boolean; // Default: true\n        showInfo?: boolean; // Default: true\n        showViewingMode?: boolean; // Default: true\n        showStructures?: boolean; // Default: true (only visible when manifest has structures)\n        showLocalePicker?: boolean; // Default: true (only visible when the manifest is multilingual)\n        showCollection?: boolean; // Default: true (only visible when a collection is loaded)\n    };\n\n    // Plugin UI Settings (keyed by plugin id — the SDK `uiId`)\n    plugins?: {\n        [pluginId: string]: {\n            visible?: boolean; // Default: true (Toolbar button visible)\n            open?: boolean; // Default: false (Plugin panel open)\n            showCloseButton?: boolean; // Default: true\n            target?: 'panel' | 'flyout'; // Override where the plugin renders\n            // Override the docked panel's position; ignored when target is 'flyout'\n            position?: 'left' | 'right' | 'bottom' | 'overlay';\n        };\n    };\n\n    // Thumbnail Gallery Settings\n    gallery?: {\n        open?: boolean; // Default: false\n        dockPosition?: 'left' | 'right' | 'top' | 'bottom'; // Default: 'bottom'\n        expanded?: boolean; // Default: false (fills the center column as a grid; implies open)\n        size?: number; // Default: 100 (strip height when top/bottom, rail width when left/right)\n    };\n\n    // Sidebar Stack Settings\n    leftPanelWidth?: string; // Default: '320px'\n    rightPanelWidth?: string; // Default: '320px'\n\n    // Search Panel Settings\n    search?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n        query?: string; // Programmatically set search query\n    };\n\n    // Annotations Settings\n    annotations?: {\n        open?: boolean; // Default: false (Sidebar panel, opening also shows annotations)\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n    };\n\n    // Information / Metadata Settings\n    information?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n        position?: 'left' | 'right'; // Default: 'right'\n        showButton?: boolean; // Default: true (canvas info button in the nav bar, shown when the current canvas has metadata)\n    };\n\n    // Structures / Table of Contents Settings\n    structures?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n    };\n\n    // Collection Navigation Settings\n    collection?: {\n        open?: boolean; // Default: false\n        showCloseButton?: boolean; // Default: true\n    };\n\n    // Network Requests\n    requests?: {\n        headers?: Record<string, string>; // Extra headers for manifest requests\n        withCredentials?: boolean; // Use cookies/credentials\n    };\n\n    // Renderer tuning — a small, closed set (see \"Renderer tuning\" below)\n    renderer?: {\n        animationTimeConstant?: number;\n        zoomPerClick?: number;\n        zoomPerWheelNotch?: number;\n        minPixelRatio?: number;\n        byteBudget?: number;\n        residencyMargin?: number;\n        pyramidThreshold?: number;\n        boxThreshold?: number;\n    };\n\n    // Opt-in developer diagnostics. When true, viewer diagnostics are logged\n    // through the core logger (prefixed `[triiiceratops]`). Actionable\n    // failures always surface through `viewererror`/`pluginerror` regardless\n    // of this flag.\n    debug?: boolean; // Default: false\n}"
 				}
 			]
 		},
@@ -7042,6 +7042,260 @@
 			"attrs": {
 				"id": "8f5ed340-70a4-47dc-9967-4d82171aec38"
 			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "chrome-translations",
+				"id": "b0556b33-0df4-43ef-bf5c-f897139d7865"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Chrome Translations"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The viewer ships its chrome in English and takes every other language from you. Nothing has to be released for the viewer to speak your readers' language."
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "messages",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a catalog per BCP 47 tag, merged over English "
+				},
+				{
+					"type": "text",
+					"text": "per key",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": a catalog naming three strings translates those three and leaves the rest in English, and an "
+				},
+				{
+					"type": "text",
+					"text": "en",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " entry rewords the viewer's own copy. "
+				},
+				{
+					"type": "text",
+					"text": "loadMessages",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " fetches a catalog for a locale the viewer cannot yet render, so a reader downloads only the language they read in. It is called at most once per locale per viewer — by the toolbar's language picker, by "
+				},
+				{
+					"type": "text",
+					"text": "locale",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", or by the page's own "
+				},
+				{
+					"type": "text",
+					"text": "<html lang>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". While it is pending the chrome renders English and the strings swap in when the catalog arrives; a rejected or empty load leaves the chrome as it is and is reported through "
+				},
+				{
+					"type": "text",
+					"text": "debug",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " diagnostics rather than as a "
+				},
+				{
+					"type": "text",
+					"text": "viewererror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The German catalog the project maintains is published as an importable asset at "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/locales/de.json",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " rather than bundled into the viewer, so a host reading only English pays nothing for it."
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "7d84a682-2147-410e-b54a-a8e2bd1bdaab"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import 'triiiceratops/element/register';\nimport type { LocaleCatalog, TriiiceratopsViewerElement } from 'triiiceratops';\n// The German catalog is published as an asset, not bundled into the viewer:\n// import it only in a host that actually offers German.\nimport de from 'triiiceratops/locales/de.json';\n\n// A full catalog and a partial one: `fr` translates the two strings it names\n// and leaves every other string in English. An empty object declares a locale\n// `loadMessages` can supply — the picker offers it, and the chrome renders\n// English until the catalog lands.\nconst messages: LocaleCatalog = {\n    de,\n    fr: { search: 'Rechercher', close: 'Fermer' },\n    ja: {},\n};\n\nasync function loadMessages(locale: string) {\n    const response = await fetch(`/locales/${locale}.json`);\n    return response.ok\n        ? ((await response.json()) as Record<string, string>)\n        : undefined;\n}\n\nconst el = document.querySelector<TriiiceratopsViewerElement>(\n    'triiiceratops-viewer',\n)!;\nObject.assign(el, { messages, loadMessages });\n// A framework wrapper passes both fields on `config` instead.\n(el as { config?: unknown }).config = { locale: 'de' };\n"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The language picker lists the languages the manifest is authored in plus every locale "
+				},
+				{
+					"type": "text",
+					"text": "messages",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " names — never a locale nothing can supply, so a "
+				},
+				{
+					"type": "text",
+					"text": "loadMessages",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " the host declares no "
+				},
+				{
+					"type": "text",
+					"text": "messages",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " entry for is not offered. The button itself still appears only for a manifest authored in more than one language. In the custom element, "
+				},
+				{
+					"type": "text",
+					"text": "messages",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is also a JSON-valued attribute and property; "
+				},
+				{
+					"type": "text",
+					"text": "loadMessages",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is a property only, because it is a function. Framework wrappers need neither: both fields ride on "
+				},
+				{
+					"type": "text",
+					"text": "config",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			]
 		},
 		{
 			"type": "heading",

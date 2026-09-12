@@ -5,10 +5,13 @@
  */
 
 import type { CanvasRegion } from './contentState';
+import { getReferenceId, getResourceId } from './iiifIds';
+import { toBehaviorList } from './iiifParsing';
 import {
     normalizeIiifTargets,
     parseIiifSelectorTime,
     parseIiifTime,
+    toCanvasRegion,
     type NormalizedIiifTarget,
 } from './iiifTargets';
 import type { IiifTemporalFragment } from './iiifTime';
@@ -68,16 +71,7 @@ function pushCanvasTarget(target: unknown, targets: RangeTargets) {
 
     targets.canvasIds.push(normalized.canvasId);
     targets.canvasTimes.push(targetTime(normalized));
-    targets.canvasRegions.push(
-        normalized.xywh
-            ? {
-                  x: normalized.xywh[0],
-                  y: normalized.xywh[1],
-                  width: normalized.xywh[2],
-                  height: normalized.xywh[3],
-              }
-            : null,
-    );
+    targets.canvasRegions.push(toCanvasRegion(normalized.xywh));
 }
 
 /** A target's media time, from its selectors or from its own id's fragment. */
@@ -89,26 +83,19 @@ function targetTime(target: NormalizedIiifTarget): IiifTemporalFragment | null {
     return target.targetId ? parseIiifTime(target.targetId) : null;
 }
 
-/** Resolve a IIIF label value to a plain string. */
-function resolveLabel(label: any): string {
-    return resolveLanguageValue(label);
-}
-
-function normalizeBehavior(value: unknown): string {
-    return String(value).trim().toLowerCase();
-}
-
-function getBehaviors(resource: any): string[] {
-    const raw = resource?.behavior ?? resource?.viewingHint;
-    if (!raw) return [];
-
-    const behaviors = Array.isArray(raw) ? raw : [raw];
-    return behaviors.map(normalizeBehavior).filter(Boolean);
+/**
+ * A range's display hints. `behavior` is the v3 spelling and `viewingHint` the
+ * v2 one; the v3 spelling wins wherever a document carries both.
+ */
+function getBehaviors(range: any): string[] {
+    return toBehaviorList(range?.behavior ?? range?.viewingHint).filter(
+        Boolean,
+    );
 }
 
 function parseV3Range(range: any, depth: number): StructureNode {
-    const id = range.id || range['@id'] || '';
-    const label = resolveLabel(range.label);
+    const id = getResourceId(range) ?? '';
+    const label = resolveLanguageValue(range.label);
     const behaviors = getBehaviors(range);
     const targets: RangeTargets = {
         canvasIds: [],
@@ -146,8 +133,8 @@ function parseV2Range(
     depth: number,
     allRangesById: Map<string, any>,
 ): StructureNode {
-    const id = range['@id'] || range.id || '';
-    const label = resolveLabel(range.label);
+    const id = getResourceId(range) ?? '';
+    const label = resolveLanguageValue(range.label);
     const behaviors = getBehaviors(range);
     const targets: RangeTargets = {
         canvasIds: [],
@@ -158,10 +145,7 @@ function parseV2Range(
 
     if (Array.isArray(range.canvases)) {
         for (const c of range.canvases) {
-            pushCanvasTarget(
-                typeof c === 'string' ? c : c['@id'] || c.id || '',
-                targets,
-            );
+            pushCanvasTarget(getReferenceId(c) ?? '', targets);
         }
     }
 
@@ -170,9 +154,9 @@ function parseV2Range(
         for (const member of range.members) {
             const memberType = member['@type'] || member.type;
             if (memberType === 'sc:Canvas' || memberType === 'Canvas') {
-                pushCanvasTarget(member['@id'] || member.id || '', targets);
+                pushCanvasTarget(getResourceId(member) ?? '', targets);
             } else if (memberType === 'sc:Range' || memberType === 'Range') {
-                const memberId = member['@id'] || member.id;
+                const memberId = getResourceId(member) ?? '';
                 const childRange = allRangesById.get(memberId) || member;
                 children.push(
                     parseV2Range(childRange, depth + 1, allRangesById),
@@ -219,10 +203,10 @@ export function parseStructures(manifest: any): StructureNode[] {
         (firstType.includes('Range') && !!structures[0]['@type']);
 
     if (isV2) {
-        // Build a lookup map of all ranges by @id for resolving references
+        // Build a lookup map of all ranges by id for resolving references
         const allRangesById = new Map<string, any>();
         for (const s of structures) {
-            const sid = s['@id'] || s.id;
+            const sid = getResourceId(s);
             if (sid) allRangesById.set(sid, s);
         }
 

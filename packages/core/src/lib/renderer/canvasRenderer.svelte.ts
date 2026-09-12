@@ -56,6 +56,7 @@
 
 import { logger } from '../logging/logger';
 import { getCanvasId } from '../utils/iiifIds';
+import { isPositiveFinite } from '../utils/numbers';
 import { untrack } from 'svelte';
 
 import { installRendererDevtools } from './rendererDevtools';
@@ -74,18 +75,14 @@ import { GestureRecogniser } from './gestureArbiter';
 import { PAN_KEYS, keyPanVelocity } from './keyboardPan';
 import {
     createTileSourceErrorMirror,
-    errorPlacements,
     viewerLevelErrorKind,
     type CanvasErrorKind,
-    type CanvasErrorPlacement,
 } from './canvasErrors';
 import {
     canvasPlacements,
     samePlacements,
-    // Aliased: `layoutQueries` exports an unrelated `CanvasPlacement` (a canvas
-    // rect plus its declared size, for coordinate conversion) that this module
-    // also imports. This one is a treatment's on-screen box.
-    type CanvasPlacement as TreatmentPlacement,
+    type CanvasPlaceholder,
+    type CanvasPlaceholderKind,
 } from './canvasPlacements';
 import { imageServiceCache } from './imageService';
 import { createStaticImages } from './staticImages';
@@ -167,7 +164,6 @@ import type {
     Point,
     ResidencyTier,
     ScenePlan,
-    StaticImageDraw,
     Viewport,
 } from './types';
 import {
@@ -326,13 +322,11 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      */
     const knobs = $derived.by(() => {
         const config = viewerState.config?.renderer;
-        const usable = (value: number | undefined): value is number =>
-            typeof value === 'number' && Number.isFinite(value) && value > 0;
         // Overrides only, so a knob nobody set leaves core's default — and so
         // `maxDecodedPixels`, which is not a knob, can never be reached at all.
         const budgets: Partial<PlannerBudgets> = {};
         const carry = (member: keyof PlannerBudgets, value?: number) => {
-            if (usable(value)) budgets[member] = value;
+            if (isPositiveFinite(value)) budgets[member] = value;
         };
         carry('byteBudget', config?.byteBudget);
         carry('marginFactor', config?.residencyMargin);
@@ -348,7 +342,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
              * The time constant every programmatic and discrete animation runs
              * at.
              */
-            animationTime: usable(animation)
+            animationTime: isPositiveFinite(animation)
                 ? animation
                 : ANIMATION_TIME_CONSTANT,
             /**
@@ -358,17 +352,18 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
              * leave a viewer that cannot zoom in at all.
              */
             maxZoomFactor:
-                usable(maxZoom) && maxZoom > 1 ? maxZoom : MAX_ZOOM_FACTOR,
+                isPositiveFinite(maxZoom) && maxZoom > 1
+                    ? maxZoom
+                    : MAX_ZOOM_FACTOR,
             /**
              * How far past 1:1 a source pixel may be magnified. Ratios below 1
              * are honoured — stopping the reader short of the source's own
              * resolution is a legitimate request, and `zoomRange` keeps the fit
              * term beneath it either way.
              */
-            maxZoomPixelRatio:
-                usable(maxPixelRatio) && maxPixelRatio > 0
-                    ? maxPixelRatio
-                    : MAX_ZOOM_PIXEL_RATIO,
+            maxZoomPixelRatio: isPositiveFinite(maxPixelRatio)
+                ? maxPixelRatio
+                : MAX_ZOOM_PIXEL_RATIO,
         };
     });
 
@@ -408,9 +403,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     function wheelRate(): number {
         const configured = viewerState.config?.renderer?.zoomPerWheelNotch;
         const zoomPerNotch =
-            typeof configured === 'number' &&
-            Number.isFinite(configured) &&
-            configured > 1
+            isPositiveFinite(configured) && configured > 1
                 ? configured
                 : DEFAULT_ZOOM_PER_WHEEL_NOTCH;
         return wheelZoomRate(zoomPerNotch, WHEEL_NOTCH_PIXELS);
@@ -484,9 +477,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * answered `401`, one that answered nothing usable, or a static image whose
      * decode failed all land here, against the canvas they belong to and nowhere
      * else — which is what lets folio 400 fail while 1–399 keep displaying.
-     * `errorPlacements` turns it into placeholders and `viewerLevelErrorKind`
-     * decides whether it adds up to a viewer-level condition; neither is decided
-     * here.
+     * {@link updatePlaceholders} turns it into placeholders and
+     * `canvasErrors.viewerLevelErrorKind` decides whether it adds up to a
+     * viewer-level condition.
      *
      * `$state`, unlike the other frame-loop records in this component, because it
      * is read by the MARKUP as well as by the frame loop: the placeholder is a DOM
@@ -499,8 +492,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
     /**
      * The placeholders to draw, in surface-local CSS pixels — recomputed from the
-     * frame loop, and empty in the overwhelmingly common case of nothing having
-     * failed.
+     * frame loop, and empty in the overwhelmingly common case of an image
+     * manifest with nothing failed.
+     *
+     * ONE list for all three kinds, in layout order, because that is what the
+     * reader meets: a run of boxes among the working pages, in reading order.
+     * The kinds do not overlap and cannot — an **unsupported presentation**
+     * issues no request, so it can never acquire an error — so a canvas appears
+     * here at most once and the DOM layer needs no precedence rule.
      *
      * Held separately from {@link canvasErrors} because a placeholder's POSITION
      * is a function of the viewport, which is deliberately not reactive: it moves
@@ -508,28 +507,20 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * the cost the frame loop exists to avoid. So the frame loop pushes the
      * answer in, and only when it has changed.
      */
-    let errorLayer: CanvasErrorPlacement[] = $state([]);
-
-    function errorLabel(kind: CanvasErrorKind): string {
-        // The auth/load distinction, all the way to the reader: knowing whether
-        // logging in would help is the difference between a useful error and a
-        // shrug (user story 27).
-        return kind === 'auth' ? m.canvas_error_auth() : m.canvas_error_load();
-    }
+    let placeholders: CanvasPlaceholder[] = $state([]);
 
     /**
-     * The **unsupported presentation**'s placements, in surface-local CSS
-     * pixels — the canvases whose painting bodies core cannot render at all
-     * (CONTEXT.md; ADR 0017).
+     * What a placeholder says, in the reader's language.
      *
-     * Beside {@link errorLayer} rather than folded into it, because the two say
-     * opposite things about the manifest. An error means a source the viewer
-     * asked for came back with nothing, and carries a retry, a negative-cache
-     * entry and an error-channel event with it. This means the viewer never
-     * asked: the canvas holds a sound recording or a film, which is not a
-     * failure and has nothing to retry.
+     * The auth/load distinction survives to the reader: knowing whether logging
+     * in would help is the difference between a useful error and a shrug (user
+     * story 27). `unsupported` is the third message and not a failure at all.
      */
-    let unsupportedLayer: TreatmentPlacement<'unsupported'>[] = $state([]);
+    function placeholderLabel(kind: CanvasPlaceholderKind): string {
+        if (kind === 'auth') return m.canvas_error_auth();
+        if (kind === 'load') return m.canvas_error_load();
+        return m.canvas_unsupported();
+    }
 
     /**
      * The canvases this renderer is showing, in **canvas space**.
@@ -733,16 +724,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     );
 
     /**
-     * How many full scene plans this renderer has built.
-     *
-     * Exposed through the test handle because "planning is once per frame" is a
-     * claim only a counter can hold: a plan enumerates the required tile set, so
-     * a clamp that quietly asked for one would cost several enumerations per
-     * pointer event and show up as nothing but heat.
-     */
-    let scenePlanCount = 0;
-
-    /**
      * The tier map of the last plan built — a counter, not held scene state.
      *
      * A scene plan is a value produced and discarded each frame; this keeps the
@@ -808,10 +789,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     function currentPlan(): ScenePlan {
-        scenePlanCount += 1;
         return planScene({
             ...worldInput(),
             viewport,
+            // The memoized answer, so the frame lays the manifest out once:
+            // the planner falls back to computing its own, and clamping has
+            // already asked for this one on every pointer sample of the gesture
+            // that got here.
+            viewportLimits: viewportLimits(),
             // Level selection is a question about pixels the display can
             // resolve, and the viewport is measured in CSS pixels: without this
             // a 2× screen never reaches full resolution.
@@ -851,9 +836,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         for (const canvasId of canvasIds) {
             if (reportedThumbnailFailures.has(canvasId)) continue;
             reportedThumbnailFailures.add(canvasId);
-            logger.warn(
-                `no usable thumbnail for canvas ${canvasId}; it will render as a plain box`,
-            );
+            logger.warn(`no usable thumbnail for canvas ${canvasId}`);
         }
     }
 
@@ -2185,9 +2168,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // would start 800 `<img>` loads on open — the same fetch storm as 800
         // `info.json` requests, in a different costume. Pixels are therefore
         // released by the same distance rule the tiles are.
-        loadStaticImages(plan.staticImages);
-        updateCanvasErrors(plan);
-        updateUnsupportedCanvases(plan);
+        staticImages.reconcile(plan.staticImages);
+        updatePlaceholders(plan);
 
         // The view-stable gate again, this time as the painter's edge rule:
         // whole device pixels at rest, a one-pixel overlap while moving. Read
@@ -2318,107 +2300,92 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     /**
-     * Position this frame's error placeholders, and raise or drop the
-     * viewer-level error condition derived from them.
+     * Position this frame's placeholders, and raise or drop the viewer-level
+     * error condition derived from the failures among them.
      *
-     * Both are decided in `renderer/canvasErrors.ts`, which is where the
-     * reasoning is tested. What is decided HERE is which failed canvases are
-     * PLACEHOLDER-WORTHY this frame, because that is the only part of the question
-     * that needs to know what the host is holding:
+     * The error condition is decided in `renderer/canvasErrors.ts`, which is
+     * where the reasoning is tested. What is decided HERE is which canvases are
+     * PLACEHOLDER-WORTHY this frame, because that is the only part of the
+     * question that needs to know what the host is holding:
      *
-     * - **Not box tier.** A box-tier canvas's projection is below the point at
-     *   which it carries information at all, so a labelled placeholder on it would
-     *   be unreadable noise — and at the derived zoom floor of a manifest whose
-     *   whole service is behind a login, 800 of them.
-     * - **Nothing drawn for it this frame.** The placeholder is opaque, so it
-     *   would cover working content. That is not hypothetical: a manifest very
-     *   commonly advertises a PUBLIC `thumbnail` beside a login-gated image
-     *   service, and a declared thumbnail resolves with no `info.json` at all
-     *   (`thumbnailLadder`). So a reader who views such a folio full-page records
-     *   an `auth` failure against it from the pyramid tier, zooms out, and its
-     *   thumbnail then paints perfectly well — at which point an error box over it
-     *   loses the only pixels the reader could have had. A failure recorded
-     *   against a canvas means "the source we asked for has no pixels", and this
-     *   is what keeps it from being read as "this canvas has none".
+     * - **Not box tier**, for either kind. A box-tier canvas's projection is
+     *   below the point at which it carries information at all, so a labelled
+     *   placeholder on it would be unreadable noise — and at the derived zoom
+     *   floor of a manifest whose whole service is behind a login, 800 of them.
+     * - **Nothing drawn for it this frame**, for a failure only. The placeholder
+     *   is opaque, so it would cover working content. That is not hypothetical:
+     *   a manifest very commonly advertises a PUBLIC `thumbnail` beside a
+     *   login-gated image service, and a declared thumbnail resolves with no
+     *   `info.json` at all (`thumbnailLadder`). So a reader who views such a
+     *   folio full-page records an `auth` failure against it from the pyramid
+     *   tier, zooms out, and its thumbnail then paints perfectly well — at which
+     *   point an error box over it loses the only pixels the reader could have
+     *   had. A failure recorded against a canvas means "the source we asked for
+     *   has no pixels", and this is what keeps it from being read as "this
+     *   canvas has none".
+     *
+     *   An unsupported presentation needs no such test: the planner issues no
+     *   tile, thumbnail, or metadata request for it, so it has nothing that
+     *   could paint. Which canvases those are is a property of the manifest and
+     *   of the claim set, decided once per descriptor build or claim change
+     *   (`canvasDescriptors.unsupportedPresentationIds`); what this recomputes
+     *   is only where they are on screen.
      */
-    function updateCanvasErrors(plan: ScenePlan) {
-        const failed = Object.keys(canvasErrors);
+    function updatePlaceholders(plan: ScenePlan) {
+        const anyFailed = Object.keys(canvasErrors).length > 0;
 
-        // The overwhelmingly common case: nothing has failed, so nothing is
-        // walked and nothing is written.
-        if (failed.length === 0) {
-            if (errorLayer.length > 0) errorLayer = [];
+        // The overwhelmingly common case: an image manifest with nothing
+        // failed, so nothing is walked and nothing is written.
+        if (!anyFailed && unsupportedCanvasIds.size === 0) {
+            if (placeholders.length > 0) placeholders = [];
             setDerivedTileSourceError(null);
             return;
         }
 
-        // Walked only on this path, and bounded by the residency window rather
-        // than by the manifest: a draw list is what is on screen.
+        // Walked only when something HAS failed, and bounded by the residency
+        // window rather than by the manifest: a draw list is what is on screen.
         //
         // A plain Set, deliberately not a `SvelteSet`: it lives for the length of
-        // this call and is read by nothing but the filter below.
+        // this call and is read by nothing but `kindOf` below.
         // eslint-disable-next-line svelte/prefer-svelte-reactivity
         const painting = new Set<string>();
-        for (const draw of plan.tileDraws) painting.add(draw.canvasId);
-        // A static image counts as painting exactly as a tile does, and it is
-        // asked per PLACEMENT: one half of a composite canvas being decoded is
-        // enough for an opaque placeholder over the whole canvas to be wrong.
-        for (const placement of plan.staticImages) {
-            if (staticImages.has(placement.key))
-                painting.add(placement.canvasId);
+        if (anyFailed) {
+            for (const draw of plan.tileDraws) painting.add(draw.canvasId);
+            // A static image counts as painting exactly as a tile does, and it
+            // is asked per PLACEMENT: one half of a composite canvas being
+            // decoded is enough for an opaque placeholder over the whole canvas
+            // to be wrong.
+            for (const placement of plan.staticImages) {
+                if (staticImages.has(placement.key))
+                    painting.add(placement.canvasId);
+            }
         }
 
-        const perceptible = plan.layout.filter(
-            (rect) =>
+        const next = canvasPlacements(
+            plan.layout,
+            (canvasId): CanvasPlaceholderKind | null => {
                 // Cheapest test first, and the one that excludes ~800 of 800
                 // rects on the manifest this path exists for.
-                canvasErrors[rect.canvasId] &&
-                plan.tiers[rect.canvasId] !== 'box' &&
-                !painting.has(rect.canvasId),
+                if (plan.tiers[canvasId] === 'box') return null;
+                if (unsupportedCanvasIds.has(canvasId)) return 'unsupported';
+                const failure = canvasErrors[canvasId];
+                return failure && !painting.has(canvasId) ? failure : null;
+            },
+            viewport,
         );
-        const next = errorPlacements(perceptible, canvasErrors, viewport);
         // A pan moves every placeholder, so an update is genuinely needed most
         // frames; this only avoids waking the graph on the frames where it is not.
-        if (!samePlacements(errorLayer, next)) errorLayer = next;
+        if (!samePlacements(placeholders, next)) placeholders = next;
 
         setDerivedTileSourceError(
-            viewerLevelErrorKind(
-                plan.layout,
-                canvasErrors,
-                viewerState.canvasId,
-            ),
+            anyFailed
+                ? viewerLevelErrorKind(
+                      plan.layout,
+                      canvasErrors,
+                      viewerState.canvasId,
+                  )
+                : null,
         );
-    }
-
-    /**
-     * Position this frame's unsupported presentations.
-     *
-     * Which canvases those are is a property of the manifest and of the claim
-     * set, decided once per descriptor build or claim change
-     * (`canvasDescriptors.unsupportedPresentationIds`) and not per frame; what
-     * this recomputes is only where they are on screen.
-     *
-     * Gated on the tier alone, and deliberately not on what is painting: an
-     * unsupported canvas has nothing that could paint — the planner issues no
-     * tile, thumbnail, or metadata request for it — so the "would this cover
-     * working pixels?" test the error layer needs has no work to do here. Box
-     * tier is excluded for the reason it is there: below that projection a
-     * labelled box is unreadable noise rather than information.
-     */
-    function updateUnsupportedCanvases(plan: ScenePlan) {
-        const next = unsupportedCanvasIds.size
-            ? canvasPlacements(
-                  plan.layout,
-                  (canvasId) =>
-                      unsupportedCanvasIds.has(canvasId) &&
-                      plan.tiers[canvasId] !== 'box'
-                          ? ('unsupported' as const)
-                          : null,
-                  viewport,
-              )
-            : [];
-
-        if (!samePlacements(unsupportedLayer, next)) unsupportedLayer = next;
     }
 
     /**
@@ -2592,7 +2559,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      *
      * More than one, because a single repeat is not evidence of anything at the
      * START of a transition: measured on a panel open, the box reads the same
-     * for about two frames before `slideWidth` begins moving it, so a one-frame
+     * for about two frames before `slideAxis` begins moving it, so a one-frame
      * test declares the slide over before it has begun and hands every
      * intermediate width to the preserve-scale branch, which is the wrong rule
      * for a change core caused. Three frames clears that plateau while still
@@ -2609,7 +2576,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * resizing, and not one frame longer.
      *
      * The column does not arrive at its final width: `TriiiceratopsViewer`'s
-     * `slideWidth` animates it, so the surface passes through a run of
+     * `slideAxis` animates it, so the surface passes through a run of
      * intermediate widths. Two things need this, and neither is correctness of
      * the endpoint — `compensatedScale`'s ratios compose exactly, so catching
      * only the last width would land the reader in the same place. What is
@@ -2629,7 +2596,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * the event it never delivers. Ending the window is ALL this does — the
      * observer compensates the intermediate widths, and duplicating that here
      * bought nothing but a second fit measurement per frame. That matters most in the case with no
-     * animation at all: under `prefers-reduced-motion` `slideWidth` has
+     * animation at all: under `prefers-reduced-motion` `slideAxis` has
      * duration 0, the column snaps in one step, and the observer's last
      * callback is indistinguishable from a mid-slide one.
      *
@@ -2736,20 +2703,16 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     function watchDevicePixelRatio() {
-        dprQuery?.removeEventListener?.('change', handleDevicePixelRatioChange);
-        dprQuery = null;
+        dprQuery?.removeEventListener('change', handleDevicePixelRatioChange);
 
-        if (typeof window.matchMedia !== 'function') return;
-
-        const query = window.matchMedia(
+        dprQuery = window.matchMedia(
             `(resolution: ${window.devicePixelRatio || 1}dppx)`,
         );
-        query.addEventListener?.('change', handleDevicePixelRatioChange);
-        dprQuery = query;
+        dprQuery.addEventListener('change', handleDevicePixelRatioChange);
     }
 
     function unwatchDevicePixelRatio() {
-        dprQuery?.removeEventListener?.('change', handleDevicePixelRatioChange);
+        dprQuery?.removeEventListener('change', handleDevicePixelRatioChange);
         dprQuery = null;
     }
 
@@ -2774,7 +2737,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     function byteBudgetMatches(): boolean {
         if (!byteBudgetQuery) {
             byteBudgetQuery = window.matchMedia(MOBILE_BUDGET_QUERY);
-            byteBudgetQuery.addEventListener?.('change', applyByteBudget);
+            byteBudgetQuery.addEventListener('change', applyByteBudget);
         }
         return byteBudgetQuery.matches;
     }
@@ -2793,7 +2756,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     function unwatchByteBudget() {
-        byteBudgetQuery?.removeEventListener?.('change', applyByteBudget);
+        byteBudgetQuery?.removeEventListener('change', applyByteBudget);
         byteBudgetQuery = null;
     }
 
@@ -2826,15 +2789,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // is itself a jump. What matters is that the next one does not start.
     }
 
-    function startWatchingReducedMotion() {
-        unwatchMotion = watchReducedMotion(handleMotionPreferenceChange);
-    }
-
-    function unwatchReducedMotion() {
-        unwatchMotion?.();
-        unwatchMotion = null;
-    }
-
     // ── Input ────────────────────────────────────────────────────────────
     //
     // Pointer Events only: one input path, no mouse/touch/legacy branches, and
@@ -2860,24 +2814,20 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         minFlickSpeed: MIN_FLICK_SPEED,
     });
 
-    /** Client-space origin of the surface, refreshed when a gesture starts. */
+    /**
+     * Client-space origin of the surface, refreshed when a gesture starts.
+     *
+     * Every pointer sample below is mapped through it by `pointerSample`, which
+     * lives in `renderer/pointerSamples.ts` — including the choice of clock that
+     * stamps the sample, which is what decides flick velocity — so that mapping
+     * can be asserted without a browser.
+     */
     let surfaceOrigin: Point = { x: 0, y: 0 };
 
     function refreshSurfaceOrigin() {
         if (!surface) return;
         const rect = surface.getBoundingClientRect();
         surfaceOrigin = { x: rect.left, y: rect.top };
-    }
-
-    /**
-     * A pointer sample in surface-local screen coordinates.
-     *
-     * The mapping — including which clock stamps the sample, which is what
-     * decides flick velocity — lives in `renderer/pointerSamples.ts` so it can
-     * be asserted without a browser.
-     */
-    function sampleOf(event: PointerEvent) {
-        return pointerSample(event, surfaceOrigin);
     }
 
     /**
@@ -2894,14 +2844,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             surface?.setPointerCapture(pointerId);
         } catch {
             /* not capturable — the gesture proceeds uncaptured */
-        }
-    }
-
-    function releasePointer(pointerId: number) {
-        try {
-            surface?.releasePointerCapture?.(pointerId);
-        } catch {
-            /* already released, or never captured */
         }
     }
 
@@ -2943,7 +2885,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         momentum = null;
         handleBlur();
 
-        gestures.down(sampleOf(event));
+        gestures.down(pointerSample(event, surfaceOrigin));
     }
 
     function handlePointerMove(event: PointerEvent) {
@@ -2959,12 +2901,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             return;
         }
 
-        applyGesture(gestures.move(sampleOf(event)));
+        applyGesture(gestures.move(pointerSample(event, surfaceOrigin)));
     }
 
     function handlePointerUp(event: PointerEvent) {
-        applyGesture(gestures.up(sampleOf(event)));
-        releasePointer(event.pointerId);
+        applyGesture(gestures.up(pointerSample(event, surfaceOrigin)));
+        surface?.releasePointerCapture(event.pointerId);
         // The view may have just become STABLE, and a gesture that moved
         // nothing (a tap, or a drag whose last sample already painted) leaves
         // nothing else to schedule a frame. Without this the thumbnails and
@@ -2981,8 +2923,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * pointer, so the implicit capture release that follows finds nothing.
      */
     function handlePointerCancel(event: PointerEvent) {
-        applyGesture(gestures.cancel(sampleOf(event)));
-        releasePointer(event.pointerId);
+        applyGesture(gestures.cancel(pointerSample(event, surfaceOrigin)));
+        surface?.releasePointerCapture(event.pointerId);
         // See `handlePointerUp`: the gate may have just opened.
         requestFrame();
     }
@@ -3215,14 +3157,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     //
     // Page Up/Down are deliberately unbound — see `renderer/keyboardPan.ts`.
 
-    function heldKeyCount(): number {
-        return Object.keys(heldPanKeys).length;
-    }
-
-    function clearHeldKeys() {
-        for (const key of Object.keys(heldPanKeys)) delete heldPanKeys[key];
-    }
-
     /**
      * Recompute the held-key velocity and start (or keep) the frame loop.
      *
@@ -3236,7 +3170,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             shiftFactor: KEY_PAN_SHIFT_FACTOR,
         });
         if (!velocity) {
-            stopKeyPan();
+            keyPan = null;
             return;
         }
 
@@ -3247,11 +3181,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         momentum = null;
         keyPan = velocity;
         requestFrame();
-    }
-
-    /** Stop dead, carrying nothing over. Used when focus leaves mid-hold. */
-    function stopKeyPan() {
-        keyPan = null;
     }
 
     /**
@@ -3267,7 +3196,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * the centre's own.
      */
     function releaseKeyPan() {
-        if (heldKeyCount() > 0) {
+        if (Object.keys(heldPanKeys).length > 0) {
             startKeyPan();
             return;
         }
@@ -3387,7 +3316,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      *
      * A press too short to have moved anything gets the discrete step it was
      * really asking for; a longer one has already travelled and stops dead,
-     * carrying nothing over, for the reason `stopKeyPan` does.
+     * carrying nothing over, for the reason a released pan key does.
      */
     function releaseKeyZoom() {
         if (!zoomKeyDirection) return;
@@ -3440,7 +3369,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
         if (event.key === 'Shift') {
             panShift = true;
-            if (heldKeyCount() > 0) startKeyPan();
+            if (Object.keys(heldPanKeys).length > 0) startKeyPan();
             return;
         }
 
@@ -3491,7 +3420,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
         if (event.key === 'Shift') {
             panShift = false;
-            if (heldKeyCount() > 0) startKeyPan();
+            if (Object.keys(heldPanKeys).length > 0) startKeyPan();
             return;
         }
 
@@ -3522,23 +3451,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * stays true, and no awaited `nextPaint` ever resolves.
      */
     function handleBlur() {
-        clearHeldKeys();
+        for (const key of Object.keys(heldPanKeys)) delete heldPanKeys[key];
         panShift = false;
-        stopKeyPan();
+        // Stop dead, carrying nothing over: a glide that outlives the focus it
+        // was driven from has no author.
+        keyPan = null;
         cancelKeyZoom();
-    }
-
-    /**
-     * The window itself lost the keyboard (alt-tab, a native menu, a devtools
-     * window), or the tab went to the background.
-     *
-     * The element's own `blur` does not always fire for these — and when the
-     * OS takes the keyboard mid-hold the key-up lands in whatever took it.
-     * This is the safety net that makes "the surface can never be left panning
-     * forever" true rather than merely usual.
-     */
-    function handleWindowBlur() {
-        handleBlur();
     }
 
     function handleVisibilityChange() {
@@ -3547,43 +3465,18 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
     // ── Source loading ───────────────────────────────────────────────────
 
-    /**
-     * Bring the decoded images in line with what the viewer is showing.
-     *
-     * What changed is decided by `reconcileImages`, which compares **resolved
-     * URLs** rather than canvas ids — selecting a different Choice keeps the
-     * canvas id and changes only the URL, and an id-keyed cache would go on
-     * painting the superseded image.
-     *
-     * A failed decode is recorded against the canvas (`canvasErrors`), never
-     * viewer-wide. An `<img>` reports no status, so a static source's failure can
-     * only ever be `load` — there is no 401 to distinguish, which is a fact about
-     * the element rather than a simplification.
-     *
-     * The failure is ALSO recorded in `staticImageFailures`, keyed on the URL and
-     * page-shared, which is what gives a static canvas the eviction lifetime the
-     * spec asks for: `canvasErrors` is component state and is cleared when this
-     * canvas leaves the residency window along with its pixels, so on its own it
-     * would refetch a 404 every time the reader scrolled back. That module's
-     * comment carries why the negative cache is keyed on the URL rather than
-     * being a per-canvas record kept across eviction.
-     */
-    function loadStaticImages(wanted: StaticImageDraw[]) {
-        staticImages.reconcile(wanted);
-    }
-
     function attach() {
         if (!root || !surface) return;
 
         // Before anything can animate: the first fit and every input path
         // downstream of it consult this.
-        startWatchingReducedMotion();
+        unwatchMotion = watchReducedMotion(handleMotionPreferenceChange);
 
         // Which decoded-byte ceiling this device gets, and it stays subscribed:
         // asked here rather than at module scope because it is a `matchMedia`
         // question, and the renderer's module graph must load on a server with
         // none.
-        if (typeof window.matchMedia === 'function') applyByteBudget();
+        applyByteBudget();
 
         /*
          * `{ alpha: true }` is DELIBERATE, not an oversight — do not "optimize"
@@ -3619,7 +3512,13 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // they bind nothing: they end a hold, they never start one. The
         // bindings themselves stay on the surface element, or at the widest on
         // the stage box below (spec §Keyboard).
-        window.addEventListener('blur', handleWindowBlur);
+        //
+        // The window's own `blur` is the safety net that makes "the surface can
+        // never be left panning forever" true rather than merely usual: the
+        // element's `blur` does not always fire for an alt-tab or a native menu,
+        // and when the OS takes the keyboard mid-hold the key-up lands in
+        // whatever took it.
+        window.addEventListener('blur', handleBlur);
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         // The stage: the box this renderer's root and every plugin overlay
@@ -3693,7 +3592,6 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 tiles.setByteBudget(bytes);
             },
             tiles,
-            getScenePlanCount: () => scenePlanCount,
             getTiers: () => lastTiers,
             canvasErrors,
             registerPaintLayer:
@@ -3712,9 +3610,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             frameListeners.clear();
             observer.disconnect();
             unwatchDevicePixelRatio();
-            unwatchReducedMotion();
+            unwatchMotion?.();
+            unwatchMotion = null;
             unwatchByteBudget();
-            window.removeEventListener('blur', handleWindowBlur);
+            window.removeEventListener('blur', handleBlur);
             document.removeEventListener(
                 'visibilitychange',
                 handleVisibilityChange,
@@ -3729,7 +3628,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             chromeCompensationInFlight = false;
             animating = false;
             momentum = null;
-            clearHeldKeys();
+            for (const key of Object.keys(heldPanKeys)) delete heldPanKeys[key];
             keyPan = null;
             staticImages.clear();
             // Aborts every outstanding tile request and closes every decoded
@@ -3811,19 +3710,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             pointerup: handlePointerUp,
             pointercancel: handlePointerCancel,
         },
-        /** Per-canvas error placeholders for the DOM error layer. */
-        get errorLayer() {
-            return errorLayer;
-        },
-        errorLabel,
         /**
-         * Per-canvas unsupported presentations for the DOM layer beside the
-         * error one — a canvas core cannot render, not a canvas that failed.
+         * Per-canvas placeholders for the DOM layer over the surface — the
+         * canvases that failed, and the ones core cannot render at all.
          */
-        get unsupportedLayer() {
-            return unsupportedLayer;
+        get placeholders() {
+            return placeholders;
         },
-        unsupportedLabel: () => m.canvas_unsupported(),
+        placeholderLabel,
         /**
          * Read by the component's refit effect purely as a change signal — the
          * painted canvases' ids and rects, so a companion arriving with a rect

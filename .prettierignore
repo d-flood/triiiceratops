@@ -16,11 +16,9 @@ build/
 storybook-static/
 
 # Generated code (ticket 22 generated-code policy; mirrors eslint ignores):
-# the paraglide message runtime, generated icons/tokens, and the committed
-# docs-example fixtures extracted from the site's content by
-# scripts/docs-examples.mjs
+# generated icons/tokens, and the committed docs-example fixtures extracted
+# from the site's content by scripts/docs-examples.mjs
 # ("do not edit by hand"). Bare names match these dirs in every package.
-paraglide/
 generated/
 
 # Generated API snapshots (scripts/api-report.ts) — regenerated & checked in CI.

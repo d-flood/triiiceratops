@@ -80,10 +80,6 @@ const SHARED_SPECIFIERS: readonly string[] = SHARED_MODULE_IDENTITY.map(
 export default defineConfig({
     // Never copy demo dev-server static assets into the published dist.
     publicDir: false,
-    // No paraglide plugin: the generated `src/lib/paraglide/runtime.js`
-    // (`getLocale`) already exists from `build:lib`, which this build follows.
-    // Re-running the paraglide vite plugin here would overwrite that directory
-    // with a differently-shaped output and break core's message imports.
     plugins: [
         svelte({ compilerOptions: { customElement: false } }),
         {

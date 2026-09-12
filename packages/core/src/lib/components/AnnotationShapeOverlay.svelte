@@ -629,6 +629,48 @@
             100%,
             calc(var(--tri-annotation-fill-opacity) * 3)
         );
+
+        /*
+         * The ladder resolved against the two annotation colours. Each rung is
+         * mixed once here rather than at every shape that wears it; the mix
+         * depends only on layer-level tokens, so one declaration serves every
+         * descendant.
+         */
+        --anno-c-rest: color-mix(
+            in oklab,
+            var(--tri-annotation-color) var(--anno-fill-rest),
+            transparent
+        );
+        --anno-c-hover: color-mix(
+            in oklab,
+            var(--tri-annotation-color) var(--anno-fill-hover),
+            transparent
+        );
+        --hit-c-hover: color-mix(
+            in oklab,
+            var(--tri-annotation-hit-color) var(--anno-fill-hover),
+            transparent
+        );
+        --hit-c-most: color-mix(
+            in oklab,
+            var(--tri-annotation-hit-color) var(--anno-fill-most),
+            transparent
+        );
+
+        /*
+         * Points are opaque at rest, so their hover step thins the solid colour
+         * instead of climbing the fill ladder.
+         */
+        --anno-c-point-hover: color-mix(
+            in oklab,
+            var(--tri-annotation-color) 80%,
+            transparent
+        );
+        --hit-c-point-hover: color-mix(
+            in oklab,
+            var(--tri-annotation-hit-color) 80%,
+            transparent
+        );
     }
 
     /*
@@ -650,6 +692,68 @@
      */
 
     /*
+     * The rectangle and point bodies, editable arm and read-only fill alike:
+     * one border recipe, then the two halves' own input and positioning.
+     */
+    .anno-rect,
+    .anno-rect-fill,
+    .anno-point,
+    .anno-point-fill {
+        position: absolute;
+        border-width: var(--tri-annotation-border-width);
+        border-style: solid;
+        border-color: var(--tri-annotation-color);
+    }
+
+    /* Editable overlays (real <button>s) take the pointer back from the layer. */
+    .anno-rect,
+    .anno-point {
+        cursor: pointer;
+        pointer-events: auto;
+    }
+
+    /* Read-only fills sit inside a wrapper and never take input. */
+    .anno-rect-fill,
+    .anno-point-fill {
+        inset: 0;
+        pointer-events: none;
+    }
+
+    .anno-point,
+    .anno-point-fill {
+        border-radius: calc(infinity * 1px);
+        background-color: var(--tri-annotation-color);
+    }
+
+    .anno-rect,
+    .anno-rect-fill {
+        background-color: var(--anno-c-rest);
+    }
+
+    /* Read-only overlay wrapper (positions the fill) */
+    .anno-readonly-wrap {
+        position: absolute;
+        pointer-events: none;
+    }
+
+    .anno-rect.search-hit,
+    .anno-rect-fill.search-hit,
+    .anno-point.search-hit,
+    .anno-point-fill.search-hit {
+        border-color: var(--tri-annotation-hit-color);
+    }
+
+    .anno-point.search-hit,
+    .anno-point-fill.search-hit {
+        background-color: var(--tri-annotation-hit-color);
+    }
+
+    .anno-rect.search-hit,
+    .anno-rect-fill.search-hit {
+        background-color: var(--hit-c-hover);
+    }
+
+    /*
      * The SELECTED shape, in the visual vocabulary the overlay already has:
      * the same deepened fill that says "the pointer is on this one", made
      * permanent, plus a heavier border.
@@ -667,118 +771,27 @@
     }
 
     .anno-rect.active,
-    .anno-rect-fill.active {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-color) var(--anno-fill-hover),
-            transparent
-        );
+    .anno-rect-fill.active,
+    .anno-rect:hover,
+    .anno-rect-fill.hovered {
+        background-color: var(--anno-c-hover);
+    }
+
+    .anno-point:hover,
+    .anno-point-fill.hovered {
+        background-color: var(--anno-c-point-hover);
     }
 
     .anno-rect.active.search-hit,
-    .anno-rect-fill.active.search-hit {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-hit-color) var(--anno-fill-most),
-            transparent
-        );
-    }
-
-    .anno-polygon-shape.active {
-        fill: color-mix(
-            in oklab,
-            var(--tri-annotation-color) var(--anno-fill-hover),
-            transparent
-        );
-        stroke-width: calc(var(--tri-annotation-border-width) + 1px);
-    }
-
-    .anno-polygon-shape.active.search-hit {
-        fill: color-mix(
-            in oklab,
-            var(--tri-annotation-hit-color) var(--anno-fill-most),
-            transparent
-        );
-    }
-
-    /* Editable rectangle overlay (a real <button>) */
-    .anno-rect {
-        position: absolute;
-        border-width: var(--tri-annotation-border-width);
-        border-style: solid;
-        cursor: pointer;
-        pointer-events: auto;
-        border-color: var(--tri-annotation-color);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-color) var(--anno-fill-rest),
-            transparent
-        );
-    }
-    .anno-rect.search-hit {
-        border-color: var(--tri-annotation-hit-color);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-hit-color) var(--anno-fill-hover),
-            transparent
-        );
-    }
-    .anno-rect:hover {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-color) var(--anno-fill-hover),
-            transparent
-        );
-    }
-    .anno-rect.search-hit:hover {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-hit-color) var(--anno-fill-most),
-            transparent
-        );
-    }
-
-    /* Read-only overlay wrapper (positions the fill) */
-    .anno-readonly-wrap {
-        position: absolute;
-        pointer-events: none;
-    }
-
-    /* Read-only rectangle fill */
-    .anno-rect-fill {
-        pointer-events: none;
-        position: absolute;
-        inset: 0;
-        border-width: var(--tri-annotation-border-width);
-        border-style: solid;
-        border-color: var(--tri-annotation-color);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-color) var(--anno-fill-rest),
-            transparent
-        );
-    }
-    .anno-rect-fill.hovered {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-color) var(--anno-fill-hover),
-            transparent
-        );
-    }
-    .anno-rect-fill.search-hit {
-        border-color: var(--tri-annotation-hit-color);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-hit-color) var(--anno-fill-hover),
-            transparent
-        );
-    }
+    .anno-rect-fill.active.search-hit,
+    .anno-rect.search-hit:hover,
     .anno-rect-fill.search-hit.hovered {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-hit-color) var(--anno-fill-most),
-            transparent
-        );
+        background-color: var(--hit-c-most);
+    }
+
+    .anno-point.search-hit:hover,
+    .anno-point-fill.search-hit.hovered {
+        background-color: var(--hit-c-point-hover);
     }
 
     /* Editable polygon overlay (a real <button>) */
@@ -801,112 +814,29 @@
     }
 
     .anno-polygon-shape {
-        fill: color-mix(
-            in oklab,
-            var(--tri-annotation-color) var(--anno-fill-rest),
-            transparent
-        );
+        fill: var(--anno-c-rest);
         stroke: var(--tri-annotation-color);
         stroke-width: var(--tri-annotation-border-width);
     }
     .anno-polygon-shape.search-hit {
-        fill: color-mix(
-            in oklab,
-            var(--tri-annotation-hit-color) var(--anno-fill-hover),
-            transparent
-        );
+        fill: var(--hit-c-hover);
         stroke: var(--tri-annotation-hit-color);
-    }
-    .anno-polygon-shape.hovered {
-        fill: color-mix(
-            in oklab,
-            var(--tri-annotation-color) var(--anno-fill-hover),
-            transparent
-        );
-    }
-    .anno-polygon-shape.search-hit.hovered {
-        fill: color-mix(
-            in oklab,
-            var(--tri-annotation-hit-color) var(--anno-fill-most),
-            transparent
-        );
     }
     .anno-polygon-shape.interactive {
         cursor: pointer;
     }
+    .anno-polygon-shape.active,
+    .anno-polygon-shape.hovered,
     .anno-polygon-shape.interactive:hover {
-        fill: color-mix(
-            in oklab,
-            var(--tri-annotation-color) var(--anno-fill-hover),
-            transparent
-        );
+        fill: var(--anno-c-hover);
     }
+    .anno-polygon-shape.active {
+        stroke-width: calc(var(--tri-annotation-border-width) + 1px);
+    }
+    .anno-polygon-shape.active.search-hit,
+    .anno-polygon-shape.search-hit.hovered,
     .anno-polygon-shape.interactive.search-hit:hover {
-        fill: color-mix(
-            in oklab,
-            var(--tri-annotation-hit-color) var(--anno-fill-most),
-            transparent
-        );
-    }
-
-    /* Editable point overlay (a real <button>) */
-    .anno-point {
-        position: absolute;
-        border-radius: calc(infinity * 1px);
-        border-width: var(--tri-annotation-border-width);
-        border-style: solid;
-        cursor: pointer;
-        pointer-events: auto;
-        border-color: var(--tri-annotation-color);
-        background-color: var(--tri-annotation-color);
-    }
-    .anno-point.search-hit {
-        border-color: var(--tri-annotation-hit-color);
-        background-color: var(--tri-annotation-hit-color);
-    }
-    .anno-point:hover {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-color) 80%,
-            transparent
-        );
-    }
-    .anno-point.search-hit:hover {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-hit-color) 80%,
-            transparent
-        );
-    }
-
-    /* Read-only point fill */
-    .anno-point-fill {
-        pointer-events: none;
-        position: absolute;
-        inset: 0;
-        border-radius: calc(infinity * 1px);
-        border-width: var(--tri-annotation-border-width);
-        border-style: solid;
-        border-color: var(--tri-annotation-color);
-        background-color: var(--tri-annotation-color);
-    }
-    .anno-point-fill.hovered {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-color) 80%,
-            transparent
-        );
-    }
-    .anno-point-fill.search-hit {
-        border-color: var(--tri-annotation-hit-color);
-        background-color: var(--tri-annotation-hit-color);
-    }
-    .anno-point-fill.search-hit.hovered {
-        background-color: color-mix(
-            in oklab,
-            var(--tri-annotation-hit-color) 80%,
-            transparent
-        );
+        fill: var(--hit-c-most);
     }
 
     /*

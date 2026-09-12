@@ -93,7 +93,7 @@
 {#if viewerState.showSearchPanel}
     <div
         data-panel-id="search"
-        class="panel"
+        class="tri-panel"
         role="dialog"
         aria-label={m.search_panel_title()}
     >
@@ -215,11 +215,6 @@
 {/if}
 
 <style>
-    .panel {
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
     .search-bar {
         padding: 1rem;
         border-bottom-width: 1px;
@@ -283,16 +278,14 @@
         width: 100%;
         text-align: left;
         background-color: var(--tri-input-bg);
-        box-shadow:
-            0 1px 3px 0 #0000001a,
-            0 1px 2px -1px #0000001a;
+        box-shadow: var(--ui-shadow-sm);
         border-width: 1px;
         border-style: solid;
         border-color: var(--panel-surface);
         border-radius: var(--tri-radius-panels);
         cursor: pointer;
         transition-property: all;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-timing-function: var(--ui-ease);
         transition-duration: 0.15s;
         display: block;
         padding: 0;
@@ -300,8 +293,7 @@
     .group.current {
         box-shadow:
             0 0 0 2px var(--tri-color-primary),
-            0 1px 3px 0 #0000001a,
-            0 1px 2px -1px #0000001a;
+            var(--ui-shadow-sm);
         background-color: color-mix(
             in oklab,
             var(--tri-color-primary) 5%,
@@ -309,15 +301,12 @@
         );
     }
     .group:hover {
-        box-shadow:
-            0 4px 6px -1px #0000001a,
-            0 2px 4px -2px #0000001a;
+        box-shadow: var(--ui-shadow-md);
     }
     .group.current:hover {
         box-shadow:
             0 0 0 2px var(--tri-color-primary),
-            0 4px 6px -1px #0000001a,
-            0 2px 4px -2px #0000001a;
+            var(--ui-shadow-md);
     }
 
     .group-header {

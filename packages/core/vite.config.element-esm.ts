@@ -5,7 +5,6 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 import dropLightDomOnly from './src/packaging/dropLightDomOnly';
 import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
-import { messageCompiler } from './src/packaging/messageCompiler';
 import { minifyCssPreprocessor } from './src/packaging/minifyCss';
 import { terserElementBuilds } from './src/packaging/terserElement';
 
@@ -34,7 +33,6 @@ export default defineConfig({
             dynamicCompileOptions: customElementGuard.dynamicCompileOptions,
         }),
         customElementGuard.plugin,
-        messageCompiler(),
         // The same second pass the IIFE gets, from the same module, so the two
         // artifacts cannot be minified to different settings by accident.
         // `'es'` is the one deliberate difference: this artifact really is a
@@ -51,12 +49,13 @@ export default defineConfig({
         postcss: { plugins: [dropLightDomOnly()] },
     },
     build: {
-        // No `target` on purpose, unlike the IIFE's pinned `es2022`: this one
-        // keeps Vite's default `'modules'` floor (es2020 / safari14). Raising
-        // it to match measured 4,020 further gzip bytes here, but es2022 needs
-        // Safari 16.4, and nothing in this repository declares a supported
-        // browser floor that would say whether dropping Safari 14-16.3 is
-        // allowed. Deferred rather than taken.
+        // The same floor the IIFE pins, so neither artifact downlevels what
+        // the other ships natively. The supported browser floor for both
+        // element artifacts is Safari 16.4+, Chrome 94+, Firefox 93+ — stated
+        // in the install documentation — and es2022 is the highest target that
+        // floor permits. Vite's default `'modules'` floor (es2020 / safari14)
+        // cost 3,449 gzip bytes here to downlevel for browsers below it.
+        target: 'es2022',
         minify: true,
         lib: {
             entry: resolve(__dirname, 'src/lib/element.ts'),

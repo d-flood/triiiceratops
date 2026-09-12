@@ -26,8 +26,25 @@
  * Image space never escapes the renderer (CONTEXT.md §Image space): callers
  * convert a tile's region into **canvas space** through the canvas's layout
  * rect, which is what `tileCanvasRect` does.
+ *
+ * ## One level model, two source kinds
+ *
+ * A **size-ladder source** — a level0 service that advertises only fixed whole
+ * images and can therefore never be tiled — is a pyramid whose every level holds
+ * one tile (`sizeLadder.buildSizeLadder`). That is not a trick: it is what makes
+ * every rule this module and the planner already implement apply to it for free
+ * — the `minPixelRatio` walk, the decoded-pixel cap, the coarse chain, the
+ * centre-out priority queue, the negative cache, the decoded-byte counter and
+ * blur-up paint order. Modelled as a separate "whole image" channel instead,
+ * each of those would have to be written a second time. The one thing that does
+ * differ is how the `size` parameter is spelled, which is {@link SizeForm}.
  */
 
+import {
+    iiifImageRequestUrl,
+    iiifSizeParameter,
+    iiifWholeImageRequest,
+} from '../utils/iiifImageRequest';
 import type { ImageServiceFacts, TileKey } from './types';
 
 /**
@@ -45,6 +62,22 @@ import type { ImageServiceFacts, TileKey } from './types';
  * per-request cost is a fresh crop-and-scale of the master.
  */
 export const DERIVED_TILE_SIZE = 512;
+
+/**
+ * How a level's `size` parameter is spelled — the one difference between the
+ * three request shapes a IIIF image source answers to.
+ *
+ * - `width`: `{w},`, available from compliance level 1 upwards. A dynamic
+ *   service, and the tiles of a version 2 static tree.
+ * - `widthHeight`: `{w},{h}`, the canonical size the specification's tile
+ *   calculation gives a version 3 static tile tree — the exact file it
+ *   advertised.
+ * - `wholeImage`: the canonical whole-image spelling (`max` in version 3,
+ *   `full` in version 2) at the image's own extent and `{w},` below it. A
+ *   **size-ladder source**, whose every level is one advertised whole image and
+ *   therefore one file.
+ */
+export type SizeForm = 'width' | 'widthHeight' | 'wholeImage';
 
 /** One level of the pyramid. */
 export interface PyramidLevel {
@@ -69,12 +102,14 @@ export interface TilePyramid {
     /** Ordered coarsest first. Never empty. */
     levels: PyramidLevel[];
     /**
-     * The service's Image API major version. It governs canonical static
-     * level0 tile sizes (`w,h` in version 3), and whole-image requests outside
-     * the pyramid (`full` in version 2, `max` in version 3).
+     * The service's Image API major version. It governs the canonical
+     * whole-image size parameter (`full` in version 2, `max` in version 3) and
+     * whether a deprecated `native` quality is worth trying.
      */
     version: 2 | 3;
     format: string;
+    /** How this source's `size` parameter is spelled. */
+    sizeForm: SizeForm;
     /**
      * Advertised whole-image widths, ascending, for a **level0** service — and
      * `null` for every other service.
@@ -247,6 +282,10 @@ export function buildPyramid(
         levels,
         version: facts.version === 2 ? 2 : 3,
         format: facts.format || 'jpg',
+        // A level0 version 3 service is a directory of files, not a scaling
+        // server, and the specification's tile calculation names those files by
+        // both dimensions.
+        sizeForm: facts.level0 && facts.version !== 2 ? 'widthHeight' : 'width',
         wholeImageWidths: facts.level0
             ? [
                   ...new Set(
@@ -302,8 +341,6 @@ function snapWholeImageWidth(pyramid: TilePyramid, width: number): number {
 interface TileRequestParts {
     /** The tile covers the entire image, so `full` is a legal region for it. */
     isWholeImage: boolean;
-    /** A level0 version 3 tree: a directory of files, not a scaling server. */
-    isStaticV3Tiles: boolean;
     region: string;
     /** The tile's own pixel dimensions, which are its canonical size. */
     width: number;
@@ -324,8 +361,6 @@ function tileRequestParts(
             region.y === 0 &&
             region.width === pyramid.width &&
             region.height === pyramid.height,
-        isStaticV3Tiles:
-            pyramid.version === 3 && pyramid.wholeImageWidths !== null,
         region: `${region.x},${region.y},${region.width},${region.height}`,
         width: Math.max(1, Math.ceil(region.width / level.scaleFactor)),
         height: Math.max(1, Math.ceil(region.height / level.scaleFactor)),
@@ -333,80 +368,134 @@ function tileRequestParts(
 }
 
 /**
- * The IIIF Image API request URL for one tile.
+ * Whether a level is the image at its own full extent, which is what the
+ * canonical whole-image size parameter names.
  *
- * Dynamic services use the width-only form (`w,`), which is available from
- * level 1 upwards without requiring the level 2 `w,h` feature. A version 3
- * level0 tile tree instead receives the canonical two-dimensional size from the
- * specification's tile calculation: the exact static file it advertised.
+ * Version 2 compares width alone and version 3 both dimensions. That asymmetry
+ * is the previous renderer's whole-image URL exactly, and a level0 service
+ * serves one of those spellings as a file.
+ */
+function isFullExtent(pyramid: TilePyramid, level: PyramidLevel): boolean {
+    return pyramid.version === 2
+        ? level.width === pyramid.width
+        : level.width === pyramid.width && level.height === pyramid.height;
+}
+
+/** The `size` parameter for one tile, per {@link SizeForm}. */
+function sizeParameter(
+    pyramid: TilePyramid,
+    level: PyramidLevel,
+    parts: TileRequestParts,
+): string {
+    if (pyramid.sizeForm === 'widthHeight') {
+        return `${parts.width},${parts.height}`;
+    }
+
+    if (pyramid.sizeForm === 'wholeImage') {
+        // The level's own advertised dimensions, not the region divided by the
+        // scale factor: two derivatives can share a width and not a height
+        // (`{1000,750}` and `{1000,563}` are two files), so only the level
+        // knows its own extent.
+        return iiifSizeParameter(
+            level.width,
+            isFullExtent(pyramid, level),
+            pyramid.version,
+        );
+    }
+
+    return `${parts.isWholeImage ? snapWholeImageWidth(pyramid, parts.width) : parts.width},`;
+}
+
+/**
+ * The IIIF Image API request for one tile: the URL to ask for, and the other
+ * spelling of the same pixels where the corpus does not agree on one.
  *
  * Every whole-image request is spelled with the canonical `full` region,
- * whatever the service. Image API 3.0 §4.8 names `full` the canonical region
- * for a request covering the whole image and gives static file trees as the
- * reason the canonical form matters: such a tree "will have only a single URI
- * at which the content is available". A tree that instead holds the explicit
- * region is answered by {@link tileFallback}. Version 2 keeps the
- * width-snapping behavior for whole-image level0 requests; see
- * {@link TilePyramid.wholeImageWidths}.
+ * whatever the service. Image API 3.0 §4.8 names `full` the canonical region for
+ * a request covering the whole image and gives static file trees as the reason
+ * the canonical form matters: such a tree "will have only a single URI at which
+ * the content is available". Which size parameter joins it is {@link SizeForm}'s
+ * business, and a version 2 level0 tile tree additionally snaps a whole-image
+ * width to an advertised one (see {@link TilePyramid.wholeImageWidths}).
+ *
+ * The quality is `default`, never `native`. Version 2.1 deprecated `native` and
+ * requires `default` from compliance level 1 upwards, and a 2.0 document is
+ * indistinguishable from a 2.1 one — same `@context`, same profile URIs — so
+ * asking for `native` on a strictly-2.1 endpoint 404s every tile in the pyramid.
+ *
+ * ## The two alternate spellings
+ *
+ * A `wholeImage` source's alternative is the deprecated **quality**: a frozen
+ * pre-2016 static tree spells all of its files `native`, and unlike a tile tree
+ * a size ladder has nothing coarser to fall back to — the whole ladder dies and
+ * the canvas is blank for the life of the page. `iiifWholeImageRequest` carries
+ * the rest of that reasoning.
+ *
+ * A static version 3 tile tree's alternative is the explicit **region**, for a
+ * whole-image tile only. A tile tree is a directory of files, and the corpus
+ * does not agree on what to name that one file. `vips dzsave --layout iiif3` —
+ * and therefore every page `mkiiif` generates — writes only the canonical
+ * `full/362,501`. CSNTM is split against itself: its 𝔓3 tree serves both
+ * spellings, while its 𝔓40 tree serves `0,0,6132,8176/192,256` and 404s
+ * `full/192,256`, even though it declares those dimensions in `sizes[]` and §5.3
+ * requires the `full/w,h` form for a declared size. The explicit region names
+ * the same pixels, so it is the spelling tried when the canonical one is absent.
+ *
+ * Both are scoped to the **service**, not the tile: every request a tree
+ * receives is spelled by the same generator, so one 404 settles all of them.
+ * Neither applies to a partial tile — its region is mandatory and unambiguous —
+ * and a level 1/2 service scales on demand, so it has no alternative at all.
  */
+export function tileRequest(
+    pyramid: TilePyramid,
+    level: PyramidLevel,
+    column: number,
+    row: number,
+): { url: string; fallback: { url: string; group: string } | null } {
+    const parts = tileRequestParts(pyramid, level, column, row);
+    const size = sizeParameter(pyramid, level, parts);
+
+    if (pyramid.sizeForm === 'wholeImage') {
+        return iiifWholeImageRequest(
+            pyramid.serviceId,
+            size,
+            pyramid.format,
+            pyramid.version,
+        );
+    }
+
+    return {
+        url: iiifImageRequestUrl(
+            pyramid.serviceId,
+            size,
+            'default',
+            pyramid.format,
+            parts.isWholeImage ? 'full' : parts.region,
+        ),
+        fallback:
+            parts.isWholeImage && pyramid.sizeForm === 'widthHeight'
+                ? {
+                      url: iiifImageRequestUrl(
+                          pyramid.serviceId,
+                          size,
+                          'default',
+                          pyramid.format,
+                          parts.region,
+                      ),
+                      group: pyramid.serviceId,
+                  }
+                : null,
+    };
+}
+
+/** {@link tileRequest}'s URL, for a caller that cannot use a fallback. */
 export function tileUrl(
     pyramid: TilePyramid,
     level: PyramidLevel,
     column: number,
     row: number,
 ): string {
-    const parts = tileRequestParts(pyramid, level, column, row);
-
-    const regionParameter = parts.isWholeImage ? 'full' : parts.region;
-    const size = parts.isStaticV3Tiles
-        ? `${parts.width},${parts.height}`
-        : `${parts.isWholeImage ? snapWholeImageWidth(pyramid, parts.width) : parts.width},`;
-
-    // `default`, never `native`. Version 2.1 deprecated `native` and requires
-    // `default` from compliance level 1 upwards, and a 2.0 document is
-    // indistinguishable from a 2.1 one — same `@context`, same profile URIs — so
-    // `parseVersion` cannot tell them apart and asking for `native` on a
-    // strictly-2.1 endpoint 404s every tile in the pyramid. `native` belongs to
-    // version 1 only, which is not a source kind this renderer supports.
-    return `${pyramid.serviceId}/${regionParameter}/${size}/0/default.${pyramid.format}`;
-}
-
-/**
- * The other legal spelling of a **whole-image** tile on a static version 3 tile
- * tree, and the scope the answer is remembered for — or `null` where there is
- * no second spelling.
- *
- * A tile tree is a directory of files, and the corpus does not agree on what to
- * name that one file. `vips dzsave --layout iiif3` — and therefore every page
- * `mkiiif` generates — writes only the canonical `full/362,501`. CSNTM is split
- * against itself: its 𝔓3 tree serves both spellings, while its 𝔓40 tree serves
- * `0,0,6132,8176/192,256` and 404s `full/192,256`, even though it declares
- * those dimensions in `sizes[]` and §5.3 requires the `full/w,h` form for a
- * declared size. The explicit region names the same pixels, so it is the
- * spelling tried when the canonical one is absent, and the request that fails
- * answers the question.
- *
- * Scoped to the SERVICE, not the tile: every whole-image request a tree
- * receives — the base level and each single-tile rung the thumbnail tier picks
- * — is spelled by the same generator, so one 404 settles all of them.
- *
- * Only whole-image tiles have a second spelling. A partial tile's region is
- * mandatory and unambiguous, and a level 1/2 service scales on demand, so
- * neither has an alternative to try.
- */
-export function tileFallback(
-    pyramid: TilePyramid,
-    level: PyramidLevel,
-    column: number,
-    row: number,
-): { url: string; group: string } | null {
-    const parts = tileRequestParts(pyramid, level, column, row);
-    if (!parts.isWholeImage || !parts.isStaticV3Tiles) return null;
-
-    return {
-        url: `${pyramid.serviceId}/${parts.region}/${parts.width},${parts.height}/0/default.${pyramid.format}`,
-        group: pyramid.serviceId,
-    };
+    return tileRequest(pyramid, level, column, row).url;
 }
 
 /**
@@ -437,20 +526,71 @@ export function tileCanvasRect(
 }
 
 /**
+ * Whether even the cheapest image this source offers is over the decoded-pixel
+ * ceiling.
+ *
+ * {@link chooseLevel} degrades to the base level anyway for a canvas the reader
+ * is looking at — a blank canvas is worse than one oversized decode, and there
+ * is nothing coarser to fall back to. It is asked here so the **thumbnail** tier
+ * can refuse instead: a thumbnail is one of fifty on screen at the zoom floor,
+ * where the same decode is not a considered trade but fifty of them
+ * (`thumbnailLadder`, which reports the refusal as
+ * `ScenePlan.unresolvedThumbnails`).
+ */
+export function exceedsDecodedPixelCap(
+    pyramid: TilePyramid,
+    maxDecodedPixels: number,
+): boolean {
+    const base = pyramid.levels[0];
+    return base.width * base.height > maxDecodedPixels;
+}
+
+/**
  * The level to draw at, given `imageScale` — **device** pixels per
  * full-resolution image pixel.
  *
  * Device pixels, not CSS pixels: the backing store is sized in device pixels, so
- * on a 2× screen a level chosen from CSS pixels carries a quarter of the detail
+ * on a 2x screen a level chosen from CSS pixels carries a quarter of the detail
  * the display can actually resolve and full resolution is never reached.
  *
- * The rule is the previous renderer's, carried forward unchanged so
- * sharpness-versus-speed does not visibly shift: walk **finest to coarsest** and
- * take the first level that is not oversampled past `minPixelRatio` device
- * pixels per level pixel. At 0.5 that means up to 2× oversampling — a level
- * carrying twice the density the screen can show — is tolerated before dropping
- * to the next coarser one. A *higher* `minPixelRatio` therefore accepts a
- * blurrier level, which is the direction the previous renderer documented.
+ * Two rules, in order:
+ *
+ * 1. **The decoded-pixel cap.** A size-ladder source at deep zoom otherwise
+ *    resolves to the largest advertised image, which for a large manuscript scan
+ *    is a 100+ megapixel JPEG: decoding it pins hundreds of megabytes and can
+ *    hard-crash a phone. Levels above the cap are refused and the blur is
+ *    accepted. Without this one level0 manifest defeats the memory budget the
+ *    rest of the renderer is built around. The base level is always kept, so a
+ *    cap below every level degrades to the cheapest image rather than to
+ *    nothing — reported, not silent: see {@link exceedsDecodedPixelCap}.
+ *
+ *    The affordable set is the **contiguous prefix** up to the first level over
+ *    the cap, not every level under it. A ladder's `sizes[]` has no required
+ *    ordering by area — `{800x8000}` then `{1000x1000}` is legal — so filtering
+ *    would leave a gapped set whose chain (`planScene.planPyramid` requires
+ *    everything below the chosen level) reintroduces exactly the image the cap
+ *    refused. Cut at the first refusal and the chain is bounded too: ladders are
+ *    geometric in practice, so it sums to roughly 4/3 of the chosen level.
+ *
+ *    A level is affordable by its own pixel count, which is its decode only
+ *    where one request is the whole level. A caller holding a tiled source
+ *    therefore does not pass a cap at all — no single tile is ever the whole
+ *    picture there, and the decoded-byte budget governs tiles instead.
+ *
+ * 2. **The promotion rule**, carried forward from the previous renderer
+ *    unchanged so sharpness-versus-speed does not visibly shift: walk **finest
+ *    to coarsest** and take the first level that is not oversampled past
+ *    `minPixelRatio` device pixels per level pixel. At 0.5 that means up to 2x
+ *    oversampling — a level carrying twice the density the screen can show — is
+ *    tolerated before dropping to the next coarser one. A *higher*
+ *    `minPixelRatio` therefore accepts a blurrier level, which is the direction
+ *    the previous renderer documented.
+ *
+ *    Deliberately this rather than "the smallest level at or above what is
+ *    needed", for a ladder as much as for a pyramid: one budget governs
+ *    sharpness for both source kinds instead of two that can drift apart. The
+ *    consequence — a gapped ladder can leave a level visibly upscaled — is a
+ *    deliberate deviation from the spec's earlier wording.
  *
  * Below the base level's ratio there is nothing coarser to fall back to, so the
  * base level is the floor — which is what keeps the viewer never blank.
@@ -459,10 +599,19 @@ export function chooseLevel(
     pyramid: TilePyramid,
     imageScale: number,
     minPixelRatio: number,
+    maxDecodedPixels = Number.POSITIVE_INFINITY,
 ): PyramidLevel {
     const { levels } = pyramid;
 
-    for (let index = levels.length - 1; index >= 0; index -= 1) {
+    let affordable = 0;
+    while (
+        affordable < levels.length &&
+        levels[affordable].width * levels[affordable].height <= maxDecodedPixels
+    ) {
+        affordable += 1;
+    }
+
+    for (let index = Math.max(0, affordable - 1); index >= 0; index -= 1) {
         const level = levels[index];
         // One level pixel spans `scaleFactor` full-resolution pixels, so this
         // is device pixels per level pixel.

@@ -33,6 +33,12 @@
             "reflect": false
         },
         {
+            "property": "loadMessages",
+            "attribute": "loadmessages",
+            "type": "String",
+            "reflect": false
+        },
+        {
             "property": "manifestId",
             "attribute": "manifest-id",
             "type": "String",
@@ -42,6 +48,12 @@
             "property": "manifestJson",
             "attribute": "manifest-json",
             "type": "Object",
+            "reflect": false
+        },
+        {
+            "property": "messages",
+            "attribute": "messages",
+            "type": "String",
             "reflect": false
         },
         {

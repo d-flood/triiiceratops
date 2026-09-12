@@ -1,3 +1,4 @@
+import type { IconName } from '../generated/icons';
 import { getCanvasId } from '../utils/iiifIds';
 import { getCanvasBehaviors, getCanvasChoices } from '../utils/iiifParsing';
 
@@ -21,13 +22,12 @@ export type PagedCanvasGroup = {
 
 export type CanvasNavDirection = 'previous' | 'next';
 
-export type CanvasNavIcon = 'left' | 'right' | 'up' | 'down';
-
 export type CanvasNavLayout = {
     leftButton: CanvasNavDirection;
     rightButton: CanvasNavDirection;
-    leftIcon: CanvasNavIcon;
-    rightIcon: CanvasNavIcon;
+    /** The caret the button wears — the glyph name `Icon` resolves, not a side. */
+    leftIcon: IconName;
+    rightIcon: IconName;
 };
 
 /** Row-centre difference still read as one row, absorbing subpixel layout noise. */
@@ -112,8 +112,8 @@ export function getCanvasNavLayout(
         return {
             leftButton: 'next',
             rightButton: 'previous',
-            leftIcon: 'left',
-            rightIcon: 'right',
+            leftIcon: 'CaretLeft',
+            rightIcon: 'CaretRight',
         };
     }
 
@@ -121,8 +121,8 @@ export function getCanvasNavLayout(
         return {
             leftButton: 'previous',
             rightButton: 'next',
-            leftIcon: 'up',
-            rightIcon: 'down',
+            leftIcon: 'CaretUp',
+            rightIcon: 'CaretDown',
         };
     }
 
@@ -130,16 +130,16 @@ export function getCanvasNavLayout(
         return {
             leftButton: 'next',
             rightButton: 'previous',
-            leftIcon: 'up',
-            rightIcon: 'down',
+            leftIcon: 'CaretUp',
+            rightIcon: 'CaretDown',
         };
     }
 
     return {
         leftButton: 'previous',
         rightButton: 'next',
-        leftIcon: 'left',
-        rightIcon: 'right',
+        leftIcon: 'CaretLeft',
+        rightIcon: 'CaretRight',
     };
 }
 

@@ -41,6 +41,7 @@
     import { flip } from 'svelte/animate';
     import { cubicOut } from 'svelte/easing';
     import PanelStackSection from './PanelStackSection.svelte';
+    import { useReducedMotion } from '../state/reducedMotion';
 
     const DURATION = 200;
 
@@ -60,16 +61,16 @@
     let { panels, closeAlign = 'end', side = 'right' }: Props = $props();
     let hasMounted = $state(false);
 
-    // Honor prefers-reduced-motion by collapsing animations to 0ms.
-    const prefersReducedMotion =
-        typeof window !== 'undefined' &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const duration = prefersReducedMotion ? 0 : DURATION;
+    // Honor prefers-reduced-motion by collapsing animations to 0ms, from the
+    // viewer's one live watcher: a reader who turns the preference on with a
+    // panel open gets the stillness at the next transition, not at reload.
+    const reducedMotion = useReducedMotion();
+    const duration = $derived(reducedMotion.current ? 0 : DURATION);
 
     // A newly-opened panel slides in from the column's outer edge (left column
     // from the left, right column from the right).
     const flyParams = $derived({
-        x: prefersReducedMotion ? 0 : side === 'left' ? -32 : 32,
+        x: reducedMotion.current ? 0 : side === 'left' ? -32 : 32,
         duration,
         easing: cubicOut,
     });

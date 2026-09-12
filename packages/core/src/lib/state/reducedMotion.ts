@@ -16,7 +16,13 @@
  * Nothing here touches `window` at module scope, so it is safe in the SSR
  * module graph; a caller on the server is simply told `false` and never called
  * again.
+ *
+ * The viewer root runs the one watcher and publishes it to its chrome through
+ * {@link provideReducedMotion}; chrome components read it with
+ * {@link useReducedMotion} instead of starting watchers of their own.
  */
+
+import { getContext, setContext } from 'svelte';
 
 export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
@@ -52,4 +58,36 @@ export function watchReducedMotion(
     query.addEventListener?.('change', listener);
 
     return () => query.removeEventListener?.('change', listener);
+}
+
+/**
+ * A reactive holder for one viewer's `prefers-reduced-motion`. `current` is read
+ * at the instant a transition or a scroll starts, so a preference changed with
+ * the viewer open reaches the next one.
+ */
+export interface ReducedMotionSource {
+    readonly current: boolean;
+}
+
+const REDUCED_MOTION_KEY = Symbol('triiiceratops:reducedMotion');
+
+/**
+ * Publish the owning viewer's live preference to its chrome subtree. Call once
+ * at the viewer root, over its own {@link watchReducedMotion} subscription.
+ */
+export function provideReducedMotion(source: ReducedMotionSource): void {
+    setContext(REDUCED_MOTION_KEY, source);
+}
+
+/**
+ * The owning viewer's live preference. Outside any viewer subtree — a component
+ * mounted bare in a test — it reports `false`, the same answer the SSR path
+ * gives, so a component never has to guard the read.
+ */
+export function useReducedMotion(): ReducedMotionSource {
+    return (
+        getContext<ReducedMotionSource | undefined>(REDUCED_MOTION_KEY) ?? {
+            current: false,
+        }
+    );
 }

@@ -45,7 +45,7 @@ triiiceratops :: dist/state/manifests.svelte.d.ts :: fetchResource(url: string, 
 triiiceratops :: dist/state/manifests.svelte.d.ts :: getAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];
 triiiceratops :: dist/state/manifests.svelte.d.ts :: getCanvases(manifestId: string, sequenceIndex?: number): any[];
 triiiceratops :: dist/state/manifests.svelte.d.ts :: json?: any;
-triiiceratops :: dist/state/manifests.svelte.d.ts :: registerManifest(manifestId: string, json: any): Promise<void>;
+triiiceratops :: dist/state/manifests.svelte.d.ts :: registerManifest(manifestId: string, json: any): void;
 triiiceratops :: dist/state/viewer.svelte.d.ts :: ensureCanvasAnnotations(manifestId: string, canvasId: string, sourceId?: string): Promise<any[]>;
 triiiceratops :: dist/state/viewer.svelte.d.ts :: get canvases(): any[];
 triiiceratops :: dist/state/viewer.svelte.d.ts :: getAnnotations(manifestId: string, canvasId: string, sourceId?: string): any[];

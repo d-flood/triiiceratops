@@ -14,11 +14,11 @@
  * marked elements cannot appear there. See packaging/dropLightDomOnly.ts.
  *
  * Between them, the components in the element bundle and the first-party plugins
- * that mount into its shadow root emit `a audio button canvas code dd dialog div
- * dl dt form h2 h3 h4 img input label li mark ol option p section select span
- * svg textarea track ul video`, and the only `<input>` types among them are
- * `button checkbox range url`. Re-check that list before unmarking a rule or
- * marking a new one; nothing in the build enforces it.
+ * that mount into its shadow root emit `a audio button canvas code dd details
+ * dialog div dl dt form h2 h3 h4 img input label li mark ol option p section
+ * select span summary svg textarea track ul video`, and the only `<input>` types
+ * among them are `button checkbox range url`. Re-check that list before
+ * unmarking a rule or marking a new one; nothing in the build enforces it.
  */
 
 /*
@@ -29,8 +29,7 @@
 *,
 ::after,
 ::before,
-::backdrop,
-::file-selector-button {
+::backdrop {
     box-sizing: border-box; /* 1 */
     margin: 0; /* 2 */
     padding: 0; /* 2 */
@@ -41,7 +40,6 @@ html,
 :host {
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
-    tab-size: 4;
     font-family: var(
         --default-font-family,
         ui-sans-serif,
@@ -52,8 +50,8 @@ html,
         'Segoe UI Symbol',
         'Noto Color Emoji'
     );
-    font-feature-settings: var(--default-font-feature-settings, normal);
-    font-variation-settings: var(--default-font-variation-settings, normal);
+    font-feature-settings: normal;
+    font-variation-settings: normal;
     -webkit-tap-highlight-color: transparent;
 }
 
@@ -70,19 +68,15 @@ abbr:where([title]) {
     text-decoration: underline dotted;
 }
 
-h1,
 h2,
 h3,
-h4,
-h5,
-h6 {
+h4 {
     font-size: inherit;
     font-weight: inherit;
 }
 
 a {
     color: inherit;
-    -webkit-text-decoration: inherit;
     text-decoration: inherit;
 }
 
@@ -91,26 +85,12 @@ strong {
     font-weight: bolder;
 }
 
-code,
-kbd,
-samp,
-pre {
-    font-family: var(
-        --default-mono-font-family,
-        ui-monospace,
-        SFMono-Regular,
-        Menlo,
-        Monaco,
-        Consolas,
-        'Liberation Mono',
-        'Courier New',
-        monospace
-    );
-    font-feature-settings: var(--default-mono-font-feature-settings, normal);
-    font-variation-settings: var(
-        --default-mono-font-variation-settings,
-        normal
-    );
+code {
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'Liberation Mono', 'Courier New', monospace;
+    font-feature-settings: normal;
+    font-variation-settings: normal;
     font-size: 1em;
 }
 
@@ -141,6 +121,7 @@ table {
     border-collapse: collapse;
 }
 
+/* light-dom-only */
 :-moz-focusring {
     outline: auto;
 }
@@ -150,14 +131,12 @@ progress {
     vertical-align: baseline;
 }
 
-/* light-dom-only */
 summary {
     display: list-item;
 }
 
 ol,
-ul,
-menu {
+ul {
     list-style: none;
 }
 
@@ -165,10 +144,7 @@ img,
 svg,
 video,
 canvas,
-audio,
-iframe,
-embed,
-object {
+audio {
     display: block;
 }
 
@@ -181,9 +157,7 @@ video {
 button,
 input,
 select,
-optgroup,
-textarea,
-::file-selector-button {
+textarea {
     font: inherit;
     font-feature-settings: inherit;
     font-variation-settings: inherit;
@@ -213,15 +187,16 @@ textarea,
     margin-inline-end: 4px;
 }
 
+/*
+ * The colour is the search field's own placeholder colour, so it stays in the
+ * element build. Preflight guarded it behind `@supports (not (-webkit-appearance:
+ * -apple-pay-button)) or (contain-intrinsic-size: 1px)` to keep Safari below 15.4
+ * on its UA placeholder; the supported floor is above that, so the condition is
+ * always true and the wrapper is bytes for nothing.
+ */
 ::placeholder {
     opacity: 1;
-}
-
-@supports (not (-webkit-appearance: -apple-pay-button)) or
-    (contain-intrinsic-size: 1px) {
-    ::placeholder {
-        color: color-mix(in oklab, currentcolor 50%, transparent);
-    }
+    color: color-mix(in oklab, currentcolor 50%, transparent);
 }
 
 textarea {
@@ -272,13 +247,13 @@ textarea {
     line-height: 1;
 }
 
+/* light-dom-only */
 :-moz-ui-invalid {
     box-shadow: none;
 }
 
 button,
-input:where([type='button'], [type='reset'], [type='submit']),
-::file-selector-button {
+input:where([type='button']) {
     appearance: button;
 }
 
@@ -288,6 +263,7 @@ input:where([type='button'], [type='reset'], [type='submit']),
     height: auto;
 }
 
+/* light-dom-only */
 [hidden]:where(:not([hidden='until-found'])) {
     display: none !important;
 }

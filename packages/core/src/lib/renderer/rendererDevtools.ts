@@ -2,8 +2,8 @@
  * The hook a development build uses to install renderer instrumentation.
  *
  * The geometric e2e assertions need a deterministic viewport and the renderer's
- * own counters — residency by canvas, decoded bytes, plan counts, metadata
- * failures — which no public command offers and which ADR 0012 keeps off the
+ * own counters — residency by canvas, decoded bytes, metadata failures — which
+ * no public command offers and which ADR 0012 keeps off the
  * plugin surface deliberately. The instrumentation itself lives in
  * `src/devtools/`, which the element build never reaches: the e2e harness page
  * (`public/e2e/harness.html`) registers an installer here, and the renderer calls it if
@@ -14,8 +14,9 @@
  * {@link RendererInternals} is deliberately raw: live handles and one-line
  * accessors for state the renderer holds in closure variables, and nothing
  * that could be derived from them. Every shaped value the handle publishes —
- * the stats record, the residency split, a settled-paint promise — is composed
- * in `src/devtools/`, so none of that shaping ships.
+ * the stats record, the residency split, the frame and settled-paint counts, a
+ * settled-paint promise — is composed in `src/devtools/`, so none of that
+ * shaping ships.
  *
  * A bundler-provided DEV flag would have been the obvious gate and is not
  * available: `distribution-cleanup.guard.test.ts` bans build-time environment
@@ -56,7 +57,6 @@ export interface RendererInternals {
     setByteBudget(bytes: number): void;
     /** The tile scheduler itself, which carries every residency counter. */
     tiles: TileScheduler;
-    getScenePlanCount(): number;
     getTiers(): Record<string, ResidencyTier>;
     /** Live and reactive; the handle copies it before publishing. */
     canvasErrors: Record<string, CanvasErrorKind>;

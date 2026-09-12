@@ -25,6 +25,12 @@
 // next honest regression arrives to find the budget already consumed. Any
 // deliberate size change belongs in the baseline, where a reviewer can see it.
 //
+// Both artifacts are built to one `es2022` floor — Safari 16.4+, Chrome 94+,
+// Firefox 93+, the supported floor the install documentation states — so the
+// two figures are comparable: neither entry carries private fields downleveled
+// to a syntax the floor supports natively. Lowering either build's target would
+// show up here as an increase on that artifact alone.
+//
 // This runs as part of `pnpm build:element`; it needs built artifacts, so it
 // deliberately does not run under `pnpm test`.
 

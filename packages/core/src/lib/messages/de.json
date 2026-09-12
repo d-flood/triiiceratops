@@ -1,5 +1,4 @@
 {
-    "$schema": "https://inlang.com/schema/inlang-message-format",
     "search_panel_title": "Suche",
     "search_panel_placeholder": "Inhalt durchsuchen...",
     "search_panel_no_results": "Keine Ergebnisse für \"{query}\" gefunden",

@@ -11,15 +11,28 @@ describe('themeConfig friendly-name overrides map to --tri-* vars', () => {
         const el = document.createElement('div');
         applyThemeConfig(el, { primary: '#3b82f6' });
 
-        // The friendly `primary` key writes the namespaced --tri-* token
-        // (normalized to oklch), and only namespaced vars are ever written.
-        expect(el.style.getPropertyValue('--tri-color-primary')).not.toBe('');
+        // The friendly `primary` key writes the namespaced --tri-* token, and
+        // only namespaced vars are ever written.
+        expect(el.style.getPropertyValue('--tri-color-primary')).toBe(
+            '#3b82f6',
+        );
         for (let i = 0; i < el.style.length; i++) {
             const name = el.style.item(i);
             if (name.startsWith('--')) {
                 expect(name.startsWith('--tri-')).toBe(true);
             }
         }
+    });
+
+    it.each([
+        ['hex', '#3b82f6'],
+        ['rgb', 'rgb(59, 130, 246)'],
+        ['oklch', 'oklch(60% 0.25 250)'],
+        ['named', 'rebeccapurple'],
+    ])('reads a %s color back as the author wrote it', (_syntax, value) => {
+        const el = document.createElement('div');
+        applyThemeConfig(el, { primary: value });
+        expect(el.style.getPropertyValue('--tri-color-primary')).toBe(value);
     });
 
     it('applies a non-color friendly override verbatim to the namespaced token', () => {
@@ -51,7 +64,7 @@ describe('themeConfig friendly-name overrides map to --tri-* vars', () => {
 
 describe('CSS_VAR_MAP is consistent with the public token registry', () => {
     it('maps every friendly name to a --tri-* var (except colorScheme)', () => {
-        for (const [key, cssVar] of Object.entries(CSS_VAR_MAP)) {
+        for (const [key, { cssVar }] of Object.entries(CSS_VAR_MAP)) {
             if (key === 'colorScheme') {
                 expect(cssVar).toBe('color-scheme');
                 continue;

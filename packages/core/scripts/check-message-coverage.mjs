@@ -3,20 +3,22 @@
  *
  * `createLocalizedMessages` (src/lib/state/i18n.svelte.ts) reaches messages
  * through a Proxy `get` trap, i.e. a runtime string index. No bundler can
- * tree-shake that, so every key in `messages/*.json` is bytes in the element
- * bundle whether or not anything renders it — and the same indirection means a
- * key that does NOT exist is a `get` returning `undefined`, not a compile or
- * type error. Both failures are invisible at build time:
+ * tree-shake that, so every key in `src/lib/messages/en.json` — the one catalog
+ * the element artifact ships inline — is bytes in the element bundle whether or
+ * not anything renders it; a key nothing references costs bytes forever,
+ * invisibly (the leak this file exists to stop recurring;
+ * see SPEC.md, "Runtime string indexing defeats tree-shaking").
  *
- *   - a key nothing references costs bytes forever (the leak this file exists to
- *     stop recurring; see SPEC.md, "Runtime string indexing defeats
- *     tree-shaking");
- *   - a reference to a key that was renamed or deleted throws
- *     `m.foo is not a function` at the moment that chrome first renders.
+ * The reverse direction is a type error for a statically named key, since
+ * `Messages` is keyed by `keyof typeof en`. It is still checked here, because
+ * the accessor is also indexed by a computed string — `byName[messageKey]()` in
+ * the test host, and the `m[tooltip]` path noted below — where a renamed key is
+ * a `get` returning `undefined` and throws only when that chrome first renders.
  *
- * So this asserts both directions between `messages/en.json` and the `m.<key>`
- * references under `src/lib`. It runs at the head of `build:element`, beside
- * `check-icon-coverage`, which guards the same class of hole in the icon table.
+ * So this asserts both directions between `src/lib/messages/en.json` and the
+ * `m.<key>` references under `src/lib`. It runs at the head of `build:element`,
+ * beside `check-icon-coverage`, which guards the same class of hole in the icon
+ * table.
  *
  * Scope notes:
  *
@@ -28,11 +30,12 @@
  *   2. Comments are blanked first. Component and test prose quotes `m.<key>` as
  *      illustration, and a scan that read those would keep a key alive on the
  *      strength of a sentence about it.
- *   3. `Toolbar.svelte`'s `resolvePluginTooltip` indexes `m[tooltip]` with a
- *      plugin-supplied string, falling back to the string itself when it names
- *      no message. That path is deliberately outside this guard: the keys it can
- *      reach are whatever a third-party plugin passes, which no scan of this
- *      repo can enumerate. No first-party plugin names a core message key there.
+ *   3. `resolveChromeName` (src/lib/state/i18n.svelte.ts) indexes the accessor
+ *      with a plugin-supplied string — a declared `tooltip` or panel `name` —
+ *      falling back to the string itself when it names no message. That path is
+ *      deliberately outside this guard: the keys it can reach are whatever a
+ *      third-party plugin passes, which no scan of this repo can enumerate. No
+ *      first-party plugin names a core message key there.
  *
  * Run directly: `node ./scripts/check-message-coverage.mjs`.
  */
@@ -44,14 +47,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const coreRoot = path.resolve(here, '..');
 const repoRoot = path.resolve(coreRoot, '..', '..');
 
-/** The source language file; the compiler's own lint rules keep de.json level. */
-const CATALOG = path.join(coreRoot, 'messages', 'en.json');
+/** The source language file. `de.json` is kept level with it by review. */
+const CATALOG = path.join(coreRoot, 'src', 'lib', 'messages', 'en.json');
 
 /** The only tree whose `m.<key>` calls resolve against that catalog. */
 const ROOT = path.join(coreRoot, 'src', 'lib');
 
-/** Generated output, and the Proxy that indexes it — neither names a key. */
-const EXCLUDED = new Set(['paraglide', 'generated']);
+/** Generated output — it names no key. */
+const EXCLUDED = new Set(['generated']);
 
 const rel = (p) => path.relative(repoRoot, p);
 
@@ -63,11 +66,7 @@ let keys = new Set();
 if (!existsSync(CATALOG)) {
     problems.push(`${rel(CATALOG)} does not exist.`);
 } else {
-    keys = new Set(
-        Object.keys(JSON.parse(readFileSync(CATALOG, 'utf8'))).filter(
-            (key) => !key.startsWith('$'),
-        ),
-    );
+    keys = new Set(Object.keys(JSON.parse(readFileSync(CATALOG, 'utf8'))));
     if (keys.size === 0) {
         problems.push(`${rel(CATALOG)} declares no messages.`);
     }
@@ -102,9 +101,9 @@ function stripComments(text) {
 }
 
 /**
- * Whether a file declares `m` as a binding — imported from the i18n module or
- * the compiled output, returned by `getMessages()`, or assigned from an injected
- * namespace the way `canvasRenderer` takes `const m = options.messages`.
+ * Whether a file declares `m` as a binding — imported from the i18n module,
+ * returned by `getMessages()`, or assigned from an injected namespace the way
+ * `canvasRenderer` takes `const m = options.messages`.
  *
  * The scan below is a text match on `m.<name>`, and `m` is an unremarkable name
  * for a callback PARAMETER: `matches.map((m) => m.index)` would otherwise read
@@ -115,7 +114,7 @@ function stripComments(text) {
 function bindsMessageNamespace(text) {
     return (
         /\b(?:const|let|var)\s+m\s*=/.test(text) ||
-        /\bm\b[^\n]*from\s*['"][^'"]*(?:i18n|paraglide\/messages)/.test(text)
+        /\bm\b[^\n]*from\s*['"][^'"]*i18n/.test(text)
     );
 }
 
@@ -154,9 +153,8 @@ for (const key of orphans) {
     problems.push(
         `"${key}" is in ${rel(CATALOG)} but nothing under ${rel(ROOT)} calls ` +
             `\`m.${key}\`. The Proxy puts it in the element bundle regardless, ` +
-            `so delete it from messages/en.json and messages/de.json — or, if it ` +
-            `belongs to the playground's chrome, to ` +
-            `apps/site/src/lib/playground/i18n.svelte.ts.`,
+            `so delete it from src/lib/messages/en.json and ` +
+            `src/lib/messages/de.json.`,
     );
 }
 

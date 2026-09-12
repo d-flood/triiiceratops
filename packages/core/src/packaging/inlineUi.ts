@@ -19,8 +19,7 @@
  * the extraction: it copies the primitive `.svelte` sources in beside the shim
  * and rewrites the barrel to import them relatively — leaving no reference to
  * the `@triiiceratops/ui` specifier anywhere in the published dist. Mirrors the
- * existing `cp -r ./src/paraglide ./src/lib/paraglide` inlining of generated
- * code in `build:lib`.
+ * `@triiiceratops/ui` specifier anywhere in the published dist.
  *
  * Run directly: `node ./src/packaging/inlineUi.ts` (Node strips the types).
  */

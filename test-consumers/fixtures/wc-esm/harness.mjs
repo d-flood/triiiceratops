@@ -37,6 +37,14 @@ export default {
             'element must self-style inside its shadow root',
         ).toBe(true);
 
+        // The chrome renders in German, from the catalog the consumer imported
+        // out of the packed tarball's `triiiceratops/locales/*` subpath and
+        // passed as `messages` — the whole host-supplied-locale path, end to
+        // end, through a real install.
+        await expect(
+            page.locator('[data-panel-id="search"][role="dialog"]'),
+        ).toHaveAttribute('aria-label', 'Suche', { timeout: 30_000 });
+
         expect(
             pageErrors.map((e) => e.message),
             'no uncaught page errors',

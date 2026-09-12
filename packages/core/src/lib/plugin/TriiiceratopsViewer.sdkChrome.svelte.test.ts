@@ -84,7 +84,7 @@ function makeDouble(config: {
 }
 
 // happy-dom has no Web Animations API; the docked-panel path animates
-// (transition:fly / animate:flip / slideWidth). Stub `animate` with an
+// (transition:fly / animate:flip / slideAxis). Stub `animate` with an
 // immediately-finishing animation so outros complete and nodes unmount.
 function stubAnimate() {
     if (!('animate' in Element.prototype)) {

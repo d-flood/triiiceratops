@@ -30,7 +30,7 @@ describe('createStaticImageFailures', () => {
     });
 
     it('is idempotent: recording the same URL twice is one entry', () => {
-        const failures = createStaticImageFailures(2);
+        const failures = createStaticImageFailures();
 
         failures.record('/a.png');
         failures.record('/a.png');
@@ -48,15 +48,16 @@ describe('createStaticImageFailures', () => {
      * entry ceiling.
      */
     it('bounds what it remembers, dropping the oldest', () => {
-        const failures = createStaticImageFailures(2);
+        // The ceiling is a fixed 512 entries, so one past it is the only way
+        // to ask.
+        const failures = createStaticImageFailures();
+        const urls = Array.from({ length: 513 }, (_, index) => `/${index}.png`);
 
-        failures.record('/a.png');
-        failures.record('/b.png');
-        failures.record('/c.png');
+        for (const url of urls) failures.record(url);
 
-        expect(failures.has('/a.png')).toBe(false);
-        expect(failures.has('/b.png')).toBe(true);
-        expect(failures.has('/c.png')).toBe(true);
+        expect(failures.has(urls[0])).toBe(false);
+        expect(failures.has(urls[1])).toBe(true);
+        expect(failures.has(urls[512])).toBe(true);
     });
 
     /*

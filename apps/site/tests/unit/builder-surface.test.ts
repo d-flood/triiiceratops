@@ -221,7 +221,7 @@ describe('what the route leaves out', () => {
 
     /*
      * The route sets the whole configuration interface, so a key that is not a
-     * control has to say why in one line here. Two do; a third would be a gap.
+     * control has to say why in one line here. Four do; a fifth would be a gap.
      */
     const EXPECTED_ABSENT: Record<string, string> = {
         /*
@@ -236,6 +236,14 @@ describe('what the route leaves out', () => {
          * on. The suite below holds those to `PluginUiConfig`.
          */
         plugins: 'rendered per plugin by the picker, from PLUGIN_UI_CONTROLS',
+        /*
+         * A whole translation catalog per language. Nothing a form can author,
+         * and nothing a reader configuring a viewer on this page needs — the
+         * configuration guide documents both under "Chrome Translations".
+         */
+        messages: 'a translation catalog, authored in code not a form',
+        /* A function, for the same reason. */
+        loadMessages: 'a function, not a value a form can emit',
     };
 
     it('accounts for every leaf of the configuration interface', () => {

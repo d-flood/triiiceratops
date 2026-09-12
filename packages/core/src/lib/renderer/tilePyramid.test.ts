@@ -13,7 +13,7 @@ import {
     buildPyramid,
     chooseLevel,
     tileCanvasRect,
-    tileFallback,
+    tileRequest,
     tileKey,
     tileRegion,
     tilesIntersecting,
@@ -198,7 +198,7 @@ describe('tileUrl', () => {
         expect(tileUrl(pyramid, pyramid.levels[0], 0, 0)).toBe(
             `${signed}/full/192,256/0/default.jpg`,
         );
-        expect(tileFallback(pyramid, pyramid.levels[0], 0, 0)).toEqual({
+        expect(tileRequest(pyramid, pyramid.levels[0], 0, 0).fallback).toEqual({
             url: `${signed}/0,0,6132,8176/192,256/0/default.jpg`,
             group: signed,
         });

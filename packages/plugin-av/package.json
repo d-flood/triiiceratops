@@ -37,10 +37,9 @@
         "./iife": "./dist/iife.js"
     },
     "scripts": {
-        "build": "pnpm clean && pnpm build:esm && pnpm build:iife && pnpm build:iife-chunks && pnpm build:types && pnpm check:shared-runtime",
+        "build": "pnpm clean && pnpm build:esm && pnpm build:iife && pnpm build:types && pnpm check:shared-runtime",
         "build:esm": "BUILD_FORMAT=es vite build",
         "build:iife": "BUILD_FORMAT=iife vite build",
-        "build:iife-chunks": "BUILD_FORMAT=iife-chunks vite build",
         "build:types": "tsc -p tsconfig.build.json",
         "check:shared-runtime": "node ./scripts/check-shared-runtime.mjs",
         "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p tsconfig.build.json --noEmit",
@@ -61,7 +60,7 @@
         "@triiiceratops/ui": "workspace:*",
         "@types/node": "^24.10.1",
         "@vitest/coverage-v8": "4.0.15",
-        "happy-dom": "^20.0.11",
+        "happy-dom": "^20.11.6",
         "svelte": "5.56.10",
         "svelte-check": "^4.3.4",
         "triiiceratops": "workspace:*",

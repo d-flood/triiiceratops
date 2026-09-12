@@ -765,8 +765,8 @@ describe('viewerControls helpers', () => {
             expect(getCanvasNavLayout('left-to-right')).toEqual({
                 leftButton: 'previous',
                 rightButton: 'next',
-                leftIcon: 'left',
-                rightIcon: 'right',
+                leftIcon: 'CaretLeft',
+                rightIcon: 'CaretRight',
             });
         });
 
@@ -774,8 +774,8 @@ describe('viewerControls helpers', () => {
             expect(getCanvasNavLayout('right-to-left')).toEqual({
                 leftButton: 'next',
                 rightButton: 'previous',
-                leftIcon: 'left',
-                rightIcon: 'right',
+                leftIcon: 'CaretLeft',
+                rightIcon: 'CaretRight',
             });
         });
 
@@ -783,8 +783,8 @@ describe('viewerControls helpers', () => {
             expect(getCanvasNavLayout('top-to-bottom')).toEqual({
                 leftButton: 'previous',
                 rightButton: 'next',
-                leftIcon: 'up',
-                rightIcon: 'down',
+                leftIcon: 'CaretUp',
+                rightIcon: 'CaretDown',
             });
         });
 
@@ -792,8 +792,8 @@ describe('viewerControls helpers', () => {
             expect(getCanvasNavLayout('bottom-to-top')).toEqual({
                 leftButton: 'next',
                 rightButton: 'previous',
-                leftIcon: 'up',
-                rightIcon: 'down',
+                leftIcon: 'CaretUp',
+                rightIcon: 'CaretDown',
             });
         });
     });

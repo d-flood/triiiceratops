@@ -52,6 +52,16 @@ const REQUIRED_CORE_DIST_FILES = [
     // Svelte consumers being unable to import the component at all.
     'dist/svelte.js',
     'dist/svelte.d.ts',
+    // The German chrome catalog, published as an asset rather than bundled into
+    // the element artifacts. `./locales/*` is a wildcard subpath, so
+    // `assertCoreExportTargets` cannot derive this one from the export map —
+    // and a build that stopped emitting it would leave every German-reading
+    // host importing nothing.
+    'dist/locales/de.json',
+    // Imported by the shipped chrome itself (`dist/state/i18n.svelte.js`), so
+    // its absence is a runtime failure in every consumer, not a missing
+    // subpath.
+    'dist/messages/en.json',
 ];
 
 /**
@@ -71,6 +81,11 @@ const CORE_FORBIDDEN_RUNTIME_DEPS = ['react', 'react-dom', 'svelte', 'vue'];
 // Extensions permitted inside `dist/`: JS + Svelte source (core is
 // source-distributed), TypeScript declarations, CSS, and source maps. Notably
 // ABSENT: `.json` (would admit fixture manifests), `.ico`/images, `.html`.
+//
+// The one exception is the locale catalogs, admitted by `isAllowedPath` from
+// their two directories only — `dist/messages/en.json`, which the shipped
+// chrome imports, and `dist/locales/*.json`, the assets the
+// `triiiceratops/locales/*` subpath publishes.
 //
 // `dist/react.js`, `dist/react.d.ts`, `dist/vue.js`, and `dist/vue.d.ts` — the
 // framework wrapper entries — are admitted by the `.js` / `.d.ts` rules here and
@@ -111,12 +126,18 @@ function isRejectedPath(rel) {
     return null;
 }
 
+/** Directories under `dist/` whose `.json` files are locale catalogs. */
+const LOCALE_DIRS = ['messages', 'locales'];
+
 /** Does `rel` match an allow rule (correct location + permitted kind)? */
 function isAllowedPath(rel) {
     if (!rel.includes('/')) return TOP_LEVEL_ALLOWED.has(rel);
-    const [first] = rel.split('/');
-    if (first !== 'dist') return false;
-    const base = rel.slice(rel.lastIndexOf('/') + 1);
+    const segments = rel.split('/');
+    if (segments[0] !== 'dist') return false;
+    const base = segments[segments.length - 1];
+    if (base.endsWith('.json')) {
+        return segments.length === 3 && LOCALE_DIRS.includes(segments[1]);
+    }
     return ALLOWED_DIST_SUFFIXES.some((s) => base.endsWith(s));
 }
 
@@ -263,6 +284,10 @@ export function collectExportTargets(pkg) {
     const targets = new Set();
     const visit = (node) => {
         if (typeof node === 'string') {
+            // A wildcard subpath (`./dist/locales/*`) names a pattern, not a
+            // file; what it must actually resolve to is asserted by
+            // REQUIRED_CORE_DIST_FILES instead.
+            if (node.includes('*')) return;
             if (node.startsWith('./dist/')) targets.add(node.slice(2));
             return;
         }
@@ -544,6 +569,7 @@ export function selfCheckFrameworkSubpathAssertions() {
                 svelte: './dist/svelte.js',
                 import: './dist/svelte.js',
             },
+            './locales/*': './dist/locales/*',
         },
     };
     const entries = [
@@ -555,6 +581,8 @@ export function selfCheckFrameworkSubpathAssertions() {
         'dist/vue.js',
         'dist/svelte.d.ts',
         'dist/svelte.js',
+        'dist/locales/de.json',
+        'dist/messages/en.json',
     ];
 
     const clean = classifyCoreExportTargets(healthy, entries);
@@ -577,11 +605,19 @@ export function selfCheckFrameworkSubpathAssertions() {
         },
         entries,
     );
+    // The locale asset the `./locales/*` wildcard promises. The wildcard itself
+    // is not a file, so a clean package must not report it missing, and the
+    // catalog behind it must be reported when it goes.
+    const droppedLocale = classifyCoreExportTargets(
+        healthy,
+        entries.filter((e) => e !== 'dist/locales/de.json'),
+    );
 
     const ok =
         clean.missingRequired.length === 0 &&
         clean.missingTargets.length === 0 &&
         clean.missingSubpaths.length === 0 &&
+        droppedLocale.missingRequired.includes('dist/locales/de.json') &&
         droppedFile.missingRequired.includes('dist/react.js') &&
         droppedFile.missingTargets.includes('dist/react.js') &&
         droppedSvelte.missingRequired.includes('dist/svelte.js') &&
@@ -607,14 +643,32 @@ export function selfCheckPlantedTest() {
         'package/package.json',
         'package/LICENSE',
         'package/dist/index.js',
+        'package/dist/messages/en.json',
+        'package/dist/locales/de.json',
         'package/dist/foo.test.js', // the plant
+        'package/dist/demo/manifest.json', // the second plant
     ];
     const { ok, problems } = validateEntries(planted);
-    const caught = problems.some((p) => p.entry === 'dist/foo.test.js');
+    // Both plants caught, and neither locale catalog mistaken for one: the
+    // `.json` exception has to stay narrow enough to keep rejecting a fixture
+    // manifest that lands anywhere else under dist/.
+    const missed = ['dist/foo.test.js', 'dist/demo/manifest.json'].filter(
+        (entry) => !problems.some((p) => p.entry === entry),
+    );
+    const overreached = problems
+        .map((p) => p.entry)
+        .filter(
+            (entry) =>
+                entry.startsWith('dist/locales/') ||
+                entry.startsWith('dist/messages/'),
+        );
     return {
-        ok: !ok && caught,
-        detail: caught
-            ? ''
-            : 'validator failed to reject a planted dist/foo.test.js',
+        ok: !ok && missed.length === 0 && overreached.length === 0,
+        detail:
+            missed.length > 0
+                ? `validator failed to reject planted ${missed.join(', ')}`
+                : overreached.length > 0
+                  ? `validator rejected the locale catalog(s) ${overreached.join(', ')}`
+                  : '',
     };
 }

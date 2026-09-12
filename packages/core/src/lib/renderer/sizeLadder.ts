@@ -5,8 +5,8 @@
  * ## Two level0 shapes, one of which is not this one
  *
  * IIIF level0 says "the server serves precomputed derivatives and nothing
- * else". That leaves two genuinely different sources, and the distinction is a
- * type here rather than something derived at runtime:
+ * else". That leaves two genuinely different sources, and which one a service is
+ * is decided once, here, rather than at every request:
  *
  * 1. a level0 service that advertises `tiles` is an ordinary **tiled source**
  *    whose level selection is restricted to the advertised scale factors —
@@ -27,66 +27,25 @@
  * 200 lines that reconstructed level0 semantics by monkeypatching a third-party
  * tile source's `getNumTiles`, `getTileUrl`, and `minLevel` at runtime, because
  * that class assumes arbitrary region requests exist. Modelled directly, the
- * whole of shape 2 is the rung list below and one selection rule, and shape 1
- * needs no code at all.
+ * whole of shape 2 is the level list below — a pyramid of one-tile levels, so
+ * `tilePyramid` owns every rule that follows from it — and shape 1 needs no code
+ * at all.
  *
- * ## URL parity, and the one place it is knowingly broken
+ * ## URL parity
  *
- * Which rung is requested at which zoom, and how its size parameter is spelled
- * (`max` / `full` / `w,`), reproduce the previous renderer exactly. The
- * **quality** parameter does not: this asks for `default` where that path asks
- * for `native` on a version 2 service. `native` was deprecated in Image API 2.1
- * in favour of `default`, a 2.0 document is indistinguishable from a 2.1 one,
- * and `tilePyramid.tileUrl` already committed the renderer to `default` for the
- * same reason. Spelling the same service two different ways depending on
- * whether it happened to advertise tiles would be worse than either answer.
- *
- * The one case that answer gets wrong is a **frozen pre-2016 static tree**,
- * whose files are all spelled `native` and which therefore 404s every rung. A
- * ladder has no coarser fallback there — the whole ladder dies and the canvas
- * is blank for the life of the page — so `rungUrl` can also spell a version 2
- * rung `native`, and every rung request carries that spelling as its
- * `TileRequest.fallback`. The scheduler tries it once, per service, only after
- * `default` has actually failed (see `tileScheduler`): the happy path still
- * asks one way.
+ * Which level is requested at which zoom, and how its size parameter is spelled
+ * (`max` / `full` / `w,`), reproduce the previous renderer exactly. The **one**
+ * knowing deviation is the quality parameter: this asks for `default` where that
+ * path asks for `native` on a version 2 service, because `native` was deprecated
+ * in Image API 2.1 in favour of `default` and a 2.0 document is
+ * indistinguishable from a 2.1 one. A frozen pre-2016 static tree is the case
+ * that answer gets wrong, and it is the reason every whole-image request carries
+ * the `native` spelling as its `TileRequest.fallback` — see
+ * `tilePyramid.tileRequest`.
  */
 
-import {
-    iiifImageRequestUrl,
-    iiifSizeParameter,
-} from '../utils/iiifImageRequest';
-import type { TilePyramid } from './tilePyramid';
+import type { PyramidLevel, TilePyramid } from './tilePyramid';
 import type { ImageServiceFacts } from './types';
-
-/** One advertised whole image. `index` is its position in the ladder. */
-export interface LadderRung {
-    /** 0 is the coarsest rung; the last is the largest advertised image. */
-    index: number;
-    width: number;
-    height: number;
-    /**
-     * Full-resolution pixels per rung pixel — the same quantity a
-     * `PyramidLevel` carries, so both source kinds pick a level through the
-     * identical `minPixelRatio` rule.
-     */
-    scaleFactor: number;
-}
-
-export interface SizeLadder {
-    serviceId: string;
-    /** Full-resolution image dimensions, from the service. */
-    width: number;
-    height: number;
-    /** Ordered smallest first. Never empty. */
-    rungs: LadderRung[];
-    /**
-     * The service's Image API major version, carried for one reason: the
-     * whole-image size parameter is spelled `full` in version 2 and `max` in
-     * version 3, and a level0 service serves exactly one of those as a file.
-     */
-    version: 2 | 3;
-    format: string;
-}
 
 /**
  * The level-bearing string out of a `profile`, whatever shape it arrived in.
@@ -203,48 +162,61 @@ function usableSizes(
 }
 
 /**
- * The size ladder for a **level0** service that advertises no tiling, or `null`
- * if its dimensions are unusable.
+ * The size ladder for a **level0** service that advertises no tiling, as a
+ * pyramid whose every level holds one tile — or `null` if its dimensions are
+ * unusable.
  *
  * Level0 is the caller's precondition, not this function's guess — see
- * `planScene`, which will not take this branch for a service that merely
- * omitted `tiles`. A level 1/2 service can answer any region at any size, so a
- * ladder for one would turn "no tiles advertised" into a full-resolution
- * whole-image download that no budget can refuse.
+ * `planScene`, which will not take this branch for a service that merely omitted
+ * `tiles`. A level 1/2 service can answer any region at any size, so a ladder
+ * for one would turn "no tiles advertised" into a full-resolution whole-image
+ * download that no budget can refuse.
  *
  * A level0 service advertising **no sizes either** still gets a ladder — one
- * rung, the whole image. Level0 compliance requires the full-size image to be
- * available at the canonical whole-image URL, so that rung always exists; the
- * alternative is a permanently blank canvas, which is what the previous
- * renderer did with such a service.
+ * level, the whole image. Level0 compliance requires the full-size image to be
+ * available at the canonical whole-image URL, so that level always exists; the
+ * alternative is a permanently blank canvas, which is what the previous renderer
+ * did with such a service.
  */
 export function buildSizeLadder(
     serviceId: string,
     facts: ImageServiceFacts,
-): SizeLadder | null {
+): TilePyramid | null {
     if (!(facts.width > 0) || !(facts.height > 0)) return null;
 
     const sizes = usableSizes(facts);
-    const rungs = (
+    const levels = (
         sizes.length > 0
             ? sizes
             : [{ width: facts.width, height: facts.height }]
     ).map(
-        (size, index): LadderRung => ({
-            index,
+        (size, level): PyramidLevel => ({
+            level,
             width: size.width,
             height: size.height,
+            // Full-resolution pixels per level pixel — the same quantity a
+            // tiled level carries, so both source kinds pick a level through
+            // the identical `minPixelRatio` walk.
             scaleFactor: facts.width / size.width,
+            columns: 1,
+            rows: 1,
         }),
     );
 
     return {
+        // `info.json` owns the base URI for image requests. It can differ from
+        // the URI that fetched the document when an auth gateway signs access.
         serviceId: facts.requestBaseUri ?? serviceId,
         width: facts.width,
         height: facts.height,
-        rungs,
+        tileSize: wholeImageTileSize(facts.width, facts.height),
+        levels,
         version: facts.version === 2 ? 2 : 3,
         format: facts.format || 'jpg',
+        sizeForm: 'wholeImage',
+        // Never read for a `wholeImage` source: every level already IS an
+        // advertised whole image, so there is nothing to snap to.
+        wholeImageWidths: null,
     };
 }
 
@@ -257,150 +229,29 @@ export function buildSizeLadder(
  * pyramid rather than from a second reading of `info.json` is what keeps the
  * offered sizes and the requested sizes provably the same list.
  */
-export function ladderFromPyramid(pyramid: TilePyramid): SizeLadder {
+export function ladderFromPyramid(pyramid: TilePyramid): TilePyramid {
     return {
-        serviceId: pyramid.serviceId,
-        width: pyramid.width,
-        height: pyramid.height,
+        ...pyramid,
+        tileSize: wholeImageTileSize(pyramid.width, pyramid.height),
         // `levels` is ordered coarsest first, which is already ascending width.
-        rungs: pyramid.levels.map(
-            (level, index): LadderRung => ({
-                index,
-                width: level.width,
-                height: level.height,
-                scaleFactor: level.scaleFactor,
-            }),
-        ),
-        version: pyramid.version,
-        format: pyramid.format,
+        levels: pyramid.levels.map((level) => ({
+            ...level,
+            columns: 1,
+            rows: 1,
+        })),
+        sizeForm: 'wholeImage',
+        wholeImageWidths: null,
     };
 }
 
 /**
- * The IIIF Image API request URL for one rung: a whole image, never a region.
+ * The tile width that makes every level of a whole-image source a single tile.
  *
- * The full-resolution rung takes the canonical whole-image size parameter and
- * every other rung the width-only form; `utils/iiifImageRequest` carries why.
+ * The grid is computed from `tileSize * scaleFactor` against the
+ * full-resolution image and a level's scale factor is at least 1, so one tile
+ * covers the image as long as the tile spans the LONGER edge — the width alone
+ * leaves a portrait image two rows deep.
  */
-export function rungUrl(
-    ladder: SizeLadder,
-    rung: LadderRung,
-    quality: 'default' | 'native' = 'default',
-): string {
-    // Version 2 compares width alone and version 3 compares both, matching the
-    // previous renderer's whole-image URL exactly.
-    const isFullSize =
-        ladder.version === 2
-            ? rung.width === ladder.width
-            : rung.width === ladder.width && rung.height === ladder.height;
-
-    return iiifImageRequestUrl(
-        ladder.serviceId,
-        iiifSizeParameter(rung.width, isFullSize, ladder.version),
-        quality,
-        ladder.format,
-    );
-}
-
-/**
- * The `native`-quality spelling of a rung, and the scope the answer is
- * remembered for — or `null` when there is no plausible second spelling.
- *
- * Only a version 2 service has one: `native` belongs to Image API 1 and 2.0,
- * and version 3 never had it. See {@link rungUrl} and `TileRequest.fallback`.
- */
-export function rungFallback(
-    ladder: SizeLadder,
-    rung: LadderRung,
-): { url: string; group: string } | null {
-    if (ladder.version !== 2) return null;
-    return {
-        url: rungUrl(ladder, rung, 'native'),
-        // The service, not the rung: one 404 answers the question for the whole
-        // ladder, which is the difference between one wasted request and one
-        // per rung.
-        group: ladder.serviceId,
-    };
-}
-
-/**
- * Whether even the cheapest image this service offers is over the
- * decoded-pixel ceiling.
- *
- * {@link chooseRung} degrades to that rung anyway for a canvas the reader is
- * looking at — a blank canvas is worse than one oversized decode, and there is
- * nothing coarser to fall back to. It is asked here so the **thumbnail** ladder
- * can refuse instead: a thumbnail is one of fifty on screen at the zoom floor,
- * where the same decode is not a considered trade but fifty of them
- * (`thumbnailLadder`, which reports the refusal as
- * `ScenePlan.unresolvedThumbnails`).
- */
-export function exceedsDecodedPixelCap(
-    ladder: SizeLadder,
-    maxDecodedPixels: number,
-): boolean {
-    const cheapest = ladder.rungs[0];
-    return cheapest.width * cheapest.height > maxDecodedPixels;
-}
-
-/**
- * The rung to draw at, given `imageScale` — **device** pixels per
- * full-resolution image pixel, exactly as `tilePyramid.chooseLevel` takes it.
- *
- * Two rules, in order:
- *
- * 1. **The decoded-pixel cap.** A size-ladder source at deep zoom otherwise
- *    resolves to the largest advertised image, which for a large manuscript
- *    scan is a 100+ megapixel JPEG: decoding it pins hundreds of megabytes and
- *    can hard-crash a phone. Rungs above the cap are refused and the blur is
- *    accepted. Without this one level0 manifest defeats the memory budget the
- *    rest of the renderer is built around. The smallest rung is always kept, so
- *    a cap below every rung degrades to the cheapest image rather than to
- *    nothing — reported, not silent: see {@link exceedsDecodedPixelCap}.
- *
- *    The affordable set is the **contiguous prefix** up to the first rung over
- *    the cap, not every rung under it. `sizes[]` has no required ordering by
- *    area — `{800x8000}` then `{1000x1000}` is legal — so filtering would leave
- *    a gapped set whose chain (`planScene.planSizeLadder` requires everything
- *    below the chosen rung) reintroduces exactly the image the cap refused.
- *    Cut at the first refusal and the chain is bounded too: ladders are
- *    geometric in practice, so it sums to roughly 4/3 of the chosen rung.
- * 2. **The same promotion rule the pyramid uses** — the `minPixelRatio` walk,
- *    finest to coarsest (see `tilePyramid.chooseLevel`): the largest rung that
- *    is not oversampled past `minPixelRatio` device pixels per rung pixel, so
- *    at 0.5 the chosen rung may be as much as half the width actually needed
- *    and the last half-step of sharpness is traded for the smaller decode.
- *    Deliberately this rather than "the smallest rung at or above what is
- *    needed": that is how the previous renderer chose, so which image is
- *    requested at which zoom does not shift, and it means one budget governs
- *    sharpness for both source kinds instead of two that can drift apart. The
- *    consequence — a gapped ladder can leave a rung visibly upscaled — is a
- *    deliberate deviation from the spec's earlier wording.
- */
-export function chooseRung(
-    ladder: SizeLadder,
-    imageScale: number,
-    minPixelRatio: number,
-    maxDecodedPixels: number,
-): LadderRung {
-    const { rungs } = ladder;
-
-    let affordableCount = 0;
-    while (
-        affordableCount < rungs.length &&
-        rungs[affordableCount].width * rungs[affordableCount].height <=
-            maxDecodedPixels
-    ) {
-        affordableCount += 1;
-    }
-
-    const candidates =
-        affordableCount > 0 ? rungs.slice(0, affordableCount) : [rungs[0]];
-
-    for (let index = candidates.length - 1; index >= 0; index -= 1) {
-        const rung = candidates[index];
-        if (imageScale * rung.scaleFactor >= minPixelRatio) return rung;
-    }
-
-    return candidates[0];
+function wholeImageTileSize(width: number, height: number): number {
+    return Math.max(width, height);
 }

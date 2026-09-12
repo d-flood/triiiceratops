@@ -1,6 +1,6 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
-    import { getContext } from 'svelte';
+    import { getContext, untrack } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages } from '../state/i18n.svelte';
     import SanitizedHtml from './SanitizedHtml.svelte';
@@ -9,10 +9,12 @@
     import { getAnnotationId } from '../utils/iiifIds';
     import { isSafeUrl } from '../utils/sanitizeHtml';
     import { Button, Badge } from './ui';
+    import { useReducedMotion } from '../state/reducedMotion';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
     const m = getMessages();
+    const reducedMotion = useReducedMotion();
     /**
      * Every annotation on every canvas the reader is looking at, in layout order:
      * one canvas in `individuals`, the whole spread in `paged`, the folios the
@@ -127,13 +129,13 @@
         );
         if (!(row instanceof HTMLElement)) return;
 
-        const reducedMotion =
-            typeof window.matchMedia === 'function' &&
-            window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
+        // Untracked: this effect exists to follow the ACTIVE ANNOTATION, and a
+        // preference toggled with the panel open must not re-scroll the row the
+        // reader is already on.
+        const instant = untrack(() => reducedMotion.current);
         row.scrollIntoView({
             block: 'nearest',
-            behavior: reducedMotion ? 'auto' : 'smooth',
+            behavior: instant ? 'auto' : 'smooth',
         });
     });
 
@@ -178,12 +180,12 @@
 {#if viewerState.showAnnotations}
     <div
         data-panel-id="annotations"
-        class="panel"
+        class="tri-panel"
         role="dialog"
         aria-label={m.settings_submenu_annotations()}
     >
         <!-- Toolbar / Stats -->
-        <div class="toolbar">
+        <div class="toolbar tri-panel-bar">
             <div class="count">
                 {m.annotations_count({ count: annotations.length })}
             </div>
@@ -213,7 +215,7 @@
                 {@const isActive = viewerState.activeAnnotationId === anno.id}
                 <!-- List Item Row -->
                 <div
-                    class="row"
+                    class="row tri-panel-row"
                     class:dimmed={!isVisible}
                     class:active={isActive}
                     role="button"
@@ -334,7 +336,7 @@
                     </div>
                 </div>
             {:else}
-                <div class="empty">
+                <div class="tri-panel-empty">
                     {m.no_annotations_available()}
                 </div>
             {/each}
@@ -343,22 +345,7 @@
 {/if}
 
 <style>
-    .panel {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-    }
-
     .toolbar {
-        padding: 1rem;
-        border-bottom-width: 1px;
-        border-bottom-style: solid;
-        border-bottom-color: var(--tri-surface-border);
-        background-color: color-mix(
-            in oklab,
-            var(--tri-input-bg) 50%,
-            transparent
-        );
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -382,27 +369,10 @@
         flex-direction: column;
     }
 
-    /* divide-y divide-base-300 */
-    .list > :global(* + *) {
-        border-top-width: 1px;
-        border-top-style: solid;
-        border-top-color: var(--tri-surface-border);
-    }
-
+    /* The row's own contribution to `.tri-panel-row`: the connector line and
+       the search-hit marker are positioned against it. */
     .row {
-        width: 100%;
-        text-align: left;
-        padding: 1rem;
-        transition-property:
-            color, background-color, border-color, text-decoration-color, fill,
-            stroke;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.15s;
-        display: flex;
-        gap: 0.75rem;
-        align-items: flex-start;
         position: relative;
-        cursor: pointer;
     }
 
     .row:focus {
@@ -520,10 +490,8 @@
         padding: 0.25rem;
         border-radius: 0.25rem;
         margin-left: -0.25rem;
-        transition-property:
-            color, background-color, border-color, text-decoration-color, fill,
-            stroke;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-property: color, background-color, border-color;
+        transition-timing-function: var(--ui-ease);
         transition-duration: 0.15s;
     }
 
@@ -545,13 +513,5 @@
         font-style: italic;
         font-size: 0.75rem;
         line-height: 1rem;
-    }
-
-    .empty {
-        padding: 2rem;
-        text-align: center;
-        opacity: 0.5;
-        font-size: 0.875rem;
-        line-height: 1.25rem;
     }
 </style>

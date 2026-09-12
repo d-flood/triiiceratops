@@ -63,6 +63,7 @@
             "svelte": "./dist/image-export.js",
             "import": "./dist/image-export.js"
         },
+        "./locales/*": "./dist/locales/*",
         "./element": "./dist/triiiceratops-element.iife.js",
         "./element/register": "./dist/triiiceratops-element.js",
         "./style.css": "./dist/triiiceratops.css"
@@ -89,9 +90,8 @@
         "predev": "pnpm gen:icons && pnpm gen:state",
         "pretest": "pnpm gen:icons && pnpm gen:state",
         "precheck": "pnpm gen:icons && pnpm gen:state",
-        "gen:paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide && rm -rf ./src/lib/paraglide && cp -r ./src/paraglide ./src/lib/paraglide",
         "gen:styles": "vite build --config vite.config.styles.ts && rm -f dist/triiiceratops-styles.js",
-        "build:lib": "pnpm gen:icons && pnpm gen:state && pnpm gen:paraglide && svelte-package --tsconfig ./tsconfig.app.json && rm -f dist/paraglide/.gitignore dist/paraglide/.prettierignore && node ./src/packaging/pruneDist.ts && node ./src/packaging/inlineUi.ts && vite build --config vite.config.lib.ts && pnpm gen:styles && pnpm check:dts-svelte-types",
+        "build:lib": "pnpm gen:icons && pnpm gen:state && svelte-package --tsconfig ./tsconfig.app.json && node ./src/packaging/pruneDist.ts && node ./src/packaging/inlineUi.ts && node ./src/packaging/publishLocales.ts && vite build --config vite.config.lib.ts && pnpm gen:styles && pnpm check:dts-svelte-types",
         "build:testing": "vite build --config vite.config.testing.ts && pnpm check:testing-entry",
         "check:testing-entry": "node ./scripts/check-testing-entry.mjs",
         "build:element": "pnpm gen:icons && pnpm gen:state && pnpm check:icon-coverage && pnpm check:message-coverage && vite build --config vite.config.element.ts && vite build --config vite.config.element-esm.ts && pnpm check:element-artifact && pnpm check:framework-entries && pnpm check:element-size",
@@ -117,7 +117,6 @@
     "devDependencies": {
         "@axe-core/playwright": "^4.12.1",
         "@eslint/js": "^9.39.2",
-        "@inlang/paraglide-js": "^2.7.0",
         "@phosphor-icons/core": "^2.1.1",
         "@playwright/test": "^1.57.0",
         "@sveltejs/package": "^2.5.7",
@@ -139,7 +138,7 @@
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-svelte": "^3.14.0",
         "globals": "^17.1.0",
-        "happy-dom": "^20.0.11",
+        "happy-dom": "^20.11.6",
         "jsdom": "^27.3.0",
         "prettier": "^3.7.4",
         "prettier-plugin-svelte": "^3.4.0",

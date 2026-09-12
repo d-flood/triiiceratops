@@ -69,6 +69,20 @@
                 type: 'String',
                 reflect: false,
             },
+            messages: {
+                attribute: 'messages',
+                type: 'String',
+                reflect: false,
+            },
+            // Property-only input, on the same terms as `searchProvider`
+            // below: a catalog loader is a function, and the derived
+            // `loadmessages` attribute can only ever deliver a string, which
+            // the script below ignores.
+            loadMessages: {
+                attribute: 'loadmessages',
+                type: 'String',
+                reflect: false,
+            },
             // Property-only input. Declaring it here is what makes Svelte
             // define a prototype accessor for it and port a value assigned
             // BEFORE the element upgrades (`custom-element.js`
@@ -108,7 +122,8 @@
     import type { SdkPlugin } from '../types/plugin';
     import type { BuiltInTheme, ThemeConfig } from '../theme/types';
     import type { ViewerConfig } from '../types/config';
-    import { isBuiltInTheme, parseThemeConfig } from '../theme/themeManager';
+    import type { LocaleCatalog } from '../types/plugin';
+    import { isBuiltInTheme } from '../theme/themeManager';
     import type { ViewerState } from '../state/viewer.svelte';
     import type { PluginError } from '../types/plugin';
     import type { ViewerError } from '../types/viewerError';
@@ -130,6 +145,8 @@
         themeConfig = undefined as string | ThemeConfig | undefined,
         config = undefined as string | ViewerConfig | undefined,
         initialCanvasRegion = undefined as string | CanvasRegion | undefined,
+        messages = undefined as string | LocaleCatalog | undefined,
+        loadMessages = undefined as ViewerConfig['loadMessages'],
         searchProvider = undefined as SearchProvider | null | undefined,
         onpluginerror = undefined as ((error: PluginError) => void) | undefined,
         onviewererror = undefined as ((error: ViewerError) => void) | undefined,
@@ -193,6 +210,19 @@
          */
         config?: string | ViewerConfig;
         initialCanvasRegion?: string | CanvasRegion;
+        /**
+         * Chrome translations, as a JSON string (HTML attribute) or the parsed
+         * catalog (JS property). A convenience spelling of `config.messages`,
+         * which it overrides when both are given.
+         */
+        messages?: string | LocaleCatalog;
+        /**
+         * On-demand catalog loader (property-only input). There is no supported
+         * attribute: assign `element.loadMessages = fn`, before or after
+         * upgrade. Anything that is not a function is ignored. Overrides
+         * `config.loadMessages`.
+         */
+        loadMessages?: ViewerConfig['loadMessages'];
     } = $props();
 
     let hostElement: HTMLElement;
@@ -238,20 +268,20 @@
     let validatedTheme = $derived.by((): BuiltInTheme | undefined => {
         if (!theme) return undefined;
         if (isBuiltInTheme(theme)) return theme;
-        logger.warn(`Invalid theme "${theme}". Using inherited theme.`);
+        logger.warn(`Invalid theme "${theme}"; inheriting.`);
         return undefined;
     });
 
     let parsedThemeConfig = $derived.by((): ThemeConfig | undefined => {
         if (!themeConfig) return undefined;
         if (typeof themeConfig === 'string') {
-            const parsed = parseThemeConfig(themeConfig);
-            if (!parsed) {
-                logger.warn(
-                    `Invalid theme-config JSON: "${themeConfig}". Ignoring.`,
-                );
-            }
-            return parsed ?? undefined;
+            const parsed = parseJsonProp<ThemeConfig | undefined>(themeConfig, {
+                fallback: undefined,
+                label: 'theme-config',
+                onError: logger.warn,
+            });
+
+            return parsed && typeof parsed === 'object' ? parsed : undefined;
         }
         return themeConfig;
     });
@@ -265,6 +295,56 @@
             });
         }
         return config;
+    });
+
+    let parsedMessages = $derived.by((): LocaleCatalog | undefined => {
+        if (!messages) return undefined;
+        if (typeof messages === 'string') {
+            const parsed = parseJsonProp<LocaleCatalog | undefined>(messages, {
+                fallback: undefined,
+                label: 'messages',
+                onError: logger.warn,
+            });
+
+            return parsed && typeof parsed === 'object' ? parsed : undefined;
+        }
+        return messages;
+    });
+
+    // `loadMessages` is property-only: the inert `loadmessages` observed
+    // attribute Svelte derives from the prop declaration can only ever deliver
+    // a string, so anything that is not a function is dropped here.
+    let validatedLoadMessages = $derived.by(
+        (): ViewerConfig['loadMessages'] => {
+            if (loadMessages === undefined || loadMessages === null) {
+                return undefined;
+            }
+            if (typeof loadMessages !== 'function') {
+                logger.warn(
+                    'Ignoring non-function loadMessages; it is property-only: ' +
+                        'element.loadMessages = (locale) => ….',
+                );
+                return undefined;
+            }
+            return loadMessages;
+        },
+    );
+
+    /**
+     * The config the inner viewer sees. The element's own `messages` and
+     * `loadMessages` are a convenience for hosts driving it through attributes
+     * and properties — framework wrappers pass both on `config` — so they are
+     * folded in here, winning over a `config` that names them too.
+     */
+    let mergedConfig = $derived.by((): ViewerConfig | undefined => {
+        if (!parsedMessages && !validatedLoadMessages) return parsedConfig;
+        return {
+            ...parsedConfig,
+            ...(parsedMessages ? { messages: parsedMessages } : {}),
+            ...(validatedLoadMessages
+                ? { loadMessages: validatedLoadMessages }
+                : {}),
+        };
     });
 
     let parsedManifestJson = $derived.by(
@@ -297,8 +377,7 @@
             return null;
         if (typeof searchProvider !== 'function') {
             logger.warn(
-                'Ignoring non-function searchProvider. It is a property-only ' +
-                    'input with no supported attribute: assign ' +
+                'Ignoring non-function searchProvider; it is property-only: ' +
                     'element.searchProvider = (query, context) => ….',
             );
             return null;
@@ -335,7 +414,7 @@
         {plugins}
         theme={validatedTheme}
         themeConfig={parsedThemeConfig}
-        config={parsedConfig}
+        config={mergedConfig}
         initialCanvasRegion={parsedInitialCanvasRegion}
         searchProvider={validatedSearchProvider}
         {onpluginerror}

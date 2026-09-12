@@ -45,6 +45,8 @@ interface BridgeElement extends HTMLElement {
     manifestId?: string;
     manifestJson?: unknown;
     config?: unknown;
+    messages?: unknown;
+    loadMessages?: unknown;
 }
 
 const MANIFEST_ID = 'https://example.org/iiif/book/manifest';
@@ -392,6 +394,85 @@ describe('searchProvider property input', () => {
             [...el.attributes]
                 .map((a) => a.name)
                 .filter((n) => /search/.test(n)),
+        ).toEqual([]);
+    });
+});
+
+/**
+ * The chrome-catalog inputs. `messages` is the fourth JSON-valued prop, read
+ * from an attribute or assigned as a property through the same parser as
+ * `config`; `loadMessages` is a function, so it is property-only on the terms
+ * `searchProvider` set above. Both are a spelling of the `config` fields a
+ * framework wrapper uses, and win over them.
+ */
+describe('messages and loadMessages inputs', () => {
+    it('parses a messages attribute as JSON onto the config', async () => {
+        const el = createViewer();
+        el.setAttribute('messages', '{"de":{"search":"Suche"}}');
+        await connect(el);
+
+        expect(el.viewerState?.config.messages).toEqual({
+            de: { search: 'Suche' },
+        });
+    });
+
+    it('takes a messages property assigned before connection', async () => {
+        const el = createViewer();
+        const messages = { de: { search: 'Suche' } };
+        el.messages = messages;
+        await connect(el);
+
+        expect(el.viewerState?.config.messages).toEqual(messages);
+    });
+
+    it('lets the messages input win over config.messages', async () => {
+        const el = createViewer();
+        el.config = { messages: { de: { search: 'Von config' } } };
+        el.messages = { de: { search: 'Von messages' } };
+        await connect(el);
+
+        expect(el.viewerState?.config.messages).toEqual({
+            de: { search: 'Von messages' },
+        });
+    });
+
+    it('drops malformed messages JSON with a debug-gated warning', async () => {
+        const records: Array<{ level: LogLevel; message: string }> = [];
+        configureLogging({
+            debug: true,
+            sink: (level, args) =>
+                records.push({ level, message: args.join(' ') }),
+        });
+
+        const el = createViewer();
+        el.config = { debug: true };
+        el.setAttribute('messages', '{"de":');
+        await connect(el);
+
+        expect(el.viewerState?.config.messages).toBeUndefined();
+        expect(
+            records.filter(
+                (r) => r.level === 'warn' && r.message.includes('messages'),
+            ).length,
+        ).toBeGreaterThan(0);
+    });
+
+    it('carries a loadMessages function and ignores anything else', async () => {
+        const load = async () => ({ search: 'Suche' });
+        const el = createViewer();
+        el.loadMessages = load;
+        await connect(el);
+        expect(el.viewerState?.config.loadMessages).toBe(load);
+
+        const stray = createViewer();
+        // What the inert `loadmessages` attribute would deliver: a string.
+        stray.loadMessages = 'window.myLoader';
+        await connect(stray);
+        expect(stray.viewerState?.config.loadMessages).toBeUndefined();
+        expect(
+            [...stray.attributes]
+                .map((a) => a.name)
+                .filter((n) => /message/.test(n)),
         ).toEqual([]);
     });
 });

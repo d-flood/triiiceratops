@@ -84,6 +84,24 @@ interface Settled {
  */
 async function settled(page: Page, menu: string): Promise<Settled> {
     await page.locator(`[aria-controls="tri-flyout-${menu}"]`).click();
+    // The panel opens on a scale transition, and its box mid-scale is NOT
+    // centred on the toggle (the `scale` property composes outside `transform`,
+    // so the translate that centres it is scaled too). Wait for the animation
+    // itself rather than inferring rest from two equal reads, which can both
+    // land inside one un-repainted frame.
+    await page.waitForFunction(
+        async (name) => {
+            const panel = document
+                .querySelector('triiiceratops-viewer')!
+                .shadowRoot!.querySelector(`#tri-flyout-${name}`)!;
+            await Promise.all(
+                panel.getAnimations().map((animation) => animation.finished),
+            );
+            return true;
+        },
+        menu,
+        { timeout: 10000 },
+    );
     const read = async () =>
         page.evaluate((name) => {
             const root = document

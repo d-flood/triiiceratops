@@ -5,7 +5,6 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 import dropLightDomOnly from './src/packaging/dropLightDomOnly';
 import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
-import { messageCompiler } from './src/packaging/messageCompiler';
 import { minifyCssPreprocessor } from './src/packaging/minifyCss';
 import { terserElementBuilds } from './src/packaging/terserElement';
 
@@ -43,7 +42,6 @@ export default defineConfig({
             dynamicCompileOptions: customElementGuard.dynamicCompileOptions,
         }),
         customElementGuard.plugin,
-        messageCompiler(),
         // Second minification pass, over what esbuild writes. Deliberately not
         // `build.minify: 'terser'`: replacing esbuild rather than following it
         // measures thousands of gzip bytes worse. `'iife'` keeps terser in

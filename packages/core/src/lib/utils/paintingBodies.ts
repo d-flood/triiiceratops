@@ -13,6 +13,7 @@
 
 import { getCanvasId, getResourceId } from './iiifIds';
 import {
+    asArray,
     getChoiceAlternatives,
     getPaintingAnnotations,
     getPaintingBody,
@@ -47,13 +48,7 @@ function isIiifImageProfile(profile: unknown): boolean {
  * @internal Not exported from any package entry point.
  */
 export function getImageService(resource: any): any | null {
-    let services: any[] = [];
-
-    if (resource?.service) {
-        services = Array.isArray(resource.service)
-            ? resource.service
-            : [resource.service];
-    }
+    const services = asArray(resource?.service);
 
     if (!services.length) {
         return null;
@@ -162,12 +157,7 @@ export function isImageBody(body: unknown): boolean {
  * and it is a different question.
  */
 export function paintingBodyAlternatives(annotation: unknown): unknown[] {
-    const body = getPaintingBody(annotation);
-    if (!body) return [];
-
-    const entries = Array.isArray(body) ? body : [body];
-
-    return entries.flatMap((entry) =>
+    return asArray(getPaintingBody(annotation)).flatMap((entry) =>
         isChoiceBody(entry) ? getChoiceAlternatives(entry) : [entry],
     );
 }
@@ -304,12 +294,7 @@ function selectedPaintingBodies(
     annotation: unknown,
     selectedChoiceId: string | undefined,
 ): unknown[] {
-    const body = getPaintingBody(annotation);
-    if (!body) return [];
-
-    const entries = Array.isArray(body) ? body : [body];
-
-    return entries
+    return asArray(getPaintingBody(annotation))
         .map((entry) =>
             isChoiceBody(entry)
                 ? chooseAlternative(entry, selectedChoiceId)

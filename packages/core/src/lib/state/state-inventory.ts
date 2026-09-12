@@ -351,19 +351,17 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'dockSide',
         classification: 'command',
         commands: ['setDockSide'],
-        notes: 'Dock edge; setDockSide keeps the derived docked flags in sync.',
+        notes: 'Dock edge; the docked flags below are derived from it.',
     },
     {
         member: 'isGalleryDockedBottom',
-        classification: 'command',
-        commands: ['setDockSide'],
-        notes: 'Derived from dockSide; maintained as an invariant by setDockSide.',
+        classification: 'observable',
+        notes: 'Read-only projection of dockSide, so there is no invariant to maintain and no mutator of its own; setDockSide moves it. Notifies with dockSide because the watcher reads the derivation.',
     },
     {
         member: 'isGalleryDockedRight',
-        classification: 'command',
-        commands: ['setDockSide'],
-        notes: 'Derived from dockSide; maintained as an invariant by setDockSide.',
+        classification: 'observable',
+        notes: 'Read-only projection of dockSide; see isGalleryDockedBottom.',
     },
     // ---- Errors ---------------------------------------------------------------
     {

@@ -18,10 +18,12 @@
     import Icon from './Icon.svelte';
     import PluginIcon from './PluginIcon.svelte';
     import { dismissible } from '../utils/dismissible';
+    import { nextRovingIndex } from '../utils/roving';
     import type {
         RegisteredTransportChrome,
         TransportChromeView,
     } from '../state/transportChrome';
+    import type { IconDescriptor } from '../types/plugin.js';
 
     let {
         chrome,
@@ -302,25 +304,10 @@
         const root = group.getRootNode() as Document | ShadowRoot;
         const at = live.indexOf(root.activeElement as HTMLButtonElement);
 
-        let next = -1;
-        switch (event.key) {
-            case 'ArrowDown':
-            case 'ArrowRight':
-                next = (at + 1) % live.length;
-                break;
-            case 'ArrowUp':
-            case 'ArrowLeft':
-                next = (at - 1 + live.length) % live.length;
-                break;
-            case 'Home':
-                next = 0;
-                break;
-            case 'End':
-                next = live.length - 1;
-                break;
-            default:
-                return;
-        }
+        const next = nextRovingIndex(event.key, at, live.length, {
+            horizontal: true,
+        });
+        if (next < 0) return;
 
         event.preventDefault();
         const target = live[next];
@@ -330,6 +317,34 @@
     }
 </script>
 
+<!--
+    One transport button. The tracks button is not rendered through this: it
+    binds its element for focus return and carries `aria-expanded` for the list
+    it owns.
+-->
+{#snippet transportButton(
+    descriptor: IconDescriptor,
+    testId: string,
+    label: string,
+    pressed: boolean | undefined,
+    onclick: () => void,
+)}
+    <Button
+        size="sm"
+        square
+        ghost
+        type="button"
+        class="tooltip {tooltipPlacement}"
+        data-testid={testId}
+        data-tip={label}
+        aria-pressed={pressed}
+        aria-label={label}
+        {onclick}
+    >
+        <PluginIcon {descriptor} size={18} />
+    </Button>
+{/snippet}
+
 {#if view.present}
     <div
         bind:this={element}
@@ -338,22 +353,13 @@
         role="group"
         aria-label={labels.transport}
     >
-        <Button
-            size="sm"
-            square
-            ghost
-            type="button"
-            class="tooltip {tooltipPlacement}"
-            data-testid="transport-play"
-            data-tip={playLabel}
-            aria-label={playLabel}
-            onclick={() => port.toggle()}
-        >
-            <PluginIcon
-                descriptor={view.paused ? icons.play : icons.pause}
-                size={18}
-            />
-        </Button>
+        {@render transportButton(
+            view.paused ? icons.play : icons.pause,
+            'transport-play',
+            playLabel,
+            undefined,
+            () => port.toggle(),
+        )}
 
         <!--
             The clock readings are hidden from assistive technology rather than
@@ -422,23 +428,13 @@
             >{view.durationText}</span
         >
 
-        <Button
-            size="sm"
-            square
-            ghost
-            type="button"
-            class="tooltip {tooltipPlacement}"
-            data-testid="transport-mute"
-            data-tip={muteLabel}
-            aria-pressed={view.muted}
-            aria-label={muteLabel}
-            onclick={() => port.setMuted(!view.muted)}
-        >
-            <PluginIcon
-                descriptor={view.muted ? icons.mute : icons.unmute}
-                size={18}
-            />
-        </Button>
+        {@render transportButton(
+            view.muted ? icons.mute : icons.unmute,
+            'transport-mute',
+            muteLabel,
+            view.muted,
+            () => port.setMuted(!view.muted),
+        )}
 
         {#if view.volumeSettable}
             <Range
@@ -541,20 +537,13 @@
             this button owns.
         -->
         {#if view.transcript}
-            <Button
-                size="sm"
-                square
-                ghost
-                type="button"
-                class="tooltip {tooltipPlacement}"
-                data-testid="transport-transcript"
-                data-tip={labels.transcript}
-                aria-pressed={view.transcriptOpen}
-                aria-label={labels.transcript}
-                onclick={() => port.setTranscript(!view.transcriptOpen)}
-            >
-                <PluginIcon descriptor={icons.transcript} size={18} />
-            </Button>
+            {@render transportButton(
+                icons.transcript,
+                'transport-transcript',
+                labels.transcript,
+                view.transcriptOpen,
+                () => port.setTranscript(!view.transcriptOpen),
+            )}
         {/if}
     </div>
 {/if}
@@ -575,7 +564,7 @@
         flex-wrap: nowrap;
         min-width: 18rem;
         align-items: center;
-        gap: var(--ui-gap, 0.5rem);
+        gap: var(--ui-gap);
         font-size: 0.75rem;
         line-height: 1;
     }

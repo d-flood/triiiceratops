@@ -10,11 +10,7 @@
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
 
-    let structures = $derived(
-        viewerState.structures.filter(
-            (node: any) => !node.behaviors?.includes('sequence'),
-        ),
-    );
+    let structures = $derived(viewerState.nonSequenceStructures);
     let hasStructures = $derived(structures.length > 0);
     let autoExpandedId = $derived(
         structures.length === 1 && structures[0].children.length > 0
@@ -143,7 +139,7 @@
 {#if viewerState.showStructuresPanel}
     <div
         data-panel-id="structures"
-        class="panel"
+        class="tri-panel"
         role="dialog"
         aria-label={m.structures_title()}
     >
@@ -166,7 +162,7 @@
         align-items: center;
         gap: 0.25rem;
         transition-property: color, background-color, border-color;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-timing-function: var(--ui-ease);
         transition-duration: 150ms;
     }
     .row.active {
@@ -220,11 +216,6 @@
         opacity: 0.6;
     }
 
-    .panel {
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
     .tree {
         display: flex;
         flex-direction: column;

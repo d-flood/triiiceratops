@@ -44,7 +44,7 @@ export const PUBLISHABLE_PACKAGES = [
         name: 'triiiceratops',
         dir: 'core',
         // build:testing compiles the headless `triiiceratops/testing` entry AFTER
-        // build:lib (needs the generated paraglide runtime + dist types).
+        // build:lib (it needs the dist types).
         build: ['build:lib', 'build:testing', 'build:element'],
     },
     { name: '@triiiceratops/plugin-sdk', dir: 'plugin-sdk', build: ['build'] },

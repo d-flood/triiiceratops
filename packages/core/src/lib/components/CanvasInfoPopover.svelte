@@ -170,9 +170,7 @@
         border-style: solid;
         border-color: var(--tri-surface-border);
         border-radius: var(--tri-radius-panels);
-        box-shadow:
-            0 20px 25px -5px #0000001a,
-            0 8px 10px -6px #0000001a;
+        box-shadow: var(--ui-shadow-xl);
         width: 18rem;
         max-height: 16rem;
         overflow: hidden;

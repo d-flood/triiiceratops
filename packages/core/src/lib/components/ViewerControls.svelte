@@ -62,6 +62,23 @@
     let showZoom = $derived(viewerState.showZoomControls);
     let hasChoices = $derived(visibleChoiceGroups.length > 0);
     let hasCenterControls = $derived(showZoom || showNav);
+
+    // Where the bar spans the viewer — a registered transport stretches it —
+    // the trailing control sits against the inline-end edge and its centred
+    // tooltip bubble overflows and is clipped: "Fit to Viewer" renders as
+    // "Fit to View". The shared tooltip sheet's `tt-edge-end` modifier anchors
+    // that bubble to the button's end edge instead; the tail is left alone and
+    // keeps pointing at the button's centre.
+    //
+    // Applied unconditionally rather than only when the bar is full width,
+    // because CSS cannot ask whether the bubble would fit. The cost where the
+    // bar is a centred pill is an end-aligned bubble instead of a centred one,
+    // which is a fair trade against clipped text where it is not.
+    //
+    // Which button this is depends on what the bar renders: the fit control
+    // where there is no canvas nav, the next-canvas button where there is. A
+    // trailing choice group takes the position away from both.
+    let navEdgeClass = $derived(rightChoiceGroup ? '' : 'tt-edge-end');
     let useAbbreviatedChoiceLabels = $derived(
         shouldUseAbbreviatedChoiceLabels(
             viewerState.viewingMode,
@@ -99,21 +116,8 @@
         return getChoiceLabel(choice, index);
     }
 
-    function getNavIcon(icon: 'left' | 'right' | 'up' | 'down'): IconName {
-        switch (icon) {
-            case 'up':
-                return 'CaretUp';
-            case 'down':
-                return 'CaretDown';
-            case 'right':
-                return 'CaretRight';
-            default:
-                return 'CaretLeft';
-        }
-    }
-
-    let leftNavIcon = $derived(getNavIcon(canvasNavLayout.leftIcon));
-    let rightNavIcon = $derived(getNavIcon(canvasNavLayout.rightIcon));
+    let leftNavIcon = $derived(canvasNavLayout.leftIcon);
+    let rightNavIcon = $derived(canvasNavLayout.rightIcon);
 
     // The bar renders one registered transport chrome — the first, if a second
     // claimant ever registers (see `ViewerState.registerTransportChrome`). The
@@ -448,13 +452,15 @@
             const surface = area.getBoundingClientRect();
             const fromTop = box.top - surface.top;
             const fromBottom = surface.bottom - box.bottom;
+            // The bar covers exactly one edge: whichever it sits nearer.
+            const edge = fromTop <= fromBottom ? 'top' : 'bottom';
             const covered =
-                fromTop <= fromBottom
-                    ? { top: box.bottom - surface.top }
-                    : { bottom: surface.bottom - box.top };
+                edge === 'top'
+                    ? box.bottom - surface.top
+                    : surface.bottom - box.top;
             publishInset({
                 ...ZERO_VIEWPORT_INSET,
-                ...clampEdges(covered),
+                [edge]: clampEdge(covered),
             });
         };
 
@@ -472,14 +478,9 @@
         };
     });
 
-    /** Edges as whole, non-negative pixels — a partly-offscreen bar covers nothing. */
-    function clampEdges(edges: Partial<ViewportInset>): Partial<ViewportInset> {
-        return Object.fromEntries(
-            Object.entries(edges).map(([edge, value]) => [
-                edge,
-                Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0,
-            ]),
-        );
+    /** An edge as whole, non-negative pixels — a partly-offscreen bar covers nothing. */
+    function clampEdge(value: number): number {
+        return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
     }
 
     // `chromeInset` is `$state.raw`: any assignment wakes subscribers, even one
@@ -502,6 +503,49 @@
         viewerState.chromeInset = next;
     }
 </script>
+
+<!--
+    A zoom button: one step per click, a smooth ramp while held. The pointer
+    handlers belong to this pair alone — see `pressZoom`.
+-->
+{#snippet zoomButton(icon: IconName, label: string, direction: 1 | -1)}
+    <Button
+        square
+        size="sm"
+        ghost
+        onpointerdown={(event) => pressZoom(event, direction)}
+        onpointerup={releaseZoom}
+        onpointercancel={releaseZoom}
+        onclick={() => clickZoom(direction)}
+        class="tooltip {tooltipPlacement}"
+        data-tip={label}
+        aria-label={label}
+    >
+        <Icon name={icon} size={18} />
+    </Button>
+{/snippet}
+
+<!-- A plain bar button: fit-to-viewer and the two canvas-nav arrows. -->
+{#snippet barButton(
+    icon: IconName,
+    label: string,
+    onclick: () => void,
+    disabled: boolean,
+    edgeClass: string = '',
+)}
+    <Button
+        square
+        size="sm"
+        ghost
+        {disabled}
+        {onclick}
+        class="tooltip {tooltipPlacement} {edgeClass}"
+        data-tip={label}
+        aria-label={label}
+    >
+        <Icon name={icon} size={18} />
+    </Button>
+{/snippet}
 
 {#snippet choiceControls(group: ChoiceGroup, abbreviated: boolean)}
     {@const crowded = group.choices.length > 4}
@@ -642,58 +686,25 @@
                     <div class="center-controls">
                         {#if showZoom}
                             <div class="btn-row">
-                                <Button
-                                    square
-                                    size="sm"
-                                    ghost
-                                    onpointerdown={(event) =>
-                                        pressZoom(event, -1)}
-                                    onpointerup={releaseZoom}
-                                    onpointercancel={releaseZoom}
-                                    onclick={() => clickZoom(-1)}
-                                    class="tooltip {tooltipPlacement}"
-                                    data-tip={m.zoom_out()}
-                                    aria-label={m.zoom_out()}
-                                >
-                                    <Icon
-                                        name="MagnifyingGlassMinus"
-                                        size={18}
-                                    />
-                                </Button>
+                                {@render zoomButton(
+                                    'MagnifyingGlassMinus',
+                                    m.zoom_out(),
+                                    -1,
+                                )}
 
-                                <Button
-                                    square
-                                    size="sm"
-                                    ghost
-                                    onpointerdown={(event) =>
-                                        pressZoom(event, 1)}
-                                    onpointerup={releaseZoom}
-                                    onpointercancel={releaseZoom}
-                                    onclick={() => clickZoom(1)}
-                                    class="tooltip {tooltipPlacement}"
-                                    data-tip={m.zoom_in()}
-                                    aria-label={m.zoom_in()}
-                                >
-                                    <Icon
-                                        name="MagnifyingGlassPlus"
-                                        size={18}
-                                    />
-                                </Button>
+                                {@render zoomButton(
+                                    'MagnifyingGlassPlus',
+                                    m.zoom_in(),
+                                    1,
+                                )}
 
-                                <Button
-                                    square
-                                    size="sm"
-                                    ghost
-                                    onclick={() => viewerState.fitView()}
-                                    class="tooltip {tooltipPlacement}"
-                                    data-tip={m.fit_to_viewer()}
-                                    aria-label={m.fit_to_viewer()}
-                                >
-                                    <Icon
-                                        name="ArrowCounterClockwise"
-                                        size={18}
-                                    />
-                                </Button>
+                                {@render barButton(
+                                    'ArrowCounterClockwise',
+                                    m.fit_to_viewer(),
+                                    () => viewerState.fitView(),
+                                    false,
+                                    showNav ? '' : navEdgeClass,
+                                )}
                             </div>
                         {/if}
 
@@ -703,25 +714,18 @@
 
                         {#if showNav}
                             <div class="btn-row">
-                                <Button
-                                    square
-                                    size="sm"
-                                    ghost
-                                    disabled={canvasNavLayout.leftButton ===
-                                    'previous'
-                                        ? !viewerState.hasPrevious
-                                        : !viewerState.hasNext}
-                                    onclick={() =>
+                                {@render barButton(
+                                    leftNavIcon,
+                                    leftNavLabel,
+                                    () =>
                                         canvasNavLayout.leftButton ===
                                         'previous'
                                             ? viewerState.previousCanvas()
-                                            : viewerState.nextCanvas()}
-                                    class="tooltip {tooltipPlacement}"
-                                    data-tip={leftNavLabel}
-                                    aria-label={leftNavLabel}
-                                >
-                                    <Icon name={leftNavIcon} size={18} />
-                                </Button>
+                                            : viewerState.nextCanvas(),
+                                    canvasNavLayout.leftButton === 'previous'
+                                        ? !viewerState.hasPrevious
+                                        : !viewerState.hasNext,
+                                )}
 
                                 <span class="nav-index">
                                     {viewerState.currentCanvasIndex + 1} / {viewerState
@@ -730,24 +734,18 @@
 
                                 <CanvasInfoPopover {tooltipPlacement} />
 
-                                <Button
-                                    square
-                                    size="sm"
-                                    ghost
-                                    disabled={canvasNavLayout.rightButton ===
-                                    'next'
-                                        ? !viewerState.hasNext
-                                        : !viewerState.hasPrevious}
-                                    onclick={() =>
+                                {@render barButton(
+                                    rightNavIcon,
+                                    rightNavLabel,
+                                    () =>
                                         canvasNavLayout.rightButton === 'next'
                                             ? viewerState.nextCanvas()
-                                            : viewerState.previousCanvas()}
-                                    class="tooltip {tooltipPlacement}"
-                                    data-tip={rightNavLabel}
-                                    aria-label={rightNavLabel}
-                                >
-                                    <Icon name={rightNavIcon} size={18} />
-                                </Button>
+                                            : viewerState.previousCanvas(),
+                                    canvasNavLayout.rightButton === 'next'
+                                        ? !viewerState.hasNext
+                                        : !viewerState.hasPrevious,
+                                    navEdgeClass,
+                                )}
                             </div>
                         {/if}
                     </div>
@@ -780,13 +778,13 @@
            wrap/shrink once its content exceeds half the viewport. Spanning both
            edges lets it grow to nearly the full width (minus the chrome inset on
            each side) before it's constrained. */
-        left: var(--ui-nav-inset, 0);
-        right: var(--ui-nav-inset, 0);
+        left: var(--ui-nav-inset);
+        right: var(--ui-nav-inset);
         width: fit-content;
-        max-width: calc(100% - 2 * var(--ui-nav-inset, 0));
+        max-width: calc(100% - 2 * var(--ui-nav-inset));
         margin-inline: auto;
         /* Anchored to whichever edge data-nav-edge selects (bottom by default). */
-        bottom: var(--ui-nav-inset, 0);
+        bottom: var(--ui-nav-inset);
         /*
            Above `.plugin-overlay-layer` (40), which is a SIBLING in
            `.viewer-area`. A plugin layer is transparent to pointer events, but
@@ -813,7 +811,7 @@
            width the (later) nav-cluster drops to its own row first. Row-gap
            matches the inline gap so stacked rows sit evenly. */
         flex-wrap: wrap;
-        gap: var(--ui-gap, 0.5rem);
+        gap: var(--ui-gap);
         padding-inline: var(--ui-chrome-pad, 0.5rem);
         /* Vertically centre the stacked rows (a no-op on a single row). */
         align-content: center;
@@ -822,7 +820,7 @@
         border: 1px solid var(--tri-surface-border);
         box-shadow: var(--ui-nav-shadow, none);
         transition-property: all;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-timing-function: var(--ui-ease);
         transition-duration: 0.2s;
     }
     /* Glass on a ::before layer so `.control-bar` doesn't establish a
@@ -839,14 +837,8 @@
            radius must shrink by that same amount to stay concentric with the
            outer border — using the parent's radius as-is leaves a gap at the
            corners where the border's background peeks through. */
-        border-radius: calc(
-            var(--tri-radius-controls) - var(--tri-border, 1px)
-        );
-        background-color: color-mix(
-            in oklab,
-            var(--tri-toolbar-bg) 70%,
-            transparent
-        );
+        border-radius: calc(var(--tri-radius-controls) - var(--tri-border));
+        background-color: var(--ui-glass-bg);
         backdrop-filter: blur(8px);
     }
     .control-bar.elevated {
@@ -870,7 +862,7 @@
 
     /* nav-edge=top — anchor the bar to the top edge instead of the bottom. */
     :global([data-nav-edge='top']) .control-bar {
-        top: var(--ui-nav-inset, 0);
+        top: var(--ui-nav-inset);
         bottom: auto;
     }
 
@@ -898,14 +890,14 @@
     /* nav-align — placement of the control bar along its edge (offset honours the
        floating inset; 0 when docked). start/end are logical (LTR: left/right). */
     :global([data-nav-align='start']) .control-bar {
-        inset-inline-start: var(--ui-nav-inset, 0);
+        inset-inline-start: var(--ui-nav-inset);
         inset-inline-end: auto;
         transform: none;
         margin-inline: 0;
     }
     :global([data-nav-align='end']) .control-bar {
         inset-inline-start: auto;
-        inset-inline-end: var(--ui-nav-inset, 0);
+        inset-inline-end: var(--ui-nav-inset);
         transform: none;
         margin-inline: 0;
     }
@@ -952,8 +944,8 @@
        or deprecated; it resumes meaning the moment the chrome deregisters. */
     .control-bar.full-width {
         width: auto;
-        inset-inline-start: var(--ui-nav-inset, 0);
-        inset-inline-end: var(--ui-nav-inset, 0);
+        inset-inline-start: var(--ui-nav-inset);
+        inset-inline-end: var(--ui-nav-inset);
         margin-inline: auto;
     }
 
@@ -970,13 +962,13 @@
         display: flex;
         flex-wrap: nowrap;
         align-items: center;
-        gap: var(--ui-gap, 0.5rem);
+        gap: var(--ui-gap);
     }
 
     .choice-controls {
         display: flex;
         align-items: center;
-        gap: var(--ui-gap, 0.25rem);
+        gap: var(--ui-gap);
     }
     .choice-stack {
         display: flex;
@@ -996,52 +988,13 @@
     .btn-row {
         display: flex;
         align-items: center;
-        gap: var(--ui-gap, 0.25rem);
+        gap: var(--ui-gap);
     }
     /* The pill's zoom/nav buttons inherit the controls-button radius (defaults to the
        field radius) rather than being forced circles. Scoped to .btn-row so the choice
        .join-item buttons keep their own join radii. */
     .control-bar .btn-row :global(.btn) {
-        border-start-start-radius: var(--tri-radius-controls-buttons);
-        border-start-end-radius: var(--tri-radius-controls-buttons);
-        border-end-end-radius: var(--tri-radius-controls-buttons);
-        border-end-start-radius: var(--tri-radius-controls-buttons);
-    }
-
-    /* Where the bar spans the viewer — a registered transport stretches it —
-       the trailing control sits against the inline-end edge and its centred
-       tooltip bubble overflows and is clipped: "Fit to Viewer" renders as
-       "Fit to View". Anchor that bubble to the button's end edge instead; the
-       tail is left alone and keeps pointing at the button's centre. The same
-       correction the toolbar makes for its own corner buttons.
-
-       Applied unconditionally rather than only when the bar is full width,
-       because CSS cannot ask whether the bubble would fit. The cost where the
-       bar is a centred pill is an end-aligned bubble instead of a centred one,
-       which is a fair trade against clipped text where it is not.
-
-       Which button this is depends on what the bar renders: the fit control
-       where there is no canvas nav, the next-canvas button where there is. The
-       `:last-child` chain names the position rather than the button, so it
-       tracks either. It stops applying when a right choice group follows, since
-       the trailing control is then inside that group instead. */
-    .nav-cluster
-        > .center-controls:last-child
-        > .btn-row:last-child
-        :global(.tooltip.place-top:last-child::before) {
-        transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
-        inset: auto 0 var(--tt-off) auto;
-    }
-    /* The same correction for a bar docked to the top edge, where the bubble
-       hangs below the button instead of above it. Both placements are spelled
-       out because each carries its own `inset`, and a single rule written for
-       one of them would fling the other's bubble to the wrong side. */
-    .nav-cluster
-        > .center-controls:last-child
-        > .btn-row:last-child
-        :global(.tooltip.place-bottom:last-child::before) {
-        transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
-        inset: var(--tt-off) 0 auto auto;
+        border-radius: var(--tri-radius-controls-buttons);
     }
 
     .divider-v {
@@ -1083,7 +1036,7 @@
         --join-ee: var(--tri-radius-buttons);
     }
     .join > :global(.join-item:not(:first-child)) {
-        margin-inline-start: calc(var(--tri-border, 1px) * -1);
+        margin-inline-start: calc(var(--tri-border) * -1);
     }
 
     /* The narrow-viewport presentation of a choice button: wide enough for an

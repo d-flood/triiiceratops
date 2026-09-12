@@ -1,66 +1,103 @@
 // @vitest-environment node
 /**
- * The tile scheduler, against a fake fetch.
+ * The tile scheduler, against a stubbed `fetch` and `createImageBitmap`.
  *
  * Ordering, the in-flight window, the cancellation policy, and the negative
  * cache are decisions over planner output, so they are asserted here rather
- * than in a browser. Node environment: nothing
- * in this graph may reach for a DOM global, and both the fetch and the decode
- * are seams precisely so this file needs neither.
+ * than in a browser. Node environment: nothing in this graph may reach for a
+ * DOM global at import time, and the two browser globals the loader does use at
+ * call time are stubbed per test.
+ *
+ * A rejected `fetch` is the CORS case, which the loader answers with an
+ * `<img>`; a real tile failure is an HTTP answer. So a test that wants a
+ * FAILURE resolves a non-`ok` response — {@link Pending.reject} — and nothing
+ * here rejects `fetch` except an abort.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createTileScheduler, type DecodedTile } from './tileScheduler';
 import type { TileRequest } from './types';
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
+
+/**
+ * A decode that lands at once, at a fixed 10×20 — so a budget stated in whole
+ * tiles below is arithmetic rather than a magic number. Answers with the
+ * `close` spies in the order the decodes landed, for the tests that assert a
+ * tile's pixels were released rather than dropped.
+ */
+function immediateDecode(size = { width: 10, height: 20 }) {
+    const closes: Array<() => void> = [];
+
+    vi.stubGlobal('createImageBitmap', () => {
+        const close = vi.fn();
+        closes.push(close);
+        return Promise.resolve({ ...size, close });
+    });
+
+    return { closes, decoded: () => closes.length };
+}
 
 interface Pending {
     url: string;
     signal: AbortSignal;
     resolve(): void;
-    reject(error?: unknown): void;
+    /** Answer with an HTTP status the loader must treat as a dead tile. */
+    reject(): void;
 }
 
 /**
- * A fetch that hands back control: every request stays pending until the test
+ * A `fetch` that hands back control: every request stays pending until the test
  * settles it by hand, which is the only way to observe a *window* rather than a
  * sequence.
  */
 function controllableFetch() {
     const pending: Pending[] = [];
 
-    const fetchTile = (url: string, signal: AbortSignal) =>
-        new Promise<Blob>((resolve, reject) => {
-            const entry: Pending = {
-                url,
-                signal,
-                resolve: () => resolve({ size: 1 } as Blob),
-                reject: (error) => reject(error ?? new Error('failed')),
-            };
-            pending.push(entry);
-            signal.addEventListener('abort', () =>
-                reject(new Error('aborted')),
-            );
-        });
+    vi.stubGlobal(
+        'fetch',
+        (url: string, init?: { signal?: AbortSignal }) =>
+            new Promise((resolve, reject) => {
+                const signal = init!.signal!;
+                pending.push({
+                    url,
+                    signal,
+                    resolve: () =>
+                        resolve({ ok: true, blob: async () => ({ size: 1 }) }),
+                    reject: () => resolve({ ok: false, status: 404 }),
+                });
+                signal.addEventListener('abort', () =>
+                    reject(new Error('aborted')),
+                );
+            }),
+    );
+
+    const decode = immediateDecode();
 
     return {
-        fetchTile,
         pending,
         byUrl: (url: string) => pending.filter((entry) => entry.url === url),
         settleAll() {
             for (const entry of [...pending]) entry.resolve();
         },
+        /** `close` spies, in the order the decodes landed. */
+        closes: decode.closes,
+        /** How many tiles have been decoded. */
+        decoded: decode.decoded,
     };
 }
 
 /**
- * A fetch whose ABORT hands back control too: `abort()` marks the request and
+ * A `fetch` whose ABORT hands back control too: `abort()` marks the request and
  * leaves it on the wire until the test says the cancellation landed.
  *
  * {@link controllableFetch} rejects on `abort` immediately, which is what the JS
  * promise does but not what the connection does — a browser's socket is busy
  * until the cancellation reaches the network stack. That gap is the only place
- * an over-subscribed window is observable, so it needs a seam of its own.
+ * an over-subscribed window is observable, so it needs a stub of its own.
  */
 function lingeringFetch() {
     interface Entry {
@@ -71,22 +108,24 @@ function lingeringFetch() {
     }
     const entries: Entry[] = [];
 
-    const fetchTile = (url: string, signal: AbortSignal) =>
-        new Promise<Blob>((_resolve, reject) => {
-            const entry: Entry = {
-                url,
-                signal,
-                settled: false,
-                settle() {
-                    entry.settled = true;
-                    reject(new Error('aborted'));
-                },
-            };
-            entries.push(entry);
-        });
+    vi.stubGlobal(
+        'fetch',
+        (url: string, init?: { signal?: AbortSignal }) =>
+            new Promise((_resolve, reject) => {
+                const entry: Entry = {
+                    url,
+                    signal: init!.signal!,
+                    settled: false,
+                    settle() {
+                        entry.settled = true;
+                        reject(new Error('aborted'));
+                    },
+                };
+                entries.push(entry);
+            }),
+    );
 
     return {
-        fetchTile,
         entries,
         /** Requests the network has neither answered nor finished tearing down. */
         onWire: () => entries.filter((entry) => !entry.settled),
@@ -108,27 +147,32 @@ function lingeringFetch() {
 function controllableDecode() {
     const pending: Array<{ close: () => void; settle(): void }> = [];
 
-    const decodeTile = () =>
-        new Promise<DecodedTile>((resolve) => {
-            const close = vi.fn();
-            pending.push({
-                close,
-                settle: () => resolve({ width: 4, height: 4, close }),
-            });
-        });
+    vi.stubGlobal(
+        'createImageBitmap',
+        () =>
+            new Promise<DecodedTile>((resolve) => {
+                const close = vi.fn();
+                pending.push({
+                    close,
+                    settle: () => resolve({ width: 4, height: 4, close }),
+                });
+            }),
+    );
 
-    return { decodeTile, pending };
+    return { pending };
 }
 
-let decodedTiles = 0;
-
-function decodeTile(): Promise<DecodedTile> {
-    decodedTiles += 1;
-    return Promise.resolve({
-        width: 10,
-        height: 20,
-        close: vi.fn(),
-    });
+/**
+ * The required set's own bytes, summed the way the devtools handle sums them —
+ * the scheduler bills 4 bytes per pixel of decoded RGBA.
+ */
+function requiredBytes(tiles: ReturnType<typeof createTileScheduler>): number {
+    let bytes = 0;
+    for (const key of tiles.residentKeys()) {
+        const tile = tiles.get(key)!;
+        bytes += tile.width * tile.height * 4;
+    }
+    return bytes;
 }
 
 function request(index: number, priority = index): TileRequest {
@@ -145,11 +189,11 @@ function request(index: number, priority = index): TileRequest {
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function scheduler(
-    net: ReturnType<typeof controllableFetch>,
     options: {
         maxInFlight?: number;
         maxAttempts?: number;
         byteBudget?: number;
+        onChange?: () => void;
     } = {},
 ) {
     return createTileScheduler({
@@ -159,15 +203,14 @@ function scheduler(
         // assertion below about the REQUIRED set alone. The cache has its own
         // describe block, with its own budget.
         byteBudget: options.byteBudget ?? 0,
-        fetchTile: net.fetchTile,
-        decodeTile,
+        onChange: options.onChange,
     });
 }
 
 describe('createTileScheduler', () => {
     it('never exceeds the in-flight window', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 3 });
+        const tiles = scheduler({ maxInFlight: 3 });
 
         tiles.update([0, 1, 2, 3, 4, 5, 6, 7].map((i) => request(i)));
         await flush();
@@ -184,7 +227,7 @@ describe('createTileScheduler', () => {
 
     it('starts the nearest tiles first, not the first ones discovered', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 2 });
+        const tiles = scheduler({ maxInFlight: 2 });
 
         // Discovery order 0,1,2,3; priority says 3 and 1 are nearest.
         tiles.update([
@@ -203,7 +246,7 @@ describe('createTileScheduler', () => {
 
     it('aborts a request the moment it leaves the required set', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 2 });
+        const tiles = scheduler({ maxInFlight: 2 });
 
         tiles.update([request(0), request(1)]);
         await flush();
@@ -229,13 +272,7 @@ describe('createTileScheduler', () => {
         // fetches against a limit of six on the 800-canvas fixture, the surplus
         // being requests the scheduler had already aborted.
         const net = lingeringFetch();
-        const tiles = createTileScheduler({
-            maxInFlight: 2,
-            maxAttempts: 2,
-            byteBudget: 0,
-            fetchTile: net.fetchTile,
-            decodeTile,
-        });
+        const tiles = scheduler({ maxInFlight: 2 });
 
         tiles.update([request(0), request(1)]);
         await flush();
@@ -264,7 +301,7 @@ describe('createTileScheduler', () => {
 
     it('does not restart a request that is already in flight for the same tile', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 4 });
+        const tiles = scheduler({ maxInFlight: 4 });
 
         tiles.update([request(0)]);
         await flush();
@@ -278,7 +315,7 @@ describe('createTileScheduler', () => {
 
     it('discards a tile that left the viewport while it was decoding', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 2 });
+        const tiles = scheduler({ maxInFlight: 2 });
 
         tiles.update([request(0)]);
         await flush();
@@ -286,19 +323,19 @@ describe('createTileScheduler', () => {
         // Superseded after the fetch resolved but before the decode landed:
         // caching it here is how a fast zoom fills memory with pixels nobody
         // asked for.
-        const before = decodedTiles;
+        const before = net.decoded();
         net.pending[0].resolve();
         tiles.update([request(5)]);
         await flush();
 
-        expect(decodedTiles).toBeGreaterThan(before);
+        expect(net.decoded()).toBeGreaterThan(before);
         expect(tiles.get(request(0).key)).toBeUndefined();
-        expect(tiles.residentTileCount).toBe(0);
+        expect(tiles.residentKeys().size).toBe(0);
     });
 
     it('holds a tile that is still required when its decode lands', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 2 });
+        const tiles = scheduler({ maxInFlight: 2 });
 
         tiles.update([request(0)]);
         await flush();
@@ -311,14 +348,14 @@ describe('createTileScheduler', () => {
 
     it('reports resident tiles and decoded bytes, and they follow what is held', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 4 });
+        const tiles = scheduler({ maxInFlight: 4 });
 
         tiles.update([request(0), request(1)]);
         await flush();
         net.settleAll();
         await flush();
 
-        expect(tiles.residentTileCount).toBe(2);
+        expect(tiles.residentKeys().size).toBe(2);
         // 10x20 at 4 bytes per pixel, twice.
         expect(tiles.decodedBytes).toBe(2 * 10 * 20 * 4);
 
@@ -326,24 +363,13 @@ describe('createTileScheduler', () => {
         // browser heap metrics could not see this, because decoded images live
         // outside the JS heap.
         tiles.update([request(0)]);
-        expect(tiles.residentTileCount).toBe(1);
+        expect(tiles.residentKeys().size).toBe(1);
         expect(tiles.decodedBytes).toBe(10 * 20 * 4);
     });
 
     it('closes a released tile rather than leaking it outside the JS heap', async () => {
         const net = controllableFetch();
-        const closes: Array<() => void> = [];
-        const tiles = createTileScheduler({
-            maxInFlight: 2,
-            maxAttempts: 2,
-            byteBudget: 0,
-            fetchTile: net.fetchTile,
-            decodeTile: () => {
-                const close = vi.fn();
-                closes.push(close);
-                return Promise.resolve({ width: 4, height: 4, close });
-            },
-        });
+        const tiles = scheduler({ maxInFlight: 2 });
 
         tiles.update([request(0)]);
         await flush();
@@ -351,7 +377,7 @@ describe('createTileScheduler', () => {
         await flush();
 
         tiles.update([]);
-        expect(closes[0]).toHaveBeenCalled();
+        expect(net.closes[0]).toHaveBeenCalled();
     });
 
     it('closes a decode that lands behind the attempt that replaced it, and keeps only one', async () => {
@@ -367,13 +393,7 @@ describe('createTileScheduler', () => {
         // metrics nor `decodedBytes` can see them.
         const net = controllableFetch();
         const decodes = controllableDecode();
-        const tiles = createTileScheduler({
-            maxInFlight: 4,
-            maxAttempts: 2,
-            byteBudget: 0,
-            fetchTile: net.fetchTile,
-            decodeTile: decodes.decodeTile,
-        });
+        const tiles = scheduler({ maxInFlight: 4 });
         const url = 'https://images.test/abc/tile-0.jpg';
 
         tiles.update([request(0)]);
@@ -411,14 +431,14 @@ describe('createTileScheduler', () => {
         decodes.pending[1].settle();
         await flush();
 
-        expect(tiles.residentTileCount).toBe(1);
+        expect(tiles.residentKeys().size).toBe(1);
         expect(tiles.decodedBytes).toBe(4 * 4 * 4);
         expect(decodes.pending[1].close).not.toHaveBeenCalled();
     });
 
     it('retries a failed tile once, then never asks for that URL again', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 2, maxAttempts: 2 });
+        const tiles = scheduler({ maxInFlight: 2, maxAttempts: 2 });
         const url = 'https://images.test/abc/tile-0.jpg';
 
         tiles.update([request(0)]);
@@ -447,7 +467,7 @@ describe('createTileScheduler', () => {
         // size-ladder source, being wrong means every rung dies and the canvas
         // is blank for the life of the page rather than merely blurrier.
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 2, maxAttempts: 2 });
+        const tiles = scheduler({ maxInFlight: 2, maxAttempts: 2 });
         const canonical = 'https://images.test/abc/tile-0.jpg';
         const alternate = 'https://images.test/abc/tile-0.native.jpg';
 
@@ -487,7 +507,7 @@ describe('createTileScheduler', () => {
 
     it('kills a request whose alternate spelling fails too, on its original url', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 2, maxAttempts: 2 });
+        const tiles = scheduler({ maxInFlight: 2, maxAttempts: 2 });
         const canonical = 'https://images.test/abc/tile-0.jpg';
         const alternate = 'https://images.test/abc/tile-0.native.jpg';
         const broken: TileRequest = {
@@ -514,7 +534,7 @@ describe('createTileScheduler', () => {
 
     it('does not count an abort as a failure', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 2, maxAttempts: 2 });
+        const tiles = scheduler({ maxInFlight: 2, maxAttempts: 2 });
         const url = 'https://images.test/abc/tile-0.jpg';
 
         // A fast pan aborts by design; letting that poison the negative cache
@@ -533,14 +553,7 @@ describe('createTileScheduler', () => {
     it('announces a change only when the resident set actually changed', async () => {
         const net = controllableFetch();
         const onChange = vi.fn();
-        const tiles = createTileScheduler({
-            maxInFlight: 2,
-            maxAttempts: 2,
-            byteBudget: 0,
-            fetchTile: net.fetchTile,
-            decodeTile,
-            onChange,
-        });
+        const tiles = scheduler({ maxInFlight: 2, onChange });
 
         tiles.update([request(0)]);
         await flush();
@@ -553,7 +566,7 @@ describe('createTileScheduler', () => {
 
     it('aborts everything and releases every tile on dispose', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, { maxInFlight: 2 });
+        const tiles = scheduler({ maxInFlight: 2 });
 
         tiles.update([request(0), request(1), request(2)]);
         await flush();
@@ -562,7 +575,7 @@ describe('createTileScheduler', () => {
 
         tiles.dispose();
 
-        expect(tiles.residentTileCount).toBe(0);
+        expect(tiles.residentKeys().size).toBe(0);
         expect(tiles.decodedBytes).toBe(0);
         expect(net.pending.some((entry) => entry.signal.aborted)).toBe(true);
 
@@ -597,17 +610,17 @@ describe('createTileScheduler — the opportunistic cache', () => {
 
     it('holds a dropped tile rather than closing it, and takes it back with no request', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, {
+        const tiles = scheduler({
             maxInFlight: 4,
             byteBudget: 8 * TILE_BYTES,
         });
 
         await hold(tiles, net, [0, 1]);
-        expect(tiles.residentTileCount).toBe(2);
+        expect(tiles.residentKeys().size).toBe(2);
 
         // Scrolled away. The required set is smaller; nothing was released.
         tiles.update([request(2)]);
-        expect(tiles.residentTileCount).toBe(0);
+        expect(tiles.residentKeys().size).toBe(0);
         expect(tiles.cachedTileCount).toBe(2);
         expect(tiles.decodedBytes).toBe(2 * TILE_BYTES);
 
@@ -615,7 +628,7 @@ describe('createTileScheduler — the opportunistic cache', () => {
         // asked a second time.
         const before = tiles.requestCount;
         tiles.update([request(0), request(1)]);
-        expect(tiles.residentTileCount).toBe(2);
+        expect(tiles.residentKeys().size).toBe(2);
         expect(tiles.cachedTileCount).toBe(0);
         expect(tiles.requestCount).toBe(before);
         expect(net.byUrl('https://images.test/abc/tile-0.jpg')).toHaveLength(1);
@@ -624,12 +637,9 @@ describe('createTileScheduler — the opportunistic cache', () => {
     it('asks for a repaint when a cached tile comes back, since no decode will', async () => {
         const net = controllableFetch();
         const onChange = vi.fn();
-        const tiles = createTileScheduler({
+        const tiles = scheduler({
             maxInFlight: 4,
-            maxAttempts: 2,
             byteBudget: 8 * TILE_BYTES,
-            fetchTile: net.fetchTile,
-            decodeTile,
             onChange,
         });
 
@@ -648,7 +658,7 @@ describe('createTileScheduler — the opportunistic cache', () => {
 
     it('evicts the least recently dropped tile first', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, {
+        const tiles = scheduler({
             maxInFlight: 4,
             // Room for the one required tile and exactly one cached one.
             byteBudget: 2 * TILE_BYTES,
@@ -679,11 +689,11 @@ describe('createTileScheduler — the opportunistic cache', () => {
         // everything and then stops: the required set is never evicted while it
         // is required, and a required set that is over budget is the planner's
         // residency window to answer for, not the LRU's.
-        const tiles = scheduler(net, { maxInFlight: 4, byteBudget: 1 });
+        const tiles = scheduler({ maxInFlight: 4, byteBudget: 1 });
 
         await hold(tiles, net, [0, 1, 2]);
 
-        expect(tiles.residentTileCount).toBe(3);
+        expect(tiles.residentKeys().size).toBe(3);
         expect(tiles.cachedTileCount).toBe(0);
         expect(tiles.decodedBytes).toBe(3 * TILE_BYTES);
     });
@@ -698,21 +708,21 @@ describe('createTileScheduler — the opportunistic cache', () => {
         // makes that state diagnosable instead of silent.
         const net = controllableFetch();
         const budget = TILE_BYTES;
-        const tiles = scheduler(net, { maxInFlight: 4, byteBudget: budget });
+        const tiles = scheduler({ maxInFlight: 4, byteBudget: budget });
 
         await hold(tiles, net, [0, 1, 2]);
 
-        expect(tiles.requiredBytes).toBe(3 * TILE_BYTES);
-        expect(tiles.requiredBytes).toBeGreaterThan(tiles.byteBudget);
+        expect(requiredBytes(tiles)).toBe(3 * TILE_BYTES);
+        expect(requiredBytes(tiles)).toBeGreaterThan(tiles.byteBudget);
         // Nothing left to shed: the cache is empty and the overrun is entirely
         // the required set's.
         expect(tiles.cachedTileCount).toBe(0);
-        expect(tiles.requiredBytes).toBe(tiles.decodedBytes);
+        expect(requiredBytes(tiles)).toBe(tiles.decodedBytes);
     });
 
     it('counts only the required set, not the opportunistic cache', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, {
+        const tiles = scheduler({
             maxInFlight: 4,
             byteBudget: 8 * TILE_BYTES,
         });
@@ -721,14 +731,14 @@ describe('createTileScheduler — the opportunistic cache', () => {
         tiles.update([request(0)]);
 
         expect(tiles.cachedTileCount).toBe(1);
-        expect(tiles.requiredBytes).toBe(TILE_BYTES);
+        expect(requiredBytes(tiles)).toBe(TILE_BYTES);
         expect(tiles.decodedBytes).toBe(2 * TILE_BYTES);
     });
 
     it('stays under the byte budget through sustained scrolling', async () => {
         const net = controllableFetch();
         const budget = 6 * TILE_BYTES;
-        const tiles = scheduler(net, { maxInFlight: 8, byteBudget: budget });
+        const tiles = scheduler({ maxInFlight: 8, byteBudget: budget });
 
         // Two tiles required at a time, walking forward forty steps — far more
         // than the budget could ever hold, which is the point.
@@ -737,23 +747,12 @@ describe('createTileScheduler — the opportunistic cache', () => {
             expect(tiles.decodedBytes).toBeLessThanOrEqual(budget);
         }
 
-        expect(tiles.residentTileCount).toBe(2);
+        expect(tiles.residentKeys().size).toBe(2);
     });
 
     it('closes what the budget evicts rather than leaking it outside the JS heap', async () => {
         const net = controllableFetch();
-        const closes: Array<() => void> = [];
-        const tiles = createTileScheduler({
-            maxInFlight: 4,
-            maxAttempts: 2,
-            byteBudget: TILE_BYTES,
-            fetchTile: net.fetchTile,
-            decodeTile: () => {
-                const close = vi.fn();
-                closes.push(close);
-                return Promise.resolve({ width: 10, height: 20, close });
-            },
-        });
+        const tiles = scheduler({ maxInFlight: 4, byteBudget: TILE_BYTES });
 
         await hold(tiles, net, [0]);
         await hold(tiles, net, [1]);
@@ -762,7 +761,7 @@ describe('createTileScheduler — the opportunistic cache', () => {
         // `ImageBitmap` dropped without `close()` leaks past both the heap
         // metrics and `decodedBytes`, which is the counter that exists to see
         // exactly this.
-        expect(closes[0]).toHaveBeenCalled();
+        expect(net.closes[0]).toHaveBeenCalled();
         expect(tiles.decodedBytes).toBe(TILE_BYTES);
     });
 
@@ -776,37 +775,26 @@ describe('createTileScheduler — the opportunistic cache', () => {
         // every other unit test here still passes while those four specs start
         // failing with nothing naming the cause.
         const net = controllableFetch();
-        const closes: Array<() => void> = [];
-        const tiles = createTileScheduler({
-            maxInFlight: 4,
-            maxAttempts: 2,
-            byteBudget: 0,
-            fetchTile: net.fetchTile,
-            decodeTile: () => {
-                const close = vi.fn();
-                closes.push(close);
-                return Promise.resolve({ width: 10, height: 20, close });
-            },
-        });
+        const tiles = scheduler({ maxInFlight: 4 });
 
         await hold(tiles, net, [0, 1]);
-        expect(tiles.residentTileCount).toBe(2);
+        expect(tiles.residentKeys().size).toBe(2);
 
         // Tile 0 leaves the required set. There is no budget to hold it under,
         // so it is closed in this call rather than cached.
         tiles.update([request(1)]);
 
         expect(tiles.cachedTileCount).toBe(0);
-        expect(tiles.residentTileCount).toBe(1);
+        expect(tiles.residentKeys().size).toBe(1);
         // The required set alone, exactly — nothing held on its behalf.
         expect(tiles.decodedBytes).toBe(TILE_BYTES);
-        expect(closes[0]).toHaveBeenCalled();
-        expect(closes[1]).not.toHaveBeenCalled();
+        expect(net.closes[0]).toHaveBeenCalled();
+        expect(net.closes[1]).not.toHaveBeenCalled();
     });
 
     it('closes the cache on dispose', async () => {
         const net = controllableFetch();
-        const tiles = scheduler(net, {
+        const tiles = scheduler({
             maxInFlight: 4,
             byteBudget: 8 * TILE_BYTES,
         });

@@ -11,12 +11,13 @@
  *
  * Requires `pnpm --filter @triiiceratops/plugin-av build` to have run.
  *
- * Both formats are asserted on, and they split differently. The ESM build emits
- * hashed chunks a consumer's bundler re-splits, reached by relative specifier.
- * The IIFE cannot code-split at all (rollup refuses), so `vite.config.ts` takes
- * its lazy modules out of the graph and rewrites the specifier into a runtime
- * URL resolved against the plugin's own script — `import(f("av-hls.js"))` after
- * minification. Either way the chunk names come out of the ENTRY's own
+ * Both formats are asserted on, and they reach ONE set of chunk files by two
+ * routes. The ESM build emits them under fixed names, which its entry reaches by
+ * relative specifier. The IIFE cannot code-split at all (rollup refuses), so
+ * `vite.config.ts` takes its lazy modules out of the graph and rewrites the
+ * specifier into a runtime URL resolved against the plugin's own script —
+ * `import(f("av-hls.js"))` after minification, naming the very files the ESM
+ * build emitted. Either way the chunk names come out of the ENTRY's own
  * `import(...)` calls rather than off a directory listing: reading every `.js`
  * in `dist` would let a leftover chunk from an earlier build satisfy the
  * assertion.
@@ -63,7 +64,7 @@ const ENTRIES = [
  * Two specifier shapes, one per format: the ESM entry's relative path, and the
  * IIFE's minified `import(<resolver>("name"))`.
  */
-function importedChunks(entry: string): string[] {
+function importedChunkNames(entry: string): string[] {
     const names = new Set<string>();
     for (const [, name] of entry.matchAll(
         /import\(\s*["']\.\/([^"']+\.js)["']\s*\)/g,
@@ -75,7 +76,11 @@ function importedChunks(entry: string): string[] {
     )) {
         names.add(name);
     }
-    return [...names]
+    return [...names].sort();
+}
+
+function importedChunks(entry: string): string[] {
+    return importedChunkNames(entry)
         .filter((name) => existsSync(join(DIST, name)))
         .map((name) => readFileSync(join(DIST, name), 'utf8'));
 }
@@ -126,3 +131,26 @@ describe.each(ENTRIES)(
         });
     },
 );
+
+/**
+ * One set of files, not one per format — the published tarball carries each lazy
+ * half once.
+ *
+ * Asserted separately because neither `describe` above can see it: each reads
+ * the chunks its own entry names, so a per-format set of duplicates satisfies
+ * both. What holds the two together is the ES build's fixed `chunkFileNames`,
+ * since the IIFE cannot code-split and so cannot learn a hash.
+ */
+describe('the lazy chunks', () => {
+    it('are one set both entries reach', () => {
+        const names = ENTRIES.map(({ file }) => {
+            const path = join(DIST, file);
+            return importedChunkNames(
+                existsSync(path) ? readFileSync(path, 'utf8') : '',
+            );
+        });
+
+        expect(names[0]).not.toHaveLength(0);
+        expect(names[0]).toEqual(names[1]);
+    });
+});

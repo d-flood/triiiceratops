@@ -52,6 +52,7 @@
  * rendering of something the DOM already carries — never the only copy.
  */
 
+import { createOwnedRegistry } from '../utils/ownedRegistry.js';
 import {
     canvasBoxToWorld,
     canvasPointToWorld,
@@ -221,68 +222,31 @@ export function createPaintLayerRegistry(options?: {
     /** Told why a registration was refused, for the developer's console. */
     onRefused?: (message: string) => void;
 }): PaintLayerRegistry {
-    // A plain Set, deliberately not a `SvelteSet`: the reactive signal is the
-    // `onChange` callback, which viewer state turns into exactly one state
-    // write. A reactive collection here would additionally wake the batched
-    // state watcher for every internal read the sort does.
-    const held = new Set<RegisteredPaintLayer>();
-    let sequence = 0;
-    let snapshot: readonly RegisteredPaintLayer[] = [];
-
-    function rebuild(): void {
-        snapshot = Object.freeze(sortPaintLayers(held));
-        options?.onChange?.();
-    }
+    // No `isKnownPlugin`: core registers a paint layer of its own, so a
+    // mandatory plugin prefix here would need a reserved core namespace
+    // (`docs/adr/0016-overlay-layers-are-dom-and-the-paint-hook-stays.md`).
+    const registry = createOwnedRegistry<PaintLayer, RegisteredPaintLayer>({
+        name: 'registerPaintLayer',
+        shape: 'an { id, draw } layer: a non-empty string id and a draw function',
+        validate: (layer) => typeof layer?.draw === 'function',
+        project: (layer, id, sequence) => ({
+            id,
+            order:
+                typeof layer.order === 'number' && Number.isFinite(layer.order)
+                    ? layer.order
+                    : 0,
+            sequence,
+            draw: layer.draw,
+        }),
+        sort: sortPaintLayers,
+        ...options,
+    });
 
     return {
         get layers() {
-            return snapshot;
+            return registry.snapshot;
         },
-
-        register(layer: PaintLayer): () => void {
-            const id = typeof layer?.id === 'string' ? layer.id.trim() : '';
-            if (!id || typeof layer?.draw !== 'function') {
-                options?.onRefused?.(
-                    'registerPaintLayer needs an { id, draw } layer: a non-empty string id and a draw function.',
-                );
-                return () => {};
-            }
-
-            // Refused rather than allowed to shadow: the id is what names this
-            // layer in a log and in a duplicate-registration report, and two
-            // layers answering to one name makes both reports ambiguous. It is
-            // also the shape a plugin activated twice would take, which is worth
-            // saying out loud rather than silently drawing twice.
-            for (const existing of held) {
-                if (existing.id === id) {
-                    options?.onRefused?.(
-                        `registerPaintLayer ignored a second layer with id "${id}"; ids are unique within a viewer.`,
-                    );
-                    return () => {};
-                }
-            }
-
-            const order =
-                typeof layer.order === 'number' && Number.isFinite(layer.order)
-                    ? layer.order
-                    : 0;
-            const registered: RegisteredPaintLayer = {
-                id,
-                order,
-                sequence: sequence++,
-                draw: layer.draw,
-            };
-            held.add(registered);
-            rebuild();
-
-            let released = false;
-            return () => {
-                if (released) return;
-                released = true;
-                held.delete(registered);
-                rebuild();
-            };
-        },
+        register: (layer) => registry.register(layer),
     };
 }
 
@@ -325,20 +289,17 @@ export function drawPaintLayers(
 /**
  * This frame's placements, from the scene plan's layout.
  *
- * A mapping function rather than the layout rects themselves: `LayoutRect` is
- * the planner's own type and carries whatever the planner needs it to, where
- * {@link PaintCanvasPlacement} is a public promise about four numbers and an id.
+ * The plan's own rect objects. {@link PaintCanvasPlacement} is the public
+ * promise — four numbers and an id — and the planner's `LayoutRect` is exactly
+ * that shape, so copying each rect would allocate hundreds of objects per frame
+ * on a long manifest to say the same thing. The narrower type is what keeps the
+ * promise: a layer is handed `readonly` placements and cannot see, or write,
+ * anything the planner might later add.
  */
 export function paintCanvasPlacements(
     layout: readonly LayoutRect[],
-): PaintCanvasPlacement[] {
-    return layout.map((rect) => ({
-        canvasId: rect.canvasId,
-        x: rect.x,
-        y: rect.y,
-        width: rect.width,
-        height: rect.height,
-    }));
+): readonly PaintCanvasPlacement[] {
+    return layout;
 }
 
 /** A Canvas's declared dimensions, `null` where the manifest omits one. */

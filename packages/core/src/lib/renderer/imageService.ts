@@ -38,7 +38,8 @@ import {
     iiifImageRequestUrl,
     iiifSizeParameter,
 } from '../utils/iiifImageRequest';
-
+import { getResourceId } from '../utils/iiifIds';
+import { isPositiveFinite } from '../utils/numbers';
 import { METADATA_IN_FLIGHT_LIMIT } from './rendererDefaults';
 import { isLevel0Profile } from './sizeLadder';
 import type { ImageServiceFacts } from './types';
@@ -54,9 +55,7 @@ function firstString(value: unknown): string | null {
 }
 
 function positiveInteger(value: unknown): number | null {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0
-        ? Math.floor(value)
-        : null;
+    return isPositiveFinite(value) ? Math.floor(value) : null;
 }
 
 /**
@@ -109,7 +108,7 @@ export function parseImageService(json: unknown): ImageServiceFacts | null {
         version: parseVersion(document),
     };
 
-    const requestBaseUri = firstString(document.id ?? document['@id']);
+    const requestBaseUri = firstString(getResourceId(document));
     if (requestBaseUri) facts.requestBaseUri = requestBaseUri;
 
     // The only thing read off `profile`. Everything else the renderer decides
@@ -127,9 +126,7 @@ export function parseImageService(json: unknown): ImageServiceFacts | null {
         const scaleFactors = Array.isArray(entry.scaleFactors)
             ? entry.scaleFactors.filter(
                   (factor): factor is number =>
-                      typeof factor === 'number' &&
-                      Number.isFinite(factor) &&
-                      factor >= 1,
+                      isPositiveFinite(factor) && factor >= 1,
               )
             : [];
         if (scaleFactors.length > 0) facts.scaleFactors = scaleFactors;
@@ -161,7 +158,7 @@ export function parseImageService(json: unknown): ImageServiceFacts | null {
 }
 
 /** A decoded image's real dimensions, or `null` if it would not decode. */
-export type MeasureImage = (
+type MeasureImage = (
     url: string,
 ) => Promise<{ width: number; height: number } | null>;
 
@@ -176,7 +173,7 @@ function aspectsAgree(one: number, other: number): boolean {
     return Math.abs(one - other) <= ASPECT_TOLERANCE * Math.max(one, other);
 }
 
-function defaultMeasureImage(url: string): ReturnType<MeasureImage> {
+function measureImage(url: string): ReturnType<MeasureImage> {
     return new Promise((resolve) => {
         // No `crossOrigin`: nothing reads these pixels back, and demanding CORS
         // would fail the probe on the very services it exists to judge.
@@ -227,7 +224,6 @@ async function verifyDimensions(
     facts: ImageServiceFacts,
     serviceId: string,
     declared: { width: number; height: number } | undefined,
-    measure: MeasureImage,
 ): Promise<ImageServiceFacts> {
     if (!declared) return facts;
 
@@ -235,7 +231,7 @@ async function verifyDimensions(
     const declaredAspect = declared.width / declared.height;
     if (aspectsAgree(serviceAspect, declaredAspect)) return facts;
 
-    const measured = await measure(
+    const measured = await measureImage(
         iiifImageRequestUrl(
             facts.requestBaseUri ?? serviceId,
             iiifSizeParameter(facts.width, true, facts.version === 2 ? 2 : 3),
@@ -260,8 +256,8 @@ async function verifyDimensions(
             (!measured
                 ? ' — undecidable'
                 : convicted
-                  ? ' — info.json is wrong, whole images only'
-                  : ' — the manifest is wrong, which tiling survives'),
+                  ? ' — info.json wrong, whole images only'
+                  : ' — manifest wrong, tiling survives'),
     );
 
     if (!measured || !convicted) return facts;
@@ -314,7 +310,7 @@ export interface ImageServiceCache {
      * has spent its attempts resolves `null` without touching the network.
      *
      * Also safe to call for fifty services at once: at most
-     * {@link ImageServiceCacheOptions.maxConcurrent} requests are outstanding
+     * `rendererDefaults.METADATA_IN_FLIGHT_LIMIT` requests are outstanding
      * and the rest wait their turn, so the promise a caller gets back may be
      * queued rather than in flight. The planner emits its list centre-out and
      * re-emits it every frame, so the queue drains in the order the reader
@@ -343,41 +339,23 @@ export interface ImageServiceCache {
     retryTransientFailures(): void;
 }
 
-export interface ImageServiceCacheOptions {
-    /**
-     * Seam for tests. The default reaches for the global `fetch` **lazily**, at
-     * call time, so this module stays importable in plain Node with no DOM and
-     * no fetch polyfill at module scope.
-     */
-    fetchJson?: (url: string) => Promise<{ status: number; json: unknown }>;
-    /** Seam for tests, reached lazily for the same reason as `fetchJson`. */
-    measureImage?: MeasureImage;
-    /**
-     * How many times a transient failure may be attempted before the service is
-     * left alone until the next mount. Two is one retry, matching the tile
-     * scheduler's allowance.
-     */
-    maxAttempts?: number;
-    /**
-     * Entry ceiling for the facts held.
-     *
-     * The cache is page-shared and never expires, so an unbounded map grows with
-     * every canvas of every manifest a session ever opens. Oldest-first, which
-     * for metadata is as good as recency and costs no bookkeeping.
-     */
-    maxEntries?: number;
-    /**
-     * How many `info.json` requests may be outstanding at once.
-     *
-     * The dedupe below bounds requests per SERVICE; this bounds them across
-     * services, which is the bound that matters at the derived zoom floor where
-     * fifty thumbnail-tier canvases can want metadata in the same frame.
-     * Defaults to `rendererDefaults.METADATA_IN_FLIGHT_LIMIT`.
-     */
-    maxConcurrent?: number;
-}
+/**
+ * How many times a transient failure may be attempted before the service is
+ * left alone until the next mount. Two is one retry, matching the tile
+ * scheduler's allowance.
+ */
+const MAX_ATTEMPTS = 2;
 
-async function defaultFetchJson(
+/**
+ * Entry ceiling for the facts held.
+ *
+ * The cache is page-shared and never expires, so an unbounded map grows with
+ * every canvas of every manifest a session ever opens. Oldest-first, which
+ * for metadata is as good as recency and costs no bookkeeping.
+ */
+const MAX_ENTRIES = 512;
+
+async function fetchInfoJson(
     url: string,
 ): Promise<{ status: number; json: unknown }> {
     const response = await fetch(url);
@@ -398,18 +376,7 @@ interface FailureEntry {
     attempts: number;
 }
 
-export function createImageServiceCache(
-    options: ImageServiceCacheOptions = {},
-): ImageServiceCache {
-    const fetchJson = options.fetchJson ?? defaultFetchJson;
-    const measureImage = options.measureImage ?? defaultMeasureImage;
-    const maxAttempts = Math.max(1, Math.floor(options.maxAttempts ?? 2));
-    const maxEntries = Math.max(1, Math.floor(options.maxEntries ?? 512));
-    const maxConcurrent = Math.max(
-        1,
-        Math.floor(options.maxConcurrent ?? METADATA_IN_FLIGHT_LIMIT),
-    );
-
+export function createImageServiceCache(): ImageServiceCache {
     const facts = new Map<string, ImageServiceFacts>();
     const failures = new Map<string, FailureEntry>();
     /**
@@ -428,7 +395,7 @@ export function createImageServiceCache(
 
     /** Insertion-ordered, so the oldest key is simply the first one. */
     function bound<Value>(map: Map<string, Value>): void {
-        while (map.size > maxEntries) {
+        while (map.size > MAX_ENTRIES) {
             const oldest = map.keys().next();
             if (oldest.done) return;
             map.delete(oldest.value);
@@ -451,7 +418,9 @@ export function createImageServiceCache(
         declared: { width: number; height: number } | undefined,
     ): Promise<ImageServiceFacts | null> {
         try {
-            const { status, json } = await fetchJson(`${serviceId}/info.json`);
+            const { status, json } = await fetchInfoJson(
+                `${serviceId}/info.json`,
+            );
             // The authentication/load distinction is preserved from the
             // previous renderer: knowing whether logging in would help is the
             // difference between a useful error and a shrug (user story 27).
@@ -479,7 +448,6 @@ export function createImageServiceCache(
                 parsed,
                 serviceId,
                 declared,
-                measureImage,
             );
 
             failures.delete(serviceId);
@@ -503,7 +471,7 @@ export function createImageServiceCache(
      * service.
      */
     function pump(): void {
-        while (active < maxConcurrent && waiting.length > 0) {
+        while (active < METADATA_IN_FLIGHT_LIMIT && waiting.length > 0) {
             const next = waiting.shift()!;
             active += 1;
             void load(next.serviceId, next.declared).then((result) => {
@@ -526,7 +494,7 @@ export function createImageServiceCache(
     function isSpent(serviceId: string): boolean {
         const failed = failures.get(serviceId);
         if (!failed) return false;
-        return failed.permanent || failed.attempts >= maxAttempts;
+        return failed.permanent || failed.attempts >= MAX_ATTEMPTS;
     }
 
     return {

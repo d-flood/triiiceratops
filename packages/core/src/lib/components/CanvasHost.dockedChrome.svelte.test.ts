@@ -570,9 +570,9 @@ describe('a docked-chrome surface change in a mounted viewer', () => {
 
         // One step, and the single `stepBox` below is what makes it one: this
         // harness moves the box only when a test moves it, so the number of
-        // intermediate widths is the test's to choose and never `slideWidth`'s.
+        // intermediate widths is the test's to choose and never `slideAxis`'s.
         // What the preference buys is that a real column would arrive at its
-        // full width in one step too — `slideWidth`'s duration is 0 — so a
+        // full width in one step too — `slideAxis`'s duration is 0 — so a
         // single step is the faithful model of it rather than a convenience.
         // It lands where the eleven-step slide above lands, both being stated
         // against the same absolute ratio (story 13).

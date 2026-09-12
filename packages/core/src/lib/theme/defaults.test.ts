@@ -1,10 +1,10 @@
 /**
  * What a viewer paints when nobody names a theme.
  *
- * Four themes ship, and the defaults block is `light`'s own values rather than
- * a fifth palette. That is a claim about a stylesheet, so it is read out of the
- * stylesheet: the defaults and `[data-theme='light']` are compared token for
- * token, and the file is checked for the `prefers-color-scheme` block that used
+ * Four themes ship, and the defaults block IS `light` rather than a fifth
+ * palette. That is a claim about a stylesheet, so it is read out of the
+ * stylesheet: the defaults and `[data-theme='light']` must share one selector
+ * list, and the file is checked for the `prefers-color-scheme` block that used
  * to sit between them.
  *
  * The two did drift. A `prefers-color-scheme: dark` block survived the removal
@@ -35,7 +35,7 @@ const CSS = readFileSync(
 /** The rules alone. The prose above them talks about the block that was removed. */
 const RULES = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
 
-/** The declarations of the block whose selector line ends with `selector`. */
+/** The declarations of the block opened by `selector`. */
 function block(selector: string): Record<string, string> {
     const at = RULES.indexOf(`${selector} {`);
     expect(at, `${selector} is not in themes.css`).toBeGreaterThan(-1);
@@ -48,11 +48,20 @@ function block(selector: string): Record<string, string> {
     );
 }
 
+/** The one selector list that opens the shared defaults / `light` block. */
+const DEFAULTS_SELECTOR = ":where(:root, :host),\n[data-theme='light']";
+
 describe('the tokens a viewer with no theme paints', () => {
-    it('are `light`, token for token', () => {
-        expect(block(':where(:root, :host)')).toEqual(
-            block("[data-theme='light']"),
-        );
+    it('are `light`, because they are the same declarations', () => {
+        // One selector list, not two blocks: token-for-token identity is then
+        // structural rather than a thing that has to be re-checked. Each
+        // selector keeps its own specificity, so the defaults are still
+        // zero-specificity and a named `light` still outranks a host override.
+        const defaults = block(DEFAULTS_SELECTOR);
+        expect(Object.keys(defaults).length).toBeGreaterThan(0);
+
+        // And `light` is declared nowhere else.
+        expect(RULES.match(/\[data-theme='light'\]/g)).toHaveLength(1);
     });
 
     it('do not depend on the reader’s own colour scheme', () => {

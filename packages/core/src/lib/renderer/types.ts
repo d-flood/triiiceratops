@@ -280,10 +280,10 @@ export interface PlannerBudgets {
      * may be promoted to.
      *
      * Only that source kind needs it, and only it can be defeated without it: a
-     * tile is bounded by the tile size, but a size ladder's top rung is the
+     * tile is bounded by the tile size, but a size ladder's top level is the
      * whole scan, and for a large manuscript that is a 100+ megapixel JPEG whose
      * decode pins hundreds of megabytes and can hard-crash a phone. Past the cap
-     * the blur is accepted. See `sizeLadder.chooseRung`.
+     * the blur is accepted. See `tilePyramid.chooseLevel`.
      */
     maxDecodedPixels: number;
 }
@@ -395,7 +395,8 @@ export interface TileDraw {
  * in-flight window, negative cache, off-thread decode, and byte-budgeted
  * **opportunistic cache** all apply to thumbnails without a second
  * implementation of any of them — the same reasoning that expresses a
- * **size-ladder source**'s rungs as one-tile levels (`planScene.planSizeLadder`).
+ * **size-ladder source** as a pyramid of one-tile levels
+ * (`sizeLadder.buildSizeLadder`).
  * The host hands the two lists to one scheduler, so the concurrency cap really
  * is global and a thumbnail and a tile compete on distance from the viewport
  * centre rather than on which list they arrived in.
@@ -517,8 +518,31 @@ export interface PlanWorldInput {
     surfaceAspect?: number;
 }
 
+/**
+ * Where the canvases ended up, and the zoom floor that follows from it.
+ *
+ * The part of `planScene.planViewportLimits`' answer that a full plan consumes,
+ * named separately from the rest of it so {@link PlanSceneInput} can take one
+ * without reaching for the pan constraint's own outputs.
+ */
+export interface PlannedWorld {
+    layout: LayoutRect[];
+    minZoom: number;
+}
+
 export interface PlanSceneInput extends PlanWorldInput {
     viewport: Viewport;
+    /**
+     * This frame's limits, already computed.
+     *
+     * The host asks for them on every pointer sample and memoizes the answer
+     * (`canvasRenderer.viewportLimits`), so without this the frame loop pays
+     * for a second layout pass over the whole manifest to re-derive a value it
+     * is holding. Optional because layout is an input to the plan rather than a
+     * caller's responsibility: omit it and the plan computes its own, which is
+     * what every caller that only wants a plan is describing.
+     */
+    viewportLimits?: PlannedWorld;
     /**
      * Device pixels per CSS pixel of the backing store, defaulting to 1.
      *

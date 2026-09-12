@@ -6,9 +6,10 @@
  * to get the global layer their bundler can't derive from the components:
  * the element reset, design tokens + built-in themes, base styles, chrome
  * layout vars, the CSS-only tooltip shared by chrome that hangs a tooltip
- * off an element it already renders, and the menu surface shared by the
- * viewer's selectors. Per-component styling still comes from
- * each `.svelte` file's scoped <style> at the consumer's build.
+ * off an element it already renders, the menu surface shared by the
+ * viewer's selectors, and the shapes every side panel is built from.
+ * Per-component styling still comes from each `.svelte` file's scoped <style>
+ * at the consumer's build.
  *
  * CORE ONLY — no plugin CSS here. A plugin's own styling is shipped BY that
  * plugin — the annotation editor, for one, installs its build-extracted
@@ -28,3 +29,4 @@ import '../styles/base.css';
 import '../styles/layout.css';
 import '../styles/tooltip.css';
 import '../styles/menu.css';
+import '../styles/panel.css';

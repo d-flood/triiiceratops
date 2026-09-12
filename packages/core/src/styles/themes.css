@@ -23,12 +23,12 @@
  *      specificity, so a selected theme wins over external CSS-var overrides.
  *   3. Inline styles on the root — set by the `themeConfig` prop; win over everything.
  *
- * FOUR themes ship, and no more: light, dark, teal, dracula. The defaults block is
- * `light`'s own values rather than a fifth palette — a viewer with no `theme` paints
- * `light`, and `theme/defaults.test.ts` holds the two token-for-token so they cannot
- * drift apart again. They did once: a `prefers-color-scheme: dark` block survived the
- * removal of Tailwind and daisyUI carrying daisyUI's indigo primary, and because no
- * name selected it, nothing rendered it on purpose and nothing tested it.
+ * FOUR themes ship, and no more: light, dark, teal, dracula. The defaults block IS
+ * `light` rather than a fifth palette — a viewer with no `theme` paints `light` — and
+ * the two share one selector list so they cannot drift apart again. They did once: a
+ * `prefers-color-scheme: dark` block survived the removal of Tailwind and daisyUI
+ * carrying daisyUI's indigo primary, and because no name selected it, nothing rendered
+ * it on purpose and nothing tested it. `theme/defaults.test.ts` holds this shape.
  *
  * Following the reader's own scheme is the HOST's decision, not this stylesheet's. A
  * component that turned dark inside a light page would be overruling the page it was
@@ -41,8 +41,15 @@
  * panel components and their descendants consume.
  */
 
-/* ---- Default tokens — `light`'s own set, zero-specificity so host overrides win ---- */
-:where(:root, :host) {
+/* ---- Default tokens — `light`'s own set, stated once ----
+ *
+ * The defaults and `[data-theme='light']` are one selector list rather than two
+ * blocks: they were token-for-token identical, and a list keeps each selector's
+ * own specificity, so the defaults stay zero-specificity (host overrides win)
+ * while a named `light` still outranks them. `theme/defaults.test.ts` holds them
+ * to this shape. */
+:where(:root, :host),
+[data-theme='light'] {
     color-scheme: light;
 
     /* Palette */
@@ -155,34 +162,16 @@
     --tri-radius-controls-buttons: var(--tri-radius-buttons);
 }
 
-/* ---- Explicit themes (set via the `theme` prop / data-theme attribute) ---- */
-[data-theme='light'] {
-    color-scheme: light;
-
-    --tri-color-primary: oklch(78% 0.15 80);
-    --tri-color-primary-content: oklch(28% 0.08 70);
-    --tri-color-neutral: oklch(14% 0.005 285.823);
-    --tri-color-neutral-content: oklch(92% 0.004 286.32);
-    --tri-color-success: oklch(76% 0.177 163.223);
-    --tri-color-success-content: oklch(37% 0.077 168.94);
-    --tri-color-warning: oklch(82% 0.189 84.429);
-    --tri-color-warning-content: oklch(41% 0.112 45.904);
-    --tri-color-error: oklch(71% 0.194 13.428);
-    --tri-color-error-content: oklch(27% 0.105 12.094);
-
-    --tri-viewer-bg: oklch(100% 0 0);
-    --tri-toolbar-bg: oklch(98% 0 0);
-    --tri-panel-bg: oklch(98% 0 0);
-    --tri-surface-border: oklch(95% 0 0);
-    --tri-content: oklch(21% 0.006 285.885);
-
-    --tri-radius-selector: 0.5rem;
-    --tri-radius-buttons: 1rem;
-    --tri-radius-box: 0.5rem;
+/* ---- Explicit themes (set via the `theme` prop / data-theme attribute) ----
+ *
+ * `light` is declared with the defaults above. The sizing trio is the same in
+ * all four themes, so it is stated once here for any named theme; a theme that
+ * wants its own redeclares it, since a `[data-theme=…]` block ties on
+ * specificity and wins on source order. */
+[data-theme] {
     --tri-size-selector: 0.25rem;
     --tri-size-field: 0.25rem;
     --tri-border: 1px;
-    --tri-depth: 1;
 }
 
 [data-theme='dark'] {
@@ -208,9 +197,6 @@
     --tri-radius-selector: 0.5rem;
     --tri-radius-buttons: 1rem;
     --tri-radius-box: 0.5rem;
-    --tri-size-selector: 0.25rem;
-    --tri-size-field: 0.25rem;
-    --tri-border: 1px;
     --tri-depth: 1;
 }
 
@@ -238,9 +224,6 @@
     --tri-radius-selector: 0;
     --tri-radius-buttons: 0;
     --tri-radius-box: 0;
-    --tri-size-selector: 0.25rem;
-    --tri-size-field: 0.25rem;
-    --tri-border: 1px;
     --tri-depth: 1;
 }
 
@@ -267,9 +250,6 @@
     --tri-radius-selector: 0;
     --tri-radius-buttons: 0;
     --tri-radius-box: 0;
-    --tri-size-selector: 0.25rem;
-    --tri-size-field: 0.25rem;
-    --tri-border: 1px;
     --tri-depth: 0;
 }
 

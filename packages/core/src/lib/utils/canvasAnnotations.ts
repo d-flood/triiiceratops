@@ -32,6 +32,8 @@
  * external list, and a search hit are all placed the same way.
  */
 
+import { getAnnotationId } from './iiifIds';
+
 /** One canvas's annotations, in the order the manifest gave them. */
 export interface CanvasAnnotations {
     canvasId: string;
@@ -57,13 +59,6 @@ export interface CollectCanvasAnnotationsOptions {
      * work for two pages.
      */
     searchAnnotations: readonly unknown[];
-}
-
-function annotationId(annotation: unknown): string {
-    if (!annotation || typeof annotation !== 'object') return '';
-    const record = annotation as Record<string, unknown>;
-    const id = record.id ?? record['@id'];
-    return typeof id === 'string' ? id : '';
 }
 
 function searchHitCanvasId(hit: unknown): string | null {
@@ -97,7 +92,7 @@ export function collectCanvasAnnotations({
 
         for (const hit of searchAnnotations) {
             if (searchHitCanvasId(hit) !== canvasId) continue;
-            const id = annotationId(hit);
+            const id = getAnnotationId(hit);
             if (id) searchHitIds.add(id);
             annotations.push(hit);
         }

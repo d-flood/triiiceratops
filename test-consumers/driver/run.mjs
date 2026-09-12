@@ -71,7 +71,7 @@ const PACKAGES_TO_PACK = [
         filter: 'triiiceratops',
         // Build steps required so the packed dist is complete. `build:testing`
         // compiles the headless `triiiceratops/testing` entry AFTER
-        // `build:lib` (it needs the generated paraglide runtime + dist types).
+        // `build:lib` (it needs the dist types).
         build: ['build:lib', 'build:testing', 'build:element'],
         tarballName: 'triiiceratops.tgz',
     },
@@ -504,17 +504,29 @@ export async function installFixture(pm, fixtureDir) {
 // every other fixture defaults to chromium only (see runFixture).
 const BROWSER_TYPES = { chromium, firefox, webkit };
 
-// Launch options per engine. Chromium gets software WebGL (SwiftShader) so any
-// WebGL a fixture's graph touches works in headless CI without a GPU; firefox
-// and webkit reject those Chromium flags, so they launch with defaults.
+// Launch options per engine. Locally Chromium runs on the machine's real GPU
+// through Vulkan (mirrors `scripts/playwright-gpu.ts`, the Playwright-config
+// path); CI runners have no GPU, so there — and only there — Chromium falls
+// back to software WebGL (SwiftShader). Firefox and WebKit reject those
+// Chromium flags, so they launch with defaults.
 const LAUNCH_OPTIONS = {
-    chromium: {
-        args: [
-            '--use-gl=angle',
-            '--use-angle=swiftshader',
-            '--enable-unsafe-swiftshader',
-        ],
-    },
+    chromium: process.env.CI
+        ? {
+              args: [
+                  '--use-gl=angle',
+                  '--use-angle=swiftshader',
+                  '--enable-unsafe-swiftshader',
+              ],
+          }
+        : {
+              channel: 'chromium',
+              args: [
+                  '--use-angle=vulkan',
+                  '--enable-features=Vulkan',
+                  '--ignore-gpu-blocklist',
+                  '--enable-gpu-rasterization',
+              ],
+          },
     firefox: {},
     webkit: {},
 };

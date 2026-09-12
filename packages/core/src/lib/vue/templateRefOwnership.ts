@@ -59,6 +59,7 @@
  * `vite.config.testing.ts`.
  */
 
+import { once } from '../utils/once.js';
 import { isRef } from 'vue';
 import type { ComponentInternalInstance } from 'vue';
 
@@ -173,10 +174,7 @@ export function claimTemplateRefOwnership(
         throw error;
     }
 
-    let released = false;
-    return (): void => {
-        if (released) return;
-        released = true;
+    return once(() => {
         for (const claim of claims) claim.release();
-    };
+    });
 }

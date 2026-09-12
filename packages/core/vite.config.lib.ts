@@ -4,8 +4,6 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 // import dts from 'vite-plugin-dts';
 
-import { messageCompiler } from './src/packaging/messageCompiler';
-
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
@@ -13,7 +11,6 @@ export default defineConfig({
     // e2e host pages) into the published dist — those are not part of the package.
     publicDir: false,
     plugins: [
-        messageCompiler(),
         svelte({ compilerOptions: { customElement: false } }),
         // dts({
         //     include: ['src/lib'],

@@ -1,18 +1,21 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
+    import { Button } from './ui';
     import PluginIcon from './PluginIcon.svelte';
     import PluginMountHost from './PluginMountHost.svelte';
-    import { getContext, onMount, type Snippet } from 'svelte';
+    import { getContext, onMount } from 'svelte';
     import type { IconName } from '../generated/icons';
     import type { BarMenu } from '../types/config';
+    import type { IconDescriptor } from '../types/plugin';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
-    import { getMessages, language } from '../state/i18n.svelte';
+    import { getMessages, resolveChromeName } from '../state/i18n.svelte';
     import {
         FOCUS_MEMORY_KEY,
         focusIsOrphaned,
         type FocusMemory,
     } from '../utils/focusMemory';
-    import { panelToggleSelector } from '../utils/dismissible';
+    import { dismissible, panelToggleSelector } from '../utils/dismissible';
+    import { nextRovingIndex } from '../utils/roving';
 
     interface Props {
         /**
@@ -197,32 +200,58 @@
     const anchor = $derived(viewerState.config.toolbar?.anchor || 'center');
     const position = $derived(anchor === 'top' ? `top-${side}` : side);
     const isTop = $derived(anchor === 'top');
-    const showToggle = $derived(viewerState.config.showToggle !== false);
 
-    // --- Tooltip placement ---
-    // When inline (unified), the buttons live inside the nav bar, so tooltips must
-    // point away from whichever edge the nav sits on (below it when on top).
+    // --- Away edge ---
+    // The direction pointing away from the edge the buttons sit on, and toward
+    // the canvas. Everything anchored to a toolbar button grows or points this
+    // way: its tooltip, and a flyout panel. When inline (unified) the buttons
+    // live inside the nav bar, so the edge is the nav's rather than the
+    // toolbar's own side.
     const navOnTop = $derived(viewerState.config.nav?.edge === 'top');
-    const tooltipPlacement = $derived(
+    const awayEdge: 'top' | 'bottom' | 'left' | 'right' = $derived(
         inline
             ? navOnTop
-                ? 'place-bottom'
-                : 'place-top'
+                ? 'bottom'
+                : 'top'
             : isTop
-              ? 'place-bottom'
-              : position === 'left'
-                ? 'place-right'
-                : 'place-left',
+              ? 'bottom'
+              : side === 'left'
+                ? 'right'
+                : 'left',
+    );
+    const tooltipPlacement = $derived(`place-${awayEdge}`);
+    // A vertical away edge grows the panel out of the button's block flow, so it
+    // reads as up/down; a horizontal one grows it inline and keeps the name.
+    const flyoutPlacement = $derived(
+        awayEdge === 'top' ? 'up' : awayEdge === 'bottom' ? 'down' : awayEdge,
     );
 
+    // The floating open handle sits at the toolbar's own side whatever the
+    // anchor, so its tooltip only ever points inboard.
     const openButtonTooltipPlacement = $derived(
-        position === 'top-left'
-            ? 'place-right'
-            : position === 'top-right'
-              ? 'place-left'
-              : position === 'left'
-                ? 'place-right'
-                : 'place-left',
+        side === 'left' ? 'place-right' : 'place-left',
+    );
+    const handleClass = $derived(
+        [
+            'handle tooltip',
+            openButtonTooltipPlacement,
+            isOpen && 'invisible',
+            isTop && 'top',
+            (position === 'left' || position === 'top-left') && 'start',
+            (position === 'right' || position === 'top-right') && 'end',
+        ]
+            .filter(Boolean)
+            .join(' '),
+    );
+
+    // Inside a nav bar aligned to the inline-start screen edge the leading
+    // button hugs that edge, so its centred bubble would overflow the viewer.
+    // The shared tooltip sheet re-anchors it; only this component knows which
+    // button is the leading one.
+    const leadTooltipEdge = $derived(
+        inline && viewerState.config.nav?.align === 'start'
+            ? 'tt-edge-start'
+            : '',
     );
 
     // --- Standard Viewer Actions ---
@@ -253,32 +282,40 @@
     );
     const showInfo = $derived(toolbarConfig.showInfo !== false);
     const showViewingMode = $derived(toolbarConfig.showViewingMode !== false);
-    const sequenceStructures = $derived(
-        viewerState.structures.filter((node: any) =>
-            node.behaviors?.includes('sequence'),
-        ),
-    );
-    const nonSequenceStructures = $derived(
-        viewerState.structures.filter(
-            (node: any) => !node.behaviors?.includes('sequence'),
-        ),
-    );
     const showStructures = $derived(
         viewerState.config.showStructures !== false &&
             toolbarConfig.showStructures !== false &&
-            nonSequenceStructures.length > 0,
+            viewerState.nonSequenceStructures.length > 0,
     );
     const showCollection = $derived(
         toolbarConfig.showCollection !== false && viewerState.hasCollection,
     );
     const showSequencePicker = $derived(viewerState.sequenceCount > 1);
 
-    // Manifest-driven, like the sequence picker: a radio menu offering one
-    // language cannot do anything, so a monolingual manifest gets no button and
-    // no toolbar width spent on it.
+    // The BUTTON is manifest-driven, like the sequence picker: a radio menu
+    // offering one language cannot do anything, so a monolingual manifest gets
+    // no button and no toolbar width spent on it. What the menu LISTS is wider
+    // than that (see `pickableLocales`).
     const availableLocales = $derived(viewerState.availableLocales);
     const showLocalePicker = $derived(
         toolbarConfig.showLocalePicker !== false && availableLocales.length > 1,
+    );
+    /**
+     * The locales the menu offers: the manifest's, plus every locale the host
+     * names a chrome catalog for — sorted together, so the order rule is the one
+     * `collectManifestLocales` already applies.
+     *
+     * A locale the host's `loadMessages` might supply is NOT among them unless
+     * the host also names it in `messages` (an empty object is enough): the
+     * picker must never offer a language nothing can be shown in.
+     */
+    const pickableLocales = $derived(
+        [
+            ...new Set([
+                ...availableLocales,
+                ...Object.keys(viewerState.config.messages ?? {}),
+            ]),
+        ].sort(),
     );
     /**
      * [tag, endonym] for the language menu's radio items.
@@ -290,7 +327,7 @@
      * malformed tag) falls back to the tag itself.
      */
     const localeItems = $derived(
-        availableLocales.map((tag): [string, string] => {
+        pickableLocales.map((tag): [string, string] => {
             try {
                 const name = new Intl.DisplayNames([tag], {
                     type: 'language',
@@ -302,6 +339,7 @@
         }),
     );
     const sequenceOptions = $derived.by(() => {
+        const sequenceStructures = viewerState.sequenceStructures;
         if (sequenceStructures.length > 0) {
             return sequenceStructures.map((node, index) => ({
                 index,
@@ -325,17 +363,145 @@
         return annotationCount > 0 ? `${base} (${annotationCount})` : base;
     });
 
+    /** One selectable row of a built-in menu. */
+    type MenuRow = {
+        key: string;
+        /** Leading glyph. The locale menu's endonyms carry none. */
+        icon?: IconName;
+        label: string;
+        checked: boolean;
+        onclick: () => void;
+        /**
+         * The language this row's label is written in — the locale menu names
+         * each language in itself, and a screen reader needs the switch.
+         */
+        lang?: string;
+        /** The shift-pairing row is a checkbox among radios. */
+        role?: 'menuitemradio' | 'menuitemcheckbox';
+        textStart?: boolean;
+    };
+
+    /** The glyph the viewing-mode toggle wears: the mode currently in effect. */
+    const viewingModeGlyph: IconName = $derived(
+        viewerState.viewingMode === 'paged'
+            ? 'BookOpen'
+            : viewerState.viewingMode === 'continuous'
+              ? 'Scroll'
+              : 'File',
+    );
+
+    // [mode, glyph, label] for the viewing-mode menu's radio items.
+    const viewingModeItems = $derived([
+        ['individuals', 'File', m.viewing_mode_individuals()],
+        ['paged', 'BookOpen', m.viewing_mode_paged()],
+        ['continuous', 'Scroll', m.viewing_mode_continuous()],
+    ] as const);
+
+    // The shift-pairing row is a checkbox among radios, and is offered only in
+    // the mode it means anything in.
+    const viewingModeRows: MenuRow[] = $derived([
+        ...viewingModeItems.map(([mode, icon, label]) => ({
+            key: mode,
+            icon,
+            label,
+            checked: viewerState.viewingMode === mode,
+            onclick: () => viewerState.setViewingMode(mode),
+        })),
+        ...(viewerState.viewingMode === 'paged'
+            ? [
+                  {
+                      key: 'shift-pairing',
+                      icon: 'ArrowsLeftRight' as IconName,
+                      label: m.viewing_mode_shift_pairing(),
+                      checked: viewerState.pagedOffset === 1,
+                      onclick: () => viewerState.togglePagedOffset(),
+                      role: 'menuitemcheckbox' as const,
+                      textStart: true,
+                  },
+              ]
+            : []),
+    ]);
+
+    // [side, glyph, label] for the gallery menu's radio items — the four dock
+    // sides, each glyph pointing at the edge it docks to, plus the off state.
+    // 'off' is a placement in the menu's terms, not a dock side, so choosing a
+    // side implies showing the gallery and choosing 'off' hides it.
+    const galleryPlacementItems = $derived([
+        ['top', 'CaretUp', m.gallery_placement_top()],
+        ['bottom', 'CaretDown', m.gallery_placement_bottom()],
+        ['left', 'CaretLeft', m.gallery_placement_left()],
+        ['right', 'CaretRight', m.gallery_placement_right()],
+        ['off', 'EyeSlash', m.gallery_placement_off()],
+    ] as const);
+
+    const galleryRows: MenuRow[] = $derived(
+        galleryPlacementItems.map(([placement, icon, label]) => ({
+            key: placement,
+            icon,
+            label,
+            checked: galleryPlacement === placement,
+            onclick: () => setGalleryPlacement(placement),
+        })),
+    );
+
+    const sequenceRows: MenuRow[] = $derived(
+        sequenceOptions.map((option) => ({
+            key: String(option.index),
+            icon: 'Stack' as IconName,
+            label: option.label,
+            checked: viewerState.selectedSequenceIndex === option.index,
+            onclick: () => viewerState.setSequenceIndex(option.index),
+        })),
+    );
+
+    const localeRows: MenuRow[] = $derived(
+        localeItems.map(([tag, name]) => ({
+            key: tag,
+            label: name,
+            checked: viewerState.activeLocale === tag,
+            onclick: () => viewerState.setLocale(tag),
+            lang: tag,
+        })),
+    );
+
+    /** The menu item currently checked: the dock side, or 'off' when hidden. */
+    const galleryPlacement = $derived(
+        viewerState.showThumbnailGallery ? viewerState.dockSide : 'off',
+    );
+
+    function setGalleryPlacement(placement: string) {
+        if (placement === 'off') {
+            if (viewerState.showThumbnailGallery) {
+                viewerState.toggleThumbnailGallery();
+            }
+            return;
+        }
+        viewerState.setDockSide(placement);
+        if (!viewerState.showThumbnailGallery) {
+            viewerState.toggleThumbnailGallery();
+        }
+    }
+
     /**
-     * One row per built-in toolbar entry. A row naming a `flyout` is rendered by
-     * the shared `flyoutMenu` snippet, which its branch below supplies with the
-     * menu's identity, label, glyph and rows; every other row is rendered by the
-     * one shared button template.
+     * One row per built-in toolbar entry. A row naming a `flyout` carries the
+     * whole menu — its identity, toggle and rows — and is rendered by the shared
+     * `flyoutMenu` snippet; every other row is rendered by the one shared button
+     * template.
      */
     type ToolbarEntry =
         | {
               key: string;
               show: boolean;
               flyout: (typeof TOOLBAR_MENUS)[number];
+              /** Accessible name, on both the toggle and the panel. */
+              label: string;
+              /** The glyph the toggle wears. */
+              glyph: IconName;
+              /** Count pill on the toggle; the sequence picker's alone. */
+              badge?: string | number;
+              /** A wider panel, for menus whose labels run long. */
+              wide?: boolean;
+              rows: MenuRow[];
           }
         | {
               key: string;
@@ -382,6 +548,9 @@
             key: 'gallery',
             show: showGallery,
             flyout: 'gallery',
+            label: m.gallery_label(),
+            glyph: 'Slideshow',
+            rows: galleryRows,
         },
         {
             key: 'structures',
@@ -397,16 +566,31 @@
             key: 'viewing-mode',
             show: showViewingMode,
             flyout: 'viewing-mode',
+            label: m.viewing_mode_label(),
+            glyph: viewingModeGlyph,
+            rows: viewingModeRows,
         },
         {
             key: 'sequence-picker',
             show: showSequencePicker,
             flyout: 'sequence',
+            label: m.sequence_label(),
+            glyph: 'Stack',
+            badge:
+                viewerState.sequenceCount > 99
+                    ? '99+'
+                    : viewerState.sequenceCount,
+            wide: true,
+            rows: sequenceRows,
         },
         {
             key: 'locale',
             show: showLocalePicker,
             flyout: 'locale',
+            label: m.locale_label(),
+            glyph: 'Translate',
+            wide: true,
+            rows: localeRows,
         },
         {
             key: 'fullscreen',
@@ -447,6 +631,9 @@
         toolbarEntries.filter((entry) => entry.show),
     );
 
+    /** The subset of rows that carry a whole menu. */
+    type FlyoutEntry = Extract<ToolbarEntry, { flyout: BarMenu }>;
+
     // Whether any of the configurable built-in actions is on screen — the left
     // half of the plugin separator's condition. The sequence picker is not among
     // them: it is manifest-driven rather than configured. Keyed off the `flyout`
@@ -456,58 +643,11 @@
         visibleEntries.some((entry) => entry.flyout !== 'sequence'),
     );
 
-    /** The glyph the viewing-mode toggle wears: the mode currently in effect. */
-    const viewingModeGlyph: IconName = $derived(
-        viewerState.viewingMode === 'paged'
-            ? 'BookOpen'
-            : viewerState.viewingMode === 'continuous'
-              ? 'Scroll'
-              : 'File',
-    );
-
-    // [mode, glyph, label] for the viewing-mode menu's radio items.
-    const viewingModeItems = $derived([
-        ['individuals', 'File', m.viewing_mode_individuals()],
-        ['paged', 'BookOpen', m.viewing_mode_paged()],
-        ['continuous', 'Scroll', m.viewing_mode_continuous()],
-    ] as const);
-
-    // [side, glyph, label] for the gallery menu's radio items — the four dock
-    // sides, each glyph pointing at the edge it docks to, plus the off state.
-    // 'off' is a placement in the menu's terms, not a dock side, so choosing a
-    // side implies showing the gallery and choosing 'off' hides it.
-    const galleryPlacementItems = $derived([
-        ['top', 'CaretUp', m.gallery_placement_top()],
-        ['bottom', 'CaretDown', m.gallery_placement_bottom()],
-        ['left', 'CaretLeft', m.gallery_placement_left()],
-        ['right', 'CaretRight', m.gallery_placement_right()],
-        ['off', 'EyeSlash', m.gallery_placement_off()],
-    ] as const);
-
-    /** The menu item currently checked: the dock side, or 'off' when hidden. */
-    const galleryPlacement = $derived(
-        viewerState.showThumbnailGallery ? viewerState.dockSide : 'off',
-    );
-
-    function setGalleryPlacement(placement: string) {
-        if (placement === 'off') {
-            if (viewerState.showThumbnailGallery) {
-                viewerState.toggleThumbnailGallery();
-            }
-            return;
-        }
-        viewerState.setDockSide(placement);
-        if (!viewerState.showThumbnailGallery) {
-            viewerState.toggleThumbnailGallery();
-        }
-    }
-
-    let sortedPluginButtons = $derived.by(() => {
-        void language.current;
-        return viewerState.pluginMenuButtons
+    let sortedPluginButtons = $derived(
+        viewerState.pluginMenuButtons
             .filter((button) => button.isVisible?.() !== false)
-            .sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
-    });
+            .sort((a, b) => (a.order ?? 100) - (b.order ?? 100)),
+    );
 
     // The panel a plugin button toggles, or undefined when it toggles nothing.
     // `registerSdkChrome` pairs a `<pluginId>:toggle` button with a
@@ -520,21 +660,6 @@
             ? panelId
             : undefined;
     }
-
-    // Direction a plugin flyout grows out of its button — always toward the
-    // canvas: up from the inline (bottom) bar, down from a top toolbar, and
-    // sideways from a left/right rail.
-    const flyoutPlacement = $derived(
-        inline
-            ? navOnTop
-                ? 'down'
-                : 'up'
-            : isTop
-              ? 'down'
-              : position === 'left'
-                ? 'right'
-                : 'left',
-    );
 
     function findFlyout(domId: string | undefined) {
         if (!domId) return undefined;
@@ -588,20 +713,16 @@
                 '[role="menuitemradio"], [role="menuitemcheckbox"]',
             ),
         );
-        if (items.length === 0) return;
         const root = menu.getRootNode() as Document | ShadowRoot;
         const active = root.activeElement as HTMLElement | null;
-        const current = items.findIndex((el) => el === active);
-        let next = -1;
-        if (e.key === 'ArrowDown') next = (current + 1) % items.length;
-        else if (e.key === 'ArrowUp')
-            next = (current - 1 + items.length) % items.length;
-        else if (e.key === 'Home') next = 0;
-        else if (e.key === 'End') next = items.length - 1;
-        if (next >= 0) {
-            e.preventDefault();
-            items[next].focus();
-        }
+        const next = nextRovingIndex(
+            e.key,
+            items.indexOf(active as HTMLElement),
+            items.length,
+        );
+        if (next < 0) return;
+        e.preventDefault();
+        items[next].focus();
     }
 
     function closeAllOverlays() {
@@ -609,28 +730,6 @@
             viewerState.setOpenMenu(null);
         }
         viewerState.closePluginFlyouts();
-    }
-
-    // Light-dismiss for flyouts/menus (they are not top-layer popovers, so we
-    // close them ourselves). `composedPath` keeps this working inside a shadow
-    // root: a click on a flyout/menu panel or its toggle button is ignored.
-    function pointerInsideFlyout(e: Event): boolean {
-        for (const node of e.composedPath()) {
-            if (!(node instanceof Element)) continue;
-            if (
-                node.hasAttribute('data-flyout-panel') ||
-                node.hasAttribute('data-flyout-toggle')
-            ) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function handleWindowPointerDown(e: PointerEvent) {
-        if (!pointerInsideFlyout(e)) {
-            closeAllOverlays();
-        }
     }
 
     function handleWindowKeydown(e: KeyboardEvent) {
@@ -675,157 +774,130 @@
                 ?.focus();
         });
     });
-
-    function resolvePluginTooltip(tooltip: string) {
-        void language.current;
-
-        // @ts-expect-error - m[tooltip] might be a function
-        return typeof m[tooltip] === 'function'
-            ? // @ts-expect-error - m[tooltip] is a function
-              m[tooltip]()
-            : tooltip;
-    }
 </script>
 
-<svelte:window
-    onpointerdown={handleWindowPointerDown}
-    onkeydown={handleWindowKeydown}
-/>
+<svelte:window onkeydown={handleWindowKeydown} />
 
-<!-- ===== Shared built-in flyout markup =====
-     The four built-in menus differ only in their data, so their shell and their
-     rows are written once here. `name` is the single identity a menu carries:
-     the open-menu key, the panel's DOM id (`tri-flyout-<name>`) and its CSS
-     anchor (`--anchor-<name>`) are all derived from it, so they cannot drift
-     apart. Menu-specific behavior stays at the call sites: the viewing-mode
-     menu's pairing checkbox, the sequence picker's count badge and wide panel,
-     and the locale menu's per-item `lang` with no leading glyph. -->
-{#snippet flyoutMenu(
-    name: BarMenu,
+<!-- ===== Shared flyout markup =====
+     Every flyout toggle — the built-in menus' and the plugins' — is this one
+     button. `anchor` is the identity the pair agrees on: the panel's DOM id
+     (`tri-flyout-<anchor>`) and its CSS anchor (`--anchor-<anchor>`) are both
+     derived from it, so they cannot drift apart. What differs is the popup a
+     toggle announces (`menu` for a built-in, `dialog` for a plugin's), the
+     plugin id it carries for plugin chrome, and which glyph table its icon
+     comes from. -->
+{#snippet flyoutToggle(
+    anchor: string,
     label: string,
-    glyph: IconName,
-    badge: string | number | undefined,
-    wide: boolean,
-    rows: Snippet,
+    haspopup: 'menu' | 'dialog',
+    open: boolean,
+    onclick: () => void,
+    glyph: IconName | undefined,
+    descriptor: IconDescriptor | undefined = undefined,
+    pluginId: string | undefined = undefined,
+    badge: string | number | undefined = undefined,
+    edgeClass: string = '',
 )}
-    <li>
-        <button
-            class="tri-menu-item tooltip {tooltipPlacement}"
-            class:indicator={badge !== undefined}
-            class:is-active={openMenu === name}
-            data-tip={label}
-            data-flyout-toggle
-            aria-label={label}
-            aria-haspopup="menu"
-            aria-controls="tri-flyout-{name}"
-            aria-expanded={openMenu === name}
-            style="anchor-name:--anchor-{name}"
-            onclick={() => toggleMenu(name)}
-        >
-            {#if badge !== undefined}
-                <span class="indicator-item count-badge">{badge}</span>
-            {/if}
+    <button
+        class="tri-menu-item tooltip {tooltipPlacement} {edgeClass}"
+        class:indicator={badge !== undefined}
+        class:is-active={open}
+        data-tip={label}
+        data-flyout-toggle
+        data-plugin-toggle={pluginId}
+        aria-label={label}
+        aria-haspopup={haspopup}
+        aria-controls="tri-flyout-{anchor}"
+        aria-expanded={open}
+        style="anchor-name:--anchor-{anchor}"
+        {onclick}
+    >
+        {#if badge !== undefined}
+            <span class="indicator-item count-badge">{badge}</span>
+        {/if}
+        {#if glyph}
             <Icon name={glyph} size={24} />
-        </button>
+        {/if}
+        {#if descriptor}
+            <PluginIcon {descriptor} size={24} />
+        {/if}
+    </button>
+{/snippet}
+
+<!-- One built-in menu, toggle and panel. Both live in the `<li>` the
+     `dismissible` action is attached to, so a press on either is "inside" and
+     only a press elsewhere light-dismisses.
+
+     A menu panel stays mounted while closed, which is what the other two
+     options are about: outside-pointer dismissal is armed only while the menu
+     is open (otherwise every press anywhere on the page would dismiss, and
+     return focus with it), and nothing here may take focus on mount. Escape is
+     handled at the window instead of here, because a host can open a menu from
+     config with focus nowhere near it. -->
+{#snippet flyoutMenu(entry: FlyoutEntry, edgeClass: string = '')}
+    {@const name = entry.flyout}
+    {@const open = openMenu === name}
+    <li
+        use:dismissible={{
+            onDismiss: closeAllOverlays,
+            escape: false,
+            focusOnMount: false,
+            outsidePointer: open,
+        }}
+    >
+        {@render flyoutToggle(
+            name,
+            entry.label,
+            'menu',
+            open,
+            () => toggleMenu(name),
+            entry.glyph,
+            undefined,
+            undefined,
+            entry.badge,
+            edgeClass,
+        )}
         <ul
             id="tri-flyout-{name}"
             data-flyout-panel
             role="menu"
             tabindex="-1"
-            aria-label={label}
+            aria-label={entry.label}
             class="tri-menu tri-menu-surface menu-flyout {flyoutPlacement}"
-            class:wide
-            class:open={openMenu === name}
+            class:wide={entry.wide}
+            class:open
             style="position-anchor: --anchor-{name};"
             onkeydown={onFlyoutMenuKeydown}
         >
-            {@render rows()}
+            {#each entry.rows as row (row.key)}
+                <!-- The glyph name goes through a local binding because
+                     `check-icon-coverage` only resolves a dynamic
+                     `<Icon name={…}>` from a bare identifier; given a member
+                     expression it fails the build rather than guess which
+                     glyphs this file renders. -->
+                {@const glyph = row.icon}
+                <li role="none">
+                    <button
+                        class="tri-menu-item"
+                        class:text-start={row.textStart}
+                        role={row.role ?? 'menuitemradio'}
+                        lang={row.lang}
+                        aria-checked={row.checked}
+                        class:is-active={row.checked}
+                        onclick={row.onclick}
+                    >
+                        {#if glyph}
+                            <Icon name={glyph} size={16} />
+                        {/if}
+                        <span>{row.label}</span>
+                        {#if row.checked}
+                            <Icon name="Check" size={16} />
+                        {/if}
+                    </button>
+                </li>
+            {/each}
         </ul>
     </li>
-{/snippet}
-
-<!-- One selectable row of a built-in menu. `role` is a parameter because the
-     shift-pairing row is a checkbox among radios; `lang` because the locale
-     menu names each language in that language and a screen reader needs the
-     switch; `icon` is optional because those endonyms carry no glyph. -->
-{#snippet menuRow(
-    icon: IconName | undefined,
-    label: string,
-    checked: boolean,
-    onclick: () => void,
-    lang: string | undefined = undefined,
-    role: 'menuitemradio' | 'menuitemcheckbox' = 'menuitemradio',
-    textStart = false,
-)}
-    <li role="none">
-        <button
-            class="tri-menu-item"
-            class:text-start={textStart}
-            {role}
-            {lang}
-            aria-checked={checked}
-            class:is-active={checked}
-            {onclick}
-        >
-            {#if icon}
-                <Icon name={icon} size={16} />
-            {/if}
-            <span>{label}</span>
-            {#if checked}
-                <Icon name="Check" size={16} />
-            {/if}
-        </button>
-    </li>
-{/snippet}
-
-{#snippet viewingModeRows()}
-    {#each viewingModeItems as [mode, icon, label] (mode)}
-        {@render menuRow(icon, label, viewerState.viewingMode === mode, () =>
-            viewerState.setViewingMode(mode),
-        )}
-    {/each}
-    {#if viewerState.viewingMode === 'paged'}
-        {@render menuRow(
-            'ArrowsLeftRight',
-            m.viewing_mode_shift_pairing(),
-            viewerState.pagedOffset === 1,
-            () => viewerState.togglePagedOffset(),
-            undefined,
-            'menuitemcheckbox',
-            true,
-        )}
-    {/if}
-{/snippet}
-
-{#snippet galleryRows()}
-    {#each galleryPlacementItems as [placement, icon, label] (placement)}
-        {@render menuRow(icon, label, galleryPlacement === placement, () =>
-            setGalleryPlacement(placement),
-        )}
-    {/each}
-{/snippet}
-
-{#snippet sequenceRows()}
-    {#each sequenceOptions as option (option.index)}
-        {@render menuRow(
-            'Stack',
-            option.label,
-            viewerState.selectedSequenceIndex === option.index,
-            () => viewerState.setSequenceIndex(option.index),
-        )}
-    {/each}
-{/snippet}
-
-{#snippet localeRows()}
-    {#each localeItems as [tag, name] (tag)}
-        {@render menuRow(
-            undefined,
-            name,
-            viewerState.activeLocale === tag,
-            () => viewerState.setLocale(tag),
-            tag,
-        )}
-    {/each}
 {/snippet}
 
 <div
@@ -875,7 +947,7 @@
         >
             <!-- --- Close Button (hidden in inline mode; the buttons live in the
                  nav bar without a collapse affordance) --- -->
-            {#if showToggle && !inline}
+            {#if viewerState.showToggle && !inline}
                 <li>
                     <button
                         class="tri-menu-item tooltip {tooltipPlacement}"
@@ -889,12 +961,11 @@
             {/if}
 
             <!-- --- Standard Actions ---
-                 One shared button per `toolbarEntries` row. A row naming a
-                 flyout takes a branch of its own instead, naming which menu the
-                 shared `flyoutMenu` snippet should render: a further flyout adds
-                 a row to the descriptor, one more `else if` branch here, and a
-                 rows snippet. -->
-            {#each visibleEntries as entry (entry.key)}
+                 One shared button per `toolbarEntries` row, or one shared menu
+                 for a row naming a flyout: a further flyout is a row in the
+                 descriptor and nothing here. -->
+            {#each visibleEntries as entry, i (entry.key)}
+                {@const edgeClass = i === 0 ? leadTooltipEdge : ''}
                 {#if !entry.flyout}
                     <!-- The glyph name goes through a local binding because
                          `check-icon-coverage` only resolves a dynamic
@@ -904,7 +975,7 @@
                     {@const glyph = entry.icon}
                     <li>
                         <button
-                            class="tri-menu-item tooltip {tooltipPlacement}"
+                            class="tri-menu-item tooltip {tooltipPlacement} {edgeClass}"
                             class:indicator={entry.indicator}
                             class:is-active={entry.pressed}
                             data-tip={entry.tip}
@@ -916,44 +987,8 @@
                             <Icon name={glyph} size={24} />
                         </button>
                     </li>
-                {:else if entry.flyout === 'viewing-mode'}
-                    {@render flyoutMenu(
-                        'viewing-mode',
-                        m.viewing_mode_label(),
-                        viewingModeGlyph,
-                        undefined,
-                        false,
-                        viewingModeRows,
-                    )}
-                {:else if entry.flyout === 'gallery'}
-                    {@render flyoutMenu(
-                        'gallery',
-                        m.gallery_label(),
-                        'Slideshow',
-                        undefined,
-                        false,
-                        galleryRows,
-                    )}
-                {:else if entry.flyout === 'sequence'}
-                    {@render flyoutMenu(
-                        'sequence',
-                        m.sequence_label(),
-                        'Stack',
-                        viewerState.sequenceCount > 99
-                            ? '99+'
-                            : viewerState.sequenceCount,
-                        true,
-                        sequenceRows,
-                    )}
-                {:else if entry.flyout === 'locale'}
-                    {@render flyoutMenu(
-                        'locale',
-                        m.locale_label(),
-                        'Translate',
-                        undefined,
-                        true,
-                        localeRows,
-                    )}
+                {:else}
+                    {@render flyoutMenu(entry, edgeClass)}
                 {/if}
             {/each}
 
@@ -971,96 +1006,101 @@
             {/if}
 
             <!-- --- Plugin Actions --- -->
-            {#key language.current}
-                {#each sortedPluginButtons as button (button.id)}
-                    <!-- Plugins that declared a `title` carry a live label thunk
-                         already resolved against their OWN catalog; the rest
-                         fall through to the core-catalog lookup of `tooltip`. -->
-                    {@const tooltipText =
-                        button.label?.() ??
-                        resolvePluginTooltip(button.tooltip)}
-                    <!-- Every plugin registers both a panel and a flyout entry;
-                         render the anchored flyout only when the plugin's
-                         effective target is 'flyout', otherwise a plain toggle
-                         (the panel renders in the viewer chrome). -->
-                    {@const flyout =
-                        button.pluginId &&
-                        viewerState.getPluginTarget(button.pluginId) ===
-                            'flyout'
-                            ? findFlyout(button.flyoutDomId)
-                            : undefined}
-                    <li>
-                        {#if flyout}
-                            {@const open = button.isActive?.() ?? false}
-                            <button
-                                class="tri-menu-item tooltip {tooltipPlacement}"
-                                class:is-active={open}
-                                data-tip={tooltipText}
-                                aria-label={tooltipText}
-                                aria-haspopup="dialog"
-                                aria-controls="tri-flyout-{flyout.domId}"
-                                aria-expanded={open}
-                                data-flyout-toggle
-                                data-plugin-toggle={button.pluginId}
-                                onclick={() => button.onClick()}
-                                style="anchor-name:--anchor-{flyout.domId}"
-                            >
-                                {#if button.iconDescriptor}
-                                    <PluginIcon
-                                        descriptor={button.iconDescriptor}
-                                        size={24}
-                                    />
-                                {/if}
-                            </button>
-                            <!-- A normal (non-top-layer) anchored element so
-                                 tooltips always paint above it. The plugin's
-                                 content-only container mounts on open and
-                                 unmounts on close. -->
-                            <div
-                                id="tri-flyout-{flyout.domId}"
-                                class="menu-flyout {flyoutPlacement}"
-                                class:open
-                                data-flyout-panel
-                                role="dialog"
-                                aria-label={tooltipText}
-                                style="position-anchor:--anchor-{flyout.domId}"
-                            >
-                                {#if flyout.mount && open}
-                                    <PluginMountHost mount={flyout.mount} />
-                                {/if}
-                            </div>
-                        {:else}
-                            <!-- `data-panel-toggle` carries the id of the panel
-                                 this toggle opens, so the panel can find its way
-                                 back to it after a toolbar rebuild. Only a
-                                 button that actually toggles a panel gets it, or
-                                 a pressed state: a plain action button is not a
-                                 toggle and announcing one as unpressed is a lie.
-                                 -->
-                            {@const panelId = toggledPanelId(button.pluginId)}
-                            <button
-                                class="tri-menu-item tooltip {tooltipPlacement}"
-                                class:is-active={button.isActive?.()}
-                                data-tip={tooltipText}
-                                aria-label={tooltipText}
-                                aria-pressed={panelId
-                                    ? (button.isActive?.() ?? false)
-                                    : undefined}
-                                data-plugin-toggle={button.pluginId}
-                                data-panel-toggle={panelId}
-                                onclick={() => button.onClick()}
-                            >
-                                {#if button.iconDescriptor}
-                                    <PluginIcon
-                                        descriptor={button.iconDescriptor}
-                                        size={24}
-                                    />
-                                {/if}
-                            </button>
-                        {/if}
+            {#each sortedPluginButtons as button, i (button.id)}
+                {@const edgeClass =
+                    visibleEntries.length === 0 && i === 0
+                        ? leadTooltipEdge
+                        : ''}
+                <!-- Plugins that declared a `title` carry a live label thunk
+                     already resolved against their OWN catalog; the rest
+                     fall through to the core-catalog lookup of `tooltip`. -->
+                {@const tooltipText =
+                    button.label?.() ?? resolveChromeName(m, button.tooltip)}
+                <!-- Every plugin registers both a panel and a flyout entry;
+                     render the anchored flyout only when the plugin's
+                     effective target is 'flyout', otherwise a plain toggle
+                     (the panel renders in the viewer chrome). -->
+                {@const flyout =
+                    button.pluginId &&
+                    viewerState.getPluginTarget(button.pluginId) === 'flyout'
+                        ? findFlyout(button.flyoutDomId)
+                        : undefined}
+                {#if flyout}
+                    {@const open = button.isActive?.() ?? false}
+                    <!-- Light-dismissed on the same terms as a built-in menu
+                         (see `flyoutMenu`), except that a flyout declaring
+                         `dismiss: 'explicit'` closes only through its own
+                         affordance and so never arms it. -->
+                    <li
+                        use:dismissible={{
+                            onDismiss: closeAllOverlays,
+                            escape: false,
+                            focusOnMount: false,
+                            outsidePointer:
+                                open && flyout.dismiss !== 'explicit',
+                        }}
+                    >
+                        {@render flyoutToggle(
+                            flyout.domId,
+                            tooltipText,
+                            'dialog',
+                            open,
+                            () => button.onClick(),
+                            undefined,
+                            button.iconDescriptor,
+                            button.pluginId,
+                            undefined,
+                            edgeClass,
+                        )}
+                        <!-- A normal (non-top-layer) anchored element so
+                             tooltips always paint above it. The plugin's
+                             content-only container mounts on open and
+                             unmounts on close. -->
+                        <div
+                            id="tri-flyout-{flyout.domId}"
+                            class="menu-flyout {flyoutPlacement}"
+                            class:open
+                            data-flyout-panel
+                            role="dialog"
+                            aria-label={tooltipText}
+                            style="position-anchor:--anchor-{flyout.domId}"
+                        >
+                            {#if flyout.mount && open}
+                                <PluginMountHost mount={flyout.mount} />
+                            {/if}
+                        </div>
                     </li>
-                {/each}
-            {/key}
+                {:else}
+                    <!-- `data-panel-toggle` carries the id of the panel this
+                         toggle opens, so the panel can find its way back to it
+                         after a toolbar rebuild. Only a button that actually
+                         toggles a panel gets it, or a pressed state: a plain
+                         action button is not a toggle and announcing one as
+                         unpressed is a lie. -->
+                    {@const panelId = toggledPanelId(button.pluginId)}
+                    <li>
+                        <button
+                            class="tri-menu-item tooltip {tooltipPlacement} {edgeClass}"
+                            class:is-active={button.isActive?.()}
+                            data-tip={tooltipText}
+                            aria-label={tooltipText}
+                            aria-pressed={panelId
+                                ? (button.isActive?.() ?? false)
+                                : undefined}
+                            data-plugin-toggle={button.pluginId}
+                            data-panel-toggle={panelId}
+                            onclick={() => button.onClick()}
+                        >
+                            {#if button.iconDescriptor}
+                                <PluginIcon
+                                    descriptor={button.iconDescriptor}
+                                    size={24}
+                                />
+                            {/if}
+                        </button>
+                    </li>
+                {/if}
+            {/each}
         </ul>
     </div>
 
@@ -1068,7 +1108,7 @@
          placed after (inline-end of) the collapsible group so the actions
          expand out to its left. Only in `inline` mode; the floating/side/docked
          layouts use the handle or the in-menu close button instead. -->
-    {#if inline && showToggle}
+    {#if inline && viewerState.showToggle}
         <button
             class="tri-menu-item inline-toggle tooltip {tooltipPlacement}"
             data-tip={isOpen ? m.close_menu() : m.open_menu()}
@@ -1086,19 +1126,18 @@
 
     <!-- Toggle Handle (floating open button shown only when closed; never in the
          docked rail or inline modes). -->
-    {#if showToggle && !docked && !inline}
-        <button
-            class="handle tooltip {openButtonTooltipPlacement}"
-            class:invisible={isOpen}
-            class:top={isTop}
-            class:start={position === 'left' || position === 'top-left'}
-            class:end={position === 'right' || position === 'top-right'}
+    {#if viewerState.showToggle && !docked && !inline}
+        <Button
+            square
+            size="sm"
+            class={handleClass}
+            style="--size: var(--ui-hit, 2rem);"
             aria-label={m.open_menu()}
             data-tip={m.open_menu()}
             onclick={toggleOpen}
         >
             <Icon name="List" size={20} />
-        </button>
+        </Button>
     {/if}
 </div>
 
@@ -1116,28 +1155,28 @@
         align-items: flex-end;
         flex-direction: column;
         padding-top: 0;
-        padding-right: var(--ui-inset, 0);
+        padding-right: var(--ui-inset);
     }
     .toolbar-root.top-left {
         width: 100%;
         align-items: flex-start;
         flex-direction: column;
         padding-top: 0;
-        padding-left: var(--ui-inset, 0);
+        padding-left: var(--ui-inset);
     }
     .toolbar-root.side {
         height: 100%;
         align-items: flex-start;
     }
     .toolbar-root.left {
-        left: var(--ui-inset, 0);
+        left: var(--ui-inset);
     }
     .toolbar-root.right {
-        right: var(--ui-inset, 0);
+        right: var(--ui-inset);
     }
     /* Floating card sits `--ui-inset` from the top edge (flush when inset is 0). */
     .toolbar-shell {
-        margin-top: var(--ui-inset, 0);
+        margin-top: var(--ui-inset);
     }
 
     /* ===== Docked rail (same-side fix) =====
@@ -1216,10 +1255,10 @@
         overflow: hidden;
         /* Gap sits on the toggle side (inline-end); it collapses with the group
            so the toggle butts against the nav divider when closed. */
-        margin-inline-end: var(--ui-gap, 0.375rem);
+        margin-inline-end: var(--ui-gap);
         transition-property: max-width, opacity, margin-inline-end;
         transition-duration: 0.2s;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-timing-function: var(--ui-ease);
     }
     /* Resting closed state (JS clears its inline max-width so this applies). */
     .toolbar-shell.inline-closed {
@@ -1255,7 +1294,7 @@
            splits evenly instead of flexbox's greedy first-row fill. row-gap
            matches the column gap so stacked icon rows sit evenly. */
         flex-wrap: wrap;
-        gap: var(--ui-gap, 0.375rem);
+        gap: var(--ui-gap);
         padding: 0;
         background: none;
         box-shadow: none;
@@ -1274,7 +1313,7 @@
         pointer-events: auto;
         transition-property: all;
         transition-duration: 0.2s;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-timing-function: var(--ui-ease);
         display: flex;
     }
     .toolbar-shell.top-right {
@@ -1337,11 +1376,7 @@
     .actions {
         position: relative;
         color: var(--tri-toolbar-content);
-        box-shadow: var(
-            --ui-chrome-shadow,
-            0 10px 15px -3px #0000001a,
-            0 4px 6px -4px #0000001a
-        );
+        box-shadow: var(--ui-chrome-shadow, var(--ui-shadow-lg));
         justify-content: center;
         align-items: center;
     }
@@ -1356,11 +1391,7 @@
         position: absolute;
         inset: 0;
         border-radius: inherit;
-        background-color: color-mix(
-            in oklab,
-            var(--tri-toolbar-bg) 70%,
-            transparent
-        );
+        background-color: var(--ui-glass-bg);
         backdrop-filter: blur(8px);
     }
     .actions.horizontal {
@@ -1473,7 +1504,7 @@
             transition-behavior: allow-discrete;
             transition-property: opacity, scale, display;
             transition-duration: 0.2s;
-            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-timing-function: var(--ui-ease);
         }
     }
     /* Keep neighboring toolbar and flyout targets' 24px WCAG safe regions apart. */
@@ -1530,63 +1561,33 @@
         height: 1rem;
     }
 
-    /* ===== Toggle handle (btn-sm look + custom overrides) ===== */
-    /* the handle also carries .tooltip; keep its absolute positioning winning
-       over the position:relative the shared tooltip layer sets (the tooltip
-       pseudo-elements work from any positioned element). */
-    .handle.tooltip {
+    /* ===== Toggle handle =====
+       A `Button square size="sm"` wearing the floating chrome's frosted glass.
+       The overrides are the button's own custom properties wherever one exists,
+       so hover, active and focus keep the button's behaviour over the glass
+       fill. The hit-target floor rides on the element's own `style`, because
+       `size` writes `--size` inline and nothing in a stylesheet can outrank
+       that. `position` must beat the `position: relative` the shared tooltip
+       layer sets; the tooltip pseudo-elements work from any positioned
+       element. */
+    .toolbar-root :global(.handle) {
         position: absolute;
-    }
-    .handle {
         pointer-events: auto;
         z-index: 40;
-        position: absolute;
-        display: inline-flex;
-        flex-wrap: nowrap;
-        flex-shrink: 0;
-        justify-content: center;
-        align-items: center;
-        gap: 0.375rem;
-        cursor: pointer;
-        text-align: center;
-        vertical-align: middle;
-        user-select: none;
-        -webkit-user-select: none;
-        touch-action: manipulation;
-        font-weight: 600;
-        font-size: 0.75rem;
-        border-width: var(--tri-border);
-        border-style: solid;
-        border-start-start-radius: var(--tri-radius-buttons);
-        border-start-end-radius: var(--tri-radius-buttons);
-        border-end-end-radius: var(--tri-radius-buttons);
-        border-end-start-radius: var(--tri-radius-buttons);
-        outline-offset: 2px;
-        width: var(--ui-hit, 2rem);
-        height: var(--ui-hit, 2rem);
-        padding: 0;
-        background-color: color-mix(
-            in oklab,
-            var(--tri-toolbar-bg) 70%,
-            transparent
-        );
         backdrop-filter: blur(8px);
-        border-color: var(--tri-surface-border);
-        color: var(--tri-toolbar-content);
-        box-shadow: var(
-            --ui-chrome-shadow,
-            0 4px 6px -1px #0000001a,
-            0 2px 4px -2px #0000001a
-        );
-        transition-property: opacity;
+        --btn-color: var(--ui-glass-bg);
+        --btn-fg: var(--tri-toolbar-content);
+        --btn-border: var(--tri-surface-border);
+        --btn-shadow: var(--ui-chrome-shadow, var(--ui-shadow-md));
+        /* `--btn-color` is also the button's outline colour, and the glass fill
+           makes an invisible focus ring. */
+        outline-color: var(--tri-content);
+        transition-property:
+            color, background-color, border-color, box-shadow, opacity;
         transition-duration: 0.3s;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         opacity: 1;
     }
-    .handle:hover {
-        background-color: var(--tri-surface-border);
-    }
-    .handle.invisible {
+    .toolbar-root :global(.handle.invisible) {
         opacity: 0;
         pointer-events: none;
     }
@@ -1596,33 +1597,31 @@
        always a bottom corner, on the side facing the canvas: bottom-right when
        anchored left, bottom-left when anchored right. Top and Sides share this
        treatment. */
-    .handle.start {
+    .toolbar-root :global(.handle.start) {
         left: var(--ui-inset, 0.375rem);
-        border-start-start-radius: 0;
-        border-start-end-radius: 0;
-        border-end-start-radius: 0;
-        border-end-end-radius: var(--tri-radius-buttons);
+        --join-ss: 0;
+        --join-se: 0;
+        --join-es: 0;
     }
-    .handle.end {
+    .toolbar-root :global(.handle.end) {
         right: var(--ui-inset, 0.375rem);
-        border-start-start-radius: 0;
-        border-start-end-radius: 0;
-        border-end-end-radius: 0;
-        border-end-start-radius: var(--tri-radius-buttons);
+        --join-ss: 0;
+        --join-se: 0;
+        --join-ee: 0;
     }
-    .handle.top {
+    .toolbar-root :global(.handle.top) {
         top: 0;
         border-top-width: 0;
     }
-    .handle.start:not(.top) {
+    .toolbar-root :global(.handle.start:not(.top)) {
         left: 0;
         border-left-width: 0;
     }
-    .handle.end:not(.top) {
+    .toolbar-root :global(.handle.end:not(.top)) {
         right: 0;
         border-right-width: 0;
     }
-    .handle :global(svg) {
+    .toolbar-root :global(.handle svg) {
         width: var(--ui-icon, 20px);
         height: var(--ui-icon, 20px);
     }
@@ -1644,40 +1643,6 @@
         transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
         inset: var(--tt-off) 0 auto auto;
     }
-    /* Same correction for the Unified Bar: when the nav is aligned to the
-       inline-start screen edge, the toolbar buttons are the leading group, so
-       the first button hugs the edge and its centered tooltip would overflow.
-       Anchor that bubble to the button's start edge (top/bottom per nav edge). */
-    :global([data-nav-align='start'])
-        .actions.inline
-        > li:first-child
-        .tooltip.place-top::before {
-        transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
-        inset: auto auto var(--tt-off) 0;
-    }
-    :global([data-nav-align='start'])
-        .actions.inline
-        > li:first-child
-        .tooltip.place-bottom::before {
-        transform: translateX(0) translateY(var(--tt-pos, -0.25rem));
-        inset: var(--tt-off) auto auto 0;
-    }
-    /* Keep the tail attached to the re-anchored bubble: pin it just inboard of
-       the button's start edge (under the bubble body) instead of the default
-       button-center, which would leave it detached from the shifted bubble. */
-    :global([data-nav-align='start'])
-        .actions.inline
-        > li:first-child
-        .tooltip.place-top::after {
-        transform: translateX(0) translateY(var(--tt-pos, 0.25rem));
-        inset: auto auto var(--tt-tail) 0.5rem;
-    }
-    :global([data-nav-align='start'])
-        .actions.inline
-        > li:first-child
-        .tooltip.place-bottom::after {
-        transform: translateX(0) translateY(var(--tt-pos, -0.25rem))
-            rotate(180deg);
-        inset: var(--tt-tail) auto auto 0.5rem;
-    }
+    /* The Unified Bar's leading button takes the same correction from the
+       shared sheet's `tt-edge-start` modifier (see `leadTooltipEdge`). */
 </style>

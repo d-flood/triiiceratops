@@ -32,9 +32,9 @@
  * current level paints over the coarse chain rather than over nothing.
  *
  * A **size-ladder source** — a level0 service that advertises only fixed whole
- * images — is planned by `planSizeLadder` below, which expresses each rung as a
- * one-tile level so the same residency, priority, and blur-up rules apply.
- * Which services take that branch is decided by `isSizeLadderSource`, and the
+ * images — is a pyramid whose every level holds one tile, so `planPyramid`
+ * plans it and the same residency, priority, and blur-up rules apply. Which
+ * services take that branch is decided by `isSizeLadderSource`, and the
  * decision is load-bearing: "advertises no tiles" alone is not level0.
  *
  * ## Layout
@@ -84,7 +84,8 @@
  * required set.
  */
 
-import { layoutCanvasGeometry } from '../components/canvasLayout';
+import { layoutCanvasGeometry, median } from '../components/canvasLayout';
+import { isPositiveFinite } from '../utils/numbers';
 import {
     DURATION_ONLY_CANVAS_ASPECT,
     DURATION_ONLY_CANVAS_WIDTH,
@@ -97,14 +98,7 @@ import {
     nearestRect,
     worldBounds,
 } from './layoutQueries';
-import {
-    buildSizeLadder,
-    chooseRung,
-    isLevel0Profile,
-    rungFallback,
-    rungUrl,
-    type SizeLadder,
-} from './sizeLadder';
+import { buildSizeLadder, isLevel0Profile } from './sizeLadder';
 import {
     quantizeRung,
     resolveThumbnail,
@@ -117,10 +111,9 @@ import {
     chooseLevel,
     DERIVED_TILE_SIZE,
     tileCanvasRect,
-    tileFallback,
     tileKey,
+    tileRequest,
     tilesIntersecting,
-    tileUrl,
     type Box,
     type TilePyramid,
 } from './tilePyramid';
@@ -138,14 +131,10 @@ import type {
     ThumbnailRequest,
     TileDraw,
     TileKey,
+    PlannedWorld,
     TileRequest,
     Viewport,
 } from './types';
-
-/** True for a dimension that can be laid out. Guards against 0/NaN/negatives. */
-function isUsableDimension(value: unknown): value is number {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0;
-}
 
 /**
  * Whether a canvas can be planned at all: it can be named.
@@ -194,17 +183,9 @@ export function effectiveSize(
     return Math.sqrt(width * scale * height * scale);
 }
 
-function median(values: number[]): number {
-    const sorted = [...values].sort((a, b) => a - b);
-    const middle = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 0
-        ? (sorted[middle - 1] + sorted[middle]) / 2
-        : sorted[middle];
-}
-
 /** The aspect ratio of a box, or null when it has none. */
 function aspectOf(box: { width: number; height: number } | null) {
-    return box && isUsableDimension(box.width) && isUsableDimension(box.height)
+    return box && isPositiveFinite(box.width) && isPositiveFinite(box.height)
         ? box.height / box.width
         : null;
 }
@@ -253,7 +234,7 @@ function placeholderBox(
 
 /** A canvas with a duration and no picture at all — a recording. */
 function isDurationOnly(canvas: PlannerCanvas): boolean {
-    return canvas.images.length === 0 && isUsableDimension(canvas.duration);
+    return canvas.images.length === 0 && isPositiveFinite(canvas.duration);
 }
 
 /**
@@ -385,7 +366,7 @@ function resolveGeometry(
 
     const declared = usable.filter(
         (canvas) =>
-            isUsableDimension(canvas.width) && isUsableDimension(canvas.height),
+            isPositiveFinite(canvas.width) && isPositiveFinite(canvas.height),
     );
     // `null` where no sibling declared both axes and there is nothing to take a
     // median of. The last rung is then per canvas rather than one box for the
@@ -413,8 +394,8 @@ function resolveGeometry(
             : null;
         const reported =
             facts &&
-            isUsableDimension(facts.width) &&
-            isUsableDimension(facts.height)
+            isPositiveFinite(facts.width) &&
+            isPositiveFinite(facts.height)
                 ? { width: facts.width, height: facts.height }
                 : null;
         const fallback =
@@ -424,14 +405,14 @@ function resolveGeometry(
         // fallback box, and shaped by its aspect ratio so a canvas that stated
         // one axis is not silently reshaped into a sibling's proportions.
         const aspect = aspectOf(fallback) ?? 1;
-        const width = isUsableDimension(canvas.width)
+        const width = isPositiveFinite(canvas.width)
             ? canvas.width
-            : isUsableDimension(canvas.height)
+            : isPositiveFinite(canvas.height)
               ? canvas.height / aspect
               : fallback.width;
-        const height = isUsableDimension(canvas.height)
+        const height = isPositiveFinite(canvas.height)
             ? canvas.height
-            : isUsableDimension(canvas.width)
+            : isPositiveFinite(canvas.width)
               ? canvas.width * aspect
               : fallback.height;
 
@@ -443,8 +424,8 @@ function resolveGeometry(
             reported === null &&
             guess === null &&
             isDurationOnly(canvas) &&
-            !isUsableDimension(canvas.width) &&
-            !isUsableDimension(canvas.height);
+            !isPositiveFinite(canvas.width) &&
+            !isPositiveFinite(canvas.height);
 
         return { canvas, width, height, lane };
     });
@@ -564,21 +545,7 @@ function deriveMinZoom(layout: LayoutRect[], boxThreshold: number): number {
  * shape this entry point was split out to avoid. Computed once, beside the
  * layout it summarizes.
  */
-export function planViewportLimits(input: PlanWorldInput): {
-    layout: LayoutRect[];
-    bounds: Box | null;
-    minZoom: number;
-    /**
-     * Pixels the sources actually have, per world unit — the zoom ceiling's
-     * pixel term (`viewportMath.sourcePixelCeiling`). `0` for an empty world.
-     */
-    sourcePixelsPerWorldUnit: number;
-    /**
-     * Whether this world is one recording and nothing else — see
-     * {@link laneWorld}, which is where the consequences are spelled out.
-     */
-    lane: boolean;
-} {
+export function planViewportLimits(input: PlanWorldInput): ViewportLimits {
     const sized = resolveGeometry(
         input.canvases,
         input.knownMetadata,
@@ -597,6 +564,26 @@ export function planViewportLimits(input: PlanWorldInput): {
             input.knownMetadata,
         ),
     };
+}
+
+/**
+ * Everything the pan constraint and the zoom range need, answered in one pass.
+ *
+ * Extends {@link PlannedWorld} because the world is the part a full plan reuses
+ * — see {@link PlanSceneInput.viewportLimits}; the rest is the host's own.
+ */
+export interface ViewportLimits extends PlannedWorld {
+    bounds: Box | null;
+    /**
+     * Pixels the sources actually have, per world unit — the zoom ceiling's
+     * pixel term (`viewportMath.sourcePixelCeiling`). `0` for an empty world.
+     */
+    sourcePixelsPerWorldUnit: number;
+    /**
+     * Whether this world is one recording and nothing else — see
+     * {@link laneWorld}, which is where the consequences are spelled out.
+     */
+    lane: boolean;
 }
 
 /**
@@ -639,7 +626,7 @@ function deriveSourceResolution(
             ? factsFor(entry.canvas.images[0].source, knownMetadata)
             : undefined;
         const sourceWidth =
-            facts && isUsableDimension(facts.width) ? facts.width : entry.width;
+            facts && isPositiveFinite(facts.width) ? facts.width : entry.width;
 
         deepest = Math.max(deepest, sourceWidth / rect.width);
     }
@@ -844,6 +831,17 @@ function tierFloor(
  * distance, not discovery order, and not rank. Coarser levels break ties, so
  * blur-up coverage lands ahead of the detail that will replace it while the
  * ordering stays centre-out.
+ *
+ * A **size-ladder source** is planned here too, because it is a pyramid whose
+ * every level holds one tile (`sizeLadder.buildSizeLadder`): a level is a whole
+ * image covering the whole box, keyed in the same namespace as a pyramid tile (a
+ * canvas is one kind or the other, so the keys cannot collide). That is what
+ * makes every rule the scheduler and the painter already implement apply to it
+ * for free — abort on supersede, the centre-out priority queue, the negative
+ * cache, off-thread decode, the decoded-byte counter, and blur-up paint order.
+ * Modelled as a separate "whole image" channel instead, each of those would have
+ * to be written a second time, and a size-ladder canvas would be the one place
+ * in the renderer where residency is not a pure function of the viewport.
  */
 function planPyramid(
     canvasId: string,
@@ -854,12 +852,14 @@ function planPyramid(
     dpr: number,
     minPixelRatio: number,
     marginFactor: number,
+    maxDecodedPixels: number,
     residentTiles: ReadonlySet<TileKey>,
     requests: TileRequest[],
     draws: TileDraw[],
 ): void {
     const visible = viewportBox(viewport);
     const margin = inflate(visible, marginFactor);
+    const inMargin = intersects(box, margin);
 
     // DEVICE pixels per full-resolution image pixel: the viewport is measured in
     // CSS pixels, and a level chosen from those never reaches full resolution on
@@ -867,7 +867,15 @@ function planPyramid(
     // box's canvas-space width — not the service's pixel width — is what relates
     // canvas space to image space.
     const imageScale = (viewport.scale * dpr * box.width) / pyramid.width;
-    const current = chooseLevel(pyramid, imageScale, minPixelRatio);
+    const current = chooseLevel(
+        pyramid,
+        imageScale,
+        minPixelRatio,
+        // The cap refuses an unaffordable FILE, so it governs a whole-image
+        // source and nothing else: on a tiled source a request is one tile,
+        // never the whole picture, and the decoded-byte budget governs those.
+        pyramid.sizeForm === 'wholeImage' ? maxDecodedPixels : Infinity,
+    );
 
     for (const level of pyramid.levels) {
         if (level.level > current.level) break;
@@ -884,6 +892,11 @@ function planPyramid(
         // over a gigabyte of chain against 10 MB of current level. Restricted to
         // the same box, the geometric sum really is a third, and the required
         // set stays a function of the viewport rather than of the image.
+        //
+        // For a size ladder the same margin is what stops a canvas two spreads
+        // away from holding its FULL RESOLUTION scan: required-set membership
+        // drives eviction, so nothing would ever release it.
+        if (level.level > 0 && !inMargin) break;
         const within = level.level === 0 ? null : margin;
 
         for (const { column, row } of tilesIntersecting(
@@ -900,13 +913,13 @@ function planPyramid(
                 row,
             );
             const tileBox = tileCanvasRect(pyramid, level, column, row, box);
-            const fallback = tileFallback(pyramid, level, column, row);
+            const { url, fallback } = tileRequest(pyramid, level, column, row);
 
             requests.push({
                 key,
                 canvasId,
                 level: level.level,
-                url: tileUrl(pyramid, level, column, row),
+                url,
                 priority: distanceToBox(viewport.centre, tileBox),
                 ...(fallback ? { fallback } : {}),
             });
@@ -922,87 +935,6 @@ function planPyramid(
                     ...tileBox,
                 });
             }
-        }
-    }
-}
-
-/**
- * The required set and the draw list for one **size-ladder source** — a level0
- * service that advertises only fixed whole images and can never be tiled.
- *
- * Deliberately expressed as tiles: a rung is a one-tile "level" covering the
- * whole canvas, keyed in the same namespace as a pyramid tile (a canvas is one
- * kind or the other, so the keys cannot collide). That is not a trick — it is
- * what makes every rule the scheduler and the painter already implement apply
- * here for free: abort on supersede, the centre-out priority queue, the negative
- * cache, off-thread decode, the decoded-byte counter, and blur-up paint order.
- * Modelled as a separate "whole image" channel instead, each of those would have
- * to be written a second time, and a size-ladder canvas would be the one place
- * in the renderer where residency is not a pure function of the viewport.
- *
- * The chain below the chosen rung is required for the same reason the pyramid's
- * coarse chain is: ladders are geometric in practice, so the whole chain is
- * roughly a third of the chosen rung, and holding it is what makes zooming out
- * instant and an arriving rung paint over something rather than over nothing.
- */
-function planSizeLadder(
-    canvasId: string,
-    ladder: SizeLadder,
-    box: Box,
-    order: number,
-    viewport: Viewport,
-    dpr: number,
-    minPixelRatio: number,
-    marginFactor: number,
-    maxDecodedPixels: number,
-    residentTiles: ReadonlySet<TileKey>,
-    requests: TileRequest[],
-    draws: TileDraw[],
-): void {
-    const visible = viewportBox(viewport);
-    // The residency margin, applied to rungs exactly as `planPyramid` applies
-    // it to levels — and for the same reason. A rung is a whole image, so a
-    // canvas two spreads away that kept its chain would hold its FULL
-    // RESOLUTION scan resident: required-set membership drives eviction, so
-    // nothing would ever release it.
-    //
-    // The base rung is the one exception, mirroring `level.level === 0 ? null
-    // : margin`: it is the cheapest image the service has and it is what
-    // guarantees the canvas is never blank when it comes back into view.
-    const inMargin = intersects(box, inflate(visible, marginFactor));
-
-    // The same quantity `planPyramid` computes, so one `minPixelRatio` governs
-    // sharpness for both source kinds.
-    const imageScale = (viewport.scale * dpr * box.width) / ladder.width;
-    const current = chooseRung(
-        ladder,
-        imageScale,
-        minPixelRatio,
-        maxDecodedPixels,
-    );
-
-    // Every rung covers the whole canvas, so there is nothing to intersect and
-    // one priority for all of them.
-    const priority = distanceToBox(viewport.centre, box);
-
-    for (const rung of ladder.rungs) {
-        if (rung.index > current.index) break;
-        if (rung.index > 0 && !inMargin) break;
-
-        const key = tileKey(canvasId, ladder.serviceId, rung.index, 0, 0);
-        const fallback = rungFallback(ladder, rung);
-
-        requests.push({
-            key,
-            canvasId,
-            level: rung.index,
-            url: rungUrl(ladder, rung),
-            priority,
-            ...(fallback ? { fallback } : {}),
-        });
-
-        if (residentTiles.has(key) && intersects(box, visible)) {
-            draws.push({ key, canvasId, level: rung.index, order, ...box });
         }
     }
 }
@@ -1315,17 +1247,8 @@ function carryBaseLevel(
     // request list would be demoted to the opportunistic cache and could not be
     // painted — the blank frame again, arriving through eviction instead of
     // through the tier.
-    const pyramid = buildPyramid(source.serviceId, facts);
-    if (!pyramid) {
-        // A size-ladder source, whose base rung is one whole image by
-        // construction — there is no grid to walk.
-        const request = baseLevelTile(canvasId, source, facts, 0);
-        if (!request) return;
-
-        requests.push(request);
-        draws.push({ key: request.key, canvasId, level: 0, order, ...box });
-        return;
-    }
+    const pyramid = sourcePyramid(source, facts);
+    if (!pyramid) return;
 
     const level = pyramid.levels[0];
     // `null` for the whole level, exactly as `planPyramid` asks for it: the
@@ -1340,12 +1263,12 @@ function carryBaseLevel(
         const key = tileKey(canvasId, pyramid.serviceId, 0, column, row);
         if (!residentTiles.has(key)) continue;
 
-        const fallback = tileFallback(pyramid, level, column, row);
+        const { url, fallback } = tileRequest(pyramid, level, column, row);
         requests.push({
             key,
             canvasId,
             level: 0,
-            url: tileUrl(pyramid, level, column, row),
+            url,
             priority: 0,
             ...(fallback ? { fallback } : {}),
         });
@@ -1403,29 +1326,14 @@ function baseLevelTile(
 ): TileRequest | null {
     if (!facts || source.kind !== 'service') return null;
 
-    const pyramid = buildPyramid(source.serviceId, facts, fallbackTileSize);
-    const ladder =
-        !pyramid && isSizeLadderSource(facts, source.profile)
-            ? buildSizeLadder(source.serviceId, facts)
-            : null;
+    const pyramid = sourcePyramid(source, facts, fallbackTileSize);
+    if (!pyramid) return null;
 
-    let url: string;
-    let fallback: { url: string; group: string } | null = null;
+    const level = pyramid.levels[0];
+    if (level.columns !== 1 || level.rows !== 1) return null;
+    if (level.width * level.height > maxDecodedPixels) return null;
 
-    if (pyramid) {
-        const level = pyramid.levels[0];
-        if (level.columns !== 1 || level.rows !== 1) return null;
-        if (level.width * level.height > maxDecodedPixels) return null;
-        url = tileUrl(pyramid, level, 0, 0);
-        fallback = tileFallback(pyramid, level, 0, 0);
-    } else if (ladder) {
-        const rung = ladder.rungs[0];
-        if (rung.width * rung.height > maxDecodedPixels) return null;
-        url = rungUrl(ladder, rung);
-        fallback = rungFallback(ladder, rung);
-    } else {
-        return null;
-    }
+    const { url, fallback } = tileRequest(pyramid, level, 0, 0);
 
     return {
         key: tileKey(canvasId, baseUri(source, facts), 0, 0, 0),
@@ -1435,6 +1343,29 @@ function baseLevelTile(
         priority,
         ...(fallback ? { fallback } : {}),
     };
+}
+
+/**
+ * The pyramid a service renders from: its advertised tile grid, or its size
+ * ladder where it advertises no grid the renderer may build one from.
+ *
+ * `fallbackTileSize` is passed through to {@link buildPyramid} for the level 1/2
+ * service that omits `tiles`, and is therefore also what decides the order of
+ * the two answers: a caller that supplies one prefers a derived grid to a
+ * ladder, and a caller that does not gets the ladder. The scene loop wants the
+ * opposite precedence and states it at the call site.
+ */
+function sourcePyramid(
+    source: SourceDescriptor & { kind: 'service' },
+    facts: ImageServiceFacts,
+    fallbackTileSize?: number,
+): TilePyramid | null {
+    const pyramid = buildPyramid(source.serviceId, facts, fallbackTileSize);
+    if (pyramid) return pyramid;
+
+    return isSizeLadderSource(facts, source.profile)
+        ? buildSizeLadder(source.serviceId, facts)
+        : null;
 }
 
 /**
@@ -1482,8 +1413,10 @@ export function planScene(input: PlanSceneInput): ScenePlan {
 
     // The same function the host's per-sample clamping calls, so the world the
     // pan constraint is measured against can never diverge from the world that
-    // is painted.
-    const { layout, minZoom } = planViewportLimits(input);
+    // is painted — and the host's own answer where it has one, so a frame lays
+    // the manifest out once rather than twice.
+    const { layout, minZoom } =
+        input.viewportLimits ?? planViewportLimits(input);
     const rects = new Map(layout.map((rect) => [rect.canvasId, rect]));
     // Laid out, therefore plannable — and in layout's own order, so a canvas
     // dropped for having no usable geometry is absent from both.
@@ -1823,25 +1756,8 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             // restricted to the advertised scale factors, which `buildPyramid`
             // already is because it builds levels from `scaleFactors` when the
             // service declares them.
-            const pyramid = buildPyramid(source.serviceId, facts);
-            if (pyramid) {
-                planPyramid(
-                    canvas.id,
-                    pyramid,
-                    box,
-                    order,
-                    viewport,
-                    dpr,
-                    budgets.minPixelRatio,
-                    budgets.marginFactor,
-                    residentTiles,
-                    tileRequests,
-                    tileDraws,
-                );
-                continue;
-            }
-
-            // No tiles advertised — which is TWO different services, and
+            //
+            // Where it advertises none, that is TWO different services, and
             // treating them alike is how the decoded-pixel cap gets defeated.
             //
             // A level0 service without tiles is a size-ladder source: fixed
@@ -1850,48 +1766,28 @@ export function planScene(input: PlanSceneInput): ScenePlan {
             // 1/2 service without tiles is not — `tiles` is optional at every
             // compliance level, and Cantaloupe and IIP both ship configurations
             // that omit it, while still answering any region at any size. Given
-            // a ladder, such a service's only rung is `full/max`: the entire
+            // a ladder, such a service's only level is `full/max`: the entire
             // master, 108 megapixels for a 12000x9000 scan, and the cap cannot
-            // refuse it because `chooseRung` must keep the cheapest rung to
+            // refuse it because `chooseLevel` must keep the cheapest level to
             // avoid a blank canvas. It gets a derived power-of-two pyramid
-            // instead.
-            if (isSizeLadderSource(facts, source.profile)) {
-                const ladder = buildSizeLadder(source.serviceId, facts);
-                if (!ladder) continue;
-
-                planSizeLadder(
-                    canvas.id,
-                    ladder,
-                    box,
-                    order,
-                    viewport,
-                    dpr,
-                    budgets.minPixelRatio,
-                    budgets.marginFactor,
-                    budgets.maxDecodedPixels,
-                    residentTiles,
-                    tileRequests,
-                    tileDraws,
-                );
-                continue;
-            }
-
-            const derived = buildPyramid(
-                source.serviceId,
-                facts,
-                DERIVED_TILE_SIZE,
-            );
-            if (!derived) continue;
+            // instead — which is why the ladder is asked for BEFORE
+            // `DERIVED_TILE_SIZE` is offered, and not through
+            // `sourcePyramid`'s own precedence.
+            const pyramid =
+                sourcePyramid(source, facts) ??
+                buildPyramid(source.serviceId, facts, DERIVED_TILE_SIZE);
+            if (!pyramid) continue;
 
             planPyramid(
                 canvas.id,
-                derived,
+                pyramid,
                 box,
                 order,
                 viewport,
                 dpr,
                 budgets.minPixelRatio,
                 budgets.marginFactor,
+                budgets.maxDecodedPixels,
                 residentTiles,
                 tileRequests,
                 tileDraws,

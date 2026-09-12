@@ -122,7 +122,9 @@ const DERIVED_READS = new Set([
     'hasNext',
     'hasPrevious',
     'manifestEntry',
+    'nonSequenceStructures',
     'sequenceCount',
+    'sequenceStructures',
     'structures',
     // Projections of `config`.
     'galleryExtent',
@@ -524,14 +526,6 @@ const commandScenarios: CapabilityScenario[] = [
     { member: 'searchQuery', act: (state) => state.search('hello') },
     { member: 'dockSide', act: (state) => state.setDockSide('right') },
     {
-        member: 'isGalleryDockedBottom',
-        act: (state) => state.setDockSide('bottom'),
-    },
-    {
-        member: 'isGalleryDockedRight',
-        act: (state) => state.setDockSide('right'),
-    },
-    {
         member: 'pluginMenuButtons',
         act: (state) => registerChrome(state),
     },
@@ -570,6 +564,18 @@ const commandScenarios: CapabilityScenario[] = [
 ];
 
 const observableScenarios: CapabilityScenario[] = [
+    // Derived from `dockSide`, so `setDockSide` is what moves them — there is
+    // no mutator of their own to drive.
+    {
+        member: 'isGalleryDockedBottom',
+        // Starts true (`dockSide` defaults to 'bottom'), so this has to move
+        // AWAY from the bottom to change.
+        act: (state) => state.setDockSide('left'),
+    },
+    {
+        member: 'isGalleryDockedRight',
+        act: (state) => state.setDockSide('right'),
+    },
     {
         member: 'searchResults',
         act: (state) => {

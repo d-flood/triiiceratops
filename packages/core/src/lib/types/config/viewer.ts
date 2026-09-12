@@ -7,6 +7,7 @@ import type {
     SearchConfig,
     StructuresConfig,
 } from './panels';
+import type { LocaleCatalog } from '../plugin';
 import type { RequestConfig } from './requests';
 import type { ToolbarConfig } from './toolbar';
 
@@ -239,6 +240,36 @@ export interface ViewerConfig {
      * naming a different `locale` here hands control back.
      */
     locale?: string;
+
+    /**
+     * Chrome translations this host supplies, keyed by BCP 47 tag. Merged over
+     * core's English PER KEY, so a catalog covering a handful of strings
+     * translates those and leaves the rest in English — and an `en` entry
+     * rewords core's own copy.
+     *
+     * A locale mapped to an empty object declares one {@link loadMessages} can
+     * supply: the language picker offers it, and the chrome renders English
+     * until the catalog arrives. Core ships only English inline; the German
+     * catalog it maintains is published as the importable
+     * `triiiceratops/locales/de.json` asset.
+     *
+     * Plugin catalogs are plugin-owned and are not translatable here.
+     */
+    messages?: LocaleCatalog;
+
+    /**
+     * Fetch the chrome catalog for a locale this viewer cannot yet render, so a
+     * reader downloads only the language they read in.
+     *
+     * Called at most once per locale per viewer, whenever one is requested by
+     * the picker, by `locale`, or by the page's own language. The chrome renders
+     * English while the promise is pending and swaps when it resolves; a
+     * rejection, or a resolution with no catalog, leaves the chrome as it is and
+     * is reported through the debug logger rather than as a `viewererror`.
+     */
+    loadMessages?: (
+        locale: string,
+    ) => Promise<Record<string, string> | undefined>;
 
     /**
      * How the toolbar relates to the canvas nav — `split` (separate toolbar rail,

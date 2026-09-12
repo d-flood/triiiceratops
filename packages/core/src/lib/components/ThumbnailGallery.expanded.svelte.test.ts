@@ -373,7 +373,7 @@ describe('expanded thumbnail gallery', () => {
 
     /**
      * Unlike the top/bottom band, the side rail animates shut with
-     * `transition:slideWidth`, so it stays in the DOM for the ~200ms outro after
+     * `transition:slideAxis`, so it stays in the DOM for the ~200ms outro after
      * expanding — briefly two mounted galleries. Neither writes `dockSide` (both
      * only read it), so the overlap cannot disturb it; this test pins that, since
      * a gallery that moved the dock side on its own would break it here.

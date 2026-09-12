@@ -717,10 +717,10 @@ export async function assertFrameworkFixture(ctx, options) {
     // whose own config carries no `debug` key at all — so the flag one viewer
     // sets is not undone by another viewer that states no opinion.
     expect(
-        loud.warnings.filter((w) => /has been re-assigned/.test(w)),
+        loud.warnings.filter((w) => /re-assigned/.test(w)),
         `${framework}: an unmemoized property-tier prop must warn with debug on`,
     ).toHaveLength(1);
-    expect(loud.warnings.find((w) => /has been re-assigned/.test(w))).toContain(
+    expect(loud.warnings.find((w) => /re-assigned/.test(w))).toContain(
         '`themeConfig`',
     );
 

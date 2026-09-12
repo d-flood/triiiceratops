@@ -7,6 +7,7 @@
     import { Button } from './ui';
     import { dismissible, panelToggleSelector } from '../utils/dismissible';
     import { FOCUS_MEMORY_KEY, type FocusMemory } from '../utils/focusMemory';
+    import { useReducedMotion } from '../state/reducedMotion';
 
     interface Props {
         panel: PanelStackItem;
@@ -29,6 +30,7 @@
     // in the rail. The panel id is the identity both sides agree on.
     const invokerSelector = $derived(panelToggleSelector(panel.id));
     const focusMemory = getContext<FocusMemory | undefined>(FOCUS_MEMORY_KEY);
+    const reducedMotion = useReducedMotion();
 
     function handleClose() {
         panel.close?.();
@@ -38,11 +40,8 @@
         const el = sectionElement;
 
         if (scrollOnMount && el) {
-            const reduce =
-                typeof window !== 'undefined' &&
-                window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             el.scrollIntoView({
-                behavior: reduce ? 'auto' : 'smooth',
+                behavior: reducedMotion.current ? 'auto' : 'smooth',
                 block: 'nearest',
             });
         }
@@ -114,22 +113,13 @@
         background-color: var(--panel-surface);
         /* Rounded as a card, except on an edge the stack holds flush against the
            viewer frame — the column sets the two block-axis overrides. */
-        border-start-start-radius: var(
-            --panel-radius-block-start,
-            var(--tri-radius-panels)
-        );
-        border-start-end-radius: var(
-            --panel-radius-block-start,
-            var(--tri-radius-panels)
-        );
-        border-end-end-radius: var(
-            --panel-radius-block-end,
-            var(--tri-radius-panels)
-        );
-        border-end-start-radius: var(
-            --panel-radius-block-end,
-            var(--tri-radius-panels)
-        );
+        /* Both inline corners of a block edge take the same radius, so the
+           physical shorthand and the logical longhands agree in either
+           direction. */
+        border-radius: var(--panel-radius-block-start, var(--tri-radius-panels))
+            var(--panel-radius-block-start, var(--tri-radius-panels))
+            var(--panel-radius-block-end, var(--tri-radius-panels))
+            var(--panel-radius-block-end, var(--tri-radius-panels));
         overflow: hidden;
     }
 

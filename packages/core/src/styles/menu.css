@@ -112,23 +112,15 @@
     color: var(--tri-toolbar-content);
     border-radius: var(--tri-radius-toolbar);
     border: 1px solid var(--tri-surface-border);
-    box-shadow: var(
-        --ui-chrome-shadow,
-        0 10px 15px -3px #0000001a,
-        0 4px 6px -4px #0000001a
-    );
+    box-shadow: var(--ui-chrome-shadow, var(--ui-shadow-lg));
 }
 .tri-menu-surface::before {
     content: '';
     position: absolute;
     inset: 0;
     z-index: -1;
-    border-radius: calc(var(--tri-radius-toolbar) - var(--tri-border, 1px));
-    background-color: color-mix(
-        in oklab,
-        var(--tri-toolbar-bg) 70%,
-        transparent
-    );
+    border-radius: calc(var(--tri-radius-toolbar) - var(--tri-border));
+    background-color: var(--ui-glass-bg);
     backdrop-filter: blur(8px);
 }
 .tri-menu-surface.wide {

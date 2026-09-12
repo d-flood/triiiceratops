@@ -5,11 +5,14 @@
  */
 
 import { logger } from '../logging/logger';
+import { getResourceId } from './iiifIds';
+import { asArray } from './iiifParsing';
 import {
     extractIiifTargetId,
     getIiifCanvasId,
     parseIiifTime,
     parseIiifXywh,
+    toCanvasRegion,
 } from './iiifTargets';
 import type { IiifTemporalFragment } from './iiifTime';
 
@@ -39,15 +42,14 @@ function isHttpUri(value: unknown): value is string {
 }
 
 function idOf(record: JsonRecord): string | undefined {
-    const id = record.id ?? record['@id'];
-    return typeof id === 'string' && id ? id : undefined;
+    const id = getResourceId(record);
+    return typeof id === 'string' ? id : undefined;
 }
 
 /** The types a resource declares, in either spelling. */
 function declaredTypes(record: JsonRecord): string[] {
     const declared = record.type ?? record['@type'];
-    const names = Array.isArray(declared) ? declared : [declared];
-    return names.filter(
+    return asArray(declared).filter(
         (value): value is string => typeof value === 'string' && !!value,
     );
 }
@@ -102,18 +104,9 @@ function parseJsonDocument(text: string): unknown {
 function parseTarget(
     target: string,
 ): Pick<ContentStateTarget, 'canvasId' | 'region' | 'time'> {
-    const xywh = parseIiifXywh(target);
-
     return {
         canvasId: getIiifCanvasId(target) || undefined,
-        region: xywh
-            ? {
-                  x: xywh[0],
-                  y: xywh[1],
-                  width: xywh[2],
-                  height: xywh[3],
-              }
-            : undefined,
+        region: toCanvasRegion(parseIiifXywh(target)) ?? undefined,
         time: parseIiifTime(target) || undefined,
     };
 }
@@ -146,8 +139,7 @@ function manifestIdFrom(partOf: unknown): string | undefined {
                 )
                 .join(', ');
             logger.warn(
-                `Content state \`partOf\` names no Manifest; found ${found}. ` +
-                    'Nothing resolvable as a manifest.',
+                `content state: \`partOf\` names no Manifest, only ${found}.`,
             );
             return undefined;
         }
@@ -185,26 +177,21 @@ function isAnnotation(document: JsonRecord): boolean {
  * names a Manifest is resolvable whatever it claims to motivate.
  */
 function warnUnlessContentState(document: JsonRecord): void {
-    const motivation = document.motivation;
-    const names = Array.isArray(motivation) ? motivation : [motivation];
+    const names = asArray(document.motivation);
     if (names.some((name) => name === 'contentState')) return;
 
     logger.warn(
-        `Content state ${idOf(document) ?? '(no id)'} does not declare ` +
-            '`motivation: contentState`. Resolving it anyway.',
+        `content state ${idOf(document) ?? '(no id)'}: no \`motivation: contentState\`; resolved anyway.`,
     );
 }
 
 function resolveAnnotation(document: JsonRecord): ContentStateTarget | null {
     warnUnlessContentState(document);
 
-    const targets = Array.isArray(document.target)
-        ? document.target
-        : [document.target];
+    const targets = asArray(document.target);
     if (targets.length > 1) {
         logger.warn(
-            `Content state ${idOf(document) ?? '(no id)'} names ${targets.length} ` +
-                'targets. Only the first is honored; the rest are dropped.',
+            `content state ${idOf(document) ?? '(no id)'}: ${targets.length} targets, all but the first dropped.`,
         );
     }
 

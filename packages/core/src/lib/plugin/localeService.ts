@@ -14,6 +14,7 @@
  */
 
 import type { LocaleCatalog, PluginLocaleService } from '../types/plugin';
+import { interpolate, resolveMessage } from '../utils/localeCatalog';
 
 /**
  * The owning viewer's active-locale observable, as the style/locale services see
@@ -29,24 +30,6 @@ export interface ActiveLocaleSource {
     subscribe(callback: (locale: string) => void): () => void;
 }
 
-/** The fallback locale a missing translation resolves against. */
-const FALLBACK_LOCALE = 'en';
-
-/**
- * Fill `{name}` placeholders in a template from `params`. An unknown placeholder
- * is left verbatim so a template/params mismatch is visible rather than silently
- * blanked.
- */
-function interpolate(
-    template: string,
-    params?: Record<string, string | number>,
-): string {
-    if (!params) return template;
-    return template.replace(/\{(\w+)\}/g, (match, name: string) =>
-        name in params ? String(params[name]) : match,
-    );
-}
-
 /**
  * Create a per-activation locale service bound to one active-locale source and
  * one plugin catalog.
@@ -55,17 +38,15 @@ export function createPluginLocaleService(
     source: ActiveLocaleSource,
     catalog: LocaleCatalog = {},
 ): PluginLocaleService {
-    function resolve(key: string): string {
-        const active = source.current;
-        return catalog[active]?.[key] ?? catalog[FALLBACK_LOCALE]?.[key] ?? key;
-    }
-
     return {
         get current(): string {
             return source.current;
         },
         t(key: string, params?: Record<string, string | number>): string {
-            return interpolate(resolve(key), params);
+            return interpolate(
+                resolveMessage(catalog, source.current, key),
+                params,
+            );
         },
         subscribe(callback: (locale: string) => void): () => void {
             return source.subscribe(callback);

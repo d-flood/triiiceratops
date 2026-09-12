@@ -1,12 +1,12 @@
 /**
- * Where a DOM treatment over a canvas goes, in surface-local CSS pixels.
+ * Where a DOM placeholder over a canvas goes, in surface-local CSS pixels.
  *
- * Two treatments use it and they mean opposite things — the error placeholder
- * (`canvasErrors.ts`) says a source failed, the unsupported presentation says
- * core never asked because it cannot render this canvas's content at all — but
- * both are one box over a canvas's layout rect with a message centred in the
- * part of it the reader can see, and neither touches the DOM. The geometry is
- * here so the two cannot drift apart.
+ * Three kinds share it and two of them mean opposite things — an error
+ * placeholder (`canvasErrors.ts`) says a source failed, the unsupported
+ * presentation says core never asked because it cannot render this canvas's
+ * content at all — but every one of them is one box over a canvas's layout rect
+ * with a message centred in the part of it the reader can see, and none touches
+ * the DOM. The geometry is here so they cannot drift apart.
  */
 
 import type { LayoutRect, Viewport } from './types';
@@ -64,6 +64,22 @@ export interface CanvasPlacement<Kind extends string = string> {
      */
     labelled: boolean;
 }
+
+/**
+ * What a placeholder over a canvas says, and it is one of three things.
+ *
+ * `auth` and `load` are failures and carry the reader's remedy with them — a
+ * login would help, or nothing would (`canvasErrors.CanvasErrorKind`).
+ * `unsupported` is not a failure at all: nothing was asked for, because core
+ * cannot render this canvas's content (CONTEXT.md → Unsupported presentation).
+ * One union because the reader sees one layer of boxes over the pages, laid out
+ * in reading order; what distinguishes them is how each box looks and what it
+ * says, which is the host's business and not this geometry's.
+ */
+export type CanvasPlaceholderKind = 'auth' | 'load' | 'unsupported';
+
+/** One placeholder, positioned. */
+export type CanvasPlaceholder = CanvasPlacement<CanvasPlaceholderKind>;
 
 /**
  * Where the treated canvases are on screen, this frame.

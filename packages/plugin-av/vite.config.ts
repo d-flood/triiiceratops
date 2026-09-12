@@ -19,13 +19,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /**
  * Build the plugin for one output format.
  *
- * `BUILD_FORMAT=es`          → `dist/index.js` plus its own hashed chunks (the
- *                              ESM entry consumers import).
- * `BUILD_FORMAT=iife`        → `dist/iife.js`  (a `<script>`-loadable bundle
- *                              that registers into `window.Triiiceratops.plugins`).
- * `BUILD_FORMAT=iife-chunks` → `dist/av-timeline.js`, `dist/av-hls.js`,
- *                              `dist/av-sequencer.js`, `dist/av-transcript.js`
- *                              — the lazy halves the IIFE fetches at runtime.
+ * `BUILD_FORMAT=es`   → `dist/index.js` (the ESM entry consumers import) plus
+ *                      `dist/av-timeline.js`, `dist/av-hls.js`,
+ *                      `dist/av-sequencer.js`, `dist/av-transcript.js` — the
+ *                      lazy halves, under fixed names.
+ * `BUILD_FORMAT=iife` → `dist/iife.js`  (a `<script>`-loadable bundle that
+ *                      registers into `window.Triiiceratops.plugins`), which
+ *                      fetches those same four chunks from beside itself.
  *
  * ## The deliberate deviation: the dist is a DIRECTORY
  *
@@ -38,12 +38,23 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * never use.
  *
  * Rollup cannot code-split an `iife` output — "UMD and IIFE output formats are
- * not supported for code-splitting builds" — so the split is made by hand and
- * in two halves. The entry build treats each lazy module as EXTERNAL and, via
- * `chunkedIife()` below, rewrites its `import()` specifier into a URL resolved
- * against the plugin's own `document.currentScript.src`. The chunk build then
- * emits those modules as self-contained ES modules. A classic `<script>` can
- * `import()` an ES module, so the entry stays a plain IIFE.
+ * not supported for code-splitting builds" — so the IIFE build treats each lazy
+ * module as EXTERNAL and, via `chunkedIife()` below, rewrites its `import()`
+ * specifier into a URL resolved against the plugin's own
+ * `document.currentScript.src`. A classic `<script>` can `import()` an ES
+ * module, so the entry stays a plain IIFE.
+ *
+ * The chunks those URLs name are the ES build's own, emitted under the fixed
+ * names in {@link LAZY_CHUNKS} rather than hashed ones. ONE set of files
+ * therefore serves both loaders: the ESM entry reaches them by relative
+ * specifier and the IIFE by resolved URL. They can be shared because a chunk
+ * reaches neither Svelte nor core — `check-shared-runtime.mjs` fails the build
+ * if one grows an import at all — so the ES build's externals never apply to
+ * one, and what it emits is already the self-contained module a `<script>` page
+ * can `import()`. It carries the `@__PURE__` annotations that build preserves,
+ * which such a page reads as comments; the alternative, a second IIFE-side
+ * build of the same modules, buys their absence for a duplicate 570 KB of
+ * hls.js in the tarball.
  *
  * The consumer-visible contract is therefore behavioral: a script-tag consumer
  * hosts the whole `dist` directory rather than copying one file out of it, and
@@ -88,20 +99,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * bundler dedupes against core's copy exactly as it dedupes any other shared
  * dependency.
  */
-const format =
-    process.env.BUILD_FORMAT === 'iife'
-        ? 'iife'
-        : process.env.BUILD_FORMAT === 'iife-chunks'
-          ? 'iife-chunks'
-          : 'es';
+const format = process.env.BUILD_FORMAT === 'iife' ? 'iife' : 'es';
 
 /**
  * The modules the IIFE loads on demand: source specifier → emitted file name.
  *
  * The keys are exactly the specifiers the eager modules write in their
- * `await import()`, and the values are what `iife-chunks` emits beside
- * `iife.js`. Both halves read this one map, so a chunk cannot be renamed on one
- * side and fetched under the old name on the other.
+ * `await import()`. The values are the file names the ES build emits the chunks
+ * under and the IIFE fetches them by, so a chunk cannot be renamed on one side
+ * and fetched under the old name on the other.
  */
 const LAZY_CHUNKS: Record<string, string> = {
     './timeline/index': 'av-timeline.js',
@@ -109,6 +115,23 @@ const LAZY_CHUNKS: Record<string, string> = {
     './sequencer/index': 'av-sequencer.js',
     './transcript/index': 'av-transcript.js',
 };
+
+/**
+ * The same map keyed by the module rollup will hand `chunkFileNames` as a
+ * chunk's `facadeModuleId` — the dynamically imported module's own resolved
+ * path. Every lazy specifier is written from a module directly in `src/`, so
+ * dropping the leading `./` and adding the extension is the whole resolution.
+ *
+ * Naming the chunks off the facade rather than off rollup's `name` is what makes
+ * the names distinguishable at all: all four modules are called `index`, which
+ * is why the hashed output was four indistinguishable `index-<hash>.js`.
+ */
+const LAZY_CHUNK_FACADES: Record<string, string> = Object.fromEntries(
+    Object.entries(LAZY_CHUNKS).map(([specifier, file]) => [
+        resolve(__dirname, 'src', `${specifier.slice('./'.length)}.ts`),
+        file,
+    ]),
+);
 
 /**
  * A second, conservative terser pass over what Vite's own minifier produced,
@@ -119,22 +142,24 @@ const LAZY_CHUNKS: Record<string, string> = {
  * compiled signal plumbing is this bundle's too, so the same three stay off
  * here).
  *
- * What this build needs that core's does not is that its three outputs are not
- * all read by the same kind of consumer, and Vite's default minification
- * already reflects that: `build.minify` skips WHITESPACE for an ES library
- * output, because collapsing it would strip the `@__PURE__` annotations a
- * downstream bundler tree-shakes with. That is why `dist/index.js` and its
- * hashed chunks ship pretty-printed today, and it is most of what this pass
- * recovers — but only if the annotations survive it. So:
+ * What this build needs that core's does not is that its two outputs are not
+ * read by the same kind of consumer, and Vite's default minification already
+ * reflects that: `build.minify` skips WHITESPACE for an ES library output,
+ * because collapsing it would strip the `@__PURE__` annotations a downstream
+ * bundler tree-shakes with. That is why `dist/index.js` and its chunks ship
+ * pretty-printed today, and it is most of what this pass recovers — but only if
+ * the annotations survive it. So:
  *
  *   - `preserve_annotations` is ON for the `es` build, whose output a
- *     consumer's bundler still has to tree-shake, and OFF for the two IIFE-side
- *     builds, whose output goes to a browser with no bundler after it. A test
- *     asserts the annotations are still in the built ESM entry and chunks, and
+ *     consumer's bundler still has to tree-shake, and OFF for the IIFE, whose
+ *     output goes to a browser with no bundler after it. A test asserts the
+ *     annotations are still in the built ESM entry and chunks, and
  *     `consumer-bundles.guard.test.ts` bundles three consumers against them.
- *   - `module` follows the OUTPUT format rather than the build: true for the
- *     ES entry AND for the lazy chunks, which are ES modules a `<script>` page
- *     `import()`s, and false only for the IIFE, whose body is script scope.
+ *     The lazy chunks come out of the `es` build and so keep theirs, which a
+ *     `<script>` page reading them as ES modules treats as comments.
+ *   - `module` follows the OUTPUT format: true for the `es` build — the entry
+ *     and the lazy chunks alike are ES modules — and false for the IIFE, whose
+ *     body is script scope.
  *   - `comments: 'some'` keeps `@license`, `@preserve` and `/*!` banners, so a
  *     vendor notice that reaches this pass leaves in the artifact. hls.js marks
  *     none of its bundled third-party notices that way and Vite's esbuild pass
@@ -153,9 +178,9 @@ const LAZY_CHUNKS: Record<string, string> = {
  *     a compiled component reaching a helper core does not publish and a
  *     browser throwing "is not a function" at mount, so it is not weakened to
  *     collect the 448 bytes; making it scope-aware means parsing the artifact,
- *     which is its own change. The other three artifacts have no globals wiring
- *     and no such gate, and keep full mangling — which is where this ticket's
- *     bytes are anyway.
+ *     which is its own change. The ESM entry and the lazy chunks have no
+ *     globals wiring and no such gate, and keep full mangling — which is where
+ *     this ticket's bytes are anyway.
  */
 const terserOptions = {
     compress: { passes: 3 },
@@ -175,28 +200,11 @@ const lib =
               name: 'TriiiceratopsPluginAv',
               fileName: () => 'iife.js',
           }
-        : format === 'iife-chunks'
-          ? {
-                entry: {
-                    'av-timeline': resolve(__dirname, 'src/timeline/index.ts'),
-                    'av-hls': resolve(__dirname, 'src/hls/index.ts'),
-                    'av-sequencer': resolve(
-                        __dirname,
-                        'src/sequencer/index.ts',
-                    ),
-                    'av-transcript': resolve(
-                        __dirname,
-                        'src/transcript/index.ts',
-                    ),
-                },
-                formats: ['es' as const],
-                fileName: (_format: string, name: string) => `${name}.js`,
-            }
-          : {
-                entry: resolve(__dirname, 'src/index.ts'),
-                formats: ['es' as const],
-                fileName: () => 'index.js',
-            };
+        : {
+              entry: resolve(__dirname, 'src/index.ts'),
+              formats: ['es' as const],
+              fileName: () => 'index.js',
+          };
 
 /**
  * The base URL the IIFE resolves its chunks against, emitted ahead of the
@@ -295,23 +303,14 @@ const CORE_ENTRY = /^triiiceratops$/;
 const external =
     format === 'iife'
         ? [SVELTE, CORE_ENTRY]
-        : format === 'iife-chunks'
-          ? // Self-contained: an ES module fetched from a `<script>` page has
-            // no import map and no bundler, so anything it left external would
-            // be an unresolvable bare specifier at runtime. So the chunks
-            // bundle whatever they reach — `src/sequencer/index.ts` imports
-            // `triiiceratops` and carries its own copy of what it uses, which
-            // is the price of the chunk being loadable on its own.
-            //
-            // What must not happen is a chunk reaching Svelte, and
-            // `check-shared-runtime.mjs` fails the build if one does: it scans
-            // every chunk for the Svelte client runtime's fingerprint strings.
-            // It also scans them for reads off `window.Triiiceratops.core`,
-            // which a chunk has no globals wiring for and could only write by
-            // hand — those are held to core's published set and to
-            // `REQUIRED_CORE_UTILS` exactly as the entry's are.
-            []
-          : [SVELTE, /^@triiiceratops\/plugin-sdk(\/|$)/, CORE];
+        : [SVELTE, /^@triiiceratops\/plugin-sdk(\/|$)/, CORE];
+
+// None of these externals reaches a lazy chunk, and a chunk is the one place
+// they must not: it is also fetched by a `<script>` page, which has no import
+// map and no bundler, so a bare specifier left in one would be unresolvable at
+// runtime. All four chunks are import-free today, and
+// `check-shared-runtime.mjs` fails the build if one grows an import — which is
+// what lets the ES build's chunks serve the IIFE as well.
 
 /**
  * Where each externalized Svelte module is read from at runtime in the IIFE.
@@ -369,14 +368,23 @@ export default defineConfig({
             output: {
                 globals,
                 /*
-                    Nothing is inlined in any format. The ESM build splits its
-                    dynamic imports into hashed chunks a consumer's bundler
-                    re-splits; the IIFE's lazy halves are taken out of its graph
-                    by `chunkedIife()` and emitted by the `iife-chunks` build
-                    instead (SPEC — "Delivery and packaging", deliberate
-                    template deviation 1).
+                    Nothing is inlined in either format. The ESM build splits
+                    its dynamic imports into the chunks named in `LAZY_CHUNKS`;
+                    the IIFE's lazy halves are taken out of its graph by
+                    `chunkedIife()` and fetched from those same files (SPEC —
+                    "Delivery and packaging", deliberate template deviation 1).
                 */
                 inlineDynamicImports: false,
+                // Fixed names rather than hashed ones, so the IIFE — which
+                // cannot code-split and so cannot learn a hash — can name the
+                // very files the ESM build emitted. A chunk that is not one of
+                // the lazy halves keeps the hashed default: it would be shared
+                // eager code, which the entry imports statically and no loader
+                // has to name.
+                chunkFileNames: (chunk) =>
+                    (chunk.facadeModuleId &&
+                        LAZY_CHUNK_FACADES[chunk.facadeModuleId]) ||
+                    '[name]-[hash].js',
                 // Only the IIFE reads core's runtime off a global, so only it
                 // needs the gate. `intro` is the one hook that lands inside the
                 // generated function and ahead of every module statement, which

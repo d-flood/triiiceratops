@@ -25,15 +25,13 @@ export function normalizeIiifLinks(
         return [];
     }
 
-    const items = Array.isArray(raw) ? raw : [raw];
-
-    return items
+    return asArray(raw)
         .map((item: any) => {
             if (typeof item === 'string') {
                 return { id: item, label: item };
             }
 
-            const id = item.id || item['@id'] || '';
+            const id = getResourceId(item) ?? '';
             const label =
                 resolveLanguageValue(item.label, locale) || item.format || id;
 

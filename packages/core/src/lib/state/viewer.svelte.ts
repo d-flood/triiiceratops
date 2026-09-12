@@ -9,13 +9,18 @@
 // than by the type system; ADR 0007 already documents direct assignment onto
 // `ViewerState` as an unsupported escape hatch. `src/packaging/dtsSvelteImports.ts`
 // fails `build:lib` if a Svelte type import reappears in the public declarations.
+import { once } from '../utils/once.js';
 import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { flushSync, untrack } from 'svelte';
 import { manifestsState } from './manifests.svelte.js';
 import { NOTIFYING_MEMBERS } from '../generated/notifyingMembers.js';
-import { getLocale } from '../paraglide/runtime.js';
+import { language } from './i18n.svelte.js';
 import { logger, isDebugEnabled } from '../logging/logger';
-import type { ViewerError, ViewerErrorReporter } from '../types/viewerError';
+import type {
+    ViewerError,
+    ViewerErrorReporter,
+    ViewerErrorScope,
+} from '../types/viewerError';
 import type { RendererPort } from '../renderer/rendererPort.js';
 import { isRendererPort } from '../renderer/rendererPortBrand.js';
 import {
@@ -86,6 +91,7 @@ import {
     getAnnotationId,
     getCanvasId,
     getReferenceId,
+    getResourceId,
     sameCanvasId,
 } from '../utils/iiifIds';
 import { getPagedCanvasGroups } from '../components/viewerControls';
@@ -117,13 +123,41 @@ const COMPANION_PHASES: readonly string[] = [
     'accompanying',
 ];
 
-// Failure sentences that go out twice — once to the console, once as a
-// structured `ViewerError` message — so the two cannot drift apart.
-const FULLSCREEN_FAILED = 'Fullscreen request failed.';
-const FULLSCREEN_ELEMENT_MISSING =
-    'Cannot toggle fullscreen: viewer element not found.';
-const SEARCH_SERVICE_MISSING = 'No IIIF search service found in manifest.';
+// A failure sentence that goes out twice: once as the rejection a failed
+// search request throws, once as the structured `ViewerError` message the catch
+// reports — so the two cannot drift apart. Every other failure sentence is
+// written once at its `refuse` call.
 const SEARCH_FAILED = 'Search request failed.';
+
+/**
+ * One plugin's UI state: whether its surface stands open, whether the consumer
+ * allows it at all, whether the plugin has anything to show on the current
+ * canvas, and the chrome and dock position it currently renders in.
+ *
+ * `visible` is the consumer's hard off-switch (`config.plugins[id].visible`)
+ * while `available` is plugin-owned (see {@link ViewerState.setPluginAvailable}),
+ * which is why a config re-apply writes the one and never the other.
+ */
+interface PluginUiEntry {
+    open: boolean;
+    visible: boolean;
+    available: boolean;
+    target: PluginUiTarget;
+    position: 'left' | 'right' | 'bottom' | 'overlay';
+}
+
+/**
+ * Panel config sections whose `open` is a plain mirror of one `ViewerState`
+ * field. The gallery, search and annotations sections carry implications
+ * beyond the mirror — an expanded gallery must be shown, a query is queued
+ * rather than run, an annotations panel runs its own open command — so
+ * `updateConfig` handles those explicitly instead.
+ */
+const MIRRORED_PANEL_OPEN = [
+    ['information', 'showMetadataPanel'],
+    ['structures', 'showStructuresPanel'],
+    ['collection', 'showCollectionPanel'],
+] as const;
 
 /**
  * Snapshot of viewer state for external consumers.
@@ -169,8 +203,6 @@ export class ViewerState {
      * transport opened, and vice versa.
      */
     openMenu = $state<BarMenu | null>(null);
-    isGalleryDockedBottom = $state(false);
-    isGalleryDockedRight = $state(false);
     isFullScreen = $state(false);
     showMetadataPanel = $state(false);
     showCanvasInfo = $state(false);
@@ -200,6 +232,15 @@ export class ViewerState {
         null,
     );
     dockSide = $state('bottom');
+    /**
+     * Whether the thumbnail gallery is docked to the bottom or the right edge —
+     * the two edges the chrome and hosts ask about by name. Read-only
+     * projections of {@link dockSide}, so there is no state to keep in step
+     * with it; {@link setDockSide} remains the one way to move the dock.
+     */
+    readonly isGalleryDockedBottom = $derived(this.dockSide === 'bottom');
+    /** See {@link isGalleryDockedBottom}. */
+    readonly isGalleryDockedRight = $derived(this.dockSide === 'right');
     /** Reactive collection declared as a plain `Set` — see the note on the `svelte/reactivity` import. */
     visibleAnnotationIds: Set<string> = new SvelteSet<string>();
     annotationVisibilityTouched = $state(false);
@@ -459,7 +500,7 @@ export class ViewerState {
      * subscriber-less viewer both read a correct value before the first mirror
      * runs.
      */
-    activeLocale = $state<string>(getLocale());
+    activeLocale = $state<string>(language.current);
 
     /**
      * The locale chosen through the viewer's own language picker, or `null`
@@ -604,6 +645,30 @@ export class ViewerState {
     /** Deliver a structured viewer failure to the host, if a reporter is wired. */
     private reportError(error: ViewerError): void {
         this.errorReporter?.(error);
+    }
+
+    /**
+     * Refuse something a developer asked for: warn on the debug log AND report
+     * on the structured channel. Both, always — `logger` is a no-op unless
+     * `ViewerConfig.debug` is on, so a warning alone would leave a plugin whose
+     * layer, claim or publication was refused rendering nothing, silently, in
+     * every default viewer.
+     */
+    private refuse(
+        scope: ViewerErrorScope,
+        code: string,
+        message: string,
+        extra?: Pick<ViewerError, 'error' | 'detail'>,
+    ): void {
+        if (extra?.error !== undefined) logger.warn(message, extra.error);
+        else logger.warn(message);
+        this.reportError({
+            severity: 'warning',
+            scope,
+            code,
+            message,
+            ...extra,
+        });
     }
 
     /**
@@ -1001,9 +1066,7 @@ export class ViewerState {
      */
     attachRenderer(port: RendererPort): () => void {
         if (!isRendererPort(port)) {
-            logger.warn(
-                'attachRenderer ignored a port core did not create. It is an internal host seam, not a plugin API; use the viewport commands and queries on ViewerState.',
-            );
+            logger.warn('attachRenderer: foreign port ignored.');
             return () => {};
         }
 
@@ -1018,16 +1081,16 @@ export class ViewerState {
         });
         this.rendererReady = true;
 
-        let detached = false;
-        return () => {
-            if (detached || this.rendererPort !== port) return;
-            detached = true;
+        // Identity-checked inside the wrapper: a detach that arrives after
+        // another port has attached must not tear down its successor.
+        return once(() => {
+            if (this.rendererPort !== port) return;
             this.rendererPort = null;
             this.syncFrameSource();
             this.unsubscribeSurfaceTap?.();
             this.unsubscribeSurfaceTap = null;
             this.rendererReady = false;
-        };
+        });
     }
 
     /**
@@ -1045,12 +1108,7 @@ export class ViewerState {
      */
     subscribeSurfaceTap(listener: (point: ViewportPoint) => void): () => void {
         this.surfaceTapListeners.add(listener);
-        let released = false;
-        return () => {
-            if (released) return;
-            released = true;
-            this.surfaceTapListeners.delete(listener);
-        };
+        return once(() => this.surfaceTapListeners.delete(listener));
     }
 
     /**
@@ -1065,13 +1123,10 @@ export class ViewerState {
     subscribeFrame(listener: () => void): () => void {
         this.frameListeners.add(listener);
         this.syncFrameSource();
-        let released = false;
-        return () => {
-            if (released) return;
-            released = true;
+        return once(() => {
             this.frameListeners.delete(listener);
             this.syncFrameSource();
-        };
+        });
     }
 
     /**
@@ -1208,21 +1263,8 @@ export class ViewerState {
         onChange: () => {
             this.overlayLayerRevision += 1;
         },
-        // A refusal is an author error the developer must be told about, so it
-        // goes out on the STRUCTURED channel as well as the debug log: `logger`
-        // is a no-op unless `ViewerConfig.debug` is on, so a warning alone would
-        // leave a plugin whose layer was refused rendering nothing, silently, in
-        // every default viewer. Same shape as the other author-facing refusals
-        // here (see `toggleFullScreen`): log for the console, report for the host.
-        onRefused: (message) => {
-            logger.warn(message);
-            this.reportError({
-                severity: 'warning',
-                scope: 'plugin',
-                code: 'overlay-layer-refused',
-                message,
-            });
-        },
+        onRefused: (message) =>
+            this.refuse('plugin', 'overlay-layer-refused', message),
         // Answered from plugin UI state, NOT from the chrome records. Core mounts
         // a plugin's view before {@link registerSdkChrome} deliberately (a failed
         // mount renders no button), and a plugin registers its layer from inside
@@ -1312,15 +1354,8 @@ export class ViewerState {
         onChange: () => {
             this.transportChromeRevision += 1;
         },
-        onRefused: (message) => {
-            logger.warn(message);
-            this.reportError({
-                severity: 'warning',
-                scope: 'plugin',
-                code: 'transport-chrome-refused',
-                message,
-            });
-        },
+        onRefused: (message) =>
+            this.refuse('plugin', 'transport-chrome-refused', message),
         // Answered from plugin UI state, not from the chrome records, for the
         // reason `overlayLayerRegistry` gives above.
         isKnownPlugin: (pluginId) => this.pluginUiState.has(pluginId),
@@ -1454,15 +1489,11 @@ export class ViewerState {
         // Idempotent, and keyed on the claim still being THIS one: a release
         // that arrives after the claim was dropped by `unregisterPlugin` and
         // the canvas claimed afresh must not evict the new claimant.
-        let released = false;
-        return () => {
-            if (released) return;
-            released = true;
-            if (this.#claimedCanvases.get(canvas) === owner) {
-                this.#claimedCanvases.delete(canvas);
-                this.companionPhases.delete(canvas);
-            }
-        };
+        return once(() => {
+            if (this.#claimedCanvases.get(canvas) !== owner) return;
+            this.#claimedCanvases.delete(canvas);
+            this.companionPhases.delete(canvas);
+        });
     }
 
     /**
@@ -1619,13 +1650,7 @@ export class ViewerState {
      * shape, and for the same reason, as a refused overlay layer.
      */
     private refuseCanvasClaim(message: string): void {
-        logger.warn(message);
-        this.reportError({
-            severity: 'warning',
-            scope: 'plugin',
-            code: 'canvas-claim-refused',
-            message,
-        });
+        this.refuse('plugin', 'canvas-claim-refused', message);
     }
 
     /** Zoom in one step, about the viewport centre. The toolbar's `+`. */
@@ -1773,10 +1798,7 @@ export class ViewerState {
             next.bottom < 0 ||
             next.left < 0
         ) {
-            logger.warn(
-                'setViewportInset ignored an inset with a negative or non-finite edge:',
-                next,
-            );
+            logger.warn('setViewportInset: unusable edge:', next);
             return;
         }
         this.viewportInset = next;
@@ -1957,18 +1979,12 @@ export class ViewerState {
         this.collectionThumbnail = '';
         this.collectionItems = [];
         this.collectionThumbnailHydrationId += 1;
-        // Keep the current canvasId: a consumer may have requested a canvas
-        // before the manifest finished loading. ensureInitialCanvasSelection
-        // keeps it when the manifest contains it and falls back otherwise.
-        this.startCanvasId = null;
-        await manifestsState.registerManifest(manifestId, json);
-        this.manifestId = manifestId;
-        this.markManifestReady(manifestId);
-        if (options?.canvasId) {
-            this.setCanvas(options.canvasId);
-        }
-        this._applyManifestSettings(manifestId);
-        this.ensureInitialCanvasSelection();
+        // The document is already in hand, so it is registered rather than
+        // fetched again. The loader keeps the current canvasId — a consumer may
+        // have requested a canvas before the manifest finished loading, and
+        // `ensureInitialCanvasSelection` keeps it when the manifest contains it
+        // and falls back otherwise.
+        await this._loadManifest(manifestId, options?.canvasId, { json });
         this.dispatchStateChange('manifestchange');
     }
 
@@ -1998,12 +2014,22 @@ export class ViewerState {
     ) {
         this.startCanvasId = null;
         this.selectedSequenceIndex = 0;
-        await (register
-            ? manifestsState.registerManifest(manifestId, register.json)
-            : manifestsState.fetchManifest(
-                  manifestId,
-                  this.manifestRequestConfig,
-              ));
+        if (register) {
+            manifestsState.registerManifest(manifestId, register.json);
+            // Yield before the writes below. This is reached from the viewer
+            // component's config effect (through `setManifestData`), and
+            // assigning `manifestId` and running canvas selection in the same
+            // synchronous turn as the effect that called it re-enters that
+            // effect until Svelte gives up with
+            // `effect_update_depth_exceeded`. The fetch branch below yields for
+            // free; a synchronous registration has to say so.
+            await Promise.resolve();
+        } else {
+            await manifestsState.fetchManifest(
+                manifestId,
+                this.manifestRequestConfig,
+            );
+        }
         this.manifestId = manifestId;
         this.markManifestReady(manifestId);
         if (canvasId) {
@@ -2092,67 +2118,49 @@ export class ViewerState {
         // Presentation 3.0) or the sequence-level `startCanvas` (IIIF
         // Presentation 2.x).
         this.startTemporalOffset = null;
-        try {
-            let startId: string | null = null;
-            let startSelectorTime: IiifTemporalFragment | null = null;
+        let startId: string | null = null;
+        let startSelectorTime: IiifTemporalFragment | null = null;
 
-            // IIIF v3 — `start` on the manifest itself.
-            if (rawManifest?.start) {
-                startId = getReferenceId(rawManifest.start);
-                startSelectorTime = parseIiifSelectorTime(
-                    rawManifest.start?.selector,
-                );
-            }
+        // IIIF v3 — `start` on the manifest itself.
+        if (rawManifest?.start) {
+            startId = getReferenceId(rawManifest.start);
+            startSelectorTime = parseIiifSelectorTime(
+                rawManifest.start?.selector,
+            );
+        }
 
-            // IIIF v2 — the start canvas hangs off the sequence.
-            if (!startId) {
-                startId = getReferenceId(rawSequence?.startCanvas);
-            }
+        // IIIF v2 — the start canvas hangs off the sequence.
+        if (!startId) {
+            startId = getReferenceId(rawSequence?.startCanvas);
+        }
 
-            if (startId) {
-                // The start property may reference a canvas directly or include
-                // a media fragment (e.g. canvas#t=...): the canvas resolves by
-                // the stripped id, the time rides along to auto-selection.
-                const canvasIdFromStart = startId.split('#')[0];
-                // Verify this canvas exists in the manifest
-                const canvases = manifestsState.getCanvases(manifestId);
-                const exists = canvases.some(
-                    (c: any) => getCanvasId(c) === canvasIdFromStart,
-                );
-                if (exists) {
-                    this.startCanvasId = canvasIdFromStart;
-                    // A SpecificResource selector and a `#t=` on the id are
-                    // alternative spellings; the selector is the explicit one
-                    // and wins in the (unattested) case of both.
-                    this.startTemporalOffset =
-                        startSelectorTime ?? parseIiifTime(startId);
-                }
+        if (startId) {
+            // The start property may reference a canvas directly or include a
+            // media fragment (e.g. canvas#t=...): the canvas resolves by the
+            // stripped id, the time rides along to auto-selection.
+            const canvasIdFromStart = startId.split('#')[0];
+            const exists = manifestsState
+                .getCanvases(manifestId)
+                .some((c: any) => getCanvasId(c) === canvasIdFromStart);
+            if (exists) {
+                this.startCanvasId = canvasIdFromStart;
+                // A SpecificResource selector and a `#t=` on the id are
+                // alternative spellings; the selector is the explicit one and
+                // wins in the (unattested) case of both.
+                this.startTemporalOffset =
+                    startSelectorTime ?? parseIiifTime(startId);
             }
-        } catch (e) {
-            logger.warn('Error parsing start canvas', e);
         }
 
         // 1. Viewing Direction
-        let direction: string | null = null;
-        try {
-            // IIIF v2 — the sequence carries the direction, and it WINS over
-            // the manifest root. Presentation 2.1 is explicit: a manifest's
-            // direction "applies to all of its sequences unless the sequence
-            // specifies its own viewing direction". `manifesto.js` implemented
-            // this cascade correctly in `Sequence.getViewingDirection`; this
-            // call site used to override it by asking the manifest first.
-            if (rawSequence?.viewingDirection) {
-                direction = rawSequence.viewingDirection;
-            }
-            // IIIF v3 root — and IIIF v2 manifests that declare it at the root,
-            // which is legal in Presentation 2.x too. v3 has no sequences, so
-            // this is the only read that fires for v3.
-            if (!direction && rawManifest?.viewingDirection) {
-                direction = rawManifest.viewingDirection;
-            }
-        } catch (e) {
-            logger.warn('Error parsing viewing direction', e);
-        }
+        // IIIF v2 — the sequence carries the direction, and it WINS over the
+        // manifest root. Presentation 2.1 is explicit: a manifest's direction
+        // "applies to all of its sequences unless the sequence specifies its
+        // own viewing direction". The root is the fallback: v3 declares it
+        // there and only there, and a v2 manifest may legally declare it there
+        // too.
+        const direction: string | undefined =
+            rawSequence?.viewingDirection || rawManifest?.viewingDirection;
 
         if (
             direction &&
@@ -2170,29 +2178,23 @@ export class ViewerState {
 
         // 2. Viewing Mode (Behavior)
         if (!this._viewingModeUserConfigured) {
-            let behaviors: string[] = [];
-            try {
-                // IIIF v3 — `behavior`, on the manifest root and on the
-                // sequence.
-                behaviors = [
-                    ...toBehaviorList(rawManifest?.behavior),
-                    ...toBehaviorList(rawSequence?.behavior),
-                ];
+            // IIIF v3 — `behavior`, on the manifest root and on the sequence.
+            let behaviors: string[] = [
+                ...toBehaviorList(rawManifest?.behavior),
+                ...toBehaviorList(rawSequence?.behavior),
+            ];
 
-                // IIIF v2 — `viewingHint` is the v2 spelling of the same idea.
-                // Sequence first, then the root, matching how viewing direction
-                // resolves above. Presentation 2.1 states no precedence for
-                // `viewingHint`, so this follows the cascade it *does* state
-                // for `viewingDirection` rather than inventing a second rule:
-                // the more specific declaration wins.
-                if (behaviors.length === 0) {
-                    behaviors = toBehaviorList(rawSequence?.viewingHint);
-                }
-                if (behaviors.length === 0) {
-                    behaviors = toBehaviorList(rawManifest?.viewingHint);
-                }
-            } catch (e) {
-                logger.warn('Error parsing behavior', e);
+            // IIIF v2 — `viewingHint` is the v2 spelling of the same idea.
+            // Sequence first, then the root, matching how viewing direction
+            // resolves above. Presentation 2.1 states no precedence for
+            // `viewingHint`, so this follows the cascade it *does* state for
+            // `viewingDirection` rather than inventing a second rule: the more
+            // specific declaration wins.
+            if (behaviors.length === 0) {
+                behaviors = toBehaviorList(rawSequence?.viewingHint);
+            }
+            if (behaviors.length === 0) {
+                behaviors = toBehaviorList(rawManifest?.viewingHint);
             }
 
             if (behaviors.includes('continuous')) {
@@ -2340,22 +2342,9 @@ export class ViewerState {
             }
         }
 
-        if (newConfig.information) {
-            if (newConfig.information.open !== undefined) {
-                this.showMetadataPanel = newConfig.information.open;
-            }
-        }
-
-        if (newConfig.structures) {
-            if (newConfig.structures.open !== undefined) {
-                this.showStructuresPanel = newConfig.structures.open;
-            }
-        }
-
-        if (newConfig.collection) {
-            if (newConfig.collection.open !== undefined) {
-                this.showCollectionPanel = newConfig.collection.open;
-            }
+        for (const [section, field] of MIRRORED_PANEL_OPEN) {
+            const open = newConfig[section]?.open;
+            if (open !== undefined) this[field] = open;
         }
 
         this.applyPluginUiConfigToAll();
@@ -2433,25 +2422,21 @@ export class ViewerState {
 
         const el = this.viewerElement;
         if (!el) {
-            logger.warn(FULLSCREEN_ELEMENT_MISSING);
-            this.reportError({
-                severity: 'warning',
-                scope: 'viewport',
-                code: 'fullscreen-element-missing',
-                message: FULLSCREEN_ELEMENT_MISSING,
-            });
+            this.refuse(
+                'viewport',
+                'fullscreen-element-missing',
+                'toggleFullScreen: no viewer element.',
+            );
             return;
         }
 
         el.requestFullscreen().catch((e) => {
-            logger.warn(FULLSCREEN_FAILED, e);
-            this.reportError({
-                severity: 'warning',
-                scope: 'viewport',
-                code: 'fullscreen-failed',
-                message: FULLSCREEN_FAILED,
-                error: e,
-            });
+            this.refuse(
+                'viewport',
+                'fullscreen-failed',
+                'Fullscreen request failed.',
+                { error: e },
+            );
         });
     }
 
@@ -2469,11 +2454,7 @@ export class ViewerState {
         this.selectedSequenceIndex = Math.max(0, Math.min(index, maxIndex));
 
         const nextCanvases = this.canvases;
-        const firstCanvas = nextCanvases[0];
-        // Raw IIIF Canvas JSON: `id` in v3, `@id` in v2.
-        this.canvasId = firstCanvas
-            ? firstCanvas.id || firstCanvas['@id'] || null
-            : null;
+        this.canvasId = getResourceId(nextCanvases[0]);
         this.startCanvasId = null;
         // A sequence switch is a navigation carrying no time. v2 sequences are
         // alternative orderings of the same canvases, so a stale offset would
@@ -2525,6 +2506,24 @@ export class ViewerState {
         const manifestJson = this.manifestEntry?.json;
         if (!manifestJson) return [];
         return parseStructures(manifestJson);
+    }
+
+    /**
+     * The top-level ranges marked `behavior: sequence` — the manifest's own
+     * sequences, which the sequence picker names and the table of contents must
+     * leave out.
+     */
+    get sequenceStructures(): StructureNode[] {
+        return this.structures.filter((node) =>
+            node.behaviors.includes('sequence'),
+        );
+    }
+
+    /** The ranges that are a table of contents rather than a sequence. */
+    get nonSequenceStructures(): StructureNode[] {
+        return this.structures.filter(
+            (node) => !node.behaviors.includes('sequence'),
+        );
     }
 
     /**
@@ -2590,62 +2589,60 @@ export class ViewerState {
         this.isSearching = true;
         this.searchQuery = query;
         this.searchResults = [];
+        // A missing search service is not a deferral: it forces the flag false
+        // even when a pending query stands, so the spinner does not outlive a
+        // search that will never run.
+        let forceSettled = false;
 
         try {
             const manifestJson = this.manifestEntry?.json;
             if (!manifestJson) {
                 // Defer search until manifest is loaded
-                logger.debug('Manifest not loaded, deferring search:', query);
+                logger.debug('search deferred, no manifest:', query);
                 this.pendingSearchQuery = query;
                 return;
             }
 
+            let results: SearchResultGroup[];
             if (this.searchProvider && this.manifestId) {
-                this.searchResults = await this.searchProvider(query, {
+                results = await this.searchProvider(query, {
                     manifestId: this.manifestId,
                     manifestJson,
                     canvases: this.canvases,
                     canvasId: this.canvasId,
                 });
-                this.searchAnnotations = buildSearchAnnotations(
-                    this.searchResults,
+            } else {
+                const service = discoverSearchService(manifestJson);
+                if (!service) {
+                    forceSettled = true;
+                    this.refuse(
+                        'search',
+                        'search-service-missing',
+                        'No IIIF search service found in manifest.',
+                        { detail: { query } },
+                    );
+                    return;
+                }
+
+                const response = await fetch(
+                    `${service.serviceId}?q=${encodeURIComponent(query)}`,
+                );
+                if (!response.ok) throw new Error(SEARCH_FAILED);
+
+                results = parseSearchResponse(
+                    await response.json(),
+                    service.version,
                     this.canvases,
                 );
-                return;
             }
 
-            const service = discoverSearchService(manifestJson);
-
-            if (!service) {
-                logger.warn(SEARCH_SERVICE_MISSING);
-                this.reportError({
-                    severity: 'warning',
-                    scope: 'search',
-                    code: 'search-service-missing',
-                    message: SEARCH_SERVICE_MISSING,
-                    detail: { query },
-                });
-                this.isSearching = false;
-                return;
-            }
-
-            const searchUrl = `${service.serviceId}?q=${encodeURIComponent(query)}`;
-
-            const response = await fetch(searchUrl);
-            if (!response.ok) throw new Error(SEARCH_FAILED);
-
-            const data = await response.json();
-
-            this.searchResults = parseSearchResponse(
-                data,
-                service.version,
-                this.canvases,
-            );
+            this.searchResults = results;
             this.searchAnnotations = buildSearchAnnotations(
-                this.searchResults,
+                results,
                 this.canvases,
             );
         } catch (e) {
+            forceSettled = true;
             logger.error('Search error:', e);
             this.reportError({
                 severity: 'error',
@@ -2655,10 +2652,10 @@ export class ViewerState {
                 error: e,
                 detail: { query },
             });
-            this.isSearching = false;
         } finally {
-            // Only stop searching if we are NOT pending (i.e. we finished or failed, but didn't defer)
-            if (!this.pendingSearchQuery) {
+            // A deferred search leaves the flag standing: the pending query is
+            // still going to run once the manifest lands.
+            if (forceSettled || !this.pendingSearchQuery) {
                 this.isSearching = false;
             }
         }
@@ -2751,13 +2748,11 @@ export class ViewerState {
 
     /**
      * Dock the thumbnail gallery to a side ('top' | 'bottom' | 'left' |
-     * 'right'), keeping the derived docked flags in sync. Maintaining that
-     * invariant is why this is a command, not a field write.
+     * 'right'). {@link isGalleryDockedBottom} and {@link isGalleryDockedRight}
+     * follow from it.
      */
     setDockSide(side: string): void {
         this.dockSide = side;
-        this.isGalleryDockedBottom = side === 'bottom';
-        this.isGalleryDockedRight = side === 'right';
     }
 
     // ==================== PLUGIN STATE ====================
@@ -2795,22 +2790,35 @@ export class ViewerState {
      * {@link getPluginPosition}, so a plugin moves between chrome and dock
      * position without re-registering.
      */
-    private pluginUiState = new SvelteMap<
-        string,
-        {
-            open: boolean;
-            visible: boolean;
-            /**
-             * Whether the plugin has anything to show on the CURRENT canvas, as
-             * declared by the plugin itself through
-             * {@link setPluginAvailable}. Plugin-owned, so unlike `visible` no
-             * config re-apply touches it.
-             */
-            available: boolean;
-            target: PluginUiTarget;
-            position: 'left' | 'right' | 'bottom' | 'overlay';
-        }
-    >();
+    private pluginUiState = new SvelteMap<string, PluginUiEntry>();
+
+    /**
+     * Merge `patch` into a plugin's UI entry, and report whether that changed
+     * anything. Every plugin-UI mutation goes through here, because every one
+     * of them owes the same two promises: an unknown plugin is a no-op, and a
+     * patch that changes no key must not notify — a redundant call must not
+     * wake every plugin's subscription for a change that did not happen.
+     *
+     * Notifying is the caller's, so a command that patches several plugins at
+     * once (see {@link closePluginFlyouts}) dispatches one event rather than
+     * one per plugin.
+     */
+    private patchPluginUi(
+        pluginId: string,
+        patch: (current: PluginUiEntry) => Partial<PluginUiEntry>,
+    ): boolean {
+        const current = this.pluginUiState.get(pluginId);
+        if (!current) return false;
+
+        const next = patch(current);
+        const changed = Object.entries(next).some(
+            ([key, value]) => current[key as keyof PluginUiEntry] !== value,
+        );
+        if (!changed) return false;
+
+        this.pluginUiState.set(pluginId, { ...current, ...next });
+        return true;
+    }
 
     // Unlike the value-returning config getters, this one is not memoized
     // against `config`: it takes an argument and returns a sub-object whose
@@ -2836,33 +2844,31 @@ export class ViewerState {
         defaultTarget: PluginUiTarget = 'panel',
         defaultPosition: 'left' | 'right' | 'bottom' | 'overlay' = 'left',
     ): void {
-        if (!this.pluginUiState.has(pluginId)) {
-            const config = this.getPluginUiConfig(pluginId);
-            this.pluginUiState.set(pluginId, {
-                open: config?.open ?? false,
-                visible: config?.visible ?? true,
-                available: true,
-                target: config?.target ?? defaultTarget,
-                position: config?.position ?? defaultPosition,
-            });
+        if (this.pluginUiState.has(pluginId)) {
+            this.applyPluginUiConfig(pluginId);
             return;
         }
 
-        this.applyPluginUiConfig(pluginId);
+        const config = this.getPluginUiConfig(pluginId);
+        this.pluginUiState.set(pluginId, {
+            open: config?.open ?? false,
+            visible: config?.visible ?? true,
+            available: true,
+            target: config?.target ?? defaultTarget,
+            position: config?.position ?? defaultPosition,
+        });
     }
 
     private applyPluginUiConfig(pluginId: string): void {
-        const current = this.pluginUiState.get(pluginId);
-        if (!current) return;
-
         const config = this.getPluginUiConfig(pluginId);
-        this.pluginUiState.set(pluginId, {
-            open: config?.open ?? current.open,
-            visible: config?.visible ?? current.visible,
-            available: current.available,
-            target: config?.target ?? current.target,
-            position: config?.position ?? current.position,
-        });
+        if (!config) return;
+        // `available` is plugin-owned: no config re-apply touches it.
+        this.patchPluginUi(pluginId, (current) => ({
+            open: config.open ?? current.open,
+            visible: config.visible ?? current.visible,
+            target: config.target ?? current.target,
+            position: config.position ?? current.position,
+        }));
     }
 
     /**
@@ -2883,11 +2889,9 @@ export class ViewerState {
      * {@link PluginUiConfig.target}).
      */
     setPluginTarget(pluginId: string, target: PluginUiTarget): void {
-        const current = this.pluginUiState.get(pluginId);
-        if (!current || current.target === target) return;
-
-        this.pluginUiState.set(pluginId, { ...current, target });
-        this.dispatchStateChange();
+        if (this.patchPluginUi(pluginId, () => ({ target }))) {
+            this.dispatchStateChange();
+        }
     }
 
     /**
@@ -2915,11 +2919,9 @@ export class ViewerState {
         pluginId: string,
         position: 'left' | 'right' | 'bottom' | 'overlay',
     ): void {
-        const current = this.pluginUiState.get(pluginId);
-        if (!current || current.position === position) return;
-
-        this.pluginUiState.set(pluginId, { ...current, position });
-        this.dispatchStateChange();
+        if (this.patchPluginUi(pluginId, () => ({ position }))) {
+            this.dispatchStateChange();
+        }
     }
 
     private applyPluginUiConfigToAll(): void {
@@ -2961,18 +2963,18 @@ export class ViewerState {
      * the plugin is unknown or already in that state.
      */
     setPluginAvailable(pluginId: string, available: boolean): void {
-        const current = this.pluginUiState.get(pluginId);
-        if (!current || current.available === available) return;
-
-        this.pluginUiState.set(pluginId, {
-            ...current,
-            available,
-            open: available
-                ? current.open ||
-                  (this.getPluginUiConfig(pluginId)?.open ?? false)
-                : false,
-        });
-        this.dispatchStateChange();
+        const changed = this.patchPluginUi(pluginId, (current) =>
+            current.available === available
+                ? {}
+                : {
+                      available,
+                      open: available
+                          ? current.open ||
+                            (this.getPluginUiConfig(pluginId)?.open ?? false)
+                          : false,
+                  },
+        );
+        if (changed) this.dispatchStateChange();
     }
 
     /**
@@ -2994,14 +2996,9 @@ export class ViewerState {
      * not wake every plugin's subscription for a change that did not happen.
      */
     setPluginOpen(pluginId: string, open: boolean): void {
-        const current = this.pluginUiState.get(pluginId);
-        if (!current || current.open === open) return;
-
-        this.pluginUiState.set(pluginId, {
-            ...current,
-            open,
-        });
-        this.dispatchStateChange();
+        if (this.patchPluginUi(pluginId, () => ({ open }))) {
+            this.dispatchStateChange();
+        }
     }
 
     /**
@@ -3011,14 +3008,10 @@ export class ViewerState {
      * programmatic open identically.
      */
     togglePluginOpen(pluginId: string): void {
-        const current = this.pluginUiState.get(pluginId);
-        if (!current) return;
-
-        this.pluginUiState.set(pluginId, {
-            ...current,
+        const changed = this.patchPluginUi(pluginId, (current) => ({
             open: !current.open,
-        });
-        this.dispatchStateChange();
+        }));
+        if (changed) this.dispatchStateChange();
     }
 
     /**
@@ -3039,14 +3032,9 @@ export class ViewerState {
             // light-dismissed by an outside pointer-down.
             if (this.getPluginTarget(flyout.pluginId) !== 'flyout') continue;
             if (flyout.dismiss === 'explicit') continue;
-            const current = this.pluginUiState.get(flyout.pluginId);
-            if (current?.open) {
-                this.pluginUiState.set(flyout.pluginId, {
-                    ...current,
-                    open: false,
-                });
-                changed = true;
-            }
+            changed =
+                this.patchPluginUi(flyout.pluginId, () => ({ open: false })) ||
+                changed;
         }
         if (changed) this.dispatchStateChange();
     }
@@ -3166,15 +3154,14 @@ export class ViewerState {
      * idempotent.
      */
     unregisterPlugin(pluginId: string): void {
-        this.pluginMenuButtons = this.pluginMenuButtons.filter(
-            (b) => !b.id.startsWith(`${pluginId}:`),
-        );
-        this.pluginPanels = this.pluginPanels.filter(
-            (p) => !p.id.startsWith(`${pluginId}:`),
-        );
-        this.pluginFlyouts = this.pluginFlyouts.filter(
-            (f) => !f.id.startsWith(`${pluginId}:`),
-        );
+        // Chrome ids are namespaced `<pluginId>:<slot>`, which is what makes
+        // one predicate answer for all three registers.
+        const prefix = `${pluginId}:`;
+        const notOwned = (entry: { id: string }) =>
+            !entry.id.startsWith(prefix);
+        this.pluginMenuButtons = this.pluginMenuButtons.filter(notOwned);
+        this.pluginPanels = this.pluginPanels.filter(notOwned);
+        this.pluginFlyouts = this.pluginFlyouts.filter(notOwned);
         this.overlayLayerRegistry.disposeOwnedBy(pluginId);
         this.transportChromeRegistry.disposeOwnedBy(pluginId);
         for (const [canvasId, owner] of [...this.#claimedCanvases]) {
@@ -3251,26 +3238,19 @@ export class ViewerState {
             this.publishedPluginStates.has(pluginId) &&
             this.publishedPluginStates.get(pluginId) !== published
         ) {
-            const message = `Plugin "${pluginId}" already has published state; this publication was refused. Retire the first before publishing again.`;
-            logger.warn(message);
-            this.reportError({
-                severity: 'warning',
-                scope: 'plugin',
-                code: 'plugin-state-refused',
-                message,
-            });
+            this.refuse(
+                'plugin',
+                'plugin-state-refused',
+                `publishPluginState "${pluginId}": already published; retire the first.`,
+            );
             return () => {};
         }
 
         this.publishedPluginStates.set(pluginId, published);
-        let retired = false;
-        return () => {
-            if (retired) return;
-            retired = true;
-            if (this.publishedPluginStates.get(pluginId) === published) {
-                this.publishedPluginStates.delete(pluginId);
-            }
-        };
+        return once(() => {
+            if (this.publishedPluginStates.get(pluginId) !== published) return;
+            this.publishedPluginStates.delete(pluginId);
+        });
     }
 
     /**

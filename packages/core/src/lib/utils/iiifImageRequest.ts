@@ -63,3 +63,36 @@ export function iiifSizeParameter(
 ): string {
     return whole ? (version === 3 ? 'max' : 'full') : `${width},`;
 }
+
+/**
+ * A whole-image request, with the other **quality** spelling the same service
+ * may answer to — or no alternative, where the version never had one.
+ *
+ * Only a version 2 service has one: `native` belongs to Image API 1 and 2.0,
+ * version 2.1 deprecated it in favour of `default`, and version 3 never had it.
+ * A 2.0 document is indistinguishable from a 2.1 one — same `@context`, same
+ * profile URIs — so the happy path asks every version 2 service for `default`,
+ * which is right for every endpoint built since 2016 and wrong for a frozen
+ * pre-2016 static tree that spells all of its files `native`.
+ *
+ * The alternative is tried once per SERVICE, and only after `default` has
+ * actually failed: one wasted request buys the answer for every image behind
+ * the same base URI, which is the difference between one 404 and one per rung.
+ */
+export function iiifWholeImageRequest(
+    serviceId: string,
+    size: string,
+    format: string,
+    version: 2 | 3,
+): { url: string; fallback: { url: string; group: string } | null } {
+    const url = iiifImageRequestUrl(serviceId, size, 'default', format);
+    if (version !== 2) return { url, fallback: null };
+
+    return {
+        url,
+        fallback: {
+            url: iiifImageRequestUrl(serviceId, size, 'native', format),
+            group: serviceId,
+        },
+    };
+}
