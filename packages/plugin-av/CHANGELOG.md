@@ -1,5 +1,12 @@
 # @triiiceratops/plugin-av
 
+## 1.0.1
+
+### Patch Changes
+
+- 1df3a76: `svelte` is an optional peer dependency, as it already is on core and the SDK.
+    - triiiceratops@1.0.0
+
 ## 1.0.0
 
 ### Major Changes
