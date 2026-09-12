@@ -54,6 +54,11 @@
         "svelte": "^5.0.0",
         "triiiceratops": "workspace:^"
     },
+    "peerDependenciesMeta": {
+        "svelte": {
+            "optional": true
+        }
+    },
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "^6.2.4",
         "@triiiceratops/plugin-sdk": "workspace:*",
