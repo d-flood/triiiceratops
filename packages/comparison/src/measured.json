@@ -1,5 +1,5 @@
 {
-    "measuredAt": "2026-09-11",
+    "measuredAt": "2026-09-12",
     "compression": {
         "gzipLevel": 9,
         "brotliQuality": 11
@@ -12,21 +12,21 @@
         {
             "id": "triiiceratops",
             "name": "Triiiceratops",
-            "version": "1.0.0-rc.36",
+            "version": "1.0.0",
             "isSelf": true,
             "sessions": [
                 {
                     "kind": "image",
-                    "raw": 400943,
-                    "gzip": 119531,
-                    "brotli": 100499,
+                    "raw": 375680,
+                    "gzip": 114878,
+                    "brotli": 96862,
                     "files": [
                         {
                             "url": "packages/core/dist/triiiceratops-element.iife.js",
                             "name": "triiiceratops-element.iife.js",
-                            "raw": 400943,
-                            "gzip": 119531,
-                            "brotli": 100499
+                            "raw": 375680,
+                            "gzip": 114878,
+                            "brotli": 96862
                         }
                     ]
                 }
@@ -36,50 +36,50 @@
         {
             "id": "triiiceratops-av",
             "name": "Triiiceratops + plugin-av",
-            "version": "1.0.0-rc.36 + 1.0.0-rc.0",
+            "version": "1.0.0 + 1.0.1",
             "isSelf": true,
             "sessions": [
                 {
                     "kind": "image",
-                    "raw": 443324,
-                    "gzip": 135425,
-                    "brotli": 114716,
+                    "raw": 418079,
+                    "gzip": 130790,
+                    "brotli": 111120,
                     "files": [
                         {
                             "url": "packages/core/dist/triiiceratops-element.iife.js",
                             "name": "triiiceratops-element.iife.js",
-                            "raw": 400943,
-                            "gzip": 119531,
-                            "brotli": 100499
+                            "raw": 375680,
+                            "gzip": 114878,
+                            "brotli": 96862
                         },
                         {
                             "url": "packages/plugin-av/dist/iife.js",
                             "name": "iife.js",
-                            "raw": 42381,
-                            "gzip": 15894,
-                            "brotli": 14217
+                            "raw": 42399,
+                            "gzip": 15912,
+                            "brotli": 14258
                         }
                     ]
                 },
                 {
                     "kind": "audiovisual",
-                    "raw": 443324,
-                    "gzip": 135425,
-                    "brotli": 114716,
+                    "raw": 418079,
+                    "gzip": 130790,
+                    "brotli": 111120,
                     "files": [
                         {
                             "url": "packages/core/dist/triiiceratops-element.iife.js",
                             "name": "triiiceratops-element.iife.js",
-                            "raw": 400943,
-                            "gzip": 119531,
-                            "brotli": 100499
+                            "raw": 375680,
+                            "gzip": 114878,
+                            "brotli": 96862
                         },
                         {
                             "url": "packages/plugin-av/dist/iife.js",
                             "name": "iife.js",
-                            "raw": 42381,
-                            "gzip": 15894,
-                            "brotli": 14217
+                            "raw": 42399,
+                            "gzip": 15912,
+                            "brotli": 14258
                         }
                     ]
                 }
@@ -88,16 +88,16 @@
                 {
                     "url": "packages/plugin-av/dist/av-hls.js",
                     "name": "av-hls.js",
-                    "raw": 581982,
-                    "gzip": 177990,
-                    "brotli": 145680
+                    "raw": 582417,
+                    "gzip": 178139,
+                    "brotli": 145595
                 },
                 {
                     "url": "packages/plugin-av/dist/av-transcript.js",
                     "name": "av-transcript.js",
-                    "raw": 6933,
-                    "gzip": 2666,
-                    "brotli": 2323
+                    "raw": 7053,
+                    "gzip": 2688,
+                    "brotli": 2344
                 },
                 {
                     "url": "packages/plugin-av/dist/av-timeline.js",

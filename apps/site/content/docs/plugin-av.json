@@ -126,7 +126,7 @@
 						},
 						{
 							"type": "text",
-							"text": " list. Registering it costs 15.2 KB gzip, and its four heaviest pieces are "
+							"text": " list. Registering it costs 15.9 KB gzip, and its four heaviest pieces are "
 						},
 						{
 							"type": "text",
@@ -3759,7 +3759,7 @@
 				},
 				{
 					"type": "text",
-					"text": "15.2 KB gzip",
+					"text": "15.9 KB gzip",
 					"marks": [
 						{
 							"type": "bold"
@@ -3772,7 +3772,7 @@
 				},
 				{
 					"type": "text",
-					"text": "133 KB gzip",
+					"text": "131 KB gzip",
 					"marks": [
 						{
 							"type": "bold"

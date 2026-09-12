@@ -82,8 +82,13 @@ export interface Competitor {
     note?: string;
 }
 
-const TRIIICERATOPS_VERSION = '1.0.0-rc.36';
-const PLUGIN_AV_VERSION = '1.0.0-rc.0';
+// A Triiiceratops row is built from this repository's own sources, so these are
+// the workspace's own versions rather than a registry release. `measured.test.ts`
+// holds them to the package manifests; they are not read from those manifests
+// here because this module is bundled into the site, and a JSON import would
+// carry a whole package.json into the browser to quote one field of it.
+const TRIIICERATOPS_VERSION = '1.0.0';
+const PLUGIN_AV_VERSION = '1.0.1';
 
 const viewerElement =
     '<triiiceratops-viewer manifest-id="{{MANIFEST}}" style="display: block; width: 100%; height: 100vh;"></triiiceratops-viewer>';

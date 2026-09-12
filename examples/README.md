@@ -39,20 +39,15 @@ held by `check:dts-svelte-types` and by `assertNoSvelteAndNoSdk` in the packed
 suite, which assert the absence mechanically. Neither example installs Svelte,
 and neither needs to.
 
-## The pinned version
+## The version range
 
-Both apps depend on:
+Both apps depend on `"triiiceratops": "^1.0.0"`. No lockfile is committed, so
+every fresh install resolves the newest 1.x from the registry — which is the
+point, since what these prove is that a current release resolves through its
+published `exports` map.
 
-```json
-"triiiceratops": "^1.0.0-rc.33"
-```
-
-**This must be a published version that contains the framework wrappers.** At the
-time these were written the newest published version was `1.0.0-rc.32`, whose
-`exports` map has no `./react` or `./vue` — the wrappers were still unreleased —
-so `npm install` here will not resolve until a release carrying them is on npm.
-Bump the range if the first such release is not `rc.33`.
-
-The caret is deliberate: `^1.0.0-rc.33` resolves to that release, any later `rc`,
-**and** `1.0.0` once it ships, so these do not need editing at general release.
-Replace it with an exact version if you would rather pin hard.
+The caret rather than a floating `latest` is deliberate. These lines are also the
+dependency a reader copies into their own project, so they should state the
+compatibility contract; `latest` states nothing and would carry an example across
+a major release with no signal. Replace it with an exact version if you would
+rather pin hard.

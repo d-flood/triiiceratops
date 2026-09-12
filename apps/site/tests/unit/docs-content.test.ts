@@ -11,11 +11,16 @@
  * The fourth is about the repository rather than the documents: `docs/` is
  * internal, and a Markdown file appearing there would be a public page nobody
  * publishes.
+ *
+ * The fifth is narrower, and is here because there is nowhere better for it: the
+ * AV page quotes its bundle sizes as prose and as a hand-written table, and
+ * prose is the one thing on this site that no derivation reaches.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { MEASURED_COMPARISON } from '@triiiceratops/comparison';
 import { defaultMapPathToSource } from 'uncial-cms/sveltekit';
 import { describe, expect, it } from 'vitest';
 
@@ -30,6 +35,8 @@ type Node = {
     readonly type: string;
     readonly attrs?: Record<string, unknown>;
     readonly content?: readonly Node[];
+    /** Present on a text node, and only on one. */
+    readonly text?: string;
 };
 
 function documentAt(path: string): { readonly content: readonly Node[] } {
@@ -48,6 +55,48 @@ function nodesIn(paths: readonly string[]): { path: string; node: Node }[] {
     };
     for (const path of paths) walk(path, documentAt(path).content);
     return found;
+}
+
+/** A document's prose, in reading order, so a sentence split across text runs
+ * and its marks reads as one string. */
+function proseOf(path: string): string {
+    const parts: string[] = [];
+    const walk = (nodes: readonly Node[]) => {
+        for (const node of nodes) {
+            if (node.type === 'text') parts.push(node.text ?? '');
+            if (node.content) walk(node.content);
+        }
+    };
+    walk(documentAt(path).content);
+    return parts.join('');
+}
+
+/** Every table in a document, as rows of plain-text cells. */
+function tablesOf(path: string): string[][][] {
+    const tables: string[][][] = [];
+    const cellText = (node: Node): string => {
+        const parts: string[] = [];
+        const walk = (n: Node) => {
+            if (n.type === 'text') parts.push(n.text ?? '');
+            for (const child of n.content ?? []) walk(child);
+        };
+        walk(node);
+        return parts.join('');
+    };
+    const walk = (nodes: readonly Node[]) => {
+        for (const node of nodes) {
+            if (node.type === 'table') {
+                tables.push(
+                    (node.content ?? []).map((row) =>
+                        (row.content ?? []).map(cellText),
+                    ),
+                );
+            }
+            if (node.content) walk(node.content);
+        }
+    };
+    walk(documentAt(path).content);
+    return tables;
 }
 
 const CONTENT_PATHS = CONTENT_ROUTES.map((route) => route.path);
@@ -168,6 +217,74 @@ describe('the repository’s docs directory', () => {
                 documentAt(route.path).content.length,
                 route.path,
             ).toBeGreaterThan(0);
+        }
+    });
+});
+
+/**
+ * Whether a quoted kilobyte figure still describes the bytes measured.
+ *
+ * The page quotes at whatever precision reads well — `178`, `2.9`, `15.9` — so
+ * the comparison is made at the precision quoted rather than at one this gate
+ * picks. That keeps the gate out of the editorial decision and on the only
+ * question it can answer: whether the number is still the measurement.
+ */
+function quotes(figure: string, bytes: number): boolean {
+    const decimals = figure.split('.')[1]?.length ?? 0;
+    return figure === (bytes / 1000).toFixed(decimals);
+}
+
+describe('the AV page’s bundle figures', () => {
+    /*
+     * `/size/` transcribes nothing — every figure on it is derived from the
+     * measurement at build time. This page cannot be: its figures sit
+     * mid-sentence, and the block vocabulary is block-level, so there is no
+     * inline node for a computed value to render into. The sentences therefore
+     * stay editable and this gate holds them to the same measurement, which is
+     * the difference between a number a reader can trust and a number that was
+     * true once.
+     */
+    const AV_PAGE = '/docs/plugin-av/';
+    const av = MEASURED_COMPARISON.viewers.find(
+        (viewer) => viewer.id === 'triiiceratops-av',
+    );
+    const session = av?.sessions[0];
+    const plugin = session?.files.find((file) => file.name === 'iife.js');
+
+    it('has a measurement to be held to', () => {
+        // Without this, every assertion below passes by finding nothing.
+        expect(plugin?.gzip, 'plugin-av iife.js').toBeGreaterThan(0);
+        expect(session?.gzip, 'the measured pair').toBeGreaterThan(0);
+        expect(av?.lazyArtifacts?.length, 'the lazy chunks').toBeGreaterThan(0);
+    });
+
+    it('quotes the plugin and the pair, and no third figure', () => {
+        // Every occurrence, not merely one: the page states the plugin's size
+        // twice, and a gate satisfied by either would let the other go stale.
+        const quoted = [
+            ...proseOf(AV_PAGE).matchAll(/(\d+(?:\.\d+)?) KB gzip/g),
+        ].map((match) => match[1]);
+        const stale = quoted.filter(
+            (figure) =>
+                !quotes(figure, plugin!.gzip) && !quotes(figure, session!.gzip),
+        );
+        expect(stale).toEqual([]);
+        expect(quoted.some((f) => quotes(f, plugin!.gzip))).toBe(true);
+        expect(quoted.some((f) => quotes(f, session!.gzip))).toBe(true);
+    });
+
+    it('sizes every lazy chunk as measured', () => {
+        const rows = tablesOf(AV_PAGE)
+            .flat()
+            .filter((row) => row.length >= 2);
+        for (const chunk of av!.lazyArtifacts ?? []) {
+            const row = rows.find((cells) => cells[0] === chunk.name);
+            expect(row, `a row for ${chunk.name}`).toBeDefined();
+            const figure = row![1].replace(/^~/, '').replace(/ KB$/, '');
+            expect(
+                quotes(figure, chunk.gzip),
+                `${chunk.name}: ${row![1]}`,
+            ).toBe(true);
         }
     });
 });
