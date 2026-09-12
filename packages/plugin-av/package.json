@@ -1,6 +1,6 @@
 {
     "name": "@triiiceratops/plugin-av",
-    "version": "1.0.0-rc.0",
+    "version": "1.0.0",
     "type": "module",
     "description": "Audiovisual plugin for the triiiceratops IIIF viewer, authored on @triiiceratops/plugin-sdk. Claims time-based-media canvases and renders their media over the canvas rect.",
     "license": "MIT",
