@@ -350,26 +350,36 @@ test.describe('the hero', () => {
 
         const viewer = heroViewer(page).locator('.viewer-root');
         const gallery = viewer.locator('.gallery-root');
+        /*
+         * Moving the dock is animated: the band leaving the old edge is still
+         * mounted while the one arriving at the new edge slides in from beyond
+         * it. Until that settles there are two bands and the arriving one is
+         * still outside the hero, so what this screen is about — where the
+         * gallery comes to rest — is only readable once the transition is done.
+         */
+        await expect(gallery).toHaveCount(1);
         await expect(gallery).toBeVisible();
 
-        const bounds = await Promise.all([
-            viewer.boundingBox(),
-            gallery.boundingBox(),
-        ]);
-        expect(bounds[0]).not.toBeNull();
-        expect(bounds[1]).not.toBeNull();
-        const [viewerBounds, galleryBounds] = bounds as [
-            NonNullable<(typeof bounds)[0]>,
-            NonNullable<(typeof bounds)[1]>,
-        ];
-        expect(galleryBounds.x).toBeGreaterThanOrEqual(viewerBounds.x);
-        expect(galleryBounds.y).toBeGreaterThanOrEqual(viewerBounds.y);
-        expect(galleryBounds.x + galleryBounds.width).toBeLessThanOrEqual(
-            viewerBounds.x + viewerBounds.width,
-        );
-        expect(galleryBounds.y + galleryBounds.height).toBeLessThanOrEqual(
-            viewerBounds.y + viewerBounds.height,
-        );
+        await expect(async () => {
+            const bounds = await Promise.all([
+                viewer.boundingBox(),
+                gallery.boundingBox(),
+            ]);
+            expect(bounds[0]).not.toBeNull();
+            expect(bounds[1]).not.toBeNull();
+            const [viewerBounds, galleryBounds] = bounds as [
+                NonNullable<(typeof bounds)[0]>,
+                NonNullable<(typeof bounds)[1]>,
+            ];
+            expect(galleryBounds.x).toBeGreaterThanOrEqual(viewerBounds.x);
+            expect(galleryBounds.y).toBeGreaterThanOrEqual(viewerBounds.y);
+            expect(galleryBounds.x + galleryBounds.width).toBeLessThanOrEqual(
+                viewerBounds.x + viewerBounds.width,
+            );
+            expect(galleryBounds.y + galleryBounds.height).toBeLessThanOrEqual(
+                viewerBounds.y + viewerBounds.height,
+            );
+        }).toPass();
     });
 });
 

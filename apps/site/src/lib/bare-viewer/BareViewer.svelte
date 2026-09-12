@@ -32,19 +32,19 @@
     >;
 
     /*
-     * The locales the viewer has messages for. Core does not export this list,
-     * so it is named here; core exposing it would remove the duplication. It is
-     * the only place the app names a locale.
+     * The locales this host offers chrome in. Core ships only English inline;
+     * German is core's published `triiiceratops/locales/de.json` asset, which a
+     * host is the one to supply — see `config` below, where it is declared and
+     * fetched. The bundler needs that import specifier literal, so this list and
+     * that import are the two places the app names a locale.
      */
     const SUPPORTED_LOCALES = ['en', 'de'] as const;
     type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
     /*
-     * The reader's most preferred language the viewer can actually speak,
-     * matched on the primary subtag so `en-US` counts as `en`. A tag the viewer
-     * has no messages for must not be handed through: core's compiled messages
-     * end in their last locale rather than in a fallback, so `fr` would render
-     * German. English is the base locale and the default.
+     * The reader's most preferred language this host can supply chrome for,
+     * matched on the primary subtag so `en-US` counts as `en`. English is the
+     * base locale and the default.
      */
     function readerLocale(): SupportedLocale {
         const preferred = navigator.languages?.length
@@ -67,6 +67,16 @@
     const config: ViewerConfig = {
         locale: readerLocale(),
         controls: 'unified',
+        /*
+         * German declared as offerable so the language picker lists it, and
+         * fetched only for a reader who actually lands in it. The empty catalog
+         * is the declaration; `loadMessages` is what fills it.
+         */
+        messages: { de: {} },
+        loadMessages: async (locale) =>
+            locale === 'de'
+                ? (await import('triiiceratops/locales/de.json')).default
+                : undefined,
     };
 
     /*
