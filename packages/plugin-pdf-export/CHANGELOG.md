@@ -1,5 +1,25 @@
 # @triiiceratops/plugin-pdf-export
 
+## 1.0.0
+
+### Major Changes
+
+- 34742cb: `@triiiceratops/plugin-pdf-export` 1.0.
+
+    Migrated onto core's first-party image surface, reached through the
+    framework-neutral `triiiceratops/image-export` toolkit. With OpenSeadragon gone
+    from the viewer the `osd@5` capability goes too — the plugin declares no
+    `requiredCapabilities` and states compatibility with a `coreRange` floor alone.
+    An audiovisual canvas is recognised as unpaintable (`isUnsupportedCanvasFor`) and
+    left out of the document rather than pushed through the image pipeline.
+
+### Patch Changes
+
+- Updated dependencies [34742cb]
+- Updated dependencies [34742cb]
+    - @triiiceratops/plugin-sdk@1.0.0
+    - triiiceratops@1.0.0
+
 ## 1.0.0-rc.6
 
 ### Patch Changes
