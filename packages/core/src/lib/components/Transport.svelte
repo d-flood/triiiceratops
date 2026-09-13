@@ -48,12 +48,24 @@
         listOpen = false,
         /** Ask the bar to open or close the track list. */
         onListOpen,
+        /**
+         * Pictures of moments along the timeline, each at the second it stands
+         * for and under its own label, ascending. Hovering the scrubber shows
+         * the one covering the pointer. Empty renders no preview and costs no
+         * listener work.
+         */
+        keyframes = [],
     }: {
         chrome: RegisteredTransportChrome;
         openDown?: boolean;
         element?: HTMLDivElement | null;
         listOpen?: boolean;
         onListOpen?: (open: boolean) => void;
+        keyframes?: readonly {
+            seconds: number;
+            src: string;
+            label: string;
+        }[];
     } = $props();
 
     // Read on core's own cadence: the claimant already runs the cadences its
@@ -207,6 +219,71 @@
 
     /** Both ways a drag ends; capture releases implicitly with either. */
     const POINTER_END = ['pointerup', 'pointercancel'] as const;
+
+    /**
+     * Where the preview is being read from, as a fraction of the track: the
+     * pointer while it is over the scrubber, otherwise the playhead while the
+     * slider holds focus. The second is what makes the keyframes reachable
+     * without a pointer — arrow keys move the playhead, and the preview follows
+     * it — so the feature is not hover-only.
+     */
+    let hoverAt = $state<number | null>(null);
+    let focused = $state(false);
+
+    /** Where each keyframe sits on the track, as a fraction. */
+    let tickAts = $derived(
+        duration ? keyframes.map((frame) => frame.seconds / duration) : [],
+    );
+
+    /**
+     * The keyframe covering a moment: the last one at or before it, since a
+     * keyframe stands for the span it opens.
+     */
+    function frameAt(at: number) {
+        if (!duration) return null;
+        const seconds = at * duration;
+        let found: (typeof keyframes)[number] | null = null;
+        for (const frame of keyframes) {
+            if (frame.seconds > seconds) break;
+            found = frame;
+        }
+        return found;
+    }
+
+    let preview = $derived.by(() => {
+        const at = hoverAt ?? (focused ? view.fraction : null);
+        const frame = at === null ? null : frameAt(at);
+        return frame && at !== null ? { ...frame, at } : null;
+    });
+
+    /**
+     * The announced position, with the playhead's own keyframe named after it.
+     *
+     * The preview and the tick marks are decoration and carry no accessible
+     * name, so this is the only route by which a keyframe reaches assistive
+     * technology: it is read from the PLAYHEAD rather than from hover or focus,
+     * so every arrow key announces the keyframe it lands in.
+     */
+    let valueText = $derived.by(() => {
+        const label = frameAt(view.fraction)?.label;
+        return label ? `${view.positionText}, ${label}` : view.positionText;
+    });
+
+    /**
+     * Track the pointer along the scrubber. A touch pointer is removed after
+     * its up, which dispatches `pointerleave` too, so one handler clears the
+     * preview for touch and mouse alike.
+     */
+    function onScrubberHover(event: PointerEvent): void {
+        if (!keyframes.length) return;
+        const box = (
+            event.currentTarget as HTMLElement
+        ).getBoundingClientRect();
+        hoverAt =
+            box.width > 0
+                ? clamp((event.clientX - box.left) / box.width)
+                : null;
+    }
 
     /**
      * The track list, "off" included and first: turning tracks off is then the
@@ -376,7 +453,8 @@
             A real slider, not a styled div with a click handler: arrow and page
             keys, an announced position, and a focus ring are the accessibility
             contract. `aria-valuetext` carries a clock reading because "127" is
-            not a position a listener can place.
+            not a position a listener can place, and the keyframe covering that
+            moment where the recording offers them.
         -->
         <div
             class="scrubber"
@@ -388,9 +466,13 @@
             aria-valuemin={0}
             aria-valuemax={max}
             aria-valuenow={Math.min(view.currentTime, max)}
-            aria-valuetext={view.positionText}
+            aria-valuetext={valueText}
             onkeydown={onScrubberKeydown}
             onpointerdown={onScrubberPointerdown}
+            onpointermove={onScrubberHover}
+            onpointerleave={() => (hoverAt = null)}
+            onfocus={() => (focused = true)}
+            onblur={() => (focused = false)}
         >
             <div class="track">
                 <!--
@@ -420,7 +502,25 @@
                     class="fill played"
                     style="width:{view.fraction * 100}%"
                 ></div>
+                <!--
+                    Where the keyframes are, so a reader can see the recording
+                    offers them without first hovering to find out.
+                -->
+                {#each tickAts as at (at)}
+                    <div class="fill tick" style="left:{at * 100}%"></div>
+                {/each}
                 <div class="thumb" style="left:{view.fraction * 100}%"></div>
+                {#if preview}
+                    <div
+                        class="preview"
+                        aria-hidden="true"
+                        style="left:{preview.at * 100}%"
+                    >
+                        <img src={preview.src} alt="" />
+                        <!-- The range's own label; `:empty` hides an unlabelled one. -->
+                        <span class="preview-label">{preview.label}</span>
+                    </div>
+                {/if}
             </div>
         </div>
 
@@ -600,6 +700,46 @@
         position: absolute;
         inset-block: 0;
         border-radius: inherit;
+    }
+
+    /* A keyframe's place on the track, under the playhead thumb. */
+    .tick {
+        width: 2px;
+        transform: translateX(-1px);
+        background: color-mix(in oklab, currentColor 55%, transparent);
+    }
+
+    /* Above the track and out of the way of the pointer driving it. The
+       neutral pair is the tooltip's, so the caption keeps its contrast over
+       whatever the media happens to be showing behind it. */
+    .preview {
+        position: absolute;
+        bottom: 100%;
+        margin-bottom: 0.75rem;
+        width: 8rem;
+        padding: 0.25rem;
+        transform: translateX(-50%);
+        background-color: var(--tri-color-neutral);
+        color: var(--tri-color-neutral-content);
+        border-radius: var(--tri-radius-box);
+        pointer-events: none;
+    }
+    .preview img {
+        display: block;
+        width: 100%;
+    }
+    .preview-label {
+        display: block;
+        padding-top: 0.125rem;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        text-align: center;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .preview-label:empty {
+        display: none;
     }
     /* Stretched to the track rather than tiled: the strip is one rendering of
        the whole recording, so its x axis IS the scrubber's, at whatever width

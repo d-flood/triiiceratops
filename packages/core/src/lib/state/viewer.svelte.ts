@@ -66,7 +66,11 @@ import type {
     PluginUiTarget,
     IconDescriptor,
 } from '../types/plugin';
-import { parseStructures, type StructureNode } from '../utils/structures';
+import {
+    parseStructures,
+    tableOfContentsRanges,
+    type StructureNode,
+} from '../utils/structures';
 import { collectManifestLocales } from '../utils/manifestLocales';
 import {
     isCollection,
@@ -2521,8 +2525,10 @@ export class ViewerState {
 
     /** The ranges that are a table of contents rather than a sequence. */
     get nonSequenceStructures(): StructureNode[] {
-        return this.structures.filter(
-            (node) => !node.behaviors.includes('sequence'),
+        return tableOfContentsRanges(
+            this.structures.filter(
+                (node) => !node.behaviors.includes('sequence'),
+            ),
         );
     }
 

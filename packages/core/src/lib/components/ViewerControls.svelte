@@ -1,6 +1,7 @@
 <script lang="ts">
     import { getContext, untrack } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
+    import { thumbnailNavKeyframes } from '../utils/structures';
     import { manifestsState } from '../state/manifests.svelte';
     import Icon from './Icon.svelte';
     import type { IconName } from '../generated/icons';
@@ -137,6 +138,15 @@
             ? (viewerState.transportChrome[0] ?? null)
             : null,
     );
+    // `thumbnail-nav` ranges, as keyframes for the scrubber to preview on hover
+    // — the visual navigation the behavior asks for, which the table of contents
+    // deliberately does not show. Empty for every manifest that declares none.
+    let transportKeyframes = $derived(
+        transportChrome
+            ? thumbnailNavKeyframes(viewerState.structures, currentCanvasId)
+            : [],
+    );
+
     // The bar can be docked to the top edge, where anything that opens or points
     // upwards — a track list, a hover tooltip — would land off the viewer.
     let dockedTop = $derived(viewerState.config.nav?.edge === 'top');
@@ -654,6 +664,7 @@
                  leaves no empty group holding a width floor open. -->
             <Transport
                 chrome={transportChrome}
+                keyframes={transportKeyframes}
                 openDown={dockedTop}
                 bind:element={transportEl}
                 listOpen={trackListOpen}

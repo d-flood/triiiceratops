@@ -641,4 +641,178 @@ describe('ViewerControls transport chrome', () => {
         expect(subscribeCalls).toBe(afterMount);
         expect(listeners.size).toBe(afterMount);
     });
+    /**
+     * Keyframe previews (`thumbnail-nav`, Cookbook 0229). The keyframes reach
+     * the transport from the manifest's own ranges through the control bar, so
+     * the manifest is loaded on the same real `ViewerState` the chrome is
+     * registered on.
+     */
+    describe('keyframe previews on the scrubber', () => {
+        const MANIFEST_ID = 'https://example.org/iiif/lecture';
+        const CANVAS_ID = `${MANIFEST_ID}/canvas/1`;
+        const THUMB = (at: number) => `https://example.org/thumb/${at}.png`;
+
+        /** One canvas, and a `thumbnail-nav` range of keyframes over it. */
+        async function loadKeyframeManifest() {
+            await state.setManifestData(MANIFEST_ID, {
+                '@context': 'http://iiif.io/api/presentation/3/context.json',
+                id: MANIFEST_ID,
+                type: 'Manifest',
+                label: { en: ['Lecture'] },
+                items: [
+                    {
+                        id: CANVAS_ID,
+                        type: 'Canvas',
+                        duration: 100,
+                        items: [],
+                    },
+                ],
+                structures: [
+                    {
+                        id: `${MANIFEST_ID}/range/nav`,
+                        type: 'Range',
+                        behavior: ['thumbnail-nav'],
+                        items: [0, 50].map((at) => ({
+                            id: `${MANIFEST_ID}/range/${at}`,
+                            type: 'Range',
+                            label: { en: [`${at}s – 100s`] },
+                            thumbnail: THUMB(at),
+                            items: [
+                                {
+                                    id: `${CANVAS_ID}#t=${at},100`,
+                                    type: 'Canvas',
+                                },
+                            ],
+                        })),
+                    },
+                ],
+            });
+            flushSync();
+        }
+
+        /** The scrubber, with a measurable track so a pointer maps to a fraction. */
+        function scrubber() {
+            const element = testId('transport-scrubber') as HTMLElement;
+            element.getBoundingClientRect = () =>
+                ({ left: 0, width: 200 }) as DOMRect;
+            return element;
+        }
+
+        function hover(clientX: number) {
+            scrubber().dispatchEvent(
+                new PointerEvent('pointermove', { clientX, bubbles: true }),
+            );
+            flushSync();
+        }
+
+        const previewSrc = () =>
+            (document.querySelector('.preview img') as HTMLImageElement | null)
+                ?.src;
+
+        const previewLabel = () =>
+            document.querySelector('.preview-label')?.textContent;
+
+        it('marks where the keyframes are without being asked', async () => {
+            await loadKeyframeManifest();
+            claim(makeView());
+            render();
+
+            // Visible before any hover: a reader can see the recording offers
+            // them at all.
+            const ticks = [...document.querySelectorAll('.tick')];
+            expect(
+                ticks.map((tick) => (tick as HTMLElement).style.left),
+            ).toEqual(['0%', '50%']);
+        });
+
+        it('previews the keyframe covering the pointer', async () => {
+            await loadKeyframeManifest();
+            claim(makeView());
+            render();
+
+            expect(previewSrc()).toBeUndefined();
+
+            // 60% of a 100s timeline is 60s, which the keyframe at 50s covers.
+            hover(120);
+            expect(previewSrc()).toBe(THUMB(50));
+
+            // 20% is 20s, still inside the keyframe that opens at 0s.
+            hover(40);
+            expect(previewSrc()).toBe(THUMB(0));
+        });
+
+        it('captions the preview with the range’s own label', async () => {
+            await loadKeyframeManifest();
+            claim(makeView());
+            render();
+
+            hover(120);
+            expect(previewLabel()).toBe('50s – 100s');
+
+            hover(40);
+            expect(previewLabel()).toBe('0s – 100s');
+        });
+
+        it('clears the preview when the pointer leaves', async () => {
+            await loadKeyframeManifest();
+            claim(makeView());
+            render();
+
+            hover(120);
+            scrubber().dispatchEvent(
+                new PointerEvent('pointerleave', { bubbles: true }),
+            );
+            flushSync();
+
+            expect(previewSrc()).toBeUndefined();
+        });
+
+        it('previews the playhead’s own keyframe for a keyboard reader', async () => {
+            await loadKeyframeManifest();
+            // The playhead at 75s, which the keyframe at 50s covers.
+            claim(makeView({ currentTime: 75, fraction: 0.75 }));
+            render();
+
+            scrubber().dispatchEvent(
+                new FocusEvent('focus', { bubbles: false }),
+            );
+            flushSync();
+            // Reaching the scrubber by Tab is enough to see where the playhead
+            // stands; no pointer is involved.
+            expect(previewSrc()).toBe(THUMB(50));
+
+            scrubber().dispatchEvent(
+                new FocusEvent('blur', { bubbles: false }),
+            );
+            flushSync();
+            expect(previewSrc()).toBeUndefined();
+        });
+
+        it('announces the keyframe the playhead stands in', async () => {
+            await loadKeyframeManifest();
+            // The playhead at 75s of 100s, which the keyframe at 50s covers.
+            claim(makeView({ currentTime: 75, fraction: 0.75 }));
+            render();
+
+            // The preview and the ticks are decoration; this is the only route
+            // by which a keyframe reaches assistive technology.
+            expect(
+                testId('transport-scrubber')!.getAttribute('aria-valuetext'),
+            ).toBe('0:25 of 1:40, 50s – 100s');
+        });
+
+        it('renders nothing extra for a manifest with no keyframes', () => {
+            claim(makeView());
+            render();
+
+            hover(120);
+            expect(document.querySelector('.tick')).toBeNull();
+            expect(previewSrc()).toBeUndefined();
+            // The announced position is untouched where nothing offers
+            // keyframes, which is every manifest that declares none.
+            expect(
+                testId('transport-scrubber')!.getAttribute('aria-valuetext'),
+            ).toBe('0:25 of 1:40');
+        });
+    });
 });
