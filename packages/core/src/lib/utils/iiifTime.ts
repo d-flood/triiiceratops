@@ -69,3 +69,33 @@ export function parseIiifTime(value: string): IiifTemporalFragment | null {
     // endSeconds is carried, never validated against the start (spec fence).
     return end === null ? { seconds } : { seconds, endSeconds: end };
 }
+
+/**
+ * A clock reading for a media position: `m:ss`, widening to `h:mm:ss` only when
+ * the piece actually runs an hour.
+ *
+ * `total` decides the shape rather than `seconds` alone, so a 90-minute
+ * recording reads `0:04:12` from its first minute instead of jumping from
+ * `4:12` to `1:00:00` mid-playback and shifting the layout under the reader.
+ * A position with no known duration formats to `--:--`, which is what the
+ * readout shows before metadata lands.
+ */
+export function formatMediaTime(
+    seconds: number | null,
+    total: number | null = seconds,
+): string {
+    if (seconds === null || !Number.isFinite(seconds) || seconds < 0)
+        return '--:--';
+
+    const whole = Math.floor(seconds);
+    const withHours =
+        total !== null && Number.isFinite(total)
+            ? total >= 3600
+            : whole >= 3600;
+
+    const secondsPart = String(whole % 60).padStart(2, '0');
+    const minutes = Math.floor(whole / 60);
+    if (!withHours) return `${minutes}:${secondsPart}`;
+
+    return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${secondsPart}`;
+}

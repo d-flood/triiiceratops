@@ -10,6 +10,8 @@ import { asArray } from './iiifParsing';
 import {
     extractIiifTargetId,
     getIiifCanvasId,
+    normalizeIiifTargets,
+    parseIiifSelectorTime,
     parseIiifTime,
     parseIiifXywh,
     toCanvasRegion,
@@ -112,6 +114,35 @@ function parseTarget(
 }
 
 /**
+ * The view inside the manifest: the Canvas, and the region or time named on it.
+ *
+ * A `SpecificResource` target names those in a `selector` rather than on the
+ * Canvas id's fragment, so the normalized target — which reads a selector and a
+ * fragment alike — decides whenever the target is an object. A string target
+ * has neither and keeps the fragment path to itself.
+ */
+function parseAnnotationTarget(
+    target: unknown,
+    targetId: string | undefined,
+): Pick<ContentStateTarget, 'canvasId' | 'region' | 'time'> {
+    const fromId = targetId ? parseTarget(targetId) : {};
+    if (!isRecord(target)) return fromId;
+
+    const [normalized] = normalizeIiifTargets(target);
+    if (!normalized) return fromId;
+
+    const time = normalized.selectors
+        .map((selector) => parseIiifSelectorTime(selector))
+        .find((value): value is IiifTemporalFragment => !!value);
+
+    return {
+        ...fromId,
+        region: toCanvasRegion(normalized.xywh) ?? fromId.region,
+        time: time ?? fromId.time,
+    };
+}
+
+/**
  * The Manifest a `partOf` names. An array may list the Canvas's whole
  * containment chain (a Manifest inside a Collection), so the Manifest-typed
  * entry wins. An array whose entries declare no type at all degrades to the
@@ -208,15 +239,25 @@ function resolveAnnotation(document: JsonRecord): ContentStateTarget | null {
         return targetId ? { manifestId: targetId } : null;
     }
 
+    /*
+     * A `SpecificResource` target names the Canvas through `source`, so its
+     * `partOf` hangs off the source rather than the target — the shape of
+     * Content State API example 5.2 and of Cookbook recipe 0306. Reading only
+     * `target.partOf` finds nothing there and loses the manifest, which is the
+     * one field the resolution cannot proceed without.
+     */
     const manifestId =
         (isRecord(target) ? manifestIdFrom(target.partOf) : undefined) ??
+        (isRecord(target) && isRecord(target.source)
+            ? manifestIdFrom(target.source.partOf)
+            : undefined) ??
         manifestIdFrom(document.partOf);
 
     if (!manifestId) return null;
 
     return {
         manifestId,
-        ...(targetId ? parseTarget(targetId) : {}),
+        ...parseAnnotationTarget(target, targetId),
     };
 }
 

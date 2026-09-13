@@ -86,6 +86,18 @@ describe('contentState', () => {
         });
     });
 
+    it('resolves the Manifest from a SpecificResource target’s source.partOf', () => {
+        const { input } = fixture('specific-resource-source-partof');
+
+        expect(parseContentState(input)).toEqual({
+            manifestId:
+                'https://iiif.io/api/cookbook/recipe/0306-linking-annotations-to-manifests/manifest.json',
+            canvasId:
+                'https://iiif.io/api/cookbook/recipe/0306-linking-annotations-to-manifests/canvas-1',
+            region: { x: 300, y: 800, width: 1200, height: 1200 },
+        });
+    });
+
     it('does not hand back a Collection as the manifest id', () => {
         const { input } = fixture('partof-array-no-manifest');
 

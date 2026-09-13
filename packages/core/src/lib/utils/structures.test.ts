@@ -4,6 +4,8 @@ import {
     getSequenceNodeIndexById,
     isStructureNodeActive,
     parseStructures,
+    tableOfContentsRanges,
+    thumbnailNavKeyframes,
 } from './structures';
 
 describe('structures helpers', () => {
@@ -378,5 +380,152 @@ describe('structure canvas regions', () => {
 
         expect(node.canvasIds).toEqual([]);
         expect(node.canvasRegions).toEqual([]);
+    });
+});
+
+/**
+ * Cookbook 0229's two range behaviors. Both keep a range out of the table of
+ * contents — `no-nav` because it must not be navigated to at all, and
+ * `thumbnail-nav` because the spec tells clients not to render it as one.
+ */
+describe('navigation behaviors on ranges', () => {
+    const manifest = {
+        structures: [
+            {
+                id: 'range-nav',
+                type: 'Range',
+                behavior: ['thumbnail-nav'],
+                label: { en: ['Thumbnail Navigation'] },
+                items: [
+                    {
+                        id: 'range-title-card',
+                        type: 'Range',
+                        behavior: ['no-nav'],
+                        items: [{ id: 'canvas-1#t=0,9', type: 'Canvas' }],
+                    },
+                    {
+                        id: 'range-chapter',
+                        type: 'Range',
+                        label: { en: ['9s – 305s'] },
+                        thumbnail: [
+                            {
+                                id: 'https://example.org/thumb/9.png',
+                                type: 'Image',
+                                format: 'image/png',
+                            },
+                        ],
+                        items: [{ id: 'canvas-1#t=9,305', type: 'Canvas' }],
+                    },
+                ],
+            },
+            { id: 'range-toc', type: 'Range', items: [] },
+        ],
+    };
+
+    it('keeps a `thumbnail-nav` range out of the table of contents', () => {
+        expect(
+            tableOfContentsRanges(parseStructures(manifest)).map(
+                (node) => node.id,
+            ),
+        ).toEqual(['range-toc']);
+    });
+
+    it('drops a `no-nav` range and its descendants', () => {
+        const toc = tableOfContentsRanges(
+            parseStructures({
+                structures: [
+                    {
+                        id: 'range-hidden',
+                        type: 'Range',
+                        behavior: ['no-nav'],
+                        items: [
+                            {
+                                id: 'range-hidden-child',
+                                type: 'Range',
+                                items: [],
+                            },
+                        ],
+                    },
+                    { id: 'range-shown', type: 'Range', items: [] },
+                ],
+            }),
+        );
+
+        expect(toc.map((node) => node.id)).toEqual(['range-shown']);
+    });
+
+    it('offers the thumbnailed children as keyframes, at their own start', () => {
+        expect(
+            thumbnailNavKeyframes(parseStructures(manifest), 'canvas-1'),
+        ).toEqual([
+            {
+                seconds: 9,
+                src: 'https://example.org/thumb/9.png',
+                label: '9s – 305s',
+            },
+        ]);
+    });
+
+    it('offers no keyframe for a `no-nav` child, thumbnail or not', () => {
+        const frames = thumbnailNavKeyframes(
+            parseStructures({
+                structures: [
+                    {
+                        id: 'range-nav',
+                        type: 'Range',
+                        behavior: ['thumbnail-nav'],
+                        items: [
+                            {
+                                id: 'range-title-card',
+                                type: 'Range',
+                                behavior: ['no-nav'],
+                                thumbnail: 'https://example.org/thumb/0.png',
+                                items: [
+                                    { id: 'canvas-1#t=0,9', type: 'Canvas' },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            }),
+            'canvas-1',
+        );
+
+        // The strip is navigation, and `no-nav` means no navigation to it.
+        expect(frames).toEqual([]);
+    });
+
+    it('offers no keyframes for a canvas the range does not cover', () => {
+        expect(
+            thumbnailNavKeyframes(parseStructures(manifest), 'canvas-2'),
+        ).toEqual([]);
+    });
+
+    it('sorts keyframes by time, whatever order they are authored in', () => {
+        const frames = thumbnailNavKeyframes(
+            parseStructures({
+                structures: [
+                    {
+                        id: 'range-nav',
+                        type: 'Range',
+                        behavior: ['thumbnail-nav'],
+                        items: [30, 10, 20].map((start) => ({
+                            id: `range-${start}`,
+                            type: 'Range',
+                            thumbnail: `https://example.org/thumb/${start}.png`,
+                            items: [
+                                {
+                                    id: `canvas-1#t=${start},${start + 10}`,
+                                    type: 'Canvas',
+                                },
+                            ],
+                        })),
+                    },
+                ],
+            }),
+            'canvas-1',
+        );
+
+        expect(frames.map((frame) => frame.seconds)).toEqual([10, 20, 30]);
     });
 });

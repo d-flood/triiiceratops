@@ -44,7 +44,10 @@
     user-select: none;
     grid-auto-columns: minmax(auto, max-content) auto max-content;
     grid-auto-flow: column;
-    align-content: flex-start;
+    /* Centres the row track in any spare height the coarse-pointer min-height
+       below opens up; packing it to the start left the glyph riding high in a
+       44px target on touch devices. */
+    align-content: center;
     align-items: center;
     gap: 0.5rem;
     padding-block: 0.25rem;

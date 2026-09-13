@@ -73,7 +73,7 @@ export function recipeNumber(recipe: CookbookRecipe): string {
 
 /**
  * The Cookbook [support matrix](https://iiif.io/api/cookbook/recipe/matrix/)
- * deduplicated to its 67 distinct recipes.
+ * deduplicated to its 68 distinct recipes.
  */
 export const COOKBOOK_RECIPES: CookbookRecipe[] = [
     {
@@ -638,10 +638,9 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0306-linking-annotations-to-manifests/manifest.json',
         group: 'annotations',
-        support: 'unsupported',
+        support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The Cookbook support matrix records no support for this recipe.',
     },
     {
         id: '0309-annotation-collection',
@@ -758,5 +757,16 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         support: 'supported',
         requiresPluginAv: false,
         matrixSupport: false,
+    },
+    {
+        id: '0608-mvm-3d',
+        name: 'Simplest Manifest - Single 3D Model',
+        manifestUrl:
+            'https://iiif.io/api/cookbook/recipe/0608-mvm-3d/v4/manifest.json',
+        group: 'basic',
+        support: 'unsupported',
+        requiresPluginAv: false,
+        matrixSupport: false,
+        reason: 'The manifest is Presentation API 4: its canvas is a `Scene` painted by a `Model` body (glTF). This viewer implements Presentation 3 and renders images and time-based media, so there is no scene to draw.',
     },
 ];
