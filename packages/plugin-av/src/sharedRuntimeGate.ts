@@ -4,7 +4,7 @@
  *
  * This plugin bundles neither Svelte nor core's own utilities; its compiled
  * components call helpers off `window.Triiiceratops.svelteInternal` and its
- * modules read five functions off `window.Triiiceratops.core` (see
+ * modules read core's curated utilities off `window.Triiiceratops.core` (see
  * `vite.config.ts`). Those references
  * happen at MODULE scope — a compiled component's `$.from_html(...)` template
  * constant is evaluated when the script is evaluated — so by the time
@@ -61,6 +61,7 @@ export const REQUIRED_SVELTE_INTERNALS: readonly string[] = [
  */
 export const REQUIRED_CORE_UTILS: readonly string[] = [
     'companionPaintable',
+    'formatMediaTime',
     'getPaintingAnnotations',
     'isImageBody',
     'isUnsupportedCanvasFor',

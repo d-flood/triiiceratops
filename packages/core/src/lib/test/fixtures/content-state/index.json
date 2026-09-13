@@ -116,6 +116,27 @@
             }
         },
         {
+            "id": "specific-resource-source-partof",
+            "file": "specific-resource-source-partof.json",
+            "encoding": "json",
+            "row": "target-object",
+            "form": "Annotation, `target` a `SpecificResource` naming the Canvas through `source`",
+            "resolvesVia": "`target.source.partOf` names the Manifest; the `FragmentSelector` names the region",
+            "source": "IIIF Content State API 1.0 example 5.2, whose shape cookbook recipe 0306 publishes; the target is copied from that recipe's annotationpage.json with the content-state motivation added",
+            "recipe": "0306-linking-annotations-to-manifests",
+            "capturedAt": "2026-09-13",
+            "expected": {
+                "manifestId": "https://iiif.io/api/cookbook/recipe/0306-linking-annotations-to-manifests/manifest.json",
+                "canvasId": "https://iiif.io/api/cookbook/recipe/0306-linking-annotations-to-manifests/canvas-1",
+                "region": {
+                    "x": 300,
+                    "y": 800,
+                    "width": 1200,
+                    "height": 1200
+                }
+            }
+        },
+        {
             "id": "object-target-time",
             "file": "object-target-time.json",
             "encoding": "json",

@@ -49,16 +49,18 @@ describe('cookbook recipe catalog consistency', () => {
             expect(recipe.id).toMatch(/^\d{4}-\S+$/);
             expect(recipeNumber(recipe)).toMatch(/^\d{4}$/);
             expect(recipe.name.trim()).not.toBe('');
+            // A recipe may publish its manifest under a subdirectory of its own
+            // path, as `0608-mvm-3d` does for the Presentation 4 draft.
             expect(recipe.manifestUrl).toMatch(
                 new RegExp(
-                    `^https://iiif\\.io/api/cookbook/recipe/${recipe.id}/[\\w-]+\\.json$`,
+                    `^https://iiif\\.io/api/cookbook/recipe/${recipe.id}/(?:[\\w-]+/)*[\\w-]+\\.json$`,
                 ),
             );
         }
     });
 
-    it('covers the 67 recipes the support matrix deduplicates to', () => {
-        expect(COOKBOOK_RECIPES).toHaveLength(67);
+    it('covers the 68 recipes the support matrix deduplicates to', () => {
+        expect(COOKBOOK_RECIPES).toHaveLength(68);
     });
 
     it("audiovisual group is exactly PROVENANCE.md's 15 ids", () => {

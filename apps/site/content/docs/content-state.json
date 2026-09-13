@@ -2106,6 +2106,13 @@
 						"capturedAt": "2026-08-20"
 					},
 					{
+						"form": "Annotation, `target` a `SpecificResource` naming the Canvas through `source`",
+						"resolvesVia": "`target.source.partOf` names the Manifest; the `FragmentSelector` names the region",
+						"file": "specific-resource-source-partof.json",
+						"recipe": "0306-linking-annotations-to-manifests",
+						"capturedAt": "2026-09-13"
+					},
+					{
 						"form": "Annotation, `target` as object carrying a `#t=` media time",
 						"resolvesVia": "The fragment on `target.id`, through the shared IIIF target helpers",
 						"file": "object-target-time.json",

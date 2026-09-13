@@ -1665,6 +1665,19 @@
 				},
 				{
 					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "formatMediaTime",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
 					"text": " and "
 				},
 				{

@@ -105,6 +105,7 @@ describe('the shared core utilities', () => {
         const shared = window.Triiiceratops!.core;
         expect(Object.keys(shared).sort()).toEqual([
             'companionPaintable',
+            'formatMediaTime',
             'getPaintingAnnotations',
             'isImageBody',
             'isUnsupportedCanvasFor',

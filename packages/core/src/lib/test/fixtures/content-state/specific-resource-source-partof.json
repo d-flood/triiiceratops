@@ -1,0 +1,24 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "https://iiif.io/api/cookbook/recipe/0306-linking-annotations-to-manifests/canvas-1/annopage-2/anno-1",
+    "type": "Annotation",
+    "motivation": ["contentState"],
+    "target": {
+        "type": "SpecificResource",
+        "source": {
+            "id": "https://iiif.io/api/cookbook/recipe/0306-linking-annotations-to-manifests/canvas-1",
+            "type": "Canvas",
+            "partOf": [
+                {
+                    "id": "https://iiif.io/api/cookbook/recipe/0306-linking-annotations-to-manifests/manifest.json",
+                    "type": "Manifest"
+                }
+            ]
+        },
+        "selector": {
+            "type": "FragmentSelector",
+            "conformsTo": "http://www.w3.org/TR/media-frags/",
+            "value": "xywh=300,800,1200,1200"
+        }
+    }
+}

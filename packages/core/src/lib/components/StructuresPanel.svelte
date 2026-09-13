@@ -5,6 +5,7 @@
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages } from '../state/i18n.svelte';
     import type { StructureNode } from '../utils/structures';
+    import { formatMediaTime } from '../utils/iiifTime';
     import { Button } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
@@ -56,21 +57,18 @@
         }
     }
 
-    function formatTime(seconds: number): string {
-        const whole = Math.floor(seconds);
-        const secondsPart = String(whole % 60).padStart(2, '0');
-        const minutes = Math.floor(whole / 60);
-        return `${minutes}:${secondsPart}`;
-    }
-
-    /** The range's own `#t=` span, or null where it targets no time. */
+    /**
+     * The range's own `#t=` span, or null where it targets no time. The span's
+     * end sets the clock shape for both bounds, so a range that ends past the
+     * hour reads `0:55:05 – 1:02:10` rather than mixing widths mid-span.
+     */
     function formatSpan(node: StructureNode): string | null {
         const time = node.canvasTimes.find((entry) => entry !== null);
         if (!time) return null;
-        const start = formatTime(time.seconds);
+        const start = formatMediaTime(time.seconds, time.endSeconds);
         return time.endSeconds === undefined || time.endSeconds <= time.seconds
             ? start
-            : `${start} – ${formatTime(time.endSeconds)}`;
+            : `${start} – ${formatMediaTime(time.endSeconds)}`;
     }
 
     function isActive(node: StructureNode): boolean {
