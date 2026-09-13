@@ -244,15 +244,18 @@
             .join(' '),
     );
 
-    // Inside a nav bar aligned to the inline-start screen edge the leading
-    // button hugs that edge, so its centred bubble would overflow the viewer.
-    // The shared tooltip sheet re-anchors it; only this component knows which
-    // button is the leading one.
-    const leadTooltipEdge = $derived(
-        inline && viewerState.config.nav?.align === 'start'
-            ? 'tt-edge-start'
-            : '',
-    );
+    // The unified bar's leading button can hug the viewer's inline-start edge —
+    // when the nav is start-aligned, and when a registered transport stretches
+    // the bar full width — where its centred bubble overflows and is clipped.
+    // The shared tooltip sheet re-anchors it to the button's start edge; only
+    // this component knows which button leads.
+    //
+    // Applied whenever inline rather than only when the bar reaches that edge,
+    // because CSS cannot ask whether the bubble would fit. The cost on a centred
+    // pill is a start-aligned bubble instead of a centred one, a fair trade
+    // against clipped text where it is not. `navEdgeClass` in ViewerControls
+    // anchors the bar's trailing control on the same terms.
+    const leadTooltipEdge = $derived(inline ? 'tt-edge-start' : '');
 
     // --- Standard Viewer Actions ---
     const toolbarConfig = $derived(viewerState.config.toolbar || {});
@@ -1109,8 +1112,12 @@
          expand out to its left. Only in `inline` mode; the floating/side/docked
          layouts use the handle or the in-menu close button instead. -->
     {#if inline && viewerState.showToggle}
+        <!-- Closed, the action group beside it has collapsed to zero width and
+             this button is what hugs the bar's inline-start edge, so it takes
+             the leading button's tooltip correction. -->
         <button
             class="tri-menu-item inline-toggle tooltip {tooltipPlacement}"
+            class:tt-edge-start={!isOpen}
             data-tip={isOpen ? m.close_menu() : m.open_menu()}
             aria-label={isOpen ? m.close_menu() : m.open_menu()}
             aria-expanded={isOpen}
