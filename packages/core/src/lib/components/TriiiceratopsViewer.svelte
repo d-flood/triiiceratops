@@ -304,6 +304,29 @@
 
     let rootElement: HTMLElement | undefined = $state();
 
+    /**
+     * Below this viewer width a side panel column would leave the center
+     * column — and the control bar in it — too little room to lay out, so open
+     * panels dock as a band under the canvas instead (see `panelsAsBand`).
+     * A width of 0 is an unmeasured viewer (no layout engine, or not yet
+     * observed), which keeps the side columns.
+     */
+    const PANEL_BAND_MAX_WIDTH_PX = 640;
+    let rootWidth = $state(0);
+    $effect(() => {
+        const el = rootElement;
+        if (!el) return;
+        const ro = new ResizeObserver(([entry]) => {
+            rootWidth = entry.contentRect.width;
+        });
+        ro.observe(el);
+        rootWidth = el.getBoundingClientRect().width;
+        return () => ro.disconnect();
+    });
+    let panelsAsBand = $derived(
+        rootWidth > 0 && rootWidth < PANEL_BAND_MAX_WIDTH_PX,
+    );
+
     // One memory per viewer, torn down with it: a control this viewer's chrome
     // destroyed must never be something ANOTHER viewer on the page acts on, and
     // the remembered node is usually detached, so holding it past unmount would
@@ -1225,6 +1248,15 @@
     let visiblePanelsRight = $derived.by(() => buildPanels('right'));
 
     /**
+     * On a narrow viewer every open panel, whichever column it is configured
+     * for, shares one band under the canvas: there is no room for two columns
+     * and the stack already handles several panels at once.
+     */
+    let bandPanels = $derived(
+        panelsAsBand ? [...visiblePanelsLeft, ...visiblePanelsRight] : [],
+    );
+
+    /**
      * The gallery, expanded to fill the center column as a thumbnail grid. It
      * renders in exactly one place — the `.gallery-expanded` overlay — so the
      * docked render sites below all stand down while it is up. Two mounted
@@ -1274,17 +1306,19 @@
 
     let isLeftSidebarVisible = $derived(
         (galleryDocked && internalViewerState.dockSide === 'left') ||
-            visiblePanelsLeft.length > 0,
+            (!panelsAsBand && visiblePanelsLeft.length > 0),
     );
 
     let isRightSidebarVisible = $derived(
         (galleryDocked && internalViewerState.dockSide === 'right') ||
-            visiblePanelsRight.length > 0,
+            (!panelsAsBand && visiblePanelsRight.length > 0),
     );
 
     // The toolbar docks as the screen-edge rail of a side bar when it shares that
     // side with an open panel/gallery. Only `split` controls use a side toolbar;
-    // `unified` embeds the tools in the nav bar.
+    // `unified` embeds the tools in the nav bar. The narrow-viewer panel band
+    // docks it too: the band halves the canvas, and the floating toolbar cannot
+    // scroll, where the rail runs the viewer's full height and can.
     //
     // The rail is its OWN screen-edge column (a sibling of the panel column, not
     // a child of it — see the markup), and it slides open and shut on the same
@@ -1297,13 +1331,13 @@
         resolvedControls === 'split' &&
             toolbarSide === 'left' &&
             internalViewerState.toolbarOpen &&
-            isLeftSidebarVisible,
+            (isLeftSidebarVisible || bandPanels.length > 0),
     );
     let dockRailRight = $derived(
         resolvedControls === 'split' &&
             toolbarSide === 'right' &&
             internalViewerState.toolbarOpen &&
-            isRightSidebarVisible,
+            (isRightSidebarVisible || bandPanels.length > 0),
     );
     let toolbarDockedAsRail = $derived(dockRailLeft || dockRailRight);
 
@@ -1662,7 +1696,7 @@
 {#snippet sideColumn(side: 'left' | 'right')}
     {@const panels = side === 'left' ? visiblePanelsLeft : visiblePanelsRight}
     <div class="side-col side-col-{side}" class:opaque>
-        {#if panels.length > 0}
+        {#if !panelsAsBand && panels.length > 0}
             <div
                 class="panel-host"
                 style="width: {side === 'left'
@@ -1683,6 +1717,22 @@
         {#if galleryDocked && internalViewerState.dockSide === side}
             {@render galleryRail()}
         {/if}
+    </div>
+{/snippet}
+
+<!-- The narrow-viewer panel band (see `panelsAsBand`): the open panels under
+     the canvas, so the control bar keeps the viewer's full width. -->
+{#snippet panelBand()}
+    <div
+        class="panel-band"
+        class:opaque
+        transition:slideAxis|global={{ axis: 'height' }}
+    >
+        <PanelStack
+            panels={bandPanels}
+            closeAlign={dockRailRight ? 'start' : 'end'}
+            side="bottom"
+        />
     </div>
 {/snippet}
 
@@ -1894,6 +1944,10 @@
             <ViewerControls />
         </div>
 
+        {#if bandPanels.length > 0}
+            {@render panelBand()}
+        {/if}
+
         {#if galleryDocked && internalViewerState.dockSide === 'bottom'}
             {@render galleryBand()}
         {/if}
@@ -2005,6 +2059,24 @@
         isolation: isolate;
         pointer-events: auto;
     }
+    /* Half the viewer, so the canvas above stays a usable target while a panel
+       is read. Wide enough for the control bar to hold one row; the panels
+       scroll inside. */
+    .panel-band {
+        flex: none;
+        height: 50%;
+        min-height: 0;
+        width: 100%;
+        position: relative;
+        isolation: isolate;
+        pointer-events: auto;
+        z-index: 20;
+        border-top: 1px solid var(--tri-surface-border);
+    }
+    .panel-band.opaque {
+        background-color: var(--tri-viewer-bg);
+    }
+
     /* Only the docked gallery rail uses this host, and its width is `gallery.size`
        (published as `--ui-gallery-rail`) plus the gallery's own themeable border. */
     .gallery-host {
