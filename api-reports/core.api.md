@@ -1305,7 +1305,7 @@ export { logger, configureLogging, isDebugEnabled } from './logging/logger';
 export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 export { createPluginSurface } from './plugin/surface';
 export { getPaintingAnnotations } from './utils/iiifParsing';
-export { parseIiifTime } from './utils/iiifTime';
+export { parseIiifTime, formatMediaTime } from './utils/iiifTime';
 export type { CanvasRegion } from './utils/contentState';
 export type { ContentStateTarget } from './utils/contentState';
 export { parseContentState } from './utils/contentState';
@@ -7671,6 +7671,17 @@ export type IiifTemporalFragment = {
  * `?foo=1&t=157`) is never mistaken for a media fragment.
  */
 export declare function parseIiifTime(value: string): IiifTemporalFragment | null;
+/**
+ * A clock reading for a media position: `m:ss`, widening to `h:mm:ss` only when
+ * the piece actually runs an hour.
+ *
+ * `total` decides the shape rather than `seconds` alone, so a 90-minute
+ * recording reads `0:04:12` from its first minute instead of jumping from
+ * `4:12` to `1:00:00` mid-playback and shifting the layout under the reader.
+ * A position with no known duration formats to `--:--`, which is what the
+ * readout shows before metadata lands.
+ */
+export declare function formatMediaTime(seconds: number | null, total?: number | null): string;
 
 // ======================================================================
 // FILE: dist/utils/imageExport.d.ts
@@ -8247,9 +8258,46 @@ export interface StructureNode {
      * in every array.
      */
     canvasRegions: (CanvasRegion | null)[];
+    /**
+     * The range's own `thumbnail`, resolved to an image URL, or `''` where it
+     * declares none. Only a `thumbnail-nav` parent's children are rendered from
+     * it, but every range carries it: which parent asks for thumbnails is not
+     * known at parse time.
+     */
+    thumbnail: string;
     /** Nested child ranges */
     children: StructureNode[];
 }
+/**
+ * The ranges a conventional table of contents may show. Two behaviors take a
+ * range out of one, for opposite reasons (Presentation 3.0, `behavior`):
+ *
+ * - `no-nav` must not appear in a navigation hierarchy at all — unnamed dead
+ *   air, blank leaves — and its descendants inherit that, so the subtree goes
+ *   with it.
+ * - `thumbnail-nav` asks for a visual alternative instead, which clients
+ *   "should not" render as a table of contents. It is served by
+ *   {@link thumbnailNavKeyframes} on the scrubber, so it is dropped here rather
+ *   than shown twice.
+ */
+export declare function tableOfContentsRanges(nodes: StructureNode[]): StructureNode[];
+/**
+ * The thumbnails a `thumbnail-nav` range offers for one canvas, each at the
+ * second its own range starts and under its own label — keyframes along the
+ * timeline, which is the visual navigation the behavior asks for.
+ *
+ * Sorted by time rather than trusting document order: the scrubber picks the
+ * last keyframe at or before the pointer, which needs an ordered list.
+ *
+ * A `no-nav` child is skipped here as well as in the table of contents. The
+ * strip is navigation too, and the behavior exists for exactly the dead air
+ * 0229 opens with — a title card nobody should be sent to.
+ */
+export declare function thumbnailNavKeyframes(nodes: StructureNode[], canvasId: string | null): {
+    seconds: number;
+    src: string;
+    label: string;
+}[];
 /**
  * Parse a manifest's `structures` into the TOC tree.
  *
