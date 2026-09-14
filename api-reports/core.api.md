@@ -1239,7 +1239,7 @@ export type { TriiiceratopsViewerElement };
 // ======================================================================
 // FILE: dist/generated/icons.d.ts
 // ======================================================================
-export type IconName = "ArrowCounterClockwise" | "ArrowsLeftRight" | "BookOpen" | "CaretDown" | "CaretLeft" | "CaretRight" | "CaretUp" | "ChatCenteredText" | "Check" | "CornersIn" | "CornersOut" | "Eye" | "EyeSlash" | "File" | "Folder" | "ImageBroken" | "Info" | "List" | "ListBullets" | "MagnifyingGlass" | "MagnifyingGlassMinus" | "MagnifyingGlassPlus" | "Scroll" | "Slideshow" | "Stack" | "Translate" | "X";
+export type IconName = "ArrowsLeftRight" | "BookOpen" | "CaretDown" | "CaretLeft" | "CaretRight" | "CaretUp" | "ChatCenteredText" | "Check" | "CornersIn" | "CornersOut" | "Eye" | "EyeSlash" | "File" | "Folder" | "House" | "ImageBroken" | "Info" | "List" | "ListBullets" | "MagnifyingGlass" | "MagnifyingGlassMinus" | "MagnifyingGlassPlus" | "Scroll" | "Slideshow" | "Stack" | "Translate" | "X";
 export type IconWeight = "regular" | "bold" | "fill";
 type IconTable = Record<IconWeight, Partial<Record<IconName, string>>> & {
     regular: Record<IconName, string>;
@@ -1403,7 +1403,7 @@ export declare const logger: Logger;
  * actually published, naming one that was not. `api.version.test.ts` reads
  * `package.json` and fails on any disagreement; bump both together.
  */
-export declare const CORE_VERSION = "1.0.0";
+export declare const CORE_VERSION = "1.0.1";
 /**
  * The plugin API version, independent of {@link CORE_VERSION}. `1.6.0` for
  * `PluginSurface.setAvailable`, over the `1.5.0` that added the transcript
@@ -6218,11 +6218,14 @@ export interface ViewerConfig {
      * translates those and leaves the rest in English — and an `en` entry
      * rewords core's own copy.
      *
-     * A locale mapped to an empty object declares one {@link loadMessages} can
-     * supply: the language picker offers it, and the chrome renders English
-     * until the catalog arrives. Core ships only English inline; the German
-     * catalog it maintains is published as the importable
-     * `triiiceratops/locales/de.json` asset.
+     * Which language the chrome is written in is the host's call, made through
+     * {@link locale}: the toolbar's language picker moves the CONTENT locale and
+     * offers only the languages the manifest is authored in, so a catalog named
+     * here is never something a reader can reach on their own.
+     *
+     * Core ships only English inline; the German catalog it maintains is
+     * published as the importable `triiiceratops/locales/de.json` asset, which a
+     * host hands over here or fetches through {@link loadMessages}.
      *
      * Plugin catalogs are plugin-owned and are not translatable here.
      */
