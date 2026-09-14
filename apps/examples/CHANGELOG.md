@@ -1,5 +1,14 @@
 # @triiiceratops/app-examples
 
+## 0.0.4
+
+### Patch Changes
+
+- f10b978: place all panels on bottom on mobile widths
+- Updated dependencies [f10b978]
+    - @triiiceratops/plugin-av@1.0.3
+    - triiiceratops@1.0.2
+
 ## 0.0.3
 
 ### Patch Changes
