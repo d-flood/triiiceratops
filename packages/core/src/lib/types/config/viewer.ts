@@ -247,11 +247,14 @@ export interface ViewerConfig {
      * translates those and leaves the rest in English — and an `en` entry
      * rewords core's own copy.
      *
-     * A locale mapped to an empty object declares one {@link loadMessages} can
-     * supply: the language picker offers it, and the chrome renders English
-     * until the catalog arrives. Core ships only English inline; the German
-     * catalog it maintains is published as the importable
-     * `triiiceratops/locales/de.json` asset.
+     * Which language the chrome is written in is the host's call, made through
+     * {@link locale}: the toolbar's language picker moves the CONTENT locale and
+     * offers only the languages the manifest is authored in, so a catalog named
+     * here is never something a reader can reach on their own.
+     *
+     * Core ships only English inline; the German catalog it maintains is
+     * published as the importable `triiiceratops/locales/de.json` asset, which a
+     * host hands over here or fetches through {@link loadMessages}.
      *
      * Plugin catalogs are plugin-owned and are not translatable here.
      */

@@ -710,7 +710,7 @@
                                 )}
 
                                 {@render barButton(
-                                    'ArrowCounterClockwise',
+                                    'House',
                                     m.fit_to_viewer(),
                                     () => viewerState.fitView(),
                                     false,

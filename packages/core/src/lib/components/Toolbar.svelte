@@ -295,30 +295,17 @@
     );
     const showSequencePicker = $derived(viewerState.sequenceCount > 1);
 
-    // The BUTTON is manifest-driven, like the sequence picker: a radio menu
-    // offering one language cannot do anything, so a monolingual manifest gets
-    // no button and no toolbar width spent on it. What the menu LISTS is wider
-    // than that (see `pickableLocales`).
+    // Manifest-driven, like the sequence picker: the picker moves the locale
+    // IIIF language maps resolve against, so it offers the languages the
+    // manifest is authored in and nothing else. A host's chrome catalogs are a
+    // separate axis — which language the chrome is written in is the host's
+    // call, made through `config.locale` — and listing them here would offer a
+    // reader a language the material itself is not available in. A radio menu
+    // over one language cannot do anything, so a monolingual manifest gets no
+    // button and no toolbar width spent on it.
     const availableLocales = $derived(viewerState.availableLocales);
     const showLocalePicker = $derived(
         toolbarConfig.showLocalePicker !== false && availableLocales.length > 1,
-    );
-    /**
-     * The locales the menu offers: the manifest's, plus every locale the host
-     * names a chrome catalog for — sorted together, so the order rule is the one
-     * `collectManifestLocales` already applies.
-     *
-     * A locale the host's `loadMessages` might supply is NOT among them unless
-     * the host also names it in `messages` (an empty object is enough): the
-     * picker must never offer a language nothing can be shown in.
-     */
-    const pickableLocales = $derived(
-        [
-            ...new Set([
-                ...availableLocales,
-                ...Object.keys(viewerState.config.messages ?? {}),
-            ]),
-        ].sort(),
     );
     /**
      * [tag, endonym] for the language menu's radio items.
@@ -330,7 +317,7 @@
      * malformed tag) falls back to the tag itself.
      */
     const localeItems = $derived(
-        pickableLocales.map((tag): [string, string] => {
+        availableLocales.map((tag): [string, string] => {
             try {
                 const name = new Intl.DisplayNames([tag], {
                     type: 'language',

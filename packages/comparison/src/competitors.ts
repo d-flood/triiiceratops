@@ -87,8 +87,8 @@ export interface Competitor {
 // holds them to the package manifests; they are not read from those manifests
 // here because this module is bundled into the site, and a JSON import would
 // carry a whole package.json into the browser to quote one field of it.
-const TRIIICERATOPS_VERSION = '1.0.0';
-const PLUGIN_AV_VERSION = '1.0.1';
+const TRIIICERATOPS_VERSION = '1.0.1';
+const PLUGIN_AV_VERSION = '1.0.2';
 
 const viewerElement =
     '<triiiceratops-viewer manifest-id="{{MANIFEST}}" style="display: block; width: 100%; height: 100vh;"></triiiceratops-viewer>';

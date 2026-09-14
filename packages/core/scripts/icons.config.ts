@@ -46,7 +46,6 @@ export type ExtraIconWeight = Exclude<IconWeight, 'regular'>;
  * any of them declares.
  */
 export const CORE_ICONS = {
-    ArrowCounterClockwise: [],
     ArrowsLeftRight: [],
     BookOpen: [],
     CaretDown: [],
@@ -61,6 +60,7 @@ export const CORE_ICONS = {
     EyeSlash: [],
     File: [],
     Folder: ['bold'],
+    House: [],
     ImageBroken: [],
     Info: ['bold'],
     List: [],
