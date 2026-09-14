@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.2
+
+### Patch Changes
+
+- f10b978: place all panels on bottom on mobile widths
+
 ## 1.0.1
 
 ### Patch Changes
