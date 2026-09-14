@@ -6,7 +6,7 @@
  */
 export const PLUGIN_META = {
     name: '@triiiceratops/plugin-av',
-    version: '1.0.1',
+    version: '1.0.2',
     /**
      * The id this viewer knows the plugin by — its chrome id, its overlay-layer
      * prefix, and the key `viewerState.getPluginState` answers to.

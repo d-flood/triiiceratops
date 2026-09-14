@@ -45,10 +45,16 @@ jobs:
 
             # `version` (no `publish`) => Changesets only opens/updates the release
             # PR. Publication is the separate, promotion-only publish.yml workflow.
+            #
+            # `version:packages` is `changeset version` plus `sync-versions.mjs`,
+            # which rewrites the version literals that cannot import a manifest
+            # (they are bundled into the element and the site). The action commits
+            # whatever the version command changed, so those rewrites land in this
+            # same PR rather than drifting until a test catches them.
             - name: Create or update the Version Packages PR
               uses: changesets/action@v1
               with:
-                  version: pnpm changeset version
+                  version: pnpm version:packages
                   commit: 'chore: version packages'
                   title: 'chore: version packages'
               env:
