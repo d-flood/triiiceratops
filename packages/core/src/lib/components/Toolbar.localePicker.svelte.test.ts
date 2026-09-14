@@ -191,13 +191,13 @@ describe('Toolbar language picker', () => {
     });
 
     /**
-     * What the menu LISTS is wider than the manifest: a host that supplies a
-     * chrome catalog can be read in that language too. What it must never list
-     * is a locale nothing can supply — so a `loadMessages` the host declares no
-     * `messages` entry for contributes nothing, while an entry mapped to an
-     * empty object is the host saying its loader covers that one.
+     * The menu is the manifest's languages, not the host's chrome catalogs. The
+     * two are different axes: this control moves the locale IIIF language maps
+     * resolve against, and a language the material is not authored in resolves
+     * to nothing a reader asked for. A host reads its chrome in German by
+     * setting `config.locale`.
      */
-    it('lists the locales a host catalog names, and none only a loader might supply', async () => {
+    it('lists the manifest languages only, whatever catalogs the host supplies', async () => {
         await mountToolbar(
             { en: ['Book'], fr: ['Livre'] },
             {
@@ -210,16 +210,14 @@ describe('Toolbar language picker', () => {
         flushSync();
 
         expect(localeItems().map((item) => item.getAttribute('lang'))).toEqual([
-            'de',
             'en',
             'fr',
-            'ja',
         ]);
     });
 
     it('keeps its button manifest-driven when a host supplies a catalog', async () => {
-        // The appearance condition is unchanged: one authored language, no
-        // button, however many chrome catalogs the host hands over.
+        // One authored language, no button, however many chrome catalogs the
+        // host hands over.
         await mountToolbar(
             { en: ['Book'] },
             { messages: { de: { search: 'Suche' } } },

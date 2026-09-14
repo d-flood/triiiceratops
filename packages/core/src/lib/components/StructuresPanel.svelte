@@ -6,12 +6,16 @@
     import { getMessages } from '../state/i18n.svelte';
     import type { StructureNode } from '../utils/structures';
     import { formatMediaTime } from '../utils/iiifTime';
+    import { findCanvasIndexById } from '../utils/iiifIds';
+    import { getCanvasLabel } from '../utils/canvasLabels';
     import { Button } from './ui';
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
 
     let structures = $derived(viewerState.nonSequenceStructures);
+    let canvases = $derived(viewerState.canvases);
+    let viewerLocale = $derived(viewerState.activeLocale);
     let hasStructures = $derived(structures.length > 0);
     let autoExpandedId = $derived(
         structures.length === 1 && structures[0].children.length > 0
@@ -45,16 +49,67 @@
     }
 
     let selectedId = $state<string | null>(null);
+    let selectedPartKey = $state<string | null>(null);
+
+    /**
+     * One row per part of a range that names a region of a canvas — the
+     * columns a newspaper article occupies (Cookbook 0025), which the recipe
+     * asks the reader be able to move through in the order the range lists
+     * them.
+     *
+     * Targets naming a whole canvas get no row: they are already reachable
+     * from the page controls and the gallery, and a row each would turn a
+     * book's table of contents into a second copy of its page list.
+     */
+    interface RangePart {
+        /** Identity of this target within its range, for selection. */
+        key: string;
+        /** Index into the range's target arrays. */
+        index: number;
+        label: string;
+    }
+
+    function partsOf(node: StructureNode): RangePart[] {
+        const parts: RangePart[] = [];
+        for (const [index, canvasId] of node.canvasIds.entries()) {
+            if (!node.canvasRegions[index]) continue;
+            const canvasIndex = findCanvasIndexById(canvases, canvasId);
+            const canvasLabel =
+                canvasIndex >= 0
+                    ? getCanvasLabel(
+                          canvases[canvasIndex],
+                          canvasIndex,
+                          viewerLocale,
+                      )
+                    : '';
+            parts.push({
+                key: `${node.id}#${index}`,
+                index,
+                label: `${parts.length + 1}. ${canvasLabel}`.trim(),
+            });
+        }
+        return parts;
+    }
+
+    function navigateToTarget(node: StructureNode, index: number) {
+        selectedId = node.id;
+        selectedPartKey = `${node.id}#${index}`;
+        viewerState.setCanvas(
+            node.canvasIds[index],
+            node.canvasTimes[index],
+            node.canvasRegions[index],
+        );
+    }
 
     function navigateToRange(node: StructureNode) {
         selectedId = node.id;
-        if (node.canvasIds.length > 0) {
-            viewerState.setCanvas(
-                node.canvasIds[0],
-                node.canvasTimes[0],
-                node.canvasRegions[0],
-            );
-        }
+        selectedPartKey = null;
+        if (node.canvasIds.length === 0) return;
+        // Choosing an article lands on its first region and opens the rest of
+        // the reading sequence: the continuation is on another page, so a
+        // reader given only the first column has no way to reach it.
+        expandedIds.add(node.id);
+        navigateToTarget(node, 0);
     }
 
     /**
@@ -84,7 +139,8 @@
         {@const expanded =
             autoExpandedId === node.id || expandedIds.has(node.id)}
         {@const active = isActive(node)}
-        {@const hasChildren = node.children.length > 0}
+        {@const parts = partsOf(node)}
+        {@const hasChildren = node.children.length > 0 || parts.length > 0}
         {@const span = formatSpan(node)}
         <div>
             <div
@@ -128,6 +184,23 @@
             </div>
 
             {#if hasChildren && expanded}
+                {#each parts as part (part.key)}
+                    <div
+                        class="row part"
+                        class:active={selectedPartKey === part.key}
+                        style="padding-left: {(node.depth + 1) * 16 + 8}px"
+                    >
+                        <span class="spacer"></span>
+                        <button
+                            class="label-btn"
+                            class:active={selectedPartKey === part.key}
+                            onclick={() => navigateToTarget(node, part.index)}
+                            title={part.label}
+                        >
+                            {part.label}
+                        </button>
+                    </div>
+                {/each}
                 {@render rangeTree(node.children)}
             {/if}
         </div>
@@ -174,6 +247,11 @@
     /* hover comes after .active so it wins on hover */
     .row:hover {
         background-color: var(--tri-input-bg);
+    }
+
+    .row.part .label-btn {
+        font-size: 0.8125rem;
+        opacity: 0.85;
     }
 
     .caret {

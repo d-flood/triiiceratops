@@ -320,6 +320,7 @@ describe('ViewerControls transport chrome', () => {
 
             const button = testId('transport-tracks') as HTMLButtonElement;
             expect(button.getAttribute('aria-pressed')).toBe('false');
+            expect(button.classList.contains('ghost')).toBe(true);
             // No list: one track is a pressed/unpressed toggle.
             expect(button.getAttribute('aria-expanded')).toBeNull();
 
@@ -338,6 +339,12 @@ describe('ViewerControls transport chrome', () => {
 
             const button = testId('transport-tracks') as HTMLButtonElement;
             expect(button.getAttribute('aria-pressed')).toBe('true');
+            // Seen as well as announced: the glyph does not change with the
+            // state, so the button carries the viewer's active fill.
+            expect(button.classList.contains('ghost')).toBe(false);
+            expect(button.style.getPropertyValue('--btn-color').trim()).toBe(
+                'var(--tri-color-primary)',
+            );
             button.click();
             expect(port.setTrack).toHaveBeenCalledWith(null);
         });

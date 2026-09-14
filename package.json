@@ -55,6 +55,7 @@
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "changeset": "changeset",
+        "version:packages": "changeset version && node scripts/sync-versions.mjs",
         "release:pack": "node scripts/release/pack-artifacts.mjs",
         "release:reproducible": "node scripts/release/verify-reproducible.mjs",
         "release:smoke": "node scripts/release/smoke-registry.mjs"

@@ -191,3 +191,35 @@ for (const article of ARTICLES) {
         expect(bounds!.height).toBeLessThan(CANVAS_SIZE.height);
     });
 }
+
+/**
+ * The continuation of "Tagesneuigkeiten": its third item, the first full
+ * column of page 5. The recipe asks that a reader who chooses an article can
+ * move through its reading sequence, and the sequence leaves page 2 here.
+ */
+const CONTINUATION = {
+    label: '3. Seite 5.',
+    canvasId: CANVAS('p5'),
+    region: { x: 569, y: 104, width: 478, height: 2153 },
+};
+
+test('follows an article to the page it continues on', async ({ page }) => {
+    await openRecipe(page);
+    await settled(page, visibleBounds);
+
+    await chooseEntry(page, 'Tagesneuigkeiten');
+    await expect.poll(() => currentCanvas(page)).toBe(CANVAS('p2'));
+    await settled(page, visibleBounds);
+
+    await chooseEntry(page, CONTINUATION.label);
+
+    await expect.poll(() => currentCanvas(page)).toBe(CONTINUATION.canvasId);
+    const bounds = await settled(page, visibleBounds);
+    expect(bounds).not.toBeNull();
+    const { x, y, width, height } = CONTINUATION.region;
+    expect(
+        Math.min(bounds!.width / width, bounds!.height / height),
+    ).toBeCloseTo(1, 1);
+    expect(bounds!.x + bounds!.width / 2).toBeCloseTo(x + width / 2, 0);
+    expect(bounds!.y + bounds!.height / 2).toBeCloseTo(y + height / 2, 0);
+});

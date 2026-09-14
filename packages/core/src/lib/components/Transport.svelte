@@ -561,11 +561,15 @@
         -->
         {#if view.tracks.length}
             <div class="tracks">
+                <!-- The glyph is the same whichever way this sits, so "on"
+                     has to be carried by the button itself: the filled primary
+                     state the rest of the viewer uses for an active toggle. -->
                 <Button
                     bind:element={tracksButton}
                     size="sm"
                     square
-                    ghost
+                    ghost={!tracksOn}
+                    variant={tracksOn ? 'primary' : 'default'}
                     type="button"
                     class="tooltip {tooltipPlacement}"
                     data-testid="transport-tracks"

@@ -16,6 +16,8 @@
 
     import { SITE_VIEWER_THEME } from '$lib/viewerTheme';
 
+    import { recipeChrome } from './recipePanels';
+
     /*
      * Exactly the plugins needed to render or inspect the content a recipe
      * points at. The export plugins are features of the viewer rather than of
@@ -64,15 +66,15 @@
 
     // The reader's own language, and one layout choice: a single bar keeps the
     // chrome out of the way of material this route exists to show.
-    const config: ViewerConfig = {
+    const BASE_CONFIG: ViewerConfig = {
         locale: readerLocale(),
         controls: 'unified',
         /*
-         * German declared as offerable so the language picker lists it, and
-         * fetched only for a reader who actually lands in it. The empty catalog
-         * is the declaration; `loadMessages` is what fills it.
+         * The German catalog is fetched only for a reader `readerLocale` put
+         * there. The toolbar's language picker offers the manifest's languages,
+         * not this one — which language the chrome is written in is this host's
+         * call, made by `locale` above.
          */
-        messages: { de: {} },
         loadMessages: async (locale) =>
             locale === 'de'
                 ? (await import('triiiceratops/locales/de.json')).default
@@ -103,26 +105,86 @@
     let rejected = $state('');
 
     /*
-     * The fallback is driven by what the viewer has, never by this page reading
-     * the address bar: `read-content-state-from-url` hands the `iiif-content`
-     * parameter to the viewer (ADR 0006), so the manifest it ends up with is the
-     * only honest answer to "is there anything to show".
+     * The base config plus whatever the loaded manifest's recipe asks the chrome
+     * to open. The manifest comes from the viewer rather than from this page
+     * reading the address bar, for the reason `showFallback` gives below.
+     *
+     * Chrome is opened, never closed: this reads as the page's opening state, so
+     * a reader who shuts the bar or the panel must not have it spring back. That
+     * holds because the viewer applies a config only when its value moves, and
+     * this one moves only when the manifest does.
+     */
+    const config: ViewerConfig = $derived.by(() => {
+        const chrome = recipeChrome(viewerState?.manifestId);
+        if (!chrome) return BASE_CONFIG;
+        return {
+            ...BASE_CONFIG,
+            // Every recognised recipe opens it: see `recipeChrome`.
+            toolbarOpen: true,
+            information: { open: chrome.panel === 'information' },
+            annotations: { open: chrome.panel === 'annotations' },
+            collection: { open: chrome.panel === 'collection' },
+            structures: { open: chrome.panel === 'structures' },
+            /*
+             * `av` is the id `@triiiceratops/plugin-av` registers its chrome
+             * under, and the key a host addresses that chrome by. Harmless on a
+             * manifest with no recording: the plugin marks itself unavailable
+             * and core renders no panel for it.
+             */
+            plugins: { av: { open: chrome.panel === 'av' } },
+        };
+    });
+
+    /*
+     * Whether the address this page was opened at named anything to show.
+     *
+     * Read once, and only for its presence: resolving it stays the viewer's, as
+     * `read-content-state-from-url` and ADR 0006 have it. What the page cannot
+     * get from the viewer is the difference between "nothing was asked for" and
+     * "something was, and has not come back yet" — before a content state
+     * resolves there is no manifest to ask about, and those two states want
+     * opposite screens.
+     */
+    const openedOnContentState = new URLSearchParams(location.search).has(
+        'iiif-content',
+    );
+
+    /*
+     * The fallback is driven by what the viewer has: the manifest it ends up
+     * with is the only honest answer to "is there anything to show".
      *
      * The cache entry, not `manifestId`: an id is assigned even for a manifest
      * whose fetch failed, so a broken link would otherwise show neither a canvas
      * nor a way to type another URL. An entry still in flight is not a failure —
      * the fallback is opaque and covers the viewer, so it waits for the request
      * to settle rather than flashing over a manifest that is on its way.
+     *
+     * No entry at all is the same wait one step earlier: a content state is
+     * dereferenced before there is a manifest to have an entry for, and offering
+     * the reader a box to type a manifest URL into, over the manifest their link
+     * already named, is the flash that window used to produce. Every way that
+     * wait can end badly has its own signal — a failed fetch is `entry.error`, an
+     * unresolvable content state is `rejected` — so nothing is swallowed by
+     * waiting for one of them.
      */
     const showFallback = $derived.by(() => {
         // A rejected drop has nowhere else to speak: the form is this page's
         // only text surface, and it is also the reader's way onward.
         if (rejected) return true;
         const entry = viewerState?.manifestEntry;
-        if (!entry) return true;
+        if (!entry) return !openedOnContentState && !contentState;
         if (entry.error) return true;
         return !entry.json && !entry.isFetching;
     });
+
+    /*
+     * The counterpart of `showFallback`'s wait: the same window, from the other
+     * side. One of the two covers the viewer whenever it has nothing to show, so
+     * its empty stage is never what the reader is looking at.
+     */
+    const showWaiting = $derived(
+        !showFallback && !viewerState?.manifestEntry?.json,
+    );
 
     const REJECTED_MESSAGE =
         'That was not a IIIF manifest URL or content state.';
@@ -200,16 +262,32 @@
     ondrop={onDrop}
     role="presentation"
 >
-    <TriiiceratopsViewer
-        acceptDroppedContentState
-        bind:viewerState
-        {config}
-        {themeConfig}
-        {plugins}
-        {contentState}
-        readContentStateFromUrl
-        onviewererror={onViewerError}
-    />
+    <div class="stage">
+        <TriiiceratopsViewer
+            acceptDroppedContentState
+            bind:viewerState
+            {config}
+            {themeConfig}
+            {plugins}
+            {contentState}
+            readContentStateFromUrl
+            onviewererror={onViewerError}
+        />
+    </div>
+
+    {#if showWaiting}
+        <!--
+            The route's own `.appwait` in the viewer's clothing: it hands over the
+            moment this component mounts, which is long before there is a canvas,
+            and two different grounds either side of that handover read as a
+            flash. Same words and same ground, so the reader sees one screen from
+            first paint to first canvas. `aria-hidden`: the message it duplicates
+            has already been announced.
+        -->
+        <div class="waiting" data-testid="content-waiting" aria-hidden="true">
+            <p>Loading the viewer…</p>
+        </div>
+    {/if}
 
     {#if showFallback}
         <form class="fallback" onsubmit={open}>
@@ -265,9 +343,24 @@
         min-height: 0;
     }
 
+    /*
+     * A stacking context around the viewer, so that the panes below cover it
+     * whole. Without one, chrome the viewer lifts within itself — the control
+     * bar sits at `z-index: 41` in its own stylesheet — paints through a pane
+     * that is supposed to stand in for the view, and the site would have to
+     * answer with a number of its own and keep it ahead of core's.
+     */
+    .stage {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+    }
+
     .fallback {
         position: absolute;
         inset: 0;
+        /* Above `.stage`'s context, which is the whole of the viewer. */
+        z-index: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -277,6 +370,24 @@
         /* Opaque: it stands in for the content, over an empty viewer. */
         background: var(--bone);
         color: var(--ink);
+    }
+
+    /* `.fallback`'s geometry on the route's ground: this stands in for the
+       viewer while it is still empty, where the fallback stands in for the
+       content when there will not be any. */
+    .waiting {
+        position: absolute;
+        inset: 0;
+        /* See `.fallback`. */
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: var(--s4);
+        text-align: center;
+        color: var(--ink);
+        background: var(--bench);
     }
 
     .rejected {
@@ -291,6 +402,7 @@
     .drop-target {
         position: absolute;
         inset: 0;
+        z-index: 2;
         display: flex;
         align-items: center;
         justify-content: center;

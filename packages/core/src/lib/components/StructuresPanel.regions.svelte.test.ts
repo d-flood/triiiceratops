@@ -23,9 +23,15 @@ const CANVAS_SIZE = { width: 1000, height: 800 };
 
 /** The article region, shaped unlike the canvas so its fit is distinguishable. */
 const REGION = { x: 500, y: 400, width: 250, height: 200 };
+/** Where the article continues, on the other page and in another shape. */
+const CONTINUATION = { x: 100, y: 50, width: 400, height: 150 };
 const REGION_SCALE = Math.min(
     SURFACE.width / REGION.width,
     SURFACE.height / REGION.height,
+);
+const CONTINUATION_SCALE = Math.min(
+    SURFACE.width / CONTINUATION.width,
+    SURFACE.height / CONTINUATION.height,
 );
 const WHOLE_CANVAS_SCALE = Math.min(
     SURFACE.width / CANVAS_SIZE.width,
@@ -70,7 +76,7 @@ function makeCanvas(name: string) {
  * Turnier" targets a plain canvas so the unchanged path is asserted beside the
  * new one.
  */
-function makeManifest(regionItem: unknown) {
+function makeManifest(...regionItems: unknown[]) {
     return {
         '@context': 'http://iiif.io/api/presentation/3/context.json',
         id: MANIFEST_ID,
@@ -87,7 +93,7 @@ function makeManifest(regionItem: unknown) {
                         id: `${MANIFEST_ID}/range/tagesneuigkeiten`,
                         type: 'Range',
                         label: { de: ['Tagesneuigkeiten'] },
-                        items: [regionItem],
+                        items: regionItems,
                     },
                     {
                         id: `${MANIFEST_ID}/range/turnier`,
@@ -108,6 +114,16 @@ const SPECIFIC_RESOURCE = {
     selector: {
         type: 'FragmentSelector',
         value: `xywh=${REGION.x},${REGION.y},${REGION.width},${REGION.height}`,
+    },
+};
+
+/** The article's continuation, a region of the other page. */
+const CONTINUATION_RESOURCE = {
+    type: 'SpecificResource',
+    source: { id: CANVAS('p1'), type: 'Canvas' },
+    selector: {
+        type: 'FragmentSelector',
+        value: `xywh=${CONTINUATION.x},${CONTINUATION.y},${CONTINUATION.width},${CONTINUATION.height}`,
     },
 };
 
@@ -189,11 +205,11 @@ describe('navigating from a table of contents entry that names a region', () => 
     });
 
     /** Open the viewer on a manifest with its table of contents showing. */
-    async function openViewer(regionItem: unknown) {
+    async function openViewer(...regionItems: unknown[]) {
         const props: { viewerState?: any } = $state({
             viewerState: undefined,
             manifestId: MANIFEST_ID,
-            manifestJson: makeManifest(regionItem),
+            manifestJson: makeManifest(...regionItems),
         });
         apps.push(mount(TriiiceratopsViewer, { target, props }));
         await settle();
@@ -202,6 +218,15 @@ describe('navigating from a table of contents entry that names a region', () => 
         state.toggleStructuresPanel();
         await settle();
         return state;
+    }
+
+    /** Every entry the panel offers, in the order it lists them. */
+    function entryLabels() {
+        const panel = target.querySelector('[data-panel-id="structures"]');
+        expect(panel).not.toBeNull();
+        return [...panel!.querySelectorAll('button.label-btn')].map((button) =>
+            button.textContent?.trim(),
+        );
     }
 
     /** Choose an entry by its label, as a reader does. */
@@ -259,5 +284,43 @@ describe('navigating from a table of contents entry that names a region', () => 
         expect(view.scale).toBeCloseTo(WHOLE_CANVAS_SCALE, 4);
         expect(view.centre!.x).toBeCloseTo(CANVAS_SIZE.width / 2, 0);
         expect(view.centre!.y).toBeCloseTo(CANVAS_SIZE.height / 2, 0);
+    });
+
+    it('offers the rest of the reading sequence once an article is chosen', async () => {
+        const state = await openViewer(
+            SPECIFIC_RESOURCE,
+            CONTINUATION_RESOURCE,
+        );
+        await settledView(state);
+
+        expect(entryLabels()).not.toContain('1. p2');
+
+        chooseEntry('Tagesneuigkeiten');
+        await settle();
+
+        // The article's parts, in the order the range lists them rather than
+        // the order the pages fall in: p2 first, then back to p1.
+        expect(entryLabels()).toEqual([
+            'Articles',
+            'Tagesneuigkeiten',
+            '1. p2',
+            '2. p1',
+            'Das Turnier',
+        ]);
+
+        chooseEntry('2. p1');
+        await settle();
+
+        expect(state.canvasId).toBe(CANVAS('p1'));
+        const view = await settledView(state);
+        expect(view.scale).toBeCloseTo(CONTINUATION_SCALE, 4);
+        expect(view.centre!.x).toBeCloseTo(
+            CONTINUATION.x + CONTINUATION.width / 2,
+            0,
+        );
+        expect(view.centre!.y).toBeCloseTo(
+            CONTINUATION.y + CONTINUATION.height / 2,
+            0,
+        );
     });
 });

@@ -54,8 +54,8 @@
          * away from the rail's own controls.
          */
         closeAlign?: 'start' | 'end';
-        /** Which column the stack lives in; drives panel slide-in direction. */
-        side?: 'left' | 'right';
+        /** Which edge the stack is docked to; drives panel slide-in direction. */
+        side?: 'left' | 'right' | 'bottom';
     }
 
     let { panels, closeAlign = 'end', side = 'right' }: Props = $props();
@@ -67,12 +67,16 @@
     const reducedMotion = useReducedMotion();
     const duration = $derived(reducedMotion.current ? 0 : DURATION);
 
-    // A newly-opened panel slides in from the column's outer edge (left column
-    // from the left, right column from the right).
-    const flyParams = $derived({
-        x: reducedMotion.current ? 0 : side === 'left' ? -32 : 32,
-        duration,
-        easing: cubicOut,
+    // A newly-opened panel slides in from the stack's outer edge (left column
+    // from the left, right column from the right, bottom band from below).
+    const flyParams = $derived.by(() => {
+        const distance = reducedMotion.current ? 0 : 32;
+        return {
+            x: side === 'left' ? -distance : side === 'right' ? distance : 0,
+            y: side === 'bottom' ? distance : 0,
+            duration,
+            easing: cubicOut,
+        };
     });
 
     onMount(() => {

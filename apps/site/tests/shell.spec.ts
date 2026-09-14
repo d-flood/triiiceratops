@@ -235,8 +235,12 @@ test.describe('the application route', () => {
             await expect(
                 page.locator('[data-testid="canvas-renderer-surface"]'),
             ).toHaveCount(0);
-            await expect(page.locator('.appwait')).toContainText(
+            // Playwright's text matcher skips `noscript` subtrees, so read the
+            // rendered text: with script off the parser turns the element's
+            // children into real DOM, and they are only there in that case.
+            await expect(page.locator('.appwait noscript')).toContainText(
                 'It needs JavaScript',
+                { useInnerText: true },
             );
         });
     });

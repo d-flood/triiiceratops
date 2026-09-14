@@ -82,10 +82,18 @@
     {:else}
         <div class="appwait">
             <p>Loading the viewer…</p>
-            <p class="aside">
-                It needs JavaScript. Paste a manifest URL or a IIIF content
-                state once it has loaded.
-            </p>
+            <!--
+                For a reader who will never get past this screen. With scripting
+                on, the viewer takes over mid-load and carries the same sentence
+                across on the same ground, so anything extra here would be a line
+                that appears and then vanishes.
+            -->
+            <noscript>
+                <p class="aside">
+                    It needs JavaScript. Paste a manifest URL or a IIIF content
+                    state once it has loaded.
+                </p>
+            </noscript>
         </div>
     {/if}
 </div>
@@ -98,12 +106,6 @@
     .route {
         display: flex;
         flex-direction: column;
-        /* A band between the bar and the viewer, in the darkest surface the
-           palette has. The bar, the page ground and the viewer's stage all sit
-           within eight points of each other in the dark scheme, so a band in
-           any of them reads as more of the same slab; `--bench` is below that
-           cluster and reads as a groove. */
-        gap: var(--s2);
         height: 100dvh;
         background: var(--bench);
     }

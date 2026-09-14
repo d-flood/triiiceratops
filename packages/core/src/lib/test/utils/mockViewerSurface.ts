@@ -20,9 +20,17 @@ export interface SurfaceBox {
 }
 
 export interface ViewerSurface {
-    /** Resize the box every element reports from `getBoundingClientRect`. */
+    /**
+     * Resize the box every element reports from `getBoundingClientRect` — the
+     * viewer root included, so this is the viewer's own size.
+     */
     setBox(box: SurfaceBox): void;
-    /** Walk the box through `boxes`, driving a frame after each one. */
+    /**
+     * Walk the box through `boxes`, driving a frame after each one. The viewer
+     * root keeps the box `setBox` gave it: a step models chrome taking surface
+     * INSIDE a viewer whose own size holds, and a root that shrank with the
+     * surface would read as a narrow viewer, which re-docks its panels.
+     */
     stepBox(boxes: SurfaceBox[]): Promise<void>;
     restore(): void;
 }
@@ -57,6 +65,7 @@ async function nextFrame(): Promise<void> {
  */
 export function installViewerSurface(initial?: SurfaceBox): ViewerSurface {
     let box: Required<SurfaceBox> = { ...DEFAULT_BOX, ...initial };
+    let rootBox = box;
 
     const originals = {
         rect: Element.prototype.getBoundingClientRect,
@@ -131,15 +140,16 @@ export function installViewerSurface(initial?: SurfaceBox): ViewerSurface {
     }
 
     Element.prototype.getBoundingClientRect = function () {
+        const rect = this.classList.contains('viewer-root') ? rootBox : box;
         return {
-            x: box.x,
-            y: box.y,
-            width: box.width,
-            height: box.height,
-            top: box.y,
-            left: box.x,
-            right: box.x + box.width,
-            bottom: box.y + box.height,
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+            top: rect.y,
+            left: rect.x,
+            right: rect.x + rect.width,
+            bottom: rect.y + rect.height,
             toJSON: () => ({}),
         } as DOMRect;
     };
@@ -168,6 +178,7 @@ export function installViewerSurface(initial?: SurfaceBox): ViewerSurface {
     return {
         setBox(next) {
             box = { ...box, ...next };
+            rootBox = box;
             // Synchronously, unlike `stepBox`: `setBox` has no frame to sit in
             // and its callers arrange the box before anything is mounted, when
             // there is nothing observing it.
