@@ -104,7 +104,6 @@ function xyzToOklab(
     const m = 0.0329845436 * x + 0.9293118715 * y + 0.0361456387 * z;
     const s = 0.0482003018 * x + 0.2643662691 * y + 0.633851707 * z;
 
-    // Cube root
     const l_ = Math.cbrt(l);
     const m_ = Math.cbrt(m);
     const s_ = Math.cbrt(s);

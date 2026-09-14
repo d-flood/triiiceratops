@@ -18,8 +18,7 @@
  * source, so this step reproduces exactly what `dist/components/ui/` held before
  * the extraction: it copies the primitive `.svelte` sources in beside the shim
  * and rewrites the barrel to import them relatively — leaving no reference to
- * the `@triiiceratops/ui` specifier anywhere in the published dist. Mirrors the
- * `@triiiceratops/ui` specifier anywhere in the published dist.
+ * the `@triiiceratops/ui` specifier anywhere in the published dist.
  *
  * Run directly: `node ./src/packaging/inlineUi.ts` (Node strips the types).
  */
@@ -35,7 +34,6 @@ import { fileURLToPath } from 'node:url';
 
 /** Absolute path to the extracted `@triiiceratops/ui` package's source dir. */
 function uiSourceDir(): string {
-    // From packages/core/src/packaging/ up to packages/, then into ui/src.
     return fileURLToPath(new URL('../../../ui/src', import.meta.url));
 }
 
@@ -85,7 +83,6 @@ export function inlineUi(srcUi: string, distUi: string): string[] {
     return svelteFiles;
 }
 
-// CLI entry.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     const inlined = inlineUi(uiSourceDir(), distUiDir());
     console.log(

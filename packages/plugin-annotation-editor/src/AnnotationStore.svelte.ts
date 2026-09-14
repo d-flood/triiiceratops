@@ -462,11 +462,7 @@ export class AnnotationStore {
         }
 
         if (cached && this.hydrateSupported && this.ready) {
-            // Route through hydrate() so the load-race guard (F14) and error
-            // surface (F20) apply. Inlining the fetch here used to skip both,
-            // which could write a stale body into a new canvas's cache when the
-            // canvas changed mid-hydrate. Falls back to the cached skeleton when
-            // the hydrate is empty or discarded.
+            // Route through hydrate() for the load-race guard (F14) and error surface (F20); fall back to the cached skeleton when empty or discarded.
             const full = await this.hydrate(id);
             return full ?? cached;
         }

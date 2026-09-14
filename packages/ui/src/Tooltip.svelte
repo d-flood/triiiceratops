@@ -128,7 +128,6 @@
         }
     }
 
-    /* Placements */
     .top::before {
         transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
         inset: auto auto var(--tt-off) 50%;

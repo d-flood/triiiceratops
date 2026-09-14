@@ -39,8 +39,6 @@
 
     onMount(() => {
         void (async () => {
-            // The viewer's published light-DOM stylesheet, which it needs in
-            // order to render.
             await import('triiiceratops/style.css');
             BareViewer = (await import('$lib/bare-viewer/BareViewer.svelte'))
                 .default;

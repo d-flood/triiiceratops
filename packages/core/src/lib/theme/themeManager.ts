@@ -131,7 +131,6 @@ export function applyTheme(
     config: ThemeConfig | undefined,
 ): void {
     if (theme) {
-        // Apply the requested theme
         applyBuiltInTheme(element, theme);
     } else {
         // If no theme specified, remove the attribute to allow inheritance

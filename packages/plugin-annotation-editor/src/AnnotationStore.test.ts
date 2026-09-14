@@ -5,8 +5,7 @@ import type { W3CAnnotation } from './adapters/types';
 
 // Display sync targets the owning viewer's per-viewer display state (ADR 0007).
 // This stub stands in for it so the display-sync assertions read back exactly
-// what the store injected. A wrapper subclass attaches it to every store built
-// in this suite, so the `new AnnotationStore(...)` call sites stay unchanged.
+// what the store injected.
 const setUserAnnotations = vi.fn();
 const clearUserAnnotations = vi.fn();
 const displayState = { setUserAnnotations, clearUserAnnotations };
@@ -144,7 +143,6 @@ describe('AnnotationStore display sync (F10)', () => {
         setUserAnnotations.mockClear();
         await store.persist(anno('temp-1'));
 
-        // Cache is now keyed by the server id; the temp id is gone.
         expect(store.has('temp-1')).toBe(false);
         expect(store.has('https://server/anno/42')).toBe(true);
         expect(reconciled).toEqual([
@@ -155,12 +153,10 @@ describe('AnnotationStore display sync (F10)', () => {
                 }),
             },
         ]);
-        // The display state holds the canonical id.
         expect(setUserAnnotations).toHaveBeenLastCalledWith(MANIFEST, CANVAS, [
             expect.objectContaining({ id: 'https://server/anno/42' }),
         ]);
 
-        // Subsequent body save updates under the server id, never re-creates.
         await store.persist({
             ...anno('https://server/anno/42'),
             body: [{ value: 'x' }],
@@ -172,7 +168,6 @@ describe('AnnotationStore display sync (F10)', () => {
             expect.objectContaining({ id: 'https://server/anno/42' }),
         );
 
-        // Delete hits the server id.
         await store.delete('https://server/anno/42');
         expect(adapter.delete).toHaveBeenLastCalledWith(
             MANIFEST,
@@ -293,8 +288,6 @@ describe('AnnotationStore attribution stamping (F18)', () => {
 
         await store.persist(anno('round-trip'));
 
-        // A fresh store over the same adapter (simulating a reload) displays it,
-        // with no display-state knowledge in the adapter.
         setUserAnnotations.mockClear();
         const reloaded = new AnnotationStore({ adapter });
         reloaded.setCanvas(MANIFEST, CANVAS);
@@ -330,7 +323,6 @@ describe('AnnotationStore error surface + rollback (F20)', () => {
         const ok = await store.persist(anno('temp-1'));
 
         expect(ok).toBe(false);
-        // Cache + display untouched by the failed create.
         expect(store.has('temp-1')).toBe(false);
         expect(setUserAnnotations).not.toHaveBeenCalled();
         expect(errors).toHaveLength(1);
@@ -339,8 +331,6 @@ describe('AnnotationStore error surface + rollback (F20)', () => {
         expect(errors[0].manifestId).toBe(MANIFEST);
         expect(errors[0].canvasId).toBe(CANVAS);
 
-        // retry() re-invokes the adapter with the same payload; on success it
-        // applies normally (cache + display advance).
         await errors[0].retry();
         expect(store.has('temp-1')).toBe(true);
         expect(setUserAnnotations).toHaveBeenLastCalledWith(MANIFEST, CANVAS, [
@@ -356,7 +346,7 @@ describe('AnnotationStore error surface + rollback (F20)', () => {
             onPersistenceError: (e) => errors.push(e),
         });
         store.setCanvas(MANIFEST, CANVAS);
-        await store.persist(anno('a')); // successful create — no error pushed
+        await store.persist(anno('a'));
 
         let fail = true;
         adapter.update = vi.fn(async () => {
@@ -370,7 +360,6 @@ describe('AnnotationStore error surface + rollback (F20)', () => {
         } as any);
 
         expect(ok).toBe(false);
-        // Previous copy still current (its body was []).
         expect(store.get('a')?.body).toEqual([]);
         expect(errors[0].op).toBe('update');
         expect(errors[0].annotationId).toBe('a');
@@ -426,7 +415,6 @@ describe('AnnotationStore error surface + rollback (F20)', () => {
         expect(store.panelError).toEqual({ op: 'create', annotationId: 'a' });
         expect(consoleError).toHaveBeenCalled();
 
-        // A subsequent successful operation clears the line.
         fail = false;
         await store.persist(anno('b'));
         expect(store.panelError).toBeNull();
@@ -495,7 +483,6 @@ describe('AnnotationStore undo/redo (F6)', () => {
         expect(store.canUndo).toBe(true);
         expect(store.canRedo).toBe(false);
 
-        // Undo removes it from the cache, the adapter, and the display overlay.
         setUserAnnotations.mockClear();
         await store.undo();
         expect(deleteSpy).toHaveBeenCalledWith(MANIFEST, CANVAS, 'a');
@@ -508,7 +495,6 @@ describe('AnnotationStore undo/redo (F6)', () => {
         expect(store.canUndo).toBe(false);
         expect(store.canRedo).toBe(true);
 
-        // Redo re-creates it (a fresh create path — reconciliation honored).
         await store.redo();
         expect(store.has('a')).toBe(true);
         expect(store.canUndo).toBe(true);
@@ -519,7 +505,7 @@ describe('AnnotationStore undo/redo (F6)', () => {
         const adapter = inMemoryAdapter();
         const store = new AnnotationStore({ adapter });
         store.setCanvas(MANIFEST, CANVAS);
-        await store.persist(anno('a')); // body []
+        await store.persist(anno('a'));
         await store.persist({ ...anno('a'), body: [{ value: 'v2' }] } as any);
         expect(store.get('a')?.body).toEqual([{ value: 'v2' }]);
 
@@ -528,14 +514,12 @@ describe('AnnotationStore undo/redo (F6)', () => {
 
         await store.undo();
 
-        // The adapter receives the previous copy (its body, verbatim).
         expect(updateSpy).toHaveBeenCalledTimes(1);
         const [, , sent] = updateSpy.mock.calls[0];
         expect(sent.id).toBe('a');
         expect(sent.body).toEqual([]);
         expect(store.get('a')?.body).toEqual([]);
 
-        // Redo re-applies the edit.
         await store.redo();
         expect(store.get('a')?.body).toEqual([{ value: 'v2' }]);
     });
@@ -574,7 +558,6 @@ describe('AnnotationStore undo/redo (F6)', () => {
 
         await store.undo();
 
-        // The undo deletes the canonical (server) id, never the temp id.
         expect(deleteSpy).toHaveBeenCalledWith(
             MANIFEST,
             CANVAS,
@@ -592,14 +575,12 @@ describe('AnnotationStore undo/redo (F6)', () => {
         store.setCanvas(MANIFEST, CANVAS);
         await store.persist(anno('a'));
 
-        // Undoing the create replays a delete; make it reject.
         adapter.delete = vi.fn(async () => {
             throw new Error('offline');
         });
 
         await store.undo();
 
-        // The failed replay did not lose the op or advance state.
         expect(store.canUndo).toBe(true);
         expect(store.canRedo).toBe(false);
         expect(store.has('a')).toBe(true);
@@ -628,7 +609,6 @@ describe('AnnotationStore undo/redo (F6)', () => {
         const store = new AnnotationStore({ adapter });
         store.setCanvas(MANIFEST, CANVAS);
 
-        // 60 creates → 60 undo entries, capped to 50.
         for (let i = 0; i < 60; i += 1) {
             await store.persist(anno(`a-${i}`));
         }
@@ -652,8 +632,8 @@ describe('AnnotationStore undo/redo (F6)', () => {
             events.push({ id, present: annotation !== null });
 
         await store.persist(anno('a'));
-        await store.undo(); // create undone → removed
-        await store.redo(); // re-created → present
+        await store.undo();
+        await store.redo();
 
         expect(events).toEqual([
             { id: 'a', present: false },
@@ -673,7 +653,6 @@ describe('AnnotationStore resolve() (F7/F14)', () => {
             id: 'skeleton',
             name: 'Skeleton',
             async load(_m, c) {
-                // Only the first canvas holds the skeleton annotation.
                 return c === CANVAS
                     ? [{ ...anno('anno-1'), __fullBodyLoaded: false }]
                     : [];
@@ -689,17 +668,11 @@ describe('AnnotationStore resolve() (F7/F14)', () => {
         await store.load();
         expect(store.isSkeleton('anno-1')).toBe(true);
 
-        // Resolve the skeleton for editing — the hydrate is now in flight.
         const resolving = store.resolve('anno-1');
 
-        // Navigate to a new canvas before the hydrate settles, exactly as
-        // handleCanvasChange does: point at the new canvas, then load it (which
-        // bumps the load-race token and leaves the cache empty).
         store.setCanvas(MANIFEST, 'http://example.org/canvas/2');
         await store.load();
 
-        // The stale hydrate finally settles. It targets the previous canvas, so
-        // it must not poison the new canvas's (empty) cache (F14).
         releaseHydrate({
             ...anno('anno-1'),
             body: [{ value: 'full' }],

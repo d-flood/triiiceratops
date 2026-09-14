@@ -461,7 +461,6 @@ export class ViewerState {
     selectedChoices: Map<string, string> = new SvelteMap<string, string>();
     selectedSequenceIndex = $state(0);
 
-    // Collection state
     collectionId: string | null = $state(null);
     collectionLabel: string = $state('');
     collectionThumbnail: string = $state('');

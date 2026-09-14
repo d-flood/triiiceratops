@@ -4,16 +4,12 @@ import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
 import type { W3CAnnotation } from './adapters/types';
 
 /**
- * The 1.0 LocalStorage namespace is a FROZEN, versioned, package-qualified key
- * (SPEC — "the 1.0 LocalStorage Adapter uses a new stable, versioned,
- * package-qualified key"). RC-era data is disposable and must be left completely
- * alone: never read, migrated, deleted, or overwritten. These tests pin both
- * halves of that contract.
+ * The 1.0 LocalStorage namespace is a FROZEN, versioned, package-qualified key.
+ * RC-era data is disposable: never read, migrated, deleted, or overwritten.
  */
 
 const V1_PREFIX = '@triiiceratops/plugin-annotation-editor:v1';
 
-/** The prerelease (RC) key the OLD in-core adapter wrote under. */
 const rcKey = (manifestId: string, canvasId: string): string =>
     `triiiceratops:annotations:${encodeURIComponent(manifestId)}:${encodeURIComponent(canvasId)}`;
 
@@ -55,14 +51,12 @@ describe('LocalStorageAdapter 1.0 namespace', () => {
         const keys = Object.keys(localStorage);
         expect(keys.length).toBeGreaterThan(0);
         expect(keys.every((k) => k.startsWith(V1_PREFIX))).toBe(true);
-        // Never the RC namespace.
         expect(
             keys.some((k) => k.startsWith('triiiceratops:annotations:')),
         ).toBe(false);
     });
 
     it('leaves RC-era keys byte-identical and unread through a full create/edit/delete session', async () => {
-        // Pre-seed disposable RC data for this canvas AND another canvas.
         const rcHere = rcKey(MANIFEST, CANVAS);
         const rcHereValue = JSON.stringify([
             { id: 'rc-1', type: 'Annotation', target: { source: CANVAS } },
@@ -75,8 +69,6 @@ describe('LocalStorageAdapter 1.0 namespace', () => {
         const getSpy = vi.spyOn(Storage.prototype, 'getItem');
 
         const adapter = new LocalStorageAdapter();
-        // A full session: create → edit → load → delete, all on the SAME
-        // manifest+canvas whose RC key is pre-seeded.
         await adapter.create(MANIFEST, CANVAS, sample('new-1', CANVAS));
         await adapter.update(MANIFEST, CANVAS, {
             ...sample('new-1', CANVAS),
@@ -88,16 +80,13 @@ describe('LocalStorageAdapter 1.0 namespace', () => {
         expect(loaded.find((a) => a.id === 'new-1')).toBeDefined();
         await adapter.delete(MANIFEST, CANVAS, 'new-1');
 
-        // No RC key was ever read during the session.
         const readKeys = getSpy.mock.calls.map((c) => c[0]);
         expect(readKeys).not.toContain(rcHere);
         expect(readKeys).not.toContain(rcOther);
-        // Every read the adapter performed was a v1 key.
         expect(readKeys.every((k) => String(k).startsWith(V1_PREFIX))).toBe(
             true,
         );
 
-        // RC keys are still present and byte-identical (never migrated/overwritten).
         expect(localStorage.getItem(rcHere)).toBe(rcHereValue);
         expect(localStorage.getItem(rcOther)).toBe(rcOtherValue);
     });

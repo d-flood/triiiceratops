@@ -1,12 +1,6 @@
-// Self-contained IIFE entry for the Web Component.
-// Loading this bundle registers the <triiiceratops-viewer> custom element and
-// bootstraps the window.Triiiceratops browser runtime namespace. Plugins register
-// their own factories through window.Triiiceratops.plugins and exchange live
-// objects in the same realm. The namespace also carries the curated shared
-// Svelte runtime first-party plugin IIFEs consume instead of bundling a second
-// copy (see browser-runtime.ts, SharedSvelteRuntime); third-party plugins bundle
-// their own, because sharing private `svelte/internal` is only safe across
-// packages released together at one Svelte version.
+// Self-contained IIFE entry: registers <triiiceratops-viewer> and bootstraps
+// window.Triiiceratops (same-realm plugin exchange + curated shared Svelte runtime).
+// Third-party plugins bundle their own runtime — sharing private svelte/internal is only safe across same-release packages.
 
 import TriiiceratopsViewerElement from './components/TriiiceratopsViewerElement.svelte';
 import { installBrowserRuntime, VIEWER_ELEMENT_TAG } from './browser-runtime';

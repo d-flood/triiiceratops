@@ -219,8 +219,6 @@
         padding-inline: 0;
     }
 
-    /* Ghost: transparent until interaction; text takes the variant color
-       (falls back to base-content for the default variant). */
     .ghost {
         --btn-bg: transparent;
         --btn-border: transparent;
@@ -239,7 +237,6 @@
         --btn-border: transparent;
     }
 
-    /* Outline: colored border/text until interaction, then fills. */
     .outline:not(:hover):not(:active):not(:focus-visible):not(.active):not(
             :disabled
         ):not([disabled]) {

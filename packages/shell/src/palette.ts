@@ -140,7 +140,6 @@ export const COLOURS: readonly ColourToken[] = [
         dark: '#e0a32e',
         role: 'Data mark, emphasized — orange on light, amber on dark',
     },
-    // Filled colour fields from here down: one value, both schemes.
     {
         name: '--ink-block',
         light: '#2a2521',

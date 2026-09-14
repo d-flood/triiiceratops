@@ -43,6 +43,23 @@ jobs:
             - name: Install dependencies (pinned baseline)
               run: pnpm install
 
+            # The SDK's source imports `triiiceratops` through its published
+            # subpath exports, every one of which resolves into `dist/`. Without
+            # this the adapter suites below fail on unresolvable
+            # `triiiceratops/*` imports no matter which framework versions are
+            # installed, which is a build-ordering failure wearing a framework
+            # regression's clothes.
+            #
+            # Deliberately BEFORE the upgrade step: core is built against the
+            # pinned baseline so its emitted JS and `.d.ts` are held constant and
+            # the only thing varying between runs is the framework the adapters
+            # compile against.
+            - name: Build the SDK's workspace dependencies (pinned baseline)
+              run: |
+                  pnpm --filter @triiiceratops/ui build
+                  pnpm --filter triiiceratops build:lib
+                  pnpm --filter triiiceratops build:testing
+
             # The seam ticket 13 left: swap the SDK's pinned framework devDeps for
             # each framework's current registry `latest`, then re-resolve.
             - name: Upgrade framework majors to registry latest
@@ -53,9 +70,12 @@ jobs:
                   {
                     echo "## Resolved framework versions"
                     echo '```'
-                    for pkg in react react-dom vue svelte lit; do
-                      echo "$pkg: $(node -p "require('@triiiceratops/plugin-sdk/node_modules/$pkg/package.json').version" 2>/dev/null || node -p "require('$pkg/package.json').version" 2>/dev/null || echo unknown)"
-                    done
+                    # Resolved from the SDK's own directory. Resolving from the
+                    # repo root instead reports nothing useful: pnpm leaves only
+                    # the root's own devDeps in the root `node_modules`, so four
+                    # of these five are simply not there.
+                    pnpm --filter @triiiceratops/plugin-sdk list \
+                      react react-dom vue svelte lit --depth 0
                     echo '```'
                   } >> canary-report.md
 

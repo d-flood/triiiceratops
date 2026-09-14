@@ -5,7 +5,7 @@
  * shipped module imports. `@sveltejs/package` v2 has no exclude option, so
  * `build:lib` runs this to trim the npm tarball.
  *
- * Run directly: `node ./src/build/pruneDist.ts` (Node strips the types).
+ * Run directly: `node ./src/packaging/pruneDist.ts` (Node strips the types).
  */
 import { readdirSync, statSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -46,9 +46,7 @@ const TEST_HOST_RE = new RegExp(
 
 /** True if a dist file (by basename) should not be published. */
 export function isPackageExcluded(filename: string): boolean {
-    // Test/spec files: *.test.js, *.test.d.ts, *.spec.ts, …
     if (/\.(test|spec)\./.test(filename)) return true;
-    // Test-host components.
     if (TEST_HOST_RE.test(filename)) return true;
     return false;
 }
@@ -57,7 +55,6 @@ export function isPackageExcluded(filename: string): boolean {
 export function pruneDist(distDir: string): string[] {
     const removed: string[] = [];
     if (!existsSync(distDir)) return removed;
-    // Drop whole excluded directories first (test fixtures / mock utilities).
     for (const dir of EXCLUDED_DIRS) {
         const full = join(distDir, dir);
         if (existsSync(full)) {
@@ -85,7 +82,7 @@ export function pruneDist(distDir: string): string[] {
     return removed;
 }
 
-// CLI entry: prune ./dist relative to the repo root (this file is src/build/).
+// CLI entry: prune ./dist relative to the repo root.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     const distDir = fileURLToPath(new URL('../../dist', import.meta.url));
     const removed = pruneDist(distDir);

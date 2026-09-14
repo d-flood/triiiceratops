@@ -39,14 +39,7 @@ describe('stage layout', () => {
             expect(stageFill('audio')).toBe('timeline');
         });
 
-        /*
-            The rect belongs to the renderer where core paints a companion.
-            Anything of any height would sit above the renderer's canvas and
-            hide part of the picture — and the quarter-rect timeline strip this
-            layout used to get was the last piece of transport-era canvas real
-            estate, now that the transport lives in the control bar. Waveform
-            data reaches the reader through that bar instead.
-        */
+        // The rect belongs to the renderer where core paints a companion, so no lane may cover it; the timeline lives in the control bar instead.
         it('leaves the whole rect to core where core paints a companion', () => {
             expect(stageFill('audio-with-image')).toBe('none');
         });

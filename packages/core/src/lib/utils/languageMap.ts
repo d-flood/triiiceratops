@@ -70,7 +70,6 @@ export function resolveAllLanguageValues(
         return [];
     }
 
-    // Array
     if (Array.isArray(value) && value.length > 0) {
         if (typeof value[0] === 'string') return value as string[];
 

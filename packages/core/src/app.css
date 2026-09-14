@@ -1,15 +1,7 @@
 /*
- * Global stylesheet for Triiiceratops (vanilla CSS).
- *
- * This file is:
- *   - imported by the demo (light DOM) via src/demo/main.ts, and
- *   - inlined into the custom element's shadow root
- *     (see TriiiceratopsViewerElement.svelte: `import styles from '../../app.css?inline'`).
- *
- * It contains ONLY global, non-component CSS. Per-component styling lives in each
- * component's scoped <style> block (Svelte injects those into the shadow root too).
- *
- * Vite resolves these @imports and bundles them into a single string for `?inline`.
+ * Global, non-component CSS only: inlined into the custom element's shadow root
+ * and imported by the demo's light DOM. Per-component styling lives in each
+ * component's scoped <style> block — never add it here.
  */
 
 @import './styles/preflight.css';

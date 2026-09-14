@@ -41,7 +41,6 @@ export function publishLocales(
     return moved;
 }
 
-// CLI entry: move within ./dist relative to the package root.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     const dist = fileURLToPath(new URL('../../dist', import.meta.url));
     const moved = publishLocales(join(dist, 'messages'), join(dist, 'locales'));

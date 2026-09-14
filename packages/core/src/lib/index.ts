@@ -229,10 +229,8 @@ export { companionPaintable } from './renderer/companionCanvases';
 // Structures (TOC) exports
 export type { StructureNode } from './utils/structures';
 
-// Collections exports
 export type { CollectionItem } from './utils/collections';
 
-// Theme customization exports
 export type { ThemeConfig, BuiltInTheme } from './theme/types';
 export { BUILTIN_THEMES } from './theme/types';
 export {

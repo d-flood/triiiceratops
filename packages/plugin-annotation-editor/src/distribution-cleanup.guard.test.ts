@@ -15,8 +15,7 @@
 //
 // The scan reads the package's own source via Vite's `import.meta.glob` (raw),
 // so it needs no Node type-roots and runs identically under svelte-check and
-// vitest. To verify the guard once: add a bare console call to any scanned file
-// in this package's `src/`, run this test, watch it fail, then remove it.
+// vitest.
 
 import { describe, expect, it } from 'vitest';
 
@@ -25,8 +24,6 @@ const ALLOW_MARKER = 'triiiceratops-console-allow';
 const CONSOLE_CALL =
     /console\.(log|warn|error|debug|info|trace|group|table|dir|count|assert)\s*\(/;
 
-// Eagerly load every `.ts`/`.svelte` source in this package's `src/` as raw
-// text. Keys are paths relative to this file's directory.
 const sources = import.meta.glob('./**/*.{ts,svelte}', {
     query: '?raw',
     import: 'default',

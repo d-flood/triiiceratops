@@ -46,11 +46,9 @@
  * ```
  */
 
-// Types
 export type { ThemeConfig, BuiltInTheme } from './types';
 export { BUILTIN_THEMES } from './types';
 
-// Theme manager utilities
 export {
     applyTheme,
     applyBuiltInTheme,
@@ -70,7 +68,6 @@ export {
 } from './publicTokens';
 export type { PublicToken, PublicTokenCategory } from './publicTokens';
 
-// Color utilities
 export {
     hexToOklch,
     normalizeColor,

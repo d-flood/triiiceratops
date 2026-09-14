@@ -36,10 +36,8 @@
  * wants `triiiceratops/testing`, whose bundle inlines the reactivity runtime.
  */
 
-// The framework-neutral surface, unchanged and complete.
 export * from './index';
 
-// The Svelte component itself — the reason this entry exists.
 export { default as TriiiceratopsViewer } from './components/TriiiceratopsViewer.svelte';
 
 // The constructible rune-backed state classes. `.` exports `ViewerState` as a
