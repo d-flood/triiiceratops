@@ -48,9 +48,11 @@ jobs:
             #
             # `version:packages` is `changeset version` plus `sync-versions.mjs`,
             # which rewrites the version literals that cannot import a manifest
-            # (they are bundled into the element and the site). The action commits
+            # (they are bundled into the element and the site), plus `api:report`,
+            # since the core API snapshot quotes `CORE_VERSION`. The action commits
             # whatever the version command changed, so those rewrites land in this
-            # same PR rather than drifting until a test catches them.
+            # same PR rather than drifting until a test catches them on main —
+            # the API job skips the release PR, so main is where it would fail.
             - name: Create or update the Version Packages PR
               uses: changesets/action@v1
               with:
