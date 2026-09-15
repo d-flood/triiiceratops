@@ -117,21 +117,39 @@ const FRAMEWORK_SUBPATHS = [
     },
 ];
 
-/** npm install into `dir` from `registry`. Throws on a non-zero exit. */
+const INSTALL_ATTEMPTS = 6;
+const INSTALL_RETRY_MS = 20_000;
+
+/** Sleep synchronously — this script is a linear script with no event loop work. */
+function sleepSync(ms) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/** npm install into `dir` from `registry`, retrying registry propagation lag. */
 function npmInstall(dir, registry, label) {
-    const install = spawnSync(
-        'npm',
-        [
-            'install',
-            '--no-audit',
-            '--no-fund',
-            '--loglevel=error',
-            `--registry=${registry}`,
-        ],
-        { cwd: dir, stdio: 'inherit' },
-    );
-    if (install.status !== 0)
-        throw new Error(`npm install from registry failed (${label})`);
+    for (let attempt = 1; ; attempt++) {
+        const install = spawnSync(
+            'npm',
+            [
+                'install',
+                '--no-audit',
+                '--no-fund',
+                '--prefer-online',
+                '--loglevel=error',
+                `--registry=${registry}`,
+            ],
+            { cwd: dir, stdio: 'inherit' },
+        );
+        if (install.status === 0) return;
+        if (attempt === INSTALL_ATTEMPTS)
+            throw new Error(
+                `npm install from registry failed after ${INSTALL_ATTEMPTS} attempts (${label})`,
+            );
+        console.log(
+            `[smoke] npm install failed (${label}), attempt ${attempt}/${INSTALL_ATTEMPTS} — retrying in ${INSTALL_RETRY_MS / 1000}s`,
+        );
+        sleepSync(INSTALL_RETRY_MS);
+    }
 }
 
 function writeConsumerManifest(dir, name, dependencies) {
