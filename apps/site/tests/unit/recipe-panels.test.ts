@@ -8,6 +8,7 @@ import { COOKBOOK_RECIPES } from '@triiiceratops/cookbook';
 import { describe, expect, it } from 'vitest';
 
 import {
+    CANVAS_INFO_RECIPES,
     RECIPE_PANELS,
     TOOLBAR_ONLY_RECIPES,
     recipeChrome,
@@ -26,15 +27,24 @@ function manifestUrl(id: string) {
 
 describe('the recipe tables', () => {
     it('name only recipes the catalog carries', () => {
-        const named = [...RECIPE_PANELS.keys(), ...TOOLBAR_ONLY_RECIPES];
+        const named = [
+            ...RECIPE_PANELS.keys(),
+            ...CANVAS_INFO_RECIPES,
+            ...TOOLBAR_ONLY_RECIPES,
+        ];
         expect(named.filter((id) => !CATALOG_IDS.has(id))).toEqual([]);
     });
 
     it('do not claim the same recipe twice', () => {
-        const both = [...TOOLBAR_ONLY_RECIPES].filter((id) =>
-            RECIPE_PANELS.has(id),
+        const both = [...TOOLBAR_ONLY_RECIPES, ...CANVAS_INFO_RECIPES].filter(
+            (id) => RECIPE_PANELS.has(id),
         );
         expect(both).toEqual([]);
+        expect(
+            [...CANVAS_INFO_RECIPES].filter((id) =>
+                TOOLBAR_ONLY_RECIPES.has(id),
+            ),
+        ).toEqual([]);
     });
 });
 
@@ -68,6 +78,11 @@ describe('recipePanel', () => {
         expect(panelFor(manifestUrl('0025-newspaper-article-index'))).toBe(
             'structures',
         );
+        // Volumes bound into one book are ranges too: the panel is the only
+        // place a reader sees where one volume ends and the next begins.
+        expect(panelFor(manifestUrl('0031-bound-multivolume'))).toBe(
+            'structures',
+        );
         // Time-based ranges are the same panel as page ranges, whether the
         // recipe spreads its media over one canvas or several.
         expect(panelFor(manifestUrl('0026-toc-opera'))).toBe('structures');
@@ -89,6 +104,14 @@ describe('recipePanel', () => {
         expect(panelFor(manifestUrl('0266-full-canvas-annotation'))).toBe(
             'annotations',
         );
+    });
+
+    it('opens the canvas info popover for a canvas-rendering recipe', () => {
+        // 0017's manifest carries only a label; the transcription is a
+        // `rendering` on the canvas, so the panel would open on nothing.
+        const chrome = recipeChrome(manifestUrl('0017-transcription-av'));
+        expect(chrome?.canvasInfo).toBe(true);
+        expect(chrome?.panel).toBeUndefined();
     });
 
     it('leaves the chrome alone for a canvas-metadata recipe', () => {

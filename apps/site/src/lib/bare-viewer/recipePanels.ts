@@ -31,10 +31,10 @@ const INFORMATION_RECIPES = [
     '0006-text-language',
     '0007-string-formats',
     '0008-rights',
-    '0017-transcription-av',
     '0046-rendering',
     '0047-homepage',
     '0053-seeAlso',
+    '0117-add-image-thumbnail',
     '0118-multivalue',
     '0234-provider',
 ] as const;
@@ -79,18 +79,21 @@ const STRUCTURES_RECIPES = [
     '0024-book-4-toc',
     '0025-newspaper-article-index',
     '0026-toc-opera',
+    '0031-bound-multivolume',
     '0064-opera-one-canvas',
     '0065-opera-multiple-canvases',
 ] as const;
 
 /**
- * `0029-metadata-anywhere` is deliberately in none of these lists.
+ * `0029-metadata-anywhere` is deliberately in none of these lists, not even
+ * `CANVAS_INFO_RECIPES`.
  *
  * Its subject is metadata on a canvas rather than on the manifest, and core
  * surfaces that through the canvas information button on the nav bar — which
  * stands in the open the moment the canvas carries anything, with no toolbar and
- * no panel involved. Opening either would put chrome over the view and draw the
- * eye away from the one control the recipe exists to show.
+ * no panel involved. The metadata is the recipe, and finding it under that button
+ * is the reading the recipe asks for; opening the popover would hand over the
+ * answer and hide the control that gives it.
  */
 
 /**
@@ -106,6 +109,22 @@ const COLLECTION_RECIPES = [
     '0032-collection',
     '0230-navdate',
 ] as const;
+
+/**
+ * Recipes whose feature hangs off the canvas rather than the manifest, and so is
+ * read through the nav bar's canvas information button instead of a panel.
+ *
+ * `0017-transcription-av` is the case: its manifest carries nothing but a label,
+ * and the transcription the recipe exists for is a `rendering` on the canvas. The
+ * information panel would open on an empty descriptive record while the download
+ * sat unopened behind a button elsewhere on the bar.
+ *
+ * Not where `0029-metadata-anywhere` belongs: that recipe reaches the same button,
+ * and pressing it is the reader's to do — see the note above.
+ */
+export const CANVAS_INFO_RECIPES: ReadonlySet<string> = new Set([
+    '0017-transcription-av',
+]);
 
 /**
  * Recipes that open no panel but whose feature is a toolbar control: the reader
@@ -128,6 +147,8 @@ export const RECIPE_PANELS: ReadonlyMap<string, RecipePanel> = new Map([
 export interface RecipeChrome {
     /** The panel to open, or `undefined` for a recipe that opens none. */
     panel?: RecipePanel;
+    /** Whether to open the nav bar's canvas information popover. */
+    canvasInfo?: boolean;
 }
 
 /**
@@ -178,5 +199,6 @@ export function recipeChrome(
     const id = segments[index + 1] ?? '';
     const panel = RECIPE_PANELS.get(id);
     if (panel) return { panel };
+    if (CANVAS_INFO_RECIPES.has(id)) return { canvasInfo: true };
     return TOOLBAR_ONLY_RECIPES.has(id) ? {} : undefined;
 }

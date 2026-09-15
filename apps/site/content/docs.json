@@ -55,54 +55,6 @@
 			]
 		},
 		{
-			"type": "callout",
-			"attrs": {
-				"kind": "info",
-				"title": "This documentation describes the Triiiceratops 1.0 release line",
-				"id": "f2976675-63df-4dd8-90c2-869ef4438f47"
-			},
-			"content": [
-				{
-					"type": "paragraph",
-					"attrs": {
-						"id": "cf54c04e-cc04-4006-a673-d6c2d65864e9"
-					},
-					"content": [
-						{
-							"type": "text",
-							"text": "Core is published as "
-						},
-						{
-							"type": "text",
-							"marks": [
-								{
-									"type": "code"
-								}
-							],
-							"text": "triiiceratops"
-						},
-						{
-							"type": "text",
-							"text": "; the plugin SDK and first-party plugins are published under the "
-						},
-						{
-							"type": "text",
-							"marks": [
-								{
-									"type": "code"
-								}
-							],
-							"text": "@triiiceratops"
-						},
-						{
-							"type": "text",
-							"text": " npm scope and versioned independently."
-						}
-					]
-				}
-			]
-		},
-		{
 			"type": "heading",
 			"attrs": {
 				"id": "63f9a798-ad40-4f82-b2b5-8959169d42c6",
@@ -124,7 +76,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Pick your stack. Each tab is a complete, working viewer; the guide behind it is the one place that stack's integration is documented."
+					"text": "Pick your stack. Each tab is a complete, working viewer."
 				}
 			]
 		},
@@ -1853,13 +1805,18 @@
 				},
 				{
 					"type": "listItem",
+					"attrs": {
+						"id": "0d92b594-d8c9-4866-ad1b-62751a0284c3"
+					},
 					"content": [
 						{
 							"type": "paragraph",
+							"attrs": {
+								"id": "34b491d9-9a9b-49a7-b7ea-63ce86316251"
+							},
 							"content": [
 								{
 									"type": "text",
-									"text": "Annotation editing",
 									"marks": [
 										{
 											"type": "bold"
@@ -1867,24 +1824,23 @@
 										{
 											"type": "link",
 											"attrs": {
-												"href": "/docs/plugin-annotation-editor/"
+												"href": "/docs/plugin-annotation-editor/",
+												"target": null,
+												"rel": null,
+												"title": null,
+												"class": null
 											}
 										}
-									]
+									],
+									"text": "Annotation editing"
 								},
 								{
 									"type": "text",
 									"text": " — let readers draw and edit a canvas’s annotations, persisted through a storage adapter you supply. Opt-in, like audio and video."
 								}
-							],
-							"attrs": {
-								"id": "34b491d9-9a9b-49a7-b7ea-63ce86316251"
-							}
+							]
 						}
-					],
-					"attrs": {
-						"id": "0d92b594-d8c9-4866-ad1b-62751a0284c3"
-					}
+					]
 				},
 				{
 					"type": "listItem",
@@ -2258,12 +2214,12 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Annotations",
 									"marks": [
 										{
 											"type": "bold"
 										}
-									]
+									],
+									"text": "Annotations"
 								},
 								{
 									"type": "text",
@@ -2271,15 +2227,19 @@
 								},
 								{
 									"type": "text",
-									"text": "one opt-in plugin",
 									"marks": [
 										{
 											"type": "link",
 											"attrs": {
-												"href": "/docs/plugin-annotation-editor/"
+												"href": "/docs/plugin-annotation-editor/",
+												"target": null,
+												"rel": null,
+												"title": null,
+												"class": null
 											}
 										}
-									]
+									],
+									"text": "one opt-in plugin"
 								},
 								{
 									"type": "text",
@@ -2654,12 +2614,12 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Plugin System",
 									"marks": [
 										{
 											"type": "bold"
 										}
-									]
+									],
+									"text": "Plugin System"
 								},
 								{
 									"type": "text",

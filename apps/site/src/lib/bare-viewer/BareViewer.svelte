@@ -136,6 +136,26 @@
     });
 
     /*
+     * The canvas information popover, for a recipe whose feature is on the canvas
+     * rather than the manifest. It is not part of `config` because core holds it
+     * as viewer state rather than as chrome a host configures, so it is opened by
+     * hand here.
+     *
+     * Keyed on the manifest so it opens once per arrival, the same "opened, never
+     * closed" rule `config` above is written to: a reader who dismisses the
+     * popover must not have it spring back.
+     */
+    let canvasInfoOpenedFor = $state<string | undefined>();
+    $effect(() => {
+        const manifestId = viewerState?.manifestId;
+        if (!manifestId || canvasInfoOpenedFor === manifestId) return;
+        canvasInfoOpenedFor = manifestId;
+        if (recipeChrome(manifestId)?.canvasInfo && viewerState) {
+            viewerState.showCanvasInfo = true;
+        }
+    });
+
+    /*
      * Whether the address this page was opened at named anything to show.
      *
      * Read once, and only for its presence: resolving it stays the viewer's, as
