@@ -1,5 +1,15 @@
 # @triiiceratops/plugin-av
 
+## 1.0.4
+
+### Patch Changes
+
+- 0be4a02: Add audio/video annotation indicators to the transport, stabilize canvas info
+  popover positioning, and disable annotation connectors on mobile.
+- Updated dependencies [0be4a02]
+    - triiiceratops@1.0.3
+    - @triiiceratops/plugin-sdk@1.0.0
+
 ## 1.0.3
 
 ### Patch Changes

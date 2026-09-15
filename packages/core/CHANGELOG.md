@@ -1,5 +1,12 @@
 # triiiceratops
 
+## 1.0.3
+
+### Patch Changes
+
+- 0be4a02: Add audio/video annotation indicators to the transport, stabilize canvas info
+  popover positioning, and disable annotation connectors on mobile.
+
 ## 1.0.2
 
 ### Patch Changes
