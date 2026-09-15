@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops canvas info — overflow fixture</title>
+        <!--
+            A canvas whose label, summary, metadata and `rendering` label are
+            each one unbreakable word longer than the popover is wide. Long
+            words have to wrap inside the popover's own width; only content
+            that cannot wrap may scroll sideways.
+
+            Loaded from SOURCE through the dev server, so the spec needs no
+            build step.
+        -->
+        <script type="module" src="/src/lib/custom-element.ts"></script>
+        <style>
+            html,
+            body {
+                margin: 0;
+            }
+            #v {
+                display: block;
+                width: 900px;
+                height: 600px;
+            }
+        </style>
+    </head>
+    <body>
+        <triiiceratops-viewer
+            id="v"
+            manifest-id="/demo-manifests/e2e/canvas-info-overflow.json"
+        ></triiiceratops-viewer>
+    </body>
+</html>

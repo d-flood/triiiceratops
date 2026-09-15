@@ -7,6 +7,10 @@
     import type { IconName } from '../generated/icons';
     import { getMessages } from '../state/i18n.svelte';
     import { resolveLanguageValue } from '../utils/languageMap';
+    import {
+        hasDescriptiveDetail,
+        normalizeDescriptiveMetadata,
+    } from '../utils/metadataNormalization';
     import { getResourceId } from '../utils/iiifIds';
     import { ZERO_VIEWPORT_INSET, type ViewportInset } from '../types/viewport';
     import {
@@ -62,7 +66,22 @@
 
     let showZoom = $derived(viewerState.showZoomControls);
     let hasChoices = $derived(visibleChoiceGroups.length > 0);
-    let hasCenterControls = $derived(showZoom || showNav);
+
+    // The canvas info button carries the canvas's own summary, metadata and
+    // `rendering` downloads, which a single-canvas manifest has just as much as
+    // a book does — so it is gated on having something to say, not on the
+    // canvas navigation it usually sits inside.
+    let showCanvasInfo = $derived(
+        viewerState.config.information?.showButton !== false &&
+            hasDescriptiveDetail(
+                normalizeDescriptiveMetadata(
+                    viewerState.canvases[viewerState.currentCanvasIndex],
+                    viewerLocale,
+                ),
+            ),
+    );
+
+    let hasCenterControls = $derived(showZoom || showNav || showCanvasInfo);
 
     // Where the bar spans the viewer — a registered transport stretches it —
     // the trailing control sits against the inline-end edge and its centred
@@ -714,13 +733,24 @@
                                     m.fit_to_viewer(),
                                     () => viewerState.fitView(),
                                     false,
-                                    showNav ? '' : navEdgeClass,
+                                    showNav || showCanvasInfo
+                                        ? ''
+                                        : navEdgeClass,
                                 )}
                             </div>
                         {/if}
 
-                        {#if showZoom && showNav}
+                        {#if showZoom && (showNav || showCanvasInfo)}
                             <div class="divider-v"></div>
+                        {/if}
+
+                        {#if !showNav && showCanvasInfo}
+                            <div class="btn-row">
+                                <CanvasInfoPopover
+                                    {tooltipPlacement}
+                                    tooltipEdgeClass={navEdgeClass}
+                                />
+                            </div>
                         {/if}
 
                         {#if showNav}

@@ -230,6 +230,9 @@
         line-height: 1.75rem;
         margin-bottom: 1rem;
         overflow-wrap: break-word;
+        /* A language map may hold several strings for one property, all of
+           which must be shown; plain-text properties join them with newlines. */
+        white-space: pre-line;
     }
 
     .thumbnail-wrap {
@@ -256,6 +259,8 @@
         line-height: 1.75rem;
         opacity: 0.7;
         margin-top: 1.5rem;
+        white-space: pre-line;
+        overflow-wrap: break-word;
     }
 
     .body :global(.detail) {

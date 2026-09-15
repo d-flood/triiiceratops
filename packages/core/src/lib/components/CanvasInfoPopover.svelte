@@ -3,13 +3,18 @@
     import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages } from '../state/i18n.svelte';
-    import { normalizeDescriptiveMetadata } from '../utils/metadataNormalization';
+    import {
+        hasDescriptiveDetail,
+        normalizeDescriptiveMetadata,
+    } from '../utils/metadataNormalization';
     import SanitizedHtml from './SanitizedHtml.svelte';
     import { Button } from './ui';
     import { dismissible } from '../utils/dismissible';
 
-    let { tooltipPlacement = 'place-top' }: { tooltipPlacement?: string } =
-        $props();
+    let {
+        tooltipPlacement = 'place-top',
+        tooltipEdgeClass = '',
+    }: { tooltipPlacement?: string; tooltipEdgeClass?: string } = $props();
 
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const m = getMessages();
@@ -31,9 +36,7 @@
     let metadata = $derived(described.metadata);
     let rendering = $derived(described.rendering);
 
-    let hasAdditionalContent = $derived(
-        !!(summary || metadata.length > 0 || rendering.length > 0),
-    );
+    let hasAdditionalContent = $derived(hasDescriptiveDetail(described));
 
     let showButton = $derived(
         viewerState.config.information?.showButton !== false,
@@ -58,6 +61,56 @@
     function closeInfo() {
         if (viewerState.showCanvasInfo) viewerState.toggleCanvasInfo();
     }
+
+    /** Breathing room between the popover and the viewer's own edge. */
+    const VIEWER_GUTTER_PX = 8;
+
+    let popover = $state<HTMLElement | null>(null);
+
+    /*
+     * Keep the popover inside the viewer.
+     *
+     * It hangs off the trigger button, so the trigger is its containing block
+     * and CSS has no way to express "centred on the button, but never past the
+     * viewer's edge" — the box it must stay inside is three ancestors up, and a
+     * percentage here resolves against a 24px button. So the cap and the nudge
+     * are measured: the popover gets at most the viewer's width, and slides
+     * back inside by however far centring would have pushed it out. A viewer
+     * narrower than the popover's minimum gets a popover the width of the
+     * viewer, which is the point at which sideways scrolling is the honest
+     * answer.
+     */
+    $effect(() => {
+        if (!viewerState.showCanvasInfo) return;
+
+        const el = popover;
+        const trigger = invoker;
+        const root = el?.closest('.viewer-root');
+        if (!el || !trigger || !root) return;
+
+        const place = () => {
+            const bounds = root.getBoundingClientRect();
+            const available = Math.max(0, bounds.width - VIEWER_GUTTER_PX * 2);
+            el.style.maxWidth = `${available}px`;
+
+            // Reading the width applies the cap just set, so the nudge below is
+            // computed against the width the popover will actually have.
+            const width = el.offsetWidth;
+            const anchor = trigger.getBoundingClientRect();
+            const centred = anchor.left + anchor.width / 2 - width / 2;
+            const min = bounds.left + VIEWER_GUTTER_PX;
+            const max = Math.max(min, bounds.right - VIEWER_GUTTER_PX - width);
+            const clamped = Math.min(Math.max(centred, min), max);
+
+            el.style.setProperty('--info-shift', `${clamped - centred}px`);
+        };
+
+        place();
+
+        const observer = new ResizeObserver(place);
+        observer.observe(root);
+        return () => observer.disconnect();
+    });
 </script>
 
 {#if hasAdditionalContent && showButton}
@@ -66,7 +119,7 @@
             circle
             size="xs"
             ghost
-            class="trigger tooltip {tooltipPlacement}"
+            class="trigger tooltip {tooltipPlacement} {tooltipEdgeClass}"
             data-tip={m.canvas_info_tooltip()}
             onclick={openInfo}
             aria-label={m.canvas_info_tooltip()}
@@ -77,6 +130,7 @@
         {#if viewerState.showCanvasInfo}
             <!-- Popover -->
             <div
+                bind:this={popover}
                 use:dismissible={{
                     onDismiss: closeInfo,
                     controls: dismissal,
@@ -84,7 +138,6 @@
                     within: [invoker],
                 }}
                 class="popover"
-                style="left: 50%; transform: translateX(-50%); z-index: 1001;"
                 role="dialog"
                 aria-label={m.canvas_info()}
                 tabindex="-1"
@@ -164,6 +217,11 @@
     .popover {
         position: absolute;
         bottom: 100%;
+        /* Centred on the trigger, then nudged by `--info-shift` so the box
+           stays inside the viewer. The shift is measured — see the effect. */
+        left: 50%;
+        transform: translateX(calc(-50% + var(--info-shift, 0px)));
+        z-index: 1001;
         margin-bottom: 0.5rem;
         background-color: var(--tri-panel-bg);
         border-width: 1px;
@@ -201,6 +259,10 @@
         line-height: 1.25rem;
         font-weight: 600;
         margin-bottom: 0.25rem;
+        /* A language map may hold several strings for one property, all of
+           which must be shown; plain-text properties join them with newlines. */
+        white-space: pre-line;
+        overflow-wrap: break-word;
     }
 
     .scroll :global(.summary) {
@@ -219,6 +281,8 @@
         font-weight: 700;
         opacity: 0.7;
         margin-top: 0.5rem;
+        white-space: pre-line;
+        overflow-wrap: break-word;
     }
 
     .metadata :global(.meta-value) {

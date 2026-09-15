@@ -297,6 +297,29 @@ test('a tap on a shape selects it, and the connector outlives the pointer', asyn
     );
 });
 
+/**
+ * Below the panel-band width the annotation panel docks UNDER the canvas, and a
+ * connector drawn from there would run up through the control bar instead of
+ * across the image — pointing at nothing, from a row that starts in the same
+ * place as every other row. So the selection still happens and the line does
+ * not.
+ */
+test('no connector is drawn while the panel is docked as a band', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 480, height: 800 });
+    await openAnnotatedManifest(page);
+    await expect(page.locator('.panel-band')).toHaveCount(1);
+
+    await clickShape(page);
+
+    await expect(page.locator(PANEL_ROW)).toHaveAttribute(
+        'aria-current',
+        'true',
+    );
+    await expect(page.locator(CONNECTOR)).toHaveCount(0);
+});
+
 test('tapping the image beside a shape clears the selection', async ({
     page,
 }) => {

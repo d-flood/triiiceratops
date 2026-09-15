@@ -41,6 +41,11 @@
 <style>
     :global(.viewer-html) {
         line-height: 1.5;
+        /* Publisher text carries tokens no layout can predict — a shelfmark, a
+           compound noun, a bare URL. Breaking one that cannot fit keeps it
+           inside the box it was given, instead of widening a scroll container
+           onto a horizontal scrollbar. */
+        overflow-wrap: break-word;
     }
 
     :global(.viewer-html a) {

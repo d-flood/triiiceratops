@@ -193,3 +193,48 @@ describe('normalizeMetadataEntries', () => {
         expect(normalizeMetadataEntries({})).toEqual([]);
     });
 });
+
+// Cookbook 0118 requires a client to display every string a language map's
+// array holds, `label` and `summary` included. A `label` is never HTML, so the
+// plain-text properties join with newlines and the HTML ones with `<br />`.
+describe('normalizeDescriptiveMetadata — multi-valued language maps', () => {
+    it('keeps every label, summary and metadata value', () => {
+        const d = normalizeDescriptiveMetadata(
+            {
+                label: { en: ['Title', 'Title Variant'] },
+                summary: { en: ['First line.', 'Second line.'] },
+                metadata: [
+                    {
+                        label: { en: ['Author', 'Authors'] },
+                        value: { en: ['Picart, Bernard', 'Bernard, Jean'] },
+                    },
+                ],
+                requiredStatement: {
+                    label: { en: ['Held by', 'Custodian'] },
+                    value: { en: ['A Library'] },
+                },
+            },
+            'en',
+        );
+
+        expect(d.title).toBe('Title\nTitle Variant');
+        expect(d.summary).toBe('First line.<br />Second line.');
+        expect(d.metadata).toEqual([
+            {
+                label: 'Author\nAuthors',
+                value: 'Picart, Bernard<br />Bernard, Jean',
+            },
+        ]);
+        expect(d.attributionLabel).toBe('Held by\nCustodian');
+    });
+
+    it('leaves a single-valued property unchanged', () => {
+        const d = normalizeDescriptiveMetadata(
+            { label: { fr: ['Un titre'] }, summary: { fr: ['Un résumé.'] } },
+            'fr',
+        );
+
+        expect(d.title).toBe('Un titre');
+        expect(d.summary).toBe('Un résumé.');
+    });
+});

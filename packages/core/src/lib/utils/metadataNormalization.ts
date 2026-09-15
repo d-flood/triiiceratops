@@ -17,6 +17,18 @@ export function resolveHtmlValues(value: unknown, locale?: string): string {
     return resolveAllLanguageValues(value, locale).join('<br />');
 }
 
+/**
+ * Join every string a language map holds for display as plain text.
+ *
+ * IIIF requires a client to display all of the strings in a language map's
+ * array, `label` included, but a `label` is never HTML — so the values are
+ * separated by newlines and the consumer reveals them with
+ * `white-space: pre-line`, not with markup.
+ */
+export function resolveTextValues(value: unknown, locale?: string): string {
+    return resolveAllLanguageValues(value, locale).filter(Boolean).join('\n');
+}
+
 export function normalizeIiifLinks(
     raw: any,
     locale?: string,
@@ -112,11 +124,11 @@ export function normalizeDescriptiveMetadata(
     const statement = json.requiredStatement;
 
     return {
-        title: resolveLanguageValue(json.label, locale),
-        summary: resolveLanguageValue(json.summary ?? json.description, locale),
+        title: resolveTextValues(json.label, locale),
+        summary: resolveHtmlValues(json.summary ?? json.description, locale),
         metadata: normalizeMetadataEntries(json.metadata, locale),
         attributionLabel: statement?.label
-            ? resolveLanguageValue(statement.label, locale)
+            ? resolveTextValues(statement.label, locale)
             : '',
         attribution: statement?.value
             ? resolveHtmlValues(statement.value, locale)
@@ -140,6 +152,18 @@ export function normalizeDescriptiveMetadata(
     };
 }
 
+/**
+ * Whether a resource says anything beyond its own label — the test for showing
+ * an info affordance at all, since a label is already on screen elsewhere.
+ */
+export function hasDescriptiveDetail(described: DescriptiveMetadata): boolean {
+    return !!(
+        described.summary ||
+        described.metadata.length > 0 ||
+        described.rendering.length > 0
+    );
+}
+
 export function normalizeMetadataEntries(
     rawMetadata: any,
     locale?: string,
@@ -151,9 +175,7 @@ export function normalizeMetadataEntries(
     return rawMetadata.map((item: any) => {
         // `metadata` entries are `{label, value}` in both IIIF v2 and v3, so
         // these two raw reads cover both versions.
-        const label = item.label
-            ? resolveLanguageValue(item.label, locale)
-            : '';
+        const label = item.label ? resolveTextValues(item.label, locale) : '';
 
         const value = item.value ? resolveHtmlValues(item.value, locale) : '';
 

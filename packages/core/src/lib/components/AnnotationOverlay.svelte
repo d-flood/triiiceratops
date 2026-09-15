@@ -9,6 +9,15 @@
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
 
     /**
+     * Whether to draw the connector lines at all. The viewer turns them off
+     * while the panels are docked as a band under the canvas: from there a
+     * connector would run up through the control bar rather than across the
+     * image, and every row would start from roughly the same place, so the line
+     * says nothing about which shape it points at.
+     */
+    let { showConnectors = true }: { showConnectors?: boolean } = $props();
+
+    /**
      * Every annotation on every canvas on screen — the same collection the panel
      * lists and the shape overlay draws, so a connector can join a row to a shape
      * on a facing page as readily as on the current one.
@@ -138,7 +147,7 @@
 
     $effect(() => {
         const connectedIds = connectedAnnotationIds;
-        if (connectedIds.length === 0) {
+        if (!showConnectors || connectedIds.length === 0) {
             lines = [];
             return;
         }

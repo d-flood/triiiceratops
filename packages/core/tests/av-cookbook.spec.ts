@@ -724,28 +724,28 @@ test.describe('av cookbook coverage', () => {
 
     /**
      * `0017-transcription-av`'s subject is a `text/plain` transcript hung off
-     * the *canvas*'s `rendering`, and the AV panel reads it: the plugin's
-     * untimed-transcript source fetches the linked file and writes its words
-     * into the panel under the publisher's own label.
-     *
-     * Core still has no route to the link itself — canvas `rendering` links
-     * render in one place only, the canvas-info popover in `ViewerControls`,
-     * and that popover is gated behind `showNav`, which requires
-     * `canvases.length > 1`. `0017` is a single-canvas manifest, so the trigger
-     * never renders. Both halves are asserted here: the link is unreachable,
-     * and the transcript is served anyway.
+     * the *canvas*'s `rendering`, and the recipe's use case is downloading it.
+     * Two routes have to exist: the AV panel reads the file and writes its
+     * words in under the publisher's own label, and the canvas-info popover
+     * offers the link itself. The popover is what this recipe needs the
+     * canvas-info button to be gated on canvas *content* rather than on the
+     * canvas navigation, which a single-canvas manifest never shows.
      */
-    test('the transcript recipe serves its rendering in the panel, not as a link', async ({
+    test('the transcript recipe serves its rendering as both a link and panel text', async ({
         page,
     }) => {
         const log = newLog();
         await openRecipe(page, '0017-transcription-av', log);
         await page.locator(STAGE).first().waitFor({ state: 'visible' });
 
-        // Single canvas, so the canvas-info popover's trigger never renders.
-        await expect(page.locator(CANVAS_INFO_TRIGGER)).toHaveCount(0);
-        await expect(page.locator(CANVAS_INFO)).toHaveCount(0);
-        await expect(page.locator(RENDERING_LINK)).toHaveCount(0);
+        // One canvas and therefore no canvas navigation, but the canvas has a
+        // `rendering` to offer, so the popover is still reachable.
+        await page.locator(CANVAS_INFO_TRIGGER).click();
+        await expect(page.locator(CANVAS_INFO)).toBeVisible();
+        const link = page.locator(RENDERING_LINK);
+        await expect(link).toHaveText('Transcript');
+        await expect(link).toHaveAttribute('href', /volleyball\.txt$/);
+        await page.keyboard.press('Escape');
 
         // The control names what it opens. This canvas's transcript is linked
         // rather than embedded, so it is read after the transport exists — a

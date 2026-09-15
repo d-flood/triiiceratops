@@ -1898,7 +1898,7 @@
                 `ViewerState.canvasToScreen` returns this layer's own.
             -->
             <AnnotationShapeOverlay />
-            <AnnotationOverlay />
+            <AnnotationOverlay showConnectors={!panelsAsBand} />
 
             <!--
                 Plugin **overlay layers**: one container per registered layer,
