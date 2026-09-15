@@ -56,6 +56,7 @@ import {
     elementSpans,
     formatMediaTime,
     fractionToTime,
+    type TimedMark,
 } from './transport';
 import {
     createAudioPrefs,
@@ -283,6 +284,15 @@ export function createAvStageManager(
      */
     let notes: readonly TimedEntry[] = [];
 
+    /**
+     * The same notes as the scrubber's marks, in canvas-time seconds.
+     *
+     * Held beside {@link notes} rather than mapped per read because the
+     * transport keys its normalization on this array's IDENTITY, and it reads
+     * on the playback cadence.
+     */
+    let noteMarks: readonly TimedMark[] = [];
+
     function rescanNotes(): void {
         const canvasId = currentEntry()?.stage.canvasId;
         const manifestId = viewerState.manifestId;
@@ -292,6 +302,9 @@ export function createAvStageManager(
                       viewerState.getAnnotations(manifestId, canvasId),
                   )
                 : [];
+        noteMarks = notes.map(({ startSeconds: start, endSeconds: end }) =>
+            end === undefined ? { start } : { start, end },
+        );
     }
 
     /**
@@ -350,6 +363,9 @@ export function createAvStageManager(
         prefs,
         labels: transportLabels,
         peaksStrip: () => currentEntry()?.strip ?? null,
+        // The timed annotations, so the scrubber shows WHERE the commentary is
+        // while the panel stays the place it is read.
+        marks: () => noteMarks,
         // Read off the stage each time rather than mirrored here: the loaded
         // set is decided asynchronously, per element, as each track's fetch
         // settles.

@@ -649,6 +649,69 @@ describe('ViewerControls transport chrome', () => {
         expect(listeners.size).toBe(afterMount);
     });
     /**
+     * The claimant's own marks: moments it wants pointed at on the scrubber,
+     * already in the track's coordinate. Core draws them and learns nothing
+     * about what they stand for, so what is asserted here is the geometry and
+     * the silence — no name, no hit area.
+     */
+    describe('claimant marks on the scrubber', () => {
+        const marks = () =>
+            [
+                ...document.querySelectorAll('[data-testid="transport-mark"]'),
+            ] as HTMLElement[];
+
+        it('draws a mark for each moment, spans at their own width', () => {
+            claim(
+                makeView({
+                    marks: [{ start: 0.25, end: 0.5 }, { start: 0.75 }],
+                }),
+            );
+            render();
+
+            const drawn = marks();
+            expect(drawn).toHaveLength(2);
+            expect(drawn[0].style.left).toBe('25%');
+            expect(drawn[0].style.width).toBe('25%');
+            // A moment with no extent draws at zero width and is widened to a
+            // visible minimum by the stylesheet, not by an invented span.
+            expect(drawn[1].style.left).toBe('75%');
+            expect(drawn[1].style.width).toBe('0%');
+        });
+
+        it('draws two marks on one moment rather than collapsing them', () => {
+            // A manifest may time two annotations at the same second; a key
+            // drawn from the span would render one band for both.
+            claim(makeView({ marks: [{ start: 0.4 }, { start: 0.4 }] }));
+            render();
+
+            expect(marks()).toHaveLength(2);
+        });
+
+        it('gives a mark no name and no keyboard reach', () => {
+            claim(makeView({ marks: [{ start: 0.5, end: 0.6 }] }));
+            render();
+
+            const [mark] = marks();
+            expect(mark.getAttribute('aria-hidden')).toBe('true');
+            expect(mark.hasAttribute('tabindex')).toBe(false);
+            // The announcement stays the claimant's reading of the playhead:
+            // the marks are decoration, and the words they stand for live on
+            // the claimant's own surface.
+            expect(
+                testId('transport-scrubber')!.getAttribute('aria-valuetext'),
+            ).toBe('0:25 of 1:40');
+        });
+
+        it('draws none for a claimant that publishes no marks', () => {
+            // A claimant built against an earlier core omits the field.
+            claim(makeView());
+            render();
+
+            expect(marks()).toHaveLength(0);
+        });
+    });
+
+    /**
      * Keyframe previews (`thumbnail-nav`, Cookbook 0229). The keyframes reach
      * the transport from the manifest's own ranges through the control bar, so
      * the manifest is loaded on the same real `ViewerState` the chrome is

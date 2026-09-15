@@ -42,15 +42,50 @@
         viewerState.config.information?.showButton !== false,
     );
 
-    // Focus and dismissal (WCAG 2.1.2 / 2.4.3) come from the shared `dismissible`
-    // action: remember the trigger, move focus in, Escape and outside-pointer
-    // close, focus returns. It replaces the backdrop `<button>` this used to
-    // need, which was a focusable element in the tab order that announced
-    // nothing useful.
-    let invoker = $state<HTMLElement | null>(null);
+    /*
+     * The trigger button, bound rather than read off a click event: it is both
+     * the box the popover is positioned against and the element focus returns
+     * to, and `showCanvasInfo` can be set by a host or a command with no click
+     * to learn it from. Taken from the event, those two would silently not
+     * happen and the popover would render uncapped, centred on a 24px button
+     * and hanging off the viewer's edge.
+     *
+     * Focus and dismissal (WCAG 2.1.2 / 2.4.3) come from the shared
+     * `dismissible` action: move focus in, Escape and outside-pointer close,
+     * focus returns. It replaces the backdrop `<button>` this used to need,
+     * which was a focusable element in the tab order that announced nothing
+     * useful.
+     */
+    let invoker = $state<HTMLButtonElement | null>(null);
 
-    function openInfo(e: MouseEvent) {
-        invoker = e.currentTarget as HTMLElement;
+    /*
+     * Whether this open came from the trigger, which decides whether the popover
+     * takes focus.
+     *
+     * Moving focus into an overlay serves WCAG 2.4.3, where focus follows the
+     * reader's own action. An open a host or a command performed is not one: the
+     * reader did not ask for the popover, so taking focus is a context change
+     * they did not request (WCAG 3.2.1) and their first Tab would start inside a
+     * dialog rather than at the top of the page.
+     *
+     * Read once per open, which is sound because the popover is created fresh
+     * each time: the click handler sets this before the state change that mounts
+     * `dismissible`.
+     *
+     * Keyboard activation of the trigger goes through `onclick` too and so takes
+     * focus, as it must. The focus ring then correctly appears for that case and
+     * not for the mouse one — `:focus-visible`, not this flag, is what decides
+     * whether focus is drawn.
+     *
+     * The cost: with focus left where it was, this node's Escape handler is out
+     * of reach, so a popover the reader did not open is closed with its own close
+     * button or by pressing outside rather than with Escape. Both stay reachable,
+     * and the trigger keeps its place in the tab order.
+     */
+    let openedByReader = $state(false);
+
+    function toggleInfo() {
+        openedByReader = !viewerState.showCanvasInfo;
         viewerState.toggleCanvasInfo();
     }
 
@@ -121,7 +156,8 @@
             ghost
             class="trigger tooltip {tooltipPlacement} {tooltipEdgeClass}"
             data-tip={m.canvas_info_tooltip()}
-            onclick={openInfo}
+            bind:element={invoker}
+            onclick={toggleInfo}
             aria-label={m.canvas_info_tooltip()}
         >
             <Icon name="Info" size={14} weight="bold" />
@@ -136,6 +172,7 @@
                     controls: dismissal,
                     invoker,
                     within: [invoker],
+                    focusOnMount: openedByReader,
                 }}
                 class="popover"
                 role="dialog"

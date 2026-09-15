@@ -119,6 +119,20 @@ export interface TransportChromeView {
     durationText: string;
     /** A picture of the whole recording behind the scrubber, or `null`. */
     strip: string | null;
+    /**
+     * Moments along the timeline worth pointing at, as `0..1` spans of it; a
+     * moment with no extent names only a `start`.
+     *
+     * Decoration, deliberately: core draws them on the track and gives them no
+     * hit area, no name and no keyboard reach. What a mark STANDS FOR is the
+     * claimant's vocabulary, and a reader who needs to read it needs the
+     * claimant's own surface — the mark's job is to say the recording has
+     * something at this moment, so that surface is worth opening.
+     *
+     * Optional because a claimant built against an earlier core has none, and
+     * chrome that renders is better than chrome that throws.
+     */
+    marks?: readonly { start: number; end?: number }[];
     /** Alternative text tracks that loaded. Empty renders no control at all. */
     tracks: readonly { id: string; label: string }[];
     activeTrack: string | null;

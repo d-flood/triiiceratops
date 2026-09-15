@@ -499,8 +499,8 @@ const REQUIRED_GLOBALS = [
  * A ratchet a few bytes above the recorded actual, not a budget to spend: it is
  * set from a measurement and moved only by a change that is worth its bytes.
  * Re-derive the actual with `pnpm build`, then gzip `dist/iife.js` at level 9 —
- * the same level this script uses — which currently reads **15,748**. The head
- * over it is ~23 bytes, and can be that tight because this artifact is
+ * the same level this script uses — which currently reads **15,972**. The head
+ * over it is ~28 bytes, and can be that tight because this artifact is
  * path-independent. Svelte's scoped-CSS class name is a variable-length hash of
  * the filename the compiler is handed, and that filename is ABSOLUTE — so the
  * hash, and with it the byte count, moves with the checkout directory — only
@@ -558,10 +558,14 @@ const REQUIRED_GLOBALS = [
  *   Everything that knows what a tick is — the interval ladder, the labels and
  *   the drawing — is in `dist/av-timeline.js` beside the waveform, which the
  *   ruler shares its lane geometry with;
- * - the timed manifest annotations' EAGER half, about 350 bytes: the scan that
+ * - the timed manifest annotations' EAGER half, about 495 bytes: the scan that
  *   turns a canvas's `commenting` annotations into timed entries (cookbook
- *   0103), the answer the panel control is rendered on, and the two catalog
- *   strings. Eager because the chunk is built self-contained and so cannot
+ *   0103), the answer the panel control is rendered on, the two catalog
+ *   strings, and their normalization onto the scrubber as the marks core draws
+ *   there — about 145 bytes of that total, and eager for the reason the scan
+ *   is: the marks ride the view model core reads on the playback cadence, and a
+ *   reader must be able to SEE that a recording carries commentary without
+ *   first opening the panel that would fetch the chunk. Eager because the chunk is built self-contained and so cannot
  *   reach core's `#t=` parser, and because the entries ARE the value handed
  *   across the port; the section that renders them is in the same lazy chunk as
  *   the transcript;
@@ -583,7 +587,7 @@ const REQUIRED_GLOBALS = [
  * required globals above detect that exactly. The real ceiling on total shipped
  * weight is the competitive pair budget in `scripts/size-check.mjs`.
  */
-const MAX_IIFE_GZIP = 15_950;
+const MAX_IIFE_GZIP = 16_000;
 
 /**
  * Gzip ceilings for the lazy chunks, in bytes, by emitted file name.

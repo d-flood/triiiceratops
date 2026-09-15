@@ -33,9 +33,12 @@ import {
     captionOptions,
     formatMediaTime,
     fractionToTime,
+    type MarkSpan,
+    markSpans,
     SEEK_STEP_LARGE,
     SEEK_STEP_SMALL,
     timeFraction,
+    type TimedMark,
     type TimeSpan,
     volumeIsSettable,
 } from './transport';
@@ -104,6 +107,16 @@ export interface TransportView {
      * waveform data reaches a video canvas, which gets no timeline lane in v1.
      */
     strip: string | null;
+    /**
+     * The moments the scrubber marks, as `0..1` spans of the canvas timeline.
+     *
+     * Core draws them and nothing else — no hit area, no name, no keyboard
+     * reach — so what they stand for has to be readable somewhere a reader can
+     * actually reach it. For the timed annotations that fill this today, that
+     * place is the panel's notes list, which is navigable, announced, and where
+     * the words themselves are.
+     */
+    marks: readonly MarkSpan[];
     /** Only tracks that LOADED, so a control over them can never be inert. */
     tracks: readonly { id: string; label: string }[];
     /** The showing track's id, or `null` for off. */
@@ -183,6 +196,16 @@ export interface TransportOptions {
     labels(): TransportLabels;
     /** The current canvas's scrubber strip as a data URL, or `null`. */
     peaksStrip(): string | null;
+    /**
+     * The current canvas's marked moments, in canvas-time seconds.
+     *
+     * Read off the stage manager, whose pulse rescans them, rather than
+     * mirrored here; and handed over as seconds, because normalizing onto the
+     * scrubber is this boundary's job. The array's IDENTITY is the memo key
+     * below, so the manager must hold it between pulses rather than build a
+     * fresh one per read.
+     */
+    marks(): readonly TimedMark[];
     /**
      * The current canvas's loaded caption tracks and the showing one. Read off
      * the stage rather than off AVState: which text track is rendering is a
@@ -266,6 +289,7 @@ export function createTransport(options: TransportOptions): Transport {
         elapsedText: '',
         durationText: '',
         strip: null,
+        marks: [],
         tracks: [],
         activeTrack: null,
         transcript: false,
@@ -294,6 +318,8 @@ export function createTransport(options: TransportOptions): Transport {
      */
     let clockKey = '';
     let listedTracks: readonly CaptionTrack[] | null = null;
+    let markedMoments: readonly TimedMark[] | null = null;
+    let markedDuration: number | null = null;
 
     /** Who core tells when to re-read: one callback, the render site's. */
     const listeners = new Set<() => void>();
@@ -346,6 +372,16 @@ export function createTransport(options: TransportOptions): Transport {
             });
         }
         state.strip = options.peaksStrip();
+
+        // Two keys, because either side moves without the other: a canvas
+        // change brings new moments, and a duration that settles late
+        // renormalizes the ones already held.
+        const moments = options.marks();
+        if (moments !== markedMoments || state.duration !== markedDuration) {
+            markedMoments = moments;
+            markedDuration = state.duration;
+            state.marks = markSpans(moments, state.duration);
+        }
 
         const captions = options.captions();
         // The fallback name is localized, so `relabel` is what invalidates it;

@@ -93,6 +93,53 @@ export function bufferedSpans(
     return fractions;
 }
 
+/**
+ * One moment on the canvas timeline worth pointing at, in seconds. A moment
+ * with no extent — an annotation that targeted only a start — has no `end`.
+ */
+export interface TimedMark {
+    readonly start: number;
+    readonly end?: number;
+}
+
+/** A {@link TimedMark} normalized onto the scrubber, as `0..1` fractions. */
+export interface MarkSpan {
+    readonly start: number;
+    readonly end?: number;
+}
+
+/**
+ * Canvas-time moments as the scrubber's marks.
+ *
+ * A moment starting past the end of the recording is dropped rather than
+ * clamped: `timeFraction` would pile every such mark onto the final pixel,
+ * which claims the recording has something there when the manifest said
+ * otherwise. The comparison is written to reject a NaN start with it, which is
+ * what a media fragment of nonsense parses to.
+ *
+ * An `end` survives only where it lands beyond its own start once normalized.
+ * Below that the mark is a moment rather than a span — a note that named no
+ * end, or one whose end rounds onto its own start — and the render site draws
+ * it at its minimum width instead of at nothing.
+ */
+export function markSpans(
+    marks: readonly TimedMark[],
+    duration: number | null,
+): MarkSpan[] {
+    if (duration === null || !(duration > 0)) return [];
+
+    const spans: MarkSpan[] = [];
+    for (const mark of marks) {
+        if (!(mark.start <= duration)) continue;
+        const start = timeFraction(mark.start, duration);
+        // `timeFraction` floors a missing end at zero, which is below every
+        // start it could pair with and so falls to the moment case below.
+        const end = timeFraction(mark.end ?? 0, duration);
+        spans.push(end > start ? { start, end } : { start });
+    }
+    return spans;
+}
+
 /** One selectable caption track, as the control row lists it. */
 export interface CaptionOption {
     /** The track's URL — its identity through AVState-free caption commands. */

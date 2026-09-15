@@ -72,6 +72,9 @@ const NOTES = '[data-testid="av-notes"]';
 const NOTE_ROWS = '[data-testid="av-notes-list"] button';
 const CURRENT_NOTE =
     '[data-testid="av-notes-list"] button[aria-current="true"]';
+// The scrubber's marks, which say WHERE the notes are while the panel stays
+// where they are read.
+const TRANSPORT_MARKS = '[data-testid="transport-mark"]';
 
 // Core's canvas-info popover — the only surface that renders a canvas-level
 // `rendering` link. Selected by ARIA rather than a test id because that is the
@@ -887,6 +890,59 @@ test.describe('av cookbook coverage', () => {
         await expect(page.locator(CURRENT_NOTE)).toHaveCount(0, {
             timeout: 30_000,
         });
+
+        await expect(page.locator(ERROR)).toHaveCount(0);
+    });
+
+    /**
+     * The other end of the same note: the scrubber points at the moment the
+     * recipe timed it against, so a reader can see the recording carries
+     * commentary before opening anything.
+     *
+     * The real-length stand-in again, and for a stronger reason than the mark
+     * in the panel: a mark is placed as a fraction of the DURATION, so against
+     * the two-second tone every other recipe borrows there is no `702` on the
+     * timeline to place and the honest rendering is none at all.
+     *
+     * The placement is asserted as a band near the end rather than as a
+     * percentage: the note covers 702–705 of a 707.81-second canvas, and
+     * pinning the arithmetic here would only restate the manifest.
+     */
+    test('the scrubber marks where the recipe times its note', async ({
+        page,
+    }) => {
+        const log = newLog();
+        await installRoutes(page, log);
+        await page.route('https://fixtures.iiif.io/audio/ubc/**', (route) =>
+            route.fulfill(
+                rangeAware(
+                    { contentType: 'audio/mpeg', body: poetryReadingMp3() },
+                    route.request().headers().range,
+                ),
+            ),
+        );
+        await page.goto(
+            `/e2e/harness.html?manifest=${encodeURIComponent(recipeUrl('0103-poetry-reading-annotations'))}`,
+            { waitUntil: 'domcontentloaded' },
+        );
+        await page
+            .locator(SURFACE)
+            .waitFor({ state: 'visible', timeout: 60_000 });
+
+        // One mark, for the recipe's one note. It appears with the duration
+        // rather than with the page, so this is where the wait is.
+        const mark = page.locator(TRANSPORT_MARKS);
+        await expect(mark).toHaveCount(1, { timeout: 60_000 });
+
+        const placement = await mark.evaluate((element) => ({
+            left: Number.parseFloat((element as HTMLElement).style.left),
+            width: Number.parseFloat((element as HTMLElement).style.width),
+        }));
+        expect(placement.left).toBeGreaterThan(90);
+        expect(placement.left).toBeLessThan(100);
+        // A three-second span of a twelve-minute reading is a sliver, but it
+        // must be a span: zero width would mean the end was dropped.
+        expect(placement.width).toBeGreaterThan(0);
 
         await expect(page.locator(ERROR)).toHaveCount(0);
     });

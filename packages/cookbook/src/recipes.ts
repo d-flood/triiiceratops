@@ -94,7 +94,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0003-mvm-video',
@@ -104,7 +104,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0004-canvas-size',
@@ -194,7 +194,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0014-accompanyingcanvas',
@@ -204,7 +204,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0015-start',
@@ -214,7 +214,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0017-transcription-av',
@@ -224,7 +224,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0019-html-in-annotations',
@@ -275,7 +275,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'structures',
         support: 'supported',
         requiresPluginAv: false,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0026-toc-opera',
@@ -285,7 +285,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0027-alternative-page-order',
@@ -427,7 +427,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0065-opera-multiple-canvases',
@@ -437,7 +437,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0074-multiple-language-captions',
@@ -447,7 +447,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0103-poetry-reading-annotations',
@@ -457,7 +457,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0117-add-image-thumbnail',
@@ -529,7 +529,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0229-behavior-ranges',
@@ -539,7 +539,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0230-navdate',
@@ -580,7 +580,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'annotations',
         support: 'supported',
         requiresPluginAv: false,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0261-non-rectangular-commenting',
@@ -683,7 +683,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'annotations',
         support: 'supported',
         requiresPluginAv: false,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0377-image-in-annotation',
@@ -704,7 +704,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'audiovisual',
         support: 'supported',
         requiresPluginAv: true,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0466-link-for-loading-manifest',
@@ -714,7 +714,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'content-state',
         support: 'supported',
         requiresPluginAv: false,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0485-contentstate-canvas-region',
@@ -724,7 +724,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'content-state',
         support: 'supported',
         requiresPluginAv: false,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0489-multimedia-canvas',
@@ -756,7 +756,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         group: 'content-state',
         support: 'supported',
         requiresPluginAv: false,
-        matrixSupport: false,
+        matrixSupport: true,
     },
     {
         id: '0608-mvm-3d',

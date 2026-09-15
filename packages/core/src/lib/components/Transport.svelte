@@ -236,6 +236,12 @@
     );
 
     /**
+     * The claimant's marks, already in the track's own coordinate. Absent from
+     * a claimant built against an earlier core, which renders none.
+     */
+    let marks = $derived(view.marks ?? []);
+
+    /**
      * The keyframe covering a moment: the last one at or before it, since a
      * keyframe stands for the span it opens.
      */
@@ -509,6 +515,23 @@
                 {#each tickAts as at (at)}
                     <div class="fill tick" style="left:{at * 100}%"></div>
                 {/each}
+                <!--
+                    The claimant's marks, keyed by POSITION: a manifest may put
+                    two of them on the same moment, and a key drawn from the
+                    span would collapse those into one band. Nothing here holds
+                    state a positional key could misattach.
+                -->
+                {#each marks as mark, index (index)}
+                    <div
+                        class="fill mark"
+                        data-testid="transport-mark"
+                        aria-hidden="true"
+                        style="left:{mark.start * 100}%;width:{((mark.end ??
+                            mark.start) -
+                            mark.start) *
+                            100}%"
+                    ></div>
+                {/each}
                 <div class="thumb" style="left:{view.fraction * 100}%"></div>
                 {#if preview}
                     <div
@@ -711,6 +734,21 @@
         width: 2px;
         transform: translateX(-1px);
         background: color-mix(in oklab, currentColor 55%, transparent);
+    }
+
+    /*
+        Overhanging the track top and bottom rather than sitting inside it: a
+        mark has to read over the played fill as well as over the bare track,
+        and those two are the most and least saturated things on the bar. The
+        overhang is what distinguishes it from the fills at a glance, and
+        `min-width` is what keeps a zero-length mark — a moment with no extent —
+        from rendering as nothing.
+    */
+    .mark {
+        inset-block: -2px;
+        min-width: 2px;
+        border-radius: 2px;
+        background: color-mix(in oklab, currentColor 70%, transparent);
     }
 
     /* Above the track and out of the way of the pointer driving it. The

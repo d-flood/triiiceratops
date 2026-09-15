@@ -208,6 +208,12 @@ current canvas, and every other visible AV canvas shows a play-state glyph.
   three, so the panel is never opened onto nothing, and it is named for what it
   holds: "Transcript" when there is one, "Notes" when the canvas offers only the
   manifest's timed commentary.
+- **Marks on the scrubber.** Where a canvas carries timed `commenting`
+  annotations, the seek bar shows each one at the moment it is timed against — a
+  band for a note that names a span, a tick for one that names only a start —
+  so a reader can see the recording has commentary without opening the panel.
+  The marks are decoration: the words, the keyboard reach and the announcement
+  are the notes list's, which is where a note is read.
 
 ## Manifest shapes it understands
 

@@ -9,6 +9,7 @@ import {
     elementSpans,
     formatMediaTime,
     fractionToTime,
+    markSpans,
     SEEK_STEP_LARGE,
     SEEK_STEP_SMALL,
     timeFraction,
@@ -94,6 +95,56 @@ describe('bufferedSpans', () => {
         expect(bufferedSpans([{ start: 5, end: 5 }], 120)).toEqual([]);
         expect(bufferedSpans([{ start: 0, end: 30 }], null)).toEqual([]);
         expect(bufferedSpans([], 120)).toEqual([]);
+    });
+});
+
+describe('markSpans', () => {
+    it('normalizes a span onto the scrubber', () => {
+        expect(markSpans([{ start: 30, end: 60 }], 120)).toEqual([
+            { start: 0.25, end: 0.5 },
+        ]);
+    });
+
+    it('keeps a moment that named no end as a point', () => {
+        expect(markSpans([{ start: 60 }], 120)).toEqual([{ start: 0.5 }]);
+    });
+
+    it('drops an end that does not outlast its own start', () => {
+        expect(markSpans([{ start: 60, end: 60 }], 120)).toEqual([
+            { start: 0.5 },
+        ]);
+    });
+
+    it('clamps an end past the duration to the end of the track', () => {
+        expect(markSpans([{ start: 60, end: 600 }], 120)).toEqual([
+            { start: 0.5, end: 1 },
+        ]);
+    });
+
+    it('drops a moment that starts past the end of the recording', () => {
+        expect(markSpans([{ start: 121 }, { start: 60 }], 120)).toEqual([
+            { start: 0.5 },
+        ]);
+    });
+
+    it('marks nothing without a usable duration', () => {
+        expect(markSpans([{ start: 60 }], null)).toEqual([]);
+        expect(markSpans([{ start: 60 }], 0)).toEqual([]);
+    });
+
+    it('keeps the order it was given, overlaps included', () => {
+        expect(
+            markSpans(
+                [
+                    { start: 30, end: 90 },
+                    { start: 60, end: 75 },
+                ],
+                120,
+            ),
+        ).toEqual([
+            { start: 0.25, end: 0.75 },
+            { start: 0.5, end: 0.625 },
+        ]);
     });
 });
 
@@ -251,6 +302,7 @@ describe('createTransport', () => {
             prefs,
             labels: () => LABELS,
             peaksStrip: () => null,
+            marks: () => [],
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
             hasTranscript: () => false,
@@ -281,6 +333,7 @@ describe('createTransport', () => {
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
+            marks: () => [],
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
             hasTranscript: () => false,
@@ -311,6 +364,7 @@ describe('createTransport', () => {
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
+            marks: () => [],
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
             hasTranscript: () => false,
@@ -341,6 +395,7 @@ describe('createTransport', () => {
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
+            marks: () => [],
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
             hasTranscript: () => false,
@@ -373,6 +428,7 @@ describe('createTransport', () => {
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
+            marks: () => [],
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
             hasTranscript: () => false,
@@ -404,6 +460,7 @@ describe('createTransport', () => {
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
+            marks: () => [],
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
             hasTranscript: () => false,
@@ -429,6 +486,7 @@ describe('createTransport', () => {
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
+            marks: () => [],
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
             hasTranscript: () => false,
@@ -461,6 +519,7 @@ describe('createTransport', () => {
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
+            marks: () => [],
             captions: () => ({ tracks, active }),
             setCaptionTrack: (id) => {
                 active = id;
@@ -529,6 +588,7 @@ describe('createTransport', () => {
             prefs: createAudioPrefs(),
             labels: () => LABELS,
             peaksStrip: () => null,
+            marks: () => [],
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
             hasTranscript: () => available,
@@ -576,6 +636,84 @@ describe('createTransport', () => {
         one of them — and the ones that did must still be rebuilt at once,
         including on a paused canvas that ticks no frames at all.
     */
+    describe('marks', () => {
+        /** A transport whose marks and duration both move. */
+        function markingTransport() {
+            const media = document.createElement('audio');
+            const { state, frame } = fakeAvState();
+            let marks: readonly { start: number; end?: number }[] = [];
+            const writable = state as unknown as { duration: number | null };
+
+            const transport = createTransport({
+                avState: state,
+                currentMedia: () => media,
+                bufferedSpans: elementSpans,
+                prefs: createAudioPrefs(),
+                labels: () => LABELS,
+                peaksStrip: () => null,
+                marks: () => marks,
+                captions: () => ({ tracks: [], active: null }),
+                setCaptionTrack: () => {},
+                hasTranscript: () => false,
+                panelOpen: () => false,
+                setPanelOpen: () => {},
+                t: (key) => key,
+            });
+
+            return {
+                transport,
+                frame,
+                setDuration: (seconds: number | null) => {
+                    writable.duration = seconds;
+                },
+                setMarks: (
+                    next: readonly { start: number; end?: number }[],
+                ) => {
+                    marks = next;
+                },
+            };
+        }
+
+        it('publishes the marked moments as fractions of the timeline', () => {
+            const { transport, frame, setDuration, setMarks } =
+                markingTransport();
+            setDuration(120);
+            setMarks([{ start: 30, end: 60 }, { start: 90 }]);
+            frame();
+
+            expect(transport.view().marks).toEqual([
+                { start: 0.25, end: 0.5 },
+                { start: 0.75 },
+            ]);
+        });
+
+        it('renormalizes when the duration settles after the marks', () => {
+            const { transport, frame, setDuration, setMarks } =
+                markingTransport();
+            setMarks([{ start: 30 }]);
+            frame();
+            expect(transport.view().marks).toEqual([]);
+
+            // The metadata arriving is the only thing that moves here: a
+            // duration-keyed memo is what keeps the mark from staying dropped.
+            setDuration(60);
+            frame();
+            expect(transport.view().marks).toEqual([{ start: 0.5 }]);
+        });
+
+        it('reuses the normalized marks while neither input moves', () => {
+            const { transport, frame, setDuration, setMarks } =
+                markingTransport();
+            setDuration(120);
+            setMarks([{ start: 30 }]);
+            frame();
+            const first = transport.view().marks;
+            frame();
+
+            expect(transport.view().marks).toBe(first);
+        });
+    });
+
     describe('work reused across frames', () => {
         /** A transport whose clock, caption set and fallback name are movable. */
         function frameCountingTransport() {
@@ -598,6 +736,7 @@ describe('createTransport', () => {
                 prefs: createAudioPrefs(),
                 labels: () => ({ ...LABELS, trackFallback: fallback }),
                 peaksStrip: () => null,
+                marks: () => [],
                 captions: () => ({ tracks, active: null }),
                 setCaptionTrack: () => {},
                 hasTranscript: () => false,
@@ -760,6 +899,7 @@ describe('createTransport', () => {
                 transcript: transcript ? 'Transcript' : 'Notes',
             }),
             peaksStrip: () => null,
+            marks: () => [],
             captions: () => ({ tracks: [], active: null }),
             setCaptionTrack: () => {},
             hasTranscript: () => true,
