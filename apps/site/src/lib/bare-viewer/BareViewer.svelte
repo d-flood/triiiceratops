@@ -11,6 +11,7 @@
         readDroppedContentState,
     } from '@triiiceratops/config';
     import type { ThemeConfig } from 'triiiceratops';
+    import { replaceState } from '$app/navigation';
     import { AvPlugin } from '@triiiceratops/plugin-av';
     import { ImageManipulationPlugin } from '@triiiceratops/plugin-image-manipulation';
 
@@ -220,6 +221,30 @@
     function accept(value: string) {
         rejected = '';
         contentState = value;
+        publish(value);
+    }
+
+    /*
+     * Put whatever the reader opened into the address bar, so a refresh reopens
+     * it and the link can be passed on — the same parameter a Cookbook link
+     * arrives on, holding the same kind of value.
+     *
+     * Safe against a loop: the viewer reads `iiif-content` at most once, on
+     * mount (ADR 0006), so a write after that is never ingested back.
+     *
+     * SvelteKit's `replaceState`, not the History API's: the router owns this
+     * history entry, and writing it behind the router's back leaves the two
+     * disagreeing about which page is current.
+     */
+    function publish(value: string) {
+        const carried = [...new URLSearchParams(location.search)].filter(
+            ([name]) => name !== 'iiif-content',
+        );
+        const params = new URLSearchParams([
+            ...carried,
+            ['iiif-content', value],
+        ]);
+        replaceState(`${location.pathname}?${params}`, {});
     }
 
     function onDragOver(event: DragEvent) {

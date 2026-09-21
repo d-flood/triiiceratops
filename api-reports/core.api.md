@@ -1286,7 +1286,7 @@ export { resolveLanguageValue } from './utils/languageMap';
 // FILE: dist/index.d.ts
 // ======================================================================
 export type { CompanionPhase, ViewerState, ViewerStateSnapshot, } from './state/viewer.svelte';
-export type { SearchHit, SearchProvider, SearchProviderContext, SearchResultGroup, } from './types/config';
+export type { SearchHit, SearchProvider, SearchProviderContext, SearchResultGroup, ViewerConfig, } from './types/config';
 export type { PluginMenuButton, PluginPanel, PluginFlyout, PluginUiTarget, } from './types/plugin';
 export type { Selector, ViewerSelectors, PluginStyleService, PluginLocaleService, LocaleCatalog, IconDescriptor, PluginIcon, PluginUiService, PluginSurface, PluginContext, PublishedState, PublishedStateClassification, PluginView, PluginHost, PluginActivation, SdkPluginMeta, SdkPlugin, PluginErrorPhase, PluginError, PluginErrorReport, } from './types/plugin';
 export { SDK_PLUGIN_KIND, isSdkPlugin, PLUGIN_ERROR_EVENT, } from './types/plugin';

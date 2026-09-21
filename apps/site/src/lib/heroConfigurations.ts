@@ -416,10 +416,8 @@ export const HERO_START: HeroSettings = {
  * How long the step that opens a group holds, in milliseconds. The rest of a
  * group holds half as long — see {@link HERO_SEQUENCE}.
  *
- * Short enough that the opener does not outlast the canvases it turns through
- * — {@link HERO_STRIDE} moves at {@link HERO_STRIDE_PAUSE} apiece — because a
- * lap whose first step is still turning pages when its second arrives is one
- * where a reader cannot tell which of the two moved the chrome.
+ * Long enough to read a new arrangement, short enough that a reader waiting for
+ * the next one is not left watching a still page.
  */
 export const HERO_DWELL = 2400;
 
@@ -609,65 +607,6 @@ export const HERO_GROUPS: readonly HeroGroup[] = HERO_SEQUENCE.reduce<
 export type Cycle = { readonly at: number };
 
 export const HERO_CYCLE_START: Cycle = { at: 0 };
-
-/**
- * How many canvases the material moves on by at the top of each lap.
- *
- * The sequence stands still on one canvas while it walks: the argument is that
- * the chrome recomposes, and material moving underneath it is the one thing
- * that could be mistaken for the chrome being rebuilt. Between laps it moves
- * instead, one canvas at a time, which is a reader turning a page and reaches
- * the whole set without ever skipping past material unseen.
- */
-export const HERO_STRIDE = 1;
-
-/**
- * How long the material waits before each canvas of a stride, in milliseconds.
- *
- * The lap turns over and the page turns a moment later rather than with it, so
- * the two reads as two events: the chrome recomposing, then the material
- * moving under chrome that did not.
- */
-export const HERO_STRIDE_PAUSE = 600;
-
-/**
- * The canvas moves a stride is made of, and the heading it leaves behind.
- *
- * Moves rather than a destination: the viewer's own `nextCanvas` and
- * `previousCanvas` are what the chrome's arrows call, and going through them
- * means the hero moves the material by exactly the path a reader could have
- * taken. It also keeps this a pure function of an index, which is the only way
- * the reflection is worth trusting.
- *
- * Reflecting rather than wrapping. Turning round at the ends walks the
- * material back the way it came instead of cutting from the last canvas to the
- * first, and a cut is the one thing that looks like the viewer rebuilding
- * itself. `heading` is carried out and back in so the turn survives between
- * laps.
- *
- * Fewer moves than asked for when the material cannot supply them — a manifest
- * of one canvas supplies none.
- */
-export function strideMoves(
-    index: number,
-    total: number,
-    heading: 1 | -1,
-    count: number,
-): { moves: readonly (1 | -1)[]; heading: 1 | -1 } {
-    const moves: (1 | -1)[] = [];
-    let at = index;
-    let going = heading;
-    const off = (from: number, by: 1 | -1) =>
-        from + by < 0 || from + by >= total;
-
-    for (let step = 0; step < count; step += 1) {
-        if (off(at, going)) going = -going as 1 | -1;
-        if (off(at, going)) break;
-        at += going;
-        moves.push(going);
-    }
-    return { moves, heading: going };
-}
 
 /** The step the panel currently stands on. */
 export function stepAt(cycle: Cycle): Step {

@@ -31,7 +31,6 @@ import {
     HERO_DWELL,
     HERO_GROUPS,
     HERO_SEQUENCE,
-    HERO_STRIDE,
     HERO_START,
     LAYOUT_KNOBS,
     LAYOUT_SAY,
@@ -46,7 +45,6 @@ import {
     knobAt,
     retreat,
     stepAt,
-    strideMoves,
 } from '../../src/lib/heroConfigurations';
 
 const TOKEN_REPORT = JSON.parse(
@@ -465,60 +463,6 @@ describe('the sequence', () => {
         expect(
             HERO_SEQUENCE.at(-1)?.settings.config.information?.position,
         ).toBe('left');
-    });
-});
-
-describe('the material under the sequence', () => {
-    const CANVASES = 11;
-
-    /** Where each lap comes to rest, walking the strides the hero walks. */
-    function rests(laps: number) {
-        let at = 0;
-        let heading: 1 | -1 = 1;
-        const landed: number[] = [];
-        for (let lap = 0; lap < laps; lap += 1) {
-            const strode = strideMoves(at, CANVASES, heading, HERO_STRIDE);
-            at = strode.moves.reduce((index, move) => index + move, at);
-            heading = strode.heading;
-            landed.push(at);
-        }
-        return landed;
-    }
-
-    it('opens on the canvas after the one it was served on', () => {
-        expect(rests(1)).toEqual([HERO_STRIDE]);
-    });
-
-    it('strides one between laps', () => {
-        expect(rests(3)).toEqual([1, 2, 3]);
-    });
-
-    it('turns round at the ends instead of wrapping', () => {
-        const walked = rests(13);
-        expect(walked.slice(9)).toEqual([10, 9, 8, 7]);
-        for (const at of walked) {
-            expect(at).toBeGreaterThanOrEqual(0);
-            expect(at).toBeLessThan(CANVASES);
-        }
-    });
-
-    it('comes to rest on every canvas eventually', () => {
-        const seen = new Set(rests(40));
-        expect(seen.size).toBe(CANVASES);
-    });
-
-    it('never moves further than it was asked to', () => {
-        for (let at = 0; at < CANVASES; at += 1) {
-            for (const heading of [1, -1] as const) {
-                const strode = strideMoves(at, CANVASES, heading, HERO_STRIDE);
-                expect(strode.moves.length).toBe(HERO_STRIDE);
-            }
-        }
-    });
-
-    it('asks nothing of a manifest with one canvas', () => {
-        const strode = strideMoves(0, 1, 1, HERO_STRIDE);
-        expect(strode.moves).toEqual([]);
     });
 });
 

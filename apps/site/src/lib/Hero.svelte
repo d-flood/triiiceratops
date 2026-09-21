@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onDestroy, onMount } from 'svelte';
+    import { onMount } from 'svelte';
 
     import CopyLine from './CopyLine.svelte';
     import EmbeddedViewer from './EmbeddedViewer.svelte';
@@ -8,19 +8,15 @@
     import {
         HERO_CYCLE_START,
         HERO_START,
-        HERO_STRIDE,
-        HERO_STRIDE_PAUSE,
         advance,
         heroSnippet,
         heroTheme,
         retreat,
         stepAt,
-        strideMoves,
         type Cycle,
         type HeroSettings,
         type Knob,
     } from './heroConfigurations';
-    import type { ViewerState } from 'triiiceratops';
 
     /**
      * The front page's running viewer, and the settings that compose it.
@@ -44,34 +40,15 @@
      * and the rest of it for half, because a reader has to read a new
      * arrangement and only to notice a value change.
      *
-     * The material stands still for a whole lap and moves between them. The
-     * claim being made is that the chrome recomposes without remounting, and
-     * material moving underneath it is the one thing that could be mistaken for
-     * the chrome being rebuilt.
+     * The material stands still throughout. The claim being made is that the
+     * chrome recomposes without remounting, and material moving underneath it
+     * is the one thing that could be mistaken for the chrome being rebuilt.
      */
     let { headline, lede }: { headline: string; lede: string } = $props();
 
     let settings = $state<HeroSettings>(HERO_START);
     let cycle = $state<Cycle>(HERO_CYCLE_START);
     let cycling = $state(false);
-    let viewerState = $state<ViewerState | undefined>(undefined);
-    /**
-     * Which way through the material the laps are walking.
-     *
-     * Reflecting rather than wrapping at the ends: walking back the way it came
-     * keeps every lap a page turn, where a jump from the last canvas to the
-     * first would read as the viewer rebuilding itself.
-     */
-    let heading: 1 | -1 = 1;
-    /**
-     * Canvases the sequence has asked for and the viewer cannot deliver yet.
-     *
-     * The cycle starts on the page's load event and the viewer's own module is
-     * fetched after it, so the first lap asks for its canvas before there is a
-     * manifest to count. The debt is kept and paid the moment there is one.
-     */
-    let owed = 0;
-    let strideTimer: ReturnType<typeof setTimeout> | undefined;
     /**
      * Bumped whenever a fresh dwell starts. The timer below re-arms on it, and
      * the panel's countdown is keyed to it, so the bar and the step it counts
@@ -85,8 +62,6 @@
         // orders are handled.
         const start = () => {
             cycling = true;
-            owed += HERO_STRIDE;
-            schedule();
         };
         if (document.readyState === 'complete') {
             start();
@@ -111,67 +86,10 @@
     /** How long the step now showing holds, which the panel counts down. */
     const dwell = $derived(stepAt(cycle).dwell);
 
-    /**
-     * Turn the material through `moves`, resting a pause on each canvas.
-     *
-     * Every move is made from inside the timer and never from the caller, which
-     * is not only about pacing: `nextCanvas` reads `hasNext`, so a move made in
-     * an effect's body would register the canvas as that effect's dependency
-     * and the effect would re-enter itself until the material ran out. A timer
-     * callback tracks nothing.
-     */
-    function walk(moves: readonly (1 | -1)[]) {
-        if (moves.length === 0) return;
-        strideTimer = setTimeout(() => {
-            const state = viewerState;
-            if (state === undefined) return;
-            if (moves[0] === 1) state.nextCanvas();
-            else state.previousCanvas();
-            walk(moves.slice(1));
-        }, HERO_STRIDE_PAUSE);
-    }
-
-    onDestroy(() => clearTimeout(strideTimer));
-
-    /** Turn whatever the laps owe into moves to play, once there is an index. */
-    function schedule() {
-        const state = viewerState;
-        if (owed === 0 || state === undefined) return;
-        const index = state.currentCanvasIndex;
-        // Before the manifest has arrived there is no index to move from, and
-        // the debt waits for the effect below rather than being spent on
-        // nothing.
-        if (index < 0) return;
-
-        const strode = strideMoves(index, state.canvases.length, heading, owed);
-        heading = strode.heading;
-        // Cleared before the walk starts, so a re-entrant call owes nothing.
-        owed = 0;
-        // A reader clicking forward across the seam can start a lap while the
-        // last one is still turning; the newer stride is the live one.
-        clearTimeout(strideTimer);
-        walk(strode.moves);
-    }
-
-    $effect(() => {
-        // Read for the dependency: a debt taken on before the manifest arrived
-        // is paid the moment there is an index to move from. It re-runs on
-        // every canvas the walk turns through too, and owes nothing by then.
-        void viewerState?.currentCanvasIndex;
-        schedule();
-    });
-
     function forward() {
         const next = advance(cycle);
         settings = next.settings;
         cycle = next.cycle;
-        // A lap has turned over. Back does not undo this: the material is a
-        // backdrop to the route rather than a step of it, and a reader stepping
-        // over the seam is reading the arrangement, not counting folios.
-        if (next.cycle.at === 0) {
-            owed += HERO_STRIDE;
-            schedule();
-        }
         beat += 1;
     }
 
@@ -209,7 +127,6 @@
 <div class="heroband">
     <div class="heroband__stage">
         <EmbeddedViewer
-            bind:viewerState
             fill
             eager
             example={HERO_EXAMPLE}

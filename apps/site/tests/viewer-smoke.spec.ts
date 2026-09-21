@@ -230,6 +230,24 @@ test('with no parameters the fallback input renders', async ({ page }) => {
     await expect(input).toHaveCount(0);
 });
 
+test('a pasted manifest survives a refresh', async ({ page }) => {
+    await page.goto(VIEWER_PATH);
+
+    await page.locator(FALLBACK_INPUT).fill(IMAGE_MANIFEST);
+    await page.locator('[data-testid="content-state-open"]').click();
+    await expect(page.locator(SURFACE)).toBeVisible();
+
+    // What the reader opened is now what the address names, so the link is
+    // theirs to keep — and the viewer reads it back on the next load.
+    expect(new URL(page.url()).searchParams.get('iiif-content')).toBe(
+        IMAGE_MANIFEST,
+    );
+
+    await page.reload();
+    await expect(page.locator(SURFACE)).toBeVisible();
+    await expect(page.locator(FALLBACK_INPUT)).toHaveCount(0);
+});
+
 test('a content state naming a manifest that 404s keeps the fallback input', async ({
     page,
 }) => {

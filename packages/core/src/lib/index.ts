@@ -18,6 +18,7 @@ export type {
     SearchProvider,
     SearchProviderContext,
     SearchResultGroup,
+    ViewerConfig,
 } from './types/config';
 
 // Plugin chrome records — the panel, flyout, and toolbar-button entries core
