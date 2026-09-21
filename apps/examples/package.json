@@ -1,6 +1,6 @@
 {
     "name": "@triiiceratops/app-examples",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "type": "module",
     "private": true,
     "description": "Framework consumer examples, built here and carried into the site's build output by @triiiceratops/app-site. A private workspace application that consumes the viewer only through its published entrypoints; never published.",

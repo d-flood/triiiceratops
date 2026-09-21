@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.0.4
+
+### Patch Changes
+
+- 23de5f3: Export `ViewerConfig` from the main and `/svelte` entries; it was only reachable from `/react` and `/vue`.
+
 ## 1.0.3
 
 ### Patch Changes
