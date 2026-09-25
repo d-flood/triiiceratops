@@ -4,13 +4,15 @@
  * This is the epic's exit criterion, driven on the bare e2e harness
  * (`/e2e/harness.html`) with `@triiiceratops/plugin-av` registered the way a
  * host registers it, opened on each of the fifteen recipes at their canonical
- * `iiif.io` URLs — the same URLs the demo's manifest picker offers.
+ * `iiif.io` URLs — the same URLs the demo's manifest picker offers — and on the
+ * v4 audio and video recipes at theirs.
  *
  * The network stands in and nothing else does. Each recipe's manifest is served
- * from the VENDORED copy under `src/lib/test/fixtures/manifests/av/` (byte for
- * byte, targets and structures and all), its media from the two-second clips
- * under `tests/media/`, and `iiif.io`'s reference image service from the dev
- * server's own fake one. What is under test is the recipe, not the internet.
+ * from the VENDORED copy under `src/lib/test/fixtures/manifests/av/` or `v4/`
+ * (byte for byte, targets and structures and all), its media from the
+ * two-second clips under `tests/media/`, and `iiif.io`'s reference image
+ * service from the dev server's own fake one. What is under test is the
+ * recipe, not the internet.
  *
  * Two things are asserted for every recipe, and they are the ticket's own
  * words: zero unsupported presentations and zero error chrome. Beyond that each
@@ -84,10 +86,7 @@ const CANVAS_INFO = '[role="dialog"][aria-label="Canvas Info"]';
 const RENDERING_LINK = 'a.rendering-link';
 
 const MEDIA_DIR = join(import.meta.dirname, 'media');
-const AV_CORPUS = join(
-    import.meta.dirname,
-    '../src/lib/test/fixtures/manifests/av',
-);
+const CORPUS = join(import.meta.dirname, '../src/lib/test/fixtures/manifests');
 
 /** A 1x1 opaque PNG — enough for a poster, an album cover or a thumbnail. */
 const PIXEL_PNG = Buffer.from(
@@ -96,19 +95,24 @@ const PIXEL_PNG = Buffer.from(
 );
 
 /**
- * The fifteen recipes, exactly as `PROVENANCE.md` records them.
+ * The fifteen recipes, exactly as `PROVENANCE.md` records them, then the v4
+ * audio and video recipes.
  *
  * `surface` is what the recipe must put on the current canvas:
  * `'stage'` — the plugin claimed it and a media element is playing position;
  * `'image'` — core painted an image body and the plugin claimed nothing the
  * reader can see. Only `0489` is the second kind, and it is the epic's one
  * documented degradation.
+ *
+ * `corpus` is the fixture directory the file is read from. A v4 recipe's `id`
+ * carries its `/v4` path segment so `recipeUrl` lands on its manifest id.
  */
 const RECIPES: {
     id: string;
     file: string;
     label: string;
     surface: 'stage' | 'image';
+    corpus?: 'v4';
 }[] = [
     {
         id: '0002-mvm-audio',
@@ -199,6 +203,20 @@ const RECIPES: {
         file: '0489-multimedia-canvas.json',
         label: 'multimedia canvas — documented degradation',
         surface: 'image',
+    },
+    {
+        id: '0002-mvm-audio/v4',
+        file: '0002-mvm-audio.json',
+        label: 'v4 audio',
+        surface: 'stage',
+        corpus: 'v4',
+    },
+    {
+        id: '0003-mvm-video/v4',
+        file: '0003-mvm-video.json',
+        label: 'v4 video',
+        surface: 'stage',
+        corpus: 'v4',
     },
 ];
 
@@ -320,7 +338,9 @@ async function installRoutes(page: Page, log: Log): Promise<void> {
         await page.route(`**${recipeUrl(recipe.id)}`, (route) =>
             route.fulfill({
                 contentType: 'application/json',
-                body: readFileSync(join(AV_CORPUS, recipe.file)),
+                body: readFileSync(
+                    join(CORPUS, recipe.corpus ?? 'av', recipe.file),
+                ),
             }),
         );
     }
@@ -567,27 +587,34 @@ test.describe('av cookbook coverage', () => {
         await expect(page.locator(ERROR)).toHaveCount(0);
     });
 
-    test('an audio recipe plays end to end', async ({ page }) => {
-        const log = newLog();
-        await openRecipe(page, '0002-mvm-audio', log);
-        await page.locator(STAGE).first().waitFor({ state: 'visible' });
-        await page.locator(MUTE).click();
-        await page.locator(PLAY).click();
-        await expect
-            .poll(() => currentTime(page), { timeout: 30_000 })
-            .toBeGreaterThan(0.2);
-    });
+    for (const id of ['0002-mvm-audio', '0002-mvm-audio/v4']) {
+        test(`an audio recipe plays end to end — ${id}`, async ({ page }) => {
+            const log = newLog();
+            await openRecipe(page, id, log);
+            await page.locator(STAGE).first().waitFor({ state: 'visible' });
+            await page.locator(MUTE).click();
+            await page.locator(PLAY).click();
+            await expect
+                .poll(() => currentTime(page), { timeout: 30_000 })
+                .toBeGreaterThan(0.2);
+        });
+    }
 
-    test('a video recipe plays end to end', async ({ page }) => {
-        const log = newLog();
-        await openRecipe(page, '0003-mvm-video', log);
-        await page.locator(STAGE).first().waitFor({ state: 'visible' });
-        await page.locator(MUTE).click();
-        await page.locator(PLAY).click();
-        await expect
-            .poll(() => currentTime(page), { timeout: 30_000 })
-            .toBeGreaterThan(0.2);
-    });
+    for (const id of ['0003-mvm-video', '0003-mvm-video/v4']) {
+        test(`a video recipe plays end to end — ${id}`, async ({ page }) => {
+            const log = newLog();
+            await openRecipe(page, id, log);
+            await page.locator(STAGE).first().waitFor({ state: 'visible' });
+            await expect(
+                page.locator(`${VISUAL_LANE} ${MEDIA}`).first(),
+            ).toBeVisible();
+            await page.locator(MUTE).click();
+            await page.locator(PLAY).click();
+            await expect
+                .poll(() => currentTime(page), { timeout: 30_000 })
+                .toBeGreaterThan(0.2);
+        });
+    }
 
     /*
         The `video` layout, on the recipe that has nothing but its body to say
