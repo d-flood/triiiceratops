@@ -24,6 +24,27 @@ function recipeCanvases(file: string): unknown[] {
     return manifest.items ?? [];
 }
 
+function oneBodyCanvas(body: unknown, target: unknown = 'canvas/1'): unknown {
+    return {
+        id: 'canvas/1',
+        type: 'Canvas',
+        duration: 10,
+        items: [
+            {
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        body,
+                        target,
+                    },
+                ],
+            },
+        ],
+    };
+}
+
 describe('scanCanvasForAv', () => {
     it('answers null for a canvas that paints no time-based body', () => {
         const canvas = {
@@ -186,6 +207,63 @@ describe('scanCanvasForAv', () => {
         };
 
         expect(scanCanvasForAv(canvas)?.spatiallyTargeted).toBe(true);
+    });
+
+    it.each(['t=10,20', 'xywh=0,0,10,10'])(
+        'reads %s from an array-valued selector as from a singular one',
+        (value) => {
+            // v4 makes `selector` an array in publisher preference order.
+            const selector = { type: 'FragmentSelector', value };
+            const [singular, array] = [selector, [selector]].map(
+                (selector) =>
+                    scanCanvasForAv(
+                        oneBodyCanvas(
+                            {
+                                id: 'https://example.org/clip.mp4',
+                                type: 'Video',
+                                format: 'video/mp4',
+                            },
+                            {
+                                type: 'SpecificResource',
+                                source: 'canvas/1',
+                                selector,
+                            },
+                        ),
+                    )?.placements[0],
+            );
+
+            expect(array?.fragment).toBe(value);
+            expect(array?.fragment).toBe(singular?.fragment);
+            expect(array?.spatial).toBe(singular?.spatial);
+        },
+    );
+
+    it('classifies a v4 Audio body with no format as audio', () => {
+        const scan = scanCanvasForAv(
+            oneBodyCanvas({ id: 'https://example.org/stream', type: 'Audio' }),
+        );
+
+        expect(scan?.placements[0].alternatives[0]).toMatchObject({
+            kind: 'audio',
+            paintsPicture: false,
+        });
+    });
+
+    it('leaves the picture to core for a v4 Audio body formatted video', () => {
+        // `0014-accompanyingcanvas` under v4 spellings: the format picks the
+        // element, the IIIF type says whose picture is in the rect.
+        const scan = scanCanvasForAv(
+            oneBodyCanvas({
+                id: 'https://example.org/sound.mp4',
+                type: 'Audio',
+                format: 'video/mp4',
+            }),
+        );
+
+        expect(scan?.placements[0].alternatives[0]).toMatchObject({
+            kind: 'video',
+            paintsPicture: false,
+        });
     });
 
     it('ignores a non-image body that is not time-based media', () => {

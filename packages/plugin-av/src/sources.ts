@@ -20,7 +20,7 @@ import {
     paintingBodyAlternatives,
 } from 'triiiceratops';
 
-import { asRecord, stringOrNull } from './iiifJson';
+import { asArray, asRecord, stringOrNull } from './iiifJson';
 
 /** Which element plays a source. */
 export type AvMediaKind = 'video' | 'audio';
@@ -113,8 +113,12 @@ function targetFragment(target: unknown): string {
     const record = asRecord(target);
     if (!record) return '';
 
-    const selector = asRecord(record.selector);
-    return stringOrNull(selector?.value) ?? '';
+    // v4 makes `selector` an array in publisher preference order.
+    for (const selector of asArray(record.selector)) {
+        const value = stringOrNull(asRecord(selector)?.value);
+        if (value) return value;
+    }
+    return '';
 }
 
 /**
@@ -152,7 +156,9 @@ function mediaFacts(
 ): Omit<AvSource, 'url'> | null {
     const format = stringOrNull(body.format);
     const type = body.type ?? body['@type'];
-    const sound = type === 'Sound' || type === 'dctypes:Sound';
+    // v4 renamed `Sound` to `Audio`; v3 writes `Sound`, v2 `dctypes:Sound`.
+    const sound =
+        type === 'Audio' || type === 'Sound' || type === 'dctypes:Sound';
     const video = type === 'Video' || type === 'dctypes:MovingImage';
 
     const kind: AvMediaKind | null = format?.startsWith('audio/')
