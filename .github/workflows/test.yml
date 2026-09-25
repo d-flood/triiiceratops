@@ -33,7 +33,7 @@ jobs:
 
             - uses: pnpm/action-setup@v6
               with:
-                  version: 11.15.1
+                  version: 12.4.1
 
             - uses: actions/setup-node@v7
               with:
@@ -76,7 +76,7 @@ jobs:
 
             - uses: pnpm/action-setup@v6
               with:
-                  version: 11.15.1
+                  version: 12.4.1
 
             - uses: actions/setup-node@v7
               with:
@@ -175,7 +175,7 @@ jobs:
 
             - uses: pnpm/action-setup@v6
               with:
-                  version: 11.15.1
+                  version: 12.4.1
 
             - uses: actions/setup-node@v7
               with:
@@ -229,7 +229,7 @@ jobs:
 
             - uses: pnpm/action-setup@v6
               with:
-                  version: 11.15.1
+                  version: 12.4.1
 
             - uses: actions/setup-node@v7
               with:
@@ -270,7 +270,7 @@ jobs:
 
             - uses: pnpm/action-setup@v6
               with:
-                  version: 11.15.1
+                  version: 12.4.1
 
             - uses: actions/setup-node@v7
               with:
@@ -327,7 +327,7 @@ jobs:
 
             - uses: pnpm/action-setup@v6
               with:
-                  version: 11.15.1
+                  version: 12.4.1
 
             - uses: actions/setup-node@v7
               with:
@@ -374,7 +374,7 @@ jobs:
 
             - uses: pnpm/action-setup@v6
               with:
-                  version: 11.15.1
+                  version: 12.4.1
 
             - uses: actions/setup-node@v7
               with:
@@ -455,7 +455,7 @@ jobs:
 
             - uses: pnpm/action-setup@v6
               with:
-                  version: 11.15.1
+                  version: 12.4.1
 
             - uses: actions/setup-node@v7
               with:
@@ -520,7 +520,7 @@ jobs:
 
             - uses: pnpm/action-setup@v6
               with:
-                  version: 11.15.1
+                  version: 12.4.1
 
             - uses: actions/setup-node@v7
               with:
@@ -553,7 +553,7 @@ jobs:
 
             - uses: pnpm/action-setup@v6
               with:
-                  version: 11.15.1
+                  version: 12.4.1
 
             - uses: actions/setup-node@v7
               with:

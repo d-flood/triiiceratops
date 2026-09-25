@@ -3,4 +3,5 @@
 '@triiiceratops/plugin-av': patch
 ---
 
-Additional IIIF Presentation 4 support.
+
+Initial IIIF Presentation 4 support.
