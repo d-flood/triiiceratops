@@ -25,7 +25,7 @@ import {
     paintingBodyAlternatives,
 } from 'triiiceratops';
 
-import { asRecord, stringOrNull } from './iiifJson';
+import { asRecord, stringOrNull, supplementingAnnotations } from './iiifJson';
 
 /** One WebVTT resource a canvas offers, as authored. */
 export interface CaptionTrack {
@@ -96,19 +96,6 @@ function vttTrack(
         label: labelText(record.label, language),
         annotation,
     };
-}
-
-/** Every embedded `supplementing` annotation on a canvas. */
-function supplementingAnnotations(canvas: Record<string, unknown>): unknown[] {
-    const pages = Array.isArray(canvas.annotations) ? canvas.annotations : [];
-    return pages.flatMap((page) => {
-        const items = asRecord(page)?.items;
-        return Array.isArray(items)
-            ? items.filter(
-                  (item) => asRecord(item)?.motivation === 'supplementing',
-              )
-            : [];
-    });
 }
 
 /**

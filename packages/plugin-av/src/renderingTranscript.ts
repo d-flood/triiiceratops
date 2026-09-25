@@ -16,10 +16,17 @@
  * ONE file, linked from the canvas's `rendering` as an alternate representation
  * of the recording (cookbook 0017).
  *
- * Only `rendering` is scanned. `seeAlso` is for machine-readable descriptions of
- * the resource (cookbook 0053) — a schema.org document, an ALTO file, a MARC
- * record — and adopting one as a transcript would put a metadata payload in a
- * panel a reader opened to read words that were spoken.
+ * An untimed file can also ride a `supplementing` annotation as its body
+ * (cookbook 0253, v4). The format fence below tells it apart from a VTT caption
+ * track on the same shape; `rendering` is still consulted first, and the
+ * annotation's `provides` is not read, since the format already says what the
+ * file is.
+ *
+ * Only `rendering` and embedded supplementing annotations are scanned.
+ * `seeAlso` is for machine-readable descriptions of the resource (cookbook
+ * 0053) — a schema.org document, an ALTO file, a MARC record — and adopting one
+ * as a transcript would put a metadata payload in a panel a reader opened to
+ * read words that were spoken.
  *
  * The first entry with a string `id` and a `text/plain` format wins and the rest
  * are ignored.
@@ -37,7 +44,12 @@
  * those transcripts remain reachable — just not readable in place.
  */
 
-import { asArray, asRecord, firstLabel } from './iiifJson';
+import {
+    asArray,
+    asRecord,
+    firstLabel,
+    supplementingAnnotations,
+} from './iiifJson';
 
 /** An untimed transcript linked from a canvas. */
 export interface TextTranscript {
@@ -59,7 +71,17 @@ export function textTranscriptFor(canvas: unknown): TextTranscript | null {
     const record = asRecord(canvas);
     if (!record) return null;
 
-    for (const candidate of asArray(record.rendering)) {
+    const candidates = [
+        ...asArray(record.rendering),
+        ...supplementingAnnotations(record).flatMap((annotation) =>
+            // An embedded `value` is annotation text (`timedAnnotations.ts`),
+            // even when the body also carries an `id`.
+            asArray(asRecord(annotation)?.body).filter(
+                (body) => asRecord(body)?.type !== 'TextualBody',
+            ),
+        ),
+    ];
+    for (const candidate of candidates) {
         const entry = asRecord(candidate);
         if (!entry) continue;
         const { id, format } = entry;

@@ -65,3 +65,17 @@ export function firstLabel(label: unknown): string {
     }
     return '';
 }
+
+/**
+ * Every embedded `supplementing` annotation on a canvas. `motivation` is a
+ * string in v3 and an array in v4.
+ */
+export function supplementingAnnotations(
+    canvas: Record<string, unknown>,
+): unknown[] {
+    return asArray(canvas.annotations).flatMap((page) =>
+        asArray(asRecord(page)?.items).filter((item) =>
+            asArray(asRecord(item)?.motivation).includes('supplementing'),
+        ),
+    );
+}

@@ -189,6 +189,29 @@ describe('captions — detection', () => {
         expect(captionTracksForCanvas(commented)).toEqual([]);
     });
 
+    it('reads the v4 array-valued motivation', () => {
+        const track = {
+            id: '/media/captions.vtt',
+            type: 'Text',
+            format: 'text/vtt',
+        };
+        const withMotivation = (motivation: unknown) => {
+            const canvas = canvasWithSupplementingTrack(track) as {
+                annotations: { items: { motivation: unknown }[] }[];
+            };
+            canvas.annotations[0].items[0].motivation = motivation;
+            return captionTracksForCanvas(canvas).map((t) => t.url);
+        };
+
+        expect(withMotivation('supplementing')).toEqual([
+            '/media/captions.vtt',
+        ]);
+        expect(withMotivation(['supplementing'])).toEqual([
+            '/media/captions.vtt',
+        ]);
+        expect(withMotivation(['commenting'])).toEqual([]);
+    });
+
     it('carries a track that declares no language or label', () => {
         const canvas = canvasWithSupplementingTrack({
             id: '/media/captions.vtt',
