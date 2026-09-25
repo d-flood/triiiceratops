@@ -13,7 +13,7 @@
 
 import type { SharedCoreUtils } from './browser-runtime';
 import { companionPaintable } from './renderer/companionCanvases';
-import { getPaintingAnnotations } from './utils/iiifParsing';
+import { getContainerType, getPaintingAnnotations } from './utils/iiifParsing';
 import { formatMediaTime, parseIiifTime } from './utils/iiifTime';
 import {
     isImageBody,
@@ -32,6 +32,7 @@ import {
 export const SHARED_CORE_UTILS: SharedCoreUtils = {
     companionPaintable,
     formatMediaTime,
+    getContainerType,
     getPaintingAnnotations,
     isImageBody,
     isUnsupportedCanvasFor,

@@ -106,6 +106,7 @@ describe('the shared core utilities', () => {
         expect(Object.keys(shared).sort()).toEqual([
             'companionPaintable',
             'formatMediaTime',
+            'getContainerType',
             'getPaintingAnnotations',
             'isImageBody',
             'isUnsupportedCanvasFor',

@@ -499,7 +499,7 @@ const REQUIRED_GLOBALS = [
  * A ratchet a few bytes above the recorded actual, not a budget to spend: it is
  * set from a measurement and moved only by a change that is worth its bytes.
  * Re-derive the actual with `pnpm build`, then gzip `dist/iife.js` at level 9 —
- * the same level this script uses — which currently reads **15,972**. The head
+ * the same level this script uses — which currently reads **16,014**. The head
  * over it is ~28 bytes, and can be that tight because this artifact is
  * path-independent. Svelte's scoped-CSS class name is a variable-length hash of
  * the filename the compiler is handed, and that filename is ABSOLUTE — so the
@@ -587,7 +587,7 @@ const REQUIRED_GLOBALS = [
  * required globals above detect that exactly. The real ceiling on total shipped
  * weight is the competitive pair budget in `scripts/size-check.mjs`.
  */
-const MAX_IIFE_GZIP = 16_000;
+const MAX_IIFE_GZIP = 16_042;
 
 /**
  * Gzip ceilings for the lazy chunks, in bytes, by emitted file name.
