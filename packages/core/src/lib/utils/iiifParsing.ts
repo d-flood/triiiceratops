@@ -88,6 +88,37 @@ function isCollectionResource(resource: any): boolean {
 }
 
 /**
+ * The concrete subclasses of IIIF Presentation 4's abstract `Container`. Core's
+ * `canvas` vocabulary means any of them; see CONTEXT.md → **Container**.
+ */
+export type IiifContainerType = 'Canvas' | 'Timeline' | 'Scene';
+
+/**
+ * The container's type, or `null` for anything unrecognized.
+ *
+ * Reads `type`, then `@type`. `sc:Canvas` is the IIIF v2 spelling of `Canvas`;
+ * `Timeline` and `Scene` are v4 classes and have no `sc:` spelling.
+ *
+ * **An absent type and an unrecognized type both answer `null`, and they are
+ * not the same case.** An untyped object in a manifest's `items` is a sloppily
+ * authored Canvas, not a declined container, so a caller that declines on
+ * `null` must first check that a type was declared at all. A future Container
+ * subclass also answers `null`, so an unknown kind degrades rather than breaks.
+ *
+ * **Total.** Never throws.
+ *
+ * **Public API**, from `triiiceratops`.
+ */
+export function getContainerType(container: unknown): IiifContainerType | null {
+    if (!container || typeof container !== 'object') return null;
+    const resource = container as any;
+    const type = resource.type ?? resource['@type'];
+    if (type === 'Canvas' || type === 'sc:Canvas') return 'Canvas';
+    if (type === 'Timeline' || type === 'Scene') return type;
+    return null;
+}
+
+/**
  * The manifest's sequences, as the **raw JSON sub-objects the manifest already
  * holds**. Nothing is constructed and nothing is wrapped: this is not a
  * `Sequence` type, it never leaves this module, and its only two consumers are

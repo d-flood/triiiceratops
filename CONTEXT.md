@@ -186,6 +186,17 @@ _Avoid_: the locale, current language (ambiguous about whose)
 
 ## Renderer domain
 
+**Container**:
+IIIF Presentation 4's abstract class for anything content is painted onto, with three
+concrete subclasses: `Canvas` (2D, optionally temporal), `Timeline` (temporal only) and
+`Scene` (3D, boundless). Core's `canvas` vocabulary — `getCanvases`, `claimCanvas`,
+`PlannerCanvas`, every "canvas" in this glossary — means Container throughout; the names
+predate v4 and stay, because a rename buys no behaviour. `getContainerType` answers which
+subclass a resource is. An IIIF `Scene` is always written with its qualifier ("IIIF
+Scene", "a `Scene` container"), because **scene plan** already means the planner's
+per-frame output; the renderer's value is never shortened to "scene".
+_Avoid_: bare "scene" for the IIIF class (collides with **scene plan**)
+
 **Scene plan**:
 The planner's pure output for one frame: the layout rect per canvas, the residency tier
 per canvas, the ordered tile/thumbnail/metadata requests, the eviction candidates, and

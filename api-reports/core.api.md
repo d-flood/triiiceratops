@@ -1304,7 +1304,8 @@ export type { Logger, LogLevel, LogSink } from './logging/logger';
 export { logger, configureLogging, isDebugEnabled } from './logging/logger';
 export { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 export { createPluginSurface } from './plugin/surface';
-export { getPaintingAnnotations } from './utils/iiifParsing';
+export { getContainerType, getPaintingAnnotations } from './utils/iiifParsing';
+export type { IiifContainerType } from './utils/iiifParsing';
 export { parseIiifTime, formatMediaTime } from './utils/iiifTime';
 export type { CanvasRegion } from './utils/contentState';
 export type { ContentStateTarget } from './utils/contentState';
@@ -7513,6 +7514,28 @@ export declare function findCanvasById(canvases: any[], canvasId: string | null)
  * sibling in this module is public — importing it from `triiiceratops` fails.
  */
 export declare function asArray(value: unknown): any[];
+/**
+ * The concrete subclasses of IIIF Presentation 4's abstract `Container`. Core's
+ * `canvas` vocabulary means any of them; see CONTEXT.md → **Container**.
+ */
+export type IiifContainerType = 'Canvas' | 'Timeline' | 'Scene';
+/**
+ * The container's type, or `null` for anything unrecognized.
+ *
+ * Reads `type`, then `@type`. `sc:Canvas` is the IIIF v2 spelling of `Canvas`;
+ * `Timeline` and `Scene` are v4 classes and have no `sc:` spelling.
+ *
+ * **An absent type and an unrecognized type both answer `null`, and they are
+ * not the same case.** An untyped object in a manifest's `items` is a sloppily
+ * authored Canvas, not a declined container, so a caller that declines on
+ * `null` must first check that a type was declared at all. A future Container
+ * subclass also answers `null`, so an unknown kind degrades rather than breaks.
+ *
+ * **Total.** Never throws.
+ *
+ * **Public API**, from `triiiceratops`.
+ */
+export declare function getContainerType(container: unknown): IiifContainerType | null;
 /**
  * How many sequences a manifest has.
  *

@@ -169,7 +169,8 @@ export { createPluginSurface } from './plugin/surface';
 // `getThumbnailSrc`, `resolveCanvasImage`, and `resolveAllCanvasImages` from
 // `triiiceratops/image-export`. The manifest itself is available as raw JSON
 // through `viewerState.manifestEntry?.json`.
-export { getPaintingAnnotations } from './utils/iiifParsing';
+export { getContainerType, getPaintingAnnotations } from './utils/iiifParsing';
+export type { IiifContainerType } from './utils/iiifParsing';
 export { parseIiifTime, formatMediaTime } from './utils/iiifTime';
 
 // The shape of the `initialCanvasRegion` input, so a host that assigns one can

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { logger } from '../logging/logger';
@@ -5,6 +7,7 @@ import { syntheticV3SplitAnnotationPages } from '../test/fixtures/syntheticManif
 import {
     getCanvasesForSequence,
     getChoiceAlternatives,
+    getContainerType,
     getPaintingAnnotations,
     getPaintingBody,
     getSequenceCount,
@@ -593,6 +596,48 @@ describe('getChoiceAlternatives', () => {
     it('returns an empty array for anything that is not a Choice', () => {
         expect(getChoiceAlternatives({ id: 'image' })).toEqual([]);
         expect(getChoiceAlternatives(null)).toEqual([]);
+    });
+});
+
+describe('getContainerType', () => {
+    it.each([
+        ['Canvas', 'Canvas'],
+        ['sc:Canvas', 'Canvas'],
+        ['Timeline', 'Timeline'],
+        ['Scene', 'Scene'],
+    ])('classifies %s via type and via @type', (spelling, expected) => {
+        expect(getContainerType({ type: spelling })).toBe(expected);
+        expect(getContainerType({ '@type': spelling })).toBe(expected);
+    });
+
+    it.each([
+        ['an unknown type', { type: 'Hologram' }],
+        ['a v2-prefixed v4 class', { type: 'sc:Scene' }],
+        ['a missing type', { id: 'http://example.org/canvas/1' }],
+        ['a bare string', 'Canvas'],
+        ['a number', 42],
+        ['null', null],
+    ])('answers null for %s without throwing', (_, input) => {
+        expect(getContainerType(input)).toBeNull();
+    });
+
+    it.each([
+        ['0001-mvm-image', 'Canvas'],
+        ['0002-mvm-audio', 'Timeline'],
+        ['0003-mvm-video', 'Canvas'],
+        ['0253-using-transcript-file', 'Canvas'],
+        ['0608-mvm-3d', 'Scene'],
+    ])('classifies the first container of v4/%s as %s', (name, expected) => {
+        const manifest = JSON.parse(
+            readFileSync(
+                join(
+                    import.meta.dirname,
+                    `../test/fixtures/manifests/v4/${name}.json`,
+                ),
+                'utf8',
+            ),
+        );
+        expect(getContainerType(firstCanvasOf(manifest))).toBe(expected);
     });
 });
 
