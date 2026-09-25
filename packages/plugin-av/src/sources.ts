@@ -15,6 +15,7 @@
  */
 
 import {
+    getContainerType,
     getPaintingAnnotations,
     isImageBody,
     paintingBodyAlternatives,
@@ -215,12 +216,28 @@ function placedSources(annotation: unknown): AvSource[] {
  * canvas with an image body beside a video one is core's to paint and this
  * plugin's to warn about (`0489-multimedia-canvas`), so the degradation contract
  * needs the scan even where no stage will be built.
+ *
+ * A container declaring a type other than `Canvas` or `Timeline` (a `Scene`, or
+ * an unknown kind) answers `null` whatever it paints, so it stays unclaimed for
+ * the plugin that understands it: the claim takes one claimant per canvas.
+ * Declining by container type, not by media, is ADR 0017's line. An untyped
+ * container is a sloppy Canvas and is still scanned, so this is not an accept
+ * list.
  */
 export function scanCanvasForAv(canvas: unknown): AvCanvasScan | null {
     const record = asRecord(canvas);
     const canvasId =
         stringOrNull(record?.id) ?? stringOrNull(record?.['@id']) ?? null;
     if (!record || !canvasId) return null;
+
+    const type = getContainerType(record);
+    if (
+        type !== 'Canvas' &&
+        type !== 'Timeline' &&
+        (record.type ?? record['@type']) != null
+    ) {
+        return null;
+    }
 
     const placements: AvPlacement[] = [];
     getPaintingAnnotations(canvas).forEach((annotation, index) => {

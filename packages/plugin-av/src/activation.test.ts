@@ -18,7 +18,7 @@ import {
 } from '@triiiceratops/plugin-sdk/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PluginError } from 'triiiceratops';
+import type { PluginError, ViewerError } from 'triiiceratops';
 
 import { getAVState } from './avState';
 import { AvPlugin } from './plugin';
@@ -247,6 +247,62 @@ describe('activation and the canvas claim', () => {
         expect(tc.viewerState.claimedCanvases.size).toBe(0);
 
         cleanup();
+    });
+
+    describe('an IIIF Scene', () => {
+        const SCENE_ID =
+            'https://iiif.io/api/cookbook/recipe/0608-mvm-3d/v4/scene';
+
+        function v4Recipe(file: string): any {
+            return JSON.parse(
+                readFileSync(join(AV_DIR, '../v4', file), 'utf8'),
+            );
+        }
+
+        async function expectUnclaimed(json: unknown): Promise<void> {
+            const tc = createTestViewerContext({
+                uiId: UI_ID,
+                fixtures: {
+                    manifest: {
+                        id: 'https://iiif.io/api/cookbook/recipe/0608-mvm-3d/v4/manifest.json',
+                        json,
+                    },
+                },
+            });
+            const reported: ViewerError[] = [];
+            tc.viewerState.setErrorReporter((error) => reported.push(error));
+            await flush();
+
+            const cleanup = AvPlugin.view.mount(
+                document.createElement('div'),
+                tc.context,
+            );
+            await flush();
+
+            expect(tc.viewerState.isCanvasClaimed(SCENE_ID)).toBe(false);
+            expect(tc.viewerState.claimedCanvases.size).toBe(0);
+            expect(reported.map((error) => error.code)).not.toContain(
+                'canvas-claim-refused',
+            );
+
+            cleanup();
+        }
+
+        it('leaves the v4 3D recipe unclaimed', async () => {
+            await expectUnclaimed(v4Recipe('0608-mvm-3d.json'));
+        });
+
+        it('leaves a Scene painting an audio body unclaimed', async () => {
+            // No published recipe has one; an Audio Emitter's body is the
+            // shape that would otherwise be sourced here.
+            const manifest = v4Recipe('0608-mvm-3d.json');
+            manifest.items[0].items[0].items[0].body = {
+                id: 'https://example.org/emitter.mp3',
+                type: 'Audio',
+                format: 'audio/mpeg',
+            };
+            await expectUnclaimed(manifest);
+        });
     });
 
     it('re-scans when the manifest changes', async () => {

@@ -364,4 +364,59 @@ describe('scanCanvasForAv', () => {
         expect(scan?.width).toBeNull();
         expect(scan?.height).toBeNull();
     });
+
+    describe('the container types it declines', () => {
+        // An Audio Emitter's audio body is exactly what this scanner would
+        // otherwise source, so a Scene carrying one is the case that matters.
+        function containerWith(type: Record<string, unknown>): unknown {
+            const { type: _, ...canvas } = oneBodyCanvas({
+                id: 'https://example.org/emitter.mp3',
+                type: 'Audio',
+                format: 'audio/mpeg',
+            }) as Record<string, unknown>;
+            return { ...canvas, ...type };
+        }
+
+        it('answers null for a Scene, even one painting an audio body', () => {
+            expect(
+                scanCanvasForAv(containerWith({ type: 'Scene' })),
+            ).toBeNull();
+        });
+
+        it('answers null for a container whose declared type is unrecognized', () => {
+            expect(
+                scanCanvasForAv(containerWith({ type: 'Hologram' })),
+            ).toBeNull();
+            expect(
+                scanCanvasForAv(containerWith({ '@type': 'sc:Hologram' })),
+            ).toBeNull();
+        });
+
+        it('still scans a container that declares no type', () => {
+            // An untyped item is a sloppy Canvas, and its audio plays today.
+            expect(
+                scanCanvasForAv(containerWith({}))?.placements[0]
+                    .alternatives[0].kind,
+            ).toBe('audio');
+        });
+
+        it.each([
+            [{ type: 'Canvas' }],
+            [{ '@type': 'sc:Canvas' }],
+            [{ type: 'Timeline' }],
+        ])('still scans %o', (type) => {
+            expect(scanCanvasForAv(containerWith(type))).not.toBeNull();
+        });
+
+        it('still scans the v4 audio recipe, a Timeline', () => {
+            const manifest = JSON.parse(
+                readFileSync(join(AV_DIR, '../v4/0002-mvm-audio.json'), 'utf8'),
+            );
+
+            expect(
+                scanCanvasForAv(manifest.items[0])?.placements[0]
+                    .alternatives[0].kind,
+            ).toBe('audio');
+        });
+    });
 });

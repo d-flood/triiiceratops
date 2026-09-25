@@ -62,6 +62,7 @@ export const REQUIRED_SVELTE_INTERNALS: readonly string[] = [
 export const REQUIRED_CORE_UTILS: readonly string[] = [
     'companionPaintable',
     'formatMediaTime',
+    'getContainerType',
     'getPaintingAnnotations',
     'isImageBody',
     'isUnsupportedCanvasFor',
