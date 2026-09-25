@@ -1404,7 +1404,7 @@ export declare const logger: Logger;
  * actually published, naming one that was not. `api.version.test.ts` reads
  * `package.json` and fails on any disagreement; bump both together.
  */
-export declare const CORE_VERSION = "1.0.4";
+export declare const CORE_VERSION = "1.1.0";
 /**
  * The plugin API version, independent of {@link CORE_VERSION}. `1.6.0` for
  * `PluginSurface.setAvailable`, over the `1.5.0` that added the transcript

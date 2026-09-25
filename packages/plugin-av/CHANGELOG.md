@@ -1,5 +1,14 @@
 # @triiiceratops/plugin-av
 
+## 1.0.5
+
+### Patch Changes
+
+- 25d722e: Initial IIIF Presentation 4 support.
+- Updated dependencies [25d722e]
+    - triiiceratops@1.1.0
+    - @triiiceratops/plugin-sdk@1.0.0
+
 ## 1.0.4
 
 ### Patch Changes

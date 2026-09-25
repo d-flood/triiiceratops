@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.1.0
+
+### Minor Changes
+
+- 25d722e: Initial IIIF Presentation 4 support.
+
 ## 1.0.4
 
 ### Patch Changes
