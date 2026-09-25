@@ -1333,3 +1333,78 @@ describe('companionPaintable', () => {
         });
     });
 });
+
+describe('the v4 spellings', () => {
+    const POSTER = companionCanvas(
+        'https://example.test/poster',
+        { width: 640, height: 360 },
+        [PLAIN_IMAGE],
+    );
+    const SCORE = companionCanvas(
+        'https://example.test/score',
+        { width: 772, height: 998 },
+        [{ ...PLAIN_IMAGE, id: 'https://example.test/score.jpg' }],
+    );
+    const STALE = companionCanvas(
+        'https://example.test/stale',
+        { width: 100, height: 100 },
+        [{ ...PLAIN_IMAGE, id: 'https://example.test/stale.jpg' }],
+    );
+
+    const ROLES = [
+        ['placeholderCanvas', 'placeholderContainer', 'placeholder'],
+        ['accompanyingCanvas', 'accompanyingContainer', 'accompanying'],
+    ] as const;
+
+    for (const [v3, v4, role] of ROLES) {
+        describe(v4, () => {
+            it(`resolves identically to ${v3}`, () => {
+                const companion = role === 'placeholder' ? POSTER : SCORE;
+
+                expect(
+                    companionsOf(claimedCanvas({ [v4]: companion })),
+                ).toEqual(companionsOf(claimedCanvas({ [v3]: companion })));
+                expect(
+                    companionPaintable(
+                        undefined,
+                        claimedCanvas({ [v4]: companion }),
+                        v3,
+                    ),
+                ).toBe(true);
+            });
+
+            it(`wins over ${v3} where a document carries both`, () => {
+                const companions = companionsOf(
+                    claimedCanvas({ [v4]: POSTER, [v3]: STALE }),
+                );
+
+                expect(companions[role]?.[0].key).toBe(
+                    'https://example.test/poster#0',
+                );
+                expect(companions.width).toBe(640);
+            });
+
+            it('names the v4 property in a resolution warning', () => {
+                const companions = companionsOf(
+                    claimedCanvas({
+                        [v4]: companionCanvas(
+                            'https://example.test/clip',
+                            null,
+                            [
+                                {
+                                    id: 'https://example.test/clip.mp4',
+                                    type: 'Video',
+                                    format: 'video/mp4',
+                                },
+                            ],
+                        ),
+                    }),
+                );
+
+                expect(companions.warnings).toEqual([
+                    `the ${v4} of canvas https://example.test/canvas/1 resolved to nothing requestable; it will not be painted`,
+                ]);
+            });
+        });
+    }
+});
