@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { COOKBOOK_RECIPES, RECIPE_GROUP_LABELS, recipeNumber } from './recipes';
 
 /**
- * The 15 audiovisual recipe ids derived and verified in
+ * The 16 audiovisual recipe ids derived and verified in
  * `packages/core/src/lib/test/fixtures/manifests/PROVENANCE.md`. Duplicated
  * here so the catalog cannot drift from that derivation without this test going
  * red.
@@ -22,6 +22,7 @@ const AUDIOVISUAL_IDS = [
     '0103-poetry-reading-annotations',
     '0219-using-caption-file',
     '0229-behavior-ranges',
+    '0253-using-transcript-file',
     '0434-choice-av',
     '0489-multimedia-canvas',
 ];
@@ -59,11 +60,11 @@ describe('cookbook recipe catalog consistency', () => {
         }
     });
 
-    it('covers the 68 recipes the support matrix deduplicates to', () => {
-        expect(COOKBOOK_RECIPES).toHaveLength(68);
+    it('covers the 69 recipes the support matrix deduplicates to', () => {
+        expect(COOKBOOK_RECIPES).toHaveLength(69);
     });
 
-    it("audiovisual group is exactly PROVENANCE.md's 15 ids", () => {
+    it("audiovisual group is exactly PROVENANCE.md's 16 ids", () => {
         const audiovisual = COOKBOOK_RECIPES.filter(
             (recipe) => recipe.group === 'audiovisual',
         ).map((recipe) => recipe.id);

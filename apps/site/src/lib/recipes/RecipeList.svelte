@@ -13,6 +13,7 @@
         groupRecipes,
         INSTITUTIONAL_MANIFESTS,
         LOCAL_MANIFESTS,
+        PRESENTATION_4_MANIFESTS,
         WAVEFORM_MANIFESTS,
         type ManifestEntry,
         type ManifestSection,
@@ -29,6 +30,11 @@
 
     const sections: readonly ManifestSection[] = [
         ...groupRecipes(),
+        {
+            key: 'presentation-4',
+            heading: 'Presentation 4',
+            entries: PRESENTATION_4_MANIFESTS,
+        },
         {
             key: 'institutional',
             heading: 'Institutional manifests',

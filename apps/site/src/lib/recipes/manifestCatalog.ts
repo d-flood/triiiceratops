@@ -29,6 +29,15 @@ export interface ManifestSection {
     entries: ManifestEntry[];
 }
 
+function recipeEntry(recipe: CookbookRecipe): ManifestEntry {
+    return {
+        label: `${recipeNumber(recipe)} ${recipe.name}`,
+        url: recipe.manifestUrl,
+        support: recipe.support,
+        reason: recipe.reason,
+    };
+}
+
 /** What loads when the URL names no manifest. */
 export const DEFAULT_MANIFEST_URL = COOKBOOK_RECIPES[0].manifestUrl;
 
@@ -59,6 +68,32 @@ export const INSTITUTIONAL_MANIFESTS: ManifestEntry[] = [
         url: 'https://zavicajna.digitalna.rs/iiif/api/presentation/3/96571949-03d6-478e-ab44-a2d5ad68f935%252F00000001%252Fostalo01%252F00000071/manifest',
     },
 ];
+
+const PRESENTATION_4_SIBLINGS: ManifestEntry[] = [
+    {
+        label: '0001 Simplest Manifest - Single Image File',
+        url: 'https://iiif.io/api/cookbook/recipe/0001-mvm-image/v4/manifest.json',
+    },
+    {
+        label: '0002 Simplest Manifest - Audio',
+        url: 'https://iiif.io/api/cookbook/recipe/0002-mvm-audio/v4/manifest.json',
+    },
+    {
+        label: '0003 Simplest Manifest - Video',
+        url: 'https://iiif.io/api/cookbook/recipe/0003-mvm-video/v4/manifest.json',
+    },
+    {
+        label: '0219 Using Caption Files with Video Content',
+        url: 'https://iiif.io/api/cookbook/recipe/0219-using-caption-file/v4/manifest.json',
+    },
+];
+
+export const PRESENTATION_4_MANIFESTS: ManifestEntry[] = [
+    ...PRESENTATION_4_SIBLINGS,
+    ...COOKBOOK_RECIPES.filter((recipe) =>
+        recipe.manifestUrl.includes('/v4/'),
+    ).map(recipeEntry),
+].sort((a, b) => a.label.localeCompare(b.label));
 
 /**
  * Live Avalon Media System manifests whose canvases link real waveform data.
@@ -119,12 +154,7 @@ export function groupRecipes(
             };
             sections.set(recipe.group, section);
         }
-        section.entries.push({
-            label: `${recipeNumber(recipe)} ${recipe.name}`,
-            url: recipe.manifestUrl,
-            support: recipe.support,
-            reason: recipe.reason,
-        });
+        section.entries.push(recipeEntry(recipe));
     }
     return [...sections.values()];
 }

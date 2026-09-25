@@ -1,5 +1,5 @@
 {
-    "readAt": "2026-09-08",
+    "readAt": "2026-09-25",
     "source": "https://iiif.io/api/cookbook/recipe/matrix/",
     "viewers": [
         "Mirador",
@@ -855,7 +855,7 @@
         },
         {
             "id": "0219-using-caption-file",
-            "name": "Using Caption and Subtitle Files with Video Content",
+            "name": "Using Caption Files with Video Content",
             "marks": {
                 "Mirador": "no",
                 "UV": "no",
@@ -868,7 +868,7 @@
                 "Theseus": "yes",
                 "Curation": "no",
                 "liiive": "no",
-                "TIFY": "yes",
+                "TIFY": "no",
                 "Triiiceratops": "no"
             }
         },
@@ -942,6 +942,25 @@
                 "Aviary": "no",
                 "Glycerine Viewer": "no",
                 "Theseus": "yes",
+                "Curation": "no",
+                "liiive": "no",
+                "TIFY": "no",
+                "Triiiceratops": "no"
+            }
+        },
+        {
+            "id": "0253-using-transcript-file",
+            "name": "Video with Accompanying Transcript",
+            "marks": {
+                "Mirador": "no",
+                "UV": "no",
+                "Annona": "no",
+                "Clover": "no",
+                "Navplace Viewer": "no",
+                "Ramp": "no",
+                "Aviary": "no",
+                "Glycerine Viewer": "no",
+                "Theseus": "no",
                 "Curation": "no",
                 "liiive": "no",
                 "TIFY": "no",

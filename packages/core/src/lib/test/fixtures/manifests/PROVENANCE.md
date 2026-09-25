@@ -154,7 +154,10 @@ than trusted: all 67 recipe manifests were fetched and searched for `Sound` or
 `0489-multimedia-canvas` (filed under Annotation Recipes). All 15 are vendored
 here.
 
-This list of 15 — and the 52 image recipes it leaves — is what the recipe
+`0253-using-transcript-file` joined the matrix's A/V category on 2026-09-25
+with only a v4 manifest; it is vendored under `v4/`.
+
+This list — and the image recipes it leaves — is what the recipe
 catalog (`packages/cookbook/src/recipes.ts`) groups as audiovisual, and so what
 the site's capability axis counts with.
 
@@ -175,6 +178,7 @@ the site's capability axis counts with.
 0103-poetry-reading-annotations
 0219-using-caption-file
 0229-behavior-ranges
+0253-using-transcript-file
 0434-choice-av
 0489-multimedia-canvas
 ```

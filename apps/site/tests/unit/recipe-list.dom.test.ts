@@ -54,9 +54,9 @@ describe('RecipeList', () => {
             props: { onSelect: (url: string) => loaded.push(url) },
         });
 
-        // The catalog's groups, plus the three the catalog has no entry for.
+        // The catalog's groups, plus the four the catalog has no entry for.
         const headings = target.querySelectorAll('.recstage__head');
-        expect(headings.length).toBe(groupRecipes().length + 3);
+        expect(headings.length).toBe(groupRecipes().length + 4);
 
         const entries = target.querySelectorAll<HTMLButtonElement>(
             'button.recstage__opt',

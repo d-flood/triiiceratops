@@ -29,7 +29,7 @@ export interface CookbookRecipe {
      */
     manifestUrl: string;
     /**
-     * The Cookbook's own category, except that `'audiovisual'` gathers the 15 ids
+     * The Cookbook's own category, except that `'audiovisual'` gathers the 16 ids
      * derived and verified in the manifest fixtures' `PROVENANCE.md`
      * (`packages/core/src/lib/test/fixtures/manifests/`) — the recipes whose
      * manifests carry a `Sound` or `Video` painting body.
@@ -73,7 +73,7 @@ export function recipeNumber(recipe: CookbookRecipe): string {
 
 /**
  * The Cookbook [support matrix](https://iiif.io/api/cookbook/recipe/matrix/)
- * deduplicated to its 68 distinct recipes.
+ * deduplicated to its 69 distinct recipes.
  */
 export const COOKBOOK_RECIPES: CookbookRecipe[] = [
     {
@@ -523,7 +523,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
     },
     {
         id: '0219-using-caption-file',
-        name: 'Using Caption and Subtitle Files with Video Content',
+        name: 'Using Caption Files with Video Content',
         manifestUrl:
             'https://iiif.io/api/cookbook/recipe/0219-using-caption-file/manifest.json',
         group: 'audiovisual',
@@ -540,6 +540,16 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         support: 'supported',
         requiresPluginAv: true,
         matrixSupport: true,
+    },
+    {
+        id: '0253-using-transcript-file',
+        name: 'Video with Accompanying Transcript',
+        manifestUrl:
+            'https://iiif.io/api/cookbook/recipe/0253-using-transcript-file/v4/manifest.json',
+        group: 'audiovisual',
+        support: 'supported',
+        requiresPluginAv: true,
+        matrixSupport: false,
     },
     {
         id: '0230-navdate',
