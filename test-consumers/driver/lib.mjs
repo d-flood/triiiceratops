@@ -172,10 +172,18 @@ export function refreshLocalDepInLockfiles(fixtureDir, depName) {
         if (json.dependencies) delete json.dependencies[depName];
         writeFileSync(npmLock, JSON.stringify(json, null, 2) + '\n');
     }
-    // pnpm re-reads the on-disk tarball on a non-frozen install, so its lockfile
-    // needs no surgery — but drop a byte-stale importer spec if present so the
-    // fresh tarball always wins.
-    // (pnpm-lock.yaml is left as-is; --no-frozen-lockfile reconciles it.)
+    // pnpm 12 verifies a `file:` tarball against its locked integrity even on a
+    // non-frozen install, so strip the local tarball's pinned hash.
+    const pnpmLock = join(fixtureDir, 'pnpm-lock.yaml');
+    if (existsSync(pnpmLock)) {
+        const tarball = `file:vendor/${vendoredTarballName(depName)}`;
+        const pinned = new RegExp(
+            `\\{integrity: [^,\\s}]+, tarball: ${tarball.replaceAll('.', '\\.')}\\}`,
+            'g',
+        );
+        const yaml = readFileSync(pnpmLock, 'utf8');
+        writeFileSync(pnpmLock, yaml.replace(pinned, `{tarball: ${tarball}}`));
+    }
 }
 
 export function distributeManifest(fixtureDir, target) {
