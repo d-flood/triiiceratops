@@ -7,5 +7,8 @@
     "access": "public",
     "baseBranch": "main",
     "updateInternalDependencies": "patch",
-    "ignore": ["@triiiceratops/app-site"]
+    "ignore": ["@triiiceratops/app-site"],
+    "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+        "onlyUpdatePeerDependentsWhenOutOfRange": true
+    }
 }
