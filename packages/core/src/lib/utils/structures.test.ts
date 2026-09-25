@@ -9,6 +9,26 @@ import {
 } from './structures';
 
 describe('structures helpers', () => {
+    it('targets a v4 Timeline member and still drops unrecognized members', () => {
+        const [node] = parseStructures({
+            '@context': 'http://iiif.io/api/presentation/4/context.json',
+            type: 'Manifest',
+            structures: [
+                {
+                    id: 'range-audio',
+                    type: 'Range',
+                    label: { en: ['Side A'] },
+                    items: [
+                        { id: 'timeline-1', type: 'Timeline' },
+                        { id: 'unknown-1', type: 'Widget' },
+                    ],
+                },
+            ],
+        });
+
+        expect(node.canvasIds).toEqual(['timeline-1']);
+    });
+
     it('preserves sequence behavior on parsed v3 ranges', () => {
         const nodes = parseStructures({
             structures: [

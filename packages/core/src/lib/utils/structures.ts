@@ -7,7 +7,7 @@
 import type { CanvasRegion } from './contentState';
 import { resolveThumbnailResourceSrc } from './getThumbnailSrc';
 import { getReferenceId, getResourceId } from './iiifIds';
-import { toBehaviorList } from './iiifParsing';
+import { getContainerType, toBehaviorList } from './iiifParsing';
 import {
     normalizeIiifTargets,
     parseIiifSelectorTime,
@@ -120,7 +120,7 @@ function parseV3Range(range: any, depth: number): StructureNode {
             if (itemType === 'Range') {
                 children.push(parseV3Range(item, depth + 1));
             } else if (
-                itemType === 'Canvas' ||
+                getContainerType(item) ||
                 itemType === 'SpecificResource' ||
                 typeof item === 'string'
             ) {
