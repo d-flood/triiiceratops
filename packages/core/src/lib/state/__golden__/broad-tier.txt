@@ -68,9 +68,8 @@
 # THE PRESENTATION 4 SET — `presentation-4-published-recipes` ticket 01.
 #   Five added records, nothing moved. The five published v4 Cookbook recipes
 #   (0001, 0002, 0003, 0608, 0253) joined `v4/` so that v4 behaviour is
-#   asserted continuously rather than measured once; each record is what the
-#   viewer does with them TODAY, before any v4-aware code, and later tickets
-#   move them deliberately.
+#   asserted continuously rather than measured once; each record was pinned
+#   before any v4-aware code, and none moved when that code landed.
 #
 #   Each record matches its v3 sibling's: `v4/0001-mvm-image` reads
 #   `withPainting=1` like `cookbook/0001-mvm-image`, and `v4/0002-mvm-audio`
