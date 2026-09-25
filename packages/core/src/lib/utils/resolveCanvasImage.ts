@@ -2,7 +2,7 @@ import { getVisibleCanvasEntries } from '../components/viewerControls';
 import { getCanvasLabel } from './canvasLabels';
 import { getCanvasId, getResourceId } from './iiifIds';
 import { iiifImageRequestUrl, normalizeServiceId } from './iiifImageRequest';
-import { getPaintingAnnotations } from './iiifParsing';
+import { asArray, getPaintingAnnotations } from './iiifParsing';
 import {
     findImageBody,
     getImageService,
@@ -177,9 +177,9 @@ function parseImageApiSelectorRegion(
     resourceDimensions: { width: number | null; height: number | null },
 ): RegionRect | null {
     return parseImageApiRegionValue(
-        resource?.selector?.type === 'ImageApiSelector'
-            ? resource.selector.region
-            : null,
+        asArray(resource?.selector).find(
+            (selector) => selector?.type === 'ImageApiSelector',
+        )?.region ?? null,
         resourceDimensions,
     );
 }
