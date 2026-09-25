@@ -518,6 +518,47 @@ describe('resolveCanvasImage', () => {
             }),
         );
     });
+    it('reads the first ImageApiSelector from an array-valued selector', () => {
+        const region = { type: 'ImageApiSelector', region: '10,20,30,40' };
+        const canvasWithSelector = (selector: unknown) => ({
+            id: 'canvas-selector',
+            width: 30,
+            height: 40,
+            items: annotationPages({
+                body: {
+                    type: 'SpecificResource',
+                    source: {
+                        id: 'https://example.org/image/full/max/0/default.jpg',
+                        width: 100,
+                        height: 100,
+                        service: {
+                            id: 'https://example.org/iiif/selector',
+                            type: 'ImageService3',
+                        },
+                    },
+                    selector,
+                },
+            }),
+        });
+        const regionOf = (selector: unknown) =>
+            resolveCanvasImage(canvasWithSelector(selector))?.imageApiRegion ??
+            null;
+        const expected = { x: 10, y: 20, width: 30, height: 40 };
+
+        expect(regionOf([region])).toEqual(expected);
+        expect(
+            regionOf([
+                { type: 'PointSelector', t: 5 },
+                region,
+                { type: 'ImageApiSelector', region: '0,0,50,50' },
+            ]),
+        ).toEqual(expected);
+        expect(regionOf(region)).toEqual(expected);
+        expect(regionOf([])).toBeNull();
+        expect(
+            regionOf([{ type: 'WktSelector', value: 'POINT(1 1)' }]),
+        ).toBeNull();
+    });
 });
 
 describe('resolveAllCanvasImages', () => {
