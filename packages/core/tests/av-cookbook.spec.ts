@@ -5,7 +5,7 @@
  * (`/e2e/harness.html`) with `@triiiceratops/plugin-av` registered the way a
  * host registers it, opened on each of the fifteen recipes at their canonical
  * `iiif.io` URLs — the same URLs the demo's manifest picker offers — and on the
- * v4 audio and video recipes at theirs.
+ * v4 audio, video and transcript-file recipes at theirs.
  *
  * The network stands in and nothing else does. Each recipe's manifest is served
  * from the VENDORED copy under `src/lib/test/fixtures/manifests/av/` or `v4/`
@@ -96,7 +96,7 @@ const PIXEL_PNG = Buffer.from(
 
 /**
  * The fifteen recipes, exactly as `PROVENANCE.md` records them, then the v4
- * audio and video recipes.
+ * audio, video and transcript-file recipes.
  *
  * `surface` is what the recipe must put on the current canvas:
  * `'stage'` — the plugin claimed it and a media element is playing position;
@@ -215,6 +215,13 @@ const RECIPES: {
         id: '0003-mvm-video/v4',
         file: '0003-mvm-video.json',
         label: 'v4 video',
+        surface: 'stage',
+        corpus: 'v4',
+    },
+    {
+        id: '0253-using-transcript-file/v4',
+        file: '0253-using-transcript-file.json',
+        label: 'v4 transcript file',
         surface: 'stage',
         corpus: 'v4',
     },
@@ -795,6 +802,32 @@ test.describe('av cookbook coverage', () => {
         await expect(page.locator(TRANSCRIPT_TEXT)).toHaveText('transcript');
 
         expect(await transcriptRenderingHits(page)).toBeGreaterThan(0);
+    });
+
+    /**
+     * `0253-using-transcript-file` is the v4 way to attach the same kind of
+     * file: a `text/plain` body on a canvas-level `supplementing` annotation
+     * rather than a `rendering`, so there is no link to assert — only the panel.
+     */
+    test('the v4 transcript recipe serves its supplementing file as panel text', async ({
+        page,
+    }) => {
+        const log = newLog();
+        await openRecipe(page, '0253-using-transcript-file/v4', log);
+        await page.locator(STAGE).first().waitFor({ state: 'visible' });
+
+        await expect(page.locator(PANEL_CONTROL)).toHaveAttribute(
+            'aria-label',
+            'Transcript',
+            { timeout: 30_000 },
+        );
+
+        await openAvPanel(page);
+
+        await expect(page.locator(TRANSCRIPT_TRACK)).toHaveText(
+            'Transcript in plain text format',
+        );
+        await expect(page.locator(TRANSCRIPT_TEXT)).toHaveText('transcript');
     });
 
     /**

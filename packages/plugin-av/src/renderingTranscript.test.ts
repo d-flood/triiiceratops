@@ -26,6 +26,9 @@ function manifest(path: string): { items: unknown[] } {
 const COOKBOOK_0017 = manifest(
     'packages/core/src/lib/test/fixtures/manifests/av/0017-transcription-av.json',
 );
+const COOKBOOK_0253 = manifest(
+    'packages/core/src/lib/test/fixtures/manifests/v4/0253-using-transcript-file.json',
+);
 const AVALON = manifest(
     'packages/core/src/lib/test/fixtures/manifests/av/avalon-9g54xh933-skip-transcoding-mp3.json',
 );
@@ -36,6 +39,67 @@ describe('untimed transcript linkage', () => {
             url: 'https://fixtures.iiif.io/video/indiana/volleyball/volleyball.txt',
             label: 'Transcript',
         });
+    });
+
+    it('adopts cookbook 0253: a text/plain body on a v4 supplementing annotation', () => {
+        expect(textTranscriptFor(COOKBOOK_0253.items[0])).toEqual({
+            url: 'https://fixtures.iiif.io/video/indiana/lunchroom_manners/lunchroom_manners.txt',
+            label: 'Transcript in plain text format',
+        });
+    });
+
+    it('prefers the rendering transcript over a supplementing one', () => {
+        const canvas = {
+            ...(COOKBOOK_0253.items[0] as Record<string, unknown>),
+            rendering: [{ id: '/rendering.txt', format: 'text/plain' }],
+        };
+        expect(textTranscriptFor(canvas)?.url).toBe('/rendering.txt');
+    });
+
+    it('adopts no supplementing body that is captions, annotation text or not plain text', () => {
+        const supplementedWith = (body: unknown) => ({
+            annotations: [
+                {
+                    type: 'AnnotationPage',
+                    items: [
+                        {
+                            type: 'Annotation',
+                            motivation: ['supplementing'],
+                            body,
+                        },
+                    ],
+                },
+            ],
+        });
+
+        expect(
+            textTranscriptFor(
+                supplementedWith({
+                    id: '/captions.vtt',
+                    type: 'Text',
+                    format: 'text/vtt',
+                }),
+            ),
+        ).toBeNull();
+        expect(
+            textTranscriptFor(
+                supplementedWith({
+                    id: '/note',
+                    type: 'TextualBody',
+                    format: 'text/plain',
+                    value: 'Soft laughter',
+                }),
+            ),
+        ).toBeNull();
+        expect(
+            textTranscriptFor(
+                supplementedWith({
+                    id: '/transcript.html',
+                    type: 'Text',
+                    format: 'text/html',
+                }),
+            ),
+        ).toBeNull();
     });
 
     it('adopts a canvas whose rendering is a bare object rather than an array', () => {
