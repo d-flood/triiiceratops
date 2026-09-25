@@ -530,6 +530,23 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 #   gets PAINTED, and offering the reader alternatives is a different question
 #   that \`getCanvasChoices\` still answers.
 #
+# THE PRESENTATION 4 SET — \`presentation-4-published-recipes\` ticket 01.
+#   Five added records, nothing moved. The five published v4 Cookbook recipes
+#   (0001, 0002, 0003, 0608, 0253) joined \`v4/\` so that v4 behaviour is
+#   asserted continuously rather than measured once; each record is what the
+#   viewer does with them TODAY, before any v4-aware code, and later tickets
+#   move them deliberately.
+#
+#   Each record matches its v3 sibling's: \`v4/0001-mvm-image\` reads
+#   \`withPainting=1\` like \`cookbook/0001-mvm-image\`, and \`v4/0002-mvm-audio\`
+#   and \`v4/0003-mvm-video\` read \`withPainting=0\` like their \`av/\`
+#   originals — the @context bump and 0002's \`Timeline\` container cost nothing
+#   here. Two have no v3 sibling. \`v4/0253-using-transcript-file\` paints the
+#   same Video as 0003 and reads identically; its supplementing transcript sits
+#   under \`annotations\` and does not count. \`v4/0608-mvm-3d\` is a \`Scene\`
+#   and reads \`canvases=1 withPainting=0\`: enumerated, and declined for
+#   painting, rather than dropped.
+#
 # HOW TO READ A DIFF
 #   Each manifest gets one six-field record. The dominant failure mode of this
 #   epic is the silent empty result, and it reads here as \`withPainting=154\`

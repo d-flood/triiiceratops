@@ -7,14 +7,17 @@ verified against real manifests in CI rather than against synthetic ones only.
 The `av/` directory was added later, for the `plugin-av` epic
 (see `.tracker/plugin-av/SPEC.md`), under the same rules, and the three loose
 `cookbook/` files dated below later still for `cookbook-matrix-coverage`.
+The `v4/` directory holds the Cookbook's published Presentation 4 recipes, for
+`presentation-4-published-recipes`.
 
 **Retrieved:** 2026-08-06 (`cookbook/`, `demo/`, `vendored/`); 2026-08-13 (`av/`);
 2026-08-22 (`cookbook/0025-newspaper-article-index.json`,
 `cookbook/0346-multilingual-annotation-body.json`); 2026-08-23
 (`cookbook/0258-tagging-external-resource.json`); 2026-08-31
-(`production/mkiiif-docuverse.json`)
-**Total:** 79 files, 0.8 MB — 59 for `remove-manifesto`, 16 for `plugin-av`, 3 for
-`cookbook-matrix-coverage`, 1 for `finish-the-marketing-site`
+(`production/mkiiif-docuverse.json`); 2026-09-25 (`v4/`)
+**Total:** 84 files, 0.9 MB — 59 for `remove-manifesto`, 16 for `plugin-av`, 3 for
+`cookbook-matrix-coverage`, 1 for `finish-the-marketing-site`, 5 for
+`presentation-4-published-recipes`
 
 **Trimming.** The `cookbook/` and `demo/` files are the upstream response
 verbatim, re-serialised with 2-space indentation for diff readability; nothing
@@ -266,6 +269,22 @@ the `seeAlso` block verbatim) rather than from a manifest anyone can still fetch
 Both shapes are exercised locally instead, by
 `packages/core/tests/media/manifests/av-waveform.json`, against real
 `audiowaveform` output.
+
+## IIIF Cookbook Presentation 4 recipes (`v4/`)
+
+Source: `https://iiif.io/api/cookbook/recipe/<recipe>/v4/manifest.json` — the
+five recipes the Cookbook publishes a v4 manifest for, each served with its ids
+already resolved. Same licensing and byte-for-byte rule as `av/`. The v3
+originals of 0001, 0002 and 0003 stay where they are, in `cookbook/` and `av/`;
+0253 and 0608 have no v3 counterpart.
+
+| File | IIIF | Type | Canvases | Size | Kept for |
+| --- | --- | --- | --- | --- | --- |
+| `0001-mvm-image.json` | v4 | Manifest | 1 | 1 KB | v4 sibling of `cookbook/0001-mvm-image` — a `Canvas` with one static image |
+| `0002-mvm-audio.json` | v4 | Manifest | 1 | 1 KB | v4 sibling of `av/0002-mvm-audio` — a **`Timeline`** container, duration and no dimensions |
+| `0003-mvm-video.json` | v4 | Manifest | 1 | 1 KB | v4 sibling of `av/0003-mvm-video` — a `Canvas` with width, height and duration |
+| `0253-using-transcript-file.json` | v4 | Manifest | 1 | 3 KB | v4-only: 0003's video plus a supplementing transcript under `annotations` |
+| `0608-mvm-3d.json` | v4 | Manifest | 1 | 1 KB | v4-only: a **`Scene`** painted with a `Model` — no dimensions, no duration |
 
 ## Institutional manifests
 

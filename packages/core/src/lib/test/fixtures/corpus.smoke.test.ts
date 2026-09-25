@@ -175,6 +175,11 @@ describe('manifest corpus smoke test', () => {
         expect(paths.filter((p) => p.startsWith('av/')).length).toBeGreaterThan(
             10,
         );
+        // The Presentation 4 set: a v4 regression is only visible as a moved
+        // golden record if the walk still reaches these.
+        expect(paths.filter((p) => p.startsWith('v4/')).length).toBeGreaterThan(
+            4,
+        );
         expect(vendored.length).toBe(Object.keys(corpusSource).length);
         expect(syntheticManifestCorpus.length).toBeGreaterThan(0);
         expect(collectionFixtures.length).toBeGreaterThan(0);
