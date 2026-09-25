@@ -35,6 +35,18 @@ export type CompanionProperty =
     (typeof COMPANION_PROPERTIES)[keyof typeof COMPANION_PROPERTIES];
 
 /**
+ * Each role's JSON spellings, v4 first. v4 renamed both because the value may
+ * be any Container; the v3 names stay the role's public name above.
+ *
+ * v4 wins where a document carries both, as in `getCanvasBehaviors`: an
+ * upgraded document states its current intent in the new property.
+ */
+const COMPANION_SPELLINGS: Record<CompanionProperty, readonly string[]> = {
+    placeholderCanvas: ['placeholderContainer', 'placeholderCanvas'],
+    accompanyingCanvas: ['accompanyingContainer', 'accompanyingCanvas'],
+};
+
+/**
  * One claimed canvas's companions, resolved once.
  *
  * **The phase selects between these; it never rebuilds them.** Pressing play is
@@ -83,7 +95,8 @@ export interface CompanionCanvases {
 }
 
 /**
- * The companion Canvas under one of the two properties, or `null`.
+ * The companion under one role, with the spelling the document used, or
+ * `null`.
  *
  * A value that is not an object, or that carries no annotations to paint — no
  * `items`, an empty `items`, or `items` holding nothing but empty
@@ -91,10 +104,16 @@ export interface CompanionCanvases {
  * publisher meant by it that could have been painted, so it earns no warning
  * and donates no geometry.
  */
-function companionCanvasJson(canvas: unknown, property: string): unknown {
-    const raw = (canvas as Record<string, unknown> | null | undefined)?.[
-        property
-    ];
+function companionCanvasJson(
+    canvas: unknown,
+    role: CompanionProperty,
+): { json: unknown; property: string } | null {
+    const record = canvas as Record<string, unknown> | null | undefined;
+    const property = COMPANION_SPELLINGS[role].find(
+        (spelling) => record?.[spelling] != null,
+    );
+    if (!property) return null;
+    const raw = record?.[property];
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
 
     const pages = (raw as { items?: unknown }).items;
@@ -104,7 +123,7 @@ function companionCanvasJson(canvas: unknown, property: string): unknown {
             ?.items;
         return Array.isArray(annotations) && annotations.length > 0;
     });
-    return carriesAnnotations ? raw : null;
+    return carriesAnnotations ? { json: raw, property } : null;
 }
 
 /**
@@ -176,15 +195,17 @@ export function resolveCompanionCanvases(
     base: PlannerCanvas,
     getSelectedChoice?: SelectedChoiceLookup,
 ): CompanionCanvases | null {
-    const placeholderJson = companionCanvasJson(
+    const placeholder = companionCanvasJson(
         canvas,
         COMPANION_PROPERTIES.placeholder,
     );
-    const accompanyingJson = companionCanvasJson(
+    const accompanying = companionCanvasJson(
         canvas,
         COMPANION_PROPERTIES.accompanying,
     );
-    if (!placeholderJson && !accompanyingJson) return null;
+    if (!placeholder && !accompanying) return null;
+    const placeholderJson = placeholder?.json;
+    const accompanyingJson = accompanying?.json;
 
     if (base.images.length > 0) {
         return {
@@ -202,10 +223,10 @@ export function resolveCompanionCanvases(
 
     /** A companion's own images, or `null` where it resolved to nothing. */
     function resolvedImages(
-        json: unknown,
-        property: string,
+        companion: { json: unknown; property: string } | null,
     ): PlannerImage[] | null {
-        if (!json) return null;
+        if (!companion) return null;
+        const { json, property } = companion;
         const resolved = toPlannerCanvas(json, getSelectedChoice);
         if (!resolved || resolved.images.length === 0) {
             warnings.push(
@@ -216,14 +237,8 @@ export function resolveCompanionCanvases(
         return resolved.images;
     }
 
-    const placeholderImages = resolvedImages(
-        placeholderJson,
-        COMPANION_PROPERTIES.placeholder,
-    );
-    const accompanyingImages = resolvedImages(
-        accompanyingJson,
-        COMPANION_PROPERTIES.accompanying,
-    );
+    const placeholderImages = resolvedImages(placeholder);
+    const accompanyingImages = resolvedImages(accompanying);
 
     // Resolution comes first because only a companion that resolved to
     // something requestable donates dimensions: a duration-only canvas whose
