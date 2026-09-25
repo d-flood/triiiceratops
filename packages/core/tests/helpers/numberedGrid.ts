@@ -1,6 +1,5 @@
 /**
- * The geometric assertion harness (spec §Testing Decisions, "Geometric
- * assertions").
+ * The geometric assertion harness.
  *
  * It answers one question: **did the pixels land where the coordinate model
  * says they should?** A named feature of the numbered-grid fixture is located
@@ -373,9 +372,9 @@ export async function getResidency(page: Page): Promise<RendererResidency> {
  * State the decoded-byte ceiling this spec asserts against.
  *
  * Budgets are planner inputs so tests supply their own rather than depending on
- * shipped defaults (spec §Further Notes) — and the shipped 128 MB is orders of
- * magnitude above anything a fixture manifest can reach, so an assertion
- * against it would pass without the cache being bounded at all.
+ * shipped defaults — and the shipped 128 MB is orders of magnitude above
+ * anything a fixture manifest can reach, so an assertion against it would pass
+ * without the cache being bounded at all.
  */
 export async function setByteBudget(page: Page, bytes: number): Promise<void> {
     await afterSettledPaint(page, () =>

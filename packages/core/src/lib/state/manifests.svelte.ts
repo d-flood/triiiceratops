@@ -35,8 +35,8 @@ export class ManifestsState {
      * therefore cannot throw. That is a behavior requirement, not an aesthetic
      * one: this is reached from the public `setManifestData`, which has no
      * `try`/`catch`, so a throw here would skip the manifest-id assignment, the
-     * ready marking, and the change event — leaving the viewer half-initialized
-     * (SPEC → "Failure contract"). Reading the document is every enumerator's
+     * ready marking, and the change event — leaving the viewer half-initialized.
+     * Reading the document is every enumerator's
      * job, and each of them is total.
      *
      * Synchronous, and safe for a caller to keep awaiting.

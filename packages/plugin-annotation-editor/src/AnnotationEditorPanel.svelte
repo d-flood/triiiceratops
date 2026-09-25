@@ -15,7 +15,7 @@
     // The plugin's build-extracted component CSS installs once at activation
     // through the SDK style service (root-aware) — see `mount.svelte.ts`. No CSS
     // import here; a light-DOM import never reaches the element build's shadow
-    // root (F23). The panel's own look uses the shared `@triiiceratops/ui`
+    // root. The panel's own look uses the shared `@triiiceratops/ui`
     // primitives (Button, Tooltip) and current `--tri-` theme tokens.
 
     const t = useT();
@@ -84,7 +84,7 @@
         embedded?: boolean;
     } = $props();
 
-    // Map a failed operation to its i18n'd, user-facing message (F20).
+    // Map a failed operation to its i18n'd, user-facing message.
     function persistenceErrorMessage(op: AnnotationPersistenceOp): string {
         switch (op) {
             case 'load':

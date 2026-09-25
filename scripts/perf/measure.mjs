@@ -7,7 +7,7 @@
 // browser scenario logic lives here (not in each checked-out tree) so it is
 // byte-identical across the base and head SHAs; only the loaded dist differs.
 //
-// Scenarios (SPEC):
+// Scenarios:
 //   initial_viewer_mount, local_manifest_readiness, first_canvas_render,
 //   theme_switch, core_interaction, activate_<each plugin>.
 // Interaction + plugin scenarios run with ALL first-party plugins activated and

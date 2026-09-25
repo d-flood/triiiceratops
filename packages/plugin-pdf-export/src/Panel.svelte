@@ -17,8 +17,8 @@
      * It merges core's former `PdfExportController` + `PdfExportPanel`: it owns the
      * selection state, derives the exportable range, and drives
      * `exportCanvasRangeAsPdf` (its own bundled `pdf-lib`). Progress reporting is
-     * component-local state (SPEC: async progress flows through supported paths —
-     * no writes to core internals).
+     * component-local state: async progress flows through supported paths, with
+     * no writes to core internals.
      */
     import { getContext } from 'svelte';
 

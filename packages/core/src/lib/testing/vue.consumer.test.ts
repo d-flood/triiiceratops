@@ -1,9 +1,9 @@
 /**
  * A Vue consumer's own component, unit-tested against the headless handle.
  *
- * Same user story as `react.consumer.test.ts` (SPEC user story 66), through
- * Vue's own idiom: the handle goes into a `ref`, which is exactly the shape a
- * real `useTemplateRef<TriiiceratopsViewerInstance>('viewer')` produces, so the
+ * Same case as `react.consumer.test.ts`, through Vue's own idiom: the handle
+ * goes into a `ref`, which is exactly the shape a real
+ * `useTemplateRef<TriiiceratopsViewerInstance>('viewer')` produces, so the
  * component under test needs no test-only branch.
  *
  * Nothing is stubbed below the harness: real `triiiceratops/vue` composables,

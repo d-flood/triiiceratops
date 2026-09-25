@@ -154,7 +154,7 @@ export interface AnnotationStorageAdapter<TBody = W3CAnnotationBody> {
     destroy?(): void;
 }
 
-/** The adapter operations whose failures are surfaced (F20). */
+/** The adapter operations whose failures are surfaced. */
 export type AnnotationPersistenceOp =
     | 'load'
     | 'create'
@@ -166,7 +166,7 @@ export type AnnotationPersistenceOp =
  * Structured description of a failed persistence operation handed to
  * `config.onPersistenceError`. The plugin has already rolled back its optimistic
  * cache/display changes by the time this fires; `retry()` re-runs the exact
- * failed operation with the same payload (F20).
+ * failed operation with the same payload.
  */
 export interface AnnotationPersistenceError {
     op: AnnotationPersistenceOp;
@@ -231,7 +231,7 @@ export interface AnnotationEditorConfig<
      * host decides how to surface the failure and may call `retry()` to re-run
      * the exact failed operation. When omitted, the plugin logs to the console
      * and shows a dismissible error line in the panel so failures are never
-     * invisible (F20).
+     * invisible.
      */
     onPersistenceError?: (error: AnnotationPersistenceError) => void;
 }

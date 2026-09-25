@@ -119,7 +119,7 @@
     <p class="hero__lede">{lede}</p>
     <p class="hero__note">
         A fifth the size of viewers like Mirador and Universal Viewer while
-        covering considerably more of the IIIF spec than either.
+        supporting more IIIF Cookbook recipes than either.
         <a href="/size/">See the measurements</a>
     </p>
 </div>

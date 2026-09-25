@@ -25,7 +25,7 @@ function setPageLocale(locale: string) {
 }
 
 /**
- * Ticket 06 — per-viewer active locale.
+ * Per-viewer active locale.
  *
  * Locale is a per-viewer contract: a viewer's active locale is the language its
  * own picker chose if the user chose one, otherwise its typed `config.locale`,

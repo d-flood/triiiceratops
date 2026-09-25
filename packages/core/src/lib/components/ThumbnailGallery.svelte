@@ -52,7 +52,7 @@
                 // cannot render has no image to fall back to and would
                 // otherwise be indistinguishable from a folio whose thumbnail
                 // is missing — the strip is where a reader tells a sound
-                // recording from a broken page (user story 29).
+                // recording from a broken page.
                 //
                 // A CLAIMED canvas is a plugin's, and the glyph is part of the
                 // unsupported presentation the claim suppresses: the strip has
@@ -309,8 +309,7 @@
     A canvas core cannot render never gets a fallback `<img src>` — the strip
     used to put the painting body's own id there, which for an audio canvas is
     an MP3 and renders as a broken image. The glyph says "sound or moving
-    image", which is the one thing the reader needs the strip to tell them
-    (user story 29).
+    image", which is the one thing the reader needs the strip to tell them.
 
     Inline SVG rather than an `Icon`: the icon set is generated from a
     dependency at build time, and this is one path that must carry no

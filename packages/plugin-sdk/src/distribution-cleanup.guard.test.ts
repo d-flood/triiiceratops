@@ -6,7 +6,7 @@
 // are quiet by default. NO bare console call may appear in this package's
 // `src/` — diagnostics are dropped or routed through the debug-gated logger,
 // and actionable failures surface on the structured `pluginerror` / plugin
-// error channels (user stories 12–13).
+// error channels.
 //
 // A console call is allowed ONLY when it carries the documented
 // `triiiceratops-console-allow` marker on the call line or in the few comment
@@ -43,7 +43,7 @@ function lineIsAllowed(lines: string[], index: number): boolean {
     return false;
 }
 
-describe('plugin distribution cleanup guard (ticket 28)', () => {
+describe('plugin distribution cleanup guard', () => {
     const files = Object.keys(sources).filter((path) => !isTestFile(path));
 
     it('scans this package source tree', () => {

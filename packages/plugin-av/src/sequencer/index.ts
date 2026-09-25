@@ -5,7 +5,7 @@
  * here, and this module is only ever reached through the `await import()` in
  * `../sequencerLink.ts`. A page whose manifests paint one body per canvas never
  * fetches these bytes — and, just as important, pays nothing for them: the pair
- * budget against TIFY had 1,105 gzip left when this ticket started.
+ * budget against TIFY is tight.
  *
  * **The segment↔canvas-time boundary is this module's surface.** What leaves it
  * is `CanvasSequencer`, whose every member is in canvas time; AVState, the

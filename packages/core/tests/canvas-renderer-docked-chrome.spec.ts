@@ -399,11 +399,11 @@ test('a host resize moments after a panel toggle still preserves scale', async (
  *
  * Everything above runs against `/e2e/canvas-renderer-wc.html` — a bare custom
  * element with no host around it. That fixture reported the compensation
- * working for a whole epic while the shipped application threw a zoomed reader
+ * working for a long time while the shipped application threw a zoomed reader
  * back to the home view on every panel toggle, because the trigger is the whole
- * application shell: a viewer handed a `config` object that carries the chrome's
- * open state, with the docked panels and the unified bar really present around
- * the surface.
+ * application shell: a viewer handed a `config` object that carries the
+ * chrome's open state, with the docked panels and the unified bar really
+ * present around the surface.
  *
  * So these cases navigate to `/e2e/harness.html`, which mounts exactly that and
  * nothing else, reach the reader's view by real wheel and drag input, and press
@@ -1188,14 +1188,14 @@ test.describe('the real application — a reader keeps their place', () => {
 });
 
 /**
- * The Contract line this whole ticket exists for, in the configuration that
- * produced the original report: a claimed AV canvas with the plugin's panel
- * docked beside it, and playback controls a reader has to be able to reach.
+ * The contract line this suite exists for, in the configuration that produced
+ * the original report: a claimed AV canvas with the plugin's panel docked
+ * beside it, and playback controls a reader has to be able to reach.
  *
  * Measured at `6d1dec59`, when the transport was anchored to the canvas rect,
  * its box was 799px wide inside a 479px `.plugin-overlay-layer`, so PLAY — the
  * row's LEFTMOST control — sat at x 177, behind the panel column and clipped
- * out of the hit test by ticket 12's `overflow: hidden`. MUTE, further right,
+ * out of the hit test by the layer's `overflow: hidden`. MUTE, further right,
  * clicked fine throughout, which is why a spec that exercised only the
  * right-hand controls never caught it.
  *

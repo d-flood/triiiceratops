@@ -1,7 +1,7 @@
 /**
- * The negative cache for **static image** URLs: which plain `<img>` sources have
- * already failed, so a canvas that failed is not refetched every time it
- * re-enters the viewport (spec §Errors).
+ * The negative cache for **static image** URLs: which plain `<img>` sources
+ * have already failed, so a canvas that failed is not refetched every time it
+ * re-enters the viewport.
  *
  * ## Why this exists as its own module-level cache
  *
@@ -11,8 +11,8 @@
  * `info.json` and so had no equivalent — its failure lived only in the host's
  * per-canvas `canvasErrors`, which the residency reconciliation clears when the
  * canvas leaves the window along with the URL and the pixels. That made a 404
- * static image a **fresh request every time the reader scrolled back**, which is
- * exactly what the spec's eviction clause forbids.
+ * static image a **fresh request every time the reader scrolled back**, which
+ * is exactly what eviction must never cause.
  *
  * Keeping the per-canvas record across eviction instead would have meant
  * teaching the reconciliation to distinguish a URL that *changed* (a Choice

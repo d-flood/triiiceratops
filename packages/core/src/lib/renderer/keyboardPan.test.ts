@@ -4,8 +4,8 @@ import { PAN_KEYS, keyPanVelocity } from './keyboardPan';
 
 /**
  * The config is supplied here rather than imported from `rendererDefaults`:
- * every shipped threshold in the renderer is provisional, and a test that asserted
- * the defaults would turn tuning one into a test failure (spec §Further Notes).
+ * every shipped threshold in the renderer is provisional, and a test that
+ * asserted the defaults would turn tuning one into a test failure.
  */
 const CONFIG = { panSpeed: 600, shiftFactor: 4 };
 
@@ -27,10 +27,10 @@ describe('keyPanVelocity', () => {
     });
 
     /*
-     * The property the spec singles out as most likely to be built wrong
-     * (§Keyboard): OS key repeat fires at ~30 Hz, and a model that added a step
-     * per repeat would accelerate. The answer must depend only on WHICH keys
-     * are down, so re-asking on every repeat event changes nothing.
+     * The property most likely to be built wrong: OS key repeat fires at ~30
+     * Hz, and a model that added a step per repeat would accelerate. The answer
+     * must depend only on WHICH keys are down, so re-asking on every repeat
+     * event changes nothing.
      */
     it('is idempotent — a repeated key-down does not accumulate', () => {
         const once = keyPanVelocity(['ArrowRight'], false, CONFIG);

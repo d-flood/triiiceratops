@@ -11,7 +11,7 @@ export const ALL_TOOLS: DrawingTool[] = [
 
 /**
  * Resolve the effective tool set and default tool from config so the panel and
- * the drawing layer share one source of truth (F8). An empty/absent `tools` list
+ * the drawing layer share one source of truth. An empty/absent `tools` list
  * means "all tools"; `defaultTool` is honored only when it's within `tools`,
  * otherwise the first available tool wins.
  */

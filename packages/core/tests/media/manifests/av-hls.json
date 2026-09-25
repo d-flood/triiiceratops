@@ -7,7 +7,7 @@
     },
     "summary": {
         "en": [
-            "One canvas painted by a Choice between the HLS rendition of the colour-bars clip and the progressive MP4 of the same pictures. Both alternatives are byte-for-byte the same media remuxed, so a spec comparing HLS playback against progressive playback is comparing identical content — what differs is the delivery, and therefore whether the hls.js chunk had to load at all (spec, user stories 21, 22, 37). Safari plays the first alternative natively; every other engine must reach it through the lazy loader or fall through to the MP4."
+            "One canvas painted by a Choice between the HLS rendition of the colour-bars clip and the progressive MP4 of the same pictures. Both alternatives are byte-for-byte the same media remuxed, so a spec comparing HLS playback against progressive playback is comparing identical content — what differs is the delivery, and therefore whether the hls.js chunk had to load at all. Safari plays the first alternative natively; every other engine must reach it through the lazy loader or fall through to the MP4."
         ]
     },
     "items": [

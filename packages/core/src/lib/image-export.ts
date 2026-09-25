@@ -7,12 +7,11 @@
  * annotation geometry, and thumbnail fallbacks) are pure functions used by
  * core's own rendering AND by the `@triiiceratops/plugin-image-export` and
  * `@triiiceratops/plugin-pdf-export` packages, which run in the same realm as
- * core. Because the code is genuinely shared and remains
- * with its owning package (core), it is exposed here as a single real public seam
- * rather than duplicated into each plugin (SPEC.md — "Shared code is placed at a
- * real public seam or remains with its owning package. No unpublished catch-all
- * shared package is introduced."). The closure imports no Svelte and no viewer
- * state, so a plugin bundling this seam into its self-contained IIFE pulls in no
+ * core. Because the code is genuinely shared and remains with its owning
+ * package (core), it is exposed here as a single real public seam rather than
+ * duplicated into each plugin or moved into an unpublished catch-all shared
+ * package. The closure imports no Svelte and no viewer state, so a plugin
+ * bundling this seam into its self-contained IIFE pulls in no
  * `svelte/internal`. Re-exports are explicit (not `export *`) because the source
  * modules share some symbol names (`getCanvasId`), which a wildcard would make
  * ambiguous.

@@ -11,8 +11,8 @@
  *    which is why the fixture's two halves are DISTINCT services.
  * 2. **The `#xywh` target placement was discarded.** Every image was drawn
  *    across the whole canvas, so even a single region-targeted canvas was wrong
- *    (user story 30) and a composite one had its second image laid over its
- *    first. Answerable from pixels, which is what the geometric harness is for.
+ *    and a composite one had its second image laid over its first. Answerable
+ *    from pixels, which is what the geometric harness is for.
  *
  * The fixture is one 1200x1800 canvas whose two annotations target its top and
  * bottom halves, each painting a whole numbered grid (see

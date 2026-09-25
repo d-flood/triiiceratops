@@ -624,7 +624,7 @@
     <div class="bstage__set">
         <div class="bd__head">
             <button class="btn" type="button" onclick={startOver}>
-                Reset to Default
+                Start over
             </button>
         </div>
 

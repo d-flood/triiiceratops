@@ -12,13 +12,13 @@ import { getCanvasId } from '../utils/iiifIds';
  * spying on the stub, and "getCanvases returns the canvases" was checked
  * against a list the stub was told to return. Neither could survive the
  * library's removal, and neither could show that the cache reads the raw JSON
- * a consumer actually has (`remove-manifesto` ticket 08).
+ * a consumer actually has.
  *
  * Everything here now goes in as raw IIIF JSON and comes out as the cache's
  * observable result. Only `fetch` is stubbed.
  *
  * Canvas identity is read with core's exported `getCanvasId` rather than
- * `canvas.id`. The cache hands back raw Canvas JSON as of ticket 07, and a raw
+ * `canvas.id`. The cache hands back raw Canvas JSON, and a raw
  * IIIF v2 canvas spells its identifier `@id` — the library object papered over
  * that difference, and the version-neutral helper is what a consumer is told to
  * use in its place.

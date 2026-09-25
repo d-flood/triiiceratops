@@ -13,9 +13,9 @@ import { installViewerSurface } from '../test/utils/mockViewerSurface';
  * The host refits whenever the world's geometry changes, and a refit overwrites
  * the reader's centre and scale. A phase change leaves every rect exactly where
  * it was — geometry is decided once and never by the phase — so pressing play
- * must not throw a zoomed-in reader back to a fit (user story 14). Only a
- * mounted viewer can show that: it is the wiring between the renderer's change
- * signal and `refitForCurrentWorld` that is under test, not either half.
+ * must not throw a zoomed-in reader back to a fit. Only a mounted viewer can
+ * show that: it is the wiring between the renderer's change signal and
+ * `refitForCurrentWorld` that is under test, not either half.
  *
  * `0013-placeholderCanvas` is the corpus's placeholder shape, vendored and
  * served here from disk.
@@ -130,7 +130,7 @@ describe('a companion phase change in a mounted viewer', () => {
         const zoomed = state.viewportScale;
         expect(zoomed).toBeLessThan(fitted);
 
-        // A claim alone changes nothing about the geometry (user story 27).
+        // A claim alone changes nothing about the geometry.
         state.ensurePluginUiState('av');
         state.claimCanvas(CANVAS_ID, 'av');
         await settle();

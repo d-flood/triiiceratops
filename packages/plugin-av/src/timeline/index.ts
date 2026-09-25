@@ -9,9 +9,7 @@
  *
  * All of it is reachable only through the `await import()` in
  * `../timelineLink.ts`, so a page with no audio canvas to graduate never
- * fetches these bytes (SPEC user story 37, widened from waveform data to the
- * lane itself when the ruler joined the chunk: a page of images or of video
- * still requests nothing).
+ * fetches these bytes: a page of images or of video requests nothing.
  *
  * The chunk is **self-contained** and must stay that way. It may take types
  * from the eager graph, never values: the IIFE build cannot code-split, and

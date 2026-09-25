@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "triiiceratops perf-budgets",
-    "description": "Accepted post-cleanup absolute performance ceilings enforced by scripts/perf/compare.mjs (ticket 25). The comparison job enforces base-vs-head deltas; this file guards absolute drift and fails even when base == head.",
+    "description": "Accepted post-cleanup absolute performance ceilings enforced by scripts/perf/compare.mjs. The comparison job enforces base-vs-head deltas; this file guards absolute drift and fails even when base == head.",
     "type": "object",
     "required": ["baselineRef", "thresholds", "size", "runtime", "memory"],
     "properties": {

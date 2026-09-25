@@ -26,8 +26,7 @@ import type { ViewerError } from '../types/viewerError';
  *
  * The v2 and v3 spellings diverge per behavior with no consistent rule — start
  * canvas is on the manifest in v3 and on the sequence in v2, viewing direction
- * is the other way round — so each is exercised in both spellings separately
- * (`remove-manifesto` ticket 05).
+ * is the other way round — so each is exercised in both spellings separately.
  *
  * Where a v2 manifest declares a scalar at BOTH the root and the sequence, the
  * SEQUENCE wins. Presentation 2.1 says so in as many words for
@@ -218,7 +217,7 @@ describe('ViewerState manifest-level scalars', () => {
         });
 
         it('reads a v2 SEQUENCE-level viewingDirection', async () => {
-            // The spelling the spec singles out as breaking on v2: the manifest
+            // The spelling a manifest-first read misses on v2: the manifest
             // root says nothing and the direction hangs off the sequence.
             await load(
                 v2Manifest(`${V2_BASE}/direction-sequence`, {

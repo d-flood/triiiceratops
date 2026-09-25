@@ -6,8 +6,8 @@
  * tree-shake that, so every key in `src/lib/messages/en.json` — the one catalog
  * the element artifact ships inline — is bytes in the element bundle whether or
  * not anything renders it; a key nothing references costs bytes forever,
- * invisibly (the leak this file exists to stop recurring;
- * see SPEC.md, "Runtime string indexing defeats tree-shaking").
+ * invisibly (the leak this file exists to stop recurring: runtime string
+ * indexing defeats tree-shaking).
  *
  * The reverse direction is a type error for a statically named key, since
  * `Messages` is keyed by `keyof typeof en`. It is still checked here, because

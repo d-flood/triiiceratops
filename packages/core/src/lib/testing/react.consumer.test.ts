@@ -1,10 +1,10 @@
 /**
  * A React consumer's own component, unit-tested against the headless handle.
  *
- * This is the user story the helper exists for (SPEC user story 66): a
- * `<Sidebar>` that reads `useViewerSelector()` and calls a command should be
- * testable like any other store-consuming component — no custom element, no
- * renderer, no manifest fetch, no shadow root.
+ * This is the case the helper exists for: a `<Sidebar>` that reads
+ * `useViewerSelector()` and calls a command should be testable like any other
+ * store-consuming component — no custom element, no renderer, no manifest
+ * fetch, no shadow root.
  *
  * So nothing here is stubbed: the component is real React, the hooks are the
  * shipped `triiiceratops/react` hooks, the command is a real `ViewerState`

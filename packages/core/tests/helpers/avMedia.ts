@@ -65,8 +65,8 @@ export const TONE_WAVEFORM_DAT = '/media/tone.dat';
 export const TONE_WAVEFORM_JSON = '/media/tone.json';
 
 /**
- * The local AV manifests. Each one's `summary` says what it is for and which
- * user stories it serves; this is the index, not the description.
+ * The local AV manifests. Each one's `summary` says what it is for; this is the
+ * index, not the description.
  */
 export const AV_MANIFESTS = {
     /** One Sound canvas with a duration and no width or height. */

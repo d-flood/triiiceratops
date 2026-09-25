@@ -39,8 +39,8 @@ function warnOnce(
     if (seen.has(canvas)) return;
     seen.add(canvas);
 
-    // triiiceratops-console-allow: the curator-facing degradation warning of
-    // user story 45. There is no structured channel for it — it is not a viewer
+    // triiiceratops-console-allow: the curator-facing degradation warning.
+    // There is no structured channel for it — it is not a viewer
     // error, and a `pluginerror` would make an honest degraded render look like
     // a failure. Recorded in lint-allowlist.md.
     console.warn(`[triiiceratops] ${message}${SEE_DOCS}`);
@@ -94,7 +94,7 @@ const warnedWaveforms = new Set<string>();
  * Announced once per URL rather than once per canvas, because the same file is
  * commonly linked from several canvases and one broken publish should not fill
  * the console. The reader sees nothing: the lane renders without a waveform and
- * still seeks (SPEC — "Peaks model": malformed data degrades, it does not fail).
+ * still seeks: malformed data degrades, it does not fail.
  */
 export function warnAboutUnreadableWaveform(url: string): void {
     if (warnedWaveforms.has(url)) return;
@@ -119,7 +119,7 @@ const warnedCaptions = new Set<string>();
  * Once per URL, for the same reason a waveform is: one caption file is commonly
  * supplemented onto several canvases. The reader is not told, and is not shown
  * a toggle for it either — a control that selects a track with no cues is the
- * silent nothing user story 46 forbids.
+ * a silent nothing.
  */
 export function warnAboutUnloadableCaptionTrack(url: string): void {
     if (warnedCaptions.has(url)) return;

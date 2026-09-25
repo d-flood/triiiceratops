@@ -3,14 +3,14 @@
  * Device-pixel snapping — the one thing about the painter that no geometric
  * assertion can see.
  *
- * The spec deliberately leaves the painter untested in isolation: its
- * correctness is the geometric assertions' job, and a screenshot diff of
- * resampled pixels asserts nothing. That holds for *placement*, which a centroid
- * measures directly. It does not hold for **seams**: a hairline between two
- * tiles is a sub-pixel property of adjacent draw calls, and blur-up means the
- * coarse level is painted underneath, so a seam is a one-pixel line of the
- * coarse tile's colour rather than a hole. Nothing that reads the finished
- * canvas back can distinguish that from the picture.
+ * The painter is deliberately left untested in isolation: its correctness is
+ * the geometric assertions' job, and a screenshot diff of resampled pixels
+ * asserts nothing. That holds for *placement*, which a centroid measures
+ * directly. It does not hold for **seams**: a hairline between two tiles is a
+ * sub-pixel property of adjacent draw calls, and blur-up means the coarse level
+ * is painted underneath, so a seam is a one-pixel line of the coarse tile's
+ * colour rather than a hole. Nothing that reads the finished canvas back can
+ * distinguish that from the picture.
  *
  * What the mechanism guarantees is checkable exactly, though, and this is where.
  * There are two rules and both are asserted here: **at rest**, every tile's

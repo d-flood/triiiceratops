@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Production-dependency audit gate.
 //
-// SPEC: required CI includes a production audit, run "per package". pnpm audits
+// Required CI includes a production audit, run per package. pnpm audits
 // the whole workspace in one pass, but the publishable packages (seven today) ship
 // different production dependency sets, so a single workspace number hides which
 // package actually owns a flagged advisory. This gate:

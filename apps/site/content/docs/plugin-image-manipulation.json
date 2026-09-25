@@ -20,7 +20,7 @@
 				},
 				{
 					"type": "text",
-					"text": " that grows out of its toolbar button — three bare vertical sliders (brightness/contrast/saturation) plus invert/grayscale toggles and a reset button, all visible and interactable at once, floating directly over the canvas with no container box."
+					"text": " that opens from its toolbar button: three vertical sliders (brightness, contrast, saturation), invert and grayscale toggles, and a reset button, all visible at once and floating over the canvas without a container."
 				}
 			],
 			"attrs": {
@@ -130,7 +130,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is exported ready to use with no configuration required. Add it like any plugin — see "
+					"text": " is exported ready to use with no configuration required. Add it like any plugin; see "
 				},
 				{
 					"type": "text",
@@ -190,7 +190,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — mounting this exact plugin from React, Vue, Svelte, and plain HTML."
+									"text": ": mounting this plugin from React, Vue, Svelte, and plain HTML."
 								}
 							],
 							"attrs": {
@@ -222,7 +222,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — switching this plugin between a flyout and a docked panel responsively."
+									"text": ": switching this plugin between a flyout and a docked panel responsively."
 								}
 							],
 							"attrs": {

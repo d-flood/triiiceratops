@@ -9,7 +9,7 @@ src/lib/generated/
 # applies to `pnpm format:check` at the root; `pnpm --filter triiiceratops
 # format` runs `prettier --write .` from here. The waveform files must stay
 # byte-identical to real `audiowaveform` output — reflowing `tone.json` would
-# make ticket 10's parsers assert our own reading of the format back at us —
-# and the HLS segments are MPEG-TS bytes in `.ts` files, which Prettier parses
-# as TypeScript and chokes on.
+# make the parsers assert our own reading of the format back at us — and the HLS
+# segments are MPEG-TS bytes in `.ts` files, which Prettier parses as TypeScript
+# and chokes on.
 tests/media/

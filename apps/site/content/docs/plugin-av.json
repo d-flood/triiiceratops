@@ -46,7 +46,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — an honest placard that keeps the canvas in layout, navigation, and the thumbnail strip, but plays nothing."
+					"text": ": a notice that keeps the canvas in layout, navigation, and the thumbnail strip, but plays nothing."
 				}
 			],
 			"attrs": {
@@ -80,7 +80,7 @@
 				},
 				{
 					"type": "text",
-					"text": " those canvases and renders their media instead: a media stage over the canvas rect, playback controls in the viewer's own control bar, waveforms, captions, a transcript panel, and an "
+					"text": " those canvases (takes over rendering them from core) and plays their media instead: a media stage over the canvas rect, playback controls in the viewer's own control bar, waveforms, captions, a transcript panel, and an "
 				},
 				{
 					"type": "text",
@@ -142,7 +142,7 @@
 						},
 						{
 							"type": "text",
-							"text": " fetched only when a manifest needs them. A page of scanned folios pays nothing."
+							"text": " fetched only when a manifest needs them. A page of scanned folios loads none of them."
 						}
 					],
 					"attrs": {
@@ -315,7 +315,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is exported ready to use with no configuration. Hand it to the viewer the way you hand it any other plugin — see "
+					"text": " is exported ready to use with no configuration. Hand it to the viewer the way you hand it any other plugin. See "
 				},
 				{
 					"type": "text",
@@ -454,7 +454,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Two things are different here from every other Triiiceratops plugin, and both matter."
+					"text": "This plugin differs from every other Triiiceratops plugin in two ways."
 				}
 			],
 			"attrs": {
@@ -487,7 +487,7 @@
 				},
 				{
 					"type": "text",
-					"text": " DIRECTORY, not one file out of it.",
+					"text": " directory, not one file out of it.",
 					"marks": [
 						{
 							"type": "bold"
@@ -548,7 +548,7 @@
 				},
 				{
 					"type": "text",
-					"text": " works until a reader reaches anything a chunk serves — an HLS stream, a canvas with linked waveform data, a canvas whose duration is tiled by several media files, or a caption track that loaded with cues in it — and then 404s."
+					"text": " works until a reader reaches anything a chunk serves (an HLS stream, a canvas with linked waveform data, a canvas whose duration is tiled by several media files, or a caption track that loaded with cues in it), and then 404s."
 				}
 			],
 			"attrs": {
@@ -569,7 +569,7 @@
 				},
 				{
 					"type": "text",
-					"text": " Unlike other plugins this one does not bundle a Svelte runtime; it reads core's off "
+					"text": " Unlike other plugins, this one does not bundle a Svelte runtime; it reads core's off "
 				},
 				{
 					"type": "text",
@@ -582,7 +582,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", which is what keeps it as small as it is. See "
+					"text": ", which keeps it small. See "
 				},
 				{
 					"type": "text",
@@ -719,7 +719,7 @@
 								},
 								{
 									"type": "text",
-									"text": " The claimed canvas rect is divided into lanes in canvas space, so the whole stack pans and zooms with the viewer. Video takes the whole rect as a visual lane. Audio takes the whole rect as a timeline lane, which draws a waveform when the canvas links audiowaveform data and a ruler otherwise. A canvas core paints a companion Canvas into gets no lanes at all — the rect belongs to the renderer, and the stage contributes only a tap target, the play-state glyph and the \"can't play\" notice. That covers a canvas with an "
+									"text": " The claimed canvas rect is divided into lanes in canvas space, so the whole stack pans and zooms with the viewer. Video takes the whole rect as a visual lane. Audio takes the whole rect as a timeline lane, which draws a waveform when the canvas links audiowaveform data and a ruler otherwise. When core paints a companion canvas into the rect, the stage draws no lanes. The rect belongs to the renderer, and the stage contributes only a tap target, the play-state glyph and the \"can't play\" notice. That covers a canvas with an "
 								},
 								{
 									"type": "text",
@@ -774,7 +774,7 @@
 								},
 								{
 									"type": "text",
-									"text": " Canvas x maps linearly to media time, so the viewer's own zoom doubles as temporal zoom into whatever graduates the lane, and a tap on the timeline lane is a seek."
+									"text": " Canvas x maps linearly to media time, so the viewer's own zoom doubles as temporal zoom into the lane's ruler or waveform, and a tap on the timeline lane is a seek."
 								}
 							],
 							"attrs": {
@@ -829,7 +829,7 @@
 								},
 								{
 									"type": "text",
-									"text": " seam, so it is themed and placed like the rest of the viewer's chrome. There is exactly one, driving the current canvas; every other claimed canvas on screen carries a decorative play-state glyph on its own stage, so a reader with several recordings in view can tell which one is playing. Every label comes from the plugin's own locale catalog in the viewer's active locale. Native "
+									"text": " extension point, so it is themed and placed like the rest of the viewer's chrome. There is only one, and it drives the current canvas. Every other claimed canvas on screen carries a decorative play-state glyph on its own stage, so a reader with several recordings in view can tell which one is playing. Every label comes from the plugin's own locale catalog in the viewer's active locale. Native "
 								},
 								{
 									"type": "text",
@@ -854,7 +854,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": " While the transport is registered, "
+									"text": "While the transport is registered, "
 								},
 								{
 									"type": "text",
@@ -880,7 +880,7 @@
 								},
 								{
 									"type": "text",
-									"text": " and the control bar spans its full width — the seek bar's width is the precision a reader aims with. "
+									"text": " and the control bar spans its full width, because a wider seek bar allows more precise seeking. "
 								},
 								{
 									"type": "text",
@@ -919,7 +919,7 @@
 								},
 								{
 									"type": "text",
-									"text": " go on meaning exactly what they meant. See "
+									"text": " are unaffected. See "
 								},
 								{
 									"type": "text",
@@ -1296,7 +1296,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": " Audio and video alike — it is how a sound recording's words become readable, since an "
+									"text": "The panel works for audio and video alike. It is how a sound recording's words become readable, since an "
 								},
 								{
 									"type": "text",
@@ -1322,7 +1322,7 @@
 								},
 								{
 									"type": "text",
-									"text": " is video-only for that same reason. The toolbar button is absent on a canvas offering none of the three, so the panel is never opened onto nothing, and it is named for what it actually holds: "
+									"text": " is video-only for that same reason. The toolbar button is absent on a canvas offering none of the three, so the panel is never opened onto nothing, and it is named for what it holds: "
 								},
 								{
 									"type": "text",
@@ -1393,7 +1393,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The plugin publishes its playback state through core's published-state seam, so a host commands media exactly as it commands the viewer — through viewer state, never by importing the object. "
+					"text": "The plugin publishes its playback state through core's published-state extension point, so a host commands media the same way it commands the viewer: through viewer state, never by importing the object. "
 				},
 				{
 					"type": "text",
@@ -1891,7 +1891,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Three contract points worth stating plainly:"
+					"text": "Three rules apply:"
 				}
 			],
 			"attrs": {
@@ -2012,7 +2012,7 @@
 								},
 								{
 									"type": "text",
-									"text": " the browser's autoplay policy refuses resolves into state — still paused — rather than into a rejected promise or an exception."
+									"text": " the browser's autoplay policy refuses leaves the state paused rather than producing a rejected promise or an exception."
 								}
 							],
 							"attrs": {
@@ -2089,7 +2089,7 @@
 				},
 				{
 					"type": "text",
-					"text": ") is a compatible future extension and deliberately not in this version: there is one transport, anchored to the current canvas, and every other visible AV canvas shows a play-state glyph."
+					"text": ") is a possible future extension and is not in this version. There is one transport, anchored to the current canvas, and every other visible AV canvas shows a play-state glyph."
 				}
 			],
 			"attrs": {
@@ -2114,7 +2114,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — see "
+					"text": ". See "
 				},
 				{
 					"type": "text",
@@ -2312,7 +2312,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "the rendition is picked by what the browser can actually decode, not first-wins; a host override through the viewer's choice-selection commands preserves position across the swap"
+											"text": "the rendition is picked by what the browser can decode, not by list order; a host override through the viewer's choice-selection commands preserves position across the swap"
 										}
 									],
 									"attrs": {
@@ -2999,7 +2999,7 @@
 										},
 										{
 											"type": "text",
-											"text": " is trusted here and nothing else is accepted — a PDF, HTML or TEI transcript needs parsing this bundle does not carry, and stays reachable as a link in core's metadata panel"
+											"text": " is trusted here and nothing else is accepted. A PDF, HTML or TEI transcript needs a parser this bundle does not include, and stays reachable as a link in core's metadata panel"
 										}
 									],
 									"attrs": {
@@ -3075,7 +3075,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is only fetched at all when it is, and essentially every Cookbook caption recipe is cross-origin. The cost is that the requirement lands on the "
+					"text": " is only fetched when it is, and nearly every Cookbook caption recipe is cross-origin. The cost is that the requirement lands on the "
 				},
 				{
 					"type": "text",
@@ -3177,7 +3177,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for HLS — see "
+					"text": " for HLS. See "
 				},
 				{
 					"type": "text",
@@ -3205,7 +3205,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "A stream that cannot play — a dead URL, a CORS or CSP refusal, an offline reader — shows a localized \"can't play this\" treatment in that canvas's stage. One bad stream costs one canvas, never the session."
+					"text": "A stream that cannot play (a dead URL, a CORS or CSP refusal, an offline reader) shows a localized \"can't play this\" notice in that canvas's stage. The rest of the viewer keeps working."
 				}
 			],
 			"attrs": {
@@ -3270,7 +3270,7 @@
 				},
 				{
 					"type": "text",
-					"text": " like any other plugin — see "
+					"text": " like any other plugin. See "
 				},
 				{
 					"type": "text",
@@ -3338,7 +3338,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "These are contracts, not bugs. Each is a deliberate fence for this release:"
+					"text": "These limits are intentional in this release:"
 				}
 			],
 			"attrs": {
@@ -3507,7 +3507,7 @@
 								},
 								{
 									"type": "text",
-									"text": " is not placed within the canvas — the Cookbook's "
+									"text": " is not placed within the canvas. The Cookbook's "
 								},
 								{
 									"type": "text",
@@ -3520,7 +3520,7 @@
 								},
 								{
 									"type": "text",
-									"text": " is the one recipe affected. It renders its image body alone and warns on the developer console, and is counted as unsupported: the recipe is the compositing, so a canvas that cannot composite does not support it."
+									"text": " is the one recipe affected. It renders its image body alone and warns on the developer console, and is counted as unsupported, because compositing is the point of that recipe."
 								}
 							],
 							"attrs": {
@@ -3639,7 +3639,7 @@
 								},
 								{
 									"type": "text",
-									"text": "), and a claimed canvas leaves "
+									"text": "), and a claimed canvas is dropped from "
 								},
 								{
 									"type": "text",
@@ -3652,7 +3652,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — so "
+									"text": ", so "
 								},
 								{
 									"type": "text",
@@ -3768,7 +3768,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". Registered alongside core's element that makes roughly "
+					"text": ". Registered alongside core's element, that makes roughly "
 				},
 				{
 					"type": "text",
@@ -3781,7 +3781,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for the pair, which CI holds under a standing budget measured against TIFY — the nearest audiovisual-capable viewer. The four lazy chunks are outside that figure:"
+					"text": " for the pair, which CI holds under a budget measured against TIFY, the nearest audiovisual-capable viewer. The four lazy chunks are outside that figure:"
 				}
 			],
 			"attrs": {
@@ -4161,7 +4161,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Figures are gzip at level 9, rounded — they move by tens of bytes build to build, and the byte-exact table lives with the measurement rather than here."
+					"text": "Figures are gzip at level 9, rounded. They vary by tens of bytes between builds, and the byte-exact table lives with the measurement rather than here."
 				}
 			],
 			"attrs": {
@@ -4173,7 +4173,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "hls.js alone is nearly twice the whole viewer, which is exactly why it is a chunk: a manifest of MP4s never pays for it."
+					"text": "hls.js alone outweighs core and the plugin combined, which is why it is a chunk: a manifest of MP4s never pays for it."
 				}
 			],
 			"attrs": {
@@ -4215,7 +4215,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — core never imports it. It builds on four capability seams, and declares each in "
+					"text": ", and core never imports it. It uses four core extension points (capabilities) and declares each in "
 				},
 				{
 					"type": "text",
@@ -4322,7 +4322,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "the plugin would render over an unsupported-content placard it cannot suppress"
+											"text": "the plugin would render over core’s unsupported-content notice, which it cannot hide"
 										}
 									],
 									"attrs": {
@@ -4375,7 +4375,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "there would be nowhere to register the playback controls, and it builds none of its own — a staged recording with no way to play it"
+											"text": "there would be nowhere to register the playback controls, and it builds none of its own, so the recording could not be played"
 										}
 									],
 									"attrs": {
@@ -4521,7 +4521,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Why audiovisual support is a plugin over a generic canvas claim rather than a core feature is recorded in "
+					"text": "Why audiovisual support is a plugin built on a generic canvas claim, rather than a core feature, is recorded in "
 				},
 				{
 					"type": "text",
@@ -4537,7 +4537,7 @@
 				},
 				{
 					"type": "text",
-					"text": "; the published-state seam "
+					"text": "; the published-state extension point behind "
 				},
 				{
 					"type": "text",
@@ -4550,7 +4550,7 @@
 				},
 				{
 					"type": "text",
-					"text": " rides on is "
+					"text": " is covered in "
 				},
 				{
 					"type": "text",

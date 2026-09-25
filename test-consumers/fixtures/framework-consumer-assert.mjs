@@ -724,7 +724,7 @@ export async function assertFrameworkFixture(ctx, options) {
         '`themeConfig`',
     );
 
-    // The selector runtime's batched-cadence viewport warning (tickets 01 and 06),
+    // The selector runtime's batched-cadence viewport warning,
     // once for each of the two projections that make the mistake: one over the
     // mounted viewer, one over an idle `triiiceratops/testing` state that never
     // notifies at all. Both were created and first read in phase 1, while debug
@@ -772,7 +772,7 @@ export async function assertFrameworkFixture(ctx, options) {
 
     // ── Double-bound-handle route ──────────────────────────────────────────
     //
-    // SPEC user story 36. One handle, two viewers: the second must fail loudly
+    // One handle, two viewers: the second must fail loudly
     // and framework-natively. React's handle is the `useViewerHandle()` slot
     // passed with the `handle` prop; Vue's is an ordinary template ref, which
     // the wrapper never sees as a prop — so the two arrive at the substrate's

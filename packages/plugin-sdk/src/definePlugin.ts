@@ -81,7 +81,7 @@ export interface DefinePluginConfig {
      */
     fills?: boolean;
     /**
-     * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (default) dismisses on
+     * Flyout dismiss behavior. `light` (default) dismisses on
      * outside pointer-down / Escape; `explicit` closes only via the plugin's
      * toolbar button, so a live-editing surface is not dismissed by canvas
      * clicks. Ignored for `panel` targets.

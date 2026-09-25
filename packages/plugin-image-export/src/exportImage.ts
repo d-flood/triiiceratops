@@ -250,8 +250,8 @@ function buildWorldLayout(
                 //
                 // The live renderer lays out from the same manifest box, so
                 // there is no divergence left between what a "current view"
-                // export composes and what the reader is looking at (SPEC:
-                // "manifest dimensions win permanently for geometry").
+                // export composes and what the reader is looking at: manifest
+                // dimensions win permanently for geometry.
                 sourceWidth: resolved.width,
                 sourceHeight: resolved.height,
                 tileSource: { resolved },

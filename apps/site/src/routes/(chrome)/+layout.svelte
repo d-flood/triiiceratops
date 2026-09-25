@@ -51,8 +51,7 @@
               : `${current.shortTitle} — ${SITE_NAME}`,
     );
     const description = $derived(
-        current?.intro ??
-            'That page is not part of this site. The rail lists everything that is.',
+        current?.intro ?? 'That page is not part of this site.',
     );
 
     // The front page doubles as the site index at phone size, so its rail stays

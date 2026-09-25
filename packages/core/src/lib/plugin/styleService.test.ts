@@ -1,6 +1,6 @@
 // Root-aware plugin style service tests.
 //
-// Exercises the SPEC.md behaviors: package-qualified keys, dedupe + refcount
+// Exercises the required behaviors: package-qualified keys, dedupe + refcount
 // across activations sharing a root, light-DOM (document) vs shadow-root
 // targeting, and both the constructable-stylesheet path and the nonce-aware
 // <style> fallback.

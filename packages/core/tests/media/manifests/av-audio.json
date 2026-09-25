@@ -7,7 +7,7 @@
     },
     "summary": {
         "en": [
-            "One canvas painted by a Sound body, with a duration and NO width or height. This is the shape that vanishes from layout in a viewer that requires spatial dimensions (spec, user story 2), and the shape the timeline lane fills on its own because there is no accompanying image (user story 3)."
+            "One canvas painted by a Sound body, with a duration and NO width or height. This is the shape that vanishes from layout in a viewer that requires spatial dimensions, and the shape the timeline lane fills on its own because there is no accompanying image."
         ]
     },
     "items": [

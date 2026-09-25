@@ -36,9 +36,8 @@ function v2Images(canvasId: string, resource: any) {
  * These doubles used to be `manifesto.js`-shaped — a `getImages()` accessor
  * returning annotations with a `getBody()` that FLATTENED the Choice into a
  * plain `AnnotationBody[]`. Painting-annotation enumeration is first-party for
- * v2 as of `remove-manifesto` ticket 06 and reads `canvas.images[]` directly,
- * so these carry the JSON a v2 publisher actually serves — and with it the v2
- * Choice spelling, which had no reader at all before that ticket.
+ * v2 and reads `canvas.images[]` directly, so these carry the JSON a v2
+ * publisher actually serves — and with it the v2 Choice spelling.
  */
 function createChoiceCanvas(canvasId: string, choiceIds: string[]) {
     const [first, ...rest] = choiceIds.map((choiceId, index) =>
@@ -110,8 +109,8 @@ function createMixedCanvas(
  * `test/fixtures/manifests/cookbook/0033-choice.json`.
  *
  * Both are now the primary paths: painting-annotation enumeration is
- * first-party for v3 as of `remove-manifesto` ticket 03 and for v2 as of ticket
- * 06, and hands `getCanvasChoices` raw JSON annotations either way.
+ * first-party for v3 and v2, and hands `getCanvasChoices` raw JSON annotations
+ * either way.
  */
 function createV3ChoiceCanvas(
     canvasId: string,
@@ -264,7 +263,7 @@ describe('viewerControls helpers', () => {
         it('finds a raw IIIF v3 Choice on a later annotation page', () => {
             // `manifesto.js` read only `canvas.items[0]`, so a Choice on the
             // second annotation page was invisible. Enumeration reads every
-            // page as of ticket 03; this pins that the choice UI sees it.
+            // page; this pins that the choice UI sees it.
             const canvas = createV3SplitPageChoiceCanvas('canvas-1', [
                 'choice-a',
                 'choice-b',

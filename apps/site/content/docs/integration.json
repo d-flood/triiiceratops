@@ -20,7 +20,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". If your stack can put a tag on a page, it can host the viewer — no adapter required."
+					"text": ". If your stack can put a tag on a page, it can host the viewer with no adapter."
 				}
 			],
 			"attrs": {
@@ -41,7 +41,7 @@
 				},
 				{
 					"type": "text",
-					"text": " Angular, Lit, Solid, Svelte-free vanilla JavaScript, Alpine.js, htmx, Astro, Ember, jQuery, a server-rendered template language (Django, Rails, Laravel, ASP.NET, PHP), a static-site generator, or "
+					"text": " Angular, Lit, Solid, vanilla JavaScript, Alpine.js, htmx, Astro, Ember, jQuery, a server-rendered template language (Django, Rails, Laravel, ASP.NET, PHP), a static-site generator, or "
 				},
 				{
 					"type": "text",
@@ -54,7 +54,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — as a block, a shortcode, or a raw HTML widget. Every one of those is the same two steps: get the script onto the page, then set attributes and properties on the tag."
+					"text": " (as a block, a shortcode, or a raw HTML widget). Each takes the same two steps: get the script onto the page, then set attributes and properties on the tag."
 				}
 			],
 			"attrs": {
@@ -74,7 +74,7 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "Those three have dedicated guides, and you should use them rather than the element directly — each translates props, events, and viewer state into its framework's own idioms:"
+							"text": "React, Vue and Svelte have dedicated guides. Use them rather than the element directly: each translates props, events, and viewer state into its framework's own idioms:"
 						}
 					],
 					"attrs": {
@@ -107,7 +107,7 @@
 										},
 										{
 											"type": "text",
-											"text": " — "
+											"text": ": "
 										},
 										{
 											"type": "text",
@@ -151,7 +151,7 @@
 										},
 										{
 											"type": "text",
-											"text": " — "
+											"text": ": "
 										},
 										{
 											"type": "text",
@@ -195,7 +195,7 @@
 										},
 										{
 											"type": "text",
-											"text": " — "
+											"text": ": "
 										},
 										{
 											"type": "text",
@@ -226,7 +226,7 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "React and Vue require no Svelte, at runtime or at type-check time. The custom-element material here stays fully supported for hosts that want direct DOM control, including a React or Vue app that deliberately drops down to it — see "
+							"text": "React and Vue require no Svelte, at runtime or at type-check time. The custom-element material here stays fully supported for hosts that want direct DOM control, including a React or Vue app that chooses to drop down to it. See "
 						},
 						{
 							"type": "text",
@@ -399,7 +399,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — there is no separate element stylesheet to import."
+					"text": ". There is no separate element stylesheet to import."
 				}
 			],
 			"attrs": {
@@ -500,7 +500,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "No-bundler pages skip this — see the HTML tab below for loading straight from a CDN "
+					"text": "No-bundler pages skip this step; see the HTML tab below for loading straight from a CDN "
 				},
 				{
 					"type": "text",
@@ -539,7 +539,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Load the self-contained IIFE from a CDN or a copied file — no install, no build step. It bundles the element, the Svelte runtime, the image renderer, and all styles:"
+					"text": "Load the self-contained IIFE from a CDN or a copied file, with no install or build step. It bundles the element, the Svelte runtime, the image renderer, and all styles:"
 				}
 			],
 			"attrs": {
@@ -602,7 +602,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", then set properties directly — "
+					"text": ", then set properties directly: "
 				},
 				{
 					"type": "text",
@@ -615,7 +615,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — no ref needed outside a component framework."
+					"text": ". Outside a component framework you need no ref."
 				}
 			],
 			"attrs": {
@@ -721,7 +721,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Runs under a strict CSP without "
+					"text": "The element runs under a strict CSP without "
 				},
 				{
 					"type": "text",
@@ -734,7 +734,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — see the "
+					"text": ". See the "
 				},
 				{
 					"type": "text",
@@ -904,7 +904,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — "
+									"text": ": "
 								},
 								{
 									"type": "text",
@@ -1027,7 +1027,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — "
+									"text": ": "
 								},
 								{
 									"type": "text",
@@ -1105,7 +1105,7 @@
 								},
 								{
 									"type": "text",
-									"text": ". Objects, arrays, and functions cannot travel through an HTML attribute, so assign them to the element. Assignment before the element upgrades is safe: the values are ported when it does."
+									"text": ". Objects, arrays, and functions cannot travel through an HTML attribute, so assign them to the element. Assignment before the element upgrades is safe: the values are applied when it does."
 								}
 							],
 							"attrs": {
@@ -1134,7 +1134,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — "
+									"text": ": "
 								},
 								{
 									"type": "text",
@@ -1317,7 +1317,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — the same object plugins and framework wrappers read — through a "
+					"text": ", the same object plugins and framework wrappers read, through a "
 				},
 				{
 					"type": "text",
@@ -1421,7 +1421,7 @@
 								},
 								{
 									"type": "text",
-									"text": " before the inner viewer mounts and again after disconnection, and it is getter-only — a host physically cannot replace it."
+									"text": " before the inner viewer mounts and again after disconnection, and it is getter-only, so a host cannot replace it."
 								}
 							],
 							"attrs": {
@@ -1583,7 +1583,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is a property-only input — there is no reflected attribute — and it works exactly as it does in the framework wrappers and in Svelte:"
+					"text": " is a property-only input with no reflected attribute. It works as it does in the framework wrappers and in Svelte:"
 				}
 			],
 			"attrs": {
@@ -1647,7 +1647,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The two recipes below exist only for hosts that deliberately want the raw element — most often an existing integration mid-migration. New React and Vue code should use the "
+					"text": "The two recipes below are only for hosts that want the raw element, most often an existing integration mid-migration. New React and Vue code should use the "
 				},
 				{
 					"type": "text",
@@ -1864,7 +1864,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — one script tag, one element, no bundler and no plugins."
+									"text": ": one script tag, one element, no bundler and no plugins."
 								}
 							],
 							"attrs": {
@@ -1896,7 +1896,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — the same element plus "
+									"text": ": the same element plus "
 								},
 								{
 									"type": "text",
@@ -1945,7 +1945,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "CI runs packed-consumer fixtures across Chromium, Firefox, and WebKit for both element forms on this page: "
+					"text": "CI runs packed-consumer fixtures in Chromium for both element forms on this page: "
 				},
 				{
 					"type": "text",
@@ -1997,7 +1997,7 @@
 				},
 				{
 					"type": "text",
-					"text": " script orders — which "
+					"text": " script orders, which "
 				},
 				{
 					"type": "text",
@@ -2023,7 +2023,7 @@
 				},
 				{
 					"type": "text",
-					"text": " does not, and must load after core, see "
+					"text": " does not and must load after core; see "
 				},
 				{
 					"type": "text",

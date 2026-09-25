@@ -1,5 +1,5 @@
 {
-    // The automated form of the epic's headline promise: a React consumer that
+    // The automated form of the headline promise: a React consumer that
     // installs NO Svelte compiles against the packed tarball's `./react`,
     // `./selectors`, and `./testing` declarations.
     //

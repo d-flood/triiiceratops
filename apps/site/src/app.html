@@ -26,10 +26,10 @@
 
              One file and not more. First paint uses the roman and nothing else,
              and preloading faces it does not use competes with this one for the
-             throttled link — measured under ticket 06, where preloading the
+             throttled link — preloading the
              italic and the mono as well pushed largest-contentful-paint to
-             1.2 s and the score to 97. The slice rather than the full face is
-             ticket 07's measurement: 192 KB against 419 KB for exactly the same
+             1.2 s and the score to 97. The slice beats the full face:
+             192 KB against 419 KB for exactly the same
              visible text, because English prose paints nothing outside that
              range. The full face is still declared and is still fetched on
              demand by any page painting a glyph the slice does not carry, so no

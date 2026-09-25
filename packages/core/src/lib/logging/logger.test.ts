@@ -1,4 +1,4 @@
-// Core logger (ticket 18): silent by default, opt-in via debug mode.
+// Core logger: silent by default, opt-in via debug mode.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 

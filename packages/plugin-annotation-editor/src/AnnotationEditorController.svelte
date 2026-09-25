@@ -38,7 +38,7 @@
         untrack(() => config.ui?.startInCreateMode ?? false),
     );
     // Resolve the effective tool set once from config so the initial active
-    // tool and the panel's button list honor `config.tools`/`defaultTool` (F8).
+    // tool and the panel's button list honor `config.tools`/`defaultTool`.
     const resolvedTools = untrack(() => resolveTools(config));
     let activeTool = $state<DrawingTool>(resolvedTools.defaultTool);
     let selectedAnnotation = $state<any>(null);
@@ -107,7 +107,7 @@
 
     /**
      * Open an annotation for editing, fetching its full body first when the
-     * adapter loaded it as a **skeleton** (F7). Until it arrives the body
+     * adapter loaded it as a **skeleton**. Until it arrives the body
      * editor is disabled rather than showing — and letting the reader save
      * over — bodies that were never loaded.
      */
@@ -118,8 +118,8 @@
         }
         isHydratingSelection = true;
         try {
-            // The store discards a result whose canvas changed underneath it
-            // (F14); the veto covers the other race, a reader who moved on to
+            // The store discards a result whose canvas changed underneath it;
+            // the veto covers the other race, a reader who moved on to
             // another annotation while the body was in flight.
             const full = await store.hydrate(
                 annotation.id,
@@ -332,14 +332,14 @@
     }
 
     // The store's unhandled persistence error, surfaced as a dismissible line in
-    // the panel when the host provides no onPersistenceError handler (F20).
+    // the panel when the host provides no onPersistenceError handler.
     let persistenceError = $derived(store?.panelError ?? null);
     function handleDismissError() {
         store?.dismissError();
     }
 
     // Persistence-aware undo/redo, replayed through the adapter by the store so
-    // storage and display never disagree (F6). Availability is reactive store
+    // storage and display never disagree. Availability is reactive store
     // state.
     let canUndo = $derived(store?.canUndo ?? false);
     let canRedo = $derived(store?.canRedo ?? false);
@@ -388,7 +388,7 @@
         showDeleteConfirm = false;
         pendingDeleteId = null;
         // On failure keep the annotation selected so the user can retry; the
-        // error line explains the failure (F20).
+        // error line explains the failure.
         if (ok) {
             selectedAnnotation = null;
         }
@@ -396,7 +396,7 @@
 
     function handleCancelDelete() {
         // Cancel returns the user to editing the same annotation — do not clear
-        // the selection here (F13).
+        // the selection here.
         showDeleteConfirm = false;
         pendingDeleteId = null;
     }

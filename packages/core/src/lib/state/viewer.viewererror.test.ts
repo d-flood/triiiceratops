@@ -1,9 +1,9 @@
-// Structured viewer-failure channel (ticket 18).
+// Structured viewer-failure channel.
 //
 // Actionable viewer failures must surface as a typed `ViewerError` through the
 // host reporter (which the component turns into the `viewererror` DOM event and
-// `onviewererror` callback) — NOT only as console output (user stories 12–13).
-// This mirrors the ticket 09 `pluginerror` reporter shape.
+// `onviewererror` callback) — NOT only as console output.
+// This mirrors the `pluginerror` reporter shape.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,7 +23,7 @@ vi.mock('./manifests.svelte', () => ({
     },
 }));
 
-describe('ViewerState structured error reporting (ticket 18)', () => {
+describe('ViewerState structured error reporting', () => {
     let state: ViewerState;
 
     beforeEach(() => {

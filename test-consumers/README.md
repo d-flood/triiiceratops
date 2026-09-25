@@ -1,6 +1,6 @@
 # Packed-consumer test harness
 
-The **primary release seam** (SPEC → _Testing Decisions_): instead of trusting
+The primary release check: instead of trusting
 source tests, this harness packs real `.tgz` artifacts, installs them into clean
 fixture consumers via **both npm and pnpm**, builds each consumer, and asserts
 against exactly what a user gets from npm.
@@ -102,29 +102,21 @@ tarball(s) at run time (a `file:` dependency at a fixed relative path), so only
 the tarball's own integrity entry moves between runs — installs run non-frozen
 for exactly this reason. `vendor/*.tgz` is git-ignored.
 
-## Seams for later tickets
+## Extending the harness
 
-Clearly-marked extension points — later tickets **add to this harness** rather
-than building their own:
+Add to this harness rather than building a new one:
 
-- **`PACKAGES_TO_PACK`** (`driver/run.mjs`): the SDK joined here (ticket 13);
-  plugin packages add themselves (tickets 15–17). Core must stay first (the SDK
-  type-checks against core's built `dist/`).
-- **`FIXTURES`** (`driver/run.mjs`): the SDK adapter fixtures joined here
-  (ticket 13: `plugin-react`, `plugin-vue`, `plugin-lit`, `plugin-svelte`);
-  plugin fixtures add themselves (15–17). A fixture declares which packed
-  tarballs it consumes via `harness.mjs` `tarballs`; the driver injects each via
-  `injectTarball(dir, path, depName)`. New fixtures drop a directory under
-  `fixtures/` with a `harness.mjs`.
-- **Core-only dependency-absence assertion** (ticket 20): hooks in after the
-  pack step (alongside the CSS assertion) once the plugin packages have moved
-  their deps out of core.
+- **`PACKAGES_TO_PACK`** (`driver/run.mjs`): every packed package. Core must
+  stay first (the SDK type-checks against core's built `dist/`).
+- **`FIXTURES`** (`driver/run.mjs`): every fixture. A fixture declares which
+  packed tarballs it consumes via `harness.mjs` `tarballs`; the driver injects
+  each via `injectTarball(dir, path, depName)`. New fixtures drop a directory
+  under `fixtures/` with a `harness.mjs`.
 - **Theme identifier casing**: `assert-tarball-css.mjs` expects the lowercase
-  `teal` identifier (ticket 19 renamed the former `Teal`) and the `--tri-*`
-  public CSS token namespace.
+  `teal` identifier and the `--tri-*` public CSS token namespace.
 
 ## Out of scope
 
-The core-only "no plugin-only deps" assertion (ticket 20); per-plugin fixtures
-(tickets 15–17); Firefox/WebKit/mobile and CSP pages (Chromium-only here);
-registry-install smoke tests. See the epic SPEC.
+Fixtures run on Chromium only, except the desktop CSP fixtures, which also run
+on Firefox and WebKit. Mobile engines and registry-install smoke tests are not
+covered.

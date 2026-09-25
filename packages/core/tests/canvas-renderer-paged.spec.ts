@@ -1,5 +1,5 @@
 /**
- * Seam 2 — multi-canvas layout in a real browser (spec §Testing Decisions).
+ * Seam 2 — multi-canvas layout in a real browser.
  *
  * The planner's positions are asserted exhaustively in Node
  * (`renderer/planScene.test.ts`); what only a browser can answer is whether the

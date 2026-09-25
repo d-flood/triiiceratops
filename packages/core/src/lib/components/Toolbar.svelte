@@ -985,7 +985,7 @@
             <!-- Separator if both groups exist. An <li role="separator"> (not a
                  bare <div>) so the actions <ul> only ever directly contains <li>
                  — a bare <div> child trips the axe "list" rule once a plugin adds
-                 a toolbar button (epic restore-plugin-toolbar-chrome). -->
+                 a toolbar button. -->
             {#if hasBuiltInActions && sortedPluginButtons.length > 0}
                 <li
                     class="divider"

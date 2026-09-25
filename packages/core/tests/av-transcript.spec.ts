@@ -4,10 +4,10 @@
  *
  * What only a browser can settle:
  *
- * - **A sound recording gets its words.** The transcript is the whole point of
- *   the ticket: an `<audio>` element has no area to paint captions in, so a
- *   list of cues is the only way an oral history's text reaches a reader.
- * - **A cue seeks and never plays** (the epic's standing rule).
+ * - **A sound recording gets its words.** An `<audio>` element has no area to
+ *   paint captions in, so a list of cues is the only way an oral history's text
+ *   reaches a reader.
+ * - **A cue seeks and never plays.**
  * - **The highlight follows the playhead** during real playback.
  * - **With several languages it follows the caption selection**, which is a
  *   video-only control — so this is where the two features meet.
@@ -59,7 +59,7 @@ const CUES = '[data-testid="av-transcript-cues"] button';
 /**
  * A canvas captioned the way both cookbook caption recipes do it — a
  * canvas-level `supplementing` annotation — over either medium. The audio half
- * is the shape this ticket exists for and the one no local fixture had: a
+ * is the shape the panel exists for and the one no local fixture had: a
  * duration-only Sound canvas whose words can only ever be read, never painted.
  */
 function captionedManifest(
@@ -241,7 +241,7 @@ test.describe('av transcript — VTT cues as readable text', () => {
         ]);
 
         // An audio canvas gets no captions toggle: there is nowhere to paint a
-        // cue, so the control would be the dead one user story 46 forbids.
+        // cue, so the control would be a dead one.
         await expect(page.locator(CAPTIONS)).toHaveCount(0);
 
         expect((await playback(page)).paused).toBe(true);
@@ -303,7 +303,7 @@ test.describe('av transcript — VTT cues as readable text', () => {
         );
     });
 
-    /* The no-dead-control rule, unchanged from ticket 13. */
+    /* The no-dead-control rule. */
     test('offers no transcript for a canvas with no VTT', async ({ page }) => {
         await openViewer(page, AV_MANIFESTS.audio);
 
@@ -315,9 +315,9 @@ test.describe('av transcript — VTT cues as readable text', () => {
 
     /**
      * The seam, at rest on each side of it. Each segment's VTT is authored on
-     * its own painting annotation, so ticket 18 windows the eligible set down
-     * to the playing segment's — and the panel must re-sync to it rather than
-     * go on naming the one before.
+     * its own painting annotation, so the eligible set is windowed down to the
+     * playing segment's — and the panel must re-sync to it rather than go on
+     * naming the one before.
      */
     test('re-sources the transcript across a composed segment seam', async ({
         page,

@@ -50,8 +50,7 @@ const CORPUS_DIR = join(import.meta.dirname, 'manifests');
  * file and the behavioral baseline by a `DEFERRED_DIRS` set while it was
  * vendored ahead of the body classifier that reads it; admitting it earlier
  * would have frozen the answer sixteen time-based manifests got from a viewer
- * that could not read them. `plugin-av` ticket 02 landed the classifier and
- * deleted the skip.
+ * that could not read them. The skip was deleted when the classifier landed.
  */
 function corpusPaths(dir = CORPUS_DIR, prefix = ''): string[] {
     return readdirSync(dir, { withFileTypes: true })
@@ -92,7 +91,7 @@ const KNOWN_UNSUPPORTED: Record<string, string> = {
     // `synthetic/v2 sequences as a bare object` lived here until the parser was
     // fixed. `manifesto.js` read `sequences` with an indexed loop, so a bare object
     // yielded length `undefined` and enumerated to nothing, silently. The
-    // first-party enumerator guards array access (SPEC, "Failure contract") and
+    // first-party enumerator guards array access and
     // the fixture now enumerates its 2 canvases, asserted like any other.
 };
 
@@ -259,7 +258,7 @@ describe('manifest corpus smoke test', () => {
             // and driving it offline would need a fetch seam this file does not
             // have. `parseCollection` is the one line lifted out of it, so this
             // asserts a parsing internal rather than viewer behaviour, against
-            // the SPEC's usual rule. Narrower than the manifest cases above:
+            // the usual rule. Narrower than the manifest cases above:
             // `registerManifest` is still real, but `sortCollectionItems`,
             // `collectionItems`, and auto-loading the first member are not
             // covered here.

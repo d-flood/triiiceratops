@@ -11,8 +11,8 @@
 // tarballs) so it exercises what a real user gets: registry metadata, tarball
 // download, dependency resolution, export maps, and the no-bundler CDN asset.
 //
-// Coverage (SPEC "Release tests install exact registry versions ... and validate
-// core, CSS, Web Component, SDK, plugins, and no-bundler assets"):
+// Coverage (exact registry versions of core, CSS, Web Component, SDK, plugins,
+// and no-bundler assets):
 //   · core Svelte entry         (resolve 'triiiceratops')
 //   · core CSS                  (resolve 'triiiceratops/style.css')
 //   · Web Component entries      (resolve 'triiiceratops/element' + '/element/register')

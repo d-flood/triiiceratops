@@ -1,8 +1,7 @@
 # Behavioral baseline — DEEP TIER
 #
-# Frozen by `remove-manifesto` ticket 04 while `manifesto.js` was still
-# installed, and RE-BASELINED once after tickets 05, 06 and 07 landed — a
-# deliberate, separately-reviewed re-curation, not a snapshot refresh. Generated
+# Frozen while `manifesto.js` was still installed, and RE-BASELINED once when
+# first-party enumerators replaced it — a deliberate, separately-reviewed re-curation, not a snapshot refresh. Generated
 # by `src/lib/state/viewer.baseline.test.ts`; do not edit by hand. Same seam as
 # the broad tier: a real `ViewerState`, raw manifest JSON in through
 # `setManifestData`, real manifest cache, no mocks, and every canvas below is
@@ -18,19 +17,19 @@
 #     went viewingMode=individuals -> paged. Both declare `viewingHint: "paged"`
 #     at a v2 manifest root, which `_applyManifestSettings` never read — it read
 #     only the v3 `behavior` spellings. `viewingHint` IS the v2 spelling of
-#     viewing behavior, so these are fixes, not drift (ticket 05).
+#     viewing behavior, so these are fixes, not drift.
 #   - `vendored/audio.json` canvases [0] and [1] went thumbnail=<none> to a real
 #     URL. Those canvases declare `"thumbnail"` as a BARE STRING;
 #     `manifesto.js` wrapped it in a `Thumbnail` whose `__jsonld` was the string
 #     itself, so reading `id` off it gave `undefined` and the URL was discarded.
 #     The raw path returns the string. Reproducing the old value would mean
-#     deliberately discarding a valid URL (ticket 07).
+#     deliberately discarding a valid URL.
 #   - `synthetic/v2 oa:Choice painting annotation` canvas [0] gained a
 #     thumbnail, an image, a `choices:` block and an `images per selection:`
-#     block. Ticket 06 taught the enumerator the v2 Choice spelling; the canvas
+#     block. The enumerator now reads the v2 Choice spelling; the canvas
 #     rendered nothing before.
 #
-# MOVE ACCEPTED AT THE SECOND RE-PIN (`plugin-av` ticket 02):
+# MOVE ACCEPTED AT THE SECOND RE-PIN:
 #   - `vendored/lunchroom-manners.json` canvas [0] went
 #     thumbnail=`.../lunchroom_manners_1024kb.mp4` -> `<none>`, and this is the
 #     ONE record in either tier that shows the thumbnail half of the classifier.
@@ -40,7 +39,7 @@
 #     the painting-body classifier, so it declines to answer rather than
 #     answering with a video. `<none>` is what routes the canvas to the strip's
 #     no-thumbnail treatment, where it gets an audiovisual glyph instead of a
-#     broken picture (user story 29).
+#     broken picture.
 #
 #     Reaching that body at all is itself the fix to a second, latent defect.
 #     This canvas's `body` is an ARRAY — `[Choice(three Videos), Text(vtt)]` —
@@ -49,23 +48,23 @@
 #     which has no id. Its `images:` line read `(none)` by accident. The PAINT
 #     path now unwraps the array first and so resolves the Choice properly, and
 #     the classifier is what keeps that from turning an accident into an MP4 in
-#     the tile pipeline (user story 40). `images: (none)` is unchanged and now
+#     the tile pipeline. `images: (none)` is unchanged and now
 #     means what it says.
 #
 #     `withChoice` is unaffected, and this canvas still reads `withChoice=0`.
 #     `getCanvasChoices` (and `ThumbnailGallery`'s badge) still test for a
 #     Choice BEFORE unwrapping the body array, so on this shape they go on
 #     seeing "not a Choice" and offer no alternatives. Known follow-up rather
-#     than an oversight: user story 40 is about the image pipeline, and the only
+#     than an oversight: this fix is about the image pipeline, and the only
 #     shape where the two paths would visibly disagree is a
 #     `[Choice(imageA, imageB), Text(vtt)]` — painting imageA while the choice
 #     picker lists nothing — which no corpus fixture has.
 #
-# RE-CURATION — three fixtures were swapped in and three out, inside the SPEC's
+# RE-CURATION — three fixtures were swapped in and three out, inside the
 # 15-20 budget. The original 20 gave this tier ZERO variance on two of the three
 # manifest scalars it records (`startCanvasId=<none>` and
 # `viewingMode=individuals` on all 20), so "the golden did not move" proved
-# almost nothing about the surfaces ticket 05 rewrites. Added:
+# almost nothing about start canvas or viewing behavior. Added:
 # `cookbook/0202-start-canvas.json` (the corpus's only `start`),
 # `cookbook/0011-book-3-behavior-manifest-continuous.json` (the only
 # viewingMode that is neither individuals nor paged), and
@@ -77,12 +76,11 @@
 # never records — its BROAD record pins it).
 #
 # HOW TO READ A DIFF
-#   Per manifest: three of the four manifest-scalar reads that ticket 05
-#   rewrites — start canvas, viewing direction, viewing mode — plus the structure
+#   Per manifest: three of the four manifest-scalar reads — start canvas, viewing direction, viewing mode — plus the structure
 #   tree, then every canvas of every sequence. The FOURTH, search-service
 #   discovery, is not recorded here at all: it is private to `ViewerState` and
-#   only observable by performing a network search, so ticket 05's rewrite of it
-#   has no safety net in this file and brings its own tests.
+#   only observable by performing a network search, so it has no safety net in
+#   this file and has its own tests.
 #
 #   v2 declares viewing direction and viewing hint at both the manifest root and
 #   the sequence, and the SEQUENCE WINS. IIIF Presentation 2.1 states it for
@@ -106,13 +104,13 @@
 #   second. A canvas reading `paintingAnnotations=1` with `images: (none)` has an
 #   annotation the viewer cannot paint — correct for time-based media, a blank
 #   page for anything else. A canvas going `paintingAnnotations=1 -> 0` has lost
-#   its annotation entirely, which is the failure this epic exists to prevent,
+#   its annotation entirely, which is the failure this file exists to catch,
 #   and on `vendored/audio.json`, `vendored/lunchroom-manners.json` and the
 #   missing-image canvases NOTHING ELSE IN EITHER TIER WOULD SHOW IT: they
 #   resolve no image either way, so `withPainting` reads 0 before and after.
 #
 #   `images: (none)` on a canvas that used to list a URL is the silent blank
-#   render this whole epic is trying not to cause.
+#   render this file exists to catch.
 #
 # LEVEL-0 reads in the `thumbnail=` line. A level1/level2 service gets a
 # SYNTHESIZED `.../full/200,/0/default.jpg` — an arbitrary width a level-0
@@ -124,12 +122,12 @@
 # would 404 for every tile-limited publisher.
 #
 # DEFECTS THIS FILE ONCE FROZE, AND WHAT BECAME OF THEM:
-#   - FIXED, ticket 06 — IIIF v2 `oa:Choice` was not recognized at all. Canvas
+#   - FIXED — IIIF v2 `oa:Choice` was not recognized at all. Canvas
 #     [0] of `synthetic/v2 oa:Choice painting annotation` listed no choices and
 #     no images, because the v2 spelling puts the alternatives in
 #     `resource.default`/`resource.item[]` and nothing read it. It now lists
 #     three alternatives and a resolved image per selection.
-#   - RESOLVED, ticket 07 — `vendored/illustrationsofchina.json` has four
+#   - RESOLVED — `vendored/illustrationsofchina.json` has four
 #     sequences, three of which enumerate zero canvases. The decision was
 #     DEGRADE, DO NOT RESOLVE: those three are `@id`/`@type`/`label` references
 #     to external Sequence documents, and resolving one is an HTTP fetch from a
@@ -146,8 +144,8 @@
 #     record below can show it.
 #   - A `Choice` whose `items` is a bare object rather than an array. It used to
 #     throw out of `resolveCanvasImage` with no try/catch on the path to the
-#     viewer, and would have recorded `<THROWS: ...>` in its images. Ticket 06
-#     guarded the access; no record here ever exercised it either way.
+#     viewer, and would have recorded `<THROWS: ...>` in its images. The access
+#     is now guarded; no record here ever exercised it either way.
 #
 # CANVASES THAT RESOLVE NO IMAGE:
 #   - `vendored/scroll.json` — recorded below as `size="62651"x"1976"`. BOTH
@@ -156,13 +154,12 @@
 #   - `vendored/lunchroom-manners.json` — `paintingAnnotations=1` with
 #     `images: (none)`. Enumeration works; the annotation's body array holds a
 #     Choice of Video bodies and a VTT, and none of that is an image to paint.
-#     Since `plugin-av` ticket 02 that is a decision rather than an accident —
+#     That is a decision rather than an accident —
 #     see the move recorded above.
 #   - `vendored/audio.json` — `paintingAnnotations=0` on both canvases, and
 #     that is CORRECT, not a loss. An IxIF `element` is a `dctypes:Sound`
 #     resource with no `images`, `items` or `content`: the media is the element
-#     itself, reached through `rendering`. IxIF is preserved for parity (SPEC,
-#     Out of Scope), and this is the only record in either tier that says what
+#     itself, reached through `rendering`. IxIF is preserved for parity, and this is the only record in either tier that says what
 #     its enumeration is supposed to be. If it ever reads non-zero, something
 #     started treating an IxIF element as a v2 canvas.
 
@@ -845,7 +842,7 @@ canvases=1 withPainting=1 withoutPainting=0 withChoice=0 sequences=1 structureNo
 
 ==============================================================================
 synthetic/v3 painting annotations split across two annotation pages
-# ticket 03's deliberate fix — every annotation page is read, not just the first
+# every annotation page is read, not just the first
 
 manifestId=http://example.org/synthetic/v3-split-annotation-pages/manifest
 startCanvasId=<none>

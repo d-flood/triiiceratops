@@ -5,8 +5,8 @@
 # publishable package (with a SHA256SUMS manifest) and uploads them as
 # a workflow artifact; this workflow downloads that SHA-matched artifact,
 # re-verifies the checksums, and runs `npm publish <tgz>` per package. There is
-# deliberately NO build/compile step here (see SPEC "Publishing promotes verified
-# artifacts ... rather than rebuilding").
+# deliberately NO build/compile step here: publishing promotes verified
+# artifacts rather than rebuilding.
 #
 # WHAT gets published is decided entirely by `scripts/release/packages.mjs` — the
 # promote step below loops over release-manifest.json, which is generated from that

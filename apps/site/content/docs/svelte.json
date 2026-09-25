@@ -29,7 +29,7 @@
 				},
 				{
 					"type": "text",
-					"text": " Svelte 5 component — no custom element, no wrapper layer. Core ships the viewer as a source-distributed component, so your application compiles it inside its own Svelte runtime: it tree-shakes normally and never bundles a second copy of Svelte."
+					"text": " Svelte 5 component, with no custom element or wrapper layer. Core ships the viewer as a source-distributed component, so your application compiles it inside its own Svelte runtime: it tree-shakes normally and never bundles a second copy of Svelte."
 				}
 			],
 			"attrs": {
@@ -54,7 +54,7 @@
 				},
 				{
 					"type": "text",
-					"text": " peer installed. It is a superset of the root entry — everything "
+					"text": " peer installed. It is a superset of the root entry: everything "
 				},
 				{
 					"type": "text",
@@ -251,7 +251,7 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "Bundler-neutral (no "
+							"text": "The component is bundler-neutral (no "
 						},
 						{
 							"type": "text",
@@ -264,7 +264,7 @@
 						},
 						{
 							"type": "text",
-							"text": " reliance) and SSR-safe — core server-renders cleanly and initializes the browser-only image renderer only on the client, so it hydrates without mismatch warnings. You do "
+							"text": " reliance) and SSR-safe. Core server-renders cleanly and initializes the browser-only image renderer only on the client, so it hydrates without mismatch warnings. You do "
 						},
 						{
 							"type": "text",
@@ -381,7 +381,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — when the state belongs to this component:"
+					"text": ", when the state belongs to this component:"
 				}
 			],
 			"attrs": {
@@ -418,7 +418,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — inside any descendant, with no prop threading:"
+					"text": ", inside any descendant, with no prop threading:"
 				}
 			],
 			"attrs": {
@@ -456,7 +456,7 @@
 				},
 				{
 					"type": "text",
-					"text": " exposes — the one the plugin SDK and every other host read. "
+					"text": " exposes, and the one the plugin SDK and every other host read. "
 				},
 				{
 					"type": "text",
@@ -1560,7 +1560,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Plain Svelte props — objects and functions pass straight through, so none of the attribute-versus-property care the custom element needs applies. "
+					"text": "These are plain Svelte props. Objects and functions pass straight through, so the custom element's attribute-versus-property rules do not apply. "
 				},
 				{
 					"type": "text",
@@ -1772,7 +1772,7 @@
 				},
 				{
 					"type": "text",
-					"text": " class) is exported from this entry for apps that coordinate several manifests — a collection browser, say — outside any single viewer instance."
+					"text": " class) is exported from this entry for apps that coordinate several manifests outside any single viewer instance, such as a collection browser."
 				}
 			],
 			"attrs": {
@@ -1849,7 +1849,7 @@
 				},
 				{
 					"type": "text",
-					"text": " from the published package. It is published beside these pages and runs this release's bundles, so what it does is what the version documented here does."
+					"text": " from the published package. It is published beside these pages and runs this release's bundles, so it behaves as the version documented here does."
 				}
 			],
 			"attrs": {
@@ -1918,7 +1918,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — panels, layout, gallery, and the full "
+									"text": ": panels, layout, gallery, and the full "
 								},
 								{
 									"type": "text",
@@ -1963,7 +1963,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — "
+									"text": ": "
 								},
 								{
 									"type": "text",
@@ -2021,7 +2021,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — the "
+									"text": ": the "
 								},
 								{
 									"type": "text",
@@ -2082,7 +2082,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — Svelte hosts use the light-DOM recipe, whose component styles are nonce-addressable."
+									"text": ": Svelte hosts use the light-DOM recipe, whose component styles are nonce-addressable."
 								}
 							],
 							"attrs": {
@@ -2118,7 +2118,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "CI runs packed-consumer fixtures across Chromium, Firefox, and WebKit: "
+					"text": "CI runs packed-consumer fixtures in Chromium: "
 				},
 				{
 					"type": "text",

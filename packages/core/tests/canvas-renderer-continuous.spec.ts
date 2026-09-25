@@ -1,6 +1,6 @@
 /**
- * Continuous mode on an 800-canvas manifest, in a real browser (spec
- * §Testing Decisions, "Residency and memory counters").
+ * Continuous mode on an 800-canvas manifest, in a real browser: residency and
+ * memory counters.
  *
  * This is the one claim the planner's
  * unit tests cannot finish making. `planScene.test.ts` proves what the planner
@@ -374,10 +374,10 @@ test.describe('Canvas2D renderer — continuous mode, virtualized', () => {
     test('releases a folio’s base level when it leaves the pyramid tier', async ({
         page,
     }) => {
-        // "The base level is never evicted" is scoped to the pyramid tier
-        // (spec §Further Notes). Applied across 800 canvases it would mean 800
-        // resident base tiles — two locally sensible rules contradicting each
-        // other, and this is the one that has to give.
+        // "The base level is never evicted" is scoped to the pyramid tier.
+        // Applied across 800 canvases it would mean 800 resident base tiles —
+        // two locally sensible rules contradicting each other, and this is the
+        // one that has to give.
         await open(page);
         await frameFolio(page, 400);
         const near = await settledResidentTileCount(page);

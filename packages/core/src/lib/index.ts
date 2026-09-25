@@ -83,10 +83,10 @@ export type {
 } from './types/viewerError';
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
 
-// The viewport's public vocabulary (SPEC.md §Public API). Coordinates on this
-// boundary are canvas space (the IIIF Canvas's own dimensions, already the
-// persistence format for annotation geometry) and screen space; image space is
-// core-internal and never crosses it. Nothing here is a renderer object.
+// The viewport's public vocabulary. Coordinates on this boundary are canvas
+// space (the IIIF Canvas's own dimensions, already the persistence format for
+// annotation geometry) and screen space; image space is core-internal and never
+// crosses it. Nothing here is a renderer object.
 export type {
     CanvasSize,
     ContainerSize,

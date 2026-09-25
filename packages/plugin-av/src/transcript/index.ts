@@ -42,14 +42,14 @@
 export interface TranscriptPort {
     /**
      * The playhead and the seek, in CANVAS time, on the frame cadence the
-     * active-cue highlight rides. Seeking never starts playback — the epic's
-     * standing rule that navigation seeks and consent plays.
+     * active-cue highlight rides. Seeking never starts playback:
+     * navigation seeks and consent plays.
      */
     readonly avState: {
         readonly currentTime: number;
         /**
          * The canvas's duration, which decides the SHAPE of every timestamp
-         * (ticket 08's rule for the transport): a list whose stamps grew an
+         * (the transport's rule): a list whose stamps grew an
          * hours field partway down would be unreadable as a column.
          */
         readonly duration: number | null;
@@ -323,7 +323,7 @@ export interface NotesPort {
         /** The canvas's duration, which decides the SHAPE of every timestamp,
          * exactly as it does for the cue list. */
         readonly duration: number | null;
-        /** Seeking never starts playback — the epic's standing rule. */
+        /** Seeking never starts playback. */
         seek(seconds: number): void;
         subscribeFrame(callback: () => void): () => void;
     };

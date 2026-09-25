@@ -7,7 +7,7 @@
     },
     "summary": {
         "en": [
-            "A manifest whose canvases paint plain static images with no image service at all (spec, user story 29). Canvas 1 is the numbered-grid image the geometric e2e assertions locate features in; its Canvas dimensions deliberately equal the image's pixel dimensions, so canvas space and image space coincide and an expected screen coordinate can be written down by hand."
+            "A manifest whose canvases paint plain static images with no image service at all. Canvas 1 is the numbered-grid image the geometric e2e assertions locate features in; its Canvas dimensions deliberately equal the image's pixel dimensions, so canvas space and image space coincide and an expected screen coordinate can be written down by hand."
         ]
     },
     "items": [

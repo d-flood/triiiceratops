@@ -24,7 +24,7 @@ export interface AnnotationDisplayState {
 }
 
 /**
- * A persisted operation captured for undo/redo (F6). Each entry is replayed
+ * A persisted operation captured for undo/redo. Each entry is replayed
  * through the normal store write paths on undo/redo so display sync, id
  * reconciliation, and error rollback all apply — the visual state and storage
  * can never disagree. A `create` stores the canonical (post-reconcile)
@@ -55,7 +55,7 @@ export class AnnotationStore {
 
     /**
      * Notified when a `create` reconciles an annotation onto a server-assigned
-     * id (F5), so the drawing layer can follow its in-flight create onto the
+     * id, so the drawing layer can follow its in-flight create onto the
      * canonical id and open the body editor on the id the annotation was
      * actually stored under. Set by the drawing layer; the loader leaves it
      * unset.
@@ -64,7 +64,7 @@ export class AnnotationStore {
 
     /**
      * Notified after an undo/redo replay so the drawing layer can reconcile the
-     * open editing session with the new storage state (F6): `annotation` is the
+     * open editing session with the new storage state: `annotation` is the
      * annotation now in the cache under `affectedId`, or `null` when the replay
      * removed it. Set by the drawing layer; the loader leaves it unset.
      */
@@ -84,25 +84,25 @@ export class AnnotationStore {
     // Cache of persisted annotations for the current canvas.
     private persistedAnnotations = new SvelteMap<string, W3CAnnotation>();
     // Per-annotation hydration state, kept internal because the
-    // `__fullBodyLoaded` marker is stripped before anything leaves the store
-    // (F7). Populated from adapter `load()` results.
+    // `__fullBodyLoaded` marker is stripped before anything leaves the store.
+    // Populated from adapter `load()` results.
     private hydrationState = new SvelteMap<string, 'skeleton' | 'full'>();
 
     // Serializes adapter writes per annotation id so rapid saves of the same
-    // annotation can't interleave create/update (F4).
+    // annotation can't interleave create/update.
     private saveQueue = new SvelteMap<string, Promise<void>>();
     // Bumped on every load() entry; a stale async load discards its result if
-    // the token changed while it was awaiting (F14). Also read by hydrate() so a
+    // the token changed while it was awaiting. Also read by hydrate() so a
     // hydrate whose canvas changed underneath it is discarded.
     private loadSequence = 0;
 
     // Canvas keys (`manifestId::canvasId`) whose overlay this store has pushed
     // into the owning viewer's display state. The plugin — not the adapter —
-    // owns display sync (F10), so the store both injects on every successful
-    // read/write and clears what it injected on destroy (F11).
+    // owns display sync, so the store both injects on every successful
+    // read/write and clears what it injected on destroy.
     private injectedCanvases = new SvelteSet<string>();
 
-    // Persistence-aware undo/redo (F6). Each stack holds inverse-able operation
+    // Persistence-aware undo/redo. Each stack holds inverse-able operation
     // records; undo/redo replay them through the normal write paths. Capped at
     // UNDO_DEPTH and cleared on canvas change and destroy.
     private static readonly UNDO_DEPTH = 50;
@@ -122,7 +122,7 @@ export class AnnotationStore {
     private _canRedo = $state(false);
 
     // The most recent unhandled persistence failure, shown as a dismissible line
-    // in the panel when the host provides no `onPersistenceError` handler (F20).
+    // in the panel when the host provides no `onPersistenceError` handler.
     // Reactive so the controller can render it; reset on the next successful
     // operation, on canvas change, or when the user dismisses it.
     private _panelError = $state<{
@@ -168,7 +168,7 @@ export class AnnotationStore {
     /**
      * The most recent persistence failure the host didn't handle, for the
      * panel's default error line. `null` when there's nothing to show or a host
-     * `onPersistenceError` handler took ownership of the failure (F20).
+     * `onPersistenceError` handler took ownership of the failure.
      */
     get panelError(): {
         op: AnnotationPersistenceOp;
@@ -202,10 +202,10 @@ export class AnnotationStore {
         this.canvasId = canvasId;
         this.persistedAnnotations.clear();
         this.hydrationState.clear();
-        // A previous canvas's error is no longer relevant (F20).
+        // A previous canvas's error is no longer relevant.
         this._panelError = null;
         // Undo history is per-canvas — the recorded ops target the previous
-        // canvas's storage (F6).
+        // canvas's storage.
         this.clearHistory();
     }
 
@@ -226,7 +226,7 @@ export class AnnotationStore {
     /**
      * Load the current canvas's annotations from the adapter into the cache.
      * A newer load (e.g. a canvas change) started while we awaited discards this
-     * stale result so it can't clobber the current canvas (F14).
+     * stale result so it can't clobber the current canvas.
      */
     async load(): Promise<W3CAnnotation[]> {
         if (!this.ready) return [];
@@ -258,18 +258,18 @@ export class AnnotationStore {
 
     /**
      * Single chokepoint for adapter writes. Decides create-vs-update from the
-     * in-memory cache (no per-save adapter.load round-trip — F4), serializes
-     * writes per annotation id (F4), and updates the cache only after the
+     * in-memory cache (no per-save adapter.load round-trip), serializes
+     * writes per annotation id, and updates the cache only after the
      * adapter call resolves.
      *
-     * On create the store stamps a complete W3C/IIIF annotation (F18) and, if the
+     * On create the store stamps a complete W3C/IIIF annotation and, if the
      * adapter returns a canonical annotation or id, reconciles the cache/display
-     * onto the server-assigned id and notifies its owner (F5). On update it
+     * onto the server-assigned id and notifies its owner. On update it
      * refreshes `modified` and adopts a server-normalized copy when returned.
      *
      * Cache and display are only advanced *after* the adapter resolves, so a
      * rejected write leaves both at their pre-operation state — the rollback the
-     * drawing layer relies on to re-signal selection (F20). Returns `true` on success,
+     * drawing layer relies on to re-signal selection. Returns `true` on success,
      * `false` when the adapter rejected (the failure has been reported).
      */
     async persist(annotation: W3CAnnotation): Promise<boolean> {
@@ -285,7 +285,7 @@ export class AnnotationStore {
             const isUpdate = this.persistedAnnotations.has(id);
             if (isUpdate) {
                 // The copy currently in the cache, captured before the write so
-                // an undo can restore it verbatim (F6).
+                // an undo can restore it verbatim.
                 const before = this.persistedAnnotations.get(
                     id,
                 ) as W3CAnnotation;
@@ -334,9 +334,9 @@ export class AnnotationStore {
                         returned,
                     );
                     // Expose the canonical copy so an undo/redo replay create can
-                    // capture its (possibly re-reconciled) server id (F6).
+                    // capture its (possibly re-reconciled) server id.
                     this.lastCreateCanonical = canonical;
-                    // Reflect the write in the read-only display overlay (F10).
+                    // Reflect the write in the read-only display overlay.
                     this.syncDisplay();
                     this._panelError = null;
                     ok = true;
@@ -356,7 +356,7 @@ export class AnnotationStore {
         const previous = this.saveQueue.get(id) ?? Promise.resolve();
         // Chain regardless of whether the previous save resolved or rejected;
         // `run` never rejects (it catches), so a failed save frees its queue
-        // slot and later saves of the same id still run (F20).
+        // slot and later saves of the same id still run.
         const next = previous.then(run, run);
         this.saveQueue.set(id, next);
         await next;
@@ -370,14 +370,14 @@ export class AnnotationStore {
      * Delete an annotation through the adapter and drop it from the cache.
      * Cache/display are only advanced after the adapter resolves, so a rejected
      * delete leaves the entry (and its overlay) intact — the "restore the entry"
-     * rollback (F20). Returns `true` on success, `false` when the adapter
+     * rollback. Returns `true` on success, `false` when the adapter
      * rejected (the failure has been reported).
      */
     async delete(id: string): Promise<boolean> {
         if (!this.ready) return false;
 
         // The copy about to be removed, captured before the write so an undo can
-        // re-create it (F6).
+        // re-create it.
         const removed = this.persistedAnnotations.get(id) ?? null;
 
         try {
@@ -407,7 +407,7 @@ export class AnnotationStore {
      * Fetch a skeleton annotation's full body from the adapter and cache it.
      * Returns the full annotation, or null when there is nothing to do (no
      * hydrate support), the fetch came back empty, the canvas changed while
-     * awaiting (F14), or `shouldApply` vetoes committing the result (the caller
+     * awaiting, or `shouldApply` vetoes committing the result (the caller
      * uses this to bail if the annotation is no longer being edited).
      */
     async hydrate(
@@ -456,13 +456,13 @@ export class AnnotationStore {
         const cached = this.persistedAnnotations.get(id);
 
         // Consult internal hydration state, not a body marker — markers are
-        // stripped from the cache in cachePersistedAnnotations() (F7).
+        // stripped from the cache in cachePersistedAnnotations().
         if (cached && this.hydrationState.get(id) !== 'skeleton') {
             return cached;
         }
 
         if (cached && this.hydrateSupported && this.ready) {
-            // Route through hydrate() for the load-race guard (F14) and error surface (F20); fall back to the cached skeleton when empty or discarded.
+            // Route through hydrate() for the load-race guard and error surface; fall back to the cached skeleton when empty or discarded.
             const full = await this.hydrate(id);
             return full ?? cached;
         }
@@ -482,7 +482,7 @@ export class AnnotationStore {
 
     /**
      * Reverse the most recent persisted operation by replaying its inverse
-     * through the normal write paths (F6): a `create` is deleted, an `update`
+     * through the normal write paths: a `create` is deleted, an `update`
      * restores the previous cached copy, a `delete` re-creates the removed copy.
      * The reversed operation moves to the redo stack. A failed replay (the
      * adapter rejected — the error surface fires) leaves the operation on the
@@ -540,8 +540,8 @@ export class AnnotationStore {
     }
 
     /**
-     * Re-apply the most recently undone operation through the normal write paths
-     * (F6). The re-applied operation moves back to the undo stack. A failed
+     * Re-apply the most recently undone operation through the normal write paths.
+     * The re-applied operation moves back to the undo stack. A failed
      * replay leaves the operation on the redo stack so it is never lost.
      */
     async redo(): Promise<void> {
@@ -593,10 +593,10 @@ export class AnnotationStore {
     }
 
     destroy(): void {
-        // Undo/redo history does not outlive the store (F6).
+        // Undo/redo history does not outlive the store.
         this.clearHistory();
         // Remove every overlay this store injected so the display doesn't keep
-        // showing annotations after the plugin is torn down (F11).
+        // showing annotations after the plugin is torn down.
         for (const canvasKey of this.injectedCanvases) {
             const [manifestId, canvasId] = canvasKey.split('::');
             this.displayState?.clearUserAnnotations(manifestId, canvasId);
@@ -604,14 +604,14 @@ export class AnnotationStore {
         this.injectedCanvases.clear();
         this.persistedAnnotations.clear();
         this.hydrationState.clear();
-        // Let the adapter release its own resources (F11).
+        // Let the adapter release its own resources.
         this.adapter.destroy?.();
     }
 
     // === Internal ===
 
     /**
-     * Record a just-committed forward operation for undo (F6). A normal user
+     * Record a just-committed forward operation for undo. A normal user
      * operation becomes undoable and invalidates any redo path; while replaying
      * an undo/redo this is suppressed (the replay pushes onto the opposite stack
      * itself).
@@ -633,13 +633,13 @@ export class AnnotationStore {
         this.refreshUndoRedoFlags();
     }
 
-    /** Return a failed-replay op to the undo stack so it is never lost (F6). */
+    /** Return a failed-replay op to the undo stack so it is never lost. */
     private restoreUndo(op: UndoableOp): void {
         this.undoStack.push(op);
         this.refreshUndoRedoFlags();
     }
 
-    /** Return a failed-replay op to the redo stack so it is never lost (F6). */
+    /** Return a failed-replay op to the redo stack so it is never lost. */
     private restoreRedo(op: UndoableOp): void {
         this.redoStack.push(op);
         this.refreshUndoRedoFlags();
@@ -665,7 +665,7 @@ export class AnnotationStore {
     }
 
     /**
-     * Surface a failed persistence operation (F20). A host `onPersistenceError`
+     * Surface a failed persistence operation. A host `onPersistenceError`
      * handler takes full ownership of the failure (it gets a `retry` handle);
      * without one, the store logs and records a dismissible panel error so the
      * failure is never invisible. The cache/display rollback has already
@@ -700,7 +700,7 @@ export class AnnotationStore {
      * Commit a created annotation to the cache under its canonical id. When the
      * adapter returns a server-assigned annotation or id string, the cache key is
      * swapped from the local id to the canonical one, and `onReconcileId` fires
-     * so the owner can follow the annotation onto the new id (F5).
+     * so the owner can follow the annotation onto the new id.
      */
     private reconcileCreate(
         localId: string,
@@ -726,7 +726,7 @@ export class AnnotationStore {
 
         this.persistedAnnotations.set(canonicalId, canonical);
         // Anything we persist carries a full body, so its hydration state is
-        // now 'full' (F7).
+        // now 'full'.
         this.hydrationState.set(canonicalId, 'full');
 
         if (swapped) {
@@ -738,7 +738,7 @@ export class AnnotationStore {
 
     /**
      * Stamp a complete, valid W3C/IIIF annotation before create without
-     * clobbering host-provided values (F18). `extension.beforeSave` has already
+     * clobbering host-provided values. `extension.beforeSave` has already
      * run by the caller and therefore still wins — stamping only fills gaps.
      */
     private stampForCreate(annotation: W3CAnnotation): W3CAnnotation {
@@ -768,7 +768,7 @@ export class AnnotationStore {
         return stamped;
     }
 
-    /** Refresh `modified` on an updated annotation (F18). */
+    /** Refresh `modified` on an updated annotation. */
     private stampForUpdate(annotation: W3CAnnotation): W3CAnnotation {
         // Transient, discarded immediately — not reactive state.
         // eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -778,7 +778,7 @@ export class AnnotationStore {
     /**
      * Push the current canvas's cached annotations into the owning viewer's
      * display state so the read-only overlay reflects storage. The plugin owns
-     * this — adapters are pure storage (F10). Records the canvas key so
+     * this — adapters are pure storage. Records the canvas key so
      * `destroy()` can clear it.
      */
     private syncDisplay(): void {
@@ -794,7 +794,7 @@ export class AnnotationStore {
     private cachePersistedAnnotations(annotations: AdapterLoadResult[]): void {
         // Rebuild both maps together: read each adapter-supplied
         // `__fullBodyLoaded` marker once into internal hydration state, then
-        // strip the markers so nothing downstream depends on them (F7).
+        // strip the markers so nothing downstream depends on them.
         this.hydrationState.clear();
         this.persistedAnnotations = new SvelteMap(
             annotations.map((annotation) => {

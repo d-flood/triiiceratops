@@ -1,6 +1,5 @@
 /**
- * The scene planner: the renderer's primary test seam (spec §Architecture:
- * planner and painter).
+ * The scene planner: the renderer's primary test seam.
  *
  * A pure function. Given manifest-derived canvas descriptors, viewing mode and
  * direction, the current viewport, whatever image metadata has already been
@@ -16,7 +15,7 @@
  * ## Level residency
  *
  * For a pyramid-tier canvas whose image service is known, the **required set**
- * is three things (spec §Virtualization: per-canvas level residency):
+ * is three things:
  *
  * - the **base level** — the coarsest level, covering the whole image in
  *   (typically) one tile. It costs almost nothing and it is what guarantees the
@@ -173,7 +172,7 @@ interface SizedCanvas {
  * The geometric mean of the projected width and height, deliberately *not* the
  * projected height alone: height would decide differently for a portrait page
  * in a left-to-right world and a landscape page in a top-to-bottom world at
- * identical visual size (spec §Virtualization: canvas tiers).
+ * identical visual size.
  */
 export function effectiveSize(
     width: number,
@@ -206,8 +205,8 @@ function aspectOf(box: { width: number; height: number } | null) {
  * fixed one.
  *
  * A canvas that omits its dimensions and declares no duration is the ordinary
- * spec violation of user story 32: a picture whose shape is unknown, and a
- * fetch may yet report it.
+ * IIIF spec violation: a picture whose shape is unknown, and a fetch may yet
+ * report it.
  */
 function placeholderBox(
     canvas: PlannerCanvas,
@@ -279,7 +278,7 @@ function laneWorld(sized: SizedCanvas[], layout: LayoutRect[]): boolean {
  * 3. **Failing both, the median of its siblings.** A guess, and deliberately a
  *    guess: "just fetch it" is the reflex, and it is what restores the fetch
  *    storm for any manifest with sparse metadata. Positioning is never blocked
- *    on a request (spec §Coordinate model and layout).
+ *    on a request.
  *
  *    The siblings are the canvases in *this* input, which is as much of the
  *    manifest as the host has to lay out: the whole of it in continuous mode,
@@ -638,10 +637,9 @@ function deriveSourceResolution(
  * The residency margin: the viewport box inflated by a factor.
  *
  * Expressed in viewport-relative terms rather than in tile or canvas counts, so
- * it is correct for a wide world and a tall one without an axis conditional
- * (spec §Virtualization: canvas tiers). A canvas-count margin needs the
- * conditional and will get one direction wrong: a left-to-right world is wide
- * and short, a top-to-bottom world tall and narrow.
+ * it is correct for a wide world and a tall one without an axis conditional. A
+ * canvas-count margin needs the conditional and will get one direction wrong: a
+ * left-to-right world is wide and short, a top-to-bottom world tall and narrow.
  */
 function inflate(box: Box, factor: number): Box {
     const width = box.width * factor;
@@ -679,8 +677,7 @@ function intersects(a: Box, b: Box): boolean {
  * A canvas outside this set is box tier whatever its size: no network, no
  * texture, layout rect only.
  *
- * Two rules, and both are in the spec for reasons an implementer would
- * otherwise resolve by reaching for a canvas count:
+ * Two rules, both chosen over the tempting alternative of a canvas count:
  *
  * 1. **The viewport rect inflated by `marginFactor`.** A rect, intersected
  *    against layout rects, so a wide left-to-right world and a tall
@@ -689,10 +686,10 @@ function intersects(a: Box, b: Box): boolean {
  *    margin stays modest and the byte budget is spent on the opportunistic
  *    cache instead. This is the first knob to reach for and the wrong one.
  * 2. **±1 canvas beyond the ones actually on screen**, so turning the page is
- *    instant (spec §Virtualization: canvas tiers). Stated for continuous mode,
- *    applied in every mode because it cannot do anything in the others: paged
- *    and individuals feed at most a spread, and every member of a spread is
- *    either on screen or the neighbour of something that is.
+ *    instant. Stated for continuous mode, applied in every mode because it
+ *    cannot do anything in the others: paged and individuals feed at most a
+ *    spread, and every member of a spread is either on screen or the neighbour
+ *    of something that is.
  *
  * Membership is a pure function of the viewport and nothing else — not of how
  * the user got here. That is what makes the resident set identical whether the
@@ -885,13 +882,14 @@ function planPyramid(
         // construction — holding it whole costs nothing and is what guarantees
         // the viewer is never blank.
         //
-        // Holding the coarse chain WHOLE is the reading that makes the spec's
+        // Holding the coarse chain WHOLE is the reading that makes the claim
         // "the chain is roughly a third of the current level" false: a whole
         // level costs O(image area) while the current level costs O(viewport
         // area), so the ratio diverges with image size — a 30000² scan wants
-        // over a gigabyte of chain against 10 MB of current level. Restricted to
-        // the same box, the geometric sum really is a third, and the required
-        // set stays a function of the viewport rather than of the image.
+        // over a gigabyte of chain against 10 MB of current level. Restricted
+        // to the same box, the geometric sum really is a third, and the
+        // required set stays a function of the viewport rather than of the
+        // image.
         //
         // For a size ladder the same margin is what stops a canvas two spreads
         // away from holding its FULL RESOLUTION scan: required-set membership
@@ -1154,7 +1152,7 @@ function planThumbnail(
     // a different costume.
     if (needsMetadata) return 'pending';
     // The ladder ran out: no usable thumbnail exists, ever. Never a request, so
-    // never a retry (user story 31).
+    // never a retry.
     return 'unresolved';
 }
 
@@ -1483,10 +1481,9 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         // push would put one entry per painting annotation into a list walked
         // sixty times a second, for one answer.
         //
-        // Gated on a stable view wherever it is called from: a flick passes over
-        // hundreds of canvases that are never dwelt on, and asking for each one
-        // as it goes by is most of the request storm on its own (spec §Tile
-        // scheduling).
+        // Gated on a stable view wherever it is called from: a flick passes
+        // over hundreds of canvases that are never dwelt on, and asking for
+        // each one as it goes by is most of the request storm on its own.
         let askedForMetadata = false;
         function askForMetadata(): void {
             if (!viewStable || askedForMetadata) return;
@@ -1503,10 +1500,10 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         // a picture the handover can paint in the frame it happens — the tier
         // that takes over draws whichever it finds resident — while the ladder
         // above it is left to climb on demand, so a companion nobody is looking
-        // at yet never costs a reader more than a thumbnail (user stories 41 and
-        // 42). A picture with no such cheap whole view — a level0 master with no
-        // derivatives — is simply not warmed, which is the same answer the
-        // thumbnail tier gives it.
+        // at yet never costs a reader more than a thumbnail. A picture with no
+        // such cheap whole view — a level0 master with no derivatives — is
+        // simply not warmed, which is the same answer the thumbnail tier gives
+        // it.
         //
         // Nothing is pushed to `tileDraws`: the phase decides what paints, and
         // it has not named this companion.
@@ -1607,9 +1604,9 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         paintOrder += placements.length;
 
         // A static-image source has exactly one known URL and no service, so it
-        // has nothing to discover and nothing to tile (user story 29). It is
-        // fetched and painted whole by the host at every tier above `box`,
-        // which is why the ladder below is never asked about it.
+        // has nothing to discover and nothing to tile. It is fetched and
+        // painted whole by the host at every tier above `box`, which is why the
+        // ladder below is never asked about it.
         for (const { image, box, order } of placements) {
             if (image.source.kind !== 'static') continue;
             staticImages.push({
@@ -1736,7 +1733,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
         // nested inside the tier: a canvas below it releases everything,
         // including its base level. Applied without that gate, "the base level
         // is never evicted" would mean 800 resident base tiles on an 800-folio
-        // manifest (spec §Further Notes).
+        // manifest.
 
         for (const { image, box, order } of placements) {
             const source = image.source;

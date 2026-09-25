@@ -16,7 +16,7 @@ runAdapterContractTests(() => new LocalStorageAdapter(), {
 /**
  * An in-memory server-style adapter that mints its own canonical IRI on create
  * and returns the reconciled annotation, exercising the id-reconciliation
- * capability of the conformance suite (F5). Kept here as a test fixture — it is
+ * capability of the conformance suite. Kept here as a test fixture — it is
  * the smallest adapter that models a real annotation server.
  */
 class InMemoryServerAdapter implements AnnotationStorageAdapter {

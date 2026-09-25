@@ -87,10 +87,7 @@
                 that appears and then vanishes.
             -->
             <noscript>
-                <p class="aside">
-                    It needs JavaScript. Paste a manifest URL or a IIIF content
-                    state once it has loaded.
-                </p>
+                <p class="aside">The viewer needs JavaScript.</p>
             </noscript>
         </div>
     {/if}

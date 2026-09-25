@@ -239,7 +239,7 @@ test.describe('the application route', () => {
             // rendered text: with script off the parser turns the element's
             // children into real DOM, and they are only there in that case.
             await expect(page.locator('.appwait noscript')).toContainText(
-                'It needs JavaScript',
+                'The viewer needs JavaScript',
                 { useInnerText: true },
             );
         });

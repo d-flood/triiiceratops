@@ -460,7 +460,7 @@ describe('createTileSourceErrorMirror', () => {
         expect(write).toHaveBeenLastCalledWith(null);
     });
 
-    /* The auth/load distinction survives to the chrome (user story 27). */
+    /* The auth/load distinction survives to the chrome. */
     it('carries the kind, and the load message with it', () => {
         const { set, write } = mirror();
 

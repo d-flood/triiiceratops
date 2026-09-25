@@ -85,7 +85,7 @@
 				},
 				{
 					"type": "text",
-					"text": " element — carrying your CSP "
+					"text": " element, carrying your CSP "
 				},
 				{
 					"type": "text",
@@ -98,7 +98,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — whenever constructable stylesheets are unavailable, "
+					"text": ", whenever constructable stylesheets are unavailable, "
 				},
 				{
 					"type": "text",
@@ -111,7 +111,7 @@
 				},
 				{
 					"type": "text",
-					"text": " whenever the host advertises a nonce at all (nonces cannot attach to constructable stylesheets, so advertising one always opts back into the "
+					"text": " whenever the host advertises a nonce at all. Nonces cannot attach to constructable stylesheets, so advertising one always opts back into the "
 				},
 				{
 					"type": "text",
@@ -124,7 +124,7 @@
 				},
 				{
 					"type": "text",
-					"text": " path)."
+					"text": " path."
 				}
 			],
 			"attrs": {
@@ -162,7 +162,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — only "
+					"text": "; only "
 				},
 				{
 					"type": "text",
@@ -175,7 +175,7 @@
 				},
 				{
 					"type": "text",
-					"text": " does — so every policy below allows those explicitly via "
+					"text": " does, so every policy below allows them via "
 				},
 				{
 					"type": "text",
@@ -200,7 +200,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The two distributions need slightly different policies, because only the light-DOM Svelte package's component styles are nonce-addressable."
+					"text": "The two recipes need slightly different policies, because only the light-DOM Svelte package's component styles are nonce-addressable."
 				}
 			],
 			"attrs": {
@@ -298,7 +298,7 @@
 										},
 										{
 											"type": "text",
-											"text": " — "
+											"text": " ("
 										},
 										{
 											"type": "text",
@@ -308,6 +308,10 @@
 													"type": "code"
 												}
 											]
+										},
+										{
+											"type": "text",
+											"text": ")"
 										}
 									],
 									"attrs": {
@@ -375,7 +379,7 @@
 										},
 										{
 											"type": "text",
-											"text": " — "
+											"text": " ("
 										},
 										{
 											"type": "text",
@@ -385,6 +389,10 @@
 													"type": "code"
 												}
 											]
+										},
+										{
+											"type": "text",
+											"text": ")"
 										}
 									],
 									"attrs": {
@@ -452,7 +460,7 @@
 										},
 										{
 											"type": "text",
-											"text": " — "
+											"text": " ("
 										},
 										{
 											"type": "text",
@@ -462,6 +470,10 @@
 													"type": "code"
 												}
 											]
+										},
+										{
+											"type": "text",
+											"text": ")"
 										}
 									],
 									"attrs": {
@@ -529,7 +541,7 @@
 										},
 										{
 											"type": "text",
-											"text": " — the custom element"
+											"text": " (the custom element)"
 										}
 									],
 									"attrs": {
@@ -597,7 +609,7 @@
 				},
 				{
 					"type": "text",
-					"text": " custom element every other non-Svelte integration uses, so its shadow root has the same style requirements — they follow the shadow-DOM recipe, not the Svelte one, and there is no nonce for them to advertise."
+					"text": " custom element every other non-Svelte integration uses, so they have the same shadow-root style requirements. They follow the shadow-DOM recipe, and there is no nonce for them to advertise."
 				}
 			],
 			"attrs": {
@@ -753,7 +765,7 @@
 				},
 				{
 					"type": "text",
-					"text": " element at runtime — there is no per-element style nonce hook in Svelte for this path — so the shadow root needs "
+					"text": " element at runtime. Svelte has no per-element style nonce hook for this path, so the shadow root needs "
 				},
 				{
 					"type": "text",
@@ -804,7 +816,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Notes (both distributions):"
+					"text": "Notes (both recipes):"
 				}
 			],
 			"attrs": {
@@ -831,7 +843,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — no "
+									"text": ": no "
 								},
 								{
 									"type": "text",
@@ -886,7 +898,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — covers the viewer's inline layout style attributes. These cannot execute script under the strict "
+									"text": ": covers the viewer's inline layout style attributes. These cannot execute script under the strict "
 								},
 								{
 									"type": "text",
@@ -899,7 +911,7 @@
 								},
 								{
 									"type": "text",
-									"text": " above, so allowing them is the recommended posture rather than a risk trade-off."
+									"text": " above, so we recommend allowing them."
 								}
 							],
 							"attrs": {
@@ -1051,7 +1063,7 @@
 								},
 								{
 									"type": "text",
-									"text": " is loaded — see "
+									"text": " is loaded (see "
 								},
 								{
 									"type": "text",
@@ -1067,7 +1079,7 @@
 								},
 								{
 									"type": "text",
-									"text": " below. Drop the directive entirely if you never play time-based media."
+									"text": " below). Drop the directive entirely if you never play time-based media."
 								}
 							],
 							"attrs": {
@@ -1096,7 +1108,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — a plugin may run work off the main thread through a blob-URL "
+									"text": ": a plugin may run work off the main thread through a blob-URL "
 								},
 								{
 									"type": "text",
@@ -1109,7 +1121,7 @@
 								},
 								{
 									"type": "text",
-									"text": "; hls.js, behind the AV plugin, is the first-party case."
+									"text": "; hls.js, loaded by the AV plugin, is the first-party example."
 								}
 							],
 							"attrs": {
@@ -1138,7 +1150,7 @@
 								},
 								{
 									"type": "text",
-									"text": " must allow the IIIF hosts your manifests and image services live on — and, if you pass content states, the hosts those live on too; see "
+									"text": " must allow the IIIF hosts your manifests and image services live on and, if you pass content states, the hosts those live on too (see "
 								},
 								{
 									"type": "text",
@@ -1154,7 +1166,7 @@
 								},
 								{
 									"type": "text",
-									"text": " below. A plugin’s own server belongs here as well: an "
+									"text": " below). A plugin's own server belongs here as well: an "
 								},
 								{
 									"type": "text",
@@ -1170,7 +1182,7 @@
 								},
 								{
 									"type": "text",
-									"text": " fetches from wherever you wrote it to, and the viewer knows nothing about that host to allow it for you."
+									"text": " fetches from whatever host you wrote it for, and the viewer cannot know that host to allow it for you."
 								}
 							],
 							"attrs": {
@@ -1261,7 +1273,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — and it is easy to miss, because the URI is often not on the host your manifests come from."
+					"text": ". This is easy to miss, because the URI is often not on the host your manifests come from."
 				}
 			],
 			"attrs": {
@@ -1356,7 +1368,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — a second request to the same blocked host, which the same policy refuses, so nothing opens. Allow the hosts you accept content states from, or accept content states only as JSON on the "
+					"text": ". That second request goes to the same blocked host, the policy refuses it too, and nothing opens. Allow the hosts you accept content states from, or accept content states only as JSON on the "
 				},
 				{
 					"type": "text",
@@ -1381,7 +1393,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "This adds no trust boundary: a content-state URI is exactly as trusted as a manifest URI, and this policy is the control on both."
+					"text": "A content-state URI gets the same trust as a manifest URI, and this policy controls both."
 				}
 			],
 			"attrs": {
@@ -1436,7 +1448,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is opt-in and common enough to plan for; three things about it are worth stating explicitly."
+					"text": " is opt-in but common enough to plan for. Three things to know:"
 				}
 			],
 			"attrs": {
@@ -1529,7 +1541,7 @@
 								},
 								{
 									"type": "text",
-									"text": " Where a browser has no native HLS the plugin falls back to hls.js, which drives the media element through Media Source Extensions — the element's "
+									"text": " Where a browser has no native HLS the plugin falls back to hls.js, which drives the media element through Media Source Extensions, so the element's "
 								},
 								{
 									"type": "text",
@@ -1658,7 +1670,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — a requirement of the plugin, not of your CSP, and the usual reason a file that plays in a plain "
+					"text": ". That is a requirement of the plugin rather than your CSP, and the usual reason a file that plays in a plain "
 				},
 				{
 					"type": "text",
@@ -1687,7 +1699,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for that side of it."
+					"text": " for details."
 				}
 			],
 			"attrs": {
@@ -1713,7 +1725,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Relevant to the "
+					"text": "This applies to the "
 				},
 				{
 					"type": "text",
@@ -1729,7 +1741,7 @@
 				},
 				{
 					"type": "text",
-					"text": " recipe only — the "
+					"text": " recipe only. The "
 				},
 				{
 					"type": "text",
@@ -1928,7 +1940,7 @@
 				},
 				{
 					"type": "text",
-					"text": " Trusted Types policy (untrusted HTML is sanitized upstream before it reaches any DOM sink) — if your app already installs its own "
+					"text": " Trusted Types policy (untrusted HTML is sanitized upstream before it reaches any DOM sink). If your app already installs its own "
 				},
 				{
 					"type": "text",
@@ -1954,7 +1966,7 @@
 				},
 				{
 					"type": "text",
-					"text": " policy at module load, so that name has to be allowed too or the viewer never mounts. Every bundle that embeds Svelte creates it again — the element IIFE and a plugin IIFE are two — and a repeated policy name throws without 'allow-duplicates'. If you enforce Trusted Types, include it alongside the policy above:"
+					"text": " policy at module load, so that name must be allowed too or the viewer never mounts. Every bundle that embeds Svelte creates it again (the element IIFE and each plugin IIFE), and a repeated policy name throws without 'allow-duplicates'. If you enforce Trusted Types, allow these names:"
 				}
 			],
 			"attrs": {
@@ -2019,7 +2031,7 @@
 				},
 				{
 					"type": "text",
-					"text": ") across Chromium, Firefox, and WebKit: a light-DOM Svelte consumer and a Web Component IIFE page render and theme correctly, a plugin installs styles via the nonce fallback path, and the page records zero "
+					"text": ") across Chromium, Firefox, and WebKit: a light-DOM Svelte consumer and a custom element IIFE page render and theme correctly, a plugin installs styles via the nonce fallback path, and the page records zero "
 				},
 				{
 					"type": "text",

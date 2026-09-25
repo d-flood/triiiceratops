@@ -7,7 +7,7 @@
  * manifest. That is the whole design: the tile pyramid, the size ladder, Choice
  * bodies, region-targeted placements, both id spellings, residency, and
  * projection all apply to a companion because nothing here reimplements any of
- * them (ADR 0017; SPEC §Rendering).
+ * them (ADR 0017).
  *
  * Pure, like the rest of the renderer's planning modules. Degradations are
  * returned as {@link CompanionCanvases.warnings} rather than logged, so this
@@ -50,9 +50,9 @@ const COMPANION_SPELLINGS: Record<CompanionProperty, readonly string[]> = {
  * One claimed canvas's companions, resolved once.
  *
  * **The phase selects between these; it never rebuilds them.** Pressing play is
- * a choice between two values already in hand, not a re-plan (user story 29),
- * which is why both companions are resolved together and the phase appears
- * nowhere in this file except in {@link withCompanion}'s signature.
+ * a choice between two values already in hand, not a re-plan, which is why both
+ * companions are resolved together and the phase appears nowhere in this file
+ * except in {@link withCompanion}'s signature.
  *
  * @internal Not exported from any package entry point. It appears in
  * `api-reports/core.api.md` because that report is a file-level rollup and a
@@ -66,13 +66,12 @@ export interface CompanionCanvases {
      *
      * Only a companion that resolved to something requestable donates a rect. A
      * companion the reader will never see must not reflow the manifest around
-     * itself, so a broken one costs the canvas its picture and nothing else
-     * (user story 23).
+     * itself, so a broken one costs the canvas its picture and nothing else.
      *
      * The accompanying canvas is preferred because it is the permanent
      * companion, and the phase is excluded because a 640×360 poster giving way
      * to a 772×998 score must not reflow the manifest the instant playback
-     * starts (user story 10).
+     * starts.
      *
      * `null` where nothing declares any, which is the planner's existing signal
      * to place the canvas from the median of its siblings.
@@ -181,10 +180,10 @@ function fitWithin(
  * - a canvas that **paints images of its own** is skipped entirely and warns. It
  *   is a composite canvas whose own images already paint, and a companion under
  *   them would be invisible at best;
- * - a companion that resolves to nothing requestable — no service, no id, not an
- *   image — paints nothing and warns. The claimed canvas keeps the treatment it
- *   would otherwise have had, so a broken companion costs a picture rather than
- *   the canvas (user story 23).
+ * - a companion that resolves to nothing requestable — no service, no id, not
+ *   an image — paints nothing and warns. The claimed canvas keeps the treatment
+ *   it would otherwise have had, so a broken companion costs a picture rather
+ *   than the canvas.
  *
  * @internal Not exported from any package entry point. It appears in
  * `api-reports/core.api.md` because that report is a file-level rollup and a
@@ -282,9 +281,9 @@ export function resolveCompanionCanvases(
  * rather than by a restatement of its refusals. A claimant sets a companion
  * phase only where core will actually put a picture in the rect: yielding it to
  * one that never arrives leaves the reader a blank stage, where the honest
- * fallback is the treatment the canvas would have had with no companion at all
- * (SPEC — "Degradation and honesty"). Two implementations of that answer would
- * drift apart silently, which is the whole reason this is exported.
+ * fallback is the treatment the canvas would have had with no companion at all.
+ * Two implementations of that answer would drift apart silently, which is the
+ * whole reason this is exported.
  *
  * Asked with the reader's Choice selection, in either shape a caller already
  * holds, because core resolves the companion with the same one.
@@ -322,15 +321,14 @@ export function companionPaintable(
  *
  * The phase that is not painting also names `PlannerCanvas.warmImages`, so that
  * the companion about to be called for is resident before it is called for and
- * the handover has something to paint in the frame it happens (user story 41).
+ * the handover has something to paint in the frame it happens.
  *
  * Note that the rect comes from the companions and not from the phase, so
  * `'none'` keeps the geometry the painting phases had. A claimant whose canvas
  * carries only a placeholder moves to `'none'` on first play, and reverting the
- * rect there would reflow the page at exactly the moment user story 10 forbids
- * it. A canvas whose claimant has set no phase at all never reaches this
- * function: the claim on its own changes nothing about what core renders
- * (user story 27).
+ * rect there would reflow the page at exactly the moment playback starts. A
+ * canvas whose claimant has set no phase at all never reaches this function:
+ * the claim on its own changes nothing about what core renders.
  *
  * @internal Not exported from any package entry point. It appears in
  * `api-reports/core.api.md` because that report is a file-level rollup and a

@@ -3,14 +3,13 @@
  * The **unsupported presentation**, asserted over the vendored audiovisual
  * fixtures rather than over hand-built canvases (CONTEXT.md; ADR 0017).
  *
- * Two claims, and the first is the one the epic exists for: **no media URL is
- * ever requested**. A scene plan is the complete list of everything the host
- * will fetch or decode for a frame — tiles, thumbnails, `info.json`, static
- * images — so "the plan names no `.mp4`" is not a proxy for "nothing was
- * fetched", it is the whole of it. Nothing is fetched means nothing can fail,
- * which is why there is no negative-cache entry to look for either: the
- * negative cache (`staticImageFailures`) is only ever written from a failed
- * load.
+ * Two claims, and the first is the essential one: **no media URL is ever
+ * requested**. A scene plan is the complete list of everything the host will
+ * fetch or decode for a frame — tiles, thumbnails, `info.json`, static images —
+ * so "the plan names no `.mp4`" is not a proxy for "nothing was fetched", it is
+ * the whole of it. Nothing is fetched means nothing can fail, which is why
+ * there is no negative-cache entry to look for either: the negative cache
+ * (`staticImageFailures`) is only ever written from a failed load.
  *
  * The second is that the canvas survives: it keeps a layout rect and a
  * residency tier, including the duration-only audio canvas that declares no
@@ -154,7 +153,7 @@ describe('a video canvas', () => {
 describe('a duration-only audio canvas', () => {
     // `0002-mvm-audio` declares `duration` and NO width or height. It used to
     // vanish from layout altogether, so navigation and the thumbnail strip
-    // disagreed with the manifest (SPEC, Problem Statement).
+    // disagreed with the manifest.
     const canvases = canvasesOf(AV_DIR, '0002-mvm-audio.json');
 
     it('is laid out from the geometry fallback rather than dropped', () => {
@@ -171,10 +170,10 @@ describe('a duration-only audio canvas', () => {
 });
 
 describe("lunchroom-manners' Choice of videos", () => {
-    // `body: [Choice(three Videos), Text(vtt)]` — the array/Choice ordering bug
-    // (user story 40). The Choice is now genuinely resolved and its alternative
-    // classified as non-image, rather than the Choice object being taken as the
-    // body and dropping out for want of an id.
+    // `body: [Choice(three Videos), Text(vtt)]` — the array/Choice ordering bug.
+    // The Choice is now genuinely resolved and its alternative classified as
+    // non-image, rather than the Choice object being taken as the body and
+    // dropping out for want of an id.
     const canvases = canvasesOf(VENDORED_DIR, 'lunchroom-manners.json');
 
     it('resolves as non-image rather than being dropped as null', () => {

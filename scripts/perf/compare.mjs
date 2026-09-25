@@ -3,7 +3,7 @@
 // Builds the base SHA and the head SHA on the SAME runner (same Node, same
 // browser build), measures each with the identical head-owned measurement code
 // (scripts/perf/measure.mjs), compares medians, and fails on regression beyond
-// the SPEC thresholds:
+// these thresholds:
 //   · deterministic artifact size increase > 5%          → fail
 //   · runtime median increase > 10% AND absolute > 20 ms → fail (per scenario)
 // It ALSO enforces perf-budgets.json (committed absolute ceilings), which fails

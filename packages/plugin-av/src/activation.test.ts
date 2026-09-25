@@ -1,7 +1,7 @@
 /**
  * Activation behavior, against a real `ViewerState` from the SDK test kit.
  *
- * The seams asserted here are the ticket's contract: which canvases the
+ * The seams asserted here are the contract: which canvases the
  * activation claims, that a re-scan follows a manifest change, that the claims
  * go when the activation does, and that the degradation contract's warnings fire
  * on the manifests that trigger them. Nothing here reaches into the plugin's
@@ -611,7 +611,7 @@ describe('the companion phase', () => {
     });
 
     /*
-        The placeholder half of the schedule (user stories 11 and 12).
+        The placeholder half of the schedule.
         `0013-placeholderCanvas` is a 640×360 video canvas carrying a still to
         show before playback. Core paints it, so it is on the tier ladder like
         anything else, and the element stays invisible until the reader presses
@@ -811,7 +811,7 @@ describe('the companion phase', () => {
         });
 
         /*
-            Ticket 03's rule, unmoved: a companion that resolves to nothing
+            A companion that resolves to nothing
             requestable is no companion at all, and the canvas keeps the
             full-rect lane and waveform it would have had without one — never a
             blank rect.
@@ -935,7 +935,7 @@ describe('the transport chrome', () => {
         cleanup();
     });
 
-    // The panel control names what it opens (user story 13). The canvas's
+    // The panel control names what it opens. The canvas's
     // linked transcript is not read until its stage is built, which happens
     // after the transport, so a label captured once reads "Notes" over a panel
     // holding a transcript.
@@ -1088,7 +1088,7 @@ function canvasLinkingWaveform(bodies: 1 | 2): unknown {
 const WAVEFORM_URL = 'https://example.org/wave/waveform.json';
 
 /*
-    The spec fence of ticket 18: the timeline lane renders WITHOUT peaks on a
+    The timeline lane renders WITHOUT peaks on a
     composed canvas. Any waveform a canvas links describes ONE body, and the
     lane there spans the whole work — so peaks drawn across it would be a
     picture of act one stretched over the opera.

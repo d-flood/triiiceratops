@@ -5,16 +5,16 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Triiiceratops WC ESM parity fixture</title>
         <!--
-            Standards-based ESM registration entry (ticket 10). Loaded as a
-            module from the built dist/ artifact; requires `pnpm build:element`
-            (or build:all) to have run. Must register the same tag with the same
-            behavior as the IIFE fixture.
+            Standards-based ESM registration entry. Loaded as a module from the
+            built dist/ artifact; requires `pnpm build:element` (or build:all)
+            to have run. Must register the same tag with the same behavior as
+            the IIFE fixture.
         -->
         <script type="module" src="/dist/triiiceratops-element.js"></script>
         <script>
-            // The state bridge (ticket 02), recorded from the document exactly
-            // as in the IIFE fixture so the two entries are compared on the
-            // same observation. A composed event retargets to the host, so
+            // The state bridge, recorded from the document exactly as in the
+            // IIFE fixture so the two entries are compared on the same
+            // observation. A composed event retargets to the host, so
             // `event.target` is the custom element itself.
             window.__viewerStateEvents = [];
             document.addEventListener('viewerstateavailable', (event) => {

@@ -1,4 +1,4 @@
-// The double-bound-handle route (SPEC user story 36).
+// The double-bound-handle route.
 //
 // One handle, two viewers. A handle identifies exactly ONE viewer, so the
 // second one to mount must fail loudly and framework-natively rather than

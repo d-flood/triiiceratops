@@ -391,8 +391,7 @@ test.describe('av captions — VTT text tracks', () => {
         // here the transport's own total-time readout, which is not itself
         // focusable and so does nothing but blur what was. The readout at the
         // OTHER end of the row is unreachable: the docked left panel stack
-        // covers the transport's leading controls, a core defect this ticket
-        // did not introduce and does not fix.
+        // covers the transport's leading controls, a known core defect.
         await page.locator('[data-testid="transport-duration"]').click();
         await expect(page.locator(CAPTION_LIST)).toHaveCount(0);
     });

@@ -6,8 +6,8 @@
  * decision it could make (what is resident, at which tier, in which order) was
  * already made by `planScene`. That is the whole point of the split: the
  * planner is unit-tested exhaustively without a DOM, and the painter's
- * correctness is the geometric e2e assertions' job (spec §Testing Decisions,
- * "Deliberately not unit-tested in isolation").
+ * correctness is the geometric e2e assertions' job, deliberately not
+ * unit-tested in isolation.
  *
  * With one carve-out, in `paintScene.test.ts`: device-pixel snapping is a
  * sub-pixel relationship between adjacent draw calls, and blur-up paints the

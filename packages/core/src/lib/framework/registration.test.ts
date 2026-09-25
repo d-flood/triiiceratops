@@ -12,8 +12,8 @@ import {
  * The registrar is exercised through its injected seams — an explicit registry
  * and an explicit loader — because the two behaviors that matter (memoizing
  * BOTH outcomes, and diagnosing a tag owned by a foreign constructor) are about
- * what the registrar does with a registry, not about which registry it found.
- * A fake constructor is the one legitimate double in this ticket: an element
+ * what the registrar does with a registry, not about which registry it found. A
+ * fake constructor is the one legitimate double in this file: an element
  * WITHOUT the `viewerState` getter cannot be produced from the real one.
  */
 

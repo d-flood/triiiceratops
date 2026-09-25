@@ -83,10 +83,10 @@ describe('getCanvasDisplayLayouts', () => {
     });
 
     describe('advancing by each canvas’s real extent', () => {
-        // The regression suite for the one layout bug this epic fixes: with
-        // normalization off, the offset used to advance a fixed ONE WORLD UNIT
-        // per canvas regardless of the canvas's extent. Every case below fails
-        // against that behaviour.
+        // The regression suite for one layout bug: with normalization off, the
+        // offset used to advance a fixed ONE WORLD UNIT per canvas regardless
+        // of the canvas's extent. Every case below fails against that
+        // behaviour.
         function wide(canvasId: string, width: number, height: number) {
             return {
                 canvasId,

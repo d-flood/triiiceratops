@@ -17,7 +17,7 @@ import type { W3CAnnotation, AdapterLoadResult, AnnotationStorageAdapter } from 
  * It is pure storage: `localStorage` reads and writes, nothing more. Display
  * sync (to the owning viewer's state), caching, id reconciliation, and error
  * handling are all owned by the plugin's `AnnotationStore`, so a custom adapter
- * only needs to implement these few storage methods (F10). This is the shape
+ * only needs to implement these few storage methods. This is the shape
  * every adapter should aim for.
  *
  * ── LocalStorage namespace (FROZEN) ────────────────────────────────────────
@@ -27,7 +27,7 @@ import type { W3CAnnotation, AdapterLoadResult, AnnotationStorageAdapter } from 
  *
  * This key is FROZEN — it is the stable 1.0 contract and must not change without
  * a `:v2:` bump. The prerelease adapter used a different, unversioned key
- * (`triiiceratops:annotations:<manifestId>:<canvasId>`). Per SPEC, RC-era data is
+ * (`triiiceratops:annotations:<manifestId>:<canvasId>`). RC-era data is
  * neither read, migrated, deleted, nor overwritten: this adapter never touches
  * the old namespace, so prerelease keys are left byte-identical and untouched
  * (they are disposable RC data). This is local/single-browser storage — not a
@@ -203,8 +203,7 @@ export declare const AnnotationEditorPlugin: SdkPlugin;
 import type { AnnotationStorageAdapter } from '../types';
 /**
  * Adapter authoring kit — a reusable conformance suite so adapter authors can
- * verify their implementation against the contract the plugin relies on (F28 /
- * SPEC §2.6).
+ * verify their implementation against the contract the plugin relies on.
  *
  * An adapter is pure storage: the plugin owns display sync, caching, id
  * bookkeeping, timestamp/attribution stamping, and error handling. This suite
@@ -228,7 +227,7 @@ export interface AdapterContractOptions {
      * The adapter mints its own canonical id on `create` and returns it (as an
      * annotation or an id string). When set, the suite asserts `create` returns a
      * non-void value and that the returned id is honored by subsequent
-     * `update`/`delete` (F5).
+     * `update`/`delete`.
      */
     supportsIdReconciliation?: boolean;
     /**
@@ -351,13 +350,13 @@ export interface AnnotationStorageAdapter<TBody = W3CAnnotationBody> {
     delete(manifestId: string, canvasId: string, annotationId: string): Promise<void>;
     destroy?(): void;
 }
-/** The adapter operations whose failures are surfaced (F20). */
+/** The adapter operations whose failures are surfaced. */
 export type AnnotationPersistenceOp = 'load' | 'create' | 'update' | 'delete' | 'hydrate';
 /**
  * Structured description of a failed persistence operation handed to
  * `config.onPersistenceError`. The plugin has already rolled back its optimistic
  * cache/display changes by the time this fires; `retry()` re-runs the exact
- * failed operation with the same payload (F20).
+ * failed operation with the same payload.
  */
 export interface AnnotationPersistenceError {
     op: AnnotationPersistenceOp;
@@ -404,7 +403,7 @@ export interface AnnotationEditorConfig<TBody = W3CAnnotationBody, THostContext 
      * host decides how to surface the failure and may call `retry()` to re-run
      * the exact failed operation. When omitted, the plugin logs to the console
      * and shows a dismissible error line in the panel so failures are never
-     * invisible (F20).
+     * invisible.
      */
     onPersistenceError?: (error: AnnotationPersistenceError) => void;
 }

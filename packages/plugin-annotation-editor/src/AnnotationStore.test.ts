@@ -31,7 +31,7 @@ function anno(id: string): W3CAnnotation {
 /**
  * A "docs example" adapter: only the five storage methods over an in-memory Map,
  * with zero knowledge of the viewer's display state. Display sync is entirely
- * the store's job (F10).
+ * the store's job.
  */
 function inMemoryAdapter(): AnnotationStorageAdapter {
     const store = new Map<string, W3CAnnotation[]>();
@@ -63,7 +63,7 @@ function inMemoryAdapter(): AnnotationStorageAdapter {
     };
 }
 
-describe('AnnotationStore display sync (F10)', () => {
+describe('AnnotationStore display sync', () => {
     it('injects loaded annotations into the viewer display state on load', async () => {
         setUserAnnotations.mockClear();
         const adapter = inMemoryAdapter();
@@ -123,7 +123,7 @@ describe('AnnotationStore display sync (F10)', () => {
         expect((adapter as any).destroy).toHaveBeenCalledTimes(1);
     });
 
-    it('reconciles a server-assigned id returned as an annotation (F5)', async () => {
+    it('reconciles a server-assigned id returned as an annotation', async () => {
         const adapter = inMemoryAdapter();
         adapter.create = vi.fn(async (_m, _c, annotation) => ({
             ...annotation,
@@ -176,7 +176,7 @@ describe('AnnotationStore display sync (F10)', () => {
         );
     });
 
-    it('reconciles a server id returned as a bare string (F5)', async () => {
+    it('reconciles a server id returned as a bare string', async () => {
         const adapter = inMemoryAdapter();
         adapter.create = vi.fn(async () => 'https://server/anno/7');
 
@@ -191,7 +191,7 @@ describe('AnnotationStore display sync (F10)', () => {
         );
     });
 
-    it('keeps the local id when create returns void (F5)', async () => {
+    it('keeps the local id when create returns void', async () => {
         const adapter = inMemoryAdapter();
         const store = new AnnotationStore({ adapter });
         store.setCanvas(MANIFEST, CANVAS);
@@ -222,7 +222,7 @@ describe('AnnotationStore display sync (F10)', () => {
     });
 });
 
-describe('AnnotationStore attribution stamping (F18)', () => {
+describe('AnnotationStore attribution stamping', () => {
     it('stamps @context, type, creator, created, and default motivation on create', async () => {
         const adapter = inMemoryAdapter();
         const create = vi.fn(adapter.create);
@@ -300,7 +300,7 @@ describe('AnnotationStore attribution stamping (F18)', () => {
     });
 });
 
-describe('AnnotationStore error surface + rollback (F20)', () => {
+describe('AnnotationStore error surface + rollback', () => {
     it('reports a failed create, leaves cache/display at pre-op state, and retry re-runs it', async () => {
         const adapter = inMemoryAdapter();
         const realCreate = adapter.create;
@@ -470,7 +470,7 @@ describe('AnnotationStore error surface + rollback (F20)', () => {
     });
 });
 
-describe('AnnotationStore undo/redo (F6)', () => {
+describe('AnnotationStore undo/redo', () => {
     it('undoes a create by deleting it, then redoes by re-creating', async () => {
         const adapter = inMemoryAdapter();
         const deleteSpy = vi.fn(adapter.delete);
@@ -542,7 +542,7 @@ describe('AnnotationStore undo/redo (F6)', () => {
         expect(store.get('a')?.body).toEqual([{ value: 'keep' }]);
     });
 
-    it('undo of a server-reconciled create deletes the canonical id (F5)', async () => {
+    it('undo of a server-reconciled create deletes the canonical id', async () => {
         const adapter = inMemoryAdapter();
         adapter.create = vi.fn(async (_m, _c, annotation) => ({
             ...annotation,
@@ -642,7 +642,7 @@ describe('AnnotationStore undo/redo (F6)', () => {
     });
 });
 
-describe('AnnotationStore resolve() (F7/F14)', () => {
+describe('AnnotationStore resolve()', () => {
     it('discards a hydrate that settles after a canvas change — no stale cache write', async () => {
         let releaseHydrate: (value: W3CAnnotation) => void = () => {};
         const hydratePromise = new Promise<W3CAnnotation>((resolve) => {

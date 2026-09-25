@@ -8,8 +8,8 @@
  * all places engines have historically disagreed, so the gesture model earns
  * the full desktop matrix even while the rest of the renderer does not.
  *
- * The governing rule under test (spec §Input and animation): **continuous
- * input is never animated; discrete and programmatic input always is.**
+ * The governing rule under test: **continuous input is never animated; discrete
+ * and programmatic input always is.**
  *
  * The gesture *geometry* — ownership, pinch midpoint maths, flick velocity,
  * double-tap pairing — is unit-tested directly against the DOM-free recogniser

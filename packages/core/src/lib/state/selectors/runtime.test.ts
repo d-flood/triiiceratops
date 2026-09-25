@@ -110,10 +110,10 @@ describe('selector runtime', () => {
     });
 
     it('recompute() bypasses the version memo but still applies the gate', () => {
-        let ticket = 0;
-        const projection = vi.fn(() => ({ ticket }));
+        let revision = 0;
+        const projection = vi.fn(() => ({ revision }));
         const selected = runtime.createProjection(projection, {
-            equals: (a, b) => a.ticket === b.ticket,
+            equals: (a, b) => a.revision === b.revision,
         });
 
         const first = selected.recompute();
@@ -129,10 +129,10 @@ describe('selector runtime', () => {
         expect(selected.recompute()).toBe(first);
         expect(projection).toHaveBeenCalledTimes(2);
 
-        ticket = 1;
+        revision = 1;
         const next = selected.recompute();
         expect(next).not.toBe(first);
-        expect(next).toEqual({ ticket: 1 });
+        expect(next).toEqual({ revision: 1 });
         // The gated cache is shared: `read()` sees what `recompute()` published.
         expect(selected.read()).toBe(next);
     });

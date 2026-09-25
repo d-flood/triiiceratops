@@ -21,16 +21,15 @@ import {
 import type { ViewerError } from '../types/viewerError';
 
 /**
- * IIIF Content Search through the epic's one seam — a real `ViewerState` loaded
- * with raw manifest JSON, backed by the real manifest cache, with no mocks and
- * no hand-built canvases (`remove-manifesto` SPEC → "The seam").
+ * IIIF Content Search through one seam — a real `ViewerState` loaded with raw
+ * manifest JSON, backed by the real manifest cache, with no mocks and no
+ * hand-built canvases.
  *
  * This file used to `vi.mock` BOTH `manifesto.js`'s parse entry point and the
  * manifest cache, and fed a hand-built manifest double carrying `getSequences`,
- * `getCanvasById` and `getService`. It could not serve as an oracle for this
- * epic — it asserted on the abstraction being removed, and the search-service
- * lookup it exercised was the double's `getService`, not the product's
- * (`remove-manifesto` ticket 08).
+ * `getCanvasById` and `getService`. It could not serve as an oracle — it
+ * asserted on the abstraction being removed, and the search-service lookup it
+ * exercised was the double's `getService`, not the product's.
  *
  * Everything the network sees is still observed the same way: the exact URL the
  * viewer fetches, and the results and annotations it derives from the response.
@@ -188,7 +187,7 @@ describe('ViewerState - IIIF Search', () => {
             // A real manifest that declares no search service at all.
             await load(structuredClone(manifestV2WithoutSearch));
 
-            // Ticket 18: an unavailable search service is reported through the
+            // An unavailable search service is reported through the
             // structured `viewererror` channel, not bare console output.
             const reported: ViewerError[] = [];
             state.setErrorReporter((e) => reported.push(e));
@@ -500,7 +499,7 @@ describe('ViewerState - IIIF Search', () => {
 
             await state.search('deferred query');
 
-            // Ticket 18: the deferral is a debug-only diagnostic (silent by
+            // The deferral is a debug-only diagnostic (silent by
             // default). Assert the observable behavior instead of console output.
             expect(mockFetch).not.toHaveBeenCalled();
             expect(state.pendingSearchQuery).toBe('deferred query');
@@ -515,7 +514,7 @@ describe('ViewerState - IIIF Search', () => {
         it('should handle network failures', async () => {
             mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-            // Ticket 18: a failed search is reported through the structured
+            // A failed search is reported through the structured
             // `viewererror` channel, not bare console output.
             const reported: ViewerError[] = [];
             state.setErrorReporter((e) => reported.push(e));

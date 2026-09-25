@@ -570,7 +570,7 @@ const REQUIRED_GLOBALS = [
  *   across the port; the section that renders them is in the same lazy chunk as
  *   the transcript;
  * - the version-skew gate's diagnostics, and the curator-facing degradation
- *   warnings (user story 45). One cause line each: what failed, the names or URL
+ *   warnings. One cause line each: what failed, the names or URL
  *   involved, the remedy, and a docs pointer. The explanation of why the term
  *   means what it does is in the docs, not in bytes on every page.
  *

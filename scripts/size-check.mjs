@@ -51,7 +51,7 @@ const SLACK = 512;
 const ARTIFACTS = ['triiiceratops-element.iife.js', 'triiiceratops-element.js'];
 
 /**
- * The standing competitive budget (SPEC user story 39a).
+ * The standing competitive budget.
  *
  * The per-artifact baselines above ratchet core against ITSELF, which says
  * nothing about the promise the project actually makes. That promise is about

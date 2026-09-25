@@ -8,9 +8,8 @@
  * decoupled).
  *
  * The plugin API version is intentionally separate from the core package
- * version (SPEC.md "Plugin SDK And Browser API"): additive capabilities bump
- * the plugin API minor; removals or semantic changes require a plugin API
- * major.
+ * version: additive capabilities bump the plugin API minor; removals or
+ * semantic changes require a plugin API major.
  */
 
 /**

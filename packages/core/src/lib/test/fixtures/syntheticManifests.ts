@@ -2,11 +2,9 @@
  * Synthetic IIIF manifests covering parsing branches that no real manifest in
  * the vendored corpus reaches.
  *
- * Part of the parser corpus (see `.tracker/remove-manifesto/SPEC.md`). The
- * vendored manifests in
- * `./manifests/` are the manifests that broke a real library over a decade;
- * these are the branches we KNOW exist and want hit deliberately, so a
- * regression reads as a named failing case rather than as an absence.
+ * Part of the parser corpus. The vendored manifests in `./manifests/` are the
+ * manifests that broke a real library over a decade; these are the branches we
+ * KNOW exist and want hit deliberately, so a regression reads as a named failing case rather than as an absence.
  *
  * Every fixture here is minimal on purpose: one feature per manifest, the
  * smallest canvas that still enumerates. They are NOT a style guide for real

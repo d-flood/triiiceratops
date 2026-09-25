@@ -1,10 +1,9 @@
 <!--
-    svelte-check runs with `customElement: false` (ticket 22) so ordinary
-    components are not analyzed as custom elements. This wrapper IS compiled as a
-    custom element in the real element builds (vite.config.element*.ts, which
-    upgrade this one file via `dynamicCompileOptions`), so the customElement
-    options below are correct there.
-    svelte-check cannot apply per-file customElement, so it emits
+    svelte-check runs with `customElement: false` so ordinary components are not
+    analyzed as custom elements. This wrapper IS compiled as a custom element in
+    the real element builds (vite.config.element*.ts, which upgrade this one
+    file via `dynamicCompileOptions`), so the customElement options below are
+    correct there. svelte-check cannot apply per-file customElement, so it emits
     `options_missing_custom_element` for this one file; that single code is
     ignored via the `--compiler-warnings` flag on the `check` script and recorded
     in lint-allowlist.md (svelte-ignore does not apply to <svelte:options>).
@@ -182,14 +181,14 @@
          */
         searchProvider?: SearchProvider | null;
         /**
-         * Element-property host callback for the `pluginerror` channel
-         * (ticket 09). WC hosts may also listen for the bubbling, composed
+         * Element-property host callback for the `pluginerror` channel. WC
+         * hosts may also listen for the bubbling, composed
          * `pluginerror` DOM event on the element.
          */
         onpluginerror?: (error: PluginError) => void;
         /**
-         * Element-property host callback for the `viewererror` channel
-         * (ticket 18). WC hosts may also listen for the bubbling, composed
+         * Element-property host callback for the `viewererror` channel. WC
+         * hosts may also listen for the bubbling, composed
          * `viewererror` DOM event on the element.
          */
         onviewererror?: (error: ViewerError) => void;

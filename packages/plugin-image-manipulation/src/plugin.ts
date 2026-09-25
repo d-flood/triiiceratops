@@ -86,7 +86,7 @@ export const ImageManipulationPlugin: SdkPlugin = definePlugin({
     icon: SLIDERS_ICON,
     target: 'flyout',
     // A live-editing surface: closes only via its toolbar button, never on a
-    // canvas click (SPEC.md — Dismiss).
+    // canvas click.
     dismiss: 'explicit',
     catalog,
     view,

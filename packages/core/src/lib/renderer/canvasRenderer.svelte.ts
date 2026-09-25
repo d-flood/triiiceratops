@@ -278,8 +278,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * easing is JS-driven**: the global CSS guard in `styles/base.css` zeroes
      * transition and animation durations, and not one frame of a wheel zoom, a
      * fit, or a flick passes through either. Honoring the preference here is
-     * the behaviour change the spec calls for (§Reduced motion) — snap-to
-     * instead of glide.
+     * the behaviour change reduced motion calls for — snap-to instead of glide.
      *
      * Deliberately not `$state`: it is read by the frame loop and by input
      * handlers, never by the reactive graph.
@@ -473,8 +472,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     /**
      * canvasId → why that canvas has no pixels, for the canvases that failed.
      *
-     * **The source of truth for error state** (spec §Errors). An `info.json` that
-     * answered `401`, one that answered nothing usable, or a static image whose
+     * **The source of truth for error state**. An `info.json` that answered
+     * `401`, one that answered nothing usable, or a static image whose
      * decode failed all land here, against the canvas they belong to and nowhere
      * else — which is what lets folio 400 fail while 1–399 keep displaying.
      * {@link updatePlaceholders} turns it into placeholders and
@@ -606,9 +605,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * Beside {@link plannerCanvases} rather than inside it, and that separation
      * is the point: the descriptor derivation above stays claim-free and
      * phase-free, so a claim arriving does not re-plan every canvas in an
-     * 800-folio manifest (user story 28). This one reads the claim set and
+     * 800-folio manifest. This one reads the claim set and
      * **not** the phase, so pressing play selects between values already in hand
-     * instead of rebuilding them (user story 29).
+     * instead of rebuilding them.
      *
      * Empty for every manifest with no claimed canvas, which is all of them
      * until an AV plugin is registered.
@@ -660,7 +659,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      *
      * A canvas whose claimant has set no phase at all is passed through
      * untouched, so the claim on its own still changes nothing about what core
-     * renders (user story 27).
+     * renders.
      */
     const paintedCanvases: PlannerCanvas[] = $derived(
         companionsByCanvasId.size === 0
@@ -681,11 +680,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      *
      * Deliberately a key over the geometry rather than the painted list itself.
      * A refit overwrites the reader's centre and scale, and `paintedCanvases`
-     * reallocates whenever a claim or a companion phase arrives — while the rect
-     * is identical across every phase of the same canvas by construction. Keying
-     * on the array would throw the page back to a fit on every play and pause
-     * (user story 14) and would move a canvas the moment a plugin claimed it
-     * (user story 27).
+     * reallocates whenever a claim or a companion phase arrives — while the
+     * rect is identical across every phase of the same canvas by construction.
+     * Keying on the array would throw the page back to a fit on every play and
+     * pause and would move a canvas the moment a plugin claimed it.
      */
     const paintedGeometry: string = $derived(
         paintedCanvases
@@ -766,8 +764,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     }
 
     /**
-     * Whether the view has stopped moving — **the view-stable gate** (spec
-     * §Tile scheduling).
+     * Whether the view has stopped moving — **the view-stable gate**.
      *
      * Four ways to be moving, and all four are the same thing to a reader: a
      * finger or button is down (the arbiter owns the gesture), a spring is
@@ -856,7 +853,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * Never a user-facing error and never the unsupported presentation: the
      * canvas is one a plugin is rendering into, so the reader is being told
      * about the recording by its claimant either way, and a broken companion
-     * costs a picture rather than the canvas (user story 23). Debug-gated
+     * costs a picture rather than the canvas. Debug-gated
      * `logger` for {@link reportUnresolvedThumbnails}' reason — a published
      * distribution is quiet by default.
      */
@@ -883,9 +880,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * floor it will be: `imageServiceCache` holds a bounded in-flight window
      * (`rendererDefaults.METADATA_IN_FLIGHT_LIMIT`) and queues the rest, so
      * metadata is under a concurrency cap as well as under the tier and the
-     * view-stable gate — the three bounds the spec asks for, not two of them.
-     * The list arrives centre-out from the planner and is re-emitted every
-     * frame, so the queue drains nearest-first.
+     * view-stable gate — all three bounds, not two of them. The list arrives
+     * centre-out from the planner and is re-emitted every frame, so the queue
+     * drains nearest-first.
      *
      * **Every service on the canvas**, not one: a composite canvas paints from
      * as many image services as it has painting annotations, and the planner
@@ -961,12 +958,11 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         void imageServiceCache.ensure(serviceId, declared).then((facts) => {
             if (!facts) {
                 if (warm) return;
-                // A canvas that will never have pixels. Recorded against
-                // THIS canvas rather than swallowed or raised viewer-wide:
-                // painting nothing and saying nothing is indistinguishable
-                // from still loading (user stories 26 and 27), and blanking
-                // the viewer for it would take 799 working folios down with
-                // it.
+                // A canvas that will never have pixels. Recorded against THIS
+                // canvas rather than swallowed or raised viewer-wide: painting
+                // nothing and saying nothing is indistinguishable from still
+                // loading, and blanking the viewer for it would take 799
+                // working folios down with it.
                 //
                 // A repaint IS asked for, unlike before: the placeholder is
                 // positioned by the frame loop, so without a frame the
@@ -1013,16 +1009,15 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             // Captured BEFORE the write below, which is what re-lays the
             // world out. See `compensateForReflow`.
             const beforeReflow = viewportLimits().layout;
-            // APPEND-ONLY, and load-bearing: LAYOUT reads this record. A
-            // canvas the manifest never sized is laid out from a guess and
-            // reflowed to the facts below, so evicting an entry would put
-            // the guess back — resizing the canvas, changing its tier, and
-            // provoking the very fetch whose answer was just dropped. The
-            // planner asserts the fixed point (`planScene.test.ts` §the
-            // reflow terminates); the byte budget must evict
-            // decoded pixels only, never these facts, which is also what
-            // "metadata is cached separately from decoded pixels, with a
-            // longer lifetime" means in the spec.
+            // APPEND-ONLY, and load-bearing: LAYOUT reads this record. A canvas
+            // the manifest never sized is laid out from a guess and reflowed to
+            // the facts below, so evicting an entry would put the guess back —
+            // resizing the canvas, changing its tier, and provoking the very
+            // fetch whose answer was just dropped. The planner asserts the
+            // fixed point (`planScene.test.ts` §the reflow terminates); the
+            // byte budget must evict decoded pixels only, never these facts:
+            // metadata is cached separately from decoded pixels, with a longer
+            // lifetime.
             knownMetadata[serviceId] = facts;
             // The one input to `viewportLimits`' memo that is mutated in
             // place rather than replaced, so the memo cannot see it by
@@ -1809,7 +1804,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         fitBounds(bounds: ViewportBox, canvasId?: string): void {
             const placement = placementOf(canvasId);
             if (!placement) return;
-            // Programmatic input is always animated (spec §Input and animation).
+            // Programmatic input is always animated.
             applyFit(canvasBoxToWorld(bounds, placement), true);
         },
 
@@ -2070,9 +2065,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * One frame of a held zoom control.
      *
      * Written straight onto `viewport` rather than eased towards a target
-     * because a hold is continuous input (spec §Input and animation), and
-     * exponential in scale so that a constant `ZOOM_PER_SECOND` reads as an
-     * even rate across the whole zoom range.
+     * because a hold is continuous input, and exponential in scale so that a
+     * constant `ZOOM_PER_SECOND` reads as an even rate across the whole zoom
+     * range.
      */
     function stepZoom(elapsed: number) {
         const wanted =
@@ -2795,9 +2790,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     // no double-click event either — a double TAP and a double CLICK are the
     // same gesture here, recognised once from pointer samples.
     //
-    // The governing rule (spec §Input and animation): **continuous input is
-    // never animated; discrete and programmatic input always is.** Drag and
-    // pinch land in `setViewDirect`; wheel, double-tap, and fit land in
+    // The governing rule: **continuous input is never animated; discrete and
+    // programmatic input always is.** Drag and pinch land in `setViewDirect`;
+    // wheel, double-tap, and fit land in
     // `setViewAnimated`.
     //
     // Which gesture is running is decided in exactly one place — the
@@ -2866,13 +2861,13 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         //
         // An ANIMATION is deliberately NOT truncated here. A wheel zoom or a
         // double-tap zoom is a discrete jump the user asked for, and a press
-        // alone is not a viewport gesture: single click is unbound, reserved for
-        // annotation selection (spec §Input and animation), so freezing the zoom
-        // part-way would make a stray click a viewport change. The animation is
-        // instead truncated by the first gesture that actually MOVES the
-        // viewport — `setViewDirect` clears `animating` on the first pan or
-        // pinch update — which is the same ownership decision the arbiter
-        // already made, and which a held input claim therefore never triggers.
+        // alone is not a viewport gesture: single click is unbound, reserved
+        // for annotation selection, so freezing the zoom part-way would make a
+        // stray click a viewport change. The animation is instead truncated by
+        // the first gesture that actually MOVES the viewport — `setViewDirect`
+        // clears `animating` on the first pan or pinch update — which is the
+        // same ownership decision the arbiter already made, and which a held
+        // input claim therefore never triggers.
         //
         // A held ARROW ends here for the momentum reason, not the animation
         // one: it is a continuous velocity, and the hand arriving asks for it
@@ -2974,8 +2969,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             case 'flick':
                 // Momentum is motion the user did not ask for frame by frame —
                 // the viewport keeps going after the hand has left. Under
-                // reduced motion the release simply stops (spec §Reduced
-                // motion); the pan itself, being direct, is untouched.
+                // reduced motion the release simply stops; the pan itself,
+                // being direct, is untouched.
                 if (reducedMotion) return;
                 momentum = update.velocity;
                 requestFrame();
@@ -2985,10 +2980,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 zoomAnchored(update.point, DOUBLE_TAP_ZOOM_FACTOR);
                 return;
 
-            // A single tap moves NOTHING here — `clickToZoom` stays false (spec
-            // §Input and animation). It is announced to the tap subscribers,
-            // which is how annotation selection hears the one gesture reserved
-            // for it without recognising a tap of its own.
+            // A single tap moves NOTHING here — `clickToZoom` stays false. It
+            // is announced to the tap subscribers, which is how annotation
+            // selection hears the one gesture reserved for it without
+            // recognising a tap of its own.
             case 'tap':
                 emitTap(update.point);
                 return;
@@ -3152,8 +3147,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     // Every binding here is on the SURFACE ELEMENT, never on the document.
     // Arrow keys already rove focus inside the viewer's menus, listboxes, and
     // panels, and a document-level listener would pan the image from all of
-    // them (spec §Keyboard). The surface being focusable is what scopes these:
-    // no focus, no keydown, no binding.
+    // them. The surface being focusable is what scopes these: no focus, no
+    // keydown, no binding.
     //
     // Page Up/Down are deliberately unbound — see `renderer/keyboardPan.ts`.
 
@@ -3188,8 +3183,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      *
      * With other arrows still down the velocity is simply recomputed. With the
      * last one released the travel becomes momentum and decays under the same
-     * friction as a flick (spec §Keyboard) — under reduced motion it just
-     * stops.
+     * friction as a flick — under reduced motion it just stops.
      *
      * `momentum` is the negation of `keyPan`: momentum is the *pointer's*
      * velocity (`stepMomentum` subtracts it from the centre), where `keyPan` is
@@ -3511,7 +3505,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // The only document/window-level listeners this component installs, and
         // they bind nothing: they end a hold, they never start one. The
         // bindings themselves stay on the surface element, or at the widest on
-        // the stage box below (spec §Keyboard).
+        // the stage box below.
         //
         // The window's own `blur` is the safety net that makes "the surface can
         // never be left panning forever" true rather than merely usual: the

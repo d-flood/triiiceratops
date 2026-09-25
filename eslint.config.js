@@ -58,7 +58,7 @@ export default ts.config(
             '@eslint-community/eslint-comments': eslintComments,
         },
         rules: {
-            // Ban wildcard suppressions (ticket 22): any `eslint-disable`,
+            // Ban wildcard suppressions: any `eslint-disable`,
             // `eslint-disable-line`, or `eslint-disable-next-line` without
             // explicit rule names is an error. Every real suppression must name
             // its rule(s) and be recorded in lint-allowlist.md.

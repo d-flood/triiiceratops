@@ -7,7 +7,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Triiiceratops provides a flexible configuration system that works consistently across every host — React, Vue, Svelte, or plain HTML."
+					"text": "Triiiceratops uses one configuration system in every host: React, Vue, Svelte, or plain HTML."
 				}
 			],
 			"attrs": {
@@ -57,7 +57,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Pick your stack's tab in any example below and the choice follows you across the site. The React, Vue, and Svelte tabs use those frameworks' components, which are the supported integration path — see the "
+					"text": "Pick your stack's tab in any example below and the choice follows you across the site. The React, Vue, and Svelte tabs use those frameworks' components, which are the supported integration path. See the "
 				},
 				{
 					"type": "text",
@@ -105,11 +105,11 @@
 				},
 				{
 					"type": "text",
-					"text": " guides. The HTML tab is the custom element, documented in "
+					"text": " guides. The HTML tab is the custom element, documented in the "
 				},
 				{
 					"type": "text",
-					"text": "any framework",
+					"text": "Any framework guide",
 					"marks": [
 						{
 							"type": "link",
@@ -138,7 +138,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Configuration Object"
+					"text": "Configuration object"
 				}
 			]
 		},
@@ -155,7 +155,7 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "Every setting below is on the "
+							"text": "Every setting below is available in the "
 						},
 						{
 							"type": "text",
@@ -171,7 +171,7 @@
 						},
 						{
 							"type": "text",
-							"text": ", over a manifest of your own: arrange the viewer by looking at it, then copy the configuration object, the theme, or a whole embeddable snippet for your framework."
+							"text": ". Load your own manifest, arrange the viewer visually, then copy the configuration object, the theme, or a full embed snippet for your framework."
 						}
 					],
 					"attrs": {
@@ -185,7 +185,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The viewer accepts a configuration object to customize the UI and behavior. Below is the structure of the configuration object with default values:"
+					"text": "The configuration object, with default values:"
 				}
 			],
 			"attrs": {
@@ -215,7 +215,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Nav Alignment and Playback Controls"
+					"text": "Nav alignment and playback controls"
 				}
 			]
 		},
@@ -246,7 +246,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — the seam a claimant of timed media uses to put playback controls in the control bar, which is how "
+					"text": ". Transport chrome is the hook a timed-media plugin uses to put playback controls in the control bar; "
 				},
 				{
 					"type": "text",
@@ -262,7 +262,7 @@
 				},
 				{
 					"type": "text",
-					"text": " gets its transport. The bar then spans its full available width, because the seek bar's width is the precision a reader can aim with, and a full-width bar has nowhere to align."
+					"text": " uses it. The bar then spans its full available width, because a wider seek bar lets the reader seek more precisely, and a full-width bar has nothing to align."
 				}
 			],
 			"attrs": {
@@ -274,7 +274,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The setting is not deprecated and nothing is warned about: it resumes meaning the moment the chrome deregisters. "
+					"text": "The setting is not deprecated and logs no warning: it takes effect again as soon as the chrome deregisters. "
 				},
 				{
 					"type": "text",
@@ -313,7 +313,7 @@
 				},
 				{
 					"type": "text",
-					"text": " all go on meaning exactly what they meant."
+					"text": " keep working as before."
 				}
 			],
 			"attrs": {
@@ -330,7 +330,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Sidebar Panel Layout"
+					"text": "Sidebar panel layout"
 				}
 			]
 		},
@@ -472,7 +472,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Plugin UI Control"
+					"text": "Plugin UI control"
 				}
 			]
 		},
@@ -494,7 +494,7 @@
 				},
 				{
 					"type": "text",
-					"text": " object used for built-in panes. Use each plugin's stable id as the key — the SDK "
+					"text": " object used for built-in panes. Use each plugin's stable id as the key: the "
 				},
 				{
 					"type": "text",
@@ -507,7 +507,7 @@
 				},
 				{
 					"type": "text",
-					"text": " a "
+					"text": " that a "
 				},
 				{
 					"type": "text",
@@ -619,7 +619,7 @@
 				},
 				{
 					"type": "text",
-					"text": " controls whether the plugin's toolbar button is rendered, "
+					"text": " controls whether the plugin's toolbar button is rendered, and "
 				},
 				{
 					"type": "text",
@@ -632,7 +632,7 @@
 				},
 				{
 					"type": "text",
-					"text": " controls whether the plugin surface is expanded, "
+					"text": " controls whether the plugin surface is expanded. "
 				},
 				{
 					"type": "text",
@@ -671,7 +671,7 @@
 				},
 				{
 					"type": "text",
-					"text": "), and "
+					"text": "). "
 				},
 				{
 					"type": "text",
@@ -684,7 +684,7 @@
 				},
 				{
 					"type": "text",
-					"text": " overrides where a docked panel opens ("
+					"text": " overrides where a docked panel opens: "
 				},
 				{
 					"type": "text",
@@ -710,7 +710,7 @@
 				},
 				{
 					"type": "text",
-					"text": " as a full-width band below the image, "
+					"text": " as a full-width band below the image, or "
 				},
 				{
 					"type": "text",
@@ -723,7 +723,20 @@
 				},
 				{
 					"type": "text",
-					"text": " floated over the image; ignored while the plugin's effective "
+					"text": " floated over the image. "
+				},
+				{
+					"type": "text",
+					"text": "position",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is ignored while the plugin's effective "
 				},
 				{
 					"type": "text",
@@ -749,7 +762,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", since a flyout anchors to its toolbar button rather than docking). All four apply reactively after mount, so a host can, for example, switch a plugin to a flyout on narrow viewports. See "
+					"text": ", since a flyout anchors to its toolbar button rather than docking. All four apply reactively after mount, so a host can, for example, switch a plugin to a flyout on narrow viewports. See "
 				},
 				{
 					"type": "text",
@@ -843,11 +856,11 @@
 				},
 				{
 					"type": "text",
-					"text": " on the element (objects can't go through HTML attributes — see "
+					"text": " on the element (objects can't go through HTML attributes; see the "
 				},
 				{
 					"type": "text",
-					"text": "any framework",
+					"text": "Any framework guide",
 					"marks": [
 						{
 							"type": "link",
@@ -897,7 +910,7 @@
 				},
 				{
 					"type": "text",
-					"text": " to change it. Mutating nested keys on the existing object does not notify the viewer, and in React and Vue the wrapper compares what you pass with one uniform, one-level shallow equality, so an in-place mutation looks like no change at all."
+					"text": " to change it. Mutating nested keys on the existing object does not notify the viewer, and in React and Vue the wrapper compares what you pass by one-level shallow equality, so an in-place mutation looks like no change at all."
 				}
 			],
 			"attrs": {
@@ -914,7 +927,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Passing Configuration"
+					"text": "Passing configuration"
 				}
 			]
 		},
@@ -1139,7 +1152,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Direct Manifest Data"
+					"text": "Direct manifest data"
 				}
 			]
 		},
@@ -1174,7 +1187,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — the viewer uses the supplied JSON directly and never fetches over HTTP."
+					"text": ". The viewer uses the supplied JSON directly and never fetches over HTTP."
 				}
 			],
 			"attrs": {
@@ -1209,7 +1222,7 @@
 								},
 								{
 									"type": "text",
-									"text": " is a property-based API — set it after the element upgrades, not as an inline attribute:"
+									"text": " is a property-based API. Set it after the element upgrades, not as an inline attribute:"
 								}
 							],
 							"attrs": {
@@ -1256,7 +1269,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Keep the object's identity stable — a manifest rebuilt on every render is re-applied on every render."
+									"text": "Keep the object's identity stable: a manifest rebuilt on every render is re-applied on every render."
 								}
 							],
 							"attrs": {
@@ -1346,7 +1359,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Reacting to State Changes"
+					"text": "Reacting to state changes"
 				}
 			]
 		},
@@ -1382,7 +1395,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — typed callbacks and emits for the notification channels, and "
+									"text": ": typed callbacks and emits for the notification channels, and "
 								},
 								{
 									"type": "text",
@@ -1424,7 +1437,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — DOM events carrying a "
+									"text": ": DOM events carrying a "
 								},
 								{
 									"type": "text",
@@ -1479,7 +1492,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — a two-way bound "
+									"text": ": a two-way bound "
 								},
 								{
 									"type": "text",
@@ -1702,7 +1715,7 @@
 								},
 								{
 									"type": "text",
-									"text": " carries the live state itself — see "
+									"text": " carries the live state itself. See "
 								},
 								{
 									"type": "text",
@@ -1818,7 +1831,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Use these events to sync your application’s own UI with the viewer — a heading that names the current canvas, a URL you keep in step, an analytics call."
+									"text": "Use these events to sync your application's own UI with the viewer, such as a heading that names the current canvas, a URL you keep in step, or an analytics call."
 								}
 							],
 							"attrs": {
@@ -1933,7 +1946,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — direct, reactive access to the internal state, no events needed:"
+									"text": ": direct, reactive access to the internal state without events:"
 								}
 							],
 							"attrs": {
@@ -1971,7 +1984,7 @@
 								},
 								{
 									"type": "text",
-									"text": " binding updates your local variable — a nice bonus of the native integration."
+									"text": " binding updates your local variable."
 								}
 							],
 							"attrs": {
@@ -2014,7 +2027,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is which notification wakes a projection. It applies wherever the selector runtime does — "
+					"text": " is the notification that wakes a projection. It applies wherever the selector runtime does: "
 				},
 				{
 					"type": "text",
@@ -2207,7 +2220,7 @@
 										},
 										{
 											"type": "text",
-											"text": " — canvas, manifest, panels, gallery, plugin UI"
+											"text": " (canvas, manifest, panels, gallery, plugin UI)"
 										}
 									],
 									"attrs": {
@@ -2368,7 +2381,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Those viewport values are read from the renderer on demand and are deliberately "
+					"text": "Those viewport values are read from the renderer on demand and are "
 				},
 				{
 					"type": "text",
@@ -2431,7 +2444,7 @@
 				},
 				{
 					"type": "text",
-					"text": " cadence, never a coarser one: a frame-cadence projection also wakes on state notifications, so it never serves a stale inventoried member between animations. The frame ticker attaches lazily when a renderer surface appears and detaches on teardown or replacement — there is no "
+					"text": " cadence: a frame-cadence projection also wakes on state notifications, so it never serves a stale inventoried member between animations. The frame ticker attaches lazily when a renderer surface appears and detaches on teardown or replacement. There is no "
 				},
 				{
 					"type": "text",
@@ -2540,7 +2553,7 @@
 				},
 				{
 					"type": "text",
-					"text": " members — command state and observable state. The checked-in "
+					"text": " members (command state and observable state). The checked-in "
 				},
 				{
 					"type": "text",
@@ -2594,7 +2607,7 @@
 				},
 				{
 					"type": "text",
-					"text": " cadence is the one selector mistake that fails silently — the projection simply appears frozen, because the viewport's scale, center, and bounds change every frame and deliberately never wake the batched watcher. With "
+					"text": " cadence fails silently: the projection appears frozen, because the viewport's scale, center, and bounds change every frame and never wake the batched watcher. With "
 				},
 				{
 					"type": "text",
@@ -2681,7 +2694,7 @@
 				},
 				{
 					"type": "text",
-					"text": " turns on developer diagnostics that are otherwise silent, because their failure modes produce no error — just a viewer that quietly does the wrong thing:"
+					"text": " turns on developer diagnostics that are otherwise silent, because their failure modes produce no error, only a viewer that quietly does the wrong thing:"
 				}
 			],
 			"attrs": {
@@ -2699,7 +2712,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "a property-tier prop re-assigned an implausible number of times (an unmemoized object prop in React or Vue);"
+									"text": "a property-tier prop re-assigned more than 10 times (an unmemoized object prop in React or Vue);"
 								}
 							],
 							"attrs": {
@@ -2813,7 +2826,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — a production build with "
+					"text": ": a production build with "
 				},
 				{
 					"type": "text",
@@ -2891,7 +2904,7 @@
 				},
 				{
 					"type": "text",
-					"text": " entirely states no opinion, so a second viewer configured for something else never silences the first. Pass "
+					"text": " entirely leaves the setting unchanged, so a second viewer configured for something else never silences the first. Pass "
 				},
 				{
 					"type": "text",
@@ -3062,7 +3075,7 @@
 								},
 								{
 									"type": "text",
-									"text": ", driven by commands and selectors. This is a first-class path and the answer for a custom toolbar: hide the built-in chrome you are replacing, then drive the viewer yourself. Anything the viewer's own UI can do, a command can do — that is the parity rule, and the "
+									"text": ", driven by commands and selectors. This is a supported path and the answer for a custom toolbar: hide the built-in chrome you are replacing, then drive the viewer yourself. Anything the viewer's own UI can do, a command can do (the parity rule), and the "
 								},
 								{
 									"type": "text",
@@ -3120,7 +3133,7 @@
 								},
 								{
 									"type": "text",
-									"text": " the viewer's chrome — in a docked panel or an anchored flyout — is what the "
+									"text": " the viewer's chrome, in a docked panel or an anchored flyout, is what the "
 								},
 								{
 									"type": "text",
@@ -3285,7 +3298,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Programmatic Search"
+					"text": "Programmatic search"
 				}
 			]
 		},
@@ -3307,7 +3320,7 @@
 				},
 				{
 					"type": "text",
-					"text": " property in the configuration. This allows you to integrate external search bars or predefined queries."
+					"text": " property in the configuration, for example from an external search bar or a predefined query."
 				}
 			],
 			"attrs": {
@@ -3332,7 +3345,7 @@
 				},
 				{
 					"type": "text",
-					"text": " command directly — React and Vue reach it through "
+					"text": " command directly. React and Vue reach it through "
 				},
 				{
 					"type": "text",
@@ -3396,7 +3409,7 @@
 				},
 				{
 					"type": "text",
-					"text": " when the search source is local application state rather than a manifest-declared IIIF Search service."
+					"text": " when the search source is local application state rather than a manifest-declared IIIF Content Search service."
 				}
 			],
 			"attrs": {
@@ -3444,7 +3457,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Call the command through the handle — no config round trip needed:"
+									"text": "Call the command through the handle, with no config round trip:"
 								}
 							],
 							"attrs": {
@@ -3568,7 +3581,7 @@
 				},
 				{
 					"type": "text",
-					"text": " still has the old query unless you reset it — read the viewer's own state (a selector, the "
+					"text": " still has the old query unless you reset it. Read the viewer's own state (a selector, the "
 				},
 				{
 					"type": "text",
@@ -3611,7 +3624,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Custom Search Providers"
+					"text": "Custom search providers"
 				}
 			]
 		},
@@ -3642,7 +3655,7 @@
 				},
 				{
 					"type": "text",
-					"text": " host — the React wrapper's "
+					"text": " host: the React wrapper's "
 				},
 				{
 					"type": "text",
@@ -3715,7 +3728,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is a callback-based alternate search source. It is not a way to declare a IIIF Search service URI, inject a missing service into a manifest, or override the manifest's service metadata. Use normal manifest "
+					"text": " is a callback-based alternate search source. It is not a way to declare a IIIF Content Search service URI, inject a missing service into a manifest, or override the manifest's service metadata. Use normal manifest "
 				},
 				{
 					"type": "text",
@@ -3753,7 +3766,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", v2 or v3 as authored — see "
+					"text": ", v2 or v3 as authored. See "
 				},
 				{
 					"type": "text",
@@ -3842,7 +3855,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". The search panel renders them as text nodes, so any markup you return is displayed as visible characters rather than interpreted — a search service cannot inject elements or script into the host page."
+					"text": ". The search panel renders them as text nodes, so any markup you return is displayed as visible characters rather than interpreted, so a search service cannot inject elements or script into the host page."
 				}
 			],
 			"attrs": {
@@ -3871,7 +3884,7 @@
 				},
 				{
 					"type": "text",
-					"text": "<mark>…</mark>",
+					"text": "&lt;mark&gt;…&lt;/mark&gt;",
 					"marks": [
 						{
 							"type": "code"
@@ -3944,7 +3957,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and any other variation are excerpt text, and now render as visible characters — so emit the tag exactly as spelled above."
+					"text": " and any other variation are excerpt text and render as visible characters, so emit the tag as spelled above."
 				}
 			],
 			"attrs": {
@@ -3960,7 +3973,7 @@
 				},
 				{
 					"type": "text",
-					"text": "&",
+					"text": "&amp;",
 					"marks": [
 						{
 							"type": "code"
@@ -3973,7 +3986,7 @@
 				},
 				{
 					"type": "text",
-					"text": "<",
+					"text": "&lt;",
 					"marks": [
 						{
 							"type": "code"
@@ -3986,7 +3999,7 @@
 				},
 				{
 					"type": "text",
-					"text": ">",
+					"text": "&gt;",
 					"marks": [
 						{
 							"type": "code"
@@ -3999,7 +4012,7 @@
 				},
 				{
 					"type": "text",
-					"text": "\"",
+					"text": "&quot;",
 					"marks": [
 						{
 							"type": "code"
@@ -4012,7 +4025,7 @@
 				},
 				{
 					"type": "text",
-					"text": "'",
+					"text": "&#39;",
 					"marks": [
 						{
 							"type": "code"
@@ -4025,7 +4038,7 @@
 				},
 				{
 					"type": "text",
-					"text": "AT&T",
+					"text": "AT&amp;T",
 					"marks": [
 						{
 							"type": "code"
@@ -4143,7 +4156,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "A property, never an attribute — assign it on the element:"
+									"text": "It is a property, not an attribute. Assign it on the element:"
 								}
 							],
 							"attrs": {
@@ -4232,7 +4245,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is supplied, the viewer uses that callback instead of fetching a manifest-declared IIIF Search service for that search action."
+					"text": " is supplied, the viewer uses that callback instead of fetching a manifest-declared IIIF Content Search service for that search action."
 				}
 			],
 			"attrs": {
@@ -4249,7 +4262,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Controlling Active Canvas"
+					"text": "Controlling the active canvas"
 				}
 			]
 		},
@@ -4313,7 +4326,7 @@
 						},
 						{
 							"type": "text",
-							"text": ": an instruction to the viewer, not a continuously enforced binding. Think "
+							"text": ": an instruction to the viewer, not a continuously enforced binding. In React terms, it behaves like "
 						},
 						{
 							"type": "text",
@@ -4339,7 +4352,7 @@
 						},
 						{
 							"type": "text",
-							"text": ", never "
+							"text": ", not "
 						},
 						{
 							"type": "text",
@@ -4517,7 +4530,7 @@
 								},
 								{
 									"type": "text",
-									"text": " to navigate; read a selector to follow the viewer. The selector is the authoritative value — it updates for internal navigation (Next/Prev, gallery clicks) as well as for your own instructions."
+									"text": " to navigate; read a selector to follow the viewer. The selector is the authoritative value: it updates for internal navigation (Next/Prev, gallery clicks) as well as for your own instructions."
 								}
 							],
 							"attrs": {
@@ -4564,7 +4577,7 @@
 								},
 								{
 									"type": "text",
-									"text": " to navigate; read a selector to follow the viewer. The selector is the authoritative value — it updates for internal navigation (Next/Prev, gallery clicks) as well as for your own instructions."
+									"text": " to navigate; read a selector to follow the viewer. The selector is the authoritative value: it updates for internal navigation (Next/Prev, gallery clicks) as well as for your own instructions."
 								}
 							],
 							"attrs": {
@@ -4624,7 +4637,7 @@
 								},
 								{
 									"type": "text",
-									"text": " (Owner -> Viewer). To keep your local state in sync with the viewer, you should bind to "
+									"text": " (from your component to the viewer). To keep your local state in sync with the viewer, bind to "
 								},
 								{
 									"type": "text",
@@ -4671,7 +4684,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Renderer Tuning"
+					"text": "Renderer tuning"
 				}
 			]
 		},
@@ -4727,7 +4740,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "There is deliberately "
+					"text": "There is "
 				},
 				{
 					"type": "text",
@@ -4884,7 +4897,7 @@
 				},
 				{
 					"type": "text",
-					"text": " input that is animated — direct manipulation is deliberately never smoothed ("
+					"text": " input that is animated. Direct manipulation is never smoothed ("
 				},
 				{
 					"type": "text",
@@ -4948,7 +4961,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — the detent of a classic mouse wheel, which the browser reports as about 100 pixels of "
+					"text": ", the detent of a classic mouse wheel, which the browser reports as about 100 pixels of "
 				},
 				{
 					"type": "text",
@@ -4974,7 +4987,7 @@
 				},
 				{
 					"type": "text",
-					"text": " takes roughly five notches to double the zoom; raise it for a faster wheel, lower it for a slower one. Scrolling the other way applies the reciprocal, so a notch out undoes a notch in exactly."
+					"text": " takes roughly five notches to double the zoom; raise it for a faster wheel, lower it for a slower one. Scrolling the other way applies the reciprocal, so a notch out cancels a notch in."
 				}
 			],
 			"attrs": {
@@ -4999,7 +5012,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", and there is deliberately no separate knob for one. A trackpad never emits a notch — it emits a stream of much smaller deltas — but because the rate underneath is per pixel, it covers the same 100 pixels over several events and gets the same zoom for the same scroll distance. Nothing in the viewer detects which device is in use; the usual heuristics are unreliable and that branch is a permanent source of hardware-specific bugs. If the trackpad feels different from the mouse, this single value moves both."
+					"text": ", and there is no separate trackpad knob. A trackpad never emits a notch (it emits a stream of much smaller deltas), but because the rate underneath is per pixel, it covers the same 100 pixels over several events and gets the same zoom for the same scroll distance. Nothing in the viewer detects which device is in use; the usual heuristics are unreliable and that branch is a permanent source of hardware-specific bugs. If the trackpad feels different from the mouse, this single value moves both."
 				}
 			],
 			"attrs": {
@@ -5125,7 +5138,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Loads the first Manifest automatically"
+									"text": "Loads the first Manifest"
 								}
 							],
 							"attrs": {
@@ -5320,7 +5333,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Collection Configuration"
+					"text": "Collection configuration"
 				}
 			]
 		},
@@ -5381,7 +5394,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Structures / Table of Contents"
+					"text": "Structures / table of contents"
 				}
 			]
 		},
@@ -5567,7 +5580,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Structures Configuration"
+					"text": "Structures configuration"
 				}
 			]
 		},
@@ -5609,7 +5622,7 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "When the manifest has only one top-level range, it is automatically expanded so you immediately see its children."
+							"text": "When the manifest has only one top-level range, it is expanded so you see its children right away."
 						}
 					],
 					"attrs": {
@@ -5628,7 +5641,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Start Canvas"
+					"text": "Start canvas"
 				}
 			]
 		},
@@ -5691,7 +5704,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "This is automatic — no configuration is needed. The "
+					"text": "This needs no configuration. The "
 				},
 				{
 					"type": "text",
@@ -5756,7 +5769,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Where the viewer opens is set by its inputs, and the viewer forms no opinion about your URLs. Three inputs place it:"
+					"text": "Three inputs set where the viewer opens. By default it does not read your page URL (see IIIF Content State below):"
 				}
 			],
 			"attrs": {
@@ -5995,7 +6008,7 @@
 										},
 										{
 											"type": "text",
-											"text": " — "
+											"text": " ("
 										},
 										{
 											"type": "text",
@@ -6008,7 +6021,7 @@
 										},
 										{
 											"type": "text",
-											"text": " in canvas coordinates — to frame"
+											"text": " in canvas coordinates) to frame"
 										}
 									],
 									"attrs": {
@@ -6070,7 +6083,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — one-way instructions, not enforced bindings — so re-asserting the current value after the reader has navigated writes nothing. "
+					"text": " (one-way instructions, not enforced bindings), so re-asserting the current value after the reader has navigated writes nothing. "
 				},
 				{
 					"type": "text",
@@ -6151,7 +6164,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is a portable IIIF description of a view. The viewer takes one as an explicit input, and reaches for an ambient one — the "
+					"text": " is a portable IIIF description of a view. The viewer takes one as an explicit input. It reads one from the page (the "
 				},
 				{
 					"type": "text",
@@ -6164,7 +6177,7 @@
 				},
 				{
 					"type": "text",
-					"text": " URL parameter, or a drop onto itself — only when the host opts in ("
+					"text": " URL parameter, or a drop onto the viewer) only when the host opts in ("
 				},
 				{
 					"type": "text",
@@ -6502,7 +6515,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "With both flags off — the default — the viewer never touches "
+					"text": "With both flags off (the default), the viewer never touches "
 				},
 				{
 					"type": "text",
@@ -6515,7 +6528,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and swallows no drop, so a component embedded in your application cannot consume an "
+					"text": " and does not intercept drops, so a component embedded in your application cannot consume an "
 				},
 				{
 					"type": "text",
@@ -6528,7 +6541,7 @@
 				},
 				{
 					"type": "text",
-					"text": " parameter, or a drag, meant for the page around it. Each flag delegates exactly one channel; every remaining channel — a paste, a "
+					"text": " parameter, or a drag, meant for the page around it. Each flag hands the viewer one input channel; every other channel (a paste, a "
 				},
 				{
 					"type": "text",
@@ -6554,7 +6567,7 @@
 				},
 				{
 					"type": "text",
-					"text": " attribute — stays the host’s."
+					"text": " attribute) stays with the host."
 				}
 			],
 			"attrs": {
@@ -6579,7 +6592,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", which wins over the URL parameter. A content state’s region is honored when the canvas it names opens, so supply it with the content state rather than assigning "
+					"text": ", which wins over the URL parameter. A content state's region is honored when the canvas it names opens, so supply it with the content state rather than assigning "
 				},
 				{
 					"type": "text",
@@ -6617,7 +6630,7 @@
 				},
 				{
 					"type": "text",
-					"text": " content state is the exception: it is the reader’s own gesture, so its manifest opens even on a viewer the host drives with "
+					"text": " content state is the exception: it is the reader's own gesture, so its manifest opens even on a viewer the host drives with "
 				},
 				{
 					"type": "text",
@@ -6713,7 +6726,7 @@
 				},
 				{
 					"type": "text",
-					"text": "bare viewer",
+					"text": "standalone viewer page",
 					"marks": [
 						{
 							"type": "link",
@@ -6841,7 +6854,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Core parses and carries the offset — "
+					"text": "Core parses and carries the offset ("
 				},
 				{
 					"type": "text",
@@ -6854,7 +6867,7 @@
 				},
 				{
 					"type": "text",
-					"text": " holds the last one, replaced whole by each navigation — but never acts on it. Only a plugin that has claimed that canvas interprets it, always as a "
+					"text": " holds the last one, replaced whole by each navigation) but never acts on it. Only a plugin that has claimed that canvas interprets it, always as a "
 				},
 				{
 					"type": "text",
@@ -6896,7 +6909,7 @@
 				},
 				{
 					"type": "text",
-					"text": ") is carried and deliberately not enforced: nothing in core stops playback at it."
+					"text": ") is carried but not enforced: nothing in core stops playback at it."
 				}
 			],
 			"attrs": {
@@ -6951,7 +6964,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Multiple Sequences / Alternative Page Sequences"
+					"text": "Multiple sequences / alternative page sequences"
 				}
 			]
 		},
@@ -6960,33 +6973,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "When a manifest contains more than one sequence — either via multiple IIIF v2 "
-				},
-				{
-					"type": "text",
-					"text": "sequences",
-					"marks": [
-						{
-							"type": "code"
-						}
-					]
-				},
-				{
-					"type": "text",
-					"text": " entries or IIIF v3 ranges with "
-				},
-				{
-					"type": "text",
-					"text": "behavior: sequence",
-					"marks": [
-						{
-							"type": "code"
-						}
-					]
-				},
-				{
-					"type": "text",
-					"text": " (cookbook 0027 Alternative Page Sequences) — the toolbar shows a "
+					"text": "When a manifest contains more than one sequence, the toolbar shows a "
 				},
 				{
 					"type": "text",
@@ -6999,7 +6986,33 @@
 				},
 				{
 					"type": "text",
-					"text": " button with a count badge."
+					"text": " button with a count badge. Multiple sequences come from multiple IIIF v2 "
+				},
+				{
+					"type": "text",
+					"text": "sequences",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " entries or from IIIF v3 ranges with "
+				},
+				{
+					"type": "text",
+					"text": "behavior: sequence",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " (cookbook 0027 Alternative Page Sequences)."
 				}
 			],
 			"attrs": {
@@ -7023,7 +7036,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "No configuration is required. The sequence picker appears automatically when "
+					"text": "No configuration is required: the picker appears when "
 				},
 				{
 					"type": "text",
@@ -7053,7 +7066,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Chrome Translations"
+					"text": "Chrome translations"
 				}
 			]
 		},
@@ -7062,7 +7075,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The viewer ships its chrome in English and takes every other language from you. Nothing has to be released for the viewer to speak your readers' language."
+					"text": "The viewer ships its chrome in English and takes every other language from you. You can add a language without waiting for a viewer release."
 				}
 			]
 		},
@@ -7119,7 +7132,7 @@
 				},
 				{
 					"type": "text",
-					"text": " fetches a catalog for a locale the viewer cannot yet render, so a reader downloads only the language they read in. It is called at most once per locale per viewer — by the toolbar's language picker, by "
+					"text": " fetches a catalog for a locale the viewer cannot yet render, so a reader downloads only the language they read in. It is called at most once per locale per viewer: by the toolbar's language picker, by "
 				},
 				{
 					"type": "text",
@@ -7228,7 +7241,7 @@
 				},
 				{
 					"type": "text",
-					"text": " names — never a locale nothing can supply, so a "
+					"text": " names. It lists no locale that nothing can supply, so a locale that "
 				},
 				{
 					"type": "text",
@@ -7241,7 +7254,7 @@
 				},
 				{
 					"type": "text",
-					"text": " the host declares no "
+					"text": " could fetch but that has no "
 				},
 				{
 					"type": "text",
@@ -7254,7 +7267,7 @@
 				},
 				{
 					"type": "text",
-					"text": " entry for is not offered. The button itself still appears only for a manifest authored in more than one language. In the custom element, "
+					"text": " entry is not offered. The button itself still appears only for a manifest authored in more than one language. In the custom element, "
 				},
 				{
 					"type": "text",
@@ -7280,7 +7293,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is a property only, because it is a function. Framework wrappers need neither: both fields ride on "
+					"text": " is a property only, because it is a function. Framework wrappers need neither: both fields go in "
 				},
 				{
 					"type": "text",
@@ -7307,7 +7320,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Best Practices"
+					"text": "Best practices"
 				}
 			]
 		},
@@ -7322,7 +7335,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Syncing External Controls",
+									"text": "Syncing external controls",
 									"marks": [
 										{
 											"type": "bold"
@@ -7331,7 +7344,7 @@
 								},
 								{
 									"type": "text",
-									"text": ": If you build external controls (like the toolbar in the builder), read the viewer's own state rather than assuming your inputs are still current — "
+									"text": ": If you build external controls (like the toolbar in the builder), read the viewer's own state rather than assuming your inputs are still current: "
 								},
 								{
 									"type": "text",
@@ -7435,7 +7448,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Avoiding Loops",
+									"text": "Avoiding loops",
 									"marks": [
 										{
 											"type": "bold"
@@ -7538,7 +7551,7 @@
 								},
 								{
 									"type": "text",
-									"text": " are compared with a one-level shallow equality. A nested object rebuilt on every render is re-applied on every render — hoist it, memoize it, or keep it in a "
+									"text": " are compared by one-level shallow equality. A nested object rebuilt on every render is re-applied on every render. Hoist it, memoize it, or keep it in a "
 								},
 								{
 									"type": "text",

@@ -1,7 +1,7 @@
 # Lint / diagnostics allowlist
 
 The quality gate is **zero warnings**: `eslint --max-warnings 0` and
-`svelte-check --threshold warning` both run in required CI (ticket 22). This file
+`svelte-check --threshold warning` both run in required CI. This file
 is the **only** sanctioned way to keep a specific diagnostic. Every entry must
 carry:
 
@@ -73,7 +73,7 @@ Rules:
 ### 3. bare `console.warn` — `packages/plugin-sdk/src/register.ts` (duplicate-registration notice)
 
 - **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
-  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`, ticket 28).
+  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`).
 - **Mechanism:** a `// triiiceratops-console-allow` marker comment on the
   preceding lines (the guard's documented, narrowly-scoped allow marker) —
   anchored to this exact site, not a blanket exception.
@@ -82,8 +82,8 @@ Rules:
   route to. When a second copy of a plugin (a different version) registers on the
   same page, the first-registration-wins rule silently ignores the newcomer; a
   one-time `console.warn` is the only way to make that page-level
-  misconfiguration visible to the integrator. Ticket 30 moved this warn from the
-  four plugin packages into the single SDK `register.ts`, so it now exists once.
+  misconfiguration visible to the integrator. It lives once, in the SDK's
+  `register.ts`, rather than in each plugin package.
   One further report-channel-first fallback carries the same marker and is
   covered by the same guard:
   `packages/plugin-annotation-editor/src/AnnotationStore.svelte.ts` (persistence
@@ -117,29 +117,29 @@ Rules:
   **2026-07-31:** five lines were REMOVED (`dist/types/plugin.d.ts`'s
   `icon`/`panel`/`flyout`/`component` `Component<any>` fields). They were not
   IIIF-boundary `any`s at all — they were the Svelte-only `PluginDef` chrome
-  path, deleted for 1.0 by framework-wrappers ticket 12. Nothing was added.
+  path, deleted for 1.0. Nothing was added.
   **2026-07-31 (later):** ONE line was ADDED —
   `dist/framework/props.d.ts :: manifestJson?: string | Record<string, any>`.
   It is the same IIIF boundary as the already-listed
   `TriiiceratopsViewer.svelte.d.ts :: manifestJson?: any`, reached for the first
-  time because framework-wrappers ticket 06 published `triiiceratops/react`,
+  time because `triiiceratops/react` is published,
   whose declaration graph includes the shared framework prop metadata. No new
   boundary and no new `any` — only a new public path to an existing one.
   **2026-07-31 (later still):** ONE further line was ADDED —
   `dist/vue/viewer.d.ts :: readonly type: PropType<string | Record<string, any>>`.
-  Same IIIF boundary again, reached a third way: framework-wrappers ticket 07
-  published `triiiceratops/vue`, whose `defineComponent` inlines the runtime
+  Same IIIF boundary again, reached a third way: `triiiceratops/vue`, whose
+  `defineComponent` inlines the runtime
   prop declaration (including `manifestJson`'s `PropType`) into the emitted
-  component type. The other eight lines that ticket added are NOT this boundary
+  component type. The other eight lines added with it are NOT this boundary
   and are recorded separately in entry 6.
-  **2026-08-07 (`remove-manifesto` ticket 09):** the boundary's ORIGINAL
+  **2026-08-07:** the boundary's ORIGINAL
   justification — "`manifesto.js` is untyped" — is retired with the dependency.
   The entry is **not** retired with it: the same `any`s remain, for a different
   and now first-party reason. Canvases, manifests and annotations crossing the
   public boundary are raw IIIF JSON in **either** Presentation version, and a v2
   resource and a v3 resource do not share a declarable shape (`@id`/`images[]`
-  versus `id`/`items[]`). A typed `Canvas` interface is explicitly out of scope
-  for this epic; when one lands, this entry shrinks. Net line changes:
+  versus `id`/`items[]`). A typed `Canvas` interface is out of scope for now;
+  when one lands, this entry shrinks. Net line changes:
   FOUR REMOVED — `manifests.svelte.d.ts :: manifesto?: any` and
   `getManifest(manifestId: string): any`, `viewer.svelte.d.ts :: get manifest():
 any`, and `types/config/search.d.ts :: manifest: any` — all four being members
@@ -148,11 +148,11 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   entry point makes its whole module reachable, and the declaration report is a
   file-level rollup, so its five module siblings are listed too even though no
   `exports` path imports them. FOUR REWRITTEN in place, all pre-existing lines
-  whose signatures tightened in tickets 05–07 (`getCanvasChoices` and
+  whose signatures tightened (`getCanvasChoices` and
   `getCanvases` now return `any[]` rather than `any`; `getCanvasLabel` gained
   `preferredLocale`) and one renamed (`search.d.ts :: manifest` →
   `manifestJson`).
-  **2026-08-13 (`plugin-av` wave 1, tickets 03 and 05):** THREE lines were
+  **2026-08-13:** THREE lines were
   ADDED, no removals, and none is a new boundary. Two are
   `dist/utils/paintingBodies.d.ts`'s `getImageService(resource: any)` and
   `unwrapSpecificResource(resource: any)`: exporting the body classifier
@@ -162,17 +162,16 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   reachable — the report is a file-level rollup. Both take a raw painting body,
   which is this boundary exactly. The third,
   `dist/utils/resolveCanvasImage.d.ts :: getVisibleViewerCanvases(...): any[]`,
-  is an omission from ticket 02, which added the function and its raw-canvas
-  array return without recording the line; it is listed here rather than left to
-  fail the gate on the next unrelated change. Ticket 05 added none: its
-  temporal-offset type is declared alone in `utils/iiifTime.ts` precisely so the
-  `iiifTargets` parsers — and `NormalizedIiifTarget`'s raw `selectors: any[]` —
+  was added with its raw-canvas array return without recording the line; it is
+  listed here rather than left to fail the gate on the next unrelated change.
+  The temporal-offset type is declared alone in `utils/iiifTime.ts` precisely so
+  the `iiifTargets` parsers — and `NormalizedIiifTarget`'s raw `selectors: any[]` —
   stay unreachable from any `exports` path. The same commit corrects the
   generator's `HEADER` constant in `scripts/check-public-api.mjs`, which still
   justified the boundary by `manifesto.js` (retired 2026-08-07) and cross-
   referenced a section title that no longer exists; regenerating had been
   reverting the checked-in file to that stale prose.
-  **2026-09-05 (`triiiceratops-core-leaner` ticket 02):** THREE lines REMOVED and
+  **2026-09-05:** THREE lines REMOVED and
   TWO ADDED, no new boundary. Removing the obsolete positioned tile-source payload
   deleted `getCanvasTileSource` and `getCanvasTileSources`, and replaced them with
   `canvasPaintsImage(canvas: any)` — the same raw-canvas argument, now answering
@@ -181,7 +180,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   (`GetViewerTileSourcesParams` → `VisibleViewerCanvasesParams`) and lost the
   `getSelectedChoice` member that only the deleted function took, so the signature
   no longer spells an `Omit`; its `any[]` return is unchanged.
-  **2026-09-11 (`lean-core-and-host-supplied-locales` ticket 06):** ONE line
+  **2026-09-11:** ONE line
   REWRITTEN, none added or removed. `registerManifest(manifestId, json: any)`
   became synchronous, so the allowlisted line's return type reads `void` where it
   read `Promise<void>`. The `any` is the same raw-manifest JSON at the same
@@ -244,7 +243,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   type argument of Vue's exported `DefineComponent` alias. Eliminating them
   would mean either hand-writing the component's declaration — which would
   desynchronize from the runtime `props`/`emits` objects Vue actually reads —
-  or abandoning `defineComponent`, which the ticket's authoring constraint
+  or abandoning `defineComponent`, which the authoring constraint
   (plain `.ts`, `h()` + `defineComponent`, no `.vue` files) rules out. They are
   a single documented boundary at the Vue seam, exactly parallel to the
   raw-IIIF-JSON boundary in entry 4. **Update protocol:** same as entry 4 —
@@ -281,17 +280,17 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   target is the wrapper rather than the `<canvas>` because a canvas is
   interactive content in its own right, so a widget role on it is a
   contradiction — the same canvas-paints / DOM-carries-the-targets split the
-  renderer spec draws for overlays.
+  renderer draws for overlays.
 - **Constraint this creates:** `role="application"` suppresses browse mode for
   the element's whole **subtree**, not just the element. Every non-canvas
   descendant must therefore either carry `role="document"` (restoring browse
   mode for its own subtree) or be hoisted out and rendered as a sibling;
-  otherwise its text becomes unreadable to NVDA and JAWS users. Ticket 12's
+  otherwise its text becomes unreadable to NVDA and JAWS users. The
   per-canvas placeholder layer is the first such descendant and satisfies the
   constraint the first way: it is a `role="document"` wrapper inside
   `.renderer-root` holding one labelled placeholder per canvas that has no
-  pixels to show — one that failed, or one core cannot render at all. Ticket
-  14's annotation shape overlay resolved it the OTHER way, and is the reason both
+  pixels to show — one that failed, or one core cannot render at all. The
+  annotation shape overlay resolved it the OTHER way, and is the reason both
   ways are named here: every editable annotation is a focusable `<button>` with an
   accessible name, so nesting the layer under `role="application"` would have hidden
   those names from NVDA and JAWS. It is therefore mounted as a **sibling** of
@@ -411,7 +410,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 ### 10. bare `console.warn` — `packages/plugin-image-export/src/Panel.svelte` (cross-origin refusal)
 
 - **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
-  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`, ticket 28).
+  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`).
 - **Mechanism:** a `// triiiceratops-console-allow` marker comment on the
   preceding lines — anchored to this one site inside `describeFailure`, reached
   only when a download failed _and_ the failure was classified as an image
@@ -440,7 +439,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 ### 11. bare `console.warn` — `packages/plugin-av/src/degradation.ts` and `packages/plugin-av/src/sequencer/segments.ts` (manifest degradation warnings)
 
 - **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
-  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`, ticket 28).
+  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`).
 - **Mechanism:** `// triiiceratops-console-allow` marker comments on the
   preceding lines, at five call sites — four in `degradation.ts` and one shared
   `warn` helper in `sequencer/segments.ts`, which is in the lazily-loaded
@@ -456,8 +455,8 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   window, overlapping windows, a gap — are each latched by a flag over the
   whole build, so each is emitted at most once per map build, which happens
   once per composed canvas.
-- **Rationale:** this is the developer-console half of the AV epic's degradation
-  contract (user story 45): a manifest shape the viewer renders less than fully —
+- **Rationale:** this is the developer-console half of the AV degradation
+  contract: a manifest shape the viewer renders less than fully —
   time-based media placed into part of a canvas rect, `t=` windows that do not
   tile a composed canvas's duration cleanly, or linked waveform data that is neither audiowaveform format
   (a lane that seeks but shows no waveform), or a caption track the browser
@@ -524,7 +523,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 ### 13. bare `console.error` — `packages/plugin-av/src/sharedRuntimeGate.ts` (the version-skew gate)
 
 - **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
-  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`, ticket 28).
+  distribution-cleanup guard (`distribution-cleanup.guard.test.ts`).
 - **Mechanism:** `// triiiceratops-console-allow` marker comments inside the
   generated gate source, one per call site. The gate emits at most ONE line per
   page load and then returns.

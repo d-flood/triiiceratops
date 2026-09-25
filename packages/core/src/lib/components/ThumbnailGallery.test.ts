@@ -11,14 +11,13 @@ import { getThumbnailSrc } from '../utils/getThumbnailSrc';
  * (`canvas.getThumbnail()`, then `canvas.getImages()`, then
  * `canvas.getContent()`, then `annotation.getResource()` / `.getBody()`) and
  * test the copy rather than the product. The copy also truncated to the first
- * annotation page — the exact data-loss bug `remove-manifesto` ticket 03 fixed
- * — so it stayed green against a regression, and the test names promising
- * "v3 getContent" coverage described a code path that no longer exists.
+ * annotation page — a data-loss bug since fixed — so it stayed green against a
+ * regression, and the test names promising "v3 getContent" coverage described
+ * a code path that no longer exists.
  *
- * It now enters through the epic's one seam: a real `ViewerState` loaded with
- * raw manifest JSON, backed by the real manifest cache, with no mocks and no
- * hand-built canvases (`remove-manifesto` SPEC → "The seam", ticket 08). The
- * function under test is `getThumbnailSrc`, which is what
+ * It now enters through one seam: a real `ViewerState` loaded with raw manifest
+ * JSON, backed by the real manifest cache, with no mocks and no hand-built
+ * canvases. The function under test is `getThumbnailSrc`, which is what
  * `ThumbnailGallery.svelte` actually calls.
  */
 

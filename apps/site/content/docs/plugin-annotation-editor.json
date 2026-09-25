@@ -46,7 +46,7 @@
 				},
 				{
 					"type": "text",
-					"text": " seam so annotations persist wherever your institution keeps them. Every tool is operable from the keyboard, for creating a shape as well as for editing one."
+					"text": " interface so annotations persist wherever your institution keeps them. Every tool is operable from the keyboard, for creating a shape as well as for editing one."
 				}
 			],
 			"attrs": {
@@ -79,7 +79,7 @@
 						},
 						{
 							"type": "text",
-							"text": " list. A viewer without it still renders and selects the annotations a manifest publishes — it simply offers no way to write one."
+							"text": " list. A viewer without it still renders and selects the annotations a manifest publishes; it just offers no way to write one."
 						}
 					],
 					"attrs": {
@@ -323,7 +323,7 @@
 				},
 				{
 					"type": "text",
-					"text": " are peers. The plugin declares a core floor — "
+					"text": " are peers. The plugin declares a minimum core version, "
 				},
 				{
 					"type": "text",
@@ -336,7 +336,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", the first core that ships overlay-layer registration — and refuses to activate against anything older, loudly, on core’s "
+					"text": ", the first core that ships overlay-layer registration. Against anything older it refuses to activate and reports the failure on core’s "
 				},
 				{
 					"type": "text",
@@ -400,7 +400,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". Hand it to the viewer the way you hand it any other plugin — see "
+					"text": ". Hand it to the viewer the way you hand it any other plugin. See "
 				},
 				{
 					"type": "text",
@@ -538,7 +538,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for anything else — your own adapter, a subset of the tools, the current user, or any of the "
+					"text": " for anything else: your own adapter, a subset of the tools, the current user, or any of the "
 				},
 				{
 					"type": "text",
@@ -619,7 +619,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — unlike "
+					"text": ", unlike "
 				},
 				{
 					"type": "text",
@@ -756,7 +756,7 @@
 								},
 								{
 									"type": "text",
-									"text": " over the image, holding the annotation currently under edit, its handles, and the in-progress preview. It draws only that one annotation — the persisted set is core’s read-only overlay — and it is what makes drawing modal."
+									"text": " over the image, holding the annotation currently under edit, its handles, and the in-progress preview. It draws only that one annotation (core’s read-only overlay draws the saved set), and it is what makes drawing modal."
 								}
 							],
 							"attrs": {
@@ -785,7 +785,7 @@
 								},
 								{
 									"type": "text",
-									"text": " While the editor’s surface is open, every annotation core draws becomes selectable, focusable and operable. Close the panel and they go back to being the read-only overlay they were: the editing affordance is exactly as long-lived as the panel that explains it."
+									"text": " While the editor’s surface is open, every annotation core draws becomes selectable, focusable and operable. Close the panel and they go back to being the read-only overlay they were. Shapes are editable only while the panel is open."
 								}
 							],
 							"attrs": {
@@ -807,7 +807,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The drawing layer is built on core’s own published primitives — an "
+					"text": "The drawing layer is built on core’s own public APIs: an "
 				},
 				{
 					"type": "text",
@@ -862,7 +862,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for reprojection — so no third party’s object model sits between the editor and the viewer."
+					"text": " for reprojection. No third-party object model sits between the editor and the viewer."
 				}
 			],
 			"attrs": {
@@ -901,7 +901,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": the reader arms a tool from the panel, and for as long as it is armed the drawing layer takes pointer events across the whole image, so a drag draws instead of panning. One tool, one gesture — nothing has to guess whether a press was a click or a drag."
+					"text": ": the reader arms a tool from the panel, and for as long as it is armed the drawing layer takes pointer events across the whole image, so a drag draws instead of panning. Each tool has one gesture, so nothing has to guess whether a press was a click or a drag."
 				}
 			],
 			"attrs": {
@@ -1328,7 +1328,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "activate the tool — there is nothing to draw"
+											"text": "activate the tool; there is nothing to draw"
 										}
 									],
 									"attrs": {
@@ -1395,7 +1395,7 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "It persists as a 64-point polygon inscribed in the dragged box, and edits afterwards as the polygon it is — nothing records that it was once an ellipse. That is deliberate: IIIF has no ellipse selector, and a shape that round-trips as a polygon everywhere else must not pretend otherwise here ("
+							"text": "An ellipse persists as a 64-point polygon inscribed in the dragged box, and is edited afterwards as a polygon. Nothing records that it was once an ellipse, because IIIF has no ellipse selector, and a shape that round-trips as a polygon everywhere else must not pretend otherwise here ("
 						},
 						{
 							"type": "text",
@@ -1452,7 +1452,7 @@
 								},
 								{
 									"type": "text",
-									"text": ", unchanged — place a vertex precisely without disarming."
+									"text": ", unchanged, so you can place a vertex precisely without disarming."
 								}
 							],
 							"attrs": {
@@ -1532,7 +1532,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Pointer-drag panning is the one thing arming suppresses, and Space is its escape hatch. A tool is armed only while the panel that explains it is on screen, and there are two exits — Escape, and closing the panel — both of which cancel rather than commit."
+					"text": "Pointer-drag panning is the one thing arming suppresses, and Space is its escape hatch. A tool is armed only while the panel that explains it is on screen. Escape and closing the panel both disarm it, and both cancel rather than commit."
 				}
 			],
 			"attrs": {
@@ -1571,7 +1571,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": arming a tool and pressing Enter drops a default-sized shape at the centre of the current view, which the ordinary editing verbs then move and size. Creating and editing share one set of verbs."
+					"text": ": arming a tool and pressing Enter drops a default-sized shape at the center of the current view, which the ordinary editing verbs then move and size. Creating and editing share one set of verbs."
 				}
 			],
 			"attrs": {
@@ -2063,7 +2063,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Storage: the adapter seam"
+					"text": "Storage: the adapter interface"
 				}
 			]
 		},
@@ -2138,7 +2138,7 @@
 								},
 								{
 									"type": "text",
-									"text": " entries — annotations whose bodies have not been fetched — marked "
+									"text": " entries (annotations whose bodies have not been fetched) marked "
 								},
 								{
 									"type": "text",
@@ -2366,7 +2366,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — it is an ordinary "
+					"text": " as an ordinary "
 				},
 				{
 					"type": "text",
@@ -2405,7 +2405,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The suite the built-in adapter passes is exported for yours to run against. It checks storage behaviour only — load, create, update and delete round-trips, verbatim body preservation including structured and unknown shapes, key isolation, and the two opt-in capabilities — because storage behaviour is all an adapter owns."
+					"text": "The suite the built-in adapter passes is exported for yours to run against. It checks storage behavior only (load, create, update and delete round-trips, verbatim body preservation including structured and unknown shapes, key isolation, and the two opt-in capabilities), because storage is all an adapter owns."
 				}
 			],
 			"attrs": {
@@ -2555,7 +2555,7 @@
 				},
 				{
 					"type": "text",
-					"text": " bump. It is single-browser storage — useful for a demo, a workshop, or a reader’s private notes, and not a multi-user production store. Bring an adapter for that."
+					"text": " bump. It stores data in one browser only, which suits a demo, a workshop, or a reader’s private notes. For a multi-user production store, supply your own adapter."
 				}
 			],
 			"attrs": {
@@ -2581,7 +2581,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The built-in body editor edits W3C bodies — a value, a format, a language, and a purpose from the "
+					"text": "The built-in body editor edits W3C bodies (a value, a format, a language, and a purpose from the "
 				},
 				{
 					"type": "text",
@@ -2594,7 +2594,7 @@
 				},
 				{
 					"type": "text",
-					"text": " vocabulary — and leaves a structured body it does not understand read-only and untouched across a save. To edit your own metadata model in place, pass "
+					"text": " vocabulary) and leaves a structured body it does not understand read-only and untouched across a save. To edit your own metadata model in place, pass "
 				},
 				{
 					"type": "text",
@@ -2788,7 +2788,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Host hooks: the extension seam"
+					"text": "Host hooks"
 				}
 			]
 		},
@@ -2806,7 +2806,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the other seam, for a host application rather than for a different body shape. Gate creation, prefill a draft, transform an annotation on its way out, or observe selection — without forking the plugin."
+					"text": " is the other extension point, for a host application rather than for a different body shape. Use it to gate creation, prefill a draft, transform an annotation before it is saved, or observe selection without forking the plugin."
 				}
 			],
 			"attrs": {
@@ -2935,7 +2935,7 @@
 				},
 				{
 					"type": "text",
-					"text": " returned — so a host decision can be made from host state without the plugin knowing what that state is. Call the "
+					"text": " returned. The host can decide from its own state without the plugin knowing what that state is. Call the "
 				},
 				{
 					"type": "text",
@@ -3372,7 +3372,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "Honoured only when it is within "
+											"text": "Honored only when it is within "
 										},
 										{
 											"type": "text",
@@ -3541,7 +3541,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "Where the plugin chrome renders — "
+											"text": "Where the plugin UI renders: "
 										},
 										{
 											"type": "text",
@@ -3977,7 +3977,7 @@
 										},
 										{
 											"type": "text",
-											"text": " hooks, for a host that needs one hook rather than the seam."
+											"text": " hooks, for a host that needs one hook rather than the whole extension object."
 										}
 									],
 									"attrs": {
@@ -4017,7 +4017,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": each step is replayed through the same write path a reader’s own edit takes, so display sync, id reconciliation and error rollback all apply to it. The history holds fifty steps and does not outlive the canvas — it is cleared on a canvas change and on teardown, because an annotation’s id is only meaningful against the canvas it targets."
+					"text": ": each step is replayed through the same write path a reader’s own edit takes, so display sync, id reconciliation and error rollback all apply to it. The history holds fifty steps and is cleared on a canvas change and on teardown, because an annotation’s id is only meaningful against the canvas it targets."
 				}
 			],
 			"attrs": {
@@ -4082,7 +4082,7 @@
 				},
 				{
 					"type": "text",
-					"text": " like any other plugin — see "
+					"text": " like any other plugin. See "
 				},
 				{
 					"type": "text",
@@ -4123,7 +4123,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Hosted as a flyout it dismisses "
+					"text": "Hosted as a flyout, it closes "
 				},
 				{
 					"type": "text",
@@ -4162,7 +4162,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The drawing layer is DOM and SVG, so CSS styles it — theming follows the viewer’s "
+					"text": "The drawing layer is DOM and SVG, so CSS styles it, using the viewer’s "
 				},
 				{
 					"type": "text",
@@ -4831,7 +4831,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Point markers are the exception: they are core’s, not this layer’s. Their size is "
+					"text": "Point markers are the exception: core draws them, not this layer. Their size is "
 				},
 				{
 					"type": "text",
@@ -4844,7 +4844,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and their colour "
+					"text": " and their color "
 				},
 				{
 					"type": "text",
@@ -4857,7 +4857,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — the same two "
+					"text": ", the same two "
 				},
 				{
 					"type": "text",
@@ -4873,7 +4873,7 @@
 				},
 				{
 					"type": "text",
-					"text": " core’s read-only overlay draws and measures a marker from — so a point looks the same open for editing as it does at rest, and one declaration restyles both. This plugin declares neither of its own, deliberately: a second setting could only disagree with the first, and a point would change under the reader the moment it was opened. "
+					"text": " core’s read-only overlay uses, so a point looks the same while being edited as at rest, and one declaration restyles both. This plugin adds no point size or color token of its own, so a point does not change when it is opened for editing. "
 				},
 				{
 					"type": "text",
@@ -4899,7 +4899,7 @@
 				},
 				{
 					"type": "text",
-					"text": " still override the colour for this layer alone, which is the only way to make the two disagree on purpose."
+					"text": " override the color on this layer only, for when you want editing points to look different."
 				}
 			],
 			"attrs": {
@@ -4963,7 +4963,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The plugin ships its own catalog — English and German — and resolves every label in the viewer’s active locale, English fallback. Its toolbar tooltip and panel header come from the same catalog, so they follow a locale change with the rest of the viewer’s chrome."
+					"text": "The plugin ships its own catalog (English and German) and resolves every label in the viewer’s active locale, falling back to English. Its toolbar tooltip and panel header come from the same catalog, so they follow a locale change with the rest of the viewer’s chrome."
 				}
 			],
 			"attrs": {
@@ -4989,7 +4989,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "These are contracts, not bugs. Each is a deliberate fence for this release:"
+					"text": "These limits are intentional in this release:"
 				}
 			],
 			"attrs": {
@@ -5016,7 +5016,7 @@
 								},
 								{
 									"type": "text",
-									"text": " A canvas under a "
+									"text": " A canvas another plugin has taken over through a "
 								},
 								{
 									"type": "text",
@@ -5032,7 +5032,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — a recording played by "
+									"text": " (such as a recording played by "
 								},
 								{
 									"type": "text",
@@ -5048,7 +5048,7 @@
 								},
 								{
 									"type": "text",
-									"text": ", say — leaves "
+									"text": ") is dropped from "
 								},
 								{
 									"type": "text",
@@ -5090,7 +5090,7 @@
 								},
 								{
 									"type": "text",
-									"text": " An annotation carrying several geometries is rendered on read, and the editor writes one target."
+									"text": " An annotation with several geometries is displayed, but the editor writes only one target."
 								}
 							],
 							"attrs": {
@@ -5119,7 +5119,7 @@
 								},
 								{
 									"type": "text",
-									"text": " An ellipse is stored and re-edited as the polygon it persists as."
+									"text": " An ellipse is stored and re-edited as a polygon."
 								}
 							],
 							"attrs": {
@@ -5213,7 +5213,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — core never imports it — and needs no "
+					"text": ", core never imports it, and it needs no "
 				},
 				{
 					"type": "text",
@@ -5269,7 +5269,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — why arming a tool takes pointer events in the DOM instead of claiming input at the gesture arbiter."
+									"text": ": why arming a tool takes pointer events in the DOM instead of claiming input at the gesture arbiter."
 								}
 							],
 							"attrs": {
@@ -5301,7 +5301,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — why the editing surface is first-party, and why the editor draws one annotation while core draws the set."
+									"text": ": why the editing surface is first-party, and why the editor draws one annotation while core draws the set."
 								}
 							],
 							"attrs": {
@@ -5333,7 +5333,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — why an ellipse is stored as a polygon."
+									"text": ": why an ellipse is stored as a polygon."
 								}
 							],
 							"attrs": {

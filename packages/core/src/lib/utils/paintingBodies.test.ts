@@ -18,7 +18,7 @@ const AV_DIR = join(import.meta.dirname, '../test/fixtures/manifests/av');
 /**
  * The painting-body classifier — the rule that keeps a video URL out of the
  * image pipeline (ADR 0017), and the body-array/Choice ordering fix that rides
- * with it (user story 40).
+ * with it.
  */
 
 function v3Canvas(...bodies: unknown[]) {
@@ -327,13 +327,12 @@ describe('isUnsupportedCanvas', () => {
 });
 
 /**
- * The classifier crossing the package boundary (SPEC — core seam 2).
+ * The classifier crossing the package boundary.
  *
  * A claimant has to answer "is this canvas mine to claim", which is this
  * module's question asked from outside. Two implementations of one
- * classification rule would drift apart silently — the exact bug the epic
- * exists to fix — so the public entry point re-exports these functions and does
- * not restate them.
+ * classification rule would drift apart silently, so the public entry point
+ * re-exports these functions and does not restate them.
  */
 describe('the public classification surface', () => {
     it('is the very function core paints with, not a copy of the rule', () => {

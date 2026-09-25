@@ -204,7 +204,7 @@ test('starts the theming half from a built-in theme', async ({ page }) => {
         page.getByText('Started from Teal, with your own values over it.'),
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Reset to Default' }).click();
+    await page.getByRole('button', { name: 'Start over' }).click();
     await expect(page.getByLabel('Light')).toBeChecked();
     await expect(swatch).toHaveValue(scheme);
 });

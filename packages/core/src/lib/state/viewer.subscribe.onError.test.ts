@@ -1,4 +1,4 @@
-// ViewerState.subscribe listener guard (ticket 09 formalizes ticket 04's seam).
+// ViewerState.subscribe listener guard.
 //
 // A throwing subscription listener is isolated: the remaining listeners and
 // core's own reactions still run in the same flush. When the throwing listener

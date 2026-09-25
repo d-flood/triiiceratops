@@ -19,7 +19,7 @@
 
         Not a `$effect`: `$effect` compiles to `user_effect`, which core's
         curated shared runtime does not publish, and `check-shared-runtime.mjs`
-        fails the build on it (ticket 19's gate, working as designed). The
+        fails the build on it. The
         manager already has an explicit "something changed" pulse in
         `publishViews`, so it mounts and releases the lazy transcript chunk off
         that; all this component owns is the node it goes in. The

@@ -250,7 +250,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "public-friendly image fetching with "
+									"text": "image fetching suited to public servers, with "
 								},
 								{
 									"type": "text",
@@ -395,7 +395,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Basic Usage"
+					"text": "Basic usage"
 				}
 			]
 		},
@@ -442,7 +442,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and pass the result instead — in the browser registry, the factory is exposed on the plugin the registry returns."
+					"text": " and pass the result instead. With the browser registry, the factory is available on the plugin object the registry returns."
 				}
 			],
 			"attrs": {
@@ -459,7 +459,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Configuring The Plugin"
+					"text": "Configuring the plugin"
 				}
 			]
 		},
@@ -506,7 +506,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "For script-tag/web component hosts, use the factory exposed on the IIFE plugin global when you need configuration callbacks:"
+					"text": "For script-tag and custom element hosts, use the factory exposed on the IIFE plugin global when you need configuration callbacks:"
 				}
 			],
 			"attrs": {
@@ -556,7 +556,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "You can use that configured plugin in either a Svelte app or a bundler-based host app that assigns plugins to the web component:"
+					"text": "You can use that configured plugin in either a Svelte app or a bundler-based host app that assigns plugins to the custom element:"
 				}
 			],
 			"attrs": {
@@ -611,7 +611,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Audiovisual Canvases"
+					"text": "Audiovisual canvases"
 				}
 			]
 		},
@@ -620,7 +620,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "A canvas whose painting annotations place only non-image content — audio, video, a 3D model — has no page in the PDF. It is the canvas the viewer itself gives the "
+					"text": "A canvas whose painting annotations place only non-image content (audio, video, a 3D model) has no page in the PDF. The viewer shows it with the "
 				},
 				{
 					"type": "text",
@@ -633,7 +633,7 @@
 				},
 				{
 					"type": "text",
-					"text": " to, and a range covering N image canvases and M such canvases exports N pages, with M silently omitted. That is a contract, not an accident:"
+					"text": ", and a range covering N image canvases and M such canvases exports N pages, silently omitting the M. This behavior is intended:"
 				}
 			],
 			"attrs": {
@@ -791,7 +791,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "The panel's selected-canvas count follows the same rule: it is the number of pages the export will produce, so it never promises a page the file does not contain."
+									"text": "The panel's selected-canvas count follows the same rule: it is the number of pages the export will produce."
 								}
 							],
 							"attrs": {
@@ -837,7 +837,7 @@
 								},
 								{
 									"type": "text",
-									"text": " describes the media; none of them is the canvas, and exporting one would hand the reader a page the manifest never said was the content."
+									"text": " describes the media; none of them is the canvas, and exporting one would give the reader a page the manifest does not present as the content."
 								}
 							],
 							"attrs": {
@@ -857,7 +857,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "A range with no image canvases in it at all is refused rather than saved as an empty PDF, and the panel says so in as many words — \"Unable to export any canvases to PDF\", not a bare export failure."
+									"text": "A range with no image canvases in it at all is refused rather than saved as an empty PDF, and the panel shows the specific message \"Unable to export any canvases to PDF\" instead of a generic export failure."
 								}
 							],
 							"attrs": {
@@ -879,11 +879,11 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "A "
+					"text": "Whether a media plugin has "
 				},
 				{
 					"type": "text",
-					"text": "canvas claim",
+					"text": "claimed the canvas",
 					"marks": [
 						{
 							"type": "bold"
@@ -892,7 +892,7 @@
 				},
 				{
 					"type": "text",
-					"text": " makes no difference. A claim is about what is rendered on screen; whether a page can be produced is decided by the canvas's own painting bodies, so the answer is the same whether or not a media plugin has taken the canvas over."
+					"text": " makes no difference. Claiming changes only what is rendered on screen; whether a page can be produced is decided by the canvas's own painting bodies."
 				}
 			],
 			"attrs": {
@@ -1140,7 +1140,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Cover Sheet"
+					"text": "Cover sheet"
 				}
 			]
 		},
@@ -1297,7 +1297,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "OCR Support"
+					"text": "OCR support"
 				}
 			]
 		},
@@ -1380,7 +1380,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Provider overlay coordinates default to canvas space for backward compatibility. If your provider returns original image pixel coordinates, set "
+					"text": "Provider overlay coordinates are in canvas space by default. If your provider returns original image pixel coordinates, set "
 				},
 				{
 					"type": "text",
@@ -1787,7 +1787,7 @@
 								},
 								{
 									"type": "text",
-									"text": " preserves the existing box-fitting behavior"
+									"text": " fits text to each overlay box (the default)"
 								}
 							],
 							"attrs": {
@@ -1929,7 +1929,7 @@
 								},
 								{
 									"type": "text",
-									"text": " uses the existing near-transparent text layer behavior"
+									"text": " renders a near-transparent text layer (the default)"
 								}
 							],
 							"attrs": {
@@ -2009,7 +2009,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Default OCR rendering behavior remains backward-compatible:"
+					"text": "The default OCR rendering options are:"
 				}
 			],
 			"attrs": {
@@ -2478,7 +2478,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Image Request Notes"
+					"text": "Image request notes"
 				}
 			]
 		},

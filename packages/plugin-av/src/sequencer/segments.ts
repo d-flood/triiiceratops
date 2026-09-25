@@ -59,8 +59,8 @@ export interface SegmentPosition {
 }
 
 function warn(message: string): void {
-    // triiiceratops-console-allow: the curator-facing degradation channel of
-    // user story 45, the same one `degradation.ts` uses. It lives here rather
+    // triiiceratops-console-allow: the curator-facing degradation channel,
+    // the same one `degradation.ts` uses. It lives here rather
     // than there because this whole module is lazily loaded and nothing eager
     // may reach it. Recorded in lint-allowlist.md.
     console.warn(`[triiiceratops] ${message}`);

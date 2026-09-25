@@ -225,7 +225,7 @@ export function createAvStageManager(
      * The `rendersCaptions` fence, in one place, because both surfaces that
      * offer a selection have to agree on it: an audio stage attaches its tracks
      * for the transcript to read, and offering them as selectable — in the bar
-     * or through AVState — would be the dead control user story 46 forbids.
+     * or through AVState — would be a dead control.
      */
     function paintableCaptionTracks(): readonly CaptionTrack[] {
         const stage = currentEntry()?.stage;
@@ -280,7 +280,7 @@ export function createAvStageManager(
      * selection, a waveform load, a manifest rescan. Nothing re-runs it when an
      * externally referenced annotation page resolves, so such a page appears
      * only if one of those events happens to follow it. 0103 embeds its page;
-     * the epic defers that invalidation deliberately.
+     * that invalidation is deferred deliberately.
      */
     let notes: readonly TimedEntry[] = [];
 
@@ -475,7 +475,7 @@ export function createAvStageManager(
      * a panel" flag, and this is the whole of what it means now. The field is
      * not renamed to match: the rename would be honest but touches core's API
      * report, its i18n keys and several end-to-end specs for no reader-visible
-     * gain, and the epic records it as debt instead.
+     * gain, so it stays as recorded debt.
      */
     function panelAvailable(): boolean {
         return transcriptAvailable() || notes.length > 0;
@@ -487,7 +487,7 @@ export function createAvStageManager(
      *
      * Read on the frame cadence, and all three of them for the same reason: on
      * a temporally composed canvas a segment seam re-windows the eligible
-     * tracks (ticket 18), so the track, its shift and its name all change
+     * tracks, so the track, its shift and its name all change
      * together at the seam. A panel told only the track would go on naming the
      * previous segment's while the cues changed underneath the label.
      *
@@ -1077,7 +1077,7 @@ export function createAvStageManager(
      * `await import()` inside `loadPeaks` is what keeps every byte of parsing
      * and rendering off a page whose manifests link none.
      *
-     * **Never on a temporally composed canvas** (spec fence, ticket 18). Any
+     * **Never on a temporally composed canvas.** Any
      * waveform a canvas links describes ONE body, while the lane there spans
      * the whole work: peaks drawn across it would be a picture of act one
      * stretched over the opera. The lane still seeks in canvas time.

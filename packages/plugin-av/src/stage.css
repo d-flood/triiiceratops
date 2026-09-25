@@ -136,7 +136,7 @@
 
 /*
     The play-state glyph: what a canvas projected too narrow for the transport
-    shows instead (user story 26). Decorative and inert — it announces nothing
+    shows instead. Decorative and inert — it announces nothing
     and takes no pointer, because everything it depicts stays reachable through
     the stage's own tap-to-toggle and through AVState.
 */

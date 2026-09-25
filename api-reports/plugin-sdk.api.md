@@ -187,7 +187,7 @@ export interface DefinePluginConfig {
      */
     fills?: boolean;
     /**
-     * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (default) dismisses on
+     * Flyout dismiss behavior. `light` (default) dismisses on
      * outside pointer-down / Escape; `explicit` closes only via the plugin's
      * toolbar button, so a live-editing surface is not dismissed by canvas
      * clicks. Ignored for `panel` targets.
@@ -290,11 +290,9 @@ export declare class SelectorController<T> implements ReactiveController {
  * A plugin's global CSS is installed through the SDK style service
  * (`context.styles.install(STYLES, STYLE_ID)`) so it is root-aware: it reaches
  * the document head for a light-DOM viewer and the shadow root for the Web
- * Component (SPEC.md — "Global plugin CSS is installed through a root-aware style
- * service"). Plugin styling inherits the core public token contract (`--tri-*`)
+ * Component. Plugin styling inherits the core public token contract (`--tri-*`)
  * because the plugin's DOM lives inside the viewer root; only plugin-specific
- * rules ship here (SPEC.md — "Plugin panel styling continues to inherit the core
- * public token contract while plugin-specific styles remain package-owned").
+ * rules ship here.
  *
  * This helper carries only that shared shape — every plugin still owns its own
  * (namespaced, non-Svelte-scoped) CSS and its install id. `id` is the stable
@@ -373,8 +371,7 @@ export declare function registerBrowserPlugin(plugin: SdkPlugin): void;
 // FILE: dist/register.d.ts
 // ======================================================================
 /**
- * Self-contained browser registration into the `window.Triiiceratops` namespace
- * (SPEC.md "Plugin SDK And Browser API").
+ * Self-contained browser registration into the `window.Triiiceratops` namespace.
  *
  * The namespace is an order-independent registry: every core OR plugin IIFE
  * bootstraps it if absent (`window.Triiiceratops ??= …`), so a plugin script may
@@ -409,7 +406,7 @@ export declare function registerBrowserPlugin(plugin: SdkPlugin): void;
  * viewer object exists — here it is, you may touch it", and it resolved WITH
  * that object. With no pass-through there is nothing to hand over, so the two
  * are not interchangeable and carrying the old semantics forward under a new
- * name would have been the wrong half of the choice the spec forces.
+ * name would have been the wrong half of the choice.
  *
  * The decision taken: the helper **becomes a first-paint signal** rather than
  * retiring. It resolves `void`, and what it promises is that the renderer has a
@@ -548,8 +545,8 @@ export declare function viewerSelector<T>(context: PluginContext, selector: (sta
  * `svgIcon` — the SDK's validated toolbar-icon helper.
  *
  * A plugin author authors a full SVG string and passes it to `svgIcon`, which
- * validates it and returns a core-owned {@link IconDescriptor}. Per SPEC.md
- * ("Plugin SDK And Browser API") and CONTEXT.md, icon validation is a *developer
+ * validates it and returns a core-owned {@link IconDescriptor}. Per CONTEXT.md,
+ * icon validation is a *developer
  * error* channel: `svgIcon` throws **synchronously** at the call site (never a
  * runtime plugin-error state) when the markup contains anything unsafe to inject
  * into core's chrome:

@@ -20,7 +20,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — docked to a sidebar, banded below the image, or floated over it — or as a compact "
+					"text": " (docked to a sidebar, as a band below the image, or floating over it) or as a compact "
 				},
 				{
 					"type": "text",
@@ -50,7 +50,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "How the Plugin System Works"
+					"text": "How the plugin system works"
 				}
 			]
 		},
@@ -343,7 +343,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — for bundler projects (React, Vue, Svelte, Lit, or any other framework — Vite, webpack, Rollup, …), import the plugin's factory from its scoped package and pass it to the viewer. Plugins run in the page's realm and receive the live "
+									"text": ": for bundler projects (React, Vue, Svelte, Lit, or any other framework, with Vite, webpack, Rollup, or similar), import the plugin's factory from its scoped package and pass it to the viewer. Plugins run in the page's realm and receive the live "
 								},
 								{
 									"type": "text",
@@ -398,7 +398,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — each plugin's IIFE ("
+									"text": ": each plugin's IIFE ("
 								},
 								{
 									"type": "text",
@@ -462,7 +462,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — see below."
+									"text": " (see below)."
 								}
 							],
 							"attrs": {
@@ -562,7 +562,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Getting it wrong is a named diagnostic, not a broken page: the plugin's bundle checks the namespace before it evaluates anything, logs one "
+					"text": "If the order is wrong, the plugin reports it instead of breaking the page. Its bundle checks the namespace before it evaluates anything, logs one "
 				},
 				{
 					"type": "text",
@@ -575,7 +575,7 @@
 				},
 				{
 					"type": "text",
-					"text": " saying which half is missing, and does not register — so "
+					"text": " saying which part is missing, and does not register, so "
 				},
 				{
 					"type": "text",
@@ -665,7 +665,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is private, unversioned API, and the guarantee behind sharing it is that core and the plugin are built and released from one repository at one Svelte version — which is why the plugin pins "
+					"text": " is private, unversioned API, and the guarantee behind sharing it is that core and the plugin are built and released from one repository at one Svelte version. That is why the plugin pins "
 				},
 				{
 					"type": "text",
@@ -678,7 +678,7 @@
 				},
 				{
 					"type": "text",
-					"text": " to an exact core version. A third-party plugin is released on its own schedule, so it must "
+					"text": " to core's 1.x line. A third-party plugin is released on its own schedule, so it must "
 				},
 				{
 					"type": "text",
@@ -791,7 +791,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — the "
+									"text": ": the "
 								},
 								{
 									"type": "text",
@@ -859,7 +859,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — the "
+									"text": ": the "
 								},
 								{
 									"type": "text",
@@ -927,7 +927,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — the "
+									"text": ": the "
 								},
 								{
 									"type": "text",
@@ -982,7 +982,7 @@
 								},
 								{
 									"type": "text",
-									"text": " (vanilla JS, plain HTML, other frameworks) — the "
+									"text": " (vanilla JS, plain HTML, other frameworks): the "
 								},
 								{
 									"type": "text",
@@ -1043,7 +1043,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Plugins are plain objects, so they cannot go through an HTML attribute; the web component always receives them as a JavaScript property. (The React and Vue wrappers do that assignment for you, and do it correctly whether or not the element has upgraded yet.) Registering a plugin package does not activate it — activation is per-viewer and happens when the list is assigned."
+					"text": "Plugins are plain objects, so they cannot go through an HTML attribute; the web component always receives them as a JavaScript property. (The React and Vue wrappers do that assignment for you, and do it correctly whether or not the element has upgraded yet.) Registering a plugin package does not activate it. Activation is per-viewer and happens when the list is assigned."
 				}
 			],
 			"attrs": {
@@ -1068,7 +1068,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", not to the identity of the list: re-supplying an equal list leaves running plugins completely untouched, so a parent re-render never tears down and restarts your plugins."
+					"text": ", not to the identity of the list: re-supplying an equal list leaves running plugins untouched, so a parent re-render never tears down and restarts them."
 				}
 			],
 			"attrs": {
@@ -1170,7 +1170,20 @@
 								},
 								{
 									"type": "text",
-									"text": " registry; the scripts may load in any order:"
+									"text": " registry. Apart from "
+								},
+								{
+									"type": "text",
+									"text": "@triiiceratops/plugin-av",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", which needs core's script first, the scripts may load in any order:"
 								}
 							],
 							"attrs": {
@@ -1220,7 +1233,7 @@
 								},
 								{
 									"type": "text",
-									"text": ". Build the list once — a hoisted constant or a "
+									"text": ". Build the list once, as a hoisted constant or a "
 								},
 								{
 									"type": "text",
@@ -1233,7 +1246,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — so its contents keep their identity."
+									"text": ", so its contents keep their identity."
 								}
 							],
 							"attrs": {
@@ -1283,7 +1296,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — no "
+									"text": " with no "
 								},
 								{
 									"type": "text",
@@ -1383,7 +1396,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is a list — add as many as you like. A plugin that takes options exposes a "
+					"text": " is a list, so add as many as you like. A plugin that takes options exposes a "
 				},
 				{
 					"type": "text",
@@ -1516,7 +1529,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — there is no per-plugin width. "
+					"text": " (there is no per-plugin width). "
 				},
 				{
 					"type": "text",
@@ -1618,7 +1631,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — see "
+					"text": ". See "
 				},
 				{
 					"type": "text",
@@ -1646,7 +1659,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The authored "
+					"text": "The "
 				},
 				{
 					"type": "text",
@@ -1659,7 +1672,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is only a "
+					"text": " a plugin is authored with is only a "
 				},
 				{
 					"type": "text",
@@ -1672,7 +1685,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". Every plugin registers both a panel and a flyout entry, so the effective target is switchable at runtime — like "
+					"text": ". Every plugin registers both a panel and a flyout entry, so you can switch the effective target at runtime, as with "
 				},
 				{
 					"type": "text",
@@ -1698,7 +1711,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — via "
+					"text": ", via "
 				},
 				{
 					"type": "text",
@@ -1750,7 +1763,7 @@
 				},
 				{
 					"type": "text",
-					"text": " sets it for any plugin as a consumer-only decision; "
+					"text": " sets it for any plugin. Only the host app chooses the position: "
 				},
 				{
 					"type": "text",
@@ -1809,7 +1822,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Controlling Plugin UI Through Config"
+					"text": "Controlling plugin UI through config"
 				}
 			]
 		},
@@ -1831,7 +1844,7 @@
 				},
 				{
 					"type": "text",
-					"text": " object used for built-in panes."
+					"text": " object used for built-in panels."
 				}
 			],
 			"attrs": {
@@ -1868,7 +1881,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The record key is the plugin's stable id — its "
+					"text": "The record key is the plugin's stable id, its "
 				},
 				{
 					"type": "text",
@@ -2108,7 +2121,7 @@
 								},
 								{
 									"type": "text",
-									"text": " removes the close button from the plugin's docked panel header, and with it the Escape-to-close path — one flag, not two. The default is "
+									"text": " removes the close button from the plugin's docked panel header, and with it the Esc-to-close path. The default is "
 								},
 								{
 									"type": "text",
@@ -2179,7 +2192,7 @@
 								},
 								{
 									"type": "text",
-									"text": " docks the panel somewhere else — a consuming app's own choice, independent of whatever the plugin was authored with. Ignored while the effective "
+									"text": " docks the panel somewhere else. The position is the host app’s choice alone. Ignored while the effective "
 								},
 								{
 									"type": "text",
@@ -2782,7 +2795,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the only plugin path — there is no Svelte-only shortcut, and a Svelte host mounts its component from the SDK's "
+					"text": " is the only way to define a plugin. There is no Svelte-only shortcut: a Svelte host mounts its component from the SDK's "
 				},
 				{
 					"type": "text",
@@ -2834,7 +2847,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Available Plugins"
+					"text": "Available plugins"
 				}
 			]
 		},
@@ -2974,7 +2987,7 @@
 										},
 										{
 											"type": "text",
-											"text": " bodies — media stage over the canvas rect, transport in the control bar, waveforms, captions, transcript"
+											"text": " bodies: a media stage over the canvas rect, playback controls in the control bar, waveforms, captions, and a transcript"
 										}
 									],
 									"attrs": {
@@ -3050,7 +3063,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "Draws and edits a canvas’s annotations — rectangle, ellipse, polygon, point and whole-canvas tools, keyboard parity, and a storage adapter the host supplies"
+											"text": "Draws and edits a canvas’s annotations: rectangle, ellipse, polygon, point and whole-canvas tools, keyboard parity, and a storage adapter the host supplies"
 										}
 									],
 									"attrs": {
@@ -3348,7 +3361,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Package Exports Reference"
+					"text": "Package exports reference"
 				}
 			]
 		},
@@ -3545,7 +3558,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "Version-neutral IIIF canvas helpers — see "
+											"text": "Version-neutral IIIF canvas helpers. See "
 										},
 										{
 											"type": "text",
@@ -3622,7 +3635,7 @@
 										},
 										{
 											"type": "text",
-											"text": " — a superset of the root entry"
+											"text": ", a superset of the root entry"
 										}
 									],
 									"attrs": {
@@ -4137,7 +4150,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "Browser/IIFE registration for a plugin that cannot load before core — without a shared-runtime load-order gate it silently no-ops with no diagnostic, so third-party plugins should keep using "
+											"text": "Browser/IIFE registration for a plugin that must load after core. Without its own load-order check it fails silently, so third-party plugins should use "
 										},
 										{
 											"type": "text",
@@ -4358,7 +4371,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "Audio & video plugin (IIFE — serve the whole "
+											"text": "Audio & video plugin (IIFE; serve the whole "
 										},
 										{
 											"type": "text",
@@ -4477,7 +4490,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "Adapter conformance suite — see "
+											"text": "Adapter conformance suite. See "
 										},
 										{
 											"type": "text",
@@ -4542,7 +4555,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "Annotation editor plugin (IIFE — either script order)"
+											"text": "Annotation editor plugin (IIFE; loads in either order)"
 										}
 									],
 									"attrs": {

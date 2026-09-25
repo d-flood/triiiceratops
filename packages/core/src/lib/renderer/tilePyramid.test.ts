@@ -392,8 +392,8 @@ describe('tilesIntersecting', () => {
 describe('tileCanvasRect', () => {
     it('fits tiles into the manifest-declared box, not the service’s dimensions', () => {
         // The service is 4096 square and the canvas 1000 square: the pyramid
-        // governs sampling, the manifest governs geometry (spec §Coordinate
-        // model and layout), so nothing on screen moves when tiles arrive.
+        // governs sampling, the manifest governs geometry, so nothing on screen
+        // moves when tiles arrive.
         const pyramid = buildPyramid(SERVICE, facts())!;
         const level = pyramid.levels[1]; // 2x2
 

@@ -704,8 +704,8 @@ describe('createTileScheduler — the opportunistic cache', () => {
         // ceiling" without qualification is therefore an overstatement — a
         // manifest declaring its full-resolution image as each Canvas's
         // `thumbnail` requires fifty full-size decodes at the zoom floor, and
-        // the spec requires that URL to be used as-is. `requiredBytes` is what
-        // makes that state diagnosable instead of silent.
+        // that URL must be used as-is. `requiredBytes` is what makes that state
+        // diagnosable instead of silent.
         const net = controllableFetch();
         const budget = TILE_BYTES;
         const tiles = scheduler({ maxInFlight: 4, byteBudget: budget });

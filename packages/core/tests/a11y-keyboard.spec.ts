@@ -467,10 +467,9 @@ async function traceKeys(
  * Hold one key down for `holdMs`.
  *
  * `down` then `up`, NOT `press`: a held key drives a velocity for as long as
- * it is down (spec §Keyboard). Playwright sends exactly one keydown and never
- * repeats it, so an implementation that panned a fixed step per key-down event
- * would move once and then sit still — which is precisely what the rate
- * assertions reject.
+ * it is down. Playwright sends exactly one keydown and never repeats it, so an
+ * implementation that panned a fixed step per key-down event would move once
+ * and then sit still — which is precisely what the rate assertions reject.
  */
 function holdKey(page: Page, key: string, holdMs: number): () => Promise<void> {
     return async () => {

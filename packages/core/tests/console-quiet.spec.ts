@@ -40,7 +40,7 @@ async function runJourney(page: import('@playwright/test').Page) {
     await page.waitForTimeout(200);
 }
 
-test.describe('quiet production console (ticket 18)', () => {
+test.describe('quiet production console', () => {
     test('default-config viewer produces no triiiceratops console output', async ({
         page,
     }) => {

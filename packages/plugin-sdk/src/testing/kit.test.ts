@@ -130,7 +130,7 @@ function makePublishingPlugin(): SdkPlugin {
 }
 
 /**
- * The shape ticket 07's `AVState` will have: a CLASS with a `#private` listener
+ * The shape of `plugin-av`'s `AVState`: a CLASS with a `#private` listener
  * set and a derived getter.
  *
  * Both are conformance traps the kit must not spring. `#listeners` is invisible
@@ -677,8 +677,8 @@ describe('conformance: published state (ADR 0018)', () => {
         });
     }
 
-    // A published state is as often a class as an object literal, and ticket
-    // 07's `AVState` is one. Its `#private` bookkeeping is invisible to
+    // A published state is as often a class as an object literal, and
+    // `plugin-av`'s `AVState` is one. Its `#private` bookkeeping is invisible to
     // reflection, so it needs no classification; its derived `cues` getter hands
     // back a fresh array on every read and must not read as a change.
     for (const conformanceCase of conformanceCases) {

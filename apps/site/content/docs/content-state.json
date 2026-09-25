@@ -62,7 +62,7 @@
 				},
 				{
 					"type": "text",
-					"text": " names a Canvas — optionally with an "
+					"text": " names a Canvas (optionally with an "
 				},
 				{
 					"type": "text",
@@ -88,7 +88,7 @@
 				},
 				{
 					"type": "text",
-					"text": " media time — and whose "
+					"text": " media time) and whose "
 				},
 				{
 					"type": "text",
@@ -178,23 +178,7 @@
 				},
 				{
 					"type": "text",
-					"text": " parameter meant for the page around it, and one that swallowed every drop could take a drag your page meant to handle ("
-				},
-				{
-					"type": "text",
-					"text": "ADR 0006",
-					"marks": [
-						{
-							"type": "link",
-							"attrs": {
-								"href": "https://github.com/d-flood/triiiceratops/blob/main/docs/adr/0006-content-state-is-an-explicit-component-input.md"
-							}
-						}
-					]
-				},
-				{
-					"type": "text",
-					"text": "). What it will do is accept the payload from you, on the "
+					"text": " parameter meant for the page around it, and one that swallowed every drop could take a drag your page meant to handle. Instead, it accepts the payload from you on the "
 				},
 				{
 					"type": "text",
@@ -207,7 +191,7 @@
 				},
 				{
 					"type": "text",
-					"text": " input — and, if you say so explicitly, take that one parameter or a drop on your behalf."
+					"text": " input. If you opt in, it will also read that one parameter or accept a drop on your behalf."
 				}
 			],
 			"attrs": {
@@ -245,7 +229,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — "
+					"text": " ("
 				},
 				{
 					"type": "text",
@@ -258,7 +242,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — which you map onto whatever inputs you like."
+					"text": "), which you map onto whatever inputs you like."
 				}
 			],
 			"attrs": {
@@ -347,7 +331,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Three inputs, on every distribution — the Svelte component, the custom element, and the React and Vue wrappers. The first is the payload; the other two each hand the viewer one ambient channel:"
+					"text": "Three inputs are available on every distribution: the Svelte component, the custom element, and the React and Vue wrappers. The first is the payload; the other two each hand the viewer one ambient channel:"
 				}
 			],
 			"attrs": {
@@ -678,7 +662,7 @@
 				},
 				{
 					"type": "text",
-					"text": " takes a content state in any of its forms: a bare IIIF URI, the Annotation as JSON, or that Annotation base64url-encoded exactly as the "
+					"text": " takes a content state in any of its forms: a bare IIIF URI, the Annotation as JSON, or that Annotation base64url-encoded as the "
 				},
 				{
 					"type": "text",
@@ -725,7 +709,7 @@
 				},
 				{
 					"type": "text",
-					"text": " delegates one channel — the "
+					"text": " delegates one channel, the "
 				},
 				{
 					"type": "text",
@@ -738,7 +722,7 @@
 				},
 				{
 					"type": "text",
-					"text": " parameter — to the viewer. It is a boolean attribute: presence opts in. It is "
+					"text": " parameter, to the viewer. It is a boolean attribute: presence opts in. It is "
 				},
 				{
 					"type": "text",
@@ -802,7 +786,7 @@
 				},
 				{
 					"type": "text",
-					"text": " the element is inserted into the document. Adding the attribute to a viewer that is already mounted does nothing, and never will — there is no second read to catch it. Build the element with the attribute (or render it with the prop) rather than setting it afterwards."
+					"text": " the element is inserted into the document. Adding the attribute to a viewer that is already mounted does nothing, because there is no second read. Build the element with the attribute (or render it with the prop) rather than setting it afterwards."
 				}
 			],
 			"attrs": {
@@ -904,7 +888,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The payload is read from the drag’s "
+					"text": "The payload is read from the drag's "
 				},
 				{
 					"type": "text",
@@ -917,7 +901,7 @@
 				},
 				{
 					"type": "text",
-					"text": " flavour and nothing else — that is where the recipe’s own drag source puts it, and "
+					"text": " flavor and nothing else. That is where the recipe's own drag source puts it. "
 				},
 				{
 					"type": "text",
@@ -930,7 +914,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is deliberately not read, because a browser fills that flavour with an image’s "
+					"text": " is not read, because a browser fills that flavor with an image's "
 				},
 				{
 					"type": "text",
@@ -960,7 +944,7 @@
 				},
 				{
 					"type": "text",
-					"text": "conformance table",
+					"text": "supported-forms table",
 					"marks": [
 						{
 							"type": "link",
@@ -984,7 +968,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Unlike the URL flag, this one is live rather than read once on mount, and a drop is the one delivery that outranks the discrete inputs — see "
+					"text": "Unlike the URL flag, this one is live rather than read once on mount, and a drop is the one delivery that outranks the discrete inputs (see "
 				},
 				{
 					"type": "text",
@@ -1000,7 +984,7 @@
 				},
 				{
 					"type": "text",
-					"text": " below."
+					"text": " below)."
 				}
 			],
 			"attrs": {
@@ -1051,7 +1035,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The discrete inputs are the manual-driving API and win. The URL is ambient and lowest-trust. Setting "
+					"text": "The discrete inputs are the manual API, so they win. The URL is ambient and lowest-trust. Setting "
 				},
 				{
 					"type": "text",
@@ -1064,7 +1048,7 @@
 				},
 				{
 					"type": "text",
-					"text": " therefore turns a content state into a no-op rather than a conflict — which is what lets an application keep its own routing and still opt into the parameter as a fallback."
+					"text": " therefore turns a content state into a no-op rather than a conflict. That lets an application keep its own routing and still opt into the parameter as a fallback."
 				}
 			],
 			"attrs": {
@@ -1140,7 +1124,7 @@
 				},
 				{
 					"type": "text",
-					"text": " sits above all of it, and only for the manifest. It is a gesture the reader made on this viewer, so refusing to open what it names because the host had set "
+					"text": " outranks all of it, but only for the manifest. The reader made the gesture on this viewer, so the viewer opens what it names even when the host has set "
 				},
 				{
 					"type": "text",
@@ -1153,7 +1137,7 @@
 				},
 				{
 					"type": "text",
-					"text": " would be answering the wrong person; "
+					"text": ". "
 				},
 				{
 					"type": "text",
@@ -1179,7 +1163,7 @@
 				},
 				{
 					"type": "text",
-					"text": " still win over the canvas and region a dropped target carries, exactly as they do for every other delivery."
+					"text": " still win over the canvas and region a dropped target carries, as they do for every other delivery."
 				}
 			],
 			"attrs": {
@@ -1205,7 +1189,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "A content state that is a bare URI is fetched, and the document that comes back is parsed — so the URI form works whether it points at a content-state Annotation or straight at a Manifest. The request goes through the same fetch path "
+					"text": "A content state that is a bare URI is fetched and the returned document is parsed, so the URI form works whether it points at a content-state Annotation or straight at a Manifest. The request goes through the same fetch path "
 				},
 				{
 					"type": "text",
@@ -1218,7 +1202,7 @@
 				},
 				{
 					"type": "text",
-					"text": " uses; it introduces no new trust boundary, and your "
+					"text": " uses and gets the same trust, so your "
 				},
 				{
 					"type": "text",
@@ -1234,7 +1218,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the control on it."
+					"text": " controls it."
 				}
 			],
 			"attrs": {
@@ -1460,7 +1444,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Partially-supported shapes — a multi-target array, a "
+					"text": "Partially supported shapes (a multi-target array, a "
 				},
 				{
 					"type": "text",
@@ -1486,7 +1470,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — resolve to the most the viewer can honor and log a dev-mode warning instead."
+					"text": ") resolve to the most the viewer can honor and log a dev-mode warning instead."
 				}
 			],
 			"attrs": {
@@ -1503,7 +1487,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Degradation, not rejection"
+					"text": "Partly supported content states"
 				}
 			]
 		},
@@ -1628,7 +1612,7 @@
 								},
 								{
 									"type": "text",
-									"text": " entry declares a type at all, the first entry is taken — untyped references are common in the wild. When entries "
+									"text": " entry declares a type at all, the first entry is taken, since untyped references are common in the wild. When entries "
 								},
 								{
 									"type": "text",
@@ -1713,7 +1697,7 @@
 								},
 								{
 									"type": "text",
-									"text": " still resolves, with a dev-mode warning. A document that names a Manifest is worth honoring whatever it claims to motivate."
+									"text": " still resolves, with a dev-mode warning. A document that names a Manifest is honored whatever its motivation."
 								}
 							],
 							"attrs": {
@@ -1807,202 +1791,24 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Two spec-legal shapes are deliberately "
+					"text": "An annotation-level "
 				},
 				{
 					"type": "text",
-					"text": "not",
+					"text": "source",
 					"marks": [
 						{
-							"type": "bold"
+							"type": "code"
 						}
 					]
 				},
 				{
 					"type": "text",
-					"text": " resolved, because neither appears in any IIIF Cookbook recipe the fixtures are drawn from:"
+					"text": " is not honored as a target; it is not a spec form."
 				}
 			],
 			"attrs": {
-				"id": "102e38d0-92a2-4914-addf-6becb903e5e9"
-			}
-		},
-		{
-			"type": "bulletList",
-			"content": [
-				{
-					"type": "listItem",
-					"content": [
-						{
-							"type": "paragraph",
-							"content": [
-								{
-									"type": "text",
-									"text": "A "
-								},
-								{
-									"type": "text",
-									"text": "target",
-									"marks": [
-										{
-											"type": "code"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": " that is a "
-								},
-								{
-									"type": "text",
-									"text": "SpecificResource",
-									"marks": [
-										{
-											"type": "code"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": " — a "
-								},
-								{
-									"type": "text",
-									"text": "source",
-									"marks": [
-										{
-											"type": "code"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": " plus a "
-								},
-								{
-									"type": "text",
-									"text": "selector",
-									"marks": [
-										{
-											"type": "code"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": " — is not unwrapped. The Manifest is looked for on "
-								},
-								{
-									"type": "text",
-									"text": "target.partOf",
-									"marks": [
-										{
-											"type": "code"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": ", not on "
-								},
-								{
-									"type": "text",
-									"text": "target.source.partOf",
-									"marks": [
-										{
-											"type": "code"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": ", and a "
-								},
-								{
-									"type": "text",
-									"text": "FragmentSelector",
-									"marks": [
-										{
-											"type": "code"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": "'s "
-								},
-								{
-									"type": "text",
-									"text": "xywh=",
-									"marks": [
-										{
-											"type": "code"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": " region or "
-								},
-								{
-									"type": "text",
-									"text": "t=",
-									"marks": [
-										{
-											"type": "code"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": " time is not read. Region and time are read only from the fragment on the target's own id."
-								}
-							],
-							"attrs": {
-								"id": "e2616bb5-8c64-42d5-8cbd-7bc51d344ba2"
-							}
-						}
-					],
-					"attrs": {
-						"id": "ec81578c-46c2-437e-92ab-73daa397dd41"
-					}
-				},
-				{
-					"type": "listItem",
-					"content": [
-						{
-							"type": "paragraph",
-							"content": [
-								{
-									"type": "text",
-									"text": "An annotation-level "
-								},
-								{
-									"type": "text",
-									"text": "source",
-									"marks": [
-										{
-											"type": "code"
-										}
-									]
-								},
-								{
-									"type": "text",
-									"text": " (not a spec form) is not honored as a target."
-								}
-							],
-							"attrs": {
-								"id": "2bbe12b3-512b-43cc-859c-8ef4828d26d7"
-							}
-						}
-					],
-					"attrs": {
-						"id": "18331827-26b1-4263-adfb-58e51eaad08b"
-					}
-				}
-			],
-			"attrs": {
-				"id": "33605099-5b9b-4a43-89c5-ac851b03ed68"
+				"id": "2bbe12b3-512b-43cc-859c-8ef4828d26d7"
 			}
 		},
 		{
@@ -2052,7 +1858,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Every form below is pinned by a committed fixture that the unit tests parse, and this table is generated from those fixtures — so it cannot claim a form no test covers. Fixtures whose shape comes from a IIIF Cookbook recipe are constructed over that recipe's vendored manifest; none of them is fetched, at test time or at documentation-build time."
+					"text": "Every form below is pinned by a committed fixture that the unit tests parse, and this table is generated from those fixtures, so it cannot list a form no test covers. Fixtures whose shape comes from a IIIF Cookbook recipe are constructed over that recipe's vendored manifest; none of them is fetched, at test time or at documentation-build time."
 				}
 			],
 			"attrs": {
@@ -2203,7 +2009,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Keeping the claim honest"
+					"text": "Tracking Cookbook changes"
 				}
 			]
 		},
@@ -2212,7 +2018,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Those fixtures were captured from cookbook recipes on a date, and the Cookbook keeps changing. A scheduled, advisory job — "
+					"text": "Those fixtures were captured from Cookbook recipes on the dates recorded above, and the Cookbook keeps changing. A scheduled advisory job, "
 				},
 				{
 					"type": "text",
@@ -2225,7 +2031,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — fetches the live recipes weekly and reports where the recipe catalog, the vendored manifests or a fixture's pinned manifest and canvas no longer match what iiif.io publishes. It files a GitHub issue; it never fails a build, and it is never a required check. A maintainer decides what to update."
+					"text": ", fetches the live recipes weekly and reports where the recipe catalog, the vendored manifests or a fixture's pinned manifest and canvas no longer match what iiif.io publishes. It files a GitHub issue; it never fails a build, and it is never a required check. A maintainer decides what to update."
 				}
 			],
 			"attrs": {

@@ -5,7 +5,7 @@
  * viewer object exists — here it is, you may touch it", and it resolved WITH
  * that object. With no pass-through there is nothing to hand over, so the two
  * are not interchangeable and carrying the old semantics forward under a new
- * name would have been the wrong half of the choice the spec forces.
+ * name would have been the wrong half of the choice.
  *
  * The decision taken: the helper **becomes a first-paint signal** rather than
  * retiring. It resolves `void`, and what it promises is that the renderer has a

@@ -11,7 +11,7 @@
  * raw Canvas JSON and core's first-party layout helpers, so the plugin requires
  * no capability.
  *
- * This plugin's validation duty (SPEC.md Plugin Migration) is asynchronous
+ * This plugin's validation duty is asynchronous
  * operations and binary output: the panel runs async IIIF fetch/compositing and
  * produces a download-ready `Blob` through the SDK seam.
  */

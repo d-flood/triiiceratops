@@ -10,8 +10,8 @@
  *   the same gate every other geometric claim in this suite goes through. A
  *   container placed against the wrong ancestor lands somewhere else.
  * - **The same DOM node before and after a manifest change.** The highest-risk
- *   fact in the spec: a manifest change unmounts and remounts the renderer, and
- *   the render site is deliberately OUTSIDE the gate that does it. Grouping the
+ *   fact here: a manifest change unmounts and remounts the renderer, and the
+ *   render site is deliberately OUTSIDE the gate that does it. Grouping the
  *   layers with the renderer instead would look tidier, keep every unit test
  *   green, and destroy every plugin's DOM on each manifest change.
  * - **Registering a second layer does not re-associate the first.** The same
@@ -531,10 +531,10 @@ async function activeTestId(page: Page): Promise<string | null> {
 }
 
 /*
- * User story 38. A claimant's layer is a SIBLING of the render surface, so a
- * wheel over anything it renders cannot reach the surface by bubbling. The
- * binding is on the box both sit in, which is what makes this true for every
- * claimant rather than for the one that remembered to forward it.
+ * A claimant's layer is a SIBLING of the render surface, so a wheel over
+ * anything it renders cannot reach the surface by bubbling. The binding is on
+ * the box both sit in, which is what makes this true for every claimant rather
+ * than for the one that remembered to forward it.
  */
 test('a wheel over a claimant’s surface zooms the image', async ({ page }) => {
     await openFixture(page);
@@ -551,9 +551,9 @@ test('a wheel over a claimant’s surface zooms the image', async ({ page }) => 
 });
 
 /*
- * User story 39. The opt-out, and the whole of it: a claimant that wants the
- * wheel consumes it, which is what a scrollable surface of its own is doing
- * anyway to stop the page scrolling behind it.
+ * The opt-out, and the whole of it: a claimant that wants the wheel consumes
+ * it, which is what a scrollable surface of its own is doing anyway to stop the
+ * page scrolling behind it.
  */
 test('a claimant that consumes the wheel keeps it', async ({ page }) => {
     await openFixture(page);

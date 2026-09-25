@@ -220,11 +220,10 @@ describe('app.html', () => {
     /*
      * One file is preloaded globally: the roman's `latin` slice.
      *
-     * Ticket 05 preloaded all three faces; ticket 06's measurement overturned
-     * that, because preloading the italic and the mono that first paint never
-     * uses competed with the roman for the throttled link and cost three
-     * points. Ticket 07 narrowed what remains from the full 419 KB roman to its
-     * 192 KB `latin` slice, which is all English prose paints. Every half is
+     * Preloading the italic and the mono that first paint never uses competes
+     * with the roman for the throttled link and costs three points, and the
+     * roman is preloaded as its 192 KB `latin` slice rather than the full
+     * 419 KB face, because that is all English prose paints. Every half is
      * asserted — the slice is preloaded, and neither the full faces nor the
      * other faces' slices are — so restoring any of it fails here rather than
      * only in the score gate, which is a whole site build away.

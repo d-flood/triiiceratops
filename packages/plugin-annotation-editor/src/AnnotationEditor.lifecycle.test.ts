@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 /**
- * End-to-end lifecycle integration suite (F28). Drives the *real*
+ * End-to-end lifecycle integration suite. Drives the *real*
  * `AnnotationStore` against a recording adapter and a stand-in display state
  * through the whole flow a user exercises:
  *
@@ -10,9 +10,8 @@ import { describe, expect, it, vi } from 'vitest';
  * At each step it asserts both the adapter call counts/payloads and the
  * read-only display contents (the viewer's `setUserAnnotations`). This is the
  * harness that would have caught the review's data-loss bugs
- * (F1 wrong target.source, F2 unpersisted draft, F4 load-per-save, F11/F12
- * teardown leaks); keep it adapter-agnostic and fast so later tickets can
- * extend it with new steps rather than new bespoke mocks.
+ * (wrong target.source, unpersisted draft, load-per-save, teardown leaks); keep it adapter-agnostic and fast so it can be
+ * extended with new steps rather than new bespoke mocks.
  */
 
 const KEY = (manifestId: string, canvasId: string) =>
@@ -44,7 +43,7 @@ const CANVAS_2 = 'http://example.org/canvas/2';
  * A recording adapter: five pure-storage functions over an in-memory,
  * manifest+canvas-keyed map, wrapped in `vi.fn` spies so the test can assert
  * call counts and payloads. Deliberately knows nothing about the display state,
- * ids, stamping, or caching — the plugin owns all of that (F10).
+ * ids, stamping, or caching — the plugin owns all of that.
  */
 function recordingAdapter(): AnnotationStorageAdapter {
     const store = new Map<string, W3CAnnotation[]>();
@@ -96,7 +95,7 @@ const rectAnnotation = (): W3CAnnotation => ({
     },
 });
 
-describe('AnnotationEditor full lifecycle integration (F28)', () => {
+describe('AnnotationEditor full lifecycle integration', () => {
     it('drives load → create → edit body → canvas change → reload → delete → destroy, keeping storage and display in agreement', async () => {
         displayed.clear();
         clearUserAnnotations.mockClear();
@@ -119,13 +118,13 @@ describe('AnnotationEditor full lifecycle integration (F28)', () => {
         // --- create: the drawn shape is persisted exactly once ---
         expect(await store.persist(rectAnnotation())).toBe(true);
 
-        // No load-per-save and no second write (F2/F4).
+        // No load-per-save and no second write.
         expect(adapter.create).toHaveBeenCalledTimes(1);
         expect(adapter.update).not.toHaveBeenCalled();
         expect(adapter.load).toHaveBeenCalledTimes(1); // still just the initial load
         const [, , created] = (adapter.create as Mock).mock.calls[0];
-        // target.source is the current canvas (F1), and the plugin stamped a
-        // complete W3C/IIIF annotation (F18).
+        // target.source is the current canvas, and the plugin stamped a
+        // complete W3C/IIIF annotation.
         expect(created.target.source).toBe(CANVAS_1);
         expect(created['@context']).toBe('http://www.w3.org/ns/anno.jsonld');
         expect(created.type).toBe('Annotation');

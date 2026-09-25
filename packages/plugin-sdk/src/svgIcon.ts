@@ -2,8 +2,8 @@
  * `svgIcon` — the SDK's validated toolbar-icon helper.
  *
  * A plugin author authors a full SVG string and passes it to `svgIcon`, which
- * validates it and returns a core-owned {@link IconDescriptor}. Per SPEC.md
- * ("Plugin SDK And Browser API") and CONTEXT.md, icon validation is a *developer
+ * validates it and returns a core-owned {@link IconDescriptor}. Per CONTEXT.md,
+ * icon validation is a *developer
  * error* channel: `svgIcon` throws **synchronously** at the call site (never a
  * runtime plugin-error state) when the markup contains anything unsafe to inject
  * into core's chrome:

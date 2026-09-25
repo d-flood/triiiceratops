@@ -1,7 +1,6 @@
 # Framework-adapter canary (scheduled, NON-BLOCKING).
 #
-# Required CI pins exact latest-stable framework majors for determinism (ticket
-# 13). This canary is the counterpart: on a schedule it re-runs the SDK's Svelte /
+# Required CI pins exact latest-stable framework majors for determinism. This canary is the counterpart: on a schedule it re-runs the SDK's Svelte /
 # React / Vue / Lit adapter suites against whatever each framework's registry
 # `latest` major currently resolves to, and files a report. It gives early warning
 # of a breaking framework release so a reviewed dependency bump can follow.
@@ -60,7 +59,7 @@ jobs:
                   pnpm --filter triiiceratops build:lib
                   pnpm --filter triiiceratops build:testing
 
-            # The seam ticket 13 left: swap the SDK's pinned framework devDeps for
+            # Swap the SDK's pinned framework devDeps for
             # each framework's current registry `latest`, then re-resolve.
             - name: Upgrade framework majors to registry latest
               run: |

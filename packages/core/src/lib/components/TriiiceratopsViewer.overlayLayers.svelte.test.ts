@@ -4,10 +4,10 @@
  * `viewer.pluginUnregister.test.ts` can only say that a layer's record left the
  * registry: viewer state never calls a layer's `mount`, so it can never observe
  * the cleanup that returns. The browser spec
- * (`tests/canvas-renderer-overlay-layer.spec.ts`) observes everything, but it is
- * Chromium-only, so on any other browser — and in every `pnpm test` run — the
- * ownership ticket's "disposes that plugin's layers, running their mount cleanups
- * and removing their containers" had no assertion at all.
+ * (`tests/canvas-renderer-overlay-layer.spec.ts`) observes everything, but it
+ * is Chromium-only, so on any other browser — and in every `pnpm test` run —
+ * the ownership contract — "disposes that plugin's layers, running their mount
+ * cleanups and removing their containers" — had no assertion at all.
  *
  * This file is that assertion. It mounts the real viewer and drives the real
  * `{#each}`, so it covers the half of the claim that does not need a painted

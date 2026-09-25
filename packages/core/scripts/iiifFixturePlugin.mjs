@@ -37,10 +37,9 @@ const PREFIX = '/iiif-fixture/';
  * The **800-canvas continuous fixture**, generated rather than checked in.
  *
  * Virtualization is only meaningful against a manifest of several hundred
- * canvases: "load everything" passes any test written against a short one
- * (spec §Further Notes). This fixture is dedicated to renderer and network
- * behaviour: every canvas is
- * the same numbered grid at the same Canvas dimensions, through its OWN image
+ * canvases: "load everything" passes any test written against a short one. This
+ * fixture is dedicated to renderer and network behaviour: every canvas is the
+ * same numbered grid at the same Canvas dimensions, through its OWN image
  * service, so nothing dedupes and one `info.json` per canvas is exactly what an
  * unvirtualized renderer would ask for.
  *

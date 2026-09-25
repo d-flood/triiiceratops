@@ -494,7 +494,7 @@ function constrainAxis(
 
 /**
  * Zoom about a screen point: the canvas-space point under `anchor` stays under
- * `anchor` (spec §Input and animation, user story 7).
+ * `anchor`.
  *
  * Returns the centre the viewport must adopt at `nextScale` for that to hold.
  * Expressed as a pure function rather than as a mutation inside the wheel
@@ -555,7 +555,7 @@ export function approach(
  * there as elsewhere.
  *
  * This is a *unit conversion declared by the event*, not the trackpad-versus-
- * mouse sniffing the spec bans (`rendererDefaults.WHEEL_TIME_CONSTANT`): all
+ * mouse sniffing that is banned (`rendererDefaults.WHEEL_TIME_CONSTANT`): all
  * wheel input is still animated by the same constant, and nothing here inspects
  * the hardware, the platform, or the user agent.
  *
@@ -609,7 +609,7 @@ export function wheelZoomRate(
 /**
  * Interpolate scale in **log space**, so zooming feels uniform rather than
  * lurching: a step from 1× to 2× and a step from 8× to 16× take the same time
- * and cover the same perceived distance (spec §Input and animation).
+ * and cover the same perceived distance.
  */
 export function approachScale(
     current: number,

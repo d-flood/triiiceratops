@@ -81,9 +81,8 @@ export interface PlannerImage {
  * space** (manifest Canvas `width`/`height`), and the pictures painted on it.
  *
  * Geometry is manifest geometry, never image-service geometry: layout must not
- * depend on any fetch (spec §Coordinate model and layout). Where the two
- * disagree — which is routine — the manifest wins permanently, so nothing on
- * screen moves when tiles arrive.
+ * depend on any fetch. Where the two disagree — which is routine — the manifest
+ * wins permanently, so nothing on screen moves when tiles arrive.
  *
  * `width`/`height` are `null` for a canvas whose manifest declares no usable
  * dimensions, which is a spec violation the viewer still has to render (user
@@ -133,7 +132,7 @@ export interface PlannerCanvas {
     /**
      * The Canvas's own declared `thumbnail`, as a fixed URL — the first rung of
      * the **thumbnail tier**'s resolution ladder, used as-is with the size
-     * ladder ignored (spec §Thumbnail resolution).
+     * ladder ignored.
      *
      * A **raw-JSON** fact: `thumbnail` is spelled the same in IIIF v2 and v3
      * and is read straight off the manifest by
@@ -160,8 +159,8 @@ export interface PlannerCanvas {
      * The one producer is `companionCanvases.withCompanion`: a claimed canvas
      * showing its `placeholderCanvas` carries its `accompanyingCanvas` here, so
      * that pressing play selects between two pictures in hand rather than
-     * starting a fetch (user story 41). Absent everywhere else, including on
-     * every canvas of every manifest with no AV plugin registered.
+     * starting a fetch. Absent everywhere else, including on every canvas of
+     * every manifest with no AV plugin registered.
      *
      * **One request each, and never a draw**: the base level where that is a
      * single tile covering the whole image, and otherwise the base rung of the
@@ -199,8 +198,7 @@ export interface Viewport {
  *
  * These govern the **tile pyramid only**. Geometry comes from the manifest
  * Canvas and wins permanently, so `width`/`height` disagreeing with the
- * manifest's cannot move anything on screen (spec §Coordinate model and
- * layout).
+ * manifest's cannot move anything on screen.
  */
 export interface ImageServiceFacts {
     /**
@@ -254,8 +252,8 @@ export interface ImageServiceFacts {
 /**
  * Planner inputs that are policy rather than fact.
  *
- * Every value here is provisional (spec §Further Notes) and supplied by the
- * caller precisely so tests never assert against shipped defaults.
+ * Every value here is provisional and supplied by the caller precisely so tests
+ * never assert against shipped defaults.
  */
 export interface PlannerBudgets {
     /** Decoded-pixel byte ceiling for the opportunistic cache. */
@@ -415,12 +413,12 @@ export interface ThumbnailRequest extends TileRequest {
  * canvas-space box it paints into.
  *
  * A static source has one known URL, no service, and therefore nothing to
- * discover and nothing to tile (user story 29). It is fetched by the host as a
- * plain `<img>` rather than through the tile scheduler, so it needs its own
- * channel out of the plan — but the DECISION of whether it is wanted at all is
- * the planner's, exactly like every other: a canvas outside the residency
- * window contributes none of these, which is what keeps an 800-folio manifest
- * of plain JPEGs from starting 800 image loads on open.
+ * discover and nothing to tile. It is fetched by the host as a plain `<img>`
+ * rather than through the tile scheduler, so it needs its own channel out of
+ * the plan — but the DECISION of whether it is wanted at all is the planner's,
+ * exactly like every other: a canvas outside the residency window contributes
+ * none of these, which is what keeps an 800-folio manifest of plain JPEGs from
+ * starting 800 image loads on open.
  *
  * Emitted per **placed image**, not per canvas. That is the whole of composite
  * support on this path: two static images on one canvas are two entries with
@@ -485,8 +483,7 @@ export interface PlanWorldInput {
      * byte, pixel, or threshold quantity. Tuning the budgets must not be able
      * to move canvases on screen as a side effect.
      *
-     * Not configuration: no public surface exposes it, and none is added here
-     * (spec §Out of Scope).
+     * Not configuration: no public surface exposes it, and none is added here.
      */
     gapFraction: number;
     /**
@@ -567,7 +564,7 @@ export interface PlanSceneInput extends PlanWorldInput {
      * settling, no momentum, no held key. Defaults to `true`, which is what an
      * idle caller and every test that does not care are describing.
      *
-     * **The view-stable gate** (spec §Tile scheduling). No thumbnail and no
+     * **The view-stable gate**. No thumbnail and no
      * `info.json` request is issued while this is false. A flick passes over
      * hundreds of canvases that are never dwelt on, and asking for each one as
      * it goes by is most of the request storm on its own — so the ones the

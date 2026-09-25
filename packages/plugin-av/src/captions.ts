@@ -10,7 +10,7 @@
  *    the body may itself be a `Choice` of one track per language (0074).
  *
  * Only `text/vtt` is read. SRT and TTML are not native `<track>` formats and
- * would need a parser and a renderer of our own (SPEC fences them out), and a
+ * would need a parser and a renderer of our own, and a
  * transcript derived from annotation bodies is a different feature entirely.
  *
  * Embedded annotations only: both caption recipes and both local fixtures carry

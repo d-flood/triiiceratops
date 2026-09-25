@@ -7,7 +7,7 @@
     },
     "summary": {
         "en": [
-            "Two AV canvases with chapter ranges whose canvas references carry #t= fragments (spec, user story 14), and the two behaviors the plugin honours, both on the manifest where IIIF Presentation 3 defines them: auto-advance, so the audio canvas plays on into the video canvas when it ends (user story 18), and repeat alongside it, so reaching the end of the final canvas returns to the first (user story 19). repeat is not valid on a Canvas and is not a per-canvas loop. The video canvas also carries its captions as a canvas-level supplementing annotation — the second of the two real caption shapes; av-video.json carries the first."
+            "Two AV canvases with chapter ranges whose canvas references carry #t= fragments, and the two behaviors the plugin honours, both on the manifest where IIIF Presentation 3 defines them: auto-advance, so the audio canvas plays on into the video canvas when it ends, and repeat alongside it, so reaching the end of the final canvas returns to the first. repeat is not valid on a Canvas and is not a per-canvas loop. The video canvas also carries its captions as a canvas-level supplementing annotation — the second of the two real caption shapes; av-video.json carries the first."
         ]
     },
     "behavior": ["auto-advance", "repeat"],

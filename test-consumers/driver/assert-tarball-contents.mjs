@@ -1,6 +1,6 @@
 // Tarball-level content contract (allowlist-oriented).
 //
-// SPEC "Package Contents And Metadata" / "Testing Decisions": published tarballs
+// Published tarballs
 // contain ONLY public entries, their transitive runtime/Svelte modules,
 // declarations, CSS, IIFEs, intentional testing exports, README, LICENSE, and
 // package metadata. Demo manifests, favicons, internal tests, fixtures, test

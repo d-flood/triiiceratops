@@ -158,10 +158,10 @@ describe('toPlannerCanvas', () => {
     });
 
     it('reports null geometry for a Canvas that declares no dimensions', () => {
-        // A spec violation the viewer still has to render (user story 32).
-        // Reported as "unknown" rather than guessed HERE, because the guess is
-        // a median of the canvas's siblings and a reflow when an image service
-        // answers — neither of which this function can see.
+        // A spec violation the viewer still has to render. Reported as
+        // "unknown" rather than guessed HERE, because the guess is a median of
+        // the canvas's siblings and a reflow when an image service answers —
+        // neither of which this function can see.
         const unsized = v3Canvas(STATIC_BODY, {
             width: undefined,
             height: undefined,
@@ -332,7 +332,7 @@ describe('toPlannerCanvas — composite canvases', () => {
  * "the Cookbook fixtures cover this" is an assumption rather than a fact. The
  * shapes below are the four a Canvas is allowed to declare a thumbnail in, and
  * the branch they feed must never be replaced by a discovery fetch merely
- * because a canvas is raw JSON now (spec §Thumbnail resolution, rung 1).
+ * because a canvas is raw JSON now.
  */
 describe('getDeclaredDuration', () => {
     /** A Canvas whose only painting body is a `Sound`: duration, no dimensions. */

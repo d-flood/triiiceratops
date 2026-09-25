@@ -1,5 +1,5 @@
 /**
- * One template ref, two viewers (SPEC user story 36).
+ * One template ref, two viewers.
  *
  * Vue's handle is an ordinary template ref rather than a wrapper-owned prop, so
  * nothing in the component's signature stops a consumer from putting the same

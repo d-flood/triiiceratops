@@ -25,7 +25,7 @@ import { createSelectorRuntime, type SelectorRuntime } from './selectors.js';
 /**
  * Wrap a style service so every `install` this activation performs is tracked
  * and any reference still held at deactivation is released automatically
- * (SPEC.md — "style installation deduplicated and cleaned up"). The returned
+ * The returned
  * `releaseAll` runs the outstanding uninstallers; each is idempotent, so a
  * plugin that already uninstalled its own sheet is unaffected.
  */

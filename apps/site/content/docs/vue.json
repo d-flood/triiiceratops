@@ -29,7 +29,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": a real Vue 3.5 component that hosts the Triiiceratops custom element and translates its lifecycle, properties, events, and viewer state into Vue idioms. It does not implement or own a second viewer — there is exactly one viewer implementation, behind the custom-element boundary."
+					"text": ": a real Vue 3.5 component that hosts the Triiiceratops custom element and translates its lifecycle, properties, events, and viewer state into Vue idioms. It is not a second viewer. The one viewer implementation sits behind the custom-element boundary."
 				}
 			],
 			"attrs": {
@@ -41,7 +41,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "That boundary is also where Svelte stays. You do "
+					"text": "Svelte stays behind that boundary. You do "
 				},
 				{
 					"type": "text",
@@ -254,7 +254,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — installing Triiiceratops for a different integration never pulls Vue in, and Vue is never bundled into the package."
+					"text": ": installing Triiiceratops for a different integration never pulls Vue in, and Vue is never bundled into the package."
 				}
 			],
 			"attrs": {
@@ -293,7 +293,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "That is the whole integration — no "
+					"text": "That is the whole integration. It needs no "
 				},
 				{
 					"type": "text",
@@ -306,7 +306,7 @@
 				},
 				{
 					"type": "text",
-					"text": " change, no registration import, no "
+					"text": " change, registration import, or "
 				},
 				{
 					"type": "text",
@@ -319,7 +319,7 @@
 				},
 				{
 					"type": "text",
-					"text": " block assigning properties to a ref. Some things worth knowing right away:"
+					"text": " block assigning properties to a ref. Worth knowing:"
 				}
 			],
 			"attrs": {
@@ -379,7 +379,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "The wrapper renders exactly one element",
+									"text": "The wrapper renders one element",
 									"marks": [
 										{
 											"type": "bold"
@@ -388,7 +388,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — the "
+									"text": ": the "
 								},
 								{
 									"type": "text",
@@ -401,7 +401,7 @@
 								},
 								{
 									"type": "text",
-									"text": " host, and nothing else. No layout wrapper, so adopting it changes no sizing or CSS. Give the host a height, as above."
+									"text": " host. There is no layout wrapper, so adopting it changes no sizing or CSS. Give the host a height, as above."
 								}
 							],
 							"attrs": {
@@ -576,7 +576,7 @@
 								},
 								{
 									"type": "text",
-									"text": " deliberately, so attribute inheritance stays predictable even though the component renders a single element."
+									"text": " explicitly, so attribute inheritance stays predictable even though the component renders a single element."
 								}
 							],
 							"attrs": {
@@ -641,7 +641,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Vue already has the thing a viewer handle needs to be — a stable, consumer-owned box the component fills in — so this wrapper adds no handle API of its own. An ordinary template ref "
+					"text": "A viewer handle only needs to be a stable, consumer-owned box that the component fills in. Vue already has one, so this wrapper adds no handle API of its own. An ordinary template ref "
 				},
 				{
 					"type": "text",
@@ -692,7 +692,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and VueUse composables, nothing here is new machinery — the ref is the handle and the composables take it."
+					"text": " and VueUse composables, nothing here is new: the ref is the handle and the composables take it."
 				}
 			],
 			"attrs": {
@@ -734,7 +734,7 @@
 						},
 						{
 							"type": "text",
-							"text": " before mount and after unmount — that is Vue's template-ref contract. "
+							"text": " before mount and after unmount (Vue's template-ref contract). "
 						},
 						{
 							"type": "text",
@@ -798,7 +798,7 @@
 						},
 						{
 							"type": "text",
-							"text": " is the honest state of the world, and the second "
+							"text": " is the actual state, and the second "
 						},
 						{
 							"type": "text",
@@ -847,7 +847,7 @@
 				},
 				{
 					"type": "text",
-					"text": " A viewer that nothing reads from needs no ref at all — the first example above has none."
+					"text": " A viewer that nothing reads from needs no ref, like the first example above."
 				}
 			],
 			"attrs": {
@@ -868,7 +868,7 @@
 				},
 				{
 					"type": "text",
-					"text": " The ref is a value, so controls can be siblings, ancestors, nested inside your own layout components, or in a completely different part of the tree. The wrapper imposes no markup structure."
+					"text": " The ref is a value, so controls can sit anywhere in the tree, inside your own layout components or not. The wrapper imposes no markup structure."
 				}
 			],
 			"attrs": {
@@ -889,7 +889,7 @@
 				},
 				{
 					"type": "text",
-					"text": " Two viewers on a page means two template refs; their state, selectors, commands, emits, and handles are completely isolated. Putting the "
+					"text": " Two viewers on a page means two template refs; their state, selectors, commands, emits, and handles are isolated. Putting the "
 				},
 				{
 					"type": "text",
@@ -928,7 +928,7 @@
 				},
 				{
 					"type": "text",
-					"text": " naming both elements, because ambiguous ownership would silently make every read follow whichever viewer mounted last. Two shapes are exempt, because sharing is the intent rather than a mistake: a ref inside "
+					"text": " naming both elements, because ambiguous ownership would silently make every read follow whichever viewer mounted last. Two cases are exempt because the sharing is intended: a ref inside "
 				},
 				{
 					"type": "text",
@@ -1366,7 +1366,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Both also have a context form that omits the handle — see "
+					"text": "Both also have a context form that omits the handle. See "
 				},
 				{
 					"type": "text",
@@ -1420,7 +1420,7 @@
 				},
 				{
 					"type": "text",
-					"text": " gives you the very same live "
+					"text": " gives you the same live "
 				},
 				{
 					"type": "text",
@@ -1433,7 +1433,7 @@
 				},
 				{
 					"type": "text",
-					"text": " object the element owns — no facade, no "
+					"text": " object the element owns (not a facade, "
 				},
 				{
 					"type": "text",
@@ -1446,7 +1446,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", no copy — with the four lifecycle-plumbing methods ("
+					"text": ", or copy), with the four lifecycle methods ("
 				},
 				{
 					"type": "text",
@@ -1635,7 +1635,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is one generic, memoized, equality-gated projection. "
+					"text": " is one generic projection, memoized and gated by equality. "
 				},
 				{
 					"type": "text",
@@ -2049,7 +2049,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for the query-only viewport values (scale, center, bounds, container size) that the renderer answers per frame and that are deliberately not mirrored into viewer state. "
+					"text": " for the query-only viewport values (scale, center, bounds, container size) that the renderer answers per frame and that are not mirrored into viewer state. "
 				},
 				{
 					"type": "text",
@@ -2065,7 +2065,7 @@
 				},
 				{
 					"type": "text",
-					"text": " explains the split and why it exists; the Vue call is one option:"
+					"text": " explains the split and why it exists. In Vue it is one option:"
 				}
 			],
 			"attrs": {
@@ -2142,7 +2142,7 @@
 				},
 				{
 					"type": "text",
-					"text": " cadence is the one selector mistake that fails silently — the projection simply appears frozen. See "
+					"text": " cadence fails silently: the projection appears frozen. See "
 				},
 				{
 					"type": "text",
@@ -2291,7 +2291,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and for teams who prefer the boundary visible in the template. Vue does not need it — "
+					"text": " and for teams who prefer the boundary visible in the template. Vue does not need it: "
 				},
 				{
 					"type": "text",
@@ -3569,7 +3569,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "All tiers are "
+					"text": "Both tiers in the table above (attribute and property) are "
 				},
 				{
 					"type": "text",
@@ -3643,7 +3643,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for them, deliberately: after the user navigates internally, re-asserting the same "
+					"text": " for them: after the user navigates internally, re-asserting the same "
 				},
 				{
 					"type": "text",
@@ -3668,7 +3668,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "To follow where the viewer actually is, observe it — with a selector, or with the "
+					"text": "To follow where the viewer actually is, observe it with a selector, or with the "
 				},
 				{
 					"type": "text",
@@ -3746,7 +3746,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Property-tier inputs are compared with one uniform, one-level shallow equality: identical by "
+					"text": "Property-tier inputs are compared by one-level shallow equality: identical by "
 				},
 				{
 					"type": "text",
@@ -3759,7 +3759,7 @@
 				},
 				{
 					"type": "text",
-					"text": "; or both arrays of equal length with identical elements; or both plain objects with equal own-key sets and identical values. Deep equality is deliberately not used."
+					"text": "; or both arrays of equal length with identical elements; or both plain objects with equal own-key sets and identical values. Deep equality is not used."
 				}
 			],
 			"attrs": {
@@ -3961,7 +3961,7 @@
 				},
 				{
 					"type": "text",
-					"text": " the wrapper warns once, naming the prop, after one property-tier input has been re-assigned an implausible number of times on one element — so an accidentally unstable object prop is diagnosable instead of mysterious."
+					"text": " the wrapper warns once, naming the prop, after one property-tier input has been re-assigned more than 10 times on one element, so an accidentally unstable object prop is easy to find."
 				}
 			],
 			"attrs": {
@@ -4012,7 +4012,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — "
+					"text": ": "
 				},
 				{
 					"type": "text",
@@ -4025,7 +4025,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", with no Svelte types or Svelte runtime involved. The "
+					"text": ", with no Svelte types or runtime involved. The "
 				},
 				{
 					"type": "text",
@@ -4066,7 +4066,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", not to the identity of the list: re-supplying an equal list leaves running plugins completely untouched — no teardown, no restart, no re-injected styles. Build the list once outside any reactive re-evaluation anyway, since a fresh "
+					"text": ", not to the identity of the list: re-supplying an equal list leaves running plugins untouched: nothing is torn down, restarted, or re-injected. Build the list once outside any reactive re-evaluation anyway, since a fresh "
 				},
 				{
 					"type": "text",
@@ -4079,7 +4079,7 @@
 				},
 				{
 					"type": "text",
-					"text": " call would produce a genuinely different plugin each time."
+					"text": " call produces a different plugin each time."
 				}
 			],
 			"attrs": {
@@ -4118,7 +4118,7 @@
 				},
 				{
 					"type": "text",
-					"text": " directly — never a "
+					"text": " directly, never a "
 				},
 				{
 					"type": "text",
@@ -4131,7 +4131,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — so your code is independent of the DOM event envelope."
+					"text": ", so your code is independent of the DOM event envelope."
 				}
 			],
 			"attrs": {
@@ -4461,7 +4461,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "the exact "
+											"text": "the original "
 										},
 										{
 											"type": "text",
@@ -4536,7 +4536,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "the exact typed "
+											"text": "the original typed "
 										},
 										{
 											"type": "text",
@@ -4654,7 +4654,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The same template ref is the escape hatch. It exposes exactly two members — "
+					"text": "The same template ref is the escape hatch. It exposes two members: "
 				},
 				{
 					"type": "text",
@@ -4693,7 +4693,7 @@
 				},
 				{
 					"type": "text",
-					"text": " (the readonly viewer state) — so it stays small and discoverable:"
+					"text": " (the readonly viewer state):"
 				}
 			],
 			"attrs": {
@@ -4869,7 +4869,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — the "
+					"text": ": the "
 				},
 				{
 					"type": "text",
@@ -4882,7 +4882,7 @@
 				},
 				{
 					"type": "text",
-					"text": " tag carrying the attribute tier ("
+					"text": " tag carrying the attribute-tier inputs ("
 				},
 				{
 					"type": "text",
@@ -4947,7 +4947,7 @@
 				},
 				{
 					"type": "text",
-					"text": ") and your forwarded host attributes, and nothing else. No shadow-DOM internals, no property-tier values, no renderer. The client's first render emits the identical attribute set, so hydration reuses and upgrades the same host with no mismatch, and viewer internals initialize only in the browser."
+					"text": ") and your forwarded host attributes. It has no shadow-DOM internals, property-tier values, or renderer. The client's first render emits the identical attribute set, so hydration reuses and upgrades the same host with no mismatch, and viewer internals initialize only in the browser."
 				}
 			],
 			"attrs": {
@@ -4959,7 +4959,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "State-reading components server-render harmlessly, which is a real difference from the React wrapper: there is no viewer during a server render, so the refs from "
+					"text": "Unlike with the React wrapper, state-reading components server-render harmlessly: there is no viewer during a server render, so the refs from "
 				},
 				{
 					"type": "text",
@@ -4998,7 +4998,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and your not-ready branch is what gets serialized. Because reads are nullable rather than gated, the client's first render agrees with it and hydration reports no mismatch — write that branch as markup the client can also produce."
+					"text": " and your not-ready branch is what gets serialized. Because reads are nullable rather than gated, the client's first render agrees with it and hydration reports no mismatch. Write that branch as markup the client can also produce."
 				}
 			],
 			"attrs": {
@@ -5090,7 +5090,7 @@
 								},
 								{
 									"type": "text",
-									"text": "; the wrapper atomically disposes the previous selector runtime, publishes the new binding, and rebuilds the handle. Every composable rewires itself — selectors, commands, and the template ref all keep working, and no consumer is ever left holding a projection subscribed to a disposed runtime."
+									"text": "; the wrapper atomically disposes the previous selector runtime, publishes the new binding, and rebuilds the handle. Every composable rewires itself: selectors, commands, and the template ref all keep working, and no consumer is left holding a projection subscribed to a disposed runtime."
 								}
 							],
 							"attrs": {
@@ -5119,7 +5119,7 @@
 								},
 								{
 									"type": "text",
-									"text": " The manifest, canvas, viewport, and plugin state from before deactivation are gone, because the object that held them was destroyed. Restoring it is not attempted: that would require the wrapper to own a second state surface, which it deliberately does not."
+									"text": " The manifest, canvas, viewport, and plugin state from before deactivation are gone, because the object that held them was destroyed. Restoring it is not attempted: that would require the wrapper to own a second state surface, which it does not have."
 								}
 							],
 							"attrs": {
@@ -5167,7 +5167,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", because the state loss is otherwise completely silent."
+					"text": ", because the state loss is otherwise silent."
 				}
 			],
 			"attrs": {
@@ -5179,7 +5179,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "If a round trip must preserve where the user was, keep that in your own state and re-supply it — for example, remember the last "
+					"text": "If a round trip must preserve where the user was, keep that in your own state and re-supply it. For example, remember the last "
 				},
 				{
 					"type": "text",
@@ -5386,7 +5386,7 @@
 										},
 										{
 											"type": "text",
-											"text": " getter — usually a second, older Triiiceratops core that registered first"
+											"text": " getter, usually a second, older Triiiceratops core that registered first"
 										}
 									],
 									"attrs": {
@@ -5505,7 +5505,7 @@
 										},
 										{
 											"type": "text",
-											"text": " registry — the mount path ran outside a browser"
+											"text": " registry: the mount path ran outside a browser"
 										}
 									],
 									"attrs": {
@@ -5637,7 +5637,7 @@
 				},
 				{
 					"type": "text",
-					"text": " slot is passed to two viewers — see "
+					"text": " slot is passed to two viewers. See "
 				},
 				{
 					"type": "text",
@@ -5729,7 +5729,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — unstable property-tier props, a "
+					"text": ": unstable property-tier props, a "
 				},
 				{
 					"type": "text",
@@ -5832,7 +5832,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — real commands, real batched notifications, the real selector runtime "
+					"text": ", with real commands, real batched notifications, and the same selector runtime "
 				},
 				{
 					"type": "text",
@@ -5845,7 +5845,7 @@
 				},
 				{
 					"type": "text",
-					"text": " consults — with no DOM viewer, no custom element, no renderer surface, and no network. Run it under "
+					"text": " consults. It needs no DOM viewer, custom element, renderer surface, or network. Run it under "
 				},
 				{
 					"type": "text",
@@ -5871,7 +5871,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — which a Vue test runner already provides — because the published entry bundles a "
+					"text": ", which a Vue test runner already provides. The published entry bundles a "
 				},
 				{
 					"type": "text",
@@ -6008,7 +6008,7 @@
 				},
 				{
 					"type": "text",
-					"text": " command — still no network). "
+					"text": " command, still with no network). "
 				},
 				{
 					"type": "text",
@@ -6086,7 +6086,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The promise of this wrapper is "
+					"text": "The wrapper gives you "
 				},
 				{
 					"type": "text",
@@ -6099,7 +6099,7 @@
 				},
 				{
 					"type": "text",
-					"text": " to the viewer. Two limits are deliberately outside it, and both are shared by every host rather than being Vue-specific:"
+					"text": " to the viewer. Two limits are outside its scope, and both apply to every host:"
 				}
 			],
 			"attrs": {
@@ -6178,7 +6178,7 @@
 								},
 								{
 									"type": "text",
-									"text": " element — "
+									"text": " element ("
 								},
 								{
 									"type": "text",
@@ -6204,7 +6204,7 @@
 								},
 								{
 									"type": "text",
-									"text": ", layout, size, borders — is yours as usual, and scoped styles ("
+									"text": ", layout, size, borders) is yours as usual, and scoped styles ("
 								},
 								{
 									"type": "text",
@@ -6217,7 +6217,7 @@
 								},
 								{
 									"type": "text",
-									"text": ") reach the host and nothing inside it, which is the same boundary stated a different way. See "
+									"text": ") reach the host but nothing inside it. See "
 								},
 								{
 									"type": "text",
@@ -6300,7 +6300,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Direct custom-element integration also remains fully supported for hosts that want it — see "
+					"text": "Direct custom-element integration is still fully supported. See "
 				},
 				{
 					"type": "text",
@@ -6316,7 +6316,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". Adopting the wrapper is not required."
+					"text": ". Adopting the wrapper is optional."
 				}
 			],
 			"attrs": {

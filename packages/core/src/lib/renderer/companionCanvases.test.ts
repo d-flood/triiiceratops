@@ -165,9 +165,9 @@ describe('a duration-only canvas with an accompanying canvas (0014)', () => {
     });
 
     it('is today’s descriptor exactly while its claimant has set no phase', () => {
-        // The claim on its own changes nothing about what core renders
-        // (user story 27), which is what the renderer's pass-through of an
-        // absent phase is; here that is the untouched base descriptor.
+        // The claim on its own changes nothing about what core renders, which
+        // is what the renderer's pass-through of an absent phase is; here that
+        // is the untouched base descriptor.
         const base = baseOf(canvas);
 
         expect(base.width).toBeNull();
@@ -195,7 +195,7 @@ describe('a duration-only canvas with an accompanying canvas (0014)', () => {
         // Geometry is decided once and never by the phase: a claimant whose
         // canvas has only a placeholder moves to `none` on first play, and a
         // rect that reverted there would reflow the page at exactly that
-        // moment (user story 10).
+        // moment.
         expect(painted.width).toBe(772);
         expect(painted.height).toBe(998);
     });

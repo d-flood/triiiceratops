@@ -42,7 +42,7 @@
 				},
 				{
 					"type": "text",
-					"text": " (real commands, real batched notifications) with recording doubles for the style, UI, and locale services and an injectable renderer stand-in that defaults to absent. The harness is fake; the state is never fake, so a passing test reflects production semantics."
+					"text": " (real commands, real batched notifications) with recording doubles for the style, UI, and locale services and an injectable renderer stand-in that is absent by default. Only the harness is simulated; the state is real, so a passing test reflects production behavior."
 				}
 			],
 			"attrs": {
@@ -54,7 +54,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The kit runs in a plain vitest project — no Svelte tooling required — because the headless state comes from core's compiled "
+					"text": "The kit runs in a plain Vitest project with no Svelte tooling, because the headless state comes from core's compiled "
 				},
 				{
 					"type": "text",
@@ -79,7 +79,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "It also carries the inert stub services — "
+					"text": "It also includes inert stub services ("
 				},
 				{
 					"type": "text",
@@ -131,7 +131,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — for an activation with no viewer behind it at all. A "
+					"text": ") for an activation with no viewer behind it. A "
 				},
 				{
 					"type": "text",
@@ -144,7 +144,7 @@
 				},
 				{
 					"type": "text",
-					"text": " requires every service, and these are the ones to hand it when the test is about something else. They live here rather than in the SDK's base entry so no shipped plugin bundle carries a service implementation no reader can see."
+					"text": " requires every service; pass these when the test is about something else. They live here rather than in the SDK's base entry so shipped plugin bundles never include them."
 				}
 			],
 			"attrs": {
@@ -358,7 +358,7 @@
 				},
 				{
 					"type": "text",
-					"text": " binds the surface to one chrome id — "
+					"text": " binds the surface to one chrome id, "
 				},
 				{
 					"type": "text",
@@ -384,7 +384,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — and seeds the viewer's plugin UI state for it. That id is the only thing the viewer knows your plugin as, so it is the only prefix "
+					"text": ", and seeds the viewer's plugin UI state for it. The viewer knows your plugin only by that id, so it is the only prefix "
 				},
 				{
 					"type": "text",
@@ -397,7 +397,7 @@
 				},
 				{
 					"type": "text",
-					"text": " accepts. Two ways to trip over it, both of which show up as a layer that never mounts:"
+					"text": " accepts. Two common mistakes both leave a layer that never mounts:"
 				}
 			],
 			"attrs": {
@@ -437,7 +437,7 @@
 								},
 								{
 									"type": "text",
-									"text": " instead — in a test that is "
+									"text": " instead. In a test that is "
 								},
 								{
 									"type": "text",
@@ -526,7 +526,7 @@
 								},
 								{
 									"type": "text",
-									"text": " answers with whatever id you gave it, and a viewer has never heard of an id it did not register, so every layer is refused. Pass "
+									"text": " answers with whatever id you gave it, and the viewer rejects ids it did not register, so every layer is refused. Pass "
 								},
 								{
 									"type": "text",
@@ -613,7 +613,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is never called. If you want the refusal to be loud in a test, wire a reporter: "
+					"text": " is never called. To make a refusal fail the test, set an error reporter: "
 				},
 				{
 					"type": "text",
@@ -739,7 +739,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The kit ships a headless renderer stand-in. The renderer is first-party, so there is exactly one right answer to what a stand-in reports. Mount it with "
+					"text": "The kit ships a headless renderer stand-in. Because the renderer is first-party, the stand-in reports what the real renderer would. Mount it with "
 				},
 				{
 					"type": "text",
@@ -824,7 +824,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Genuine pixel behavior still belongs at the browser seam."
+					"text": "Test real pixel behavior in a browser."
 				}
 			],
 			"attrs": {
@@ -876,7 +876,7 @@
 				},
 				{
 					"type": "text",
-					"text": " entry in a plain vitest project, installed from the packed tarballs the way a consumer installs it."
+					"text": " entry in a plain Vitest project, installed from the packed tarballs the way a consumer installs it."
 				}
 			],
 			"attrs": {

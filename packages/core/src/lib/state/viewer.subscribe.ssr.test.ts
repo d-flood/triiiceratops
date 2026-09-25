@@ -1,6 +1,6 @@
 // @vitest-environment node
 //
-// SSR safety (ticket 04 / ADR 0008): constructing `ViewerState` and calling
+// SSR safety (ADR 0008): constructing `ViewerState` and calling
 // `subscribe` on the server must not throw. The reactivity-driven watcher is
 // browser-only and starts lazily, so on the server no effect is created and no
 // notifications are delivered — while state reads stay synchronously current.

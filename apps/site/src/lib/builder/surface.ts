@@ -337,7 +337,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
     },
     {
         title: 'Panels',
-        note: 'hich panels are open on load, which can be closed, and which side they appear on.',
+        note: 'Which panels are open on load, which can be closed, and which side they appear on.',
         controls: [
             toggle(['gallery', 'open'], 'Gallery open'),
             toggle(['gallery', 'expanded'], 'Gallery expanded to a full grid'),

@@ -437,9 +437,9 @@ describe('resolveThumbnail', () => {
         it('refuses a ladder whose cheapest image is over the decoded-pixel cap', () => {
             // A level0 service with no sizes and no tiles can serve exactly one
             // thing: the whole master. Decoding a 108-megapixel scan to fill a
-            // 32-pixel box is the memory failure the tier exists to prevent, and
-            // the spec's own answer for a canvas with no usable thumbnail is a
-            // plain box (user story 31).
+            // 32-pixel box is the memory failure the tier exists to prevent,
+            // and the answer for a canvas with no usable thumbnail is a plain
+            // box.
             const facts: ImageServiceFacts = {
                 width: 12_000,
                 height: 9000,

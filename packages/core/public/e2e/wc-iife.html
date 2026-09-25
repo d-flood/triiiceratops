@@ -5,19 +5,19 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Triiiceratops WC IIFE parity fixture</title>
         <!--
-            Self-contained IIFE Web Component entry (ticket 10). Loaded as a
-            classic script from the built dist/ artifact; requires `pnpm
-            build:element` (or build:all) to have run. Styles are self-installed
-            into the shadow root, so no element stylesheet is needed.
+            Self-contained IIFE Web Component entry. Loaded as a classic script
+            from the built dist/ artifact; requires `pnpm build:element` (or
+            build:all) to have run. Styles are self-installed into the shadow
+            root, so no element stylesheet is needed.
         -->
         <script src="/dist/triiiceratops-element.iife.js"></script>
         <script>
-            // The state bridge (ticket 02). Recorded from the document, before
-            // the element is even parsed, because `viewerstateavailable` is
-            // dispatched as soon as the inner viewer mounts — which, with the
-            // IIFE entry already registered above, can happen before the
-            // trailing body script runs. A composed event retargets to the
-            // host, so `event.target` is the custom element itself.
+            // The state bridge. Recorded from the document, before the element
+            // is even parsed, because `viewerstateavailable` is dispatched as
+            // soon as the inner viewer mounts — which, with the IIFE entry
+            // already registered above, can happen before the trailing body
+            // script runs. A composed event retargets to the host, so
+            // `event.target` is the custom element itself.
             window.__viewerStateEvents = [];
             document.addEventListener('viewerstateavailable', (event) => {
                 const host = event.target;

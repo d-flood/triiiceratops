@@ -46,7 +46,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", and returns a cleanup function. Render it with vanilla JavaScript, React, Vue, Svelte, Lit, or any other framework that mounts into an element — see "
+					"text": ", and returns a cleanup function. Render it with vanilla JavaScript, React, Vue, Svelte, Lit, or any other framework that mounts into an element. See "
 				},
 				{
 					"type": "text",
@@ -265,7 +265,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — render into it with whatever you already use. Each framework has an optional adapter subpath ("
+					"text": "; render into it with whatever you already use. Each framework has an optional adapter subpath ("
 				},
 				{
 					"type": "text",
@@ -304,7 +304,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "No adapter needed — read "
+									"text": "No adapter needed. Read "
 								},
 								{
 									"type": "text",
@@ -547,7 +547,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "There is no Svelte-only shortcut — a dedicated one would put Svelte component types into every consumer's type graph. Mount your Svelte component from "
+											"text": "There is no Svelte-only shortcut, because a dedicated one would put Svelte component types into every consumer's type graph. Mount your Svelte component from "
 										},
 										{
 											"type": "text",
@@ -560,7 +560,7 @@
 										},
 										{
 											"type": "text",
-											"text": " exactly as above; set a stable "
+											"text": " as above; set a stable "
 										},
 										{
 											"type": "text",
@@ -740,7 +740,7 @@
 				},
 				{
 					"type": "text",
-					"text": " plugin has no authoring-time way to pick where its panel docks — that choice belongs to the consuming app, since it's the app that knows its own layout. A host sets it per plugin, keyed by the same "
+					"text": " plugin has no authoring-time way to pick where its panel docks. The consuming app chooses, since it knows its own layout. A host sets it per plugin, keyed by the same "
 				},
 				{
 					"type": "text",
@@ -891,7 +891,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — a flyout is anchored to its toolbar button, not docked to a side."
+					"text": ", because a flyout is anchored to its toolbar button rather than docked to a side."
 				}
 			],
 			"attrs": {
@@ -943,7 +943,7 @@
 				},
 				{
 					"type": "text",
-					"text": " on invalid input — scripts, event attributes, external resources, and "
+					"text": " on invalid input: scripts, event attributes, external resources, and "
 				},
 				{
 					"type": "text",
@@ -1021,7 +1021,7 @@
 				},
 				{
 					"type": "text",
-					"text": " from the sections above slots in exactly where a pre-built plugin like "
+					"text": " from the sections above goes where a prebuilt plugin like "
 				},
 				{
 					"type": "text",
@@ -1034,7 +1034,7 @@
 				},
 				{
 					"type": "text",
-					"text": " would go — see "
+					"text": " would. See "
 				},
 				{
 					"type": "text",
@@ -1088,7 +1088,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", without going through the viewer component — this is what the "
+					"text": ", without going through the viewer component. This is what the "
 				},
 				{
 					"type": "text",
@@ -1155,7 +1155,7 @@
 				},
 				{
 					"type": "text",
-					"text": " peer installed — it is the same class the viewer component itself uses. For "
+					"text": " peer installed; it is the same class the viewer component itself uses. For "
 				},
 				{
 					"type": "text",
@@ -1274,7 +1274,7 @@
 				},
 				{
 					"type": "text",
-					"text": " channel every guarded phase failure is routed to. Core builds real, per-viewer ones for each activation it runs, and a real custom host does the same — it implements the four services against its own chrome. The snippet below is a test/harness example instead: it fills them with the test kit's "
+					"text": " channel that receives every failure core catches in a plugin phase. Core builds real, per-viewer ones for each activation it runs, and a real custom host does the same: it implements the four services against its own chrome. The snippet below is a test/harness example instead: it fills them with the test kit's "
 				},
 				{
 					"type": "text",
@@ -1300,7 +1300,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — a dev dependency that does not belong in shipped code. In a test, "
+					"text": ", a dev dependency that does not belong in shipped code. In a test, "
 				},
 				{
 					"type": "text",
@@ -1365,7 +1365,7 @@
 				},
 				{
 					"type": "text",
-					"text": " tag for no-build-step, Web Component hosts (see "
+					"text": " tag for web component hosts with no build step (see "
 				},
 				{
 					"type": "text",
@@ -1480,7 +1480,7 @@
 				},
 				{
 					"type": "text",
-					"text": " itself — it is side-effect-free and does not activate anything; the host's core build discovers and activates registered plugins by name. If two scripts register the same plugin name with different versions, the first registration wins and the second logs a console warning."
+					"text": " itself: it is side-effect-free and does not activate anything; the host's core build discovers and activates registered plugins by name. If two scripts register the same plugin name with different versions, the first registration wins and the second logs a console warning."
 				}
 			],
 			"attrs": {
@@ -1540,7 +1540,7 @@
 				},
 				{
 					"type": "text",
-					"text": " consumes them instead of shipping a second copy — but "
+					"text": " consumes them instead of shipping a second copy. But "
 				},
 				{
 					"type": "text",
@@ -1566,7 +1566,7 @@
 				},
 				{
 					"type": "text",
-					"text": " to an exact core version to say so. A plugin released on its own schedule has no such guarantee and would break on the first skew, so bundling is the right answer for everybody outside this repository. Your IIFE then loads in any order relative to core's."
+					"text": " to core's 1.x line to say so. A plugin released on its own schedule has no such guarantee and would break on the first version mismatch, so bundling is the right answer for everybody outside this repository. Your IIFE then loads in any order relative to core's."
 				}
 			],
 			"attrs": {
@@ -1600,7 +1600,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", carrying a handful of core's own functions — "
+					"text": ", carrying a handful of core's own functions ("
 				},
 				{
 					"type": "text",
@@ -1691,7 +1691,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — which "
+					"text": "), which "
 				},
 				{
 					"type": "text",
@@ -1704,7 +1704,7 @@
 				},
 				{
 					"type": "text",
-					"text": "'s IIFE reads instead of bundling the painting classifier and the IIIF parsing helpers behind them a second time. The privilege is the same one and it holds for the same single reason: core and that plugin are built and released together, at one version, from one repository, so the list can change with core's own release rather than being a public contract. It is not one for a plugin on its own release schedule. Import what you need from "
+					"text": "'s IIFE reads instead of bundling the painting classifier and the IIIF parsing helpers behind them a second time. The reason is the same: core and that plugin are built and released together, at one version, from one repository, so the list can change with any core release and is not a public contract. A plugin on its own release schedule cannot rely on it. Import what you need from "
 				},
 				{
 					"type": "text",
@@ -1742,7 +1742,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "What makes the arrangement safe on the inside is a build gate, and it is worth knowing why it has to exist. The list core publishes is "
+					"text": "Inside this repository, a build gate keeps the arrangement safe. The list core publishes is "
 				},
 				{
 					"type": "text",
@@ -1755,7 +1755,20 @@
 				},
 				{
 					"type": "text",
-					"text": " — 7 "
+					"text": ", never "
+				},
+				{
+					"type": "text",
+					"text": "export *",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ": 7 "
 				},
 				{
 					"type": "text",
@@ -1781,7 +1794,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", alongside "
+					"text": ", plus "
 				},
 				{
 					"type": "text",
@@ -1820,20 +1833,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", for 10 names in all — never "
-				},
-				{
-					"type": "text",
-					"text": "export *",
-					"marks": [
-						{
-							"type": "code"
-						}
-					]
-				},
-				{
-					"type": "text",
-					"text": ", because re-exporting the namespace wholesale defeats tree-shaking and was measured at +8,837 gzip on core. A plugin that compiles to a helper outside that list does not fail to build and does not fail its unit tests (those mount against the real "
+					"text": ", for 10 names in all. Re-exporting the whole namespace defeats tree-shaking and was measured at +8,837 bytes gzip on core. A plugin that compiles to a helper outside that list still builds and passes its unit tests (those mount against the real "
 				},
 				{
 					"type": "text",
@@ -1846,7 +1846,7 @@
 				},
 				{
 					"type": "text",
-					"text": "); it throws at mount in a real browser. One bare text child of a component — "
+					"text": "), then throws at mount in a real browser. A bare text child such as "
 				},
 				{
 					"type": "text",
@@ -1872,7 +1872,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — did exactly that once, and killed a whole transport while every gate stayed green. So "
+					"text": ", is enough. "
 				},
 				{
 					"type": "text",
@@ -1885,7 +1885,7 @@
 				},
 				{
 					"type": "text",
-					"text": " now reads the helpers the "
+					"text": " reads the helpers the "
 				},
 				{
 					"type": "text",
@@ -1898,7 +1898,7 @@
 				},
 				{
 					"type": "text",
-					"text": " bundle references back out of the minified output and fails the build if any of them is unpublished."
+					"text": " bundle references out of the minified output and fails the build if any of them is unpublished."
 				}
 			],
 			"attrs": {
@@ -1910,7 +1910,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Know its limits before you lean on it. It is a "
+					"text": "The gate is a "
 				},
 				{
 					"type": "text",
@@ -1923,20 +1923,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", not a parse, and that cuts both ways. It reported a clean pass on every helper it was ever given until a fix to how it escapes minified locals: a local the minifier had spelled with a "
-				},
-				{
-					"type": "text",
-					"text": "$",
-					"marks": [
-						{
-							"type": "code"
-						}
-					]
-				},
-				{
-					"type": "text",
-					"text": " matched nothing, and a gate that resolves no locals resolves no helpers — which has exactly the shape of a pass. In the other direction it cannot tell code from data, so a literal "
+					"text": ", not a parse. It cannot tell code from data, so a literal "
 				},
 				{
 					"type": "text",
@@ -1949,7 +1936,7 @@
 				},
 				{
 					"type": "text",
-					"text": " inside a string will be reported as a reference that is not one. If you are considering the same trick in your own monorepo: the gate is not optional decoration, and it is what makes a private-API dependency reviewable at all — but it is a heuristic backed by a real browser mount, not a proof, and it is worth mounting the thing before you believe it."
+					"text": " inside a string is reported as a reference. If you copy this approach in your own monorepo, the gate is required, since it is what makes a private-API dependency reviewable, but it is a heuristic, not a proof: also mount the plugin in a real browser."
 				}
 			],
 			"attrs": {
@@ -1984,7 +1971,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the actual live viewer state — the sole plugin-facing state surface. Read properties directly (reads are synchronous and always current). Change state only through "
+					"text": " is the live viewer state, and the only state a plugin gets. Read properties directly (reads are synchronous and always current). Change state only through "
 				},
 				{
 					"type": "text",
@@ -2036,7 +2023,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Every canvas the viewer hands you — "
+					"text": "Every canvas the viewer hands you ("
 				},
 				{
 					"type": "text",
@@ -2062,11 +2049,11 @@
 				},
 				{
 					"type": "text",
-					"text": ", and every canvas passed into a plugin — is "
+					"text": ", and every canvas passed into a plugin) is "
 				},
 				{
 					"type": "text",
-					"text": "raw IIIF Canvas JSON, IIIF Presentation 2 or 3 exactly as the manifest authored it",
+					"text": "raw IIIF Canvas JSON, IIIF Presentation 2 or 3, as the manifest authored it",
 					"marks": [
 						{
 							"type": "bold"
@@ -2100,7 +2087,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The two versions spell the same things differently — a v2 canvas uses "
+					"text": "The two versions spell the same things differently: a v2 canvas uses "
 				},
 				{
 					"type": "text",
@@ -2152,7 +2139,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — and every one of these values is typed "
+					"text": ". Every one of these values is typed "
 				},
 				{
 					"type": "text",
@@ -2800,7 +2787,7 @@
 				},
 				{
 					"type": "text",
-					"text": "total",
+					"text": "safe on any input",
 					"marks": [
 						{
 							"type": "bold"
@@ -2848,7 +2835,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is a bare object rather than an array. Do not reimplement it — enumerating a canvas by hand is the one mistake here that fails silently, as a blank canvas with no error."
+					"text": " is a bare object rather than an array. Do not reimplement it: enumerating a canvas by hand fails silently, as a blank canvas with no error."
 				}
 			],
 			"attrs": {
@@ -2947,7 +2934,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and carry no payload — a notification means \"state changed, read what you need,\" not a transition log. Subscribers read the current value rather than reconstructing intermediate states."
+					"text": " and carry no payload: a notification means \"state changed, read what you need,\" not a transition log. Subscribers read the current value rather than reconstructing intermediate states."
 				}
 			],
 			"attrs": {
@@ -2999,7 +2986,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the other direction: one object your activation exposes so the host application, a framework wrapper, or another plugin can command your plugin — the parity rule, one level down. A plugin that renders a panel and nothing else needs none of this. A plugin whose behavior a host would reasonably want to drive from its own chrome does: the first-party "
+					"text": " is the other direction: one object your activation exposes so the host application, a framework wrapper, or another plugin can command your plugin. It is the parity rule applied to plugins. A plugin that renders a panel and nothing else needs none of this. A plugin whose behavior a host would reasonably want to drive from its own chrome does: the first-party "
 				},
 				{
 					"type": "text",
@@ -3085,7 +3072,7 @@
 				},
 				{
 					"type": "text",
-					"text": " object — publishing again supersedes the previous one — and the publication lives exactly as long as the activation: core retires it on deactivation, on a failure, and while a retry is in flight, so a host asking during any of those gets "
+					"text": " object (publishing again replaces the previous one), and the publication lives as long as the activation: core retires it on deactivation, on a failure, and while a retry is in flight, so a host asking during any of those gets "
 				},
 				{
 					"type": "text",
@@ -3172,7 +3159,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — a method that maintains your invariants. Anything a host can change is a command; there is no writable property on a published state."
+									"text": ": a method that maintains your invariants. Anything a host can change is a command; there is no writable property on a published state."
 								}
 							],
 							"attrs": {
@@ -3201,7 +3188,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — a value that notifies through "
+									"text": ": a value that notifies through "
 								},
 								{
 									"type": "text",
@@ -3227,7 +3214,7 @@
 								},
 								{
 									"type": "text",
-									"text": ", exactly as the viewer's are: a notification means \"something changed, read what you need.\""
+									"text": ", like the viewer's: a notification means \"something changed, read what you need.\""
 								}
 							],
 							"attrs": {
@@ -3256,7 +3243,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — a high-frequency value that deliberately does "
+									"text": ": a high-frequency value that does "
 								},
 								{
 									"type": "text",
@@ -3269,7 +3256,7 @@
 								},
 								{
 									"type": "text",
-									"text": " notify, because notifying per change would be a storm. A playhead is the archetype: it moves sixty times a second, and a host reads it on the finer "
+									"text": " notify, because notifying on every change would flood subscribers. A playhead is the archetype: it moves sixty times a second, and a host reads it on the finer "
 								},
 								{
 									"type": "text",
@@ -3339,7 +3326,7 @@
 				},
 				{
 					"type": "text",
-					"text": " itself are the seam, not state, so they are not classified. Any "
+					"text": " itself are the subscription interface, not state, so they are not classified. Any "
 				},
 				{
 					"type": "text",
@@ -3352,7 +3339,7 @@
 				},
 				{
 					"type": "text",
-					"text": " member missing from the table fails conformance — including inherited accessors and methods, if your state is a class instance."
+					"text": " member missing from the table fails conformance, including inherited accessors and methods, if your state is a class instance."
 				}
 			],
 			"attrs": {
@@ -3403,7 +3390,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", and synchronous reads — so the "
+					"text": ", and synchronous reads, so the "
 				},
 				{
 					"type": "text",
@@ -3493,7 +3480,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "What is generalized is the runtime, not the ready-made bindings: "
+					"text": "Only the runtime generalizes; the ready-made bindings do not: "
 				},
 				{
 					"type": "text",
@@ -3532,7 +3519,7 @@
 				},
 				{
 					"type": "text",
-					"text": " take a viewer handle with no published-state overload. (Svelte needs no selector API at all — see "
+					"text": " take a viewer handle with no published-state overload. (Svelte needs no selector API at all; see "
 				},
 				{
 					"type": "text",
@@ -3586,7 +3573,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — core cannot know your type — so ship a small typed accessor beside your plugin that narrows it, and export only the "
+					"text": " (core cannot know your type), so ship a small typed accessor beside your plugin that narrows it, and export only the "
 				},
 				{
 					"type": "text",
@@ -3689,7 +3676,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", that the table classifies every member and names only real ones, and — as a spot check — that "
+					"text": ", that the table classifies every member and names only real ones, and, as a spot check, that "
 				},
 				{
 					"type": "text",
@@ -3702,7 +3689,7 @@
 				},
 				{
 					"type": "text",
-					"text": " subscriber is woken when an observable member's value changes across a flush. Read that last one narrowly: it proves only that a notification arrived, not which member it was for, and the kit does not check that you declared the capability at all, since its own harness activates with "
+					"text": " subscriber is woken when an observable member's value changes across a flush. That last check proves only that a notification arrived, not which member it was for, and the kit does not check that you declared the capability at all, since its own harness activates with "
 				},
 				{
 					"type": "text",
@@ -3715,7 +3702,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". A plugin that publishes nothing passes these checks vacuously. Hosts that want to render controls only while a plugin is live can watch the set of published states, which is itself a notifying member of the viewer's inventory."
+					"text": ". A plugin that publishes nothing passes these checks trivially. Hosts that want to render controls only while a plugin is live can watch the set of published states, which is itself a notifying member of the viewer's inventory."
 				}
 			],
 			"attrs": {
@@ -3793,7 +3780,7 @@
 				},
 				{
 					"type": "text",
-					"text": " run on close — that's deliberate, so state survives a close→reopen round trip. It also means you can't use mount and cleanup as open/close hooks."
+					"text": " run on close, so state survives a close→reopen round trip. It also means you can't use mount and cleanup as open/close hooks."
 				}
 			],
 			"attrs": {
@@ -3899,7 +3886,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The surface also lets your content close itself — a \"Done\" or \"Apply\" button inside a flyout — and tells you which chrome you're rendering in, so a compact flyout can lay out differently from a docked panel:"
+					"text": "The surface also lets your content close itself (a \"Done\" or \"Apply\" button inside a flyout) and tells you which chrome you're rendering in, so a compact flyout can lay out differently from a docked panel:"
 				}
 			],
 			"attrs": {
@@ -3924,7 +3911,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "If your panel's content is a fact about the current canvas — captions, timed annotations, a transcript — declare it with "
+					"text": "If your panel's content is a fact about the current canvas (captions, timed annotations, a transcript), declare it with "
 				},
 				{
 					"type": "text",
@@ -3950,7 +3937,7 @@
 				},
 				{
 					"type": "text",
-					"text": " when there is. That hides your toolbar button, so a canvas with nothing to show grows no control that opens an empty panel; it is the gating core's own annotations and structures buttons have. An open surface is closed as it goes, so nothing is left on screen with no way to dismiss it. Call it whenever the fact changes — a canvas change, a track that settles on the network — from wherever you already compute what the panel renders, so the button and the body cannot disagree."
+					"text": " when there is. That hides your toolbar button, so a canvas with nothing to show gets no button that opens an empty panel. Core's own annotations and structures buttons are gated the same way. An open surface closes when it becomes unavailable, so nothing is left on screen with no way to dismiss it. Call it whenever the fact changes (a canvas change, a track that settles on the network), from wherever you already compute what the panel renders, so the button and the body cannot disagree."
 				}
 			],
 			"attrs": {
@@ -3962,7 +3949,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "When a plugin is activated with no chrome at all — a bare "
+					"text": "When a plugin is activated with no chrome at all (a plain "
 				},
 				{
 					"type": "text",
@@ -3988,7 +3975,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for a surface — "
+					"text": " for a surface), "
 				},
 				{
 					"type": "text",
@@ -4014,7 +4001,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and the movers are no-ops: there is nothing that could be hiding your UI, so surface-gated work runs."
+					"text": " and the open and close calls are no-ops: there is nothing that could be hiding your UI, so surface-gated work runs."
 				}
 			],
 			"attrs": {
@@ -4089,7 +4076,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — "
+									"text": ": "
 								},
 								{
 									"type": "text",
@@ -4222,7 +4209,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — "
+									"text": ": "
 								},
 								{
 									"type": "text",
@@ -4274,7 +4261,7 @@
 								},
 								{
 									"type": "text",
-									"text": ". These change every frame and deliberately never notify; read them reactively with a "
+									"text": ". These change every frame and never notify; read them reactively with a "
 								},
 								{
 									"type": "text",
@@ -4316,7 +4303,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — "
+									"text": ": "
 								},
 								{
 									"type": "text",
@@ -4390,7 +4377,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Commands are safe to call before a renderer has mounted — they are no-ops, and the queries answer "
+					"text": "Commands are safe to call before a renderer has mounted: they are no-ops, and the queries answer "
 				},
 				{
 					"type": "text",
@@ -4416,7 +4403,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — so most plugins need no readiness gate at all. When you do need one (anything positioning something over the image), await it:"
+					"text": ", so most plugins need no readiness gate at all. When you do need one (anything positioning something over the image), await it:"
 				}
 			],
 			"attrs": {
@@ -4463,7 +4450,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": there is no object to hand over. It means \"the renderer has a sized surface and accepts commands\" — nothing more, and in particular not a renderer instance. The renderer is first-party and unexposed ("
+					"text": ": there is no object to hand over. It means \"the renderer has a sized surface and accepts commands\", nothing more. The renderer is first-party and unexposed ("
 				},
 				{
 					"type": "text",
@@ -4518,7 +4505,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "If your plugin floats UI over the image — a filmstrip along the bottom, an inspector down one side — a fit will happily center the folio "
+					"text": "If your plugin floats UI over the image (a filmstrip along the bottom, an inspector down one side), a fit will center the canvas "
 				},
 				{
 					"type": "text",
@@ -4570,7 +4557,7 @@
 				},
 				{
 					"type": "text",
-					"text": " reads the current set back. Edges you leave out keep their value, exactly as with "
+					"text": " reads the current set back. Edges you leave out keep their value, as with "
 				},
 				{
 					"type": "text",
@@ -4635,7 +4622,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — "
+									"text": ": "
 								},
 								{
 									"type": "text",
@@ -4687,7 +4674,7 @@
 								},
 								{
 									"type": "text",
-									"text": ", and the viewport queries are all about the whole surface and stay that way. That is deliberate: your overlay layer spans the full surface, so an inset that shifted the coordinate mapping would misplace every marker on it, yours included."
+									"text": ", and the viewport queries are all about the whole surface and stay that way. The reason: your overlay layer spans the full surface, so an inset that shifted the coordinate mapping would misplace every marker on it, yours included."
 								}
 							],
 							"attrs": {
@@ -4831,7 +4818,7 @@
 				},
 				{
 					"type": "text",
-					"text": " Up to half the surface's width or height per axis, a fit lands exactly centered in what is left. Past that the viewer's own guarantees take over and the inset is honored in direction but not in full: the reader's zoom floor — half the scale at which a whole canvas fits — stops the fit from shrinking any further, and the pan constraint stops the framed box from being lifted past the edge of the world, which in continuous mode shows up on the first and last folio of the strip. Both of those outrank a plugin's request for space on purpose, because the alternative is a plugin that can collapse the viewer's zoom range. If your UI genuinely needs more than half the surface, it wants to be a panel in the viewer's chrome rather than an overlay with an inset."
+					"text": " Up to half the surface's width or height per axis, a fit lands centered in what is left. Past that the viewer's own guarantees take over and the inset is honored in direction but not in full: the reader's zoom floor (half the scale at which a whole canvas fits) stops the fit from shrinking any further, and the pan constraint stops the framed box from being moved past the edge of the laid-out content, which in continuous mode shows up on the first and last canvas of the strip. Both outrank a plugin's request for space, because the alternative is a plugin that can collapse the viewer's zoom range. If your UI needs more than half the surface, it wants to be a panel in the viewer's chrome rather than an overlay with an inset."
 				}
 			],
 			"attrs": {
@@ -4843,7 +4830,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "A negative or non-finite edge is refused whole and logged — it is an author error at any window size. An edge given as "
+					"text": "A negative or non-finite edge is refused whole and logged, since it is an author error at any window size. An edge given as "
 				},
 				{
 					"type": "text",
@@ -4903,7 +4890,7 @@
 				},
 				{
 					"type": "text",
-					"text": " deliberately aims at the middle of the "
+					"text": " aims at the middle of the "
 				},
 				{
 					"type": "text",
@@ -4916,7 +4903,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", not of the inset, so that it stays the exact inverse of "
+					"text": ", not of the inset, so that it stays the inverse of "
 				},
 				{
 					"type": "text",
@@ -4929,7 +4916,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". Aim it yourself in one line when you need to — half the inset's asymmetry, converted to canvas space with "
+					"text": ". Aim it yourself in one line when you need to: shift by half the inset's asymmetry, converted to canvas space with "
 				},
 				{
 					"type": "text",
@@ -4994,7 +4981,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the one gesture the viewport does not consume — it never zooms — and "
+					"text": " is the one gesture the viewport does not consume (it never zooms), and "
 				},
 				{
 					"type": "text",
@@ -5007,7 +4994,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is how a plugin hears it, with the point in screen space. It arrives already filtered by the renderer's single arbitration point: never for a drag, never for a pinch, and never for a gesture some other consumer had claimed. Deciding "
+					"text": " is how a plugin hears it, with the point in screen space. The renderer, which decides which consumer gets each gesture, has already filtered it: it never arrives for a drag, never for a pinch, and never for a gesture some other consumer had claimed. Deciding "
 				},
 				{
 					"type": "text",
@@ -5033,7 +5020,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — which is exactly what core's own annotation overlay does to select an annotation."
+					"text": ", which is what core's own annotation overlay does to select an annotation."
 				}
 			],
 			"attrs": {
@@ -5081,7 +5068,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the canvases the reader is actually looking at, in layout order — one canvas in "
+					"text": " is the canvases the reader is actually looking at, in layout order: one canvas in "
 				},
 				{
 					"type": "text",
@@ -5120,7 +5107,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", and the folios the viewport meets in "
+					"text": ", and the canvases the viewport meets in "
 				},
 				{
 					"type": "text",
@@ -5172,7 +5159,7 @@
 				},
 				{
 					"type": "text",
-					"text": " removed — the claimant owns what is rendered there, so core has no painting of its own for a comment to be anchored against. Its array identity is stable while the ids are unchanged, so it is safe to hand straight to a React "
+					"text": " removed. The claimant owns what is rendered there, so core has no painting of its own for a comment to be anchored against. Its array identity is stable while the ids are unchanged, so it is safe to hand straight to a React "
 				},
 				{
 					"type": "text",
@@ -5236,7 +5223,7 @@
 				},
 				{
 					"type": "text",
-					"text": " to, which in continuous mode is not what is on screen after a scroll — core's own annotation surfaces read the visible set for exactly that reason, and geometry then goes through "
+					"text": " to, which in continuous mode is not what is on screen after a scroll. Core's own annotation surfaces read the visible set for that reason, and geometry then goes through "
 				},
 				{
 					"type": "text",
@@ -5261,7 +5248,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The annotation core selects this way is "
+					"text": "The annotation core selects on a tap is "
 				},
 				{
 					"type": "text",
@@ -5313,7 +5300,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": a selection persists after the pointer has moved on, which is why the panel keeps its row marked and the connector line stays drawn. Neither of them changes what is visible — that is "
+					"text": ": a selection persists after the pointer has moved on, which is why the panel keeps its row marked and the connector line stays drawn. Neither of them changes what is visible; that is "
 				},
 				{
 					"type": "text",
@@ -5425,7 +5412,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and cannot desync from the image the way an overlay repositioned on an event can. That world is not canvas space: every canvas of the manifest has a rect in it, placed beside its neighbors, and layout may have resized that rect (facing pages are normalized to a shared height). So a layer holding geometry in canvas space — which is how IIIF annotations are persisted — converts it first:"
+					"text": " and cannot desync from the image the way an overlay repositioned on an event can. That world is not canvas space: every canvas of the manifest has a rect in it, placed beside its neighbors, and layout may have resized that rect (facing pages are normalized to a shared height). So a layer holding geometry in canvas space (which is how IIIF annotations are persisted) converts it first:"
 				}
 			],
 			"attrs": {
@@ -5592,7 +5579,7 @@
 				},
 				{
 					"type": "text",
-					"text": " They have no focus, no accessible name, and no keyboard reach — and an automated scan cannot report a missing element. Anything a reader must perceive or operate needs a DOM element beside the picture: the canvas paints pixels, a parallel DOM layer carries the focusable, labeled targets, both projected from one geometry. Core's own annotation shape overlay works exactly that way."
+					"text": " They have no focus, no accessible name, and no keyboard reach, and an automated scan cannot report a missing element. Anything a reader must perceive or operate needs a DOM element beside the picture: the canvas paints pixels, a parallel DOM layer carries the focusable, labeled targets, both projected from one geometry. Core's own annotation shape overlay works that way."
 				}
 			],
 			"attrs": {
@@ -5657,7 +5644,7 @@
 				},
 				{
 					"type": "text",
-					"text": " with it — the same "
+					"text": " with it: the same "
 				},
 				{
 					"type": "text",
@@ -5682,7 +5669,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Id your layer ",
+					"text": "Name your layer ",
 					"marks": [
 						{
 							"type": "bold"
@@ -5703,7 +5690,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — the same convention your chrome ids follow. It is required, not advisory: an id whose prefix names no plugin the viewer knows is refused and registers nothing, as is a duplicate id. Naming your plugin is what makes ids collision-free between plugins, and it lets the viewer release your layers if your plugin is deactivated without them having been disposed. Do not rely on that: release the layer from your "
+					"text": ", the same convention your chrome ids follow. It is required, not advisory: an id whose prefix names no plugin the viewer knows is refused and registers nothing, as is a duplicate id. Naming your plugin is what makes ids collision-free between plugins, and it lets the viewer release your layers if your plugin is deactivated without them having been disposed. Do not rely on that: release the layer from your "
 				},
 				{
 					"type": "text",
@@ -5836,7 +5823,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is that value, verbatim, and it is the only string the check accepts — a literal "
+					"text": " is that value, verbatim, and it is the only string the check accepts: a literal "
 				},
 				{
 					"type": "text",
@@ -5994,7 +5981,7 @@
 				},
 				{
 					"type": "text",
-					"text": " That is a published contract, not a coincidence: a projected point is already the container's own coordinates, so no rect correction, no "
+					"text": " That is a published contract, not a coincidence: a projected point is already the container's own coordinates, so you need no rect correction, "
 				},
 				{
 					"type": "text",
@@ -6007,7 +5994,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", no offset arithmetic."
+					"text": ", or offset arithmetic."
 				}
 			],
 			"attrs": {
@@ -6088,7 +6075,7 @@
 				},
 				{
 					"type": "text",
-					"text": " are all zero, and it is the wrapper core puts it in that is the positioning box your absolutely positioned children resolve against. Position children against "
+					"text": " are all zero. The wrapper core places it in is the positioning box your absolutely positioned children resolve against. Position children against "
 				},
 				{
 					"type": "text",
@@ -6138,7 +6125,7 @@
 				},
 				{
 					"type": "text",
-					"text": " means \"the image moved\" — nothing else.",
+					"text": " means \"the image moved\" and nothing else.",
 					"marks": [
 						{
 							"type": "bold"
@@ -6233,7 +6220,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — connector lines between a panel row and your markers, for instance — that SVG covers the whole image, so leave it "
+					"text": " (connector lines between a panel row and your markers, for instance), that SVG covers the whole image, so leave it "
 				},
 				{
 					"type": "text",
@@ -6267,7 +6254,7 @@
 				},
 				{
 					"type": "text",
-					"text": " It is not remounted when the renderer remounts, so a manifest change leaves your DOM and your state intact — which also means clearing content that was scoped to the old manifest is yours to do, since core cannot know which of your DOM that is. Registering before any renderer has mounted is fine; the container exists regardless, and "
+					"text": " It is not remounted when the renderer remounts, so a manifest change leaves your DOM and your state intact. That also means clearing content that was scoped to the old manifest is yours to do, since core cannot know which of your DOM that is. Registering before any renderer has mounted is fine; the container exists regardless, and "
 				},
 				{
 					"type": "text",
@@ -6318,7 +6305,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", and all of them below the viewer's own annotation shapes — those are focusable targets carrying the viewer's accessible names, and covering them would break that silently. If you want primacy, hide the viewer's shapes through the annotation visibility API and draw your own. There is no ordering field: two plugins cannot coordinate one, and within your own plugin one container with "
+					"text": ", all below the viewer's own annotation shapes. Those are focusable targets carrying the viewer's accessible names, and covering them would break that silently. To draw on top of them, hide the viewer's shapes through the annotation visibility API and draw your own. There is no ordering field: two plugins cannot coordinate one, and within your own plugin one container with "
 				},
 				{
 					"type": "text",
@@ -6352,7 +6339,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", not a performance judgment: anything a reader must perceive or operate is DOM in an overlay layer, because painted pixels have no focus, no accessible name, and no keyboard reach. Reach for the paint hook for decoration, or for a second rendering of geometry your DOM already carries — a heat map under your pins, a thousand tick marks no one clicks. Both hooks exist because the substrates differ, not because one is on its way out ("
+					"text": ", not a performance judgment: anything a reader must perceive or operate is DOM in an overlay layer, because painted pixels have no focus, no accessible name, and no keyboard reach. Reach for the paint hook for decoration, or for a second rendering of geometry your DOM already carries, such as a heat map under your pins or a thousand tick marks no one clicks. Both hooks exist because the substrates differ, not because one is on its way out ("
 				},
 				{
 					"type": "text",
@@ -6402,7 +6389,7 @@
 				},
 				{
 					"type": "text",
-					"text": " canvas, and every overlay layer stacks above it — so if your decoration belongs on top of opaque DOM you put there yourself, painting it through the hook draws it correctly and leaves it invisible behind your own box. "
+					"text": " canvas, and every overlay layer stacks above it. If your decoration belongs on top of opaque DOM you put there yourself, the paint hook draws it underneath, hidden behind your own box. "
 				},
 				{
 					"type": "text",
@@ -6454,7 +6441,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Some canvases describe content core cannot display — a film, a sound recording, a 3D model. Core is honest about them: it paints no pixels, asks for nothing over the network, and shows a labeled \"this viewer cannot display this\" box over the canvas's rect, with a glyph rather than a broken picture in the thumbnail strip. That is the "
+					"text": "Some canvases describe content core cannot display: a film, a sound recording, a 3D model. For these, core paints no pixels, asks for nothing over the network, and shows a labeled \"this viewer cannot display this\" box over the canvas's rect, with a glyph rather than a broken picture in the thumbnail strip. That is the "
 				},
 				{
 					"type": "text",
@@ -6488,7 +6475,7 @@
 				},
 				{
 					"type": "text",
-					"text": " takes that canvas's non-image content over. It returns an idempotent release, and its effect is to suppress the unsupported presentation and its strip glyph for that canvas, leaving a clean box for you to render into through an overlay layer, the paint hook, or both. It carries no payload: no render callback, no options. Core goes on painting the canvas's "
+					"text": " takes that canvas's non-image content over. It returns an idempotent release, and its effect is to suppress the unsupported presentation and its strip glyph for that canvas, leaving a clean box for you to render into through an overlay layer, the paint hook, or both. It carries no payload: no render callback or options. Core goes on painting the canvas's "
 				},
 				{
 					"type": "text",
@@ -6526,7 +6513,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The one thing beyond the placard that a claim moves is the annotation scope: a claimed canvas leaves "
+					"text": "Beyond hiding the unsupported presentation, the one other thing a claim changes is the annotation scope: a claimed canvas leaves "
 				},
 				{
 					"type": "text",
@@ -6539,7 +6526,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", because core paints nothing there for a comment to be anchored against. Every annotation surface reads that list — the panel and the overlays included — so the reader is not offered a rectangle tool over your video."
+					"text": ", because core paints nothing there for a comment to be anchored against. Every annotation surface reads that list, including the panel and the overlays, so the reader is not offered a rectangle tool over your video."
 				}
 			],
 			"attrs": {
@@ -6593,7 +6580,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — never a literal, and never your package name.",
+					"text": ", not a literal or your package name.",
 					"marks": [
 						{
 							"type": "bold"
@@ -6654,7 +6641,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". The check is there because that id is what releases your claim if your plugin goes away without releasing it itself; a claim under a name nothing will ever unregister would outlive your activation silently, leaving a canvas with no placard and nothing rendering over it for the rest of the session."
+					"text": ". The check is there because that id is what releases your claim if your plugin goes away without releasing it itself; a claim under a name nothing will ever unregister would outlive your activation silently, leaving a canvas with no unsupported presentation and nothing rendering over it for the rest of the session."
 				}
 			],
 			"attrs": {
@@ -6675,7 +6662,7 @@
 				},
 				{
 					"type": "text",
-					"text": " A second claim on a canvas somebody already holds is refused through the same channel and the first claimant keeps it — claiming is not last-writer-wins, so a plugin cannot take a canvas another one is already rendering into. A refused call still hands back a dispose, so you never have to branch on whether your claim was accepted; it is simply a no-op."
+					"text": " A second claim on a canvas somebody already holds is refused through the same channel and the first claimant keeps it. Claiming is not last-writer-wins, so a plugin cannot take a canvas another one is already rendering into. A refused call still hands back a dispose, so you never have to branch on whether your claim was accepted; it is simply a no-op."
 				}
 			],
 			"attrs": {
@@ -6717,7 +6704,7 @@
 				},
 				{
 					"type": "text",
-					"text": " Core releases whatever you left behind when your plugin is deactivated, retried, or fails to mount — the same backstop your overlay layers get — and doing both is safe."
+					"text": " Core releases whatever you left behind when your plugin is deactivated, retried, or fails to mount (the same backstop your overlay layers get), and doing both is safe."
 				}
 			],
 			"attrs": {
@@ -6767,7 +6754,7 @@
 				},
 				{
 					"type": "text",
-					"text": " canvases are yours, ask core's own classifier rather than typing bodies yourself — "
+					"text": " canvases are yours, ask core's own classifier rather than typing bodies yourself: "
 				},
 				{
 					"type": "text",
@@ -6780,7 +6767,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is exactly the question core answers when it decides to show the placard, so the two cannot drift apart. "
+					"text": " is the question core answers when it decides to show the unsupported presentation, so the two cannot drift apart. "
 				},
 				{
 					"type": "text",
@@ -6857,7 +6844,7 @@
 				},
 				{
 					"type": "text",
-					"text": " if you call this, so your plugin fails closed on a core that predates the seam instead of activating and rendering over a placard it cannot suppress."
+					"text": " if you call this, so your plugin fails closed on a core that predates canvas claims instead of activating and rendering over an unsupported presentation it cannot suppress."
 				}
 			],
 			"attrs": {
@@ -6896,7 +6883,7 @@
 				},
 				{
 					"type": "text",
-					"text": " a picture to show — IIIF gives a canvas two ordinary Presentation 3 properties for it, "
+					"text": " a picture to show. IIIF gives a canvas two ordinary Presentation 3 properties for it, "
 				},
 				{
 					"type": "text",
@@ -7174,7 +7161,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "nothing — but the rect the companion established is kept"
+											"text": "nothing, but the rect the companion established is kept"
 										}
 									],
 									"attrs": {
@@ -7267,7 +7254,7 @@
 				},
 				{
 					"type": "text",
-					"text": " a property; it never carries one. Core reads the vocabulary itself and resolves the companion through the same descriptor builder every other canvas goes through, so a companion deep-zooms to whatever its image service serves, pans with the viewer's own gestures, and honors Choice bodies, region placements and both id spellings for free. Nothing crosses the seam but the enum — there is no way to hand core a Canvas, deliberately."
+					"text": " a property; it never carries one. Core reads the vocabulary itself and resolves the companion through the same descriptor builder every other canvas goes through, so a companion deep-zooms to whatever its image service serves, pans with the viewer's own gestures, and honors Choice bodies, region placements and both id spellings for free. Only the enum passes from your plugin to core. You cannot hand core a Canvas."
 				}
 			],
 			"attrs": {
@@ -7396,7 +7383,7 @@
 								},
 								{
 									"type": "text",
-									"text": ", exactly as a refused claim is, and leaves the stored phase alone. A typo is reported rather than quietly turning painting off."
+									"text": ", as a refused claim is, and leaves the stored phase alone. A typo is reported rather than quietly turning painting off."
 								}
 							],
 							"attrs": {
@@ -7425,7 +7412,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — by the claim's own dispose and by the same deactivation backstops. There is no second release to forget."
+									"text": ": by the claim's own dispose and by the same deactivation backstops. There is no second release to forget."
 								}
 							],
 							"attrs": {
@@ -7475,7 +7462,7 @@
 								},
 								{
 									"type": "text",
-									"text": " Never calling leaves the canvas's descriptor exactly as it would be with no claimant at all. An explicit "
+									"text": " Never calling leaves the canvas's descriptor as it would be with no claimant at all. An explicit "
 								},
 								{
 									"type": "text",
@@ -7488,7 +7475,7 @@
 								},
 								{
 									"type": "text",
-									"text": " keeps the rect the companion established and paints nothing into it — which is what stops a phase change from reflowing the page mid-playback. Geometry is decided once, from whichever companion resolved to something requestable, and never by the phase."
+									"text": " keeps the rect the companion established and paints nothing into it, which stops a phase change from reflowing the page mid-playback. Geometry is decided once, from whichever companion resolved to something requestable, and never by the phase."
 								}
 							],
 							"attrs": {
@@ -7561,7 +7548,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the read for your own chrome — a recording with a picture in its rect needs different lanes from one without. It is reactive inside a Svelte host (the storage is a "
+					"text": " is the read for your own chrome: a recording with a picture in its rect needs different lanes from one without. It is reactive inside a Svelte host (the storage is a "
 				},
 				{
 					"type": "text",
@@ -7587,7 +7574,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and therefore "
+					"text": " (an inventory class that does not notify) and therefore "
 				},
 				{
 					"type": "text",
@@ -7686,7 +7673,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". Capability negotiation exists for genuinely optional runtime features, not for versions: a plugin states which "
+					"text": ". Capability negotiation exists for optional runtime features, not for versions: a plugin states which "
 				},
 				{
 					"type": "text",
@@ -7739,7 +7726,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — "
+									"text": ": "
 								},
 								{
 									"type": "text",
@@ -7752,7 +7739,7 @@
 								},
 								{
 									"type": "text",
-									"text": ", the seam a plugin owning a canvas's non-image content builds on, and with it "
+									"text": ", the API that a plugin owning a canvas's non-image content builds on, and with it "
 								},
 								{
 									"type": "text",
@@ -7807,7 +7794,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — "
+									"text": ": "
 								},
 								{
 									"type": "text",
@@ -7862,7 +7849,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — the curated Svelte helpers core publishes on "
+									"text": ": the curated Svelte helpers core publishes on "
 								},
 								{
 									"type": "text",
@@ -7904,7 +7891,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — the curated core utilities core publishes on "
+									"text": ": the curated core utilities core publishes on "
 								},
 								{
 									"type": "text",
@@ -7946,7 +7933,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — "
+									"text": ": "
 								},
 								{
 									"type": "text",
@@ -7981,7 +7968,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Declare one only if your plugin calls that seam, so it fails closed on a viewer that predates it instead of silently doing nothing. A plugin requiring a capability the host does not declare fails activation with a "
+					"text": "Declare one only if your plugin calls that API, so it fails closed on a viewer that predates it instead of silently doing nothing. A plugin requiring a capability the host does not declare fails activation with a "
 				},
 				{
 					"type": "text",
@@ -8109,7 +8096,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — a small, dependency-free helper that first-party plugins use to export a named "
+					"text": ". It is a small, dependency-free helper that first-party plugins use to export a named "
 				},
 				{
 					"type": "text",
@@ -8161,7 +8148,7 @@
 				},
 				{
 					"type": "text",
-					"text": " takes the pair exactly where it took the literal string and id above:"
+					"text": " takes the pair in place of the literal string and id above:"
 				}
 			],
 			"attrs": {
@@ -8251,7 +8238,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Your plugin's core-owned chrome is localized from the same catalog: core resolves "
+					"text": "The chrome core renders for your plugin is localized from the same catalog: core resolves "
 				},
 				{
 					"type": "text",
@@ -8277,7 +8264,7 @@
 				},
 				{
 					"type": "text",
-					"text": " through it, so the toolbar tooltip and the docked-panel header follow the viewer's active locale exactly like the strings you resolve yourself. "
+					"text": " through it, so the toolbar tooltip and the docked-panel header follow the viewer's active locale like the strings you resolve yourself. "
 				},
 				{
 					"type": "text",
@@ -8290,7 +8277,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is identity, never copy — a plugin that omits "
+					"text": " is an identifier, not display text: a plugin that omits "
 				},
 				{
 					"type": "text",
@@ -8390,7 +8377,7 @@
 				},
 				{
 					"type": "text",
-					"text": " channel — as a DOM event from the viewer root and as a host callback — carrying "
+					"text": " channel, as a DOM event from the viewer root and as a host callback, carrying "
 				},
 				{
 					"type": "text",

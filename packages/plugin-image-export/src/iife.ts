@@ -2,9 +2,7 @@
  * Self-contained IIFE entry — loadable from a `<script>` tag with no bundler.
  *
  * Loading this bundle bootstraps the `window.Triiiceratops` namespace if absent
- * and registers the plugin factory into `window.Triiiceratops.plugins` (SPEC.md
- * "Browser IIFEs register package-qualified factories in one `window.Triiiceratops`
- * namespace"). It does NOT activate anything — activation is explicit and per
+ * and registers the plugin factory into `window.Triiiceratops.plugins`. It does NOT activate anything — activation is explicit and per
  * viewer:
  *
  * ```html

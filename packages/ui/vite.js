@@ -1,5 +1,5 @@
 /**
- * Build-time helper for CSP-safe plugin styling (epic restore-plugin-toolbar-chrome).
+ * Build-time helper for CSP-safe plugin styling.
  *
  * First-party plugins are built self-contained with `emitCss: false`, which makes
  * Svelte inline each component's CSS into the JS and inject it at runtime with

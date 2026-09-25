@@ -320,7 +320,7 @@ describe('ViewerState state inventory', () => {
 });
 
 // ============================================================================
-// Ticket 04 — subscription capability matrix (ADR 0008)
+// Subscription capability matrix (ADR 0008)
 //
 // Extends the inventory test: for every `command`/`observable` member, drive an
 // actual change and assert the framework-neutral `subscribe` listener is woken
@@ -370,8 +370,7 @@ function readValue(state: ViewerState, member: string): unknown {
  * because its subject is state classification, not parsing, but the values that
  * cache hands back must still be the shapes the real one produces. It used to
  * hand back `manifesto.js`-shaped doubles carrying `getBehavior` and
- * `getSequences`, which is the abstraction the `remove-manifesto` epic removes
- * (ticket 08).
+ * `getSequences`, an abstraction core no longer uses.
  */
 const MANIFEST_JSON = {
     id: 'manifest-1',
@@ -969,10 +968,10 @@ describe('ViewerState subscribe semantics', () => {
 });
 
 // ============================================================================
-// Ticket 05 — per-viewer display state and manifest queries (ADR 0007)
+// Per-viewer display state and manifest queries (ADR 0007)
 // ============================================================================
 
-describe('ViewerState per-viewer display state (ticket 05)', () => {
+describe('ViewerState per-viewer display state', () => {
     beforeEach(() => {
         resetManifestMocks();
     });

@@ -1,23 +1,17 @@
 # Manifest fixture provenance
 
-Third-party IIIF manifests vendored for the `remove-manifesto` epic
-(see `.tracker/remove-manifesto/SPEC.md`). They exist so parsing changes are
-verified against real manifests in CI rather than against synthetic ones only.
+Third-party IIIF manifests vendored so parsing changes are verified against
+real manifests in CI rather than against synthetic ones only.
 
-The `av/` directory was added later, for the `plugin-av` epic
-(see `.tracker/plugin-av/SPEC.md`), under the same rules, and the three loose
-`cookbook/` files dated below later still for `cookbook-matrix-coverage`.
-The `v4/` directory holds the Cookbook's published Presentation 4 recipes, for
-`presentation-4-published-recipes`.
+The `av/` directory holds audiovisual manifests, vendored under the same rules.
+The `v4/` directory holds the Cookbook's published Presentation 4 recipes.
 
 **Retrieved:** 2026-08-06 (`cookbook/`, `demo/`, `vendored/`); 2026-08-13 (`av/`);
 2026-08-22 (`cookbook/0025-newspaper-article-index.json`,
 `cookbook/0346-multilingual-annotation-body.json`); 2026-08-23
 (`cookbook/0258-tagging-external-resource.json`); 2026-08-31
 (`production/mkiiif-docuverse.json`); 2026-09-25 (`v4/`)
-**Total:** 84 files, 0.9 MB — 59 for `remove-manifesto`, 16 for `plugin-av`, 3 for
-`cookbook-matrix-coverage`, 1 for `finish-the-marketing-site`, 5 for
-`presentation-4-published-recipes`
+**Total:** 84 files, 0.9 MB
 
 **Trimming.** The `cookbook/` and `demo/` files are the upstream response
 verbatim, re-serialised with 2-space indentation for diff readability; nothing
@@ -36,10 +30,10 @@ Image service URLs inside them are never dereferenced by the test suite. Several
 glob and asserts each one registers and enumerates. Adding a file needs no test
 edit — but a file that enumerates zero canvases fails until it is named, with a
 reason, in that test's explicit list. `av/` was held out by name
-(`DEFERRED_DIRS`) for exactly one ticket, while it sat in the tree ahead of the
-body classifier that reads it, so that sixteen pre-classifier records were never
-frozen as though they were the intended answer. `plugin-av` ticket 02 landed the
-classifier, deleted the skip and re-pinned both goldens in one reviewed commit.
+(`DEFERRED_DIRS`) while it sat in the tree ahead of the body classifier that
+reads it, so that sixteen pre-classifier records were never frozen as though
+they were the intended answer. The classifier landed with the skip deleted and
+both goldens re-pinned in one reviewed commit.
 
 **The synthetic fixtures are elsewhere.** `../syntheticManifests.ts` carries the
 branches no real manifest here reaches. They stay in TypeScript by design.
@@ -80,10 +74,10 @@ and `0033-choice.json` from
 | `0007-string-formats.json` | v3 | Manifest | 1 | 2 KB | general coverage |
 | `0008-rights.json` | v3 | Manifest | 1 | 2 KB | general coverage |
 | `0009-book-1.json` | v3 | Manifest | 5 | 7 KB | general coverage |
-| `0010-book-2-viewing-direction-manifest-rtl.json` | v3 | Manifest | 5 | 8 KB | v3 right-to-left viewing direction (ticket 05) |
-| `0010-book-2-viewing-direction-manifest-ttb.json` | v3 | Manifest | 4 | 7 KB | v3 top-to-bottom viewing direction (ticket 05) |
-| `0011-book-3-behavior-manifest-continuous.json` | v3 | Manifest | 4 | 6 KB | v3 `behavior: continuous` (ticket 05) |
-| `0011-book-3-behavior-manifest-individuals.json` | v3 | Manifest | 4 | 6 KB | v3 `behavior: individuals` (ticket 05) |
+| `0010-book-2-viewing-direction-manifest-rtl.json` | v3 | Manifest | 5 | 8 KB | v3 right-to-left viewing direction |
+| `0010-book-2-viewing-direction-manifest-ttb.json` | v3 | Manifest | 4 | 7 KB | v3 top-to-bottom viewing direction |
+| `0011-book-3-behavior-manifest-continuous.json` | v3 | Manifest | 4 | 6 KB | v3 `behavior: continuous` |
+| `0011-book-3-behavior-manifest-individuals.json` | v3 | Manifest | 4 | 6 KB | v3 `behavior: individuals` |
 | `0019-html-in-annotations.json` | v3 | Manifest | 1 | 2 KB | general coverage |
 | `0021-tagging.json` | v3 | Manifest | 1 | 2 KB | general coverage |
 | `0024-book-4-toc.json` | v3 | Manifest | 6 | 11 KB | v3 structures / ranges (table of contents) |
@@ -93,7 +87,7 @@ and `0033-choice.json` from
 | `0030-multi-volume.json` | v3 | Collection | 2 | 1 KB | Collection with child manifests |
 | `0031-bound-multivolume.json` | v3 | Manifest | 6 | 11 KB | v3 nested ranges |
 | `0032-collection.json` | v3 | Collection | 2 | 1 KB | Collection with child manifests |
-| `0033-choice.json` | v3 | Manifest | 1 | 3 KB | v3 Choice painting body — first-class Triiiceratops API (tickets 03, 06) |
+| `0033-choice.json` | v3 | Manifest | 1 | 3 KB | v3 Choice painting body — first-class Triiiceratops API |
 | `0035-foldouts.json` | v3 | Manifest | 9 | 12 KB | general coverage |
 | `0036-composition-from-multiple-images.json` | v3 | Manifest | 1 | 3 KB | composite canvas, multiple painting annotations on one canvas |
 | `0046-rendering.json` | v3 | Manifest | 5 | 8 KB | general coverage |
@@ -102,7 +96,7 @@ and `0033-choice.json` from
 | `0117-add-image-thumbnail.json` | v3 | Manifest | 1 | 3 KB | explicit canvas thumbnail |
 | `0118-multivalue.json` | v3 | Manifest | 1 | 2 KB | multi-valued language maps |
 | `0135-annotating-point-in-canvas.json` | v3 | Manifest | 1 | 3 KB | PointSelector — point annotation |
-| `0202-start-canvas.json` | v3 | Manifest | 5 | 7 KB | v3 `start` property (ticket 05) |
+| `0202-start-canvas.json` | v3 | Manifest | 5 | 7 KB | v3 `start` property |
 | `0230-navdate-navdate-collection.json` | v3 | Collection | 2 | 1 KB | Collection with navDate |
 | `0234-provider.json` | v3 | Manifest | 1 | 4 KB | general coverage |
 | `0258-tagging-external-resource.json` | v3 | Manifest | 1 | 3 KB | annotation body that is an external resource — a `SpecificResource` with no text |
@@ -161,8 +155,8 @@ This list — and the image recipes it leaves — is what the recipe
 catalog (`packages/cookbook/src/recipes.ts`) groups as audiovisual, and so what
 the site's capability axis counts with.
 
-**The audiovisual recipe ids** — the list tickets 16 (comparison doc) and 17
-(demo picker) consume:
+**The audiovisual recipe ids** — the list the comparison doc and demo picker
+consume:
 
 ```
 0002-mvm-audio
@@ -187,18 +181,18 @@ the site's capability axis counts with.
 | --- | --- | --- | --- | --- | --- |
 | `0002-mvm-audio.json` | v3 | Manifest | 1 | 1 KB | the minimal audio canvas: `duration` and **no width or height** — the shape that vanishes from layout today |
 | `0003-mvm-video.json` | v3 | Manifest | 1 | 1 KB | the minimal video canvas: width, height and duration |
-| `0013-placeholderCanvas.json` | v3 | Manifest | 1 | 2 KB | `placeholderCanvas` — the poster image before playback (user story 11) |
-| `0014-accompanyingcanvas.json` | v3 | Manifest | 1 | 3 KB | `accompanyingCanvas` — album art above a waveform strip (user story 10). Its body is typed `Sound` with format `video/mp4`, so type and format disagree |
-| `0015-start.json` | v3 | Manifest | 1 | 2 KB | `start` as a `SpecificResource` with a `PointSelector` `t` — a temporal offset that is not a `#t=` fragment (user story 15) |
+| `0013-placeholderCanvas.json` | v3 | Manifest | 1 | 2 KB | `placeholderCanvas` — the poster image before playback |
+| `0014-accompanyingcanvas.json` | v3 | Manifest | 1 | 3 KB | `accompanyingCanvas` — album art above a waveform strip. Its body is typed `Sound` with format `video/mp4`, so type and format disagree |
+| `0015-start.json` | v3 | Manifest | 1 | 2 KB | `start` as a `SpecificResource` with a `PointSelector` `t` — a temporal offset that is not a `#t=` fragment |
 | `0017-transcription-av.json` | v3 | Manifest | 1 | 2 KB | canvas `rendering` carrying a `text/plain` transcript — a non-VTT supplementary resource the captions path must not adopt |
-| `0026-toc-opera.json` | v3 | Manifest | 1 | 3 KB | `structures` whose canvas references carry `#t=` fragments — ranges as chapters (user story 14) |
-| `0064-opera-one-canvas.json` | v3 | Manifest | 1 | 4 KB | **temporal composition**: two Video bodies tiling one canvas's duration through `#t=` targets, under one canvas timeline (user stories 48, 49) |
+| `0026-toc-opera.json` | v3 | Manifest | 1 | 3 KB | `structures` whose canvas references carry `#t=` fragments — ranges as chapters |
+| `0064-opera-one-canvas.json` | v3 | Manifest | 1 | 4 KB | **temporal composition**: two Video bodies tiling one canvas's duration through `#t=` targets, under one canvas timeline |
 | `0065-opera-multiple-canvases.json` | v3 | Manifest | 2 | 5 KB | the same opera split across canvases — the multi-canvas counterpart to 0064 |
-| `0074-multiple-language-captions.json` | v3 | Manifest | 1 | 3 KB | a supplementing annotation whose body is a **`Choice` of VTT tracks** in several languages (user story 13) |
-| `0103-poetry-reading-annotations.json` | v3 | Manifest | 1 | 2 KB | commenting annotations targeting a `#t=` range on an audio canvas — time-based annotation, fenced out of this epic but must not crash |
-| `0219-using-caption-file.json` | v3 | Manifest | 1 | 2 KB | the plain single-track caption shape: one supplementing annotation with a `text/vtt` body (user story 12) |
+| `0074-multiple-language-captions.json` | v3 | Manifest | 1 | 3 KB | a supplementing annotation whose body is a **`Choice` of VTT tracks** in several languages |
+| `0103-poetry-reading-annotations.json` | v3 | Manifest | 1 | 2 KB | commenting annotations targeting a `#t=` range on an audio canvas — time-based annotation, unsupported but must not crash |
+| `0219-using-caption-file.json` | v3 | Manifest | 1 | 2 KB | the plain single-track caption shape: one supplementing annotation with a `text/vtt` body |
 | `0229-behavior-ranges.json` | v3 | Manifest | 1 | 9 KB | ranges over one video canvas with per-range thumbnails and eight `#t=` spans — the largest structures tree in the set |
-| `0434-choice-av.json` | v3 | Manifest | 1 | 3 KB | a **Choice of six audio alternatives across five formats** — alac, mpeg, flac, ogg, wav, with `audio/mpeg` appearing twice (labelled MP3 and MPEG2). Playability-driven selection, not first-item-wins, and `format` alone does not identify an alternative (user story 20) |
+| `0434-choice-av.json` | v3 | Manifest | 1 | 3 KB | a **Choice of six audio alternatives across five formats** — alac, mpeg, flac, ogg, wav, with `audio/mpeg` appearing twice (labelled MP3 and MPEG2). Playability-driven selection, not first-item-wins, and `format` alone does not identify an alternative |
 | `0489-multimedia-canvas.json` | v3 | Manifest | 1 | 4 KB | image and video painting one canvas together, **with `#xywh=…&t=` targets** — see below |
 
 ### Findings this vendoring settles
@@ -206,9 +200,8 @@ the site's capability axis counts with.
 - **A cookbook recipe does use spatially placed A/V.**
   `0489-multimedia-canvas` targets its Video body at
   `#xywh=1000,500,5000,6000&t=11,42` on a 70399x31722 canvas, alongside an Image
-  body and three `TextualBody` annotations. The SPEC fences `#xywh=`-targeted A/V
-  out of v1 and says the fence "stands only while it costs no cookbook coverage" —
-  it costs exactly this recipe. Whoever implements the degradation contract owes
+  body and three `TextualBody` annotations. `#xywh=`-targeted A/V is fenced out
+  of v1, and that fence costs exactly this recipe. Whoever implements the degradation contract owes
   that a decision rather than an assumption.
 - **`t=` is not always a fragment.** `0015-start` expresses its start time as a
   `SpecificResource` with a `PointSelector`, not as `#t=` on a URI. Both spellings
@@ -217,7 +210,7 @@ the site's capability axis counts with.
   needs a network fetch to enumerate.
 - **Most of these DID resolve a "paintable image", and that was the bug.**
   Measured through the baseline's own seam — `resolveAllCanvasImages` on a real
-  `ViewerState` — immediately before ticket 02's classifier landed, **11 of the
+  `ViewerState` — immediately before the classifier landed, **11 of the
   16 read `withPainting >= 1`**: `0003`, `0013`, `0017`, `0026`, `0064`, `0065`
   (2, one per canvas), `0074`, `0219`, `0229`, `0489` and the Avalon file. Only
   `0002`, `0014`, `0015`, `0103` and `0434` read 0 — and every one of those five
@@ -225,13 +218,12 @@ the site's capability axis counts with.
   included, despite its `Video` body). They fell out on geometry, having no rect
   to be placed in, not because anything recognised them as time-based.
 
-  A plain `Video` or `Sound` body was resolved as an image tile source, which is
-  the SPEC's problem statement exactly: the viewer handed a video URL to the
-  image pipeline and asked it to tile an MP4.
+  A plain `Video` or `Sound` body was resolved as an image tile source: the
+  viewer handed a video URL to the image pipeline and asked it to tile an MP4.
 
   That is why the skip existed: admitting these to the baseline first would have
   pinned eleven non-zero counts as the intended answer for time-based media.
-  Ticket 02 landed the classifier and emptied `DEFERRED_DIRS` in one commit, and
+  The classifier landed and emptied `DEFERRED_DIRS` in one commit, and
   the goldens now read **`withPainting=0` on fifteen of the sixteen**. That fall
   from eleven to one, reproduced by re-measuring before the change, is the
   evidence the classifier works.
@@ -349,14 +341,14 @@ canvases that `structures` point at, so ranges survive the cut.
 | `lunchroom-manners.json` | v3 (pre-release) | 1 | 7 KB | pre-release v3 spelling: `sequences` containing `type: "Sequence"`, canvas `content` instead of `items`, a painting body that is a **`Choice` of `Video` bodies**, and `structures` using **`members`** | no |
 | `members-ranges.json` | v2 | 2 | 6 KB | **all three v2 range spellings in one manifest** — `canvases`, `members`, and `ranges` — plus `viewingHint: individuals` and `viewingDirection` at the manifest root | no |
 | `qatar-right-to-left.json` | v2 | 5 | 19 KB | **v2 `viewingDirection: right-to-left`** at the manifest root, with `viewingHint: paged` | canvases 498 → 5 (730 KB → 19 KB); the single range's canvas list pruned to the 5 kept |
-| `riksarkivetscblarge.json` | v2 | 5 | 16 KB | a deep v2 range hierarchy (`ranges` + `canvases`, four levels: `r0 → r0-0 → r0-1-0 → r0-1-1-*`). **No dangling references** — upstream had none, and the trim rewrote parent `ranges` lists rather than leaving broken refs behind. Nothing in this corpus covers dangling-reference tolerance | canvases 8,970 → 5 (**16.3 MB → 16 KB**); ranges 21 → 8. The ticket's named example of a fixture that "tests nothing that five canvases would not" |
+| `riksarkivetscblarge.json` | v2 | 5 | 16 KB | a deep v2 range hierarchy (`ranges` + `canvases`, four levels: `r0 → r0-0 → r0-1-0 → r0-1-1-*`). **No dangling references** — upstream had none, and the trim rewrote parent `ranges` lists rather than leaving broken refs behind. Nothing in this corpus covers dangling-reference tolerance | canvases 8,970 → 5 (**16.3 MB → 16 KB**); ranges 21 → 8. The clearest example of a fixture that "tests nothing that five canvases would not" |
 | `scroll.json` | v2 | 1 | 2 KB | a manifest with **no IIIF `@context`** (shared-canvas instead), canvas `height` as a **string** rather than a number, and an Image API **1.1** service declared via `dcterms:conformsTo` | no |
 | `storyofwellcome.json` | v2 + IxIF | 1 | 5 KB | `mediaSequences`/`elements` (IxIF) sitting **alongside** a normal `sequences` — the priority order the enumerators must preserve | no |
 
 ### Considered and not vendored
 
-- The rest of the `auth-*` family (10 files). IIIF Auth is out of scope for this
-  epic and `auth-clinical.json` already carries the level-0 service that made
+- The rest of the `auth-*` family (10 files). IIIF Auth is out of scope and
+  `auth-clinical.json` already carries the level-0 service that made
   the family interesting.
 - `book-of-remembrance.json` (3.8 MB, 1,132 ranges). Its range spellings are
   covered by `members-ranges.json` at 6 KB, with less to trim wrong.
@@ -384,9 +376,8 @@ expected:
   enumerate **zero** canvases. That is the real-world shape and is why the file
   is kept, but note that the smoke test only ever reads
   `selectedSequenceIndex = 0`, so those three empty sequences are unguarded and
-  unlisted. A user-selectable sequence that enumerates nothing is exactly the
-  epic's signature failure mode; ticket 07 should decide whether it degrades or
-  resolves the reference.
+  unlisted. A user-selectable sequence that enumerates nothing is the silent empty
+  result; the enumerators degrade rather than resolve the reference.
 
 ## Refreshing
 

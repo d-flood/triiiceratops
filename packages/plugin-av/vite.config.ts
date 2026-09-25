@@ -180,7 +180,7 @@ const LAZY_CHUNK_FACADES: Record<string, string> = Object.fromEntries(
  *     collect the 448 bytes; making it scope-aware means parsing the artifact,
  *     which is its own change. The ESM entry and the lazy chunks have no
  *     globals wiring and no such gate, and keep full mangling — which is where
- *     this ticket's bytes are anyway.
+ *     most of the bytes are anyway.
  */
 const terserOptions = {
     compress: { passes: 3 },
@@ -371,8 +371,7 @@ export default defineConfig({
                     Nothing is inlined in either format. The ESM build splits
                     its dynamic imports into the chunks named in `LAZY_CHUNKS`;
                     the IIFE's lazy halves are taken out of its graph by
-                    `chunkedIife()` and fetched from those same files (SPEC —
-                    "Delivery and packaging", deliberate template deviation 1).
+                    `chunkedIife()` and fetched from those same files.
                 */
                 inlineDynamicImports: false,
                 // Fixed names rather than hashed ones, so the IIFE — which

@@ -17,8 +17,7 @@
  * overlay layer sits on top of — and the stage is an opaque box (a black
  * backdrop, a lane with a panel background), so a waveform painted underneath it
  * would be invisible. The surface therefore goes inside the lane, where the
- * pixels can be seen, and the lane stays exactly the tap target ticket 09 made
- * it: `onLaneTap` resolves the surface to its lane with `closest`, and the seek
+ * pixels can be seen, and the lane stays exactly the tap target: `onLaneTap` resolves the surface to its lane with `closest`, and the seek
  * origin is the LANE's `getBoundingClientRect()`, so nesting cannot shift it.
  *
  * The surface declares no `pointer-events` of its own — the lane's hand-down to

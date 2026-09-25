@@ -8,7 +8,7 @@ import type {
 import type { AdapterLoadResult, W3CAnnotation } from './adapters/types';
 
 /**
- * Type-level smoke test for the public annotation-editor surface (F21). It
+ * Type-level smoke test for the public annotation-editor surface. It
  * exercises the generics and the widened `W3CAnnotation` at compile
  * time only — the gate is `pnpm check` (svelte-check + tsc), which flags any
  * `@ts-expect-error` below that no longer errors. The single runtime assertion

@@ -7,7 +7,7 @@
     },
     "summary": {
         "en": [
-            "One canvas whose 2.4 seconds are tiled by two painting annotations targeting #t=0,0.4 and #t=0.4,2.4, where the FIRST body is the two-second colour-bars clip. Its window closes 1.6 seconds before its media runs out, so `ended` never fires at the seam and only the sequencer's per-frame check can take it — the case the frame check and the `atEnd` latch exist for, which the evenly-tiled fixtures cannot exercise (spec, canvas timeline and segment seam; user stories 48 and 49)."
+            "One canvas whose 2.4 seconds are tiled by two painting annotations targeting #t=0,0.4 and #t=0.4,2.4, where the FIRST body is the two-second colour-bars clip. Its window closes 1.6 seconds before its media runs out, so `ended` never fires at the seam and only the sequencer's per-frame check can take it — the case the frame check and the `atEnd` latch exist for, which the evenly-tiled fixtures cannot exercise."
         ]
     },
     "items": [

@@ -237,10 +237,10 @@ async function playback(page: Page) {
 }
 
 /*
-    The regression group for the bug this epic exists for. It replaces the
-    "anchored chrome at constant screen size" group, whose behaviour — chrome
-    projected onto the canvas rect, and a width threshold that swapped it for a
-    glyph — was deleted with the anchoring decision that created it.
+    The regression group for chrome staying docked. It replaces the "anchored
+    chrome at constant screen size" group, whose behaviour — chrome projected
+    onto the canvas rect, and a width threshold that swapped it for a glyph —
+    was deleted with the anchoring decision that created it.
 
     Written to FAIL against a build where the transport is still anchored: there
     the transport is painted over the navigation and opts back into pointer
@@ -289,9 +289,8 @@ test.describe('av transport — chrome in the bar leaves the navigation reachabl
         expect(Math.abs(after!.width - before!.width)).toBeLessThan(1.5);
         expect(Math.abs(after!.height - before!.height)).toBeLessThan(1.5);
 
-        // Still operable at the far zoom, which is user story 6: a reader deep
-        // into a waveform keeps the full controls rather than losing them to a
-        // width test.
+        // Still operable at the far zoom: a reader deep into a waveform keeps
+        // the full controls rather than losing them to a width test.
         await expect(transport).toBeVisible();
         await expect(zoomIn).toBeVisible();
         await zoomIn.click({ timeout: 20_000 });
@@ -335,9 +334,9 @@ test.describe('av transport — chrome in the bar leaves the navigation reachabl
 });
 
 test.describe('av transport — the glyph says which canvas the bar drives', () => {
-    // The narrowed rule (plugin-av user story 26): the glyph is no longer a
-    // fallback for a canvas too small for chrome, it is what marks the claimed
-    // canvases the bar is NOT driving.
+    // The narrowed rule: the glyph is no longer a fallback for a canvas too
+    // small for chrome, it is what marks the claimed canvases the bar is NOT
+    // driving.
     test('marks the claimed canvas the bar is not driving, and only that one', async ({
         page,
     }) => {
@@ -614,7 +613,7 @@ test.describe('av transport a11y — the keyboard and the a11y tree', () => {
             })
             .toBe(true);
 
-        // Captions last, which is where the SPEC's v1 inventory puts them.
+        // Captions last.
         // `av-video.json` carries a VTT track in its painting body array, so
         // the control is rendered and is the row's final tab stop.
         await expect(page.locator(CAPTIONS)).toBeVisible({ timeout: 15_000 });

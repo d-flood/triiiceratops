@@ -1,8 +1,7 @@
 # Behavioral baseline — BROAD TIER
 #
-# Frozen by `remove-manifesto` ticket 04 while `manifesto.js` was still
-# installed, and RE-BASELINED once after tickets 05, 06 and 07 landed — a
-# deliberate, separately-reviewed re-curation, not a snapshot refresh. Generated
+# Frozen while `manifesto.js` was still installed, and RE-BASELINED once when
+# first-party enumerators replaced it — a deliberate, separately-reviewed re-curation, not a snapshot refresh. Generated
 # by `src/lib/state/viewer.baseline.test.ts`; do not edit by hand. Every record
 # is observed on a real `ViewerState` loaded with raw manifest JSON through
 # `setManifestData`, backed by the real manifest cache, with no mocks and no
@@ -20,22 +19,22 @@
 #
 # MOVES ACCEPTED AT THE RE-BASELINE (this file):
 #   - `synthetic/v2 oa:Choice painting annotation` went withPainting=1 -> 2,
-#     withoutPainting=1 -> 0, withChoice=0 -> 1. Ticket 06 taught the enumerator
+#     withoutPainting=1 -> 0, withChoice=0 -> 1. The enumerator now reads
 #     the v2 spelling of Choice (`resource.default` + `resource.item[]`), so the
 #     choice-bearing canvas now offers its alternatives and renders one instead
 #     of rendering nothing.
 #   - `synthetic/v2 sequences as a bare object` went canvases=0 sequences=0 ->
-#     canvases=2 sequences=1. Ticket 07 guards every array access (SPEC,
-#     "Failure contract"), so a `sequences` written as a bare object degrades to
-#     a one-element list instead of enumerating nothing.
+#     canvases=2 sequences=1. Every array access is guarded, so a `sequences`
+#     written as a bare object degrades to a one-element list instead of
+#     enumerating nothing.
 #   - All four Collections stopped throwing and now record a zero summary.
-#     Ticket 07's totality contract: a Collection has members, not sequences, so
+#     Every enumerator is total: a Collection has members, not sequences, so
 #     it has no canvases — which is an answer, not a TypeError.
 #
-# THE AUDIOVISUAL SET — `plugin-av` ticket 02, the second re-pin of this file.
+# THE AUDIOVISUAL SET — the second re-pin of this file.
 #   Sixteen `av/` manifests (the fifteen audiovisual IIIF Cookbook recipes and
 #   one waveform-linked Avalon manifest) joined the corpus in the same commit as
-#   the painting-body classifier that reads them. They were vendored a ticket
+#   the painting-body classifier that reads them. They were vendored
 #   earlier and held out by name, precisely so that this file would never have
 #   frozen the answer a viewer gave them BEFORE it could tell an MP4 from a JPEG.
 #
@@ -65,7 +64,7 @@
 #   gets PAINTED, and offering the reader alternatives is a different question
 #   that `getCanvasChoices` still answers.
 #
-# THE PRESENTATION 4 SET — `presentation-4-published-recipes` ticket 01.
+# THE PRESENTATION 4 SET.
 #   Five added records, nothing moved. The five published v4 Cookbook recipes
 #   (0001, 0002, 0003, 0608, 0253) joined `v4/` so that v4 behaviour is
 #   asserted continuously rather than measured once; each record was pinned
@@ -82,8 +81,8 @@
 #   painting, rather than dropped.
 #
 # HOW TO READ A DIFF
-#   Each manifest gets one six-field record. The dominant failure mode of this
-#   epic is the silent empty result, and it reads here as `withPainting=154`
+#   Each manifest gets one six-field record. The dominant failure mode is the
+#   silent empty result, and it reads here as `withPainting=154`
 #   becoming `withPainting=0` — the viewer would render blank pages with no
 #   diagnostic at all.
 #
@@ -96,7 +95,7 @@
 #
 #   THESE SIX FIELDS ARE A CONTRACT. Adding one churns every record in this file
 #   and destroys comparability with earlier goldens. Doing it is a deliberate,
-#   separately-reviewed re-baseline — never a side effect of another ticket. The
+#   separately-reviewed re-baseline — never a side effect of another change. The
 #   re-baseline deliberately did NOT add a seventh field here: the per-canvas
 #   painting-annotation count it needed went to the deep tier, whose per-canvas
 #   fields are not a contract.
@@ -112,7 +111,7 @@
 #     - a sequence that enumerates nothing still counts as a sequence.
 #       `vendored/illustrationsofchina` reads canvases=5 sequences=4 because
 #       three of its four sequences are bare references to external Sequence
-#       documents (ticket 07: degrade, do not resolve — resolving one is an HTTP
+#       documents (degrade, do not resolve — resolving one is an HTTP
 #       fetch from a synchronous, pure function).
 #     - a structure-derived sequence RE-LISTS canvases another sequence already
 #       listed. `cookbook/0027-alternative-page-order` reads canvases=8 for FOUR
@@ -126,16 +125,15 @@
 # the fixtures that correctly lack an image on every canvas.
 #
 # DEFECTS THIS FILE ONCE FROZE, AND WHAT BECAME OF THEM:
-#   - FIXED, ticket 07 — a bare-object `sequences` enumerated ZERO canvases,
-#     silently. `manifesto.js` walked `sequences` with an indexed loop, so a
-#     bare object had length `undefined`. This was the epic's signature failure
-#     mode. `synthetic/v2 sequences as a bare object` now reads canvases=2.
-#   - FIXED, ticket 07 — a Collection handed to the manifest path THREW a
-#     TypeError instead of returning an empty array, violating the spec's "every
-#     enumerator is total" contract. Collections keep their own section below,
+#   - FIXED — a bare-object `sequences` enumerated ZERO canvases, silently.
+#     `manifesto.js` walked `sequences` with an indexed loop, so a bare object
+#     had length `undefined`. `synthetic/v2 sequences as a bare object` now reads canvases=2.
+#   - FIXED — a Collection handed to the manifest path THREW a TypeError
+#     instead of returning an empty array, violating the "every enumerator is
+#     total" contract. Collections keep their own section below,
 #     because a six-field record is not something a Collection can honestly
 #     fill, but the manifest path now degrades.
-#   - FIXED, ticket 06 — IIIF v2 `oa:Choice` (`resource.default` +
+#   - FIXED — IIIF v2 `oa:Choice` (`resource.default` +
 #     `resource.item[]`) was not recognized AT ALL:
 #     `synthetic/v2 oa:Choice painting annotation` recorded withChoice=0 AND
 #     withoutPainting=1, i.e. the choice-bearing canvas offered no alternatives
@@ -145,7 +143,7 @@
 # this file can neither freeze them nor detect a change to them. Do not read the
 # absence of a moved record as evidence about either:
 #   - A `Choice` whose `items` is a bare object rather than an array. This was
-#     also fixed, by ticket 06 routing `getCanvasChoices` through
+#     also fixed, by routing `getCanvasChoices` through
 #     `getChoiceAlternatives`, which guards the access; there is simply no
 #     record here that could have shown it.
 #   - Choice selection keyed per CANVAS rather than per annotation, so a second
@@ -359,7 +357,7 @@ vendored/storyofwellcome.json
 # not something a Collection can honestly fill.
 #
 # Handing one to the manifest path used to THROW a TypeError rather
-# than degrade. Ticket 07 made every enumerator total, so it now
+# than degrade. Every enumerator is total, so it now
 # records a zero summary: a Collection has no sequences, which is an
 # answer. Were a THROWS line ever to return here it would carry the
 # error class and a normalized message, never an engine string.

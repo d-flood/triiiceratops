@@ -3,10 +3,10 @@
  * stylesheet rather than a number in the configuration.
  *
  * A point looks the same whether it is rendered read-only (the viewer's shape
- * overlay), selected, or edited, so both sides resolve it here (spec §3.4).
- * They need the number as well as the paint: the overlay positions a marker
- * from its own geometry and measures a tap against the marker's diameter, and
- * the editor sizes the handle that stands in for one.
+ * overlay), selected, or edited, so both sides resolve it here. They need the
+ * number as well as the paint: the overlay positions a marker from its own
+ * geometry and measures a tap against the marker's diameter, and the editor
+ * sizes the handle that stands in for one.
  *
  * Measured rather than parsed. A custom property's computed value is the text
  * the author wrote — `getPropertyValue` hands back `0.625rem`, not `10px` — so

@@ -1,11 +1,11 @@
 /**
  * The renderer's shipped defaults.
  *
- * Every numeric threshold here is **provisional** (spec §Further Notes). They
- * are defensible starting points, not measurements, and they are planner inputs
- * precisely so they can be tuned without restructuring anything. Tests supply
- * their own values rather than asserting these, so tuning them can never
- * silently rewrite what a test proves.
+ * Every numeric threshold here is **provisional**. They are defensible starting
+ * points, not measurements, and they are planner inputs precisely so they can
+ * be tuned without restructuring anything. Tests supply their own values rather
+ * than asserting these, so tuning them can never silently rewrite what a test
+ * proves.
  */
 
 import type { PlannerBudgets } from './types';
@@ -22,8 +22,8 @@ export const DESKTOP_BYTE_BUDGET = 128 * 1024 * 1024;
 
 /**
  * The same ceiling on a phone, where the browser will kill a tab for far less
- * (spec, user story 13) and decoded images do not show up in any heap metric
- * that would have warned first.
+ * and decoded images do not show up in any heap metric that would have warned
+ * first.
  */
 export const MOBILE_BYTE_BUDGET = 48 * 1024 * 1024;
 
@@ -32,9 +32,9 @@ export const MOBILE_BYTE_BUDGET = 48 * 1024 * 1024;
  *
  * A statement about the INPUT, not about the user agent: this is the one
  * question a device sniff would have been asked, and `(pointer: coarse)` is the
- * only form of it the platform answers honestly. The spec deletes the
- * previous renderer's device-sniffing *drawer* selection outright; a memory
- * ceiling is a different question, and it is one the platform has an API for.
+ * only form of it the platform answers honestly. The previous renderer's
+ * device-sniffing *drawer* selection is gone outright; a memory ceiling is a
+ * different question, and it is one the platform has an API for.
  */
 export const MOBILE_BUDGET_QUERY = '(pointer: coarse) and (hover: none)';
 
@@ -94,7 +94,7 @@ export const DEFAULT_BUDGETS: PlannerBudgets = {
  * canvas instead looks like a safe refusal and is a dead end, because an
  * unlaid-out canvas gets no tier, therefore no metadata request, therefore no
  * reflow, so the folio a fetch would have sized is blank permanently rather
- * than briefly (user story 32).
+ * than briefly.
  */
 export const UNSIZED_CANVAS_PLACEHOLDER = { width: 1000, height: 1000 };
 
@@ -170,9 +170,8 @@ export const TILE_IN_FLIGHT_LIMIT = 6;
  * every one of them is thumbnail tier, and a level0 manifest resolves every one
  * of them to "fetch `info.json`" — so the first frame after a flick settles
  * would start fifty simultaneous metadata requests. This window turns that
- * fetch storm into arrivals one frame later rather than not at all
- * (spec §Thumbnail resolution: "under the same gate and concurrency cap as
- * thumbnail fetches").
+ * fetch storm into arrivals one frame later rather than not at all, under the
+ * same gate and concurrency cap as thumbnail fetches.
  *
  * The same number as {@link TILE_IN_FLIGHT_LIMIT} and for the same reason,
  * spelled separately because metadata and tiles are two windows: they are
@@ -190,7 +189,7 @@ export const TILE_MAX_ATTEMPTS = 2;
 
 /**
  * Backing-store cap. Above 2 the extra pixels cost memory and fill rate far out
- * of proportion to what anyone can see (spec §Rendering backend).
+ * of proportion to what anyone can see.
  */
 export const MAX_DEVICE_PIXEL_RATIO = 2;
 
@@ -321,7 +320,7 @@ export const MIN_ZOOM_FRACTION = 1 / 2;
  * equivalent 1/e time — the motion the current viewer already has.
  *
  * Continuous input (drag, pinch) uses **no** time constant at all: it is
- * applied directly (spec §Input and animation).
+ * applied directly.
  */
 export const ANIMATION_TIME_CONSTANT = 1 / 7;
 
@@ -406,9 +405,9 @@ export const MIN_VELOCITY_SPAN_MS = 16;
 /**
  * Steady speed of a held arrow key, in screen px/s.
  *
- * A speed, not a step: a held key drives a velocity (spec §Keyboard), so this
- * is how fast the view travels for as long as the key is down, independent of
- * the OS key-repeat rate.
+ * A speed, not a step: a held key drives a velocity, so this is how fast the
+ * view travels for as long as the key is down, independent of the OS key-repeat
+ * rate.
  */
 export const KEY_PAN_SPEED = 700;
 

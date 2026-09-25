@@ -8,8 +8,8 @@ import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
 import { installViewerSurface } from '../test/utils/mockViewerSurface';
 
 /**
- * The **canvas claim** reaching the picture, over a mounted viewer: the ticket's
- * demoable, which no unit of either half can show on its own.
+ * The **canvas claim** reaching the picture, over a mounted viewer, which no
+ * unit of either half can show on its own.
  *
  * Two halves of one suppression have to agree, and they are computed in
  * different places — the placard from the renderer's frame loop
@@ -21,8 +21,8 @@ import { installViewerSurface } from '../test/utils/mockViewerSurface';
  * request the reader sees "core cannot show this" painted over a plugin's video
  * until they happen to pan.
  *
- * `0003-mvm-video` is the recipe the epic names, vendored in the corpus and
- * served here from disk. Nothing fetches its media: the placard exists precisely
+ * `0003-mvm-video` is the recipe under test, vendored in the corpus and served
+ * here from disk. Nothing fetches its media: the placard exists precisely
  * because core issues no request for a canvas it cannot paint.
  */
 const AV_DIR = join(import.meta.dirname, '../test/fixtures/manifests/av');

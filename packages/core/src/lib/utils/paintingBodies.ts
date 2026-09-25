@@ -149,7 +149,7 @@ export function isImageBody(body: unknown): boolean {
  * takes `body[0]`: the Choice object itself, which has no id and no service and
  * so silently resolves to nothing. Fixing that ordering without classification
  * would be worse than the bug, because the alternative it then resolves is an
- * MP4 (user story 40).
+ * MP4.
  *
  * A Choice contributes ALL its alternatives here, not the selected one: this
  * answers "what could this annotation place", which is the question the

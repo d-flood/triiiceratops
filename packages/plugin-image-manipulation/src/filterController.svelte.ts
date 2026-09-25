@@ -10,7 +10,7 @@
  * closed.
  *
  * Filters are applied through `viewerState.setImageAdjustments`, a first-party
- * command (SPEC.md §Public API), rather than by writing a CSS filter string
+ * command, rather than by writing a CSS filter string
  * directly onto a renderer DOM node:
  *
  * - **No readiness gate.** The adjustment set lives in viewer state and is

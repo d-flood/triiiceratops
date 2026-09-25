@@ -8,8 +8,8 @@
 // them. A marketing page in English costs the slice; a manifest carrying Greek,
 // Cyrillic, CJK or Hebrew still renders, from the full face, on demand.
 //
-// NOTHING IS DROPPED. This is not the lossy subsetting ticket 05 rules out:
-// that item is about permanently removing glyphs from the shipped face, and no
+// NOTHING IS DROPPED. This is not lossy subsetting, which is ruled out:
+// that is about permanently removing glyphs from the shipped face, and no
 // glyph is removed here. The full faces stay byte-identical to upstream and
 // remain the fallback for everything the slice does not carry.
 //

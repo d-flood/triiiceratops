@@ -1,7 +1,7 @@
 // Shared helpers for the performance comparison harness.
 //
 // Pure, dependency-free utilities: artifact discovery + byte sizing (ESM entry
-// graph walking), statistics (median), the SPEC-fixed regression thresholds and
+// graph walking), statistics (median), the fixed regression thresholds and
 // their comparison logic, budget-file IO + absolute-drift enforcement, git
 // worktree management, and summary/table formatting.
 //
@@ -18,7 +18,7 @@ export const PERF_DIR = resolve(fileURLToPath(new URL('.', import.meta.url)));
 export const REPO_ROOT = resolve(PERF_DIR, '..', '..');
 export const BUDGETS_PATH = join(REPO_ROOT, 'perf-budgets.json');
 
-// SPEC "CI, Performance, And Release" — the fixed regression thresholds.
+// The fixed regression thresholds.
 //  · Deterministic artifact size regression above 5% fails.
 //  · Browser runtime regression fails only when the median increase is BOTH
 //    above 10% AND the absolute median increase exceeds 20 ms.
@@ -148,7 +148,7 @@ export const PLUGINS = [
  */
 export const ACTIVATION_MEASURED_PLUGINS = PLUGINS.filter((p) => !p.paused);
 
-// Runtime scenarios (SPEC). Interaction + plugin scenarios run with all
+// Runtime scenarios. Interaction + plugin scenarios run with all
 // first-party plugins activated AND subscribed, so subscription overhead is part
 // of the measured baseline (ADR 0008).
 export const RUNTIME_SCENARIOS = [
@@ -353,7 +353,7 @@ export function esmEntryGraphSize(entryFile) {
 }
 
 /**
- * Per-artifact byte sizes for a built repo root. Matches the SPEC list: core
+ * Per-artifact byte sizes for a built repo root. Covers: core
  * ESM entry graph, style.css, element IIFE, each size-gated plugin's ESM + IIFE,
  * the SDK ESM entry graph, and the AV plugin's entry file plus each of its lazy
  * chunks. These are exactly the published artifacts a consumer loads whose bytes
@@ -423,7 +423,7 @@ export function rendererGenerationChanged(base, head) {
 
 /**
  * Compare per-artifact sizes. A deterministic increase above 5% is a regression
- * (SPEC). Missing artifacts (0 bytes on head where base had bytes) also fail.
+ * Missing artifacts (0 bytes on head where base had bytes) also fail.
  *
  * `accepted` is the optional `acceptedSizeIncreases` map from perf-budgets.json:
  * a reviewed, committed exemption for an intentional cost shift the base
@@ -461,7 +461,7 @@ export function compareSizes(base, head, accepted = {}) {
 
 /**
  * Compare runtime medians. A scenario regresses only when BOTH conditions hold:
- * median increase > 10% AND absolute median increase > 20 ms (SPEC double gate).
+ * median increase > 10% AND absolute median increase > 20 ms.
  */
 export function compareRuntime(base, head) {
     const rows = [];
@@ -536,7 +536,7 @@ export function loadBudgets() {
 
 /**
  * Build a budget file from a set of head measurements. Size ceilings allow the
- * SPEC 5% drift; runtime ceilings carry generous headroom over the captured
+ * 5% drift; runtime ceilings carry generous headroom over the captured
  * median so ordinary headless-CI timing noise does not flake, while gross
  * regressions still trip the base-vs-head gate. Intentional cost increases are
  * accepted by regenerating this committed file in the PR (reviewed budget bump).

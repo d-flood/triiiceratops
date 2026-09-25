@@ -589,8 +589,8 @@ export function exceedsDecodedPixelCap(
  *    Deliberately this rather than "the smallest level at or above what is
  *    needed", for a ladder as much as for a pyramid: one budget governs
  *    sharpness for both source kinds instead of two that can drift apart. The
- *    consequence — a gapped ladder can leave a level visibly upscaled — is a
- *    deliberate deviation from the spec's earlier wording.
+ *    consequence — a gapped ladder can leave a level visibly upscaled — is
+ *    deliberate.
  *
  * Below the base level's ratio there is nothing coarser to fall back to, so the
  * base level is the floor — which is what keeps the viewer never blank.

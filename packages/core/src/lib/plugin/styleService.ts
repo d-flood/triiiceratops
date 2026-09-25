@@ -3,8 +3,8 @@
  *
  * Installs a plugin's global CSS into the owning viewer's style root — the
  * `Document` for a light-DOM Svelte viewer, the shadow root for the Web
- * Component (SPEC.md "Plugin SDK And Browser API"; CONTEXT.md **Active locale**
- * is the sibling per-viewer contract). Required behavior:
+ * Component (CONTEXT.md **Active locale** is the sibling per-viewer contract).
+ * Required behavior:
  *
  * - **Package-qualified keys.** Each install is keyed `<pluginName>:<id>`, so
  *   two plugins can use the same local `id` without colliding.
@@ -31,11 +31,11 @@ type CspNonceMeta = HTMLElement & { nonce?: string };
 /**
  * The host's `<meta property="csp-nonce">`, or `null` when it publishes none.
  *
- * Its presence is the "style nonce where required" signal from the SPEC: a host
- * running a nonce-based `style-src 'self' 'nonce-…'` (without `unsafe-inline`)
- * advertises its nonce so the service takes the nonce-aware `<style>` fallback —
- * a nonce cannot be carried by a constructable/adopted stylesheet, so under such
- * a policy the fallback is the CSP-correct path. Absent the meta, the
+ * Its presence is the "style nonce where required" signal: a host running a
+ * nonce-based `style-src 'self' 'nonce-…'` (without `unsafe-inline`) advertises
+ * its nonce so the service takes the nonce-aware `<style>` fallback — a nonce
+ * cannot be carried by a constructable/adopted stylesheet, so under such a
+ * policy the fallback is the CSP-correct path. Absent the meta, the
  * constructable path remains the default (it is not governed by `style-src` at
  * all). Its content is the nonce itself; see {@link discoverNonce}.
  */

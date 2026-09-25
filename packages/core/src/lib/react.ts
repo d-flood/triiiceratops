@@ -26,8 +26,7 @@
  * `triiiceratops/selectors`, or the shared `types/*` modules. Nothing is
  * re-exported from core's `.` entry: its declarations reach the compiled
  * `TriiiceratopsViewer.svelte.d.ts`, which imports `svelte`, and inheriting
- * that would break this subpath's no-Svelte type promise (SPEC "Superseded
- * decisions").
+ * that would break this subpath's no-Svelte type promise.
  */
 
 export {

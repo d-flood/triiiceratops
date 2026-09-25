@@ -274,10 +274,10 @@ export class GestureRecogniser {
         this.pendingTap = { x: sample.x, y: sample.y, time: sample.time };
         // A single tap moves nothing: it is reserved for annotation selection,
         // and binding zoom to it would break the annotation editor's drawing
-        // layer (spec §Input and animation). It is REPORTED so that selection reads the
-        // arbiter's decision rather than recognising a tap a second time from
-        // its own handlers — which is where a held input claim would stop
-        // suppressing input, and where the two slop thresholds would drift.
+        // layer. It is REPORTED so that selection reads the arbiter's decision
+        // rather than recognising a tap a second time from its own handlers —
+        // which is where a held input claim would stop suppressing input, and
+        // where the two slop thresholds would drift.
         return { kind: 'tap', point: { x: sample.x, y: sample.y } };
     }
 

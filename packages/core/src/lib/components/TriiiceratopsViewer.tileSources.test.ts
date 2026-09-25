@@ -17,17 +17,16 @@ import {
  * (`canvas.getImages()`, then `canvas.getContent()`, then `annotation
  * .getResource()` / `.getBody()`) and test the copy rather than the product.
  * The copy also truncated to the first annotation page — the exact data-loss
- * bug `remove-manifesto` ticket 03 fixed — so it stayed green against a
- * regression, and its test names advertised coverage of a code path
+ * bug since fixed — so it stayed green against a regression, and its test names
+ * advertised coverage of a code path
  * `TriiiceratopsViewer.svelte` has not used for some time.
  *
- * It now enters through the epic's one seam: a real `ViewerState` loaded with
- * raw manifest JSON, backed by the real manifest cache, with no mocks and no
- * hand-built canvases (`remove-manifesto` SPEC → "The seam", ticket 08). The
- * functions under test are the product's own `resolveAllCanvasImages` and
- * `toImageSource` — the decision the renderer's descriptors paint from and the
- * viewer's renderability gate asks — reached the same way each of them is in
- * production.
+ * It now enters through one seam: a real `ViewerState` loaded with raw manifest
+ * JSON, backed by the real manifest cache, with no mocks and no hand-built
+ * canvases. The functions under test are the product's own
+ * `resolveAllCanvasImages` and `toImageSource` — the decision the renderer's
+ * descriptors paint from and the viewer's renderability gate asks — reached the
+ * same way each of them is in production.
  */
 
 const CANVAS_WIDTH = 800;
@@ -213,8 +212,8 @@ describe('TriiiceratopsViewer - Tile Sources', () => {
      * owes it is whether anything on screen paints and a key naming the world
      * under the reader. Neither answer needs every folio resolved, and on a
      * long continuous manifest the difference between stopping at the first
-     * canvas that paints and resolving all of them is the whole of user story
-     * 7 — so these count the work rather than assert it.
+     * canvas that paints and resolving all of them is the whole cost — so these
+     * count the work rather than assert it.
      *
      * `getSelectedChoice` is the counter: resolution consults it once per
      * painting annotation, so with one annotation per canvas the call count IS
@@ -512,7 +511,7 @@ describe('TriiiceratopsViewer - Tile Sources', () => {
         it('should read EVERY annotation page of a v3 canvas', async () => {
             // `manifesto.js`'s `getContent()` read `items[0]` and stopped, so a
             // canvas splitting its painting annotations across pages lost all
-            // but the first (`remove-manifesto` ticket 03).
+            // but the first.
             const canvas = await v3Canvas({
                 items: ['first', 'second'].map((page) => ({
                     id: `http://example.org/page/${page}`,

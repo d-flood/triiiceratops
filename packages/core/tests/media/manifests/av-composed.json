@@ -7,7 +7,7 @@
     },
     "summary": {
         "en": [
-            "One canvas whose four seconds are tiled by two painting annotations targeting #t=0,2 and #t=2,4 — the opera-on-one-canvas shape of Cookbook recipe 0064, which must play through as a single work under one transport and one canvas timeline (spec, user stories 48 and 49). The two segments are deliberately DIFFERENT media: the colour-bars video first, the tone second, so which segment the sequencer has loaded is observable from the element's source rather than having to be inferred from the clock."
+            "One canvas whose four seconds are tiled by two painting annotations targeting #t=0,2 and #t=2,4 — the opera-on-one-canvas shape of Cookbook recipe 0064, which must play through as a single work under one transport and one canvas timeline. The two segments are deliberately DIFFERENT media: the colour-bars video first, the tone second, so which segment the sequencer has loaded is observable from the element's source rather than having to be inferred from the clock."
         ]
     },
     "items": [

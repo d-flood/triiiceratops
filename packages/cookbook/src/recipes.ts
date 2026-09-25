@@ -777,6 +777,6 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         support: 'unsupported',
         requiresPluginAv: false,
         matrixSupport: false,
-        reason: 'The manifest is Presentation API 4: its canvas is a `Scene` painted by a `Model` body (glTF). This viewer implements Presentation 3 and renders images and time-based media, so there is no scene to draw.',
+        reason: 'The manifest is Presentation API 4: its canvas is a `Scene` painted by a `Model` body (glTF). This viewer implements Presentation 2, 3, 4, and renders images and time-based media, so there is no scene to draw.',
     },
 ];

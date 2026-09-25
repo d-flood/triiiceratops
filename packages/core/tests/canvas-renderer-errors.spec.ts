@@ -16,7 +16,7 @@
  *
  * A `401` is a property of a request, not of a manifest, and the interesting
  * case is a single canvas out of 800 — a fixture service that failed for
- * everything would test the fail-fast behaviour this ticket replaces. Routing
+ * everything would test the fail-fast behaviour this suite rules out. Routing
  * one `info.json` is also what makes the request COUNT assertable, which is how
  * "a failed canvas is not refetched every time it re-enters the viewport" is
  * stated at all.
@@ -343,8 +343,8 @@ test.describe('Canvas2D renderer — per-canvas tile-source errors', () => {
     });
 
     /*
-     * A 404 is not a 401, and the difference is the whole of user story 27: one
-     * of them is fixed by logging in and the other never will be.
+     * A 404 is not a 401, and the difference is the whole point: one of them is
+     * fixed by logging in and the other never will be.
      */
     test('a 404 folio is distinguishable from a 401 one', async ({ page }) => {
         await failFolio(page, 400, 404);

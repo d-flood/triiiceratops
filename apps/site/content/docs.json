@@ -10,7 +10,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "A modern, lightweight, "
+					"text": "A "
 				},
 				{
 					"type": "text",
@@ -23,7 +23,7 @@
 				},
 				{
 					"type": "text",
-					"text": " IIIF viewer. Use the typed React or Vue component, drop the standards-based web component into plain HTML or any other frontend, or use the native Svelte component if that's your stack."
+					"text": " IIIF viewer. Use the typed React or Vue component, drop the standards-based web component into plain HTML or any other frontend, or use the native Svelte component."
 				}
 			]
 		},
@@ -50,7 +50,7 @@
 							}
 						}
 					],
-					"text": "View Live Demo"
+					"text": "View live demo"
 				}
 			]
 		},
@@ -102,7 +102,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "No install and no build step — one script tag from a CDN:"
+									"text": "No install and no build step. Use one script tag from a CDN:"
 								}
 							]
 						},
@@ -127,7 +127,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "That is the whole integration — styles and themes ship inside the element. The same custom element is how you use the viewer from "
+									"text": "That is the whole integration: styles and themes ship inside the element. The same custom element is how you use the viewer from "
 								},
 								{
 									"type": "text",
@@ -314,7 +314,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "A native Svelte 5 component — no custom element in the way."
+									"text": "A native Svelte 5 component, with no custom element in between."
 								}
 							]
 						},
@@ -362,7 +362,7 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "The framework wrappers host the same custom element every other integration uses, so Svelte and its runtime stay behind that boundary. You add no Svelte dependency, no Svelte Vite plugin, and no custom-element tag configuration — and the published type declarations for "
+							"text": "The framework wrappers host the same custom element every other integration uses, so Svelte and its runtime stay behind that boundary. You add no Svelte dependency, no Svelte Vite plugin, and no custom-element tag configuration, and the published type declarations for "
 						},
 						{
 							"type": "text",
@@ -468,7 +468,7 @@
 				},
 				{
 					"type": "text",
-					"text": " peer, at runtime or at type-check time. Import from the one that matches your framework and you never think about this again."
+					"text": " peer, at runtime or at type-check time. Import from the one that matches your framework."
 				}
 			]
 		},
@@ -1147,7 +1147,7 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "Svelte 5 apps — the "
+											"text": "Svelte 5 apps: the "
 										},
 										{
 											"type": "text",
@@ -1452,7 +1452,7 @@
 				},
 				{
 					"type": "text",
-					"text": " canvases play — a media stage over the canvas rect, playback controls in the viewer's own control bar, waveforms, WebVTT captions, a transcript panel, and an "
+					"text": " canvases play, with a media stage over the canvas rect, playback controls in the viewer's own control bar, waveforms, WebVTT captions, a transcript panel, and an "
 				},
 				{
 					"type": "text",
@@ -1575,7 +1575,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — panels (search, annotations, table of contents, collections), layout, the thumbnail gallery, and reading or commanding viewer state."
+									"text": ": panels (search, annotations, table of contents, collections), layout, the thumbnail gallery, and reading or commanding viewer state."
 								}
 							]
 						}
@@ -1614,7 +1614,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — four built-in themes, typed "
+									"text": ": four built-in themes, typed "
 								},
 								{
 									"type": "text",
@@ -1679,7 +1679,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — add the first-party plugins, or "
+									"text": ": add the first-party plugins, or "
 								},
 								{
 									"type": "text",
@@ -1758,7 +1758,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — play a manifest's "
+									"text": ": play a manifest's "
 								},
 								{
 									"type": "text",
@@ -1836,7 +1836,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — let readers draw and edit a canvas’s annotations, persisted through a storage adapter you supply. Opt-in, like audio and video."
+									"text": ": let readers draw and edit a canvas’s annotations, persisted through a storage adapter you supply. Opt-in, like audio and video."
 								}
 							]
 						}
@@ -1875,7 +1875,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — ready-made strict-CSP recipes."
+									"text": ": ready-made strict-CSP recipes."
 								}
 							]
 						}
@@ -1926,7 +1926,7 @@
 								},
 								{
 									"type": "text",
-									"text": ": Compatible with versions 2.0 and 3.0"
+									"text": ": Compatible with versions 2, 3, and 4"
 								}
 							]
 						}
@@ -1981,7 +1981,7 @@
 								},
 								{
 									"type": "text",
-									"text": " canvases — media stage, transport in the control bar, waveforms, WebVTT captions, and a transcript panel. Opt-in via "
+									"text": " canvases, with a media stage, transport in the control bar, waveforms, WebVTT captions, and a transcript panel. Opt-in via "
 								},
 								{
 									"type": "text",
@@ -2359,7 +2359,7 @@
 								},
 								{
 									"type": "text",
-									"text": ": Opens at a specific manifest, canvas, region, and — with the AV plugin — media time, from a decoded IIIF Content State"
+									"text": ": Opens at a specific manifest, canvas, region, and (with the AV plugin) media time, from a decoded IIIF Content State"
 								}
 							]
 						}
@@ -2688,6 +2688,6 @@
 	"meta": {
 		"title": "Documentation",
 		"shortTitle": "Documentation",
-		"intro": "How to install, configure and extend the viewer, in one site with the rest of the project."
+		"intro": "How to install, configure and extend the viewer."
 	}
 }

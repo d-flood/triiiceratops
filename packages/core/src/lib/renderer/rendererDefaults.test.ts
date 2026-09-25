@@ -25,7 +25,7 @@ describe('resolveByteBudget', () => {
     it('takes the smaller ceiling on a coarse-pointer device with no hover', () => {
         // A phone will kill the tab for far less than a desktop tolerates, and
         // decoded images are invisible to every heap metric that would have
-        // warned first (spec, user story 13).
+        // warned first.
         expect(
             resolveByteBudget((query) => query === MOBILE_BUDGET_QUERY),
         ).toBe(MOBILE_BYTE_BUDGET);

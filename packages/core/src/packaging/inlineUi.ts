@@ -12,13 +12,13 @@
  * `export … from '@triiiceratops/ui'`. Since that package is never published, a
  * consumer of core's tarball could not resolve it.
  *
- * The contract (SPEC.md) is that the primitives are BUNDLED INTO
- * core — shipped as Svelte source, never an externalized runtime dependency of
- * the published artifact. Core already ships every component as `.svelte`
- * source, so this step reproduces exactly what `dist/components/ui/` held before
- * the extraction: it copies the primitive `.svelte` sources in beside the shim
- * and rewrites the barrel to import them relatively — leaving no reference to
- * the `@triiiceratops/ui` specifier anywhere in the published dist.
+ * The contract is that the primitives are BUNDLED INTO core — shipped as Svelte
+ * source, never an externalized runtime dependency of the published artifact.
+ * Core already ships every component as `.svelte` source, so this step
+ * reproduces exactly what `dist/components/ui/` held before the extraction: it
+ * copies the primitive `.svelte` sources in beside the shim and rewrites the
+ * barrel to import them relatively — leaving no reference to the
+ * `@triiiceratops/ui` specifier anywhere in the published dist.
  *
  * Run directly: `node ./src/packaging/inlineUi.ts` (Node strips the types).
  */

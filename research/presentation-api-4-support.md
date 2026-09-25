@@ -3,7 +3,7 @@
 > **Verdict (2026-09-11): no work needed yet.** All four published v4 Cookbook
 > recipes were measured against the viewer and every one already behaves
 > correctly with **no code changes**. Scope was narrowed to "support only what
-> Cookbook recipes cover", which made the epic empty, so it was dropped. The
+> Cookbook recipes cover", which left nothing to build, so it was dropped. The
 > trigger to revisit is a **newly published v4 Cookbook recipe**, not a change
 > in the spec text. See _Measured behaviour_ below.
 

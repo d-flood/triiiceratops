@@ -2,8 +2,8 @@
 // collection members below, but those members are ANNOTATED with the plain
 // built-ins (`Set`/`Map`, which `SvelteSet`/`SvelteMap` extend) so that
 // `svelte/reactivity` never reaches the published declaration graph. Svelte must
-// not be a type-time requirement for a React or Vue framework wrapper consumer
-// (SPEC.md — "Core corrections this work depends on"). The invariant that these
+// not be a type-time requirement for a React or Vue framework wrapper consumer.
+// The invariant that these
 // members must HOLD reactive collections is enforced by the state inventory and
 // its capability tests (`state-inventory.ts`, `state-inventory.test.ts`) rather
 // than by the type system; ADR 0007 already documents direct assignment onto
@@ -874,7 +874,7 @@ export class ViewerState {
         if (this.hasPrevious) this.#step(-1);
     }
 
-    // ==================== VIEWPORT (SPEC.md §Public API) ======================
+    // ==================== VIEWPORT ============================================
     //
     // Command state for the viewport, and query-only state beside it. These
     // replace the renderer pass-through: the parity rule says anything the
@@ -3023,7 +3023,7 @@ export class ViewerState {
      * Close every open plugin flyout. Used by the toolbar to light-dismiss
      * flyouts on outside click / Escape. No-op (and no event) if none are open.
      *
-     * Flyouts declaring `dismiss: 'explicit'` (SPEC.md — Dismiss) are skipped:
+     * Flyouts declaring `dismiss: 'explicit'` are skipped:
      * they close only via their toolbar button, so a live-editing surface is not
      * dismissed by an outside pointer-down. Built-in toolbar dropdowns are
      * unaffected (they are core-owned and light-dismiss elsewhere).

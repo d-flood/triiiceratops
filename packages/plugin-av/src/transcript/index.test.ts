@@ -96,7 +96,7 @@ function harness(): Harness {
                 return { track, offset: state.offset, label: state.label };
             },
             // The real formatter's rule: the TOTAL decides the shape, so every
-            // stamp in one list has the same one (ticket 08).
+            // stamp in one list has the same one.
             formatTime: (seconds: number, total: number | null) => {
                 const whole = Math.floor(seconds);
                 const mmss = `${Math.floor((whole % 3600) / 60)}:${String(whole % 60).padStart(2, '0')}`;
@@ -164,7 +164,7 @@ describe('transcript panel', () => {
         cueButtons(h.container)[1].click();
 
         // The port carries no `play` at all: seeking is the whole of what a cue
-        // can do (the epic's standing "seek, never autoplay" rule).
+        // can do ("seek, never autoplay").
         expect(h.seeks).toEqual([0.7]);
         expect('play' in h.port.avState).toBe(false);
     });
@@ -431,7 +431,7 @@ describe('transcript panel', () => {
     });
 
     /**
-     * Ticket 08's rule for the transport, which the panel is a second reader
+     * The transport's rule, which the panel is a second reader
      * of: the TOTAL decides the shape, so a stamp does not grow an hours field
      * partway down the list.
      */
@@ -556,7 +556,7 @@ describe('notes section', () => {
         noteButtons()[1].click();
 
         // The port carries no `play` at all: seeking is the whole of what a
-        // note can do (the epic's standing "seek, never autoplay" rule).
+        // note can do ("seek, never autoplay").
         expect(h.seeks).toEqual([1.4]);
         expect('play' in h.notesPort.avState).toBe(false);
     });

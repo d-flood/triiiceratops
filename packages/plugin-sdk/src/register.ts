@@ -1,6 +1,5 @@
 /**
- * Self-contained browser registration into the `window.Triiiceratops` namespace
- * (SPEC.md "Plugin SDK And Browser API").
+ * Self-contained browser registration into the `window.Triiiceratops` namespace.
  *
  * The namespace is an order-independent registry: every core OR plugin IIFE
  * bootstraps it if absent (`window.Triiiceratops ??= …`), so a plugin script may

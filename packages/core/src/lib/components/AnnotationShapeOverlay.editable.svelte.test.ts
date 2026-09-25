@@ -1,6 +1,6 @@
 /**
  * The **editable** annotation shape: a focusable, labelled target with
- * Enter/Space activation (ticket 14, spec §Overlays and accessibility).
+ * Enter/Space activation.
  *
  * > The canvas paints pixels; a parallel DOM layer carries the focusable,
  * > labelled targets.

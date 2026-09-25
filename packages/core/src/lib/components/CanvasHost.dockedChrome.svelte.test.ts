@@ -26,12 +26,12 @@ import { installViewerSurface } from '../test/utils/mockViewerSurface';
  * What this fixture cannot see is which fit the ceiling gates on. Height-
  * constrained at 800 px wide and at 500 px alike, it has `fitScale ===
  * previousFitScale`, so the two candidate gates are indistinguishable here: a
- * mutation reading `previousFitScale` after the viewport has adopted the new size
- * still passes every spec below. That gate is owned by ticket 03's property
- * tests, over widths where the fit does move; do not read these specs as covering
- * it. `0065-opera-multiple-canvases` supplies the second
- * canvas the continuous-mode case needs to scroll onto; its canvases carry no
- * image body, so core paints placeholders for them and nothing fetches pixels.
+ * mutation reading `previousFitScale` after the viewport has adopted the new
+ * size still passes every spec below. That gate is owned by the property tests,
+ * over widths where the fit does move; do not read these specs as covering it.
+ * `0065-opera-multiple-canvases` supplies the second canvas the continuous-mode
+ * case needs to scroll onto; its canvases carry no image body, so core paints
+ * placeholders for them and nothing fetches pixels.
  */
 const COOKBOOK = join(
     import.meta.dirname,
@@ -252,7 +252,7 @@ describe('a docked-chrome surface change in a mounted viewer', () => {
 
         // The same canvas rect on the changed axis, at the same point in the
         // canvas: the panel cost the reader width of surface, not width of
-        // image (user stories 1, 2, 23).
+        // image.
         expect(
             Math.abs(state.viewportBounds!.width - bounds.width),
         ).toBeLessThan(2);
@@ -282,8 +282,8 @@ describe('a docked-chrome surface change in a mounted viewer', () => {
         }
 
         // A slide's worth of `cubicOut` widths against one jump to the end: the
-        // ratios compose, so the result does not depend on catching every frame
-        // (user stories 3, 4).
+        // ratios compose, so the result does not depend on catching every
+        // frame.
         const slid = await open([
             780, 745, 700, 655, 615, 580, 550, 528, 512, 503, 500,
         ]);
@@ -313,7 +313,7 @@ describe('a docked-chrome surface change in a mounted viewer', () => {
         await surface.stepBox([{ width: 650, height: 600 }, FULL]);
         await settleView(state);
 
-        // Consulting a panel cost the reader nothing (user story 5).
+        // Consulting a panel cost the reader nothing.
         expectScaleNear(state.viewportScale, scale);
         expectPointNear(state.viewportCentre, centre);
     });
@@ -330,7 +330,7 @@ describe('a docked-chrome surface change in a mounted viewer', () => {
 
         // The canvas is fitted by its height and the panel took width, so there
         // is no less image to show: the reader keeps their size and the whole
-        // canvas stays on screen (user stories 6, 7, 19).
+        // canvas stays on screen.
         expectScaleNear(state.viewportScale, scale);
         expect(state.viewportBounds!.width).toBeGreaterThan(1200);
         expect(state.viewportBounds!.height).toBeGreaterThan(1798);
@@ -352,8 +352,7 @@ describe('a docked-chrome surface change in a mounted viewer', () => {
         const scale = state.viewportScale;
         const bounds = state.viewportBounds!;
 
-        // A band takes HEIGHT, which is the axis a phone reader is reading down
-        // (user story 9).
+        // A band takes HEIGHT, which is the axis a phone reader is reading down.
         state.showThumbnailGallery = true;
         await surface.stepBox([{ width: 800, height: 480 }]);
         await settleView(state);
@@ -370,7 +369,7 @@ describe('a docked-chrome surface change in a mounted viewer', () => {
         const scale = state.viewportScale;
 
         // Nothing docked: the reader chose this view and nothing was taken from
-        // them (user story 14).
+        // them.
         await surface.stepBox([PANEL]);
         await settleView(state);
 
@@ -393,7 +392,7 @@ describe('a docked-chrome surface change in a mounted viewer', () => {
         const scale = state.viewportScale;
         state.zoomTo(scale * 4);
 
-        // The panel opens while the ease is still running (user story 16).
+        // The panel opens while the ease is still running.
         state.showMetadataPanel = true;
         await surface.stepBox([{ width: 650, height: 600 }, PANEL]);
         expect(state.viewportScale).toBeLessThan(scale * 4 * 0.9);

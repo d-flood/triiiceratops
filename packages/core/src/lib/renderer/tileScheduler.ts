@@ -109,8 +109,8 @@ class TileResponseError extends Error {}
 
 export interface TileSchedulerOptions {
     /**
-     * The bounded in-flight window. Six is the spec's starting point and is
-     * supplied by the caller precisely so it can be tuned without restructuring.
+     * The bounded in-flight window. Six is the starting point and is supplied
+     * by the caller precisely so it can be tuned without restructuring.
      */
     maxInFlight: number;
     /**
@@ -416,7 +416,7 @@ export function createTileScheduler(
      * set is never evicted while it is required, so it is the one place the
      * ceiling can be genuinely exceeded with no eviction able to help — as it
      * is by a manifest declaring its full-resolution image as each Canvas's
-     * `thumbnail`, which the spec requires to be used as-is.
+     * `thumbnail`, which must be used as-is.
      */
     function trim(): void {
         for (const key of cached.keys()) {

@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * Seam 1 — the scene planner (spec §Testing Decisions).
+ * Seam 1 — the scene planner.
  *
  * Data in, data out: no DOM, no network, no canvas. Every threshold is supplied
  * by the test rather than read from a shipped default, so tuning the defaults
@@ -310,7 +310,7 @@ describe('planScene', () => {
     it('requests no tiles, thumbnails, or metadata for a static-image source', () => {
         // A canvas with no image service has nothing to discover: its one URL
         // is already known, so it must never emit a fetch the planner cannot
-        // satisfy (spec, user story 29).
+        // satisfy.
         const result = plan([staticCanvas('c1', 1000, 750)]);
 
         expect(result.tileRequests).toEqual([]);
@@ -396,8 +396,8 @@ describe('planScene — multi-canvas layout', () => {
     });
 
     it('reverses the spread for a right-to-left manifest', () => {
-        // The reading order, not the array order: the first canvas is the one on
-        // the RIGHT (user story 15).
+        // The reading order, not the array order: the first canvas is the one
+        // on the RIGHT.
         const gap = gapFor(1000, 1000);
         const result = plan([recto, verso], {
             mode: 'paged',
@@ -566,7 +566,7 @@ describe('planScene — multi-canvas layout', () => {
         it('positions an unsized canvas from the median of its siblings', () => {
             // Never blocked on a fetch: "just fetch its dimensions" is the
             // reflex, and it restores the fetch storm for any manifest with
-            // sparse metadata (spec §Coordinate model and layout).
+            // sparse metadata.
             const result = plan(
                 [
                     staticCanvas('a', 1000, 750),
@@ -631,8 +631,8 @@ describe('planScene — multi-canvas layout', () => {
             // from. Dropping it looks safe and is a dead end: no rect means no
             // tier, no tier means no metadata request, and no request means the
             // reflow that would size it can never fire. The folio is blank
-            // permanently, and blank again every time the user pages back to it
-            // (user story 32).
+            // permanently, and blank again every time the user pages back to
+            // it.
             const result = plan([
                 {
                     id: 'lonely',
@@ -747,9 +747,9 @@ describe('planScene — multi-canvas layout', () => {
 
         it('keeps a declared axis rather than taking the surface\u2019s shape', () => {
             // A Canvas that states one axis has said something about its shape,
-            // in violation of the spec but on the record. The surface fills the
-            // gap by ratio, as it does for any other half-declared canvas, and
-            // does not overrule the figure that is there.
+            // in violation of the IIIF spec but on the record. The surface
+            // fills the gap by ratio, as it does for any other half-declared
+            // canvas, and does not overrule the figure that is there.
             const rect = plan([{ ...durationOnly, width: 4000 }], {
                 surfaceAspect: 0.5,
             }).layout[0];
@@ -1021,7 +1021,7 @@ describe('planScene — tiled sources', () => {
     });
 
     it('keeps the coarse chain a fraction of the current level, not a function of image size', () => {
-        // The claim the spec's arithmetic rests on: geometric level sizes make
+        // The claim the planner's arithmetic rests on: geometric level sizes make
         // the whole chain roughly a third of the current level. That is only
         // true when every level is measured over the SAME box. Held whole, the
         // chain costs O(image area) against the current level's O(viewport
@@ -1271,8 +1271,8 @@ describe('planScene — tiled sources', () => {
 
 /**
  * The **size-ladder source**: a level0 service that advertises only fixed whole
- * images (spec §Source kinds). No tiling, ever — the nearest advertised whole
- * image at or above what is needed, capped against a decoded-pixel ceiling.
+ * images. No tiling, ever — the nearest advertised whole image at or above what
+ * is needed, capped against a decoded-pixel ceiling.
  */
 describe('planScene — size-ladder sources', () => {
     /**
@@ -1548,10 +1548,10 @@ describe('planScene — size-ladder sources', () => {
     });
 
     it('releases even the base rung once the canvas is out of the residency window', () => {
-        // The nesting rule at its sharpest (spec §Further Notes): "the base
-        // level is never evicted" is scoped to the pyramid tier, and a canvas
-        // the viewport is nowhere near is not in it. Applied without that
-        // scope, an 800-folio manifest holds 800 base images for ever.
+        // The nesting rule at its sharpest: "the base level is never evicted"
+        // is scoped to the pyramid tier, and a canvas the viewport is nowhere
+        // near is not in it. Applied without that scope, an 800-folio manifest
+        // holds 800 base images for ever.
         const far = plan([ladderCanvas], {
             viewport: viewport({ centre: { x: 50_000, y: 500 }, scale: 4 }),
             knownMetadata: byService({ c1: LADDER_FACTS }),
@@ -2515,8 +2515,8 @@ describe('planViewportLimits', () => {
         });
 
         it('is not a lane for an unsized canvas that declares no duration', () => {
-            // User story 32's spec violation: a picture whose shape is unknown,
-            // which a fetch may yet report. Nothing about it is temporal.
+            // The IIIF spec violation: a picture whose shape is unknown, which
+            // a fetch may yet report. Nothing about it is temporal.
             expect(
                 limits([
                     {
@@ -2744,7 +2744,7 @@ describe('planScene — an 800-canvas continuous manifest', () => {
         // Layout is pure arithmetic over manifest dimensions, so the world is
         // fully positioned before anything is fetched — which is what makes
         // scrolling to canvas 400 possible at all, and what stops opening
-        // costing 800 `info.json` requests (spec §Coordinate model and layout).
+        // costing 800 `info.json` requests.
         const result = readingZoom(0);
 
         expect(result.layout).toHaveLength(COUNT);
@@ -2980,7 +2980,7 @@ describe('planScene — an 800-canvas continuous manifest', () => {
     });
 
     it('decides the tier the same way in a left-to-right and a top-to-bottom world', () => {
-        // The orientation-invariance the spec rejects projected HEIGHT for. A
+        // The orientation-invariance that rules out projected HEIGHT. A
         // portrait page flowing left-to-right and a landscape page flowing
         // top-to-bottom, at equal projected area, must decide alike; thresholded
         // on height, the first is a thumbnail (20x30 px) and the second a box

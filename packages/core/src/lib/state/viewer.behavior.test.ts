@@ -5,18 +5,17 @@ import { manifestsState } from './manifests.svelte';
 import { ViewerState } from './viewer.svelte';
 
 /**
- * `ViewerState`'s manifest-driven behavior through the epic's one seam — a real
+ * `ViewerState`'s manifest-driven behavior through one seam — a real
  * `ViewerState` loaded with raw manifest JSON, backed by the real manifest
- * cache, with no mocks and no hand-built canvases (`remove-manifesto` SPEC →
- * "The seam").
+ * cache, with no mocks and no hand-built canvases.
  *
  * This file used to `vi.mock` the whole manifest cache and feed it manifest
  * doubles carrying `__jsonld`, `getBehavior` and `getSequences`, plus canvas
- * doubles that were bare `{ id }` objects. It could not serve as an oracle for
- * this epic: every assertion below about start canvas, viewing direction and
+ * doubles that were bare `{ id }` objects. It could not serve as an oracle:
+ * every assertion below about start canvas, viewing direction and
  * viewing mode was really an assertion about the double's accessors, and the
  * doubles would have kept passing against code that reads nothing at all from a
- * real manifest (`remove-manifesto` ticket 08).
+ * real manifest.
  *
  * Where a test loads by URL it stubs `fetch` and nothing else, so
  * `setManifest`'s own collection detection, registration and fallback paths run

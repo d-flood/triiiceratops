@@ -1,6 +1,6 @@
 /**
- * Content-state ingestion in a real browser, on the web-component surface
- * (ADR 0006, user stories 13–17).
+ * Content-state ingestion in a real browser, on the web-component surface (ADR
+ * 0006).
  *
  * The fixture page (`/e2e/content-state.html`) does nothing but copy its own
  * query string onto the element's `content-state`,

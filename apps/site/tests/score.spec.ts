@@ -119,7 +119,7 @@ const FULL_MARKS = 100;
  * up. Raising this is worth doing the day the local spread narrows.
  *
  * The design-system appendix used to be granted a point of its own because its
- * italic captions made both serif faces first-paint dependencies. Ticket 07's
+ * italic captions made both serif faces first-paint dependencies. The
  * `unicode-range` split retired that: the appendix now needs 164 KB of the
  * italic rather than 347 KB, and it measures with the rest.
  */

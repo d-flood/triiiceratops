@@ -29,7 +29,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": a real React 19 component that hosts the Triiiceratops custom element and translates its lifecycle, properties, events, and viewer state into React idioms. It does not implement or own a second viewer — there is exactly one viewer implementation, behind the custom-element boundary."
+					"text": ": a real React 19 component that hosts the Triiiceratops custom element and translates its lifecycle, properties, events, and viewer state into React idioms. It does not implement a second viewer. There is one viewer implementation, behind the custom-element boundary."
 				}
 			],
 			"attrs": {
@@ -41,7 +41,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "That boundary is also where Svelte stays. You do "
+					"text": "Svelte stays behind that boundary. You do "
 				},
 				{
 					"type": "text",
@@ -228,7 +228,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — installing Triiiceratops for a different integration never pulls React in, and React is never bundled into the package."
+					"text": ". Installing Triiiceratops for a different integration never pulls React in, and React is never bundled into the package."
 				}
 			],
 			"attrs": {
@@ -267,7 +267,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "That is the whole integration. Some things worth knowing right away:"
+					"text": "That is the whole integration. A few things to know:"
 				}
 			],
 			"attrs": {
@@ -340,7 +340,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "The wrapper renders exactly one element",
+									"text": "The wrapper renders one element",
 									"marks": [
 										{
 											"type": "bold"
@@ -349,7 +349,7 @@
 								},
 								{
 									"type": "text",
-									"text": " — the "
+									"text": ": the "
 								},
 								{
 									"type": "text",
@@ -362,7 +362,7 @@
 								},
 								{
 									"type": "text",
-									"text": " host, and nothing else. No layout "
+									"text": " host. No layout "
 								},
 								{
 									"type": "text",
@@ -496,13 +496,13 @@
 			"type": "heading",
 			"attrs": {
 				"level": 2,
-				"slug": "the-handle-is-the-store",
+				"slug": "pass-the-handle-not-the-state",
 				"id": "4eddf333-6088-4d65-838e-c5aa5de4dfee"
 			},
 			"content": [
 				{
 					"type": "text",
-					"text": "The handle is the store"
+					"text": "Pass the handle, not the state"
 				}
 			]
 		},
@@ -622,7 +622,7 @@
 				},
 				{
 					"type": "text",
-					"text": " returns the same object for the component's whole lifetime. What changes is the value inside it — "
+					"text": " returns the same object for the component's whole lifetime. What changes is the value inside it: "
 				},
 				{
 					"type": "text",
@@ -690,7 +690,7 @@
 				},
 				{
 					"type": "text",
-					"text": " Nothing is gated or withheld to manufacture a non-nullable value; "
+					"text": " The wrapper does not delay rendering to guarantee a non-null value; "
 				},
 				{
 					"type": "text",
@@ -703,7 +703,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the honest state of the world in the window between \"React mounted the host\" and \"the custom element finished mounting its viewer\". Handle it the way you handle any other asynchronous resource — the "
+					"text": " is the actual state between \"React mounted the host\" and \"the custom element finished mounting its viewer\". Handle it the way you handle any other asynchronous resource: the "
 				},
 				{
 					"type": "text",
@@ -737,7 +737,7 @@
 				},
 				{
 					"type": "text",
-					"text": " The examples put controls before the viewer, but nothing about the wrapper constrains your markup: the handle is a value, so controls can be siblings, ancestors, nested inside your own layout boxes, or in a completely different part of the tree."
+					"text": " The examples put controls before the viewer, but nothing about the wrapper constrains your markup: the handle is a value, so controls can be siblings, ancestors, nested inside your own layout boxes, or in a different part of the tree."
 				}
 			],
 			"attrs": {
@@ -758,7 +758,7 @@
 				},
 				{
 					"type": "text",
-					"text": " A viewer that nothing reads from needs no handle at all — the first example above passes none."
+					"text": " A viewer that nothing reads from needs no handle. The first example above passes none."
 				}
 			],
 			"attrs": {
@@ -1234,7 +1234,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Both also have a context form that omits the handle — see "
+					"text": "Both also have a context form that omits the handle. See "
 				},
 				{
 					"type": "text",
@@ -1271,7 +1271,7 @@
 				},
 				{
 					"type": "text",
-					"text": " returns a typed, readonly view of the very same live "
+					"text": " returns a typed, readonly view of the same live "
 				},
 				{
 					"type": "text",
@@ -1284,7 +1284,7 @@
 				},
 				{
 					"type": "text",
-					"text": " object the element owns — no facade, no "
+					"text": " object the element owns. It is not a facade, a "
 				},
 				{
 					"type": "text",
@@ -1297,7 +1297,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", no copy — with the four lifecycle-plumbing methods ("
+					"text": ", or a copy. The four lifecycle-plumbing methods ("
 				},
 				{
 					"type": "text",
@@ -1349,7 +1349,7 @@
 				},
 				{
 					"type": "text",
-					"text": ") hidden so autocomplete offers only supported operations. Identity comparisons hold: the object is reference-equal to "
+					"text": ") are hidden so autocomplete offers only supported operations. Identity comparisons hold: the object is reference-equal to "
 				},
 				{
 					"type": "text",
@@ -1413,7 +1413,7 @@
 				},
 				{
 					"type": "text",
-					"text": " during render gives you the value at render time and no re-render when it changes — that is what "
+					"text": " during render gives you the value at render time and no re-render when it changes. Use "
 				},
 				{
 					"type": "text",
@@ -1426,7 +1426,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is for."
+					"text": " for that."
 				}
 			],
 			"attrs": {
@@ -1461,7 +1461,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is one generic, memoized, equality-gated projection. "
+					"text": " is a generic, memoized projection that re-renders only when its value changes (equality gating). "
 				},
 				{
 					"type": "text",
@@ -1474,7 +1474,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is inferred from the projection, so reactive state access stays concise and type safe:"
+					"text": " is inferred from the projection:"
 				}
 			],
 			"attrs": {
@@ -1513,7 +1513,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "A projection is memoized twice over. Within one notification it is computed once and repeated reads return the same reference — which is what makes an inline projection a valid React external-store snapshot with no extra machinery. Across notifications, the equality gate decides: when a recompute produces a value that satisfies "
+					"text": "A projection is memoized twice over. Within one notification it is computed once and repeated reads return the same reference. That makes an inline projection a valid React external-store snapshot with no extra machinery. Across notifications, the equality gate decides: when a recompute produces a value that satisfies "
 				},
 				{
 					"type": "text",
@@ -1586,7 +1586,7 @@
 				},
 				{
 					"type": "text",
-					"text": "-equal to its predecessor, so it would re-render on every viewer notification — give those an "
+					"text": "-equal to its predecessor, so it would re-render on every viewer notification. Give those an "
 				},
 				{
 					"type": "text",
@@ -1834,7 +1834,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for the query-only viewport values (scale, center, bounds, container size) that the renderer answers per frame and that are deliberately not mirrored into viewer state. "
+					"text": " for the query-only viewport values (scale, center, bounds, container size) that the renderer answers per frame and that are not mirrored into viewer state. "
 				},
 				{
 					"type": "text",
@@ -1850,7 +1850,7 @@
 				},
 				{
 					"type": "text",
-					"text": " explains the split and why it exists; the React call is one option:"
+					"text": " explains the split and why it exists. In React it is a single option:"
 				}
 			],
 			"attrs": {
@@ -1927,7 +1927,7 @@
 				},
 				{
 					"type": "text",
-					"text": " cadence is the one selector mistake that fails silently — the projection simply appears frozen. See "
+					"text": " cadence is the one selector mistake that fails silently: the projection appears frozen. See "
 				},
 				{
 					"type": "text",
@@ -2029,7 +2029,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is a trivial value provider — ordinary React context. It gates nothing, renders its children unconditionally, and has no fallback; reads through the handle stay nullable. Nest a second provider to scope a second viewer, and the nearest one wins."
+					"text": " is a plain value provider using ordinary React context. It gates nothing, renders its children unconditionally, and has no fallback; reads through the handle stay nullable. Nest a second provider to scope a second viewer, and the nearest one wins."
 				}
 			],
 			"attrs": {
@@ -2080,7 +2080,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Every viewer input is a typed prop. Which mechanism carries it to the element is an implementation detail you never have to manage, but it explains the server-rendering behavior below."
+					"text": "Every viewer input is a typed prop. Each prop reaches the element either as an HTML attribute or as a JavaScript property (see the Carried as column). You never manage this, but it explains the server-rendering behavior below."
 				}
 			],
 			"attrs": {
@@ -3182,7 +3182,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Everything else you pass — "
+					"text": "Everything else you pass ("
 				},
 				{
 					"type": "text",
@@ -3247,7 +3247,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", ordinary DOM attributes and DOM event handlers — is forwarded to the host element by React, unchanged. Object- and function-valued inputs always reach the element as JavaScript "
+					"text": ", ordinary DOM attributes and DOM event handlers) is forwarded to the host element by React, unchanged. Object- and function-valued inputs always reach the element as JavaScript "
 				},
 				{
 					"type": "text",
@@ -3272,7 +3272,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "All tiers are "
+					"text": "Attribute and property props are both "
 				},
 				{
 					"type": "text",
@@ -3333,7 +3333,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "They are one-way instructions to the viewer, not continuously enforced bindings — "
+					"text": "They are one-way instructions to the viewer, not continuously enforced bindings. They behave like "
 				},
 				{
 					"type": "text",
@@ -3359,7 +3359,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", never "
+					"text": ", not "
 				},
 				{
 					"type": "text",
@@ -3410,7 +3410,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "To follow where the viewer actually is, observe it — with a selector, or with the "
+					"text": "To follow where the viewer is, observe it with a selector, or with the "
 				},
 				{
 					"type": "text",
@@ -3475,7 +3475,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Property-tier inputs are compared with one uniform, one-level shallow equality: identical by "
+					"text": "Property props are compared with a one-level shallow check: identical by "
 				},
 				{
 					"type": "text",
@@ -3488,7 +3488,7 @@
 				},
 				{
 					"type": "text",
-					"text": "; or both arrays of equal length with identical elements; or both plain objects with equal own-key sets and identical values. Deep equality is deliberately not used, because it would make write suppression depend on the shape of your data."
+					"text": "; or both arrays of equal length with identical elements; or both plain objects with equal own-key sets and identical values. Deep equality is not used, because it would make write suppression depend on the shape of your data."
 				}
 			],
 			"attrs": {
@@ -3513,7 +3513,7 @@
 				},
 				{
 					"type": "text",
-					"text": " object rebuilt on every render is written on every render — and writing "
+					"text": " object rebuilt on every render is written on every render, and writing "
 				},
 				{
 					"type": "text",
@@ -3577,7 +3577,7 @@
 				},
 				{
 					"type": "text",
-					"text": " the wrapper warns once, naming the prop, after one property-tier input has been re-assigned an implausible number of times on one element — so an unmemoized object prop is diagnosable instead of mysterious."
+					"text": " the wrapper warns once, naming the prop, after one property input has been reassigned more than 10 times on one element, so you can find an unmemoized object prop."
 				}
 			],
 			"attrs": {
@@ -3628,7 +3628,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — "
+					"text": ": "
 				},
 				{
 					"type": "text",
@@ -3682,7 +3682,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", not to the identity of the list: re-supplying an equal list leaves running plugins completely untouched — no teardown, no restart, no re-injected styles. Hoist the list anyway, since a fresh "
+					"text": ", not to the identity of the list: re-supplying an equal list leaves running plugins untouched. They are not torn down, restarted, or given re-injected styles. Hoist the list anyway, since a fresh "
 				},
 				{
 					"type": "text",
@@ -3695,7 +3695,7 @@
 				},
 				{
 					"type": "text",
-					"text": " call per render would produce a genuinely different plugin each time."
+					"text": " call per render would produce a different plugin each time."
 				}
 			],
 			"attrs": {
@@ -3734,7 +3734,7 @@
 				},
 				{
 					"type": "text",
-					"text": " directly — never a "
+					"text": " directly, never a "
 				},
 				{
 					"type": "text",
@@ -3747,7 +3747,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — so your code is independent of the DOM event envelope."
+					"text": ", so your code is independent of the DOM event envelope."
 				}
 			],
 			"attrs": {
@@ -4282,7 +4282,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "When a hook is unsuitable — a test, an integration with imperative code — a forwarded "
+					"text": "When a hook is unsuitable (a test, or an integration with imperative code), a forwarded "
 				},
 				{
 					"type": "text",
@@ -4355,7 +4355,7 @@
 				},
 				{
 					"type": "text",
-					"text": " until the viewer publishes its state and again after unmount. It has exactly two members — "
+					"text": " until the viewer publishes its state and again after unmount. It has two members: "
 				},
 				{
 					"type": "text",
@@ -4394,7 +4394,7 @@
 				},
 				{
 					"type": "text",
-					"text": " (the readonly viewer state) — so the escape hatch stays small and discoverable. "
+					"text": " (the readonly viewer state). "
 				},
 				{
 					"type": "text",
@@ -4536,7 +4536,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — the "
+					"text": ": the "
 				},
 				{
 					"type": "text",
@@ -4549,7 +4549,7 @@
 				},
 				{
 					"type": "text",
-					"text": " tag carrying the attribute tier ("
+					"text": " tag carrying the attribute props ("
 				},
 				{
 					"type": "text",
@@ -4614,7 +4614,7 @@
 				},
 				{
 					"type": "text",
-					"text": ") and your forwarded host attributes, and nothing else. No shadow-DOM internals, no property-tier values, no renderer. The client's first render emits the identical attribute set, so hydration reuses and upgrades the same host with no mismatch, and viewer internals initialize only in the browser."
+					"text": ") and your forwarded host attributes, and nothing else. It has no shadow-DOM internals, property values, or renderer. The client's first render emits the identical attribute set, so hydration reuses and upgrades the same host with no mismatch, and viewer internals initialize only in the browser."
 				}
 			],
 			"attrs": {
@@ -4656,7 +4656,7 @@
 						},
 						{
 							"type": "text",
-							"text": " deliberately ship "
+							"text": " ship "
 						},
 						{
 							"type": "text",
@@ -4707,7 +4707,7 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "Keep the components that read viewer state on the client — with your framework's own client-only boundary — and let "
+							"text": "Keep the components that read viewer state on the client, behind your framework's own client-only boundary, and let "
 						},
 						{
 							"type": "text",
@@ -4760,7 +4760,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Failures are thrown so they reach a React error boundary rather than the console."
+					"text": "The errors below are thrown so they reach a React error boundary rather than the console."
 				}
 			],
 			"attrs": {
@@ -4929,7 +4929,7 @@
 										},
 										{
 											"type": "text",
-											"text": " getter — usually a second, older Triiiceratops core that registered first"
+											"text": " getter, usually a second, older Triiiceratops core that registered first"
 										}
 									],
 									"attrs": {
@@ -5048,7 +5048,7 @@
 										},
 										{
 											"type": "text",
-											"text": " registry — the mount path ran outside a browser"
+											"text": " registry: the mount path ran outside a browser"
 										}
 									],
 									"attrs": {
@@ -5126,7 +5126,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Three further failure modes are silent by design and surface only under "
+					"text": "Three further failure modes are silent by default and surface only under "
 				},
 				{
 					"type": "text",
@@ -5139,7 +5139,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — an unmemoized property-tier prop, a handle created and never passed to a viewer, and a "
+					"text": ": an unmemoized property prop, a handle created and never passed to a viewer, and a "
 				},
 				{
 					"type": "text",
@@ -5229,7 +5229,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — real commands, real batched notifications, the real selector runtime "
+					"text": ", with real commands, real batched notifications, and the real selector runtime that "
 				},
 				{
 					"type": "text",
@@ -5242,7 +5242,7 @@
 				},
 				{
 					"type": "text",
-					"text": " consults — with no DOM viewer, no custom element, no renderer surface, and no network. Run it under "
+					"text": " uses. It needs no DOM viewer, custom element, renderer surface, or network. Run it under "
 				},
 				{
 					"type": "text",
@@ -5268,7 +5268,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — which a React test runner already provides — because the published entry bundles a "
+					"text": " (most React test setups already use one), because the published entry bundles a "
 				},
 				{
 					"type": "text",
@@ -5294,7 +5294,7 @@
 				},
 				{
 					"type": "text",
-					"text": " global, so bare Node fails with "
+					"text": " global. Bare Node fails with "
 				},
 				{
 					"type": "text",
@@ -5307,7 +5307,7 @@
 				},
 				{
 					"type": "text",
-					"text": " (or set "
+					"text": ". To run in bare Node, set "
 				},
 				{
 					"type": "text",
@@ -5320,7 +5320,7 @@
 				},
 				{
 					"type": "text",
-					"text": " first)."
+					"text": " first."
 				}
 			],
 			"attrs": {
@@ -5345,7 +5345,7 @@
 				},
 				{
 					"type": "text",
-					"text": " slot would go — no wrapper, no "
+					"text": " slot would go, with no wrapper and no "
 				},
 				{
 					"type": "text",
@@ -5396,7 +5396,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for your own render helper or Testing Library if you have one — the part that matters is that the handle is real state, and that a command plus "
+					"text": " for your own render helper or Testing Library if you have one. What matters is that the handle is real state, and that a command plus "
 				},
 				{
 					"type": "text",
@@ -5456,7 +5456,7 @@
 				},
 				{
 					"type": "text",
-					"text": " command — still no network). "
+					"text": " command, still with no network). "
 				},
 				{
 					"type": "text",
@@ -5534,7 +5534,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The promise of this wrapper is "
+					"text": "This wrapper provides "
 				},
 				{
 					"type": "text",
@@ -5547,7 +5547,7 @@
 				},
 				{
 					"type": "text",
-					"text": " to the viewer. Two limits are deliberately outside it, and both are shared by every host rather than being React-specific:"
+					"text": " to the viewer. It has two limits, and both apply to every host, not only React:"
 				}
 			],
 			"attrs": {
@@ -5626,7 +5626,7 @@
 								},
 								{
 									"type": "text",
-									"text": " element — "
+									"text": " element ("
 								},
 								{
 									"type": "text",
@@ -5652,7 +5652,7 @@
 								},
 								{
 									"type": "text",
-									"text": ", layout, size, borders — is yours as usual. See "
+									"text": ", layout, size, borders) is yours as usual. See "
 								},
 								{
 									"type": "text",
@@ -5713,7 +5713,7 @@
 								},
 								{
 									"type": "text",
-									"text": " covers the three supported answers, with a React custom-toolbar example."
+									"text": " covers the three supported alternatives, with a React custom-toolbar example."
 								}
 							],
 							"attrs": {
@@ -5735,7 +5735,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Direct custom-element integration also remains fully supported for hosts that want it — see "
+					"text": "Direct custom-element integration is also supported. See "
 				},
 				{
 					"type": "text",

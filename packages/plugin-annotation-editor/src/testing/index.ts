@@ -5,8 +5,7 @@ import type { W3CAnnotation } from '../adapters/types';
 
 /**
  * Adapter authoring kit — a reusable conformance suite so adapter authors can
- * verify their implementation against the contract the plugin relies on (F28 /
- * SPEC §2.6).
+ * verify their implementation against the contract the plugin relies on.
  *
  * An adapter is pure storage: the plugin owns display sync, caching, id
  * bookkeeping, timestamp/attribution stamping, and error handling. This suite
@@ -30,7 +29,7 @@ export interface AdapterContractOptions {
      * The adapter mints its own canonical id on `create` and returns it (as an
      * annotation or an id string). When set, the suite asserts `create` returns a
      * non-void value and that the returned id is honored by subsequent
-     * `update`/`delete` (F5).
+     * `update`/`delete`.
      */
     supportsIdReconciliation?: boolean;
     /**
@@ -43,7 +42,7 @@ export interface AdapterContractOptions {
     label?: string;
 }
 
-/** Internal bookkeeping markers the plugin reads once, then strips (F7). */
+/** Internal bookkeeping markers the plugin reads once, then strips. */
 function strip(annotation: W3CAnnotation): W3CAnnotation {
     const clone = { ...annotation } as Record<string, unknown>;
     delete clone.__fullBodyLoaded;
@@ -51,7 +50,7 @@ function strip(annotation: W3CAnnotation): W3CAnnotation {
     return clone as unknown as W3CAnnotation;
 }
 
-/** Resolve the canonical id an adapter assigned on create (F5). */
+/** Resolve the canonical id an adapter assigned on create. */
 function canonicalIdFrom(
     returned: W3CAnnotation | string | void,
     fallbackId: string,

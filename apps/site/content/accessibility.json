@@ -40,7 +40,7 @@
         {
             "type": "paragraph",
             "attrs": { "id": "1b294331-fc2f-5800-a6ac-ffb74337291a" },
-            "content": [{ "type": "text", "text": "Triiiceratops supports IIIF Presentation 2 and 3 and Image API services across versions 1–3. It uses the structure a collection already describes: page order, reading direction, tables of contents, multilingual labels, and annotations." }]
+            "content": [{ "type": "text", "text": "Triiiceratops supports IIIF Presentation 2, 3, and 4 Image API services across versions 1–3 of the Image API. It uses the structure a collection already describes: page order, reading direction, tables of contents, multilingual labels, and annotations." }]
         },
         {
             "type": "paragraph",

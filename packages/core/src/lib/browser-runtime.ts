@@ -7,12 +7,11 @@
  * core. Core fills in `coreVersion`/`pluginApiVersion`/`capabilities` when it
  * loads, and registers the `<triiiceratops-viewer>` custom element.
  *
- * "One core per page, first wins" (SPEC.md "Plugin SDK And Browser API"): a
- * second core with a different version leaves the namespace and the custom
- * element untouched and throws a structured {@link TriiiceratopsCoreConflictError}
- * — the same error path as duplicate custom-element registration (one rule, one
- * error). A same-version double-load is a harmless no-op, including idempotent
- * element registration.
+ * "One core per page, first wins": a second core with a different version
+ * leaves the namespace and the custom element untouched and throws a structured
+ * {@link TriiiceratopsCoreConflictError} — the same error path as duplicate
+ * custom-element registration (one rule, one error). A same-version double-load
+ * is a harmless no-op, including idempotent element registration.
  *
  * Registration never activates anything (CONTEXT.md **Registration**);
  * activation is explicit, per viewer, and negotiated later (CONTEXT.md
@@ -76,10 +75,11 @@ export interface PluginFactoryRegistry {
  *    plugin's real components and reading the `$.<name>` references out of the
  *    output — never by guessing, and never by adding "while we are here".
  * 2. **Growth is gated by the size ratchet.** A plugin reaching for a Svelte
- *    feature core does not already use adds a helper here, and `pnpm size:check`
- *    fails against the recorded element baseline. That is the intended alarm: a
- *    core-size increase on a plugin ticket means plugin bytes are moving into
- *    core, and it must be read that way rather than re-baselined.
+ *    feature core does not already use adds a helper here, and
+ *    `pnpm size:check` fails against the recorded element baseline. That is
+ *    the intended alarm: a core-size increase from a plugin change means plugin
+ *    bytes are moving into core, and it must be read that way rather than
+ *    re-baselined.
  * 3. **Version skew fails closed**, and in two places, because one is not
  *    enough. A consuming plugin declares the `shared-svelte-runtime` capability
  *    and an EXACT `coreRange`, so activation refuses a core that shares no
@@ -155,7 +155,7 @@ export interface SharedSvelteRuntime {
 export type SharedCoreUtils = Readonly<Record<string, unknown>>;
 
 /**
- * The browser runtime descriptor (SPEC.md — normative shape). `coreVersion`,
+ * The browser runtime descriptor. `coreVersion`,
  * `pluginApiVersion`, and `capabilities` are empty until core loads and fills
  * them; the `plugins` registry exists from first bootstrap so plugins can
  * register before core.

@@ -146,16 +146,15 @@
     Guarded by src/packaging/viewerRootUnique.test.ts.
 -->
 <!--
-    The image surface is a real tab stop with a role and an accessible name
-    (spec §Keyboard).
+    The image surface is a real tab stop with a role and an accessible name.
 
     The focus target is this WRAPPER rather than the `<canvas>` inside it, and
-    that is the same division of labour the spec draws for overlays: the canvas
-    paints pixels, a DOM layer carries the focusable, labelled targets. A canvas
-    element is interactive content in its own right, so giving it a widget role
-    is a contradiction assistive technology has no good answer to; the box
-    around it has no implicit role to contradict. Clicking the canvas still
-    focuses this, because the browser focuses the nearest focusable ancestor.
+    that is the same division of labour overlays use: the canvas paints pixels,
+    a DOM layer carries the focusable, labelled targets. A canvas element is
+    interactive content in its own right, so giving it a widget role is a
+    contradiction assistive technology has no good answer to; the box around it
+    has no implicit role to contradict. Clicking the canvas still focuses this,
+    because the browser focuses the nearest focusable ancestor.
 
     `role="application"` because arrow keys mean something HERE that they do not
     mean anywhere else in the viewer: a screen reader must pass them through
@@ -167,17 +166,17 @@
     is the only role NVDA and JAWS pass arrows through — so it stays. The price
     is that any non-canvas descendant becomes unreadable in browse mode:
     ordinary text, a heading, an error message, a list of annotations would all
-    be skipped over. Ticket 12's per-canvas placeholder layer IS such a child — it
-    is the `.placeholder-layer` below, and it carries `role="document"` for
-    exactly this reason. Each such child must either carry `role="document"` (which restores
-    browse mode for its own subtree) or be hoisted OUT of this element and
-    rendered as a sibling. Recorded in lint-allowlist.md entry 7.
+    be skipped over. The per-canvas placeholder layer IS such a child — it is
+    the `.placeholder-layer` below, and it carries `role="document"` for exactly
+    this reason. Each such child must either carry `role="document"` (which
+    restores browse mode for its own subtree) or be hoisted OUT of this element
+    and rendered as a sibling. Recorded in lint-allowlist.md entry 7.
 
-    Ticket 14's annotation shape overlay took the second option: it is a SIBLING
-    of this element, mounted by `TriiiceratopsViewer` into the same stage box, so
+    The annotation shape overlay takes the second option: it is a SIBLING of
+    this element, mounted by `TriiiceratopsViewer` into the same stage box, so
     its labels are read normally and its focusable shapes are ordinary widgets.
-    This element comes first in DOM order, so Tab goes surface → annotations: the
-    picture before the things marked on it.
+    This element comes first in DOM order, so Tab goes surface → annotations:
+    the picture before the things marked on it.
 
     The two suppressions below are recorded in lint-allowlist.md. Svelte's
     heuristic classifies every ARIA role outside the widget set as
@@ -228,8 +227,8 @@
         saying what is there. A canvas can be at most one of them, because an
         unsupported canvas issues no request and so can never acquire an error.
 
-        DOM rather than painted pixels, per ticket 14's rule — a message the reader
-        must perceive needs an accessible name, and painted text has none.
+        DOM rather than painted pixels, because a message the reader must
+        perceive needs an accessible name, and painted text has none.
 
         `role="document"` on the layer is the constraint the note above this markup
         records: `role="application"` suppresses browse mode for its whole subtree,

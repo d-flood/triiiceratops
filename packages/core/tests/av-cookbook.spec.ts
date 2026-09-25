@@ -1,11 +1,11 @@
 /**
- * The viewer, against every audiovisual IIIF Cookbook recipe (user story 47).
+ * The viewer, against every audiovisual IIIF Cookbook recipe.
  *
- * This is the epic's exit criterion, driven on the bare e2e harness
- * (`/e2e/harness.html`) with `@triiiceratops/plugin-av` registered the way a
- * host registers it, opened on each of the fifteen recipes at their canonical
- * `iiif.io` URLs — the same URLs the demo's manifest picker offers — and on the
- * v4 audio, video and transcript-file recipes at theirs.
+ * Driven on the bare e2e harness (`/e2e/harness.html`) with
+ * `@triiiceratops/plugin-av` registered the way a host registers it, opened on
+ * each of the fifteen recipes at their canonical `iiif.io` URLs — the same URLs
+ * the demo's manifest picker offers — and on the v4 audio, video and
+ * transcript-file recipes at theirs.
  *
  * The network stands in and nothing else does. Each recipe's manifest is served
  * from the VENDORED copy under `src/lib/test/fixtures/manifests/av/` or `v4/`
@@ -14,11 +14,11 @@
  * service from the dev server's own fake one. What is under test is the
  * recipe, not the internet.
  *
- * Two things are asserted for every recipe, and they are the ticket's own
- * words: zero unsupported presentations and zero error chrome. Beyond that each
- * recipe declares what it should put on screen — a claimed AV stage with a
- * media element, or (for `0489-multimedia-canvas`, the one documented
- * exception) a painted image body and a degradation warning.
+ * Two things are asserted for every recipe: zero unsupported presentations and
+ * zero error chrome. Beyond that each recipe declares what it should put on
+ * screen — a claimed AV stage with a media element, or (for
+ * `0489-multimedia-canvas`, the one documented exception) a painted image body
+ * and a degradation warning.
  *
  * `pnpm build:all` must have run: the harness resolves the plugin to its built
  * `dist/`, as a consumer's bundler would.
@@ -101,8 +101,8 @@ const PIXEL_PNG = Buffer.from(
  * `surface` is what the recipe must put on the current canvas:
  * `'stage'` — the plugin claimed it and a media element is playing position;
  * `'image'` — core painted an image body and the plugin claimed nothing the
- * reader can see. Only `0489` is the second kind, and it is the epic's one
- * documented degradation.
+ * reader can see. Only `0489` is the second kind, and it is the one documented
+ * degradation.
  *
  * `corpus` is the fixture directory the file is read from. A v4 recipe's `id`
  * carries its `/v4` path segment so `recipeUrl` lands on its manifest id.
@@ -532,10 +532,9 @@ test.describe('av cookbook coverage', () => {
                         },
                     )
                     .toBeGreaterThan(0);
-                // Nothing is claimed and no media element is built: core
-                // paints the image body through the ordinary tile pipeline and
-                // the video and text bodies are ignored, which is what SPEC's
-                // "Out of Scope" entry describes.
+                // Nothing is claimed and no media element is built: core paints
+                // the image body through the ordinary tile pipeline and the
+                // video and text bodies are ignored, by design.
                 await expect(page.locator(STAGE)).toHaveCount(0);
                 await expect(page.locator(MEDIA)).toHaveCount(0);
                 await expect
@@ -549,12 +548,12 @@ test.describe('av cookbook coverage', () => {
     }
 
     /*
-        User stories 2, 4 and 37. `0014`'s score is a companion Canvas core
-        paints, so it is on the same tier ladder as any other canvas: zooming in
-        asks the image service for more resolution. `iiif.io`'s reference
-        service is routed to the dev server's real fake one, so the request
-        counter is the observable difference between an inherited pipeline and
-        the single static request the plugin used to make.
+        `0014`'s score is a companion Canvas core paints, so it is on the same
+        tier ladder as any other canvas: zooming in asks the image service for
+        more resolution. `iiif.io`'s reference service is routed to the dev
+        server's real fake one, so the request counter is the observable
+        difference between an inherited pipeline and the single static request
+        the plugin used to make.
     */
     test('the score of 0014 sharpens as the reader zooms into it', async ({
         page,
@@ -670,7 +669,7 @@ test.describe('av cookbook coverage', () => {
     });
 
     /**
-     * The script-tag half of user story 30, on the page that ships it.
+     * The script-tag install, on the page that ships it.
      *
      * The example's authored `apps/examples/src/web-component/index.html` is
      * served verbatim from a depth where its own relative `../../dist/…` URLs
@@ -728,8 +727,8 @@ test.describe('av cookbook coverage', () => {
     });
 
     /**
-     * User story 12a on the corpus the epic is judged by: a reader following a
-     * recording's words, in the demo, through the panel the toolbar opens.
+     * On the Cookbook corpus: a reader following a recording's words, in the
+     * demo, through the panel the toolbar opens.
      */
     test('a caption recipe offers its transcript, and a cue seeks without playing', async ({
         page,
@@ -1031,7 +1030,7 @@ test.describe('av cookbook coverage', () => {
         expect(chunkRequests).toEqual([]);
     });
 
-    /** The captions half of user story 12, on the corpus the epic is judged by. */
+    /** Captions, on the Cookbook corpus. */
     test('a cross-origin caption recipe offers its track', async ({ page }) => {
         const log = newLog();
         await openRecipe(page, '0219-using-caption-file', log);

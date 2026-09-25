@@ -1,4 +1,4 @@
-// Shared vitest v8 coverage options (ticket 22).
+// Shared vitest v8 coverage options.
 //
 // Every package measures line + branch coverage with the v8 provider and emits a
 // machine-readable `coverage/coverage-summary.json`. Those per-package summaries
@@ -14,7 +14,7 @@ export const coverage = {
     provider: 'v8',
     // `json-summary` feeds the per-package floor gate (`coverage:check`);
     // `json` emits `coverage-final.json` with per-line hit data, which the
-    // changed-lines report (`coverage:changed`, ticket 34) intersects with a
+    // changed-lines report (`coverage:changed`) intersects with a
     // PR's diff. Both are machine-readable and cheap to emit alongside.
     reporter: ['text-summary', 'json-summary', 'json'],
     reportsDirectory: './coverage',

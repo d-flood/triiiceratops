@@ -2,13 +2,11 @@
  * The structured `viewererror` channel.
  *
  * Mirrors the `pluginerror` channel ({@link PluginError} in `./plugin`) so
- * hosts handle viewer-level failures exactly as they handle
- * plugin failures: actionable configuration, content, and operation problems are
- * delivered as a typed payload on BOTH a bubbling, composed `viewererror`
- * CustomEvent from the viewer root AND an `onviewererror` host callback — the
- * SAME object both ways — instead of being scraped from the console (SPEC.md
- * "Core Distribution" — "Actionable configuration, version, plugin, and
- * operation failures use structured events or callbacks"; user stories 12–13).
+ * hosts handle viewer-level failures exactly as they handle plugin failures:
+ * actionable configuration, content, and operation problems are delivered as a
+ * typed payload on BOTH a bubbling, composed `viewererror` CustomEvent from the
+ * viewer root AND an `onviewererror` host callback — the SAME object both ways
+ * — instead of being scraped from the console.
  *
  * The payload type is defined ONCE here so it can be snapshotted for the
  * public API surface.

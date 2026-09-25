@@ -31,7 +31,7 @@ export const OG_IMAGE_ALT =
  */
 export const DOCS_OG_IMAGE = `${SITE_ROOT}social/og-docs-v1.png`;
 export const DOCS_OG_IMAGE_ALT =
-    'Triiiceratops: an IIIF viewer with first-class React, Vue and Svelte components, plus a web component for Django, WordPress or plain HTML.';
+    'Triiiceratops: a IIIF viewer with first-class React, Vue and Svelte components, plus a web component for Django, WordPress or plain HTML.';
 
 export const TWITTER_HANDLE = '@FloodDavid';
 export const FEDIVERSE_CREATOR = '@davidflood@fosstodon.org';

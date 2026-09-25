@@ -4,7 +4,7 @@
  * hls.js is reachable only from here, and this module is only ever reached
  * through the `await import()` in `../hlsLink.ts`. A page whose manifests carry
  * no HLS body — or one whose browser decodes HLS natively — never fetches these
- * bytes (SPEC — "Delivery and packaging").
+ * bytes.
  */
 
 import Hls from 'hls.js';

@@ -16,7 +16,7 @@ import { VIEWER_STATE_AVAILABLE_EVENT } from '../types/viewerElement';
 import type { SearchProvider, SearchResultGroup } from '../types/config';
 
 /**
- * The custom element's state bridge (framework-wrappers ticket 02).
+ * The custom element's state bridge.
  *
  * These tests drive the REAL compiled custom element — registered through
  * `customElements.define` exactly as the Web Component entries do — because

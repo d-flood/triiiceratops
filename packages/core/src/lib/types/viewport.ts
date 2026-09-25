@@ -1,5 +1,5 @@
 /**
- * The viewport's public vocabulary (SPEC.md §Public API).
+ * The viewport's public vocabulary.
  *
  * Every coordinate on this boundary is **canvas space** — the IIIF Canvas's own
  * `width`/`height`, which is already the persistence format for annotation

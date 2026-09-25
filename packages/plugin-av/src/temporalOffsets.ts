@@ -1,6 +1,5 @@
 /**
- * Turning core's `temporalOffset` into a seek — the reader half of ticket 05's
- * plumbing.
+ * Turning core's `temporalOffset` into a seek.
  *
  * **Seek, never autoplay.** An offset positions the playhead and leaves playback
  * state exactly as it was; a paused viewer stays paused. `endSeconds` is carried

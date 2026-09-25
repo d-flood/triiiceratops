@@ -12,10 +12,10 @@ import type { ViewerState } from '../state/viewer.svelte';
 export type PluginUiTarget = 'panel' | 'flyout';
 
 /**
- * A DOM-mount thunk (SPEC.md — content-only container). Core hands the plugin a
- * core-created, core-placed container; the thunk renders the plugin's content
- * into it and returns a cleanup. It is the ONE rendering path for plugin chrome
- * — see {@link PluginFlyout} / {@link PluginPanel}.
+ * A DOM-mount thunk. Core hands the plugin a core-created, core-placed
+ * container; the thunk renders the plugin's content into it and returns a
+ * cleanup. It is the ONE rendering path for plugin chrome — see
+ * {@link PluginFlyout} / {@link PluginPanel}.
  */
 export type PluginMountThunk = (container: HTMLElement) => () => void;
 
@@ -207,8 +207,7 @@ export interface Selector<T> {
 export type ViewerSelectors = SourceSelectors<ViewerState>;
 
 /**
- * Root-aware global stylesheet installer for plugin CSS (SPEC.md "Plugin SDK And
- * Browser API" — root-aware style installation).
+ * Root-aware global stylesheet installer for plugin CSS.
  *
  * A fresh instance is created per activation, bound to the owning viewer's style
  * root (the document for a light-DOM viewer, the shadow root for the Web
@@ -267,13 +266,13 @@ export interface PluginLocaleService {
 }
 
 /**
- * Framework-neutral toolbar icon descriptor produced by the SDK's `svgIcon`
- * (SPEC.md "Plugin SDK And Browser API"). It carries only sanitized inner SVG
- * markup and the source `viewBox`; core owns the rendered `<svg>` wrapper —
- * dimensions, `currentColor` fill, focusability, and accessibility attributes —
- * so plugin icons stay visually and semantically consistent. `svgIcon` rejects
- * `<script>`, `on*` handlers, external `href`/`xlink:href` URLs, and
- * `<foreignObject>` synchronously, so a descriptor is always safe to render.
+ * Framework-neutral toolbar icon descriptor produced by the SDK's `svgIcon`. It
+ * carries only sanitized inner SVG markup and the source `viewBox`; core owns
+ * the rendered `<svg>` wrapper — dimensions, `currentColor` fill, focusability,
+ * and accessibility attributes — so plugin icons stay visually and semantically
+ * consistent. `svgIcon` rejects `<script>`, `on*` handlers, external
+ * `href`/`xlink:href` URLs, and `<foreignObject>` synchronously, so a
+ * descriptor is always safe to render.
  */
 export interface IconDescriptor {
     /** Discriminant for future icon kinds; always `'svg'` in 1.0. */
@@ -407,8 +406,7 @@ export interface PublishedState extends SelectorSource {
 }
 
 /**
- * The isolated, per-activation context handed to a plugin's `mount`
- * (SPEC.md "Plugin SDK And Browser API" — normative shape).
+ * The isolated, per-activation context handed to a plugin's `mount`.
  */
 export interface PluginContext {
     readonly viewerState: ViewerState;
@@ -428,8 +426,8 @@ export interface PluginContext {
 }
 
 /**
- * The framework-neutral mount contract (SPEC.md — normative shape). Core owns
- * the container; the plugin owns rendering and returns a cleanup function.
+ * The framework-neutral mount contract. Core owns the container; the plugin
+ * owns rendering and returns a cleanup function.
  */
 export interface PluginView {
     mount(container: HTMLElement, context: PluginContext): () => void;
@@ -492,18 +490,18 @@ export interface PluginActivation {
 // Plugin failure isolation
 // ----------------------------------------------------------------------------
 // One structured channel for every plugin lifecycle failure. A failure in any
-// phase for one plugin leaves the viewer and all other plugins operational
-// (SPEC.md "Plugin SDK And Browser API" — failure isolation). The payload is
-// delivered identically two ways: a bubbling, composed `pluginerror` DOM event
-// from the viewer root AND a host callback (Svelte prop / element property).
+// phase for one plugin leaves the viewer and all other plugins operational. The
+// payload is delivered identically two ways: a bubbling, composed `pluginerror`
+// DOM event from the viewer root AND a host callback (Svelte prop / element
+// property).
 //
 // The type is defined ONCE here (core owns the plugin seam types) so it can be
 // reused for the `viewererror` channel and snapshotted for the public API.
 // ============================================================================
 
 /**
- * The plugin lifecycle phase a failure occurred in (CONTEXT.md **Retry** /
- * SPEC.md failure isolation). Each value maps to a guarded call site:
+ * The plugin lifecycle phase a failure occurred in (CONTEXT.md **Retry**). Each
+ * value maps to a guarded call site:
  * - `setup`: activation setup before mount — compatibility negotiation and
  *   context/selector-runtime/service construction.
  * - `mount`: the plugin's `PluginView.mount`.
@@ -622,11 +620,11 @@ export interface SdkPluginMeta {
      */
     readonly fills?: boolean;
     /**
-     * Flyout dismiss behavior (SPEC.md — Dismiss). `light` (the default)
-     * dismisses on outside pointer-down / Escape; `explicit` closes only via the
-     * plugin's toolbar button, so a live-editing surface is not dismissed by
-     * canvas clicks. Ignored for `panel` targets. No consumer-facing override is
-     * offered (adding one later is backward-compatible).
+     * Flyout dismiss behavior. `light` (the default) dismisses on outside
+     * pointer-down / Escape; `explicit` closes only via the plugin's toolbar
+     * button, so a live-editing surface is not dismissed by canvas clicks.
+     * Ignored for `panel` targets. No consumer-facing override is offered
+     * (adding one later is backward-compatible).
      */
     readonly dismiss?: 'light' | 'explicit';
     /**

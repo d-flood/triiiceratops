@@ -11,7 +11,7 @@ import { ViewerState } from './viewer.svelte';
 
 /**
  * The public viewport API — commands, query-only reads, coordinate helpers, and
- * image adjustments (SPEC.md §Public API).
+ * image adjustments.
  *
  * Asserted against the headless renderer stand-in through the real
  * `attachRenderer` seam, which is the same seam a mounted host uses. What this

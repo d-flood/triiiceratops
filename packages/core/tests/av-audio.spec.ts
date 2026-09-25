@@ -171,7 +171,7 @@ const FIXTURE_SERVICE = `${E2E_ORIGIN}/iiif-fixture/av-still`;
 /**
  * A companion Canvas painting one image through that service — the tier ladder
  * a plain image URL cannot offer, and the whole of what makes a placeholder
- * worth publishing with a service behind it (user story 11).
+ * worth publishing with a service behind it.
  *
  * Parameterized by service id so a manifest can put its two companions behind
  * two DIFFERENT services and fail exactly one of them.
@@ -238,7 +238,7 @@ const PLACEHOLDER_MANIFEST = audioManifest(
 /**
  * A duration-only canvas carrying BOTH companions, at deliberately different
  * aspects: the rect is the accompanying canvas's in every phase, so the
- * handover on first play must not move anything (user story 10).
+ * handover on first play must not move anything.
  */
 const BOTH_URL = '/media/manifests/av-both.json';
 const BOTH_MANIFEST = audioManifest(BOTH_URL, {
@@ -256,7 +256,7 @@ const BOTH_MANIFEST = audioManifest(BOTH_URL, {
  *
  * That split is the whole instrument: while the placeholder is the picture,
  * every request to `/iiif-fixture/` can only be the accompanying canvas being
- * made resident ahead of the phase that names it (user story 41).
+ * made resident ahead of the phase that names it.
  */
 const BOTH_SERVED_URL = '/media/manifests/av-both-served.json';
 const BOTH_SERVED_MANIFEST = audioManifest(BOTH_SERVED_URL, {
@@ -639,9 +639,9 @@ test.describe('av audio — a duration-only canvas is claimed and laid out', () 
 });
 
 /*
-    User story 28. The claim suppresses the unsupported presentation for the
-    canvas it names and for no other: a canvas this plugin does not claim keeps
-    core's honest placard even with the plugin loaded and claiming elsewhere.
+    The claim suppresses the unsupported presentation for the canvas it names
+    and for no other: a canvas this plugin does not claim keeps core's honest
+    placard even with the plugin loaded and claiming elsewhere.
 */
 test.describe('av audio — a canvas the plugin does not claim', () => {
     test('keeps core’s unsupported treatment while the plugin is loaded', async ({
@@ -656,10 +656,10 @@ test.describe('av audio — a canvas the plugin does not claim', () => {
 
 test.describe('av audio — companion and placeholder canvases', () => {
     /*
-        User stories 1 and 9. The canvas declares no dimensions of its own, so
-        it adopts its companion's — a square companion here — and the whole rect
-        is the picture's. The plugin draws neither lane over it and no still of
-        its own: what a reader sees is core's painting.
+        The canvas declares no dimensions of its own, so it adopts its
+        companion's — a square companion here — and the whole rect is the
+        picture's. The plugin draws neither lane over it and no still of its
+        own: what a reader sees is core's painting.
     */
     test('gives the whole rect to the companion, at the companion’s aspect', async ({
         page,
@@ -713,8 +713,8 @@ test.describe('av audio — companion and placeholder canvases', () => {
         ).toBe('rgba(0, 0, 0, 0)');
     });
 
-    // User story 6: the picture is the tap target. Where core paints the
-    // picture, the plugin's transparent target is what carries the toggle.
+    // The picture is the tap target. Where core paints the picture, the
+    // plugin's transparent target is what carries the toggle.
     test('toggles playback when the companion is tapped', async ({ page }) => {
         await openViewer(page, COMPANION_URL);
         await expect(page.locator(TAP_TARGET)).toBeVisible();
@@ -735,9 +735,9 @@ test.describe('av audio — companion and placeholder canvases', () => {
     });
 
     /*
-        User story 7. The target fills the rect, so if it swallowed every
-        gesture the score would be the one canvas in the viewer a reader could
-        not drag — and every attempt to pan it would toggle playback instead.
+        The target fills the rect, so if it swallowed every gesture the score
+        would be the one canvas in the viewer a reader could not drag — and
+        every attempt to pan it would toggle playback instead.
     */
     test('pans rather than toggling when the companion is dragged', async ({
         page,
@@ -768,14 +768,13 @@ test.describe('av audio — companion and placeholder canvases', () => {
     });
 
     /*
-        Half of user story 36: the zoom keys are bound on the renderer's root,
-        and with the focus there they magnify the companion like any canvas. The
-        rest of the suite zooms programmatically, so this is the one place the
-        keys themselves are pressed.
+        The zoom keys are bound on the renderer's root, and with the focus there
+        they magnify the companion like any canvas. The rest of the suite zooms
+        programmatically, so this is the one place the keys themselves are
+        pressed.
 
         The focus is placed here rather than reached, because the reader's own
-        route to it is the half this epic does not close — see the skipped test
-        below.
+        route to it is not yet supported — see the skipped test below.
     */
     test('zooms from the keyboard while the renderer holds focus', async ({
         page,
@@ -792,10 +791,10 @@ test.describe('av audio — companion and placeholder canvases', () => {
     });
 
     /*
-        The other half of user story 36, and the reader's own route to it: tap
-        the score to start playback, then press a zoom key. The tap target has
-        no focusable ancestor of its own — the plugin's overlay layer is a
-        SIBLING of the render surface — so without core putting focus back on
+        The reader's own route to the zoom keys: tap the score to start
+        playback, then press a zoom key. The tap target has no focusable
+        ancestor of its own — the plugin's overlay layer is a SIBLING of the
+        render surface — so without core putting focus back on
         `.renderer-root[tabindex="0"]` the mousedown would move it to the body
         and the keys would reach nothing from then on. A genuine click, never a
         programmatic `.focus()`: placing the focus is what the test above does,
@@ -816,11 +815,10 @@ test.describe('av audio — companion and placeholder canvases', () => {
     });
 
     /*
-        The other half of user story 3. The plugin's overlay layer is a SIBLING
-        of the render surface, so a wheel over any part of a stage that takes
-        pointer events cannot reach the surface by bubbling; core binds it on
-        the box both sit in instead, which is why this passes without the plugin
-        forwarding anything.
+        The plugin's overlay layer is a SIBLING of the render surface, so a
+        wheel over any part of a stage that takes pointer events cannot reach
+        the surface by bubbling; core binds it on the box both sit in instead,
+        which is why this passes without the plugin forwarding anything.
     */
     test('zooms from the wheel over the companion', async ({ page }) => {
         await openViewer(page, COMPANION_URL);
@@ -838,11 +836,11 @@ test.describe('av audio — companion and placeholder canvases', () => {
     });
 
     /*
-        User story 15. Painting a companion is opt-in, by a claimant that asked
-        for it: with no plugin registered nothing claims the canvas, nothing
-        sets a phase, and the honest placard stands. A viewer that painted the
-        score and said nothing about the recording would be the silent
-        falsification the placard exists to prevent.
+        Painting a companion is opt-in, by a claimant that asked for it: with no
+        plugin registered nothing claims the canvas, nothing sets a phase, and
+        the honest placard stands. A viewer that painted the score and said
+        nothing about the recording would be the silent falsification the
+        placard exists to prevent.
     */
     test('keeps the unsupported placard where no plugin claims the canvas', async ({
         page,
@@ -867,10 +865,10 @@ test.describe('av audio — companion and placeholder canvases', () => {
     });
 
     /*
-        User stories 11 and 12. Core cannot paint behind an opaque video
-        element, so the element is invisible — laid out and decoding, but
-        drawing nothing — until the first play reveals it and hands the rect
-        back. The plugin puts no still of its own over the picture at all.
+        Core cannot paint behind an opaque video element, so the element is
+        invisible — laid out and decoding, but drawing nothing — until the first
+        play reveals it and hands the rect back. The plugin puts no still of its
+        own over the picture at all.
     */
     test('shows the placeholder until playback begins, and not after', async ({
         page,
@@ -938,10 +936,10 @@ test.describe('av audio — companion and placeholder canvases', () => {
     });
 
     /*
-        User story 10. The rect is decided once, from the accompanying canvas
-        ahead of the placeholder, so a canvas carrying both keeps the same box
-        across the handover — a 32×8 still giving way to a square score must not
-        reflow the page the instant the reader presses play.
+        The rect is decided once, from the accompanying canvas ahead of the
+        placeholder, so a canvas carrying both keeps the same box across the
+        handover — a 32×8 still giving way to a square score must not reflow the
+        page the instant the reader presses play.
     */
     test('keeps the canvas rect when a canvas carrying both companions plays', async ({
         page,
@@ -977,9 +975,9 @@ test.describe('av audio — companion and placeholder canvases', () => {
     });
 
     /*
-        User story 41. The accompanying canvas is requestable BEFORE the phase
-        names it, so pressing play selects between two pictures already in hand
-        rather than starting a fetch. The placeholder here is a data URL and the
+        The accompanying canvas is requestable BEFORE the phase names it, so
+        pressing play selects between two pictures already in hand rather than
+        starting a fetch. The placeholder here is a data URL and the
         accompanying canvas is the only thing behind the fixture service, so a
         picture request to it before play can only be the warming.
     */

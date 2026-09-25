@@ -1,12 +1,12 @@
 /**
  * Held-key panning: the set of arrow keys currently down → one velocity.
  *
- * DOM-free and pure, for the reason the spec gives held keys their own bullet
- * (§Keyboard): OS key repeat fires at roughly 30 Hz, and the obvious
- * implementation — a discrete pan step per `keydown` — compounds those repeats
- * into juddering acceleration. Modelling a held key as a **velocity** instead
- * makes the rate a function of which keys are down, not of how many repeat
- * events the OS chose to send, so the same function called on the first
+ * DOM-free and pure, because held keys are easy to get wrong: OS key repeat
+ * fires at roughly 30 Hz, and the obvious implementation — a discrete pan step
+ * per `keydown` — compounds those repeats into juddering acceleration.
+ * Modelling a held key as a **velocity** instead makes the rate a function of
+ * which keys are down, not of how many repeat events the OS chose to send, so
+ * the same function called on the first
  * `keydown` and on the thirtieth repeat returns the same answer.
  *
  * That idempotence is the whole point, and it is what this module exists to
@@ -23,9 +23,9 @@ import type { Point } from './types';
  * content. Deliberately not the "drag the paper" sense a pointer has: a pointer
  * grabs a point on the image, a key does not.
  *
- * Page Up/Down are deliberately absent (spec §Keyboard): canvas navigation
- * already has toolbar and gallery affordances, and those keys collide with
- * scroll expectations in continuous mode.
+ * Page Up/Down are deliberately absent: canvas navigation already has toolbar
+ * and gallery affordances, and those keys collide with scroll expectations in
+ * continuous mode.
  */
 export const PAN_KEYS: Readonly<Record<string, Point>> = {
     ArrowLeft: { x: -1, y: 0 },
@@ -37,7 +37,7 @@ export const PAN_KEYS: Readonly<Record<string, Point>> = {
 export interface KeyboardPanConfig {
     /** Steady speed of an unmodified held arrow, in screen px per second. */
     panSpeed: number;
-    /** Multiplier applied while Shift is held — "pans further", per the spec. */
+    /** Multiplier applied while Shift is held — Shift pans further. */
     shiftFactor: number;
 }
 

@@ -263,7 +263,7 @@ describe('companion phase', () => {
     });
 
     /**
-     * User story 34 is served by the boolean and by nothing else: no accessor
+     * The phase is exposed through the boolean and nothing else: no accessor
      * anywhere on the chain hands the phase map out, so `isPaintingCompanion`
      * is the only read a host has.
      *
@@ -293,7 +293,7 @@ describe('companion phase', () => {
     });
 
     /**
-     * Ticket 02 selects a companion descriptor inside a reactive read, so the
+     * Companion descriptors are selected inside a reactive read, so the
      * phase map must be a `SvelteMap` — a plain `Map` would store and read back
      * correctly, passing every other test in this file, while silently never
      * waking that selection.

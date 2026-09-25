@@ -7,7 +7,7 @@
     },
     "summary": {
         "en": [
-            "Three canvases painting the same tone, differing only in how the waveform data is linked. Canvas 1 is the Avalon shape (canvas seeAlso, a Dataset of application/json). Canvas 2 is the British Library shape (canvas seeAlso, application/octet-stream carrying the BBC waveform profile) pointing at the binary .dat. Canvas 3 links the same .dat through rendering instead of seeAlso. Both files were generated from tone.mp3 by one audiowaveform run each, so the two parsers must produce the same peaks model from them — and note that the tool writes the .dat as format version 1 and the .json as version 2, which is why detection sniffs content rather than trusting a declared format (spec, Peaks model; user story 44)."
+            "Three canvases painting the same tone, differing only in how the waveform data is linked. Canvas 1 is the Avalon shape (canvas seeAlso, a Dataset of application/json). Canvas 2 is the British Library shape (canvas seeAlso, application/octet-stream carrying the BBC waveform profile) pointing at the binary .dat. Canvas 3 links the same .dat through rendering instead of seeAlso. Both files were generated from tone.mp3 by one audiowaveform run each, so the two parsers must produce the same peaks model from them — and note that the tool writes the .dat as format version 1 and the .json as version 2, which is why detection sniffs content rather than trusting a declared format."
         ]
     },
     "items": [

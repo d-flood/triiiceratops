@@ -1,5 +1,5 @@
 {
-    // The automated form of the epic's headline promise: a Vue consumer that
+    // The automated form of the headline promise: a Vue consumer that
     // installs NO Svelte compiles against the packed tarball's `./vue`,
     // `./selectors`, and `./testing` declarations.
     //

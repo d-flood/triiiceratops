@@ -19,20 +19,18 @@ import {
 import type { StructureNode } from '../utils/structures';
 
 /**
- * The behavioral baseline — `remove-manifesto` ticket 04.
+ * The behavioral baseline.
  *
- * This file is the epic's **oracle**. `manifesto.js` is the only description of
- * current behavior that exists, and it only exists until ticket 09. Everything
- * from ticket 05 onward is verified by "the golden did not move", so a baseline
- * captured through the wrong seam, or captured unreadably, silently invalidates
- * six tickets of parity argument.
+ * This file is the parser's **oracle**. Parsing changes are verified by "the
+ * golden did not move", so a baseline captured through the wrong seam, or
+ * captured unreadably, silently invalidates every parity argument built on it.
  *
  * **The seam is the whole point.** Every observation below is made on a
  * `ViewerState` loaded with raw manifest JSON through `setManifestData`, backed
  * by the real `manifestsState` cache, with no mocks anywhere. Nothing here
  * constructs a canvas: every canvas is one the viewer handed out. That is what
- * lets this file survive tickets 06, 07 and 09 *without edits* while the canvas
- * representation changes underneath it — raw JSON goes in, viewer behavior comes
+ * lets this file survive *without edits* while the canvas representation
+ * changes underneath it — raw JSON goes in, viewer behavior comes
  * out, and whether a third-party library or first-party enumerators sit in
  * between is invisible here.
  *
@@ -41,12 +39,12 @@ import type { StructureNode } from '../utils/structures';
  * rather than assessed, at which point it has stopped being an oracle.
  *
  * - **Broad tier** (`__golden__/broad-tier.txt`) — one six-field summary record
- *   per manifest, over the whole corpus. This catches the dominant failure mode
- *   of the epic, the silent empty result: a regression reads as
+ *   per manifest, over the whole corpus. This catches the dominant failure mode,
+ *   the silent empty result: a regression reads as
  *   `withPainting=154` becoming `withPainting=0`. **The six fields are a
- *   contract** (SPEC, "The behavioral baseline"): adding one churns every prior
- *   golden and destroys historical comparability, so it is a deliberate,
- *   separately-reviewed re-baseline rather than a ticket 05-10 side effect.
+ *   contract**: adding one churns every prior golden and destroys historical
+ *   comparability, so it is a deliberate, separately-reviewed re-baseline
+ *   rather than a side effect.
  * - **Deep tier** (`__golden__/deep-tier.txt`) — full per-canvas detail on 20
  *   curated manifests, for the cases where the correctness of a *value* matters
  *   rather than its presence. The deep tier's per-canvas fields are NOT a
@@ -64,10 +62,10 @@ import type { StructureNode } from '../utils/structures';
  * manifest the first tier has already been written back onto.
  *
  * **This file was re-baselined once**, deliberately and under separate review,
- * after tickets 05, 06 and 07 landed. Five golden records moved and each is
- * explained in the goldens' own headers. What the headers no longer do is assert
- * a defect the data beneath them contradicts: a fixed defect is rewritten as a
- * record of its fix, naming the ticket, and a defect no corpus fixture exhibits
+ * when first-party enumerators replaced `manifesto.js`. Five golden records
+ * moved and each is explained in the goldens' own headers. What the headers no
+ * longer do is assert a defect the data beneath them contradicts: a fixed defect
+ * is rewritten as a record of its fix, and a defect no corpus fixture exhibits
  * is described as unexercised rather than as frozen.
  */
 
@@ -110,7 +108,7 @@ interface Fixture {
     /**
      * Collections have members, not canvases. They get their own golden section
      * rather than a six-field record they cannot honestly fill; the manifest
-     * path used to throw on them and, since ticket 07, degrades instead.
+     * path used to throw on them and now degrades instead.
      */
     isCollection: boolean;
 }
@@ -142,18 +140,16 @@ const fixturesByName = new Map(fixtures.map((f) => [f.name, f]));
 
 /**
  * The deep tier's curated manifests, each with the reason it earns per-canvas
- * detail. Curated for the cases the SPEC names — Choice selection, composite
- * canvases, level-0 URL construction, v2 ranges in all three spellings,
- * right-to-left, multi-sequence v2 — plus the one deliberate behavior change in
- * the epic (ticket 03's every-annotation-page read), which must be IN the
- * baseline rather than arrive as a later delta.
+ * detail. Curated for Choice selection, composite canvases, level-0 URL
+ * construction, v2 ranges in all three spellings, right-to-left, multi-sequence
+ * v2 — plus the one deliberate behavior change, the every-annotation-page read,
+ * which must be IN the baseline rather than arrive as a later delta.
  *
- * **Re-curated once**, as a swap rather than an expansion. 04's review found
+ * **Re-curated once**, as a swap rather than an expansion. A review found
  * that the original 20 gave this tier ZERO variance on two of the three
  * manifest scalars it records: `startCanvasId=<none>` and
  * `viewingMode=individuals` on all 20. "The golden did not move" therefore
- * proved almost nothing about start canvas or viewing behavior — the surfaces
- * ticket 05 rewrites. Three fixtures were added to give those scalars a value
+ * proved almost nothing about start canvas or viewing behavior. Three fixtures were added to give those scalars a value
  * that can move, and three removed:
  *
  * - `cookbook/0202-start-canvas.json` — the corpus's ONLY start-canvas fixture.
@@ -172,7 +168,7 @@ const fixturesByName = new Map(fixtures.map((f) => [f.name, f]));
  *   parser keying sequences by id would break. Its per-canvas detail added only
  *   a direct-image thumbnail with no image service, which
  *   `vendored/lunchroom-manners.json` and the v3 split-pages synthetic both
- *   carry. This third drop is what keeps the list inside the SPEC's 15-20
+ *   carry. This third drop is what keeps the list inside the 15-20
  *   budget after three additions; without it the re-curation would be an
  *   expansion, which the budget exists to prevent.
  *
@@ -243,7 +239,7 @@ const DEEP_TIER: Array<[name: string, why: string]> = [
     ['synthetic/v3 level-0 image service', 'level-0 URL construction, v3'],
     [
         'synthetic/v3 painting annotations split across two annotation pages',
-        "ticket 03's deliberate fix — every annotation page is read, not just the first",
+        'every annotation page is read, not just the first',
     ],
 ];
 
@@ -261,8 +257,7 @@ const DEEP_TIER: Array<[name: string, why: string]> = [
  * explaining the record beneath it.
  *
  * Deliberately version- and representation-neutral (`width` | `__jsonld.width` |
- * `getWidth()`) so it keeps reading correctly as canvases become raw JSON in
- * tickets 06-09.
+ * `getWidth()`) so it reads correctly whatever the canvas representation.
  *
  * A dimension that is not a NUMBER is rendered quoted, because that distinction
  * is load-bearing: `getCanvasDimensions` rejects a non-number outright and the
@@ -292,8 +287,8 @@ function canvasSize(canvas: any): string {
  * A throw, recorded without an engine's exact words.
  *
  * The Collection records read
- * `<THROWS from setManifestData: m.getSequences is not a function>` until ticket
- * 07 made every enumerator total. That line embedded two things a golden has no
+ * `<THROWS from setManifestData: m.getSequences is not a function>` until every
+ * enumerator was made total. That line embedded two things a golden has no
  * business pinning: `m` was a production local variable name, and the sentence
  * was V8's phrasing of a `TypeError`. Either could change without any behavior
  * changing at all. The constructor name is the stable, meaningful part; the
@@ -375,8 +370,7 @@ function choiceIds(canvas: any): string[] {
     // so this file cannot detect a fix or a regression in it either way.
     //
     // The `Array.isArray` guard is likewise unexercised. `getCanvasChoices`
-    // returned a bare `Choice.items` object unchanged until ticket 06 routed it
-    // through `getChoiceAlternatives`, which always returns an array.
+    // routes through `getChoiceAlternatives`, which always returns an array.
     const choices = getCanvasChoices(canvas);
     if (!Array.isArray(choices)) return [];
     return choices.map((choice) => getResourceId(choice) || '<no id>');
@@ -465,9 +459,8 @@ function renderStructures(nodes: StructureNode[], indent = '    '): string[] {
 
 const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 #
-# Frozen by \`remove-manifesto\` ticket 04 while \`manifesto.js\` was still
-# installed, and RE-BASELINED once after tickets 05, 06 and 07 landed — a
-# deliberate, separately-reviewed re-curation, not a snapshot refresh. Generated
+# Frozen while \`manifesto.js\` was still installed, and RE-BASELINED once when
+# first-party enumerators replaced it — a deliberate, separately-reviewed re-curation, not a snapshot refresh. Generated
 # by \`src/lib/state/viewer.baseline.test.ts\`; do not edit by hand. Every record
 # is observed on a real \`ViewerState\` loaded with raw manifest JSON through
 # \`setManifestData\`, backed by the real manifest cache, with no mocks and no
@@ -485,22 +478,22 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 #
 # MOVES ACCEPTED AT THE RE-BASELINE (this file):
 #   - \`synthetic/v2 oa:Choice painting annotation\` went withPainting=1 -> 2,
-#     withoutPainting=1 -> 0, withChoice=0 -> 1. Ticket 06 taught the enumerator
+#     withoutPainting=1 -> 0, withChoice=0 -> 1. The enumerator now reads
 #     the v2 spelling of Choice (\`resource.default\` + \`resource.item[]\`), so the
 #     choice-bearing canvas now offers its alternatives and renders one instead
 #     of rendering nothing.
 #   - \`synthetic/v2 sequences as a bare object\` went canvases=0 sequences=0 ->
-#     canvases=2 sequences=1. Ticket 07 guards every array access (SPEC,
-#     "Failure contract"), so a \`sequences\` written as a bare object degrades to
-#     a one-element list instead of enumerating nothing.
+#     canvases=2 sequences=1. Every array access is guarded, so a \`sequences\`
+#     written as a bare object degrades to a one-element list instead of
+#     enumerating nothing.
 #   - All four Collections stopped throwing and now record a zero summary.
-#     Ticket 07's totality contract: a Collection has members, not sequences, so
+#     Every enumerator is total: a Collection has members, not sequences, so
 #     it has no canvases — which is an answer, not a TypeError.
 #
-# THE AUDIOVISUAL SET — \`plugin-av\` ticket 02, the second re-pin of this file.
+# THE AUDIOVISUAL SET — the second re-pin of this file.
 #   Sixteen \`av/\` manifests (the fifteen audiovisual IIIF Cookbook recipes and
 #   one waveform-linked Avalon manifest) joined the corpus in the same commit as
-#   the painting-body classifier that reads them. They were vendored a ticket
+#   the painting-body classifier that reads them. They were vendored
 #   earlier and held out by name, precisely so that this file would never have
 #   frozen the answer a viewer gave them BEFORE it could tell an MP4 from a JPEG.
 #
@@ -530,7 +523,7 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 #   gets PAINTED, and offering the reader alternatives is a different question
 #   that \`getCanvasChoices\` still answers.
 #
-# THE PRESENTATION 4 SET — \`presentation-4-published-recipes\` ticket 01.
+# THE PRESENTATION 4 SET.
 #   Five added records, nothing moved. The five published v4 Cookbook recipes
 #   (0001, 0002, 0003, 0608, 0253) joined \`v4/\` so that v4 behaviour is
 #   asserted continuously rather than measured once; each record was pinned
@@ -547,8 +540,8 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 #   painting, rather than dropped.
 #
 # HOW TO READ A DIFF
-#   Each manifest gets one six-field record. The dominant failure mode of this
-#   epic is the silent empty result, and it reads here as \`withPainting=154\`
+#   Each manifest gets one six-field record. The dominant failure mode is the
+#   silent empty result, and it reads here as \`withPainting=154\`
 #   becoming \`withPainting=0\` — the viewer would render blank pages with no
 #   diagnostic at all.
 #
@@ -561,7 +554,7 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 #
 #   THESE SIX FIELDS ARE A CONTRACT. Adding one churns every record in this file
 #   and destroys comparability with earlier goldens. Doing it is a deliberate,
-#   separately-reviewed re-baseline — never a side effect of another ticket. The
+#   separately-reviewed re-baseline — never a side effect of another change. The
 #   re-baseline deliberately did NOT add a seventh field here: the per-canvas
 #   painting-annotation count it needed went to the deep tier, whose per-canvas
 #   fields are not a contract.
@@ -577,7 +570,7 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 #     - a sequence that enumerates nothing still counts as a sequence.
 #       \`vendored/illustrationsofchina\` reads canvases=5 sequences=4 because
 #       three of its four sequences are bare references to external Sequence
-#       documents (ticket 07: degrade, do not resolve — resolving one is an HTTP
+#       documents (degrade, do not resolve — resolving one is an HTTP
 #       fetch from a synchronous, pure function).
 #     - a structure-derived sequence RE-LISTS canvases another sequence already
 #       listed. \`cookbook/0027-alternative-page-order\` reads canvases=8 for FOUR
@@ -591,16 +584,15 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 # the fixtures that correctly lack an image on every canvas.
 #
 # DEFECTS THIS FILE ONCE FROZE, AND WHAT BECAME OF THEM:
-#   - FIXED, ticket 07 — a bare-object \`sequences\` enumerated ZERO canvases,
-#     silently. \`manifesto.js\` walked \`sequences\` with an indexed loop, so a
-#     bare object had length \`undefined\`. This was the epic's signature failure
-#     mode. \`synthetic/v2 sequences as a bare object\` now reads canvases=2.
-#   - FIXED, ticket 07 — a Collection handed to the manifest path THREW a
-#     TypeError instead of returning an empty array, violating the spec's "every
-#     enumerator is total" contract. Collections keep their own section below,
+#   - FIXED — a bare-object \`sequences\` enumerated ZERO canvases, silently.
+#     \`manifesto.js\` walked \`sequences\` with an indexed loop, so a bare object
+#     had length \`undefined\`. \`synthetic/v2 sequences as a bare object\` now reads canvases=2.
+#   - FIXED — a Collection handed to the manifest path THREW a TypeError
+#     instead of returning an empty array, violating the "every enumerator is
+#     total" contract. Collections keep their own section below,
 #     because a six-field record is not something a Collection can honestly
 #     fill, but the manifest path now degrades.
-#   - FIXED, ticket 06 — IIIF v2 \`oa:Choice\` (\`resource.default\` +
+#   - FIXED — IIIF v2 \`oa:Choice\` (\`resource.default\` +
 #     \`resource.item[]\`) was not recognized AT ALL:
 #     \`synthetic/v2 oa:Choice painting annotation\` recorded withChoice=0 AND
 #     withoutPainting=1, i.e. the choice-bearing canvas offered no alternatives
@@ -610,7 +602,7 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 # this file can neither freeze them nor detect a change to them. Do not read the
 # absence of a moved record as evidence about either:
 #   - A \`Choice\` whose \`items\` is a bare object rather than an array. This was
-#     also fixed, by ticket 06 routing \`getCanvasChoices\` through
+#     also fixed, by routing \`getCanvasChoices\` through
 #     \`getChoiceAlternatives\`, which guards the access; there is simply no
 #     record here that could have shown it.
 #   - Choice selection keyed per CANVAS rather than per annotation, so a second
@@ -639,9 +631,8 @@ const BROAD_HEADER = `# Behavioral baseline — BROAD TIER
 
 const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 #
-# Frozen by \`remove-manifesto\` ticket 04 while \`manifesto.js\` was still
-# installed, and RE-BASELINED once after tickets 05, 06 and 07 landed — a
-# deliberate, separately-reviewed re-curation, not a snapshot refresh. Generated
+# Frozen while \`manifesto.js\` was still installed, and RE-BASELINED once when
+# first-party enumerators replaced it — a deliberate, separately-reviewed re-curation, not a snapshot refresh. Generated
 # by \`src/lib/state/viewer.baseline.test.ts\`; do not edit by hand. Same seam as
 # the broad tier: a real \`ViewerState\`, raw manifest JSON in through
 # \`setManifestData\`, real manifest cache, no mocks, and every canvas below is
@@ -657,19 +648,19 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 #     went viewingMode=individuals -> paged. Both declare \`viewingHint: "paged"\`
 #     at a v2 manifest root, which \`_applyManifestSettings\` never read — it read
 #     only the v3 \`behavior\` spellings. \`viewingHint\` IS the v2 spelling of
-#     viewing behavior, so these are fixes, not drift (ticket 05).
+#     viewing behavior, so these are fixes, not drift.
 #   - \`vendored/audio.json\` canvases [0] and [1] went thumbnail=<none> to a real
 #     URL. Those canvases declare \`"thumbnail"\` as a BARE STRING;
 #     \`manifesto.js\` wrapped it in a \`Thumbnail\` whose \`__jsonld\` was the string
 #     itself, so reading \`id\` off it gave \`undefined\` and the URL was discarded.
 #     The raw path returns the string. Reproducing the old value would mean
-#     deliberately discarding a valid URL (ticket 07).
+#     deliberately discarding a valid URL.
 #   - \`synthetic/v2 oa:Choice painting annotation\` canvas [0] gained a
 #     thumbnail, an image, a \`choices:\` block and an \`images per selection:\`
-#     block. Ticket 06 taught the enumerator the v2 Choice spelling; the canvas
+#     block. The enumerator now reads the v2 Choice spelling; the canvas
 #     rendered nothing before.
 #
-# MOVE ACCEPTED AT THE SECOND RE-PIN (\`plugin-av\` ticket 02):
+# MOVE ACCEPTED AT THE SECOND RE-PIN:
 #   - \`vendored/lunchroom-manners.json\` canvas [0] went
 #     thumbnail=\`.../lunchroom_manners_1024kb.mp4\` -> \`<none>\`, and this is the
 #     ONE record in either tier that shows the thumbnail half of the classifier.
@@ -679,7 +670,7 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 #     the painting-body classifier, so it declines to answer rather than
 #     answering with a video. \`<none>\` is what routes the canvas to the strip's
 #     no-thumbnail treatment, where it gets an audiovisual glyph instead of a
-#     broken picture (user story 29).
+#     broken picture.
 #
 #     Reaching that body at all is itself the fix to a second, latent defect.
 #     This canvas's \`body\` is an ARRAY — \`[Choice(three Videos), Text(vtt)]\` —
@@ -688,23 +679,23 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 #     which has no id. Its \`images:\` line read \`(none)\` by accident. The PAINT
 #     path now unwraps the array first and so resolves the Choice properly, and
 #     the classifier is what keeps that from turning an accident into an MP4 in
-#     the tile pipeline (user story 40). \`images: (none)\` is unchanged and now
+#     the tile pipeline. \`images: (none)\` is unchanged and now
 #     means what it says.
 #
 #     \`withChoice\` is unaffected, and this canvas still reads \`withChoice=0\`.
 #     \`getCanvasChoices\` (and \`ThumbnailGallery\`'s badge) still test for a
 #     Choice BEFORE unwrapping the body array, so on this shape they go on
 #     seeing "not a Choice" and offer no alternatives. Known follow-up rather
-#     than an oversight: user story 40 is about the image pipeline, and the only
+#     than an oversight: this fix is about the image pipeline, and the only
 #     shape where the two paths would visibly disagree is a
 #     \`[Choice(imageA, imageB), Text(vtt)]\` — painting imageA while the choice
 #     picker lists nothing — which no corpus fixture has.
 #
-# RE-CURATION — three fixtures were swapped in and three out, inside the SPEC's
+# RE-CURATION — three fixtures were swapped in and three out, inside the
 # 15-20 budget. The original 20 gave this tier ZERO variance on two of the three
 # manifest scalars it records (\`startCanvasId=<none>\` and
 # \`viewingMode=individuals\` on all 20), so "the golden did not move" proved
-# almost nothing about the surfaces ticket 05 rewrites. Added:
+# almost nothing about start canvas or viewing behavior. Added:
 # \`cookbook/0202-start-canvas.json\` (the corpus's only \`start\`),
 # \`cookbook/0011-book-3-behavior-manifest-continuous.json\` (the only
 # viewingMode that is neither individuals nor paged), and
@@ -716,12 +707,11 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 # never records — its BROAD record pins it).
 #
 # HOW TO READ A DIFF
-#   Per manifest: three of the four manifest-scalar reads that ticket 05
-#   rewrites — start canvas, viewing direction, viewing mode — plus the structure
+#   Per manifest: three of the four manifest-scalar reads — start canvas, viewing direction, viewing mode — plus the structure
 #   tree, then every canvas of every sequence. The FOURTH, search-service
 #   discovery, is not recorded here at all: it is private to \`ViewerState\` and
-#   only observable by performing a network search, so ticket 05's rewrite of it
-#   has no safety net in this file and brings its own tests.
+#   only observable by performing a network search, so it has no safety net in
+#   this file and has its own tests.
 #
 #   v2 declares viewing direction and viewing hint at both the manifest root and
 #   the sequence, and the SEQUENCE WINS. IIIF Presentation 2.1 states it for
@@ -745,13 +735,13 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 #   second. A canvas reading \`paintingAnnotations=1\` with \`images: (none)\` has an
 #   annotation the viewer cannot paint — correct for time-based media, a blank
 #   page for anything else. A canvas going \`paintingAnnotations=1 -> 0\` has lost
-#   its annotation entirely, which is the failure this epic exists to prevent,
+#   its annotation entirely, which is the failure this file exists to catch,
 #   and on \`vendored/audio.json\`, \`vendored/lunchroom-manners.json\` and the
 #   missing-image canvases NOTHING ELSE IN EITHER TIER WOULD SHOW IT: they
 #   resolve no image either way, so \`withPainting\` reads 0 before and after.
 #
 #   \`images: (none)\` on a canvas that used to list a URL is the silent blank
-#   render this whole epic is trying not to cause.
+#   render this file exists to catch.
 #
 # LEVEL-0 reads in the \`thumbnail=\` line. A level1/level2 service gets a
 # SYNTHESIZED \`.../full/200,/0/default.jpg\` — an arbitrary width a level-0
@@ -763,12 +753,12 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 # would 404 for every tile-limited publisher.
 #
 # DEFECTS THIS FILE ONCE FROZE, AND WHAT BECAME OF THEM:
-#   - FIXED, ticket 06 — IIIF v2 \`oa:Choice\` was not recognized at all. Canvas
+#   - FIXED — IIIF v2 \`oa:Choice\` was not recognized at all. Canvas
 #     [0] of \`synthetic/v2 oa:Choice painting annotation\` listed no choices and
 #     no images, because the v2 spelling puts the alternatives in
 #     \`resource.default\`/\`resource.item[]\` and nothing read it. It now lists
 #     three alternatives and a resolved image per selection.
-#   - RESOLVED, ticket 07 — \`vendored/illustrationsofchina.json\` has four
+#   - RESOLVED — \`vendored/illustrationsofchina.json\` has four
 #     sequences, three of which enumerate zero canvases. The decision was
 #     DEGRADE, DO NOT RESOLVE: those three are \`@id\`/\`@type\`/\`label\` references
 #     to external Sequence documents, and resolving one is an HTTP fetch from a
@@ -785,8 +775,8 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 #     record below can show it.
 #   - A \`Choice\` whose \`items\` is a bare object rather than an array. It used to
 #     throw out of \`resolveCanvasImage\` with no try/catch on the path to the
-#     viewer, and would have recorded \`<THROWS: ...>\` in its images. Ticket 06
-#     guarded the access; no record here ever exercised it either way.
+#     viewer, and would have recorded \`<THROWS: ...>\` in its images. The access
+#     is now guarded; no record here ever exercised it either way.
 #
 # CANVASES THAT RESOLVE NO IMAGE:
 #   - \`vendored/scroll.json\` — recorded below as \`size="62651"x"1976"\`. BOTH
@@ -795,13 +785,12 @@ const DEEP_HEADER = `# Behavioral baseline — DEEP TIER
 #   - \`vendored/lunchroom-manners.json\` — \`paintingAnnotations=1\` with
 #     \`images: (none)\`. Enumeration works; the annotation's body array holds a
 #     Choice of Video bodies and a VTT, and none of that is an image to paint.
-#     Since \`plugin-av\` ticket 02 that is a decision rather than an accident —
+#     That is a decision rather than an accident —
 #     see the move recorded above.
 #   - \`vendored/audio.json\` — \`paintingAnnotations=0\` on both canvases, and
 #     that is CORRECT, not a loss. An IxIF \`element\` is a \`dctypes:Sound\`
 #     resource with no \`images\`, \`items\` or \`content\`: the media is the element
-#     itself, reached through \`rendering\`. IxIF is preserved for parity (SPEC,
-#     Out of Scope), and this is the only record in either tier that says what
+#     itself, reached through \`rendering\`. IxIF is preserved for parity, and this is the only record in either tier that says what
 #     its enumeration is supposed to be. If it ever reads non-zero, something
 #     started treating an IxIF element as a v2 canvas.
 `;
@@ -882,7 +871,7 @@ describe('behavioral baseline', () => {
             '# not something a Collection can honestly fill.',
             '#',
             '# Handing one to the manifest path used to THROW a TypeError rather',
-            '# than degrade. Ticket 07 made every enumerator total, so it now',
+            '# than degrade. Every enumerator is total, so it now',
             '# records a zero summary: a Collection has no sequences, which is an',
             '# answer. Were a THROWS line ever to return here it would carry the',
             '# error class and a normalized message, never an engine string.',

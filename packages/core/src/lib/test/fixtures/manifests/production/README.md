@@ -4,17 +4,15 @@
 (`atomotic/iiif`), which embeds the viewer from the unpkg CDN pair. See
 `../PROVENANCE.md` for what it is kept for.
 
-The `remove-manifesto` epic's corpus draws on four sources: the removed
+The parser corpus draws on four sources: the removed
 library's own real-world fixtures (`../vendored/`), IIIF Cookbook recipes
 (`../cookbook/`), targeted synthetic fixtures (`../../syntheticManifests.ts`),
 and **a manifest from each known production deployment of Triiiceratops** —
 this directory.
 
 **What is still missing.** The rest of the production deployment manifest URLs.
-They are an open input held by the maintainer (see `.tracker/remove-manifesto/SPEC.md`, "Open
-inputs held by the maintainer") and were not available when ticket 01 was
-implemented. Ticket 01's contract says to land everything else rather than block
-on them, so that is what happened.
+They are an open input held by the maintainer and were not available when the
+corpus was assembled, so everything else landed without them.
 
 **Partial substitute.** `../demo/` already holds five institutional manifests
 taken from the viewer's demo picker, two of which are production deployments the

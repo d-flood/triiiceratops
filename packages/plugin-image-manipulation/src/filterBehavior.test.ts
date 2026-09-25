@@ -4,8 +4,7 @@
  * These drive the plugin's real Flyout content through the SDK Test viewer
  * context (a real `ViewerState` with recording-double services), mounting via
  * the neutral `view.mount(container, context)` seam — the same call core's
- * chrome makes. They assert the externally observable filter behavior the SPEC
- * requires:
+ * chrome makes. They assert the externally observable filter behavior:
  *
  *   - a slider change lands as an image-adjustment command;
  *   - the adjustment LINGERS while nothing resets it (no "re-apply while closed"

@@ -4,7 +4,7 @@ import { expect } from '@playwright/test';
 // from the packed `triiiceratops` tarball and activates the migrated
 // `@triiiceratops/plugin-image-export` plugin (packed ESM entry) through the
 // viewer's `plugins` prop. This journey proves the plugin's validation duty
-// (SPEC Plugin Migration): ASYNCHRONOUS operations and BINARY output through the
+// ASYNCHRONOUS operations and BINARY output through the
 // SDK seam. It opens the panel, triggers an export, and asserts a download-ready
 // Blob is produced — captured by intercepting `URL.createObjectURL` (the object
 // URL the download is built from).
@@ -50,8 +50,8 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // Core renders the plugin's toolbar button (core-owned chrome, ticket
-        // 04) — labelled with the plugin's DISPLAY title
+        // Core renders the plugin's toolbar button (core-owned chrome)
+        // — labelled with the plugin's DISPLAY title
         // (`image_download_title` from the plugin's own catalog, NOT its package
         // name) — and owns opening the docked panel. The app opens the toolbar
         // via config (`toolbarOpen`), so the button sits visible among the

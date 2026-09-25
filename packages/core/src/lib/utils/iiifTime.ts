@@ -66,7 +66,7 @@ export function parseIiifTime(value: string): IiifTemporalFragment | null {
     if (start === null && end === null) return null;
 
     const seconds = start ?? 0;
-    // endSeconds is carried, never validated against the start (spec fence).
+    // endSeconds is carried, never validated against the start.
     return end === null ? { seconds } : { seconds, endSeconds: end };
 }
 

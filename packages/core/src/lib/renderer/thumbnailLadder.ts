@@ -6,7 +6,7 @@
  * shows a river of empty rectangles, because only the two or three canvases
  * around the viewport are large enough to hold tiles.
  *
- * ## The ladder, first match wins (spec §Thumbnail resolution)
+ * ## The ladder, first match wins
  *
  * 1. **The Canvas's declared `thumbnail`** — a fixed URL, used **as-is**, the
  *    size ladder ignored. It works for level0, it costs no discovery, and it is
@@ -232,8 +232,8 @@ function fromConstruction(
  * with no pixels at all. At the **thumbnail** tier that trade is inverted: the
  * canvas is at most a few hundred pixels across, and decoding a 100-megapixel
  * master to fill it is precisely the memory failure the tier exists to prevent.
- * A plain layout rect is the spec's own answer for a canvas with no usable
- * thumbnail (user story 31), so this refuses instead of degrading.
+ * A plain layout rect is the answer for a canvas with no usable thumbnail, so
+ * this refuses instead of degrading.
  *
  * The refusal is stated in **decoded pixels** and nothing else. Stating it
  * against `minPixelRatio` — "wider than `rung / minPixelRatio`" — reads like a

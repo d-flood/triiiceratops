@@ -751,7 +751,7 @@ describe('a canvas whose placeholder core paints', () => {
     });
 
     /*
-        User story 12, and the whole reason the `poster` attribute could be
+        The whole reason the `poster` attribute could be
         retired: `play` means the element was asked to play, not that it has a
         picture. The element's own background is black, so revealing it here
         would black the still out for the entire buffering interval — which on
@@ -832,7 +832,7 @@ describe('a canvas whose placeholder core paints', () => {
     });
 
     /*
-        User story 12. The element is revealed BEFORE the caller is told to hand
+        The element is revealed BEFORE the caller is told to hand
         the rect back, so the two pictures overlap for a frame rather than
         leaving one in which neither is drawn.
     */
@@ -1017,7 +1017,7 @@ describe('tapping the visual lane', () => {
     });
 
     /*
-        User story 6 — the picture is the tap target. Where core paints the
+        The picture is the tap target. Where core paints the
         picture the plugin owns no element over it at all, so the toggle hangs
         on a transparent full-rect target rather than on the media element.
     */
@@ -1136,7 +1136,7 @@ describe('the stage — caption tracks', () => {
     }
 
     /*
-        User story 28: the transport reads this set on the frame cadence and
+        The transport reads this set on the frame cadence and
         rebuilds its caption options when the array's identity changes, so a
         stage that filtered afresh per read would repeat the work AND make every
         frame look like a caption change.
@@ -1163,7 +1163,7 @@ describe('the stage — caption tracks', () => {
         stage.destroy();
     });
 
-    /* User story 29: a segment seam changes the answer, so it must invalidate. */
+    /* A segment seam changes the answer, so it must invalidate. */
     it('rebuilds the loaded set when eligibility changes', () => {
         const stage = captionedStage(VIDEO, [EN, IT]);
         settle(stage, EN.url, 'load');
@@ -1214,7 +1214,7 @@ describe('the stage — caption tracks', () => {
     });
 
     /*
-        User story 46: a track the browser refused — the everyday cause being a
+        A track the browser refused — the everyday cause being a
         VTT served cross-origin without CORS — must not reach the reader as a
         control that selects nothing.
     */
@@ -1251,9 +1251,9 @@ describe('the stage — caption tracks', () => {
     /*
         An `<audio>` element has no rendering area, so cues attached to one are
         parsed and never drawn — which is why `rendersCaptions` is false there
-        and no toggle is offered over them (user story 46). The tracks are
+        and no toggle is offered over them. The tracks are
         attached all the same: parsed-and-not-drawn is exactly what the
-        transcript panel reads (user story 12a).
+        transcript panel reads.
     */
     it('attaches a sound recording its tracks, and paints none of them', () => {
         const stage = captionedStage(AUDIO, [EN]);
@@ -1273,7 +1273,7 @@ describe('the stage — caption tracks', () => {
         `0014`'s shape: a Sound body formatted `video/mp4`, which only a
         `<video>` will decode, on a canvas whose rect belongs to the companion
         core paints. The element is hidden behind that picture, so its cues go
-        nowhere and the toggle would be the dead control user story 46 forbids —
+        nowhere and the toggle would be a dead control —
         while the tracks stay attached for the transcript panel.
     */
     it('paints no cues where core owns the rect, whatever the element is', () => {
@@ -1327,7 +1327,7 @@ describe('the stage — caption tracks', () => {
     });
 
     /*
-        User story 46 again, by the other route: a well-formed VTT with no cues
+        The same, by the other route: a well-formed VTT with no cues
         in it LOADS. Offering it would be a toggle that selects a track which
         draws nothing, which is the same dead control as a refused one.
     */

@@ -151,7 +151,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "These aren't exclusive tiers you have to climb in order — you can override just one piece of a built-in theme (e.g. tweak "
+					"text": "You don't have to use them in order. You can override just one piece of a built-in theme (e.g. tweak "
 				},
 				{
 					"type": "text",
@@ -228,7 +228,7 @@
 				},
 				{
 					"type": "text",
-					"text": " surface, no way to inject a consumer stylesheet into the shadow root, and no light-DOM styling hook for internal elements. Everything about the "
+					"text": " surface, no way to inject a consumer stylesheet into the shadow root, and no light-DOM styling hook for internal elements. You still control the "
 				},
 				{
 					"type": "text",
@@ -241,7 +241,7 @@
 				},
 				{
 					"type": "text",
-					"text": " element — layout, size, borders, and any CSS that treats it as a box in your page — is yours as usual."
+					"text": " element as usual: its layout, size, borders, and any other CSS on it."
 				}
 			],
 			"attrs": {
@@ -279,7 +279,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — as props in "
+					"text": ": as props in "
 				},
 				{
 					"type": "text",
@@ -355,7 +355,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "All three compose, but they do not have equal precedence. From lowest to highest: OS-aware default tokens, CSS variables inherited from the host/page, an explicit built-in "
+					"text": "The three methods compose, but they do not have equal precedence. From lowest to highest: the default (light) tokens, CSS variables inherited from the host/page, an explicit built-in "
 				},
 				{
 					"type": "text",
@@ -424,7 +424,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "1. Built-in Themes"
+					"text": "1. Built-in themes"
 				}
 			]
 		},
@@ -498,7 +498,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": which scheme a reader sees is the page's decision rather than the component's, so follow their own preference where you want that — "
+					"text": ". The page, not the viewer, decides which scheme a reader sees. To follow the reader's preference, set it yourself: "
 				},
 				{
 					"type": "text",
@@ -631,7 +631,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "2. Custom Theme Configuration"
+					"text": "2. Custom theme configuration"
 				}
 			]
 		},
@@ -653,7 +653,7 @@
 				},
 				{
 					"type": "text",
-					"text": " — no CSS required. Colors accept "
+					"text": ". No CSS is required. Colors accept "
 				},
 				{
 					"type": "text",
@@ -731,7 +731,7 @@
 				},
 				{
 					"type": "text",
-					"text": "); the viewer applies the value exactly as you wrote it."
+					"text": "); the viewer applies the value as written."
 				}
 			],
 			"attrs": {
@@ -4285,7 +4285,7 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "Want the classic pill?",
+							"text": "Want fully rounded controls?",
 							"marks": [
 								{
 									"type": "bold"
@@ -4294,7 +4294,7 @@
 						},
 						{
 							"type": "text",
-							"text": " The canvas-nav controls inherit the button radius by default. For the fully-rounded capsule and circular buttons, set "
+							"text": " The canvas-nav controls inherit the button radius by default. For a capsule with circular buttons, set "
 						},
 						{
 							"type": "text",
@@ -5054,7 +5054,7 @@
 				},
 				{
 					"type": "text",
-					"text": " namespace are internal implementation details with no stability guarantee — "
+					"text": " namespace are internal implementation details with no stability guarantee. These include "
 				},
 				{
 					"type": "text",
@@ -5093,7 +5093,7 @@
 				},
 				{
 					"type": "text",
-					"text": " variables among them — with two exceptions, the typeface properties documented in "
+					"text": " variables. The exceptions are the two typeface properties documented in "
 				},
 				{
 					"type": "text",
@@ -5158,7 +5158,7 @@
 				},
 				{
 					"type": "text",
-					"text": " The table is core’s own tokens. A plugin may declare further "
+					"text": " The table lists core’s own tokens. A plugin may declare further "
 				},
 				{
 					"type": "text",
@@ -5233,7 +5233,7 @@
 						},
 						{
 							"type": "text",
-							"text": " — the single source of truth for the public token set. There is no copy of the list in this page to hand-edit, and none to fall out of date."
+							"text": ", the single source of truth for the public token set."
 						}
 					],
 					"attrs": {
@@ -5594,7 +5594,7 @@
 				},
 				{
 					"type": "text",
-					"text": " key: a typeface is a property of the page the viewer sits in rather than of a theme, and the viewer is meant to inherit it. Set them wherever they will reach the viewer — on "
+					"text": " key: a typeface is a property of the page the viewer sits in rather than of a theme, and the viewer is meant to inherit it. Set them wherever they will reach the viewer: on "
 				},
 				{
 					"type": "text",
@@ -5632,7 +5632,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Both take a full font stack, not a single family, and it is worth writing the fallbacks out: the viewer cannot load a face for you, so a stack naming only a webfont your page has not fetched renders in the browser's last-resort default. Loading the face — an "
+					"text": "Both take a full font stack rather than a single family. Write out the fallbacks: the viewer cannot load a face for you, so a stack naming only a webfont your page has not fetched renders in the browser's last-resort default. Loading the face (an "
 				},
 				{
 					"type": "text",
@@ -5658,7 +5658,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", whatever your site already does — remains yours."
+					"text": ", or whatever your site already does) is up to you."
 				}
 			],
 			"attrs": {
@@ -5675,7 +5675,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Example Usage"
+					"text": "Example usage"
 				}
 			]
 		},
@@ -5857,7 +5857,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "For tokens without a typed key — "
+					"text": "For tokens without a typed key, such as "
 				},
 				{
 					"type": "text",
@@ -5870,7 +5870,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", or a custom property a plugin reads — use the "
+					"text": " or a custom property a plugin reads, use the "
 				},
 				{
 					"type": "text",
@@ -5909,7 +5909,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", and the viewer does not check them against its own token list, so a name nothing reads simply has no effect:"
+					"text": ", and the viewer does not check them against its own token list, so a name nothing reads has no effect:"
 				}
 			],
 			"attrs": {
@@ -5945,7 +5945,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "3. Styling with CSS Variables"
+					"text": "3. Styling with CSS variables"
 				}
 			]
 		},

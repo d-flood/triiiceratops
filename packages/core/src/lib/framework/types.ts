@@ -20,7 +20,7 @@ import type { ViewerError } from '../types/viewerError.js';
  * or command, with the four lifecycle-plumbing methods hidden.
  *
  * This is a TYPE-LEVEL view of the very same live object — there is no facade
- * class, no `Proxy`, and no wrapper instance (SPEC "Access model"). A
+ * class, no `Proxy`, and no wrapper instance. A
  * `ReadonlyViewerState` obtained from a {@link ViewerHandle} is reference-equal
  * to the element's own `viewerState`, so identity comparisons hold and the
  * escape hatch stays honest.

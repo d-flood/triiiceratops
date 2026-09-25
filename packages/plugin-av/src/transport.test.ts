@@ -631,7 +631,7 @@ describe('createTransport', () => {
     });
 
     /*
-        User stories 28 and 29. The transport is re-read on the frame cadence,
+        The transport is re-read on the frame cadence,
         so the values whose inputs did not move must not be rebuilt on every
         one of them — and the ones that did must still be rebuilt at once,
         including on a paused canvas that ticks no frames at all.

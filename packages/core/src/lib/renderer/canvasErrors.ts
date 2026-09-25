@@ -11,7 +11,7 @@
  * viewer-wide error state would blank a working viewer mid-scroll — strictly
  * worse than failing fast. So per-canvas state is the source of truth, a failed
  * canvas is an error placeholder in its own layout rect, and the viewer-level
- * condition is *derived* (spec §Errors, user stories 26 and 27).
+ * condition is *derived*.
  *
  * ## Pure throughout
  *
@@ -24,7 +24,7 @@
  * accessible name.
  *
  * The auth/load distinction is carried through unreduced: a reader needs to
- * know whether logging in would help (user story 27).
+ * know whether logging in would help.
  */
 
 import type { LayoutRect } from './types';

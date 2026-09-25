@@ -1,7 +1,7 @@
-# Root prettier ignore (ticket 37). `pnpm format:check` runs `prettier --check .`
+# Root prettier ignore. `pnpm format:check` runs `prettier --check .`
 # from the repo root, so these globs are matched workspace-wide with gitignore
 # semantics (a bare `dir/` matches that directory at any depth). Keep this list
-# aligned with the eslint ignores (eslint.config.js) and ticket 22's
+# aligned with the eslint ignores (eslint.config.js) and the
 # generated-code policy: formatting generated/vendored output creates permanent
 # diff noise against the tools that produce it.
 
@@ -15,7 +15,7 @@ build/
 .svelte-kit/
 storybook-static/
 
-# Generated code (ticket 22 generated-code policy; mirrors eslint ignores):
+# Generated code (mirrors eslint ignores):
 # generated icons/tokens, and the committed docs-example fixtures extracted
 # from the site's content by scripts/docs-examples.mjs
 # ("do not edit by hand"). Bare names match these dirs in every package.

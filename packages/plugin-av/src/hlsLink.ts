@@ -128,7 +128,7 @@ export type HlsModule = typeof import('./hls/index');
  * A chunk that will not load — offline, a CSP that blocks it, a dist directory
  * hosted without its chunks — resolves `null`, and the caller gives that stage
  * the "can't play" treatment. It is never an activation failure and never
- * reaches the plugin error channel (user story 27). The console warning is the
+ * reaches the plugin error channel. The console warning is the
  * only trace it leaves: the commonest cause is a consumer who copied `iife.js`
  * out of its directory and left the chunks behind, and without a diagnostic
  * that publishing mistake is indistinguishable from a stream that cannot play.

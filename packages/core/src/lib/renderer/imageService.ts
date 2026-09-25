@@ -8,8 +8,7 @@
  * and it stays valid for as long as the page is open; decoded pixels are
  * megabytes and are evicted under viewport pressure. Conflating them into one
  * cache with one eviction policy is the default mistake, and it shows up as a
- * refetched `info.json` every time a canvas re-enters the viewport
- * (spec §Virtualization: per-canvas level residency).
+ * refetched `info.json` every time a canvas re-enters the viewport.
  *
  * The cache is therefore module-scoped and page-shared, like the manifest cache,
  * and no viewport pressure drops an entry — only an explicit `invalidate` or
@@ -283,10 +282,9 @@ export interface ImageServiceCache {
     /**
      * Why this service has no facts, if it has none.
      *
-     * The seam the host announces a canvas's error state through (user stories
-     * 26 and 27): a canvas whose `info.json` never arrived paints nothing, and
-     * a viewer that says nothing about it is indistinguishable from one that is
-     * still loading.
+     * The seam the host announces a canvas's error state through: a canvas
+     * whose `info.json` never arrived paints nothing, and a viewer that says
+     * nothing about it is indistinguishable from one that is still loading.
      */
     failure(serviceId: string): ImageServiceFailure | undefined;
     /**
@@ -423,9 +421,9 @@ export function createImageServiceCache(): ImageServiceCache {
             );
             // The authentication/load distinction is preserved from the
             // previous renderer: knowing whether logging in would help is the
-            // difference between a useful error and a shrug (user story 27).
-            // It is also an answer, so it is permanent — logging in is a new
-            // page, and a new page is a new cache.
+            // difference between a useful error and a shrug. It is also an
+            // answer, so it is permanent — logging in is a new page, and a new
+            // page is a new cache.
             if (status === 401 || status === 403) {
                 return fail(serviceId, 'auth', true);
             }

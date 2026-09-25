@@ -2,8 +2,7 @@
  * The **peaks model** and the two parsers that produce it.
  *
  * Part of the lazily-imported waveform chunk: nothing in the plugin's eager
- * graph may import this module by value, or the bytes stop being on-demand
- * (SPEC — "Delivery and packaging").
+ * graph may import this module by value, or the bytes stop being on-demand.
  *
  * ## The content-sniffing contract
  *

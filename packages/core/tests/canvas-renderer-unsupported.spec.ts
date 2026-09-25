@@ -9,8 +9,8 @@
  *
  * ## Why the manifests are intercepted rather than fetched
  *
- * The two canvases the epic names are IIIF Cookbook recipes, and this suite
- * runs with no network. Their manifests are vendored in the corpus
+ * The two canvases under test are IIIF Cookbook recipes, and this suite runs
+ * with no network. Their manifests are vendored in the corpus
  * (`src/lib/test/fixtures/manifests/av/`) and served here from disk through
  * `page.route`, at their own upstream ids so the manifest reads exactly as
  * published. Their media URLs are left pointing at `fixtures.iiif.io`, which is
@@ -101,7 +101,7 @@ async function openRecipe(
 }
 
 for (const [name, recipe] of Object.entries(RECIPES)) {
-    // Every title under here carries "unsupported", so the ticket's
+    // Every title under here carries "unsupported", so
     // `pnpm test:e2e -- -g "unsupported"` selects the whole suite rather than
     // the one test that happened to name it.
     test.describe(`the unsupported presentation — ${name} recipe, ${recipe.file}`, () => {

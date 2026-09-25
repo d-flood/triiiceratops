@@ -14,9 +14,9 @@
 # on Debian/Ubuntu they are `ffmpeg` and the `.deb` from
 # https://github.com/bbc/audiowaveform/releases.
 #
-# The waveform files MUST come from the real tool. Ticket 10's parsers are
-# tested against genuine `audiowaveform` output — hand-written `.dat` or `.json`
-# would make those tests assert our own reading of the format back at us.
+# The waveform files MUST come from the real tool. The parsers are tested
+# against genuine `audiowaveform` output — hand-written `.dat` or `.json` would
+# make those tests assert our own reading of the format back at us.
 
 set -euo pipefail
 

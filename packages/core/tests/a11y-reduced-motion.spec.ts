@@ -123,7 +123,7 @@ test('transitions are present WITHOUT the reduced-motion preference', async ({
  */
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
-/** The focusable wrapper — where the key bindings live (spec §Keyboard). */
+/** The focusable wrapper — where the key bindings live. */
 const ROOT = '[data-testid="canvas-renderer-root"]';
 
 /** Whether the renderer reports itself in motion right now. */

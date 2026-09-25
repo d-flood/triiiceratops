@@ -4,8 +4,8 @@
     // Install the pass-through Trusted Types default policy at module load, before
     // any component template is instantiated (Svelte renders via
     // `<template>.innerHTML`, a Trusted Types sink). No-op unless the page runs a
-    // `require-trusted-types-for 'script'` policy (ticket 24). Importing this
-    // module — directly (light DOM) or via the Web Component wrapper — installs it.
+    // `require-trusted-types-for 'script'` policy. Importing this module —
+    // directly (light DOM) or via the Web Component wrapper — installs it.
     installTrustedTypesPolicy();
 </script>
 
@@ -259,17 +259,17 @@
         viewerState?: ViewerState;
         initialCanvasRegion?: CanvasRegion | null;
         /**
-         * Host callback for the structured plugin-failure channel (ticket 09).
-         * Called with the SAME {@link PluginError} object dispatched as the
-         * bubbling, composed `pluginerror` CustomEvent from the viewer root, so
-         * a host can present or report the failure and call `retry()`.
+         * Host callback for the structured plugin-failure channel. Called with
+         * the SAME {@link PluginError} object dispatched as the bubbling,
+         * composed `pluginerror` CustomEvent from the viewer root, so a host
+         * can present or report the failure and call `retry()`.
          */
         onpluginerror?: (error: PluginError) => void;
         /**
-         * Host callback for the structured viewer-failure channel (ticket 18).
-         * Called with the SAME {@link ViewerError} object dispatched as the
-         * bubbling, composed `viewererror` CustomEvent from the viewer root, so a
-         * host can present or report actionable configuration, content, and
+         * Host callback for the structured viewer-failure channel. Called with
+         * the SAME {@link ViewerError} object dispatched as the bubbling,
+         * composed `viewererror` CustomEvent from the viewer root, so a host
+         * can present or report actionable configuration, content, and
          * operation failures without scraping the console.
          */
         onviewererror?: (error: ViewerError) => void;
@@ -299,7 +299,7 @@
     }: Props = $props();
 
     let allPlugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
-    // The SDK path (ticket 07) is the one plugin path.
+    // The SDK path is the one plugin path.
     let sdkPlugins = $derived(allPlugins.filter(isSdkPlugin));
 
     let rootElement: HTMLElement | undefined = $state();
@@ -354,15 +354,15 @@
     setContext(VIEWER_STATE_KEY, internalViewerState);
 
     // Route state-level actionable failures (search, viewport, content) out
-    // through the structured `viewererror` channel (ticket 18). Mirrors the
-    // ticket 09 `pluginerror` wiring: ViewerState reports; the component owns the
-    // DOM event + host callback.
+    // through the structured `viewererror` channel. Mirrors the `pluginerror`
+    // wiring: ViewerState reports; the component owns the DOM event + host
+    // callback.
     internalViewerState.setErrorReporter(emitViewerError);
 
     /**
-     * Deliver one structured viewer failure (ticket 18) on BOTH channels with
-     * the SAME object: the bubbling, composed `viewererror` CustomEvent from the
-     * viewer root and the `onviewererror` host callback. Mirrors
+     * Deliver one structured viewer failure on BOTH channels with the SAME
+     * object: the bubbling, composed `viewererror` CustomEvent from the viewer
+     * root and the `onviewererror` host callback. Mirrors
      * {@link emitPluginError}. Also mirrors the payload to the (silent-by-default)
      * logger so it is visible in `debug` mode; production stays quiet unless a
      * host wires a channel or enables debug.
@@ -394,8 +394,8 @@
         );
     }
 
-    // Active locale (CONTEXT.md **Active locale**, ticket 06): the chrome's
-    // language picker if the user has chosen one, otherwise the viewer's typed
+    // Active locale (CONTEXT.md **Active locale**): the chrome's language
+    // picker if the user has chosen one, otherwise the viewer's typed
     // `config.locale`, otherwise the page default. Published to chrome via
     // Svelte context (below) so every `m.*()` call renders in it; also mirrored
     // onto ViewerState.activeLocale.
@@ -435,9 +435,9 @@
     // any of them changes — nothing here refuses, diffs or fetches.
     //
     // `activeLocale` carries the resolved active locale so subscribers (and
-    // ticket 08's PluginLocaleService) are notified on change. `viewerLocale`
-    // already resolves picker/config/page reactively, so this keeps the
-    // notifying member identical to the locale the chrome renders in.
+    // the PluginLocaleService) are notified on change. `viewerLocale` already
+    // resolves picker/config/page reactively, so this keeps the notifying
+    // member identical to the locale the chrome renders in.
     $effect(() => {
         internalViewerState.activeLocale = viewerLocale;
         internalViewerState.setManifestRequestConfig(config?.requests);
@@ -637,7 +637,7 @@
     // Track last applied config to prevent redundant updates and loops
     let lastConfigStr = '';
 
-    // Opt-in developer diagnostics (ticket 18): production is quiet by default.
+    // Opt-in developer diagnostics: production is quiet by default.
     // `config.debug` gates the core logger; actionable failures still surface
     // through the structured `viewererror`/`pluginerror` channels regardless.
     // Configured ahead of `updateConfig` so a config that turns `debug` on is
@@ -652,13 +652,13 @@
         }
     });
 
-    // ---- SDK plugin activation (ticket 07 + services ticket 08) ------------
+    // ---- SDK plugin activation ----------------------------------------------
     // SDK plugins carry their own framework-neutral `activate(host)`. Core owns
     // a container per plugin, negotiates nothing itself (the plugin's activate
     // does compatibility/context/selectors), and supplies the host: the
     // container, the live viewer state, core's declared version/capabilities,
-    // and the three per-activation services (ticket 08) — a root-aware style
-    // service, a per-viewer locale service over the plugin's catalog, and the
+    // and the three per-activation services — a root-aware style service, a
+    // per-viewer locale service over the plugin's catalog, and the
     // icon-rendering UI service.
 
     // One activation record per mounted SDK plugin. `deactivate` runs the
@@ -687,7 +687,7 @@
 
     // The owning viewer's active-locale observable, shared by every SDK plugin's
     // locale service. Reads `ViewerState.activeLocale` (mirrored from
-    // `config.locale ?? page default`, ticket 06) and wakes on change through the
+    // `config.locale ?? page default`) and wakes on change through the
     // framework-neutral subscription — no Svelte reactivity crosses the seam.
     const sdkLocaleSource = {
         get current(): string {
@@ -708,13 +708,13 @@
     /**
      * Deliver one structured plugin failure on BOTH channels with the SAME
      * object: the bubbling, composed `pluginerror` CustomEvent from the viewer
-     * root and the `onpluginerror` host callback (ticket 09), and log it via the
+     * root and the `onpluginerror` host callback, and log it via the
      * debug-gated developer logger. Fail-closed (ADR 0010): there is NO
      * user-facing error UI — a failed activation renders no toolbar button; the
      * payload's `retry()` is host-invoked only. Repeated command/subscription
-     * failures from the same still-live instance are de-duped (they keep throwing
-     * every flush until retry); `cleanup` failures always fire (they occur during
-     * teardown and must each be reported).
+     * failures from the same still-live instance are de-duped (they keep
+     * throwing every flush until retry); `cleanup` failures always fire (they
+     * occur during teardown and must each be reported).
      */
     function emitPluginError(
         record: SdkActivationRecord,
@@ -1065,7 +1065,7 @@
     );
 
     // Report the nav.edge/toolbar-anchor conflict once, when it becomes active,
-    // through the structured `viewererror` channel (ticket 18) instead of a
+    // through the structured `viewererror` channel instead of a
     // bundler-specific dev-only console warning.
     $effect(() => {
         if (navEdgeConflict) {
@@ -1511,7 +1511,7 @@
      * whether the world under the reader has anything to fit. Existence is
      * therefore all that is computed: {@link canvasPaintsImage} stops at the
      * first canvas that paints anything, so a long continuous manifest does not
-     * resolve every folio's images to answer it (user story 7).
+     * resolve every folio's images to answer it.
      */
     let canvasesRenderable = $derived(
         visibleCanvases.some((canvas) =>

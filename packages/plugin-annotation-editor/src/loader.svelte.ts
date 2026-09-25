@@ -6,7 +6,7 @@ import type { AnnotationStore } from './AnnotationStore.svelte';
  * read-only overlay. It runs independently of the Annotation Editor UI component
  * (the panel may never open), so it drives the shared store directly: point the
  * store at the current canvas and load; the store injects into this viewer's
- * per-viewer display state (F10, ADR 0007). When the editor panel is mounted,
+ * per-viewer display state (ADR 0007). When the editor panel is mounted,
  * its drawing layer shares this same store, so both paths converge on one cache.
  */
 export function createLoader(store: AnnotationStore) {
@@ -34,7 +34,7 @@ export function createLoader(store: AnnotationStore) {
             // load-race token discards stale results and it injects the loaded
             // annotations into the display overlay. A load failure is reported
             // by the store itself on its structured channel (`onPersistenceError`
-            // / panel error, F20); `load()` catches internally and never rejects,
+            // / panel error); `load()` catches internally and never rejects,
             // so there is nothing to handle — and nothing to log — here.
             store.setCanvas(manifestId, canvasId);
             void store.load();
@@ -42,7 +42,7 @@ export function createLoader(store: AnnotationStore) {
 
         // The shared store's lifecycle is tied to the loader (which lives as long
         // as the plugin), not the editor panel. Clear its injected overlays and
-        // release the adapter when the loader is torn down (F11).
+        // release the adapter when the loader is torn down.
         $effect(() => {
             return () => store.destroy();
         });

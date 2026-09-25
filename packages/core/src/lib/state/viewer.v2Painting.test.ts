@@ -16,10 +16,9 @@ import {
 } from '../utils/resolveCanvasImage';
 
 /**
- * IIIF v2 painting annotations end-to-end, through the epic's one seam — a real
+ * IIIF v2 painting annotations end-to-end, through one seam — a real
  * `ViewerState` loaded with raw manifest JSON, backed by the real manifest
- * cache, with no mocks and no hand-built canvases (`remove-manifesto` SPEC →
- * "The seam").
+ * cache, with no mocks and no hand-built canvases.
  *
  * The unit tests beside `getPaintingAnnotations`, `getThumbnailSrc` and
  * `resolveCanvasImage` pin each reader in isolation. This file pins the thing a
@@ -29,9 +28,8 @@ import {
  *
  * It exists because the failure it guards is silent. The two deep raw-JSON
  * fallback paths read only the v3 `body` spelling of a painting resource and
- * never the v2 `resource` one; the moment ticket 06 handed them raw v2
- * annotations, both would have rendered nothing at all, with nothing at
- * runtime reporting it. These tests are the only guard.
+ * never the v2 `resource` one; handed raw v2 annotations, both would have
+ * rendered nothing at all, with nothing at runtime reporting it. These tests are the only guard.
  */
 
 describe('IIIF v2 painting annotations through the viewer', () => {
@@ -117,8 +115,8 @@ describe('IIIF v2 painting annotations through the viewer', () => {
     });
 
     it('does not throw when a v2 canvas writes images as a bare object', async () => {
-        // The spec's failure contract: every enumerator is total, because a
-        // field the spec declares as an array turns up in real manifests as a
+        // Every enumerator is total, because a field the IIIF spec declares
+        // as an array turns up in real manifests as a
         // bare object. `manifesto.js`'s `getImages()` walked `images` with an
         // indexed loop, so this enumerated nothing at all.
         const id = 'http://example.org/v2-bare-images/manifest';

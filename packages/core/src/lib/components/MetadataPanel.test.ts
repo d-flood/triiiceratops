@@ -50,11 +50,10 @@ describe('MetadataPanel provider rendering', () => {
 });
 
 /**
- * The four manifest-scalar reads the `remove-manifesto` epic rewired, in BOTH
- * IIIF versions.
+ * The four manifest-scalar reads the panel makes, in BOTH IIIF versions.
  *
- * These shipped with no coverage at all. Before ticket 09 the panel read title
- * through `manifest.getLabel?.()` with no raw fallback whatsoever, and summary,
+ * These shipped with no coverage at all. The panel once read title through
+ * `manifest.getLabel?.()` with no raw fallback whatsoever, and summary,
  * attribution and rights through accessors with a v3-only raw path -- so a
  * mechanical deletion of the accessor rungs would have blanked the title on
  * EVERY manifest and the other three on every v2 manifest, silently.

@@ -187,7 +187,7 @@ export interface MediaStage {
      *
      * Tracks are attached either way, because the transcript panel reads their
      * parsed cues; what an `<audio>` stage must never grow is a captions
-     * toggle, which would be visible and do nothing (user story 46).
+     * toggle, which would be visible and do nothing.
      */
     readonly rendersCaptions: boolean;
     /**
@@ -344,7 +344,7 @@ function placeLane(lane: HTMLElement, rect: StageRect | null): void {
  * blocked request — shows the localized treatment inside this stage and nothing
  * else: not the unsupported presentation (the canvas IS supported; this stream
  * is not), not an activation failure, and nothing on the plugin error channel.
- * One bad stream costs one canvas, never the session (user story 27).
+ * One bad stream costs one canvas, never the session.
  */
 export function createMediaStage(options: MediaStageOptions): MediaStage {
     const { canvasId, source } = options;
@@ -406,14 +406,14 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
     media.crossOrigin = 'anonymous';
     if (source.kind === 'video') {
         // Set as an attribute rather than through the property so the markup is
-        // what an iOS WebKit that predates the property sees too (user story 23).
+        // what an iOS WebKit that predates the property sees too.
         media.setAttribute('playsinline', '');
     }
 
     /**
      * The lanes. Both are created whatever the layout — the ones this layout
      * does not have simply never get placed — so the DOM shape is one shape and
-     * ticket 10 has a surface to find whether or not it is on screen yet.
+     * a surface can be found whether or not it is on screen yet.
      *
      * The visual lane holds the picture where the picture is the plugin's: the
      * video element. An `<audio>` element renders nothing without `controls`,
@@ -440,7 +440,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
 
     /**
      * The tap target over a companion core paints: the whole rect, transparent,
-     * and the ONLY thing the plugin puts over the picture (user story 6).
+     * and the ONLY thing the plugin puts over the picture.
      *
      * It is a target rather than a lane because it divides nothing and shows
      * nothing; it hands a drag down to the renderer by the same route the lanes
@@ -469,7 +469,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
     root.append(unplayableNotice);
 
     /**
-     * The play-state glyph of user story 26. `aria-hidden` because it is a
+     * The play-state glyph. `aria-hidden` because it is a
      * picture of state the transport and AVState both announce properly; a
      * second announcement of the same fact is noise to a screen reader.
      */
@@ -516,7 +516,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
         // to show: the element's own background is opaque black, so revealing
         // it here blacks the still out for the whole buffering interval — the
         // entire interval, on the MSE path, where nothing is buffered until
-        // after `play()` (user story 12). The still stands until there is a
+        // after `play()`. The still stands until there is a
         // frame to replace it with, and `readyState` is checked first because
         // an already-buffered element may fire neither event again.
         if (awaitingPlay) {
@@ -576,7 +576,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
                     module?.attachHlsStream(media, next.url, onError) ?? null;
                 // No chunk, or no Media Source Extensions to run it with. This
                 // canvas cannot play here — which is one stage's treatment, not an
-                // activation failure and not a `pluginerror` (user story 27).
+                // activation failure and not a `pluginerror`.
                 if (!hlsAttachment) onError();
             })
             .catch(() => {
@@ -695,7 +695,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
      * The waveform's drawing surface, built only once peaks have arrived — a
      * canvas nobody can draw into is DOM that costs memory and says nothing.
      * Only the `audio` layout builds one: every other layout's waveform data
-     * goes to the scrubber strip instead (SPEC — "The stage layout, revised").
+     * goes to the scrubber strip instead.
      */
     let waveform: WaveformSurface | null = null;
 
@@ -788,7 +788,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
      * parsed and never drawn. Parsed is the point: `hidden` tracks expose
      * `track.cues`, and that is where the transcript panel reads a sound
      * recording's words from. What such a stage does NOT get is the captions
-     * toggle — a control that could only ever paint nothing (user story 46) —
+     * toggle — a control that could only ever paint nothing —
      * which `rendersCaptions` below is what says.
      */
     const authoredCaptions = options.captions ?? [];
@@ -852,7 +852,7 @@ export function createMediaStage(options: MediaStageOptions): MediaStage {
      * A syntactically valid VTT with no cues in it loads perfectly: the `load`
      * event fires, `readyState` reaches `LOADED`, and selecting the track
      * produces nothing whatever. That is the visible-control-that-does-nothing
-     * of user story 46 reached through the ordinary path, so it is dropped like
+     * reached through the ordinary path, so it is dropped like
      * a refused one. `undefined` cues means no `TextTrack` implementation to ask
      * (jsdom), not an empty one, and is not grounds to drop anything.
      */

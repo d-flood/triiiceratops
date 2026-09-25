@@ -8,8 +8,7 @@
  *
  * Geometry comes from the **manifest Canvas** `width`/`height`, never from an
  * image service: layout must cost no network requests, and manifest dimensions
- * win permanently for geometry so nothing shifts when tiles arrive later
- * (spec §Coordinate model and layout).
+ * win permanently for geometry so nothing shifts when tiles arrive later.
  */
 
 import { getCanvasId, getResourceId } from '../utils/iiifIds';
@@ -28,7 +27,7 @@ type SelectedChoiceLookup = (canvasId: string) => string | undefined;
 
 /**
  * The Canvas's own declared `thumbnail`, as a fixed URL — the first rung of the
- * **thumbnail tier**'s ladder (spec §Thumbnail resolution).
+ * **thumbnail tier**'s ladder.
  *
  * Read straight off raw IIIF JSON: `thumbnail` is spelled the same in v2 and
  * v3, may be a bare string, a resource object, or an array of either, and the
@@ -77,9 +76,9 @@ export function getDeclaredDuration(canvas: unknown): number | null {
  * second and later pictures of a composite canvas were never requested (IIIF
  * Cookbook recipe 0036 paints a miniature over a folio, and only the folio
  * appeared), and the placement was discarded, so even a single region-targeted
- * image was stretched across the whole canvas instead of into its rectangle
- * (user story 30). The previous renderer composed correctly because it fed
- * OpenSeadragon one tiled image per annotation, with its own `x`/`y`/`width`;
+ * image was stretched across the whole canvas instead of into its rectangle.
+ * The previous renderer composed correctly because it fed OpenSeadragon one
+ * tiled image per annotation, with its own `x`/`y`/`width`;
  * this is that same fact, expressed as data.
  *
  * The Image API region selector on a body is a different mechanism and is
@@ -87,8 +86,8 @@ export function getDeclaredDuration(canvas: unknown): number | null {
  * {@link toImageSource} as a prebuilt static request.
  *
  * A Canvas that declares no `width`/`height` is a spec violation the viewer
- * still has to render (user story 32), so it is **not** dropped here: it comes
- * back with `width`/`height` of `null`, which is the planner's signal to
+ * still has to render, so it is **not** dropped here: it comes back with
+ * `width`/`height` of `null`, which is the planner's signal to
  * position it from the median of its siblings and reposition it if an image
  * service later reports real dimensions. Guessing here instead would put the
  * guess out of reach of the reflow, since this function sees one canvas and

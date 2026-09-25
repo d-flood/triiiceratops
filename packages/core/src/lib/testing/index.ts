@@ -24,9 +24,8 @@
  *
  * ── Flush timing rule (READ THIS) ─────────────────────────────────────────
  * Notifications are batched and delivered on the reactive flush, never
- * synchronously inside a command (ADR 0008 / SPEC.md ViewerState contract). A
- * test that mutates state and then asserts a subscriber ran MUST first settle
- * the flush with {@link flush}:
+ * synchronously inside a command (ADR 0008). A test that mutates state and then
+ * asserts a subscriber ran MUST first settle the flush with {@link flush}:
  *
  *   state.toggleToolbar();
  *   await flush();          // notifications land here, not before

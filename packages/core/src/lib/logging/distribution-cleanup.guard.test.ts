@@ -1,19 +1,19 @@
-// Distribution-cleanup regression guard (ticket 18).
+// Distribution-cleanup regression guard.
 //
 // The published Svelte source must stay bundler-neutral and quiet:
 //   1. ZERO `import.meta.env` in `src/lib` — a consumer bundler without a
-//      Vite-style `define` must be able to compile the source (user story 4).
+//      Vite-style `define` must be able to compile the source.
 //   2. NO bare `console.*` in `src/lib` outside the sanctioned logger module —
 //      production distributions are quiet by default; diagnostics route through
 //      the debug-gated logger and actionable failures through the structured
-//      `viewererror`/`pluginerror` channels (user stories 12–13).
+//      `viewererror`/`pluginerror` channels.
 //
 // This test fails if either pattern reappears. It replaces a bundler-specific
 // lint rule so the guarantee holds regardless of the consumer's toolchain.
 //
-// To verify the guard once (per the ticket): add `console.log('x')` to any
-// scanned file (e.g. `state/viewer.svelte.ts`) or an `import.meta.env.DEV`
-// reference, run this test, watch it fail, then remove it.
+// To verify the guard once: add `console.log('x')` to any scanned file (e.g.
+// `state/viewer.svelte.ts`) or an `import.meta.env.DEV` reference, run this
+// test, watch it fail, then remove it.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -27,9 +27,8 @@ const LIB_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 /**
  * Files/dirs excluded from the bare-`console.*` scan, each with a reason:
  * - the logger module is the ONE sanctioned console sink;
- * - `plugins/` is owned by the plugin migration tickets (extracted to their own
- *   packages, cleaned there);
- * - `browser-runtime.ts` is ticket 10's page-level namespace, which reports a
+ * - `plugins/` is extracted to its own packages and cleaned there;
+ * - `browser-runtime.ts` is the page-level namespace, which reports a
  *   structured first-wins conflict before any viewer/config exists;
  * - test files are not shipped production source.
  */
@@ -82,7 +81,7 @@ function lineIsAllowed(lines: string[], index: number): boolean {
     return false;
 }
 
-describe('core distribution cleanup guard (ticket 18)', () => {
+describe('core distribution cleanup guard', () => {
     const files = collectSourceFiles(LIB_ROOT);
 
     it('scans a non-trivial number of lib source files', () => {
