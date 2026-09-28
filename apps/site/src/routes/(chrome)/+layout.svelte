@@ -20,29 +20,14 @@
         absolute,
     } from '$lib/site';
 
-    /**
-     * The marketing chrome: the rail, the mobile sheet, the footer, and every
-     * page's crawl and social metadata.
-     *
-     * A group layout rather than the root one, because `/viewer/` is an
-     * application that fills the window and draws no chrome at all. It hangs off
-     * the root layout instead, and shares the stylesheet, the theme and the type
-     * but none of this.
-     */
-
     let { children, data } = $props();
 
     let sheetOpen = $state(false);
 
     const path = $derived(data.path);
-    // Undefined for a path no route declares, which inside this layout is the
-    // not-found page.
     const current = $derived(data.current);
     const indexed = $derived(current?.indexed === true);
     const canonical = $derived(absolute(path));
-    // An unknown path is the not-found page, which is prerendered at /404/ and
-    // then relocated to /404.html: it has no canonical URL of its own, and it is
-    // already `noindex` because it is not a declared route.
     const title = $derived(
         current === undefined
             ? `Page not found — ${SITE_NAME}`
@@ -54,13 +39,8 @@
         current?.intro ?? 'That page is not part of this site.',
     );
 
-    // The front page doubles as the site index at phone size, so its rail stays
-    // fully unrolled there instead of collapsing into the sheet.
     const isIndex = $derived(path === '/');
 
-    // The documentation kept the card it was published with. Its URL is in
-    // circulation and scrapers cache a preview image by URL for weeks, so the
-    // port had to leave it exactly where it was.
     const card = $derived(
         isDocPath(path)
             ? { image: DOCS_OG_IMAGE, alt: DOCS_OG_IMAGE_ALT }
@@ -73,10 +53,6 @@
     {#if current}<link rel="canonical" href={canonical} />{/if}
     <meta name="description" content={description} />
     {#if !indexed}
-        <!-- Out of the sitemap for the same reason: the design-token appendix
-             must not compete with a real page for a query, though it is still
-             reachable from the footer. A documentation page is not this case —
-             the rail does not carry it, but a crawler is offered it. -->
         <meta name="robots" content="noindex" />
     {/if}
     <meta property="og:type" content="website" />
@@ -120,22 +96,7 @@
 </header>
 
 <div class="shell" class:shell--index={isIndex}>
-    <!-- The footer is a sibling of `main`, not a descendant: a `footer` inside a
-         `main` is not a contentinfo landmark, so a screen reader user would lose
-         the one region carrying the licence, the version and the contact. -->
     <div class="main">
-        <!-- `data-pagefind-body` declares this region as the site's search
-             scope, so a route is indexed by wearing this chrome: the marketing
-             pages and the documentation are one searchable site, and `/viewer/`
-             is out of it because it hangs off the root layout instead. The
-             not-found page is the one exception: it carries no prose anybody
-             could be looking for, and it is the page a reader already lands on
-             when a link fails.
-
-             `noindex` is a separate question from this one, and the two
-             deliberately disagree: the appendix and the recipe bench are not
-             offered to a crawler but are still findable from the site's own
-             field, which is where somebody looking for them would look. -->
         <main
             class="pagebody"
             id="main"
@@ -166,7 +127,6 @@
             >
             <a href={REPOSITORY_URL}>Source on GitHub</a>
             <a href={CONTACT_URL}>Contact</a>
-            <a class="link" href="/system/">Design system</a>
         </footer>
     </div>
 

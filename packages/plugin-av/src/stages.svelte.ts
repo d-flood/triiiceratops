@@ -1,21 +1,4 @@
-/**
- * The activation's media manager: which canvases are this plugin's, the stage
- * each one gets, and where that stage sits on screen.
- *
- * Three jobs, deliberately in one place because they share one lifecycle:
- *
- * - **Scanning and claiming.** Every canvas is scanned on mount and again on
- *   every manifest change; the ones core cannot paint at all are claimed, which
- *   suppresses the unsupported presentation and leaves a clean box to render
- *   into. Which canvases those are is core's own question, asked through core's
- *   own classifier.
- * - **Staging.** One stage per claimed canvas, all of them inside ONE overlay
- *   layer. A canvas maps to a *source provider* rather than to a body: a canvas
- *   one body fills plays that body, and a temporally composed one gets a
- *   sequencer over the same stage. The stage itself knows neither case apart.
- * - **Placing.** Every stage is projected from canvas space on every frame the
- *   viewport moves, which is what makes the media track pan and zoom.
- */
+/** Activation media manager: scan/claim, stage, place on every frame. */
 
 import type { PluginContext } from '@triiiceratops/plugin-sdk';
 import {

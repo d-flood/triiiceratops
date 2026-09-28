@@ -1,16 +1,5 @@
 import type { LocaleCatalog } from '@triiiceratops/plugin-sdk';
 
-/**
- * The plugin's package-owned localization catalog (CONTEXT.md **Active
- * locale**): ships with the plugin rather than living in core's catalogs, so
- * core carries no plugin keys. `en` is the required fallback; a missing key
- * resolves to `en` and then to the key itself.
- *
- * The `{param}` placeholders are substituted by the SDK locale service's `t`.
- * The progress/error strings are passed through `t` and handed to
- * `exportCanvasRangeAsPdf` as its `messages` builders (the pure export logic
- * itself carries no i18n runtime).
- */
 export const catalog: LocaleCatalog = {
     en: {
         pdf_export_title: 'PDF Export',

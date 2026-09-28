@@ -1,9 +1,4 @@
-// The client-contract route: the whole browser half of the framework-wrapper
-// contract, driven from a packed `triiiceratops` tarball and React 19 alone.
-//
-// Authored with `createElement` — no JSX, so no React Vite plugin — and with no
-// Svelte package, no Svelte Vite plugin, and no plugin SDK anywhere in the
-// dependency graph.
+// Client-contract route on the packed tarball, React 19, no JSX.
 
 import {
     Component,
@@ -28,9 +23,7 @@ import {
     totals,
 } from './events.js';
 
-// Every static import above has been evaluated by the time this runs, so a
-// `true` here would mean an entry point registered the element as an import
-// side effect. Registration must be lazy, and triggered by a mounted wrapper.
+// `true` here means an entry point registered the element as an import side effect; registration must be lazy.
 const definedBeforeMount = !!(
     globalThis.customElements &&
     globalThis.customElements.get('triiiceratops-viewer')

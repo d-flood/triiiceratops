@@ -1,28 +1,4 @@
-// Performance comparison orchestrator — `pnpm perf:compare`.
-//
-// Builds the base SHA and the head SHA on the SAME runner (same Node, same
-// browser build), measures each with the identical head-owned measurement code
-// (scripts/perf/measure.mjs), compares medians, and fails on regression beyond
-// these thresholds:
-//   · deterministic artifact size increase > 5%          → fail
-//   · runtime median increase > 10% AND absolute > 20 ms → fail (per scenario)
-// It ALSO enforces perf-budgets.json (committed absolute ceilings), which fails
-// even when base == head — guarding absolute drift independently of the diff.
-//
-// Usage:
-//   pnpm perf:compare --base <sha> --head <sha> [--out-dir dir]
-//                     [--warmups N] [--runs M] [--size-only]
-//   pnpm perf:compare --base-root <builtDir> --head-root <builtDir>   (no git)
-//   pnpm perf:compare --head-root <builtDir>                          (base==head)
-//   pnpm perf:compare ... --update-budgets   (capture/refresh perf-budgets.json)
-//   pnpm perf:compare ... --no-traces        (no Playwright trace; undistorted
-//                                             medians for a budget capture AND
-//                                             for the enforcing run — the mode
-//                                             is recorded in perf-budgets.json
-//                                             and a mismatch is refused)
-//
-// Raw measurement JSON + Playwright traces are written under --out-dir
-// (default: perf-results/) for upload as CI artifacts.
+// Performance comparison orchestrator. Fails on size >5%, runtime >10% and >20ms.
 
 import {
     appendFileSync,
@@ -62,9 +38,7 @@ import {
 } from './lib.mjs';
 import { measure } from './measure.mjs';
 
-// Minimal build required for the measured artifacts. Order matters: core dist
-// first (plugins + SDK resolve `triiiceratops` types/dist from it), then the
-// SDK, then the plugins.
+// Core first: plugins resolve types/dist from it.
 const BUILD_STEPS = [
     ['triiiceratops', 'build:lib'],
     ['triiiceratops', 'build:element'],
@@ -82,11 +56,7 @@ const BUILD_STEPS = [
     ],
 ];
 
-// The measured packages live under packages/. A `--base` SHA from before that
-// layout existed has no packages/core to build or size — the BUILD_STEPS paths
-// don't exist there at all, so a base-vs-head diff against it is meaningless,
-// not just unbuildable. Detect that up front and skip the base measurement
-// rather than failing the build.
+// A base predating packages/core has nothing comparable to measure; skip it.
 function hasMonorepoLayout(dir) {
     return existsSync(join(dir, 'packages', 'core', 'package.json'));
 }
@@ -183,30 +153,18 @@ async function main() {
         runs: args.runs ? Number(args.runs) : undefined,
         sizeOnly: Boolean(args['size-only']),
         noBuild: Boolean(args['no-build']),
-        // Playwright tracing with DOM snapshots is not free, and it is not evenly
-        // distributed: it triples `theme_switch`, which is timed by polling
-        // getComputedStyle, while leaving the load-session phases alone (measured
-        // on this tree: 1.8 ms untraced vs 14.1 ms traced, same build, only
-        // --traces-dir differing). That is fine for a base-vs-head diff, where
-        // both sides carry it, but it must not be baked into a captured CEILING.
-        // A `--update-budgets` capture therefore turns it off — and so does the
-        // enforcing run in `.github/workflows/test.yml`, because the headroom is
-        // NOT reliably enough to absorb it: `activate_image-manipulation` is
-        // 5.7 ms untraced and 64.6 ms traced on this tree, past a ceiling derived
-        // from the untraced median. Ceiling and measurement have to be the same
-        // kind of number.
+        // Tracing distorts medians unevenly, so captures and enforcing runs omit it.
         noTraces: Boolean(args['no-traces'] || args['update-budgets']),
     };
     mkdirSync(opts.outDir, { recursive: true });
 
-    // Resolve the two measurements (git SHAs or pre-built roots).
     let base, head;
     let preRestructureBase = false;
     if (args['head-root']) {
         head = await measureRoot(String(args['head-root']), 'head', opts);
         base = args['base-root']
             ? await measureRoot(String(args['base-root']), 'base', opts)
-            : { ...head, samePlaceholder: true }; // base == head (no-op)
+            : { ...head, samePlaceholder: true };
     } else if (args.base && args.head) {
         const baseSha = await resolveSha(String(args.base));
         const headSha = await resolveSha(String(args.head));
@@ -250,11 +208,7 @@ async function main() {
         ok(`wrote ${BUDGETS_PATH}`);
     }
 
-    // ── Comparison ─────────────────────────────────────────────────────────
-    // Runtime, size and residency figures from different renderer generations
-    // describe different implementations and artifact boundaries. Preserve the
-    // head measurement for absolute-budget enforcement, but make the
-    // differential side a no-op just as the pre-workspace boundary does.
+    // ── Comparison ──
     const rendererGenerationBoundary =
         !opts.sizeOnly && rendererGenerationChanged(base, head);
     const comparisonBase = rendererGenerationBoundary ? head : base;
@@ -271,17 +225,10 @@ async function main() {
     const budgetFailures = budgets
         ? checkBudgets(budgets, head, { skipMemory: opts.sizeOnly })
         : [];
-    // The budget file is generated, committed, and enforced here, so here is the
-    // only place its own schema can be checked cheaply. Without this a generator
-    // change that drops a required key writes a file nothing rejects.
     const schemaProblems = budgets ? validateBudgets(budgets) : [];
-    // Ceilings and medians have to be the same kind of number. Until now that
-    // pairing was only a convention held up by `--no-traces` appearing in the
-    // workflow; the budget file records the mode it was captured in, so the
-    // mismatch is refused here instead of silently enforced.
     const tracingProblem = budgets ? checkTracingMode(budgets, head) : null;
 
-    // ── Summary ──────────────────────────────────────────────────────────--
+    // ── Summary ──
     const out = [];
     out.push('## Performance comparison');
     out.push('');
@@ -291,9 +238,6 @@ async function main() {
     out.push(
         `Warm-ups: ${head.warmups} · Measured runs: ${head.runs} · Median-vs-median.`,
     );
-    // Only in a mode that actually probed a browser. In `--size-only` the
-    // renderer is `unknown` by construction, and printing that reads as a
-    // detection failure rather than as "not asked".
     if (!opts.sizeOnly) {
         out.push(
             `Renderer — base: \`${base.renderer ?? 'unknown'}\` · head: \`${head.renderer ?? 'unknown'}\``,
@@ -399,7 +343,7 @@ async function main() {
 
     emitSummary(out.join('\n'));
 
-    // ── Verdict ──────────────────────────────────────────────────────────--
+    // ── Verdict ──
     heading('Verdict');
     let failed = false;
     if (preRestructureBase || rendererGenerationBoundary) {

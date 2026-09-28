@@ -1,26 +1,9 @@
-/**
- * **AVState** — the playback state this activation publishes (ADR 0018), and the
- * only way anything outside the plugin commands playback: a host reaches it
- * through `viewerState.getPluginState('av')`, and this plugin's own UI goes
- * through the same object rather than touching a media element directly.
- *
- * All times are **canvas time on the canvas timeline** (CONTEXT.md): `duration`
- * is the canvas's duration and `currentTime`/`seek` are canvas-time positions.
- * While one body plays one canvas that mapping is the identity, which is why
- * this module reads the element's clock — but nothing on the published surface
- * says so, so a sequencer can supply the mapping behind the same members.
- */
+/** AVState: all times are canvas time on the canvas timeline. */
 
 import type { PublishedState } from '@triiiceratops/plugin-sdk';
 
 import { PLUGIN_META } from './identity';
 
-/**
- * One caption track a host may switch on, as the manifest authored it.
- *
- * The label is content — a track called "Sottotitoli" is called that in every
- * locale — so it is published verbatim and never translated.
- */
 export interface AvCaptionTrack {
     /** The WebVTT resource's id, and the handle {@link AVState.setCaptionTrack} takes. */
     readonly url: string;

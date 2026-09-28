@@ -1,57 +1,7 @@
 /**
  * The first-party Canvas2D renderer's host: the DOM half of the
- * planner/painter split.
- *
- * A `.svelte.ts` module rather than a plain one so the two planner inputs stay
- * `$derived` over `ViewerState` — the alternative was recomputing the canvas
- * descriptor list by hand on every change, which is the thing the reactive
- * graph is for. The component keeps its element refs, its markup, and three
- * effects that call in here.
- *
- * It owns the canvas element, the viewport, and pointer input; it owns no
- * scene decisions. Every frame it asks `planScene` what the scene is and
- * hands the resulting **scene plan** to `paintScene`. Nothing here decides
- * what is resident or at which tier — including which tiles: the scheduler
- * is handed the planner's **required set** once per frame and does exactly
- * what it says.
- *
- * The one renderer the viewer mounts: there is no renderer selection, no
- * build flag, and no alternative (ADR 0012).
- *
- * ## SSR
- *
- * Nothing in this component's module graph touches `window`, `document`, or
- * `navigator` at module scope. Being first-party code there is no need for
- * the dynamic library import the previous renderer's component needed: the
- * canvas element renders as inert markup on the server and the 2D context is
- * acquired in `onMount`.
- *
- * ## Scope
- *
- * The canvases on screen — one in individuals mode, a facing-page spread in
- * paged mode, and the **whole manifest** in continuous mode — from any of
- * the three source kinds; the full pointer input model (drag, flick
- * momentum, pinch, wheel, double-tap), keyboard operation, and reduced
- * motion.
- *
- * The **paint hook** is here too: registered layers are drawn
- * each frame after the tiles, under the transform `paintScene` left applied,
- * and core registers one of its own. The annotation overlays are NOT — they
- * are DOM layers mounted beside this component by `TriiiceratopsViewer`, on
- * the frame cadence and the public coordinate helpers, so they know nothing
- * about which renderer is mounted.
- *
- * ## Virtualization
- *
- * A continuous manifest of any length is laid out in full, because layout
- * is pure arithmetic over manifest dimensions and costs no network. What is
- * bounded is what may HOLD anything: the planner's residency window keeps
- * everything but the canvases near the viewport in the box tier, so opening
- * an 800-folio manuscript costs O(1) requests, and the tile scheduler's
- * byte-budgeted **opportunistic cache** bounds the pixels. This component's
- * share of that is three things: feeding the planner the whole manifest,
- * loading a static canvas's image only while it is out of the box tier, and
- * telling the scheduler which byte ceiling this device gets.
+ * planner/painter split. Owns the canvas element, viewport, and pointer input;
+ * scene decisions come from `planScene` per frame.
  */
 
 import { logger } from '../logging/logger';

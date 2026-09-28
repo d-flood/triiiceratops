@@ -1,12 +1,4 @@
-/**
- * The committed Cookbook matrix reading.
- *
- * The script that writes it fails loudly on a format change, so what is worth
- * asserting here is what a consumer relies on afterwards: every cell is present
- * and in the vocabulary, and the file joins to the recipe catalog the site draws
- * its columns from. Nothing here pins a viewer's coverage to a number — the
- * matrix moves on its own, and a legitimate re-read must not turn this red.
- */
+/** Asserts what consumers rely on, never a viewer's coverage number. */
 
 import { describe, expect, it } from 'vitest';
 

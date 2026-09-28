@@ -1,15 +1,4 @@
 <script lang="ts">
-    /**
-     * One figure and one table. The figure carries the whole argument — recipe
-     * coverage as filled area, session size as bar length, per viewer — and the
-     * table is its evidence; the byte-exact breakdowns sit in the disclosure
-     * under it.
-     *
-     * Every figure here is computed from a committed data source: the browser
-     * measurement, the Cookbook support matrix, and the recipe catalog. See
-     * `$lib/comparison`. Nothing on this page transcribes a number, which is
-     * why there is no drift gate keeping two copies of one figure agreeing.
-     */
     import PageHead from '$lib/PageHead.svelte';
     import {
         BUNDLES,

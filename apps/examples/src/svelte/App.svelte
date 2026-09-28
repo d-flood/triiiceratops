@@ -1,21 +1,4 @@
 <script lang="ts">
-    /*
-     * examples/svelte/ — a real Svelte-package CONSUMER.
-     *
-     * Everything the viewer needs comes from the published package
-     * (`triiiceratops`, `triiiceratops/style.css`) exactly as an external app
-     * would import it; first-party plugins install from their own scoped
-     * packages (`@triiiceratops/plugin-*`). This is the page that would have
-     * caught the "styles missing from the Svelte dist" regression: if
-     * `triiiceratops/style.css` lacked the tokens/themes, the viewer here would
-     * render unstyled.
-     *
-     * The page CHROME (header/controls) is deliberately styled with this page's
-     * own fixed CSS — not the viewer's design tokens — because the published
-     * stylesheet is scoped to `.viewer-root` and (correctly) does not leak onto
-     * the host page. A consumer styles their own chrome; the viewer styles
-     * itself.
-     */
     import { TriiiceratopsViewer } from 'triiiceratops/svelte';
     import type { BuiltInTheme } from 'triiiceratops/svelte';
 
@@ -44,7 +27,6 @@
 
     const plugins: never[] = [];
 
-    // Full-featured config, so that the viewer's own chrome is exercised.
     const config = {
         showToggle: true,
         toolbarOpen: true,
@@ -133,7 +115,6 @@
 </div>
 
 <style>
-    /* Bespoke, token-independent chrome — represents the HOST app's own styling. */
     :global(html, body) {
         margin: 0;
         height: 100%;
@@ -237,7 +218,6 @@
         min-height: 0;
         position: relative;
     }
-    /* The viewer fills its pane (it styles ITSELF via the scoped package CSS). */
     .viewer-pane :global(.viewer-root) {
         position: absolute;
         inset: 0;

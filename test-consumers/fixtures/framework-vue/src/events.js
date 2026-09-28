@@ -1,12 +1,4 @@
-// One witness for all six translated event channels, shared by both viewers.
-//
-// The wrapper's callback (React) / emit (Vue) records the payload it received.
-// A DOM listener on `document` — the events are `bubbles: true, composed: true`,
-// so they escape the shadow root and reach it AFTER the wrapper's own
-// element-level listener — then compares that payload against the raw
-// `CustomEvent.detail` by IDENTITY. That is the whole "framework handlers
-// receive the exact detail object, not the DOM envelope" contract, observed
-// from outside the wrapper.
+// Witness for all six event channels; compares wrapper payload against `CustomEvent.detail` by identity.
 
 export const CHANNELS = [
     'statechange',

@@ -1,27 +1,4 @@
-/**
- * The headline promise, compiled rather than asserted: a React consumer
- * type-checks against `triiiceratops/react` with **no Svelte installed** and
- * **`skipLibCheck: false`**, so any Svelte type reaching the published
- * declaration graph of this subpath fails the packed run.
- *
- * `skipLibCheck: false` is what gives that teeth — every `.d.ts` this program
- * pulls in is checked, so an unresolvable Svelte type import anywhere in
- * `dist/react.d.ts`'s closure is an error here even though nothing in this file
- * mentions Svelte. `types: []` keeps ambient `@types/*` packages out, so the
- * only declarations in play are the ones the tarball and the two framework
- * peers actually ship.
- *
- * It is deliberately NOT a bare `import 'triiiceratops/react'`: a leak in a
- * type nobody references can hide behind laziness in the checker. Every named
- * export is used for what it is — the component is rendered as JSX with props
- * from every tier, the hooks are called and their results consumed, each error
- * class is constructed or narrowed to, and every exported type annotates a
- * value.
- *
- * `.` is deliberately exempt and must never be imported here: it is the Svelte
- * consumer's entry and exports the compiled component, whose declaration
- * legitimately imports `svelte`.
- */
+/** No-Svelte consumer: `skipLibCheck: false` makes any Svelte type leak fail. */
 
 import { useRef, useState, type ReactElement } from 'react';
 

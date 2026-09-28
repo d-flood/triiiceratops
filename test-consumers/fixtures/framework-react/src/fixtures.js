@@ -1,8 +1,4 @@
-// Framework-neutral fixture data shared by all three routes.
-//
-// Everything here is a hoisted module constant so the wrapper's edge-triggered
-// property tier can be asserted by IDENTITY: `element.manifestJson` must be the
-// very object below, never a stringified attribute.
+// Fixture data shared by all routes. Hoisted so the property tier asserts by identity.
 
 function svgImage(fill) {
     return (
@@ -44,7 +40,7 @@ function canvas(id, fill) {
     };
 }
 
-/** Viewer 1's manifest, supplied through the PROPERTY tier (`manifestJson`). */
+/** Viewer 1's manifest, via the property tier. */
 export const MANIFEST_ID = 'local://primary';
 export const CANVAS_1 = 'primary/c1';
 export const CANVAS_2 = 'primary/c2';
@@ -61,15 +57,11 @@ export const MANIFEST_JSON = {
     ],
 };
 
-/**
- * Viewer 2 loads a DIFFERENT manifest over HTTP (`manifest-id` alone), which is
- * both the isolation proof and the only path that dispatches `manifestchange`
- * (`setManifestData`, viewer 1's path, deliberately does not).
- */
+/** Viewer 2 loads a different manifest over HTTP, the only path dispatching `manifestchange`. */
 export const SECOND_MANIFEST_ID = '/manifest.json';
 export const SECOND_CANVAS = 'canvas/p1';
 
-/** Property tier: a plain config object, compared by identity. */
+/** Property tier, compared by identity. */
 export const CONFIG = { showThumbnailGallery: false };
 
 /**

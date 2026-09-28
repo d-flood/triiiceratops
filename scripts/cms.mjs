@@ -1,10 +1,5 @@
 #!/usr/bin/env node
-// `pnpm cms`: start the development server and list every page's editor.
-//
-// The editor routes exist only on a development server, and their URLs are not
-// linked from anywhere in the site — an author who does not already know the
-// `/edit/` convention has nothing to click. This prints the whole editable
-// surface, then hands the terminal to `pnpm dev`.
+// `pnpm cms`: list every page's editor, then hand off to `pnpm dev`.
 
 import { spawn } from 'node:child_process';
 import { readdirSync } from 'node:fs';
@@ -19,7 +14,7 @@ function fail(message) {
     process.exit(1);
 }
 
-/** Every content document, as a path relative to `content/`. */
+/** Every content document, relative to `content/`. */
 function documents(dir = CONTENT) {
     const out = [];
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -31,11 +26,6 @@ function documents(dir = CONTENT) {
     return out;
 }
 
-/**
- * A document's route, through Uncial's default mapping: `install.json` is
- * `/install/`, `docs/react.json` is `/docs/react/`, and `index.json` is the
- * site root rather than `/index/`.
- */
 function routeOf(document) {
     const stem = document.slice(0, -'.json'.length).split(sep).join('/');
     return stem === 'index' ? '/' : `/${stem}/`;
@@ -60,9 +50,6 @@ function list(origin, heading, routes) {
 
 function main() {
     const port = parsePort(process.argv.slice(2));
-    // 127.0.0.1 rather than localhost, and the same host Vite announces: where
-    // localhost resolves to ::1 first, these URLs would not reach a server Vite
-    // has bound to the IPv4 loopback alone.
     const origin = `http://127.0.0.1:${port}`;
 
     let routes;
@@ -84,8 +71,7 @@ function main() {
         '\nEdits save to apps/site/content/ as you type. Ctrl-C to stop.\n',
     );
 
-    // strictPort so the URLs above are the ones actually served: Vite's silent
-    // hop to the next free port would leave every line here wrong.
+    // strictPort keeps the printed URLs accurate.
     const dev = spawn(
         'pnpm',
         [

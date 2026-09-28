@@ -1,28 +1,5 @@
 #!/usr/bin/env node
-// Generate the Latin slice of each self-hosted face.
-//
-// Every face is served twice: this slice, and the full unmodified upstream file
-// behind it. The stylesheets declare the full face first and the slice second
-// with a `unicode-range`, so the slice wins for the codepoints it covers and
-// the full face is fetched only when a page actually paints something outside
-// them. A marketing page in English costs the slice; a manifest carrying Greek,
-// Cyrillic, CJK or Hebrew still renders, from the full face, on demand.
-//
-// NOTHING IS DROPPED. This is not lossy subsetting, which is ruled out:
-// that is about permanently removing glyphs from the shipped face, and no
-// glyph is removed here. The full faces stay byte-identical to upstream and
-// remain the fallback for everything the slice does not carry.
-//
-// Re-runnable, and it has to stay that way: the outputs are committed, so the
-// only thing that makes them trustworthy is that anyone can regenerate them and
-// get the same bytes.
-//
-//   node scripts/subset-fonts.mjs           regenerate, and report what changed
-//   node scripts/subset-fonts.mjs --check   fail if a committed slice is stale
-//
-// The subsetter is fontTools, fetched and cached by `uvx` rather than installed
-// into the repository: it runs at most a few times a year, and a pinned version
-// in a lockfile nobody re-resolves is how a build tool rots quietly.
+// Generate the Latin slices of each self-hosted face; outputs are committed and re-runnable.
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, renameSync, rmSync } from 'node:fs';
@@ -32,21 +9,7 @@ import { fileURLToPath } from 'node:url';
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const FONTS = join(REPO_ROOT, 'apps', 'site', 'static', 'fonts');
 
-/**
- * The two slices, with the codepoints each carries.
- *
- * Google Fonts' own `latin` and `latin-ext` ranges, copied rather than
- * invented — those ranges are what a decade of serving them has established as
- * what a western page really touches — plus the one symbol this site uses that
- * they do not carry. A hand-drawn range misses one curly quote or one dash and
- * fetches the whole face to paint it.
- *
- * Two slices and not one because the second is most of the weight. English
- * prose needs `latin` — 192 KB of the roman. Adding `latin-ext` (Latin
- * Extended A through D, the phonetic extensions, the currency symbols) takes it
- * to 238 KB for glyphs the marketing copy never paints. Split, a page pays for
- * what it sets.
- */
+/** Google Fonts `latin`/`latin-ext` ranges plus U+2192, which the rail links need. */
 const SLICE_RANGES = {
     Latin: [
         'U+0000-00FF',
@@ -63,13 +26,6 @@ const SLICE_RANGES = {
         'U+20AC',
         'U+2122',
         'U+2191',
-        // U+2192, the rightwards arrow, is the one addition to Google's own
-        // range: the rail's outbound links and every next-page link are set
-        // with it, and Google's `latin` carries U+2191 and U+2193 but not it.
-        // Without this the front page painted one arrow and fetched the whole
-        // 419 KB face to do it — which is the failure mode this whole split
-        // exists to avoid, and why `tests/type.spec.ts` now asserts that no
-        // marketing route fetches a full face.
         'U+2192',
         'U+2193',
         'U+2212',
@@ -98,22 +54,14 @@ const SLICE_RANGES = {
     ],
 };
 
-/** The three upstream faces. Each one produces one file per slice. */
+/** The three upstream faces. */
 const FACES = [
     'SourceSerif4Variable-Roman',
     'SourceSerif4Variable-Italic',
     'SourceCodeVariable-Roman',
 ];
 
-/**
- * Every file the stylesheets name, and how each is declared.
- *
- * `range` is `null` for the full face, which is declared first and without a
- * `unicode-range` so that it answers for everything; each slice is declared
- * after it, and wins for the codepoints it covers because the last matching
- * face is the one the browser picks. That ordering is the whole mechanism, and
- * reversing it would download the full face on every page.
- */
+/** Every file the stylesheets name. Slices are declared after the full face so they win. */
 export const FONT_FILES = FACES.flatMap((stem) => [
     { file: `${stem}.woff2`, from: null, range: null },
     ...Object.entries(SLICE_RANGES).map(([slice, codepoints]) => ({
@@ -135,12 +83,6 @@ function subset(full, slice, range) {
             `--unicodes=${range.replaceAll(' ', '')}`,
             '--flavor=woff2',
             `--output-file=${out}`,
-            // The slice has to stay the same variable face, only narrower:
-            // every layout feature, every name record (the licence lives in
-            // those), the variation axes, and the hinting all survive. Only
-            // glyphs outside the range are cut. Deliberately no
-            // `--desubroutinize` and no instancing — either would change the
-            // outlines rather than the glyph set.
             '--layout-features=*',
             '--name-IDs=*',
             '--name-legacy',

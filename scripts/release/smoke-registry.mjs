@@ -1,38 +1,5 @@
 #!/usr/bin/env node
-// Registry smoke test (post-publish, pre-release gate).
-//
-// After the promote job publishes the release manifest's tarballs,
-// this installs the EXACT published versions from the real npm registry into a
-// throwaway minimal consumer and asserts the published packages actually resolve
-// and load. It gates GitHub release creation: the release job only runs if this
-// passes.
-//
-// It deliberately fetches from the registry (not the workspace, not the packed
-// tarballs) so it exercises what a real user gets: registry metadata, tarball
-// download, dependency resolution, export maps, and the no-bundler CDN asset.
-//
-// Coverage (exact registry versions of core, CSS, Web Component, SDK, plugins,
-// and no-bundler assets):
-//   · core Svelte entry         (resolve 'triiiceratops')
-//   · core CSS                  (resolve 'triiiceratops/style.css')
-//   · Web Component entries      (resolve 'triiiceratops/element' + '/element/register')
-//   · core framework subpaths    (resolve 'triiiceratops/react' + '/vue' + '/selectors' + '/testing')
-//   · SDK + every framework subpath (import '@triiiceratops/plugin-sdk' + /react …)
-//   · each plugin ESM entry      (import '@triiiceratops/plugin-*', except the
-//                                 ones that re-export core's root entry — see
-//                                 BUNDLER_ONLY_PLUGINS below)
-//   · no-bundler asset fetch     (HTTP GET the published element IIFE + CSS from a CDN)
-//
-// A second stage adds one THROWAWAY CONSUMER PER FRAMEWORK, each installing published core plus exactly one optional peer
-// (`react` OR `vue`, at the range the published package itself declares) and
-// importing that subpath for real. Separate consumers are the point — they prove
-// the peers are genuinely optional and independent: a React application must not
-// need Vue installed, neither needs Svelte, and npm must not auto-install any of
-// the three. A single combined consumer could not tell those apart.
-//
-// Usage:
-//   node scripts/release/smoke-registry.mjs --manifest <release-manifest.json>
-// The manifest is produced by pack-artifacts.mjs and carries the exact versions.
+// Post-publish registry smoke test. Installs exact published versions and asserts they resolve and load.
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -65,29 +32,10 @@ function versionOf(pkgs, name) {
     return found.version;
 }
 
-/**
- * Published plugins whose ESM entry cannot be `import()`ed by plain Node, and are
- * therefore asserted by RESOLUTION here rather than by load.
- *
- * The cause is one static import: these entries import `triiiceratops` — the
- * root, Svelte library entry, whose modules a consumer's bundler compiles and
- * Node cannot. That is the same reason core's own root entry is resolve-only in
- * the smoke below, so the treatment matches; it is a property of the entry, not
- * a gap in the package. Their real load path is covered by the bundler
- * packed-consumer fixtures in `test-consumers/`.
- *
- * A plugin belongs here ONLY if its ESM entry reaches core's root. One that
- * imports a compiled subpath (`triiiceratops/image-export`) loads in Node fine
- * and must stay out, so the loop below keeps asserting the stronger thing for it.
- */
+/** Published plugins whose ESM entry needs a bundler; asserted by resolution, not import. */
 const BUNDLER_ONLY_PLUGINS = new Set(['@triiiceratops/plugin-av']);
 
-/**
- * Core's framework wrapper subpaths, and the named exports each must deliver.
- * The peer RANGE is not hard-coded — it is read out of the published package's
- * own `peerDependencies` so the smoke can never install a version the release
- * does not actually claim to support.
- */
+/** Core's framework wrapper subpaths and the exports each must deliver. */
 const FRAMEWORK_SUBPATHS = [
     {
         subpath: 'triiiceratops/react',
@@ -120,12 +68,12 @@ const FRAMEWORK_SUBPATHS = [
 const INSTALL_ATTEMPTS = 6;
 const INSTALL_RETRY_MS = 20_000;
 
-/** Sleep synchronously — this script is a linear script with no event loop work. */
+/** Sleep synchronously. */
 function sleepSync(ms) {
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-/** npm install into `dir` from `registry`, retrying registry propagation lag. */
+/** npm install with retries for registry propagation lag. */
 function npmInstall(dir, registry, label) {
     for (let attempt = 1; ; attempt++) {
         const install = spawnSync(
@@ -170,13 +118,8 @@ function writeConsumerManifest(dir, name, dependencies) {
 }
 
 /**
- * Install published core plus ONE optional peer, then import that framework
- * subpath for real in plain Node.
- *
- * Importing (not merely resolving) is what makes this a release gate: it
- * evaluates the published module graph with no `window`, `document`, or
- * `customElements`, which is the SSR-safety promise, and it fails if the wrapper
- * reaches for a package the consumer did not install. Returns true on success.
+ * Install core plus one optional peer, then import that framework subpath DOM-free.
+ * Proves the peers are optional and the wrapper is SSR-safe.
  */
 function smokeFrameworkSubpath({ entry, registry, coreVersion, peerRange }) {
     const dir = mkdtempSync(join(tmpdir(), `tri-smoke-${entry.peer}-`));
@@ -189,8 +132,7 @@ function smokeFrameworkSubpath({ entry, registry, coreVersion, peerRange }) {
         });
         npmInstall(dir, registry, entry.subpath);
 
-        // The optional peers really are optional: npm must not have pulled in
-        // the other framework, and never Svelte.
+        // Peers are optional: the other framework must not be pulled in.
         let peersOk = true;
         for (const forbidden of entry.forbiddenPeers) {
             const installed = existsSync(
@@ -235,8 +177,6 @@ async function main() {
     const { manifest, registry, cdn } = parseArgs(process.argv.slice(2));
     const { packages } = JSON.parse(readFileSync(manifest, 'utf8'));
     const v = (name) => versionOf(packages, name);
-    // Every published plugin but the SDK, which the loop above asserts on its own
-    // terms (it has framework adapter subpaths none of these carry).
     const publishedPlugins = packages
         .map((p) => p.name)
         .filter(
@@ -249,8 +189,7 @@ async function main() {
     console.log(`[smoke] consumer dir: ${dir}`);
     console.log(`[smoke] registry: ${registry}`);
 
-    // Exact, pinned versions — no ranges. This is the release gate: the versions
-    // just published are the versions installed.
+    // Pinned versions: the versions just published are the versions installed.
     const dependencies = Object.fromEntries(
         packages.map((p) => [p.name, v(p.name)]),
     );
@@ -261,9 +200,7 @@ async function main() {
     );
     npmInstall(dir, registry, `all ${packages.length} published packages`);
 
-    // The published core's own peer metadata drives the per-framework stage
-    // below, so the smoke installs exactly the versions the release claims to
-    // support and cannot drift from `packages/core/package.json`.
+    // Peer ranges come from the published core itself, so they cannot drift.
     const installedCore = JSON.parse(
         readFileSync(
             join(dir, 'node_modules', 'triiiceratops', 'package.json'),
@@ -277,9 +214,6 @@ async function main() {
     for (const peer of ['react', 'svelte', 'vue']) {
         const declared = typeof corePeers[peer] === 'string';
         const optional = corePeerMeta[peer]?.optional === true;
-        // Not installed HERE either: this consumer depends on every published
-        // package in the manifest and nothing else, so npm auto-installing a peer
-        // would show up as a resolved directory.
         const absent = !existsSync(
             join(dir, 'node_modules', peer, 'package.json'),
         );
@@ -293,9 +227,7 @@ async function main() {
         );
     }
 
-    // Resolution + load assertions run in a child node process rooted in the
-    // consumer, so every specifier resolves through the consumer's node_modules
-    // exactly as a user's app would.
+    // Assertions run in a child process rooted in the consumer.
     const smoke = `
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -369,7 +301,7 @@ process.exit(ok ? 0 : 1);
 
     const coreVersion = v('triiiceratops');
 
-    // One consumer per framework: published core + exactly one optional peer.
+    // One consumer per framework proves peers are independent.
     let frameworksOk = true;
     for (const entry of FRAMEWORK_SUBPATHS) {
         const peerRange = corePeers[entry.peer];
@@ -389,8 +321,7 @@ process.exit(ok ? 0 : 1);
             }) && frameworksOk;
     }
 
-    // No-bundler asset fetch: a plain <script src> user pulls the element IIFE and
-    // CSS straight off a CDN pinned to the exact published version.
+    // No-bundler assets straight off a CDN pinned to the published version.
     const assets = [
         `${cdn}/triiiceratops@${coreVersion}/dist/triiiceratops-element.iife.js`,
         `${cdn}/triiiceratops@${coreVersion}/dist/triiiceratops.css`,

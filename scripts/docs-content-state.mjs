@@ -1,24 +1,5 @@
 #!/usr/bin/env node
-// Content-state conformance-table generator.
-//
-// The published claim about which IIIF Content State forms the viewer supports
-// is generated from the committed fixture index that the unit tests are driven
-// off — `packages/core/src/lib/test/fixtures/content-state/index.json` — so the
-// documentation cannot claim a form no fixture pins. The index is plain JSON for
-// exactly this reason: this script reads it with no build step.
-//
-// What it writes is the `fixtures` attribute of the single read-only
-// `contentStateFixtures` block in the page's content document. The block renders
-// from those attributes and the editor refuses to modify them, which is what
-// makes `--check` — a byte comparison of the committed document against a
-// regeneration — a check on this script's output rather than on the editor's
-// serialization. Everything else in the document is the author's, and this
-// script rewrites none of it.
-//
-// Usage:
-//   node scripts/docs-content-state.mjs           # (re)generate the table
-//   node scripts/docs-content-state.mjs --check   # fail if the page is stale, or
-//                                                 # a fixture file is uncatalogued
+// Content-state conformance table, generated from the fixture index tests run on.
 
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -60,10 +41,7 @@ export function conformanceFixtures(indexFile = INDEX) {
     }));
 }
 
-/**
- * Fixture files no index entry names. An uncatalogued file is invisible to both
- * the tests and the table, so it is reported rather than silently tolerated.
- */
+/** Fixture files no index entry names. */
 export function orphanedFixtures(indexFile = INDEX) {
     const index = JSON.parse(readFileSync(indexFile, 'utf8'));
     const named = new Set(index.fixtures.map((fixture) => fixture.file));
@@ -72,10 +50,6 @@ export function orphanedFixtures(indexFile = INDEX) {
     );
 }
 
-/**
- * The document with the conformance block's rows replaced, and everything else —
- * the prose, the block's own persisted identity — left exactly as it was.
- */
 export function withFixtures(document, fixtures) {
     let found = 0;
     const rewrite = (node) => {
@@ -101,7 +75,6 @@ export function withFixtures(document, fixtures) {
     return next;
 }
 
-/** The on-disk form of a content document: tab-indented JSON, newline-ended. */
 function serialize(document) {
     return `${JSON.stringify(document, null, '\t')}\n`;
 }

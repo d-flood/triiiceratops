@@ -1,26 +1,4 @@
-// Single source of truth for the publishable packages, in dependency order
-// (core first: the SDK and every plugin type-check against core's built dist,
-// so it must be built + packed before them).
-//
-// Shared by the release tooling so the pack step, the reproducibility check, and
-// the registry smoke job never drift on which packages ship or what order they
-// build in:
-//   · pack-artifacts.mjs      — builds + packs the .tgz that CI promotes
-//   · verify-reproducible.mjs — two clean builds must yield identical checksums
-//   · smoke-registry.mjs      — installs the exact published versions post-publish
-//
-// Derive counts from `PUBLISHABLE_PACKAGES.length` rather than restating a
-// literal: the set has both shrunk and grown as packages were paused and
-// unpaused, and every consumer of this list that hard-coded a number had to be
-// chased down.
-//
-// Dropping a package from this list — not `private: true` — is what keeps it off
-// npm. npm does enforce `private` for `npm publish <tgz>` (EPRIVATE), but relying
-// on that alone would break the release rather than protect it: publish.yml runs
-// its promote loop under `set -euo pipefail` over the release manifest THIS list
-// generates, with core first, so a package we don't intend to publish left in the
-// list would pack, then fail mid-loop and abort the job with core already on the
-// registry — published, unsmoked, and with no GitHub release.
+// Publishable packages in dependency order. Shared by the release tooling.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -32,26 +10,15 @@ export const REPO_ROOT = join(
     '..',
 );
 
-/**
- * The publishable packages. `build` lists the package scripts that must run (in
- * order) before packing so the packed `dist/` is complete — these mirror the
- * packed-consumer harness (`test-consumers/driver/run.mjs`), which packs the same
- * set for its fixtures. Packing is not publishing. `dir` is the package directory
- * under `packages/`.
- */
+/** The publishable packages. `dir` is the directory under `packages/`. */
 export const PUBLISHABLE_PACKAGES = [
     {
         name: 'triiiceratops',
         dir: 'core',
-        // build:testing compiles the headless `triiiceratops/testing` entry AFTER
-        // build:lib (it needs the dist types).
         build: ['build:lib', 'build:testing', 'build:element'],
     },
     { name: '@triiiceratops/plugin-sdk', dir: 'plugin-sdk', build: ['build'] },
     {
-        // `build` also emits the four lazy IIFE chunks and then runs a
-        // shared-runtime guard, so the packed `dist/` is the whole directory a
-        // no-bundler consumer has to serve — not just `iife.js`.
         name: '@triiiceratops/plugin-av',
         dir: 'plugin-av',
         build: ['build'],
@@ -78,7 +45,7 @@ export const PUBLISHABLE_PACKAGES = [
     },
 ];
 
-/** Read a package's current version from its committed package.json. */
+/** Read a package's version from its committed package.json. */
 export function readVersion(pkg) {
     const manifest = JSON.parse(
         readFileSync(
@@ -89,26 +56,7 @@ export function readVersion(pkg) {
     return manifest.version;
 }
 
-/**
- * The dist-tag a version publishes under.
- *
- * While the repo is in changesets "pre" mode there is NO stable release yet, so
- * the newest prerelease is exactly what a bare `npm install` (i.e. `@latest`)
- * should resolve to — publish it to `latest`. This is the ONLY lever we have:
- * the project publishes via npm OIDC trusted publishing, which sets a package's
- * dist-tag at publish time and cannot run `npm dist-tag` afterwards (that needs a
- * classic token we deliberately don't have). So the tag a version lands on is
- * decided here and baked into the release manifest.
- *
- * Once pre mode is exited, normal npm convention resumes: a prerelease
- * (`1.0.0-rc.N`) publishes under its prerelease tag (`rc`), and a stable version
- * publishes under `latest`.
- *
- * Trade-off during pre mode: because a publish sets exactly one tag, the separate
- * `rc` tag is not advanced while we point `latest` at the newest rc. That's
- * acceptable pre-1.0 (`@latest` and the newest rc are the same thing), and the
- * `rc` tag resumes tracking prereleases the moment a stable release exists.
- */
+/** The dist-tag a version publishes under. In changesets pre mode everything lands on `latest`. */
 export function distTagFor(version) {
     if (existsSync(join(REPO_ROOT, '.changeset', 'pre.json'))) return 'latest';
     if (version.includes('-')) return version.split('-')[1].split('.')[0];

@@ -1,30 +1,5 @@
 #!/usr/bin/env node
-// Carry the framework consumer examples into the site's build output.
-//
-// `apps/examples` is built its own way and stays that way. Its Svelte example
-// has a Vite build; its web-component and plain-HTML examples are copied
-// verbatim; and its `dist/` is the real `triiiceratops` package output copied out
-// of the module tree. That last step is the whole point of the application: it
-// consumes the viewer through published entrypoints with no aliasing, and the
-// plain-HTML page is no-build by definition. Making them routes would destroy
-// what they exist to prove, so they are placed rather than ported.
-//
-// The layout inside the examples' own output IS the layout they are published
-// at: `examples/{svelte,web-component,plain-html}/` beside `dist/`, the release
-// bundles that the web-component and plain-HTML pages load with
-// `src="../../dist/…"`. Placing that output at the root of the site's build is
-// what makes those references resolve, and for the no-build page that reference
-// is the only thing pinning where the bundles live — so the copy is followed by
-// a check that every reference in the placed pages lands on a real file inside
-// the tree, through the same resolution the URL contract gate uses.
-//
-// The examples' own build is not run from here. `@triiiceratops/app-examples` is
-// a declared dependency of this application, which is what orders the two builds
-// under `pnpm build:all`; running it as a nested package-manager invocation would
-// race that ordering.
-//
-// Usage:
-//   node scripts/place-examples.mjs [--examples <dir>] [--build <dir>]
+// Carry the examples' `dist/` into the site build root, then check references land.
 
 import { cpSync, existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -52,7 +27,6 @@ function parseArgs(argv) {
     return args;
 }
 
-/** Every HTML document in `dir`, as paths relative to `tree`. */
 function htmlPages(tree, dir) {
     return readdirSync(dir, { recursive: true, withFileTypes: true })
         .filter((entry) => entry.isFile() && entry.name.endsWith('.html'))
@@ -76,8 +50,6 @@ if (!existsSync(build)) {
     process.exit(1);
 }
 
-// Replaced wholesale rather than merged: a page deleted from an example would
-// otherwise be served from the previous build forever.
 const placed = readdirSync(examples);
 for (const entry of placed) {
     rmSync(join(build, entry), { recursive: true, force: true });

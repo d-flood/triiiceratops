@@ -1,19 +1,8 @@
-// Shared helpers for the API snapshot tooling.
-//
-// The declaration mechanism is a d.ts SNAPSHOT (not api-extractor): starting from
-// each package's public entry `.d.ts` files (the `types` targets in its
-// `package.json` `exports`), we follow only RELATIVE imports within the package's
-// own `dist/` to compute the transitively-reachable public type graph — a
-// hand-rolled d.ts rollup. That graph is:
-//   - the per-package "public declaration report" snapshot content, and
-//   - the exact set the no-`any`-in-public-declarations gate scans.
-// Internal modules not reachable from a public entry (e.g. private components)
-// are excluded by construction.
+// Public .d.ts reachability rollup for the API snapshot tooling.
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, relative } from 'node:path';
 
-/** The `types` targets declared anywhere in a package.json (exports + top-level). */
 export function entryDtsFromPackage(pkgDir) {
     const pkg = JSON.parse(
         readFileSync(resolve(pkgDir, 'package.json'), 'utf8'),
@@ -33,7 +22,6 @@ export function entryDtsFromPackage(pkgDir) {
         .sort();
 }
 
-/** Resolve a relative import specifier to a concrete `.d.ts` inside dist. */
 function resolveDts(fromFile, spec) {
     if (!spec.startsWith('.')) return null;
     const base = resolve(dirname(fromFile), spec);
@@ -51,11 +39,6 @@ function resolveDts(fromFile, spec) {
 
 const IMPORT_RE = /(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g;
 
-/**
- * Transitively-reachable public `.d.ts` files for a package, from its export
- * entry points, following only relative in-package imports. Returns absolute
- * paths, sorted for determinism.
- */
 export function reachableDts(pkgDir) {
     const entries = entryDtsFromPackage(pkgDir);
     const seen = new Set();
@@ -75,7 +58,6 @@ export function reachableDts(pkgDir) {
     return { entries, files: [...seen].sort() };
 }
 
-/** Normalize a `.d.ts` body so the snapshot is deterministic across machines. */
 function normalizeDts(src) {
     return src
         .replace(/\r\n/g, '\n')
@@ -85,16 +67,10 @@ function normalizeDts(src) {
         .trimEnd();
 }
 
-/** Strip block + line comments so a token scan sees only real declarations. */
 export function stripComments(src) {
     return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 }
 
-/**
- * Build the human-reviewable per-package declaration report: a normalized,
- * path-sorted concatenation of every reachable public `.d.ts`, each under a
- * `// ── <relpath> ──` banner.
- */
 export function renderDeclarationReport(pkgDir, pkgName) {
     const { entries, files } = reachableDts(pkgDir);
     const rel = (f) => relative(pkgDir, f).replace(/\\/g, '/');
@@ -117,10 +93,6 @@ export function renderDeclarationReport(pkgDir, pkgName) {
     return lines.join('\n').trimEnd() + '\n';
 }
 
-/**
- * Scan a package's reachable public `.d.ts` for the `any` type token, ignoring
- * comments. Returns `{ file (pkg-relative), line }` records.
- */
 export function scanPublicAny(pkgDir) {
     const { files } = reachableDts(pkgDir);
     const hits = [];

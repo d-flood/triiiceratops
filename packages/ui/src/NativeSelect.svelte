@@ -1,17 +1,3 @@
-<!--
-    A themed native `<select>`.
-
-    The design system carries two select primitives because they buy different
-    things. `Select` renders a custom listbox so the OPEN popup can be themed,
-    coloured, and rounded like the rest of the chrome; it costs roughly 10 KB of
-    listbox, positioning, and keyboard machinery to do it. This one is the
-    browser's own control with the same closed-state skin — the popup is
-    UA-rendered and cannot be styled, which is the whole of the trade.
-
-    Reach for this wherever the popup's appearance is not worth its weight, and
-    for anything on the shipped element's critical path. Reach for `Select` when
-    the open list has to match the surrounding theme.
--->
 <script lang="ts">
     import type { Snippet } from 'svelte';
     import type { HTMLSelectAttributes } from 'svelte/elements';
@@ -35,8 +21,6 @@
         ...rest
     }: Props = $props();
 
-    // Height multipliers and font sizes are `Button`'s, not this control's own,
-    // so a select and a button of the same `size` line up in a control row.
     const SIZE: Record<Size, string> = {
         xs: '--size:calc(var(--tri-size-field,0.25rem)*6);--fontsize:0.6875rem;',
         sm: '--size:calc(var(--tri-size-field,0.25rem)*8);--fontsize:0.75rem;',
@@ -59,7 +43,6 @@
     .native-select {
         appearance: none;
         vertical-align: middle;
-        /* `Select`'s field width, so the two are interchangeable in a layout. */
         width: clamp(3rem, 20rem, 100%);
         max-width: 100%;
         height: var(--size);
@@ -70,7 +53,6 @@
         text-overflow: ellipsis;
         cursor: pointer;
         touch-action: manipulation;
-        /* Right padding clears the caret drawn in the background. */
         padding-inline: 0.75rem 1.75rem;
         border: var(--tri-border) solid var(--input-color);
         background-color: var(--tri-input-bg);
@@ -87,9 +69,6 @@
                 )
                 inset,
             0 -1px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset;
-        /* Two triangles rather than an SVG: `appearance: none` removes the UA
-           caret, and this draws the same one `Select` does with no data URI to
-           percent-encode. */
         background-image:
             linear-gradient(45deg, #0000 50%, currentColor 50%),
             linear-gradient(135deg, currentColor 50%, #0000 50%);
@@ -129,9 +108,6 @@
         color: color-mix(in oklab, var(--tri-content) 40%, transparent);
     }
 
-    /* The options belong to the caller, and the popup they appear in is the
-       platform's. Engines that do paint option colours read them from here, and
-       without this a dark theme renders light text on the UA's light default. */
     .native-select :global(option) {
         background-color: var(--tri-input-bg);
         color: var(--tri-content);

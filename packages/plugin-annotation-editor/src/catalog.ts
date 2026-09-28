@@ -1,11 +1,5 @@
 import type { LocaleCatalog } from '@triiiceratops/plugin-sdk';
 
-/**
- * The plugin's package-owned localization catalog (CONTEXT.md **Active locale**).
- * The catalog ships with (and evolves with) the plugin, so core's catalogs carry
- * no plugin keys. `en` is the required fallback; a missing key resolves to `en`
- * and then to the key itself.
- */
 export const catalog: LocaleCatalog = {
     en: {
         annotation_editor_title: 'Annotation Editor',

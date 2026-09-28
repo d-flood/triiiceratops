@@ -1,34 +1,5 @@
 // @vitest-environment node
-/**
- * Consumer-bundle regression, over the BUILT ESM entry.
- *
- * `dist/index.js` is the artifact a host's bundler consumes, and minifying it
- * can make a consumer's application BIGGER while making this package's own file
- * smaller. Vite's library build knows that and deliberately leaves ES output
- * whitespace-unminified, because collapsing whitespace strips the `@__PURE__`
- * annotations rollup, esbuild and webpack all tree-shake with. `vite.config.ts`
- * recovers those bytes with a terser pass that keeps the annotations
- * (`preserve_annotations`) — and this file is what proves the annotations are
- * still there and still doing their job, since nothing else in this repository
- * observes what happens to this package inside somebody else's build.
- *
- * The three exports are bundled SEPARATELY because that is how a host imports
- * them. What they retain is deliberately expressed as a byte CEILING rather
- * than as "this export's graph and no other's": the published entry is a single
- * rollup chunk, so importing any one export keeps the eager graph, and that was
- * as true before this pass as after it. Measured both ways, the retained marker
- * set is identical and every consumer is about 5.8 KB smaller — so the invariant
- * worth holding is that a consumer never retains MORE, which is what the
- * ceilings say.
- *
- * Requires `pnpm --filter @triiiceratops/plugin-av build` to have run. It runs
- * in the `node` environment rather than this package's jsdom default: it drives
- * a real Vite build, and esbuild refuses to start under jsdom's `TextEncoder`.
- *
- * To verify this guard once: set `format.comments` to `false` in
- * `vite.config.ts`'s `terserOptions`, rebuild, and watch the annotation
- * assertion fail.
- */
+/** Consumer-bundle regression over the built ESM entry. */
 
 import { mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

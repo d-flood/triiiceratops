@@ -1,35 +1,4 @@
-/**
- * `@triiiceratops/plugin-av` — the audiovisual plugin, authored entirely on
- * `@triiiceratops/plugin-sdk`.
- *
- * `definePlugin` returns the framework-neutral factory core activates through
- * the structural seam (it carries its own `activate(host)`); core never imports
- * this package. The reader-facing surface is not this panel but the **stage**:
- * DOM in an overlay layer over each claimed canvas, built and placed by
- * `createAvStageManager`.
- *
- * `requiredCapabilities` names the seams this plugin cannot work without, so it
- * fails closed rather than half-working:
- *
- * - `canvas-claim` — without it the plugin would render over an
- *   unsupported-content placard it cannot suppress.
- * - `shared-svelte-runtime` — without it there is no `window.Triiiceratops`
- *   Svelte to consume, and this plugin's IIFE bundles none of its own.
- * - `shared-core-utils` — without it there are no curated core utilities on the
- *   namespace, and this plugin's IIFE bundles no copies of its own either.
- * - `transport-chrome` — without it there is nowhere to register the playback
- *   controls, and this plugin builds none of its own: a reader would get a
- *   staged recording with no way to play it.
- *
- * `coreRange` is a caret over the 1.x line, not an exact pin and not an open
- * lower bound. `>=` would be satisfied by a core 2.0 on a future Svelte, and
- * `svelte/internal` is private API with no semver guarantee: the capability
- * says a runtime is shared, and only the same-major line says it is the same
- * runtime. The caret admits the prerelease this plugin was built against and
- * every 1.x core after it — including the 1.0.0 stable the release tooling
- * mints from it — while refusing 2.0.0 and above, so the floor moves only
- * deliberately, at a core major, and never as release busywork.
- */
+/** AV plugin: reader surface is the stage, not the panel. */
 
 import { mount, unmount } from 'svelte';
 

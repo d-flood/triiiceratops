@@ -1,24 +1,3 @@
-/**
- * The narrow JSON-shape readers the eager manifest scanners share.
- *
- * Every scanner in the entry — `sources.ts`, `captions.ts`, `waveformLink.ts`,
- * `renderingTranscript.ts` — walks untyped manifest JSON and needs the same
- * three or four guards to do it. Rollup does not dedupe identical function
- * bodies across modules, so a copy per scanner is a copy in the bundle.
- *
- * Deliberately not core's IIIF helpers: the IIFE reads only four curated
- * functions off `window.Triiiceratops.core` (see `sharedRuntimeGate.ts`), and
- * widening that namespace to publish guards this small would cost core more than
- * it saves here.
- */
-
-/**
- * `value` as an indexable object, or `null` for a primitive or `null`.
- *
- * Arrays are not excluded: an array is indexable, and reading a named IIIF
- * property off one yields `undefined` — the same answer a caller gets from a
- * nulled record — so no caller needs a check of its own.
- */
 export function asRecord(value: unknown): Record<string, unknown> | null {
     return value && typeof value === 'object'
         ? (value as Record<string, unknown>)

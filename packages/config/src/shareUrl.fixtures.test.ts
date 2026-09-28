@@ -1,25 +1,4 @@
-/**
- * Share URLs pinned byte for byte, in both directions.
- *
- * Every other test here asserts the codec against itself: build a URL, read it
- * back, agree. That cannot catch a change to the format, because both halves
- * move together. Literal strings can, which is what these are.
- *
- * The two directions are separate lists because they promise opposite things,
- * and one change can be right for one and wrong for the other.
- *
- * `RECEIVED` holds links already sent, verbatim. What they promise is that
- * loading one still resolves to the view and the configuration it carried, so
- * they are only ever read here, never rebuilt. Editing one of these strings
- * breaks the link it stands for — which is why the `mode` parameter they carry
- * survives in them after the builder stopped emitting it: the playground that
- * switched its view on `mode` is retired, nothing ever read the parameter back,
- * and a link that has one still has to open.
- *
- * `EMITTED` holds what the codec produces now. This is the format-drift guard —
- * a parameter renamed, an encoding widened, a key reordered — and it is the one
- * to re-derive, deliberately, when the emitted format is meant to change.
- */
+/** Share URLs pinned byte for byte. Round-trip tests cannot catch a format change; literal strings can. `RECEIVED` is read-only; `EMITTED` is re-derived when the format means to change. */
 
 import { describe, expect, it } from 'vitest';
 import { parseContentState } from 'triiiceratops';
@@ -45,9 +24,7 @@ const defaults = {
 
 type ReceivedFixture = {
     name: string;
-    /** The link, exactly as it was sent. */
     url: string;
-    /** What a load of it must resolve to. */
     view: { manifestUrl: string; canvasId: string; region: object | null };
     config: SparseConfig;
 };
@@ -89,12 +66,7 @@ describe.each(RECEIVED)('a link already sent: $name', (fixture) => {
         );
     });
 
-    /*
-     * The retired parameter is carried through untouched rather than stripped or
-     * rejected: the resolvers name the parameters they read, so an unknown one
-     * is simply not one of them. This is what makes dropping a parameter from
-     * the emitter safe for links already in circulation.
-     */
+    /* Unknown parameters are ignored, so dropping one from the emitter is safe for links in circulation. */
     it('is unharmed by the retired parameter it carries', () => {
         expect(new URLSearchParams(fixture.url.split('?')[1]).has('mode')).toBe(
             true,
@@ -109,7 +81,6 @@ type EmittedFixture = {
         target: ViewTarget;
         config: SparseConfig;
     };
-    /** The URL the codec produces, verbatim. */
     url: string;
 };
 
@@ -158,12 +129,7 @@ describe.each(EMITTED)('what the codec emits: $name', (fixture) => {
     });
 });
 
-/**
- * The site's own sample manifests are served at root-relative paths, so the id a
- * content state carries is absolutized against the page it was shared from.
- * Pinned separately because the base is an argument here rather than the ambient
- * location.
- */
+/** Relative sample manifests absolutize against the sharing page. */
 describe('a relative sample manifest, absolutized against the sharing page', () => {
     const target: ViewTarget = {
         manifestId: '/manifests/sample.json',

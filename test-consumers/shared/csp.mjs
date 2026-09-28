@@ -1,15 +1,6 @@
 // Shared CSP-fixture helpers.
-//
-// The CSP fixtures deliver a strict Content-Security-Policy via a
-// `<meta http-equiv>` in their HTML and assert that the packed viewer + plugins
-// run under it with ZERO `securitypolicyviolation` events. This helper collects
-// those events into the page before navigation.
 
-/**
- * Register a `securitypolicyviolation` collector as an init script (so it is
- * installed before the page's own scripts run) and return the collected list on
- * demand. Call BEFORE `page.goto`.
- */
+/** Collect `securitypolicyviolation` events; call before `page.goto`. */
 export async function collectCspViolations(page) {
     await page.addInitScript(() => {
         window.__cspViolations = [];
@@ -30,7 +21,7 @@ export async function collectCspViolations(page) {
     };
 }
 
-/** Format collected violations into a readable assertion message. */
+/** Format violations for assertion output. */
 export function formatViolations(violations) {
     return violations
         .map(

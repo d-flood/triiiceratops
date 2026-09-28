@@ -1,21 +1,5 @@
 #!/usr/bin/env node
-// Release-reproducibility gate (required CI).
-//
-// Two independent clean builds of the SAME source tree must produce byte-identical
-// tarballs for every publishable package (`PUBLISHABLE_PACKAGES` is the list).
-// This proves publication can safely PROMOTE
-// the artifacts required CI verified instead of rebuilding: a rebuild at publish
-// time would land on the same bytes anyway.
-//
-// Method: clean every package `dist/`, build + pack into dir A; clean again,
-// build + pack into dir B; compare the two `SHA256SUMS`. Both output dirs are
-// temporary and `dist/` is gitignored, so the working tree is untouched.
-//
-// Excluded variable metadata: NONE. `npm pack` normalises file mtimes to a fixed
-// epoch, sorts archive entries, and zeroes the gzip header mtime/OS bytes, so the
-// whole `.tgz` is compared — there is no timestamp or environment byte to mask.
-// If this ever regresses (e.g. a build embeds a build date), fix the build to be
-// deterministic rather than adding an exclusion here.
+// Two clean builds of the same tree must yield byte-identical tarballs.
 
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -47,7 +31,7 @@ function cleanDist() {
     }
 }
 
-/** Clean, build, and pack into a fresh temp dir; return { dir, sums }. */
+/** Clean, build, and pack into a fresh temp dir. */
 function buildAndPack(label) {
     console.log(
         `\n=== reproducibility build ${label}: clean + build + pack ===`,
@@ -67,8 +51,7 @@ function main() {
     console.log('build A:\n' + a.sums);
     console.log('build B:\n' + b.sums);
 
-    // Compare as sorted { tarball -> sha } maps so ordering can't cause a false
-    // mismatch (pack order is fixed, but be defensive).
+    // Compare as maps so ordering cannot false-mismatch.
     const parse = (sums) =>
         Object.fromEntries(
             sums.split('\n').map((line) => {

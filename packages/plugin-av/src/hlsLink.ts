@@ -1,27 +1,4 @@
-/**
- * Deciding how an HLS body is played, and loading the code that can play it.
- *
- * This module is eager and deliberately tiny, for the same reason
- * `waveformLink.ts` is: it is the half that has to run on every claimed canvas
- * in order to decide whether the hls.js chunk is worth fetching at all. Nothing
- * here touches hls.js — the moment it did, roughly 225 KB gzip of media-source
- * machinery would land in the entry that a manifest of progressive MP4s never
- * needs.
- *
- * ## The gate
- *
- * Native HLS wins wherever it exists. Safari and every iOS browser decode a
- * playlist straight off `src`, using the platform's own pipeline — hardware
- * decoding, AirPlay, Picture-in-Picture — so loading a JavaScript player over
- * the top of it would be slower, heavier and worse. `canPlayType` is asked of a
- * REAL element rather than a cached probe: the answer is the element's, and an
- * `<audio>` and a `<video>` need not agree.
- *
- * hls.js is the fallback, not the default. Where neither can play the stream
- * (no Media Source Extensions, so `Hls.isSupported()` is false) the canvas gets
- * the same "can't play" treatment a dead URL gets — one stage, never the
- * session.
- */
+/** Native HLS wins; hls.js is fallback. Eager and tiny so MP4 pages never fetch it. */
 
 import { warnAboutUnloadableHlsChunk } from './degradation';
 import type { AvSource } from './sources';

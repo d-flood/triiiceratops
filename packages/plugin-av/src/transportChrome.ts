@@ -1,29 +1,4 @@
-/**
- * The **transport chrome** this plugin registers: the view model core reads on
- * its own cadence, the command port every control goes through, and the
- * activation-wide audio preferences behind the volume and mute values.
- *
- * There is no DOM here and no component. Core owns the controls, their layout
- * and their keyboard behaviour (CONTEXT.md **Transport chrome**); this module
- * owns the facts they render, which are AVState's plus the handful of things
- * beside it that are not playback state — the buffered ranges, the waveform
- * strip, and which text tracks actually loaded.
- *
- * The view model is held in core's vocabulary rather than this plugin's, so a
- * read is a shallow spread instead of a field-by-field copy through a renaming
- * layer. Captions are therefore "tracks" here, as they are to a core that models
- * no medium; `catalog.ts` is where they are captions again.
- *
- * Nothing here is reactive. Core reads through `$state.raw` and assigns the
- * result, so the signal core acts on is {@link Transport.subscribe}'s callback
- * and the identity of the object {@link Transport.view} hands back — never a
- * dependency taken on a field. `$state` would only buy a Proxy per playback
- * frame that nothing reads through.
- *
- * Times crossing to core are FRACTIONS of the canvas timeline, never seconds:
- * core knows no clock. `seek` converts back at this boundary, and the seek-step
- * policy stays here, on the view.
- */
+/** Transport chrome: view model core reads; times cross as fractions, never seconds. */
 
 import type { AVState } from './avState';
 import type { CaptionTrack } from './captions';

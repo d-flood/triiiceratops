@@ -3,27 +3,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { AnnotationStorageAdapter } from '../types';
 import type { W3CAnnotation } from '../adapters/types';
 
-/**
- * Adapter authoring kit — a reusable conformance suite so adapter authors can
- * verify their implementation against the contract the plugin relies on.
- *
- * An adapter is pure storage: the plugin owns display sync, caching, id
- * bookkeeping, timestamp/attribution stamping, and error handling. This suite
- * therefore checks only storage behavior — load/create/update/delete round-trips,
- * verbatim body preservation (including structured/unknown shapes), key isolation,
- * and the two opt-in capabilities (server-assigned ids and hydrate).
- *
- * @example
- * ```ts
- * import { runAdapterContractTests } from '@triiiceratops/plugin-annotation-editor/testing';
- * import { MyAdapter } from './MyAdapter';
- *
- * runAdapterContractTests(() => new MyAdapter(), {
- *   supportsIdReconciliation: true,
- *   supportsHydrate: true,
- * });
- * ```
- */
 export interface AdapterContractOptions {
     /**
      * The adapter mints its own canonical id on `create` and returns it (as an

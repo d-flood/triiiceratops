@@ -1,27 +1,5 @@
 #!/usr/bin/env node
-// Cookbook recipe drift detector.
-//
-// The repository makes claims about IIIF Cookbook recipes that only stay true
-// while the Cookbook keeps publishing what it published when the claims were
-// written: `packages/cookbook/src/recipes.ts` names a manifest URL per
-// recipe, `src/lib/test/fixtures/manifests/{cookbook,av}/` vendors most of those
-// manifests verbatim, and the content-state fixture index pins a manifest id and
-// canvas id per fixture. This script fetches the live Cookbook and reports where
-// those three sets of claims no longer hold.
-//
-// It reports; it never rewrites the catalog or the fixtures, and by default it
-// exits 0 even when it finds drift — the scheduled workflow that runs it must
-// never be able to fail a build over third-party infrastructure. A human reads
-// the report and decides.
-//
-// Node reads the catalog's TypeScript directly, as `scripts/api-report.ts` is
-// run, so there is no build step.
-//
-// Usage:
-//   node scripts/recipe-drift.mjs
-//   node scripts/recipe-drift.mjs --report drift.md
-//   node scripts/recipe-drift.mjs --recipe 0009-book-1 --recipe 0299-region
-//   node scripts/recipe-drift.mjs --limit 5 --fail-on-drift
+// Cookbook recipe drift detector. Reports only, never rewrites, exits 0 by default.
 
 import {
     appendFileSync,
@@ -50,8 +28,6 @@ const VENDORED_DIRS = [
 ];
 
 const DEFAULT_REPORT = join(REPO_ROOT, 'recipe-drift-report.md');
-// Be a good citizen against iiif.io: a small pool, a bounded wait, and a
-// User-Agent whose owner is identifiable from a server log.
 const CONCURRENCY = 6;
 const TIMEOUT_MS = 20_000;
 const USER_AGENT =
@@ -62,8 +38,7 @@ const DIFF_LIMIT = 12;
 const DIFF_SCAN_LIMIT = 500;
 
 // ---------------------------------------------------------------------------
-// Pure helpers. Exported for `recipeDrift.test.ts`, which must not touch the
-// network — everything below this line is fed literal objects.
+// Pure helpers.
 // ---------------------------------------------------------------------------
 
 function kindOf(value) {
@@ -72,10 +47,7 @@ function kindOf(value) {
     return typeof value;
 }
 
-/**
- * JSON with every object key in a stable order, so re-serialising a manifest at
- * a different indent or key order is not reported as drift.
- */
+/** JSON with stable key order, so re-serialising is not drift. */
 export function canonicalJson(value) {
     return JSON.stringify(canonicalise(value));
 }
@@ -89,26 +61,18 @@ function canonicalise(value) {
     return out;
 }
 
-/** A value abbreviated enough to sit on one report line. */
+/** A value abbreviated to one report line. */
 function render(value) {
     const text = JSON.stringify(value) ?? String(value);
     return text.length > 80 ? `${text.slice(0, 77)}…` : text;
 }
 
-/**
- * Differing JSON paths between two documents, as `items/0/height: 1800 -> 1900`
- * or `label/en/0: added`. Bounded twice over: only `limit` paths are returned,
- * and the walk abandons a wholesale restructuring rather than enumerating every
- * leaf of it, so one rewritten manifest cannot produce a ten-thousand-line
- * report.
- */
+/** Differing JSON paths, bounded so one rewrite cannot flood the report. */
 export function diffJson(committed, live, options = {}) {
     const limit = options.limit ?? DIFF_LIMIT;
     const scanLimit = options.scanLimit ?? DIFF_SCAN_LIMIT;
     const paths = [];
     let total = 0;
-    // Set only where the walk actually gives up, so a document with exactly
-    // `scanLimit` genuine differences is not reported as truncated.
     let abandoned = false;
 
     const record = (path, change) => {
@@ -166,10 +130,6 @@ export function documentId(document) {
     return document.id ?? document['@id'];
 }
 
-/**
- * What a content-state fixture's `expected` block pins that the live document no
- * longer satisfies. Empty means the fixture's assumptions still hold.
- */
 export function checkFixtureExpectations(fixture, live) {
     const expected = fixture.expected ?? {};
     const problems = [];
@@ -178,8 +138,6 @@ export function checkFixtureExpectations(fixture, live) {
         problems.push(
             `manifest id is now ${render(documentId(live))}, fixture pins ${render(expected.manifestId)}`,
         );
-        // A document that is not the one the fixture pins says nothing useful
-        // about that document's canvases.
         return problems;
     }
 
@@ -199,11 +157,6 @@ export function checkFixtureExpectations(fixture, live) {
 // Reading the repository
 // ---------------------------------------------------------------------------
 
-/**
- * Vendored manifests grouped by the recipe id their filename starts with. A
- * recipe that publishes several manifests has several files here, only one of
- * which corresponds to the catalog's `manifestUrl`.
- */
 function vendoredByRecipe(recipeIds) {
     const byRecipe = new Map(recipeIds.map((id) => [id, []]));
     for (const dir of VENDORED_DIRS) {
@@ -225,19 +178,11 @@ function vendoredByRecipe(recipeIds) {
     return byRecipe;
 }
 
-/**
- * A manifest id normalised for identity comparison. `0229-behavior-ranges` is
- * vendored verbatim from a Cookbook manifest whose own `id` carries a trailing
- * space; without trimming both sides, that recipe matches no vendored file and
- * silently drops out of drift detection.
- */
+/** A manifest id trimmed, so a trailing space cannot silently drop a recipe. */
 function manifestKey(value) {
     return typeof value === 'string' ? value.trim() : undefined;
 }
 
-/**
- * Which vendored file, if any, is the one the catalog's `manifestUrl` names.
- */
 function matchVendored(candidates, manifestUrl) {
     const wanted = manifestKey(manifestUrl);
     return candidates.find(
@@ -245,21 +190,6 @@ function matchVendored(candidates, manifestUrl) {
     );
 }
 
-/**
- * Repository-side accounting of the vendored manifests against the catalog.
- *
- * Purely a function of the catalog and the vendored directories, so it is
- * computed before any fetching and covers all catalogued recipes whatever
- * `--recipe`/`--limit` selected and whatever the network returned:
- *
- * - `comparable` — vendored files that are a catalogued recipe's `manifestUrl`.
- * - `pinsSiblingManifest` — vendored files under a catalogued recipe id that pin
- *   a different manifest published by that same recipe (`0010-…-manifest-ttb`,
- *   `0011-…-manifest-individuals`). Legitimate, and never compared.
- * - `unaccounted` — vendored files under a catalogued recipe id whose own id is
- *   neither of the above. A silent skip here is the failure `manifestKey` exists
- *   to prevent, so these are named individually in the report.
- */
 function accountVendored(vendored) {
     let comparable = 0;
     let pinsSiblingManifest = 0;
@@ -289,20 +219,7 @@ function accountVendored(vendored) {
 // Fetching
 // ---------------------------------------------------------------------------
 
-/**
- * Fetch and parse one URL. A transport failure, a non-OK status and unparseable
- * JSON are all "unreachable", and never throw.
- *
- * Unreachability counts as a finding and feeds the `drift` output flag: a
- * catalogued URL that cannot be read is far more often a URL the Cookbook has
- * moved or retired — exactly what this job exists to catch — than an iiif.io
- * outage. During a real outage the cost is one advisory comment on an advisory
- * issue, which is the cheaper mistake than staying quiet about a stale catalog.
- *
- * A body that is not JSON is worth reporting in detail: iiif.io answers a
- * missing recipe with a 301 to its HTML 404 page, so a stale catalog URL arrives
- * here as a 200 whose redirect target is the only evidence.
- */
+/** Fetch one URL; transport/status/parse failures are "unreachable", never thrown. */
 async function fetchJson(url) {
     try {
         const response = await fetch(url, {
@@ -337,7 +254,7 @@ async function fetchJson(url) {
     }
 }
 
-/** Memoized so a fixture pinning a catalogued URL costs no second request. */
+/** Memoized fetcher. */
 function makeFetcher() {
     const cache = new Map();
     return (url) => {
@@ -346,7 +263,7 @@ function makeFetcher() {
     };
 }
 
-/** Run `worker` over `items` with a bounded number of requests in flight. */
+/** Run `worker` over `items` with bounded concurrency. */
 async function pooled(items, worker, size = CONCURRENCY) {
     let next = 0;
     const runners = Array.from(
@@ -367,18 +284,13 @@ function parseArgs(argv) {
         report: DEFAULT_REPORT,
         recipes: [],
         limit: undefined,
-        // Opt-in only, for a human running this locally who wants a non-zero
-        // exit to hang a shell `&&` off. CI must never gate on drift, so the
-        // default stays 0 and the workflow does not pass this.
         failOnDrift: false,
     };
     const fail = (message) => {
         console.error(`recipe-drift: ${message}`);
         process.exit(2);
     };
-    // A missing or malformed value must be loud: `--limit abc` used to fetch
-    // nothing and report a confident "all clear", the worst outcome for a job
-    // whose whole purpose is saying when a claim went stale.
+    // A bad value must fail loudly rather than report a false "all clear".
     const value = (arg, raw) => {
         if (raw === undefined) fail(`${arg} needs a value`);
         return raw;
@@ -471,9 +383,6 @@ async function run(options) {
         }
         const result = await fetchDocument(fixture.expected.manifestId);
         if (result.error) {
-            // Kept out of `brokenFixtures`: "N fixture assumptions broken" must
-            // mean a live manifest no longer satisfies what a fixture pins, not
-            // that the manifest could not be read at all.
             unreachableFixtures.push({
                 id: fixture.id,
                 recipe: fixture.recipe,
@@ -514,7 +423,6 @@ async function run(options) {
 // Reporting
 // ---------------------------------------------------------------------------
 
-/** The differing paths of one drifted recipe, plus the "and N more" tail. */
 function driftLines(entry) {
     const lines = [...entry.paths];
     const hidden = entry.total - entry.paths.length;
@@ -658,8 +566,6 @@ async function main() {
         report.unreachableFixtures.length > 0 ||
         report.accounting.unaccounted.length > 0;
 
-    // The workflow reads this rather than an exit code, so "drift found" and
-    // "the job failed" stay separate things.
     if (process.env.GITHUB_OUTPUT) {
         appendFileSync(process.env.GITHUB_OUTPUT, `drift=${drift}\n`);
     }

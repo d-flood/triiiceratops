@@ -1,37 +1,4 @@
 // Performance measurement for one built repo root.
-//
-// Produces a measurement object: per-artifact byte sizes + per-scenario browser
-// runtime medians. The RUNTIME half drives the PACKED artifacts a user actually
-// loads — the self-contained element IIFE + each plugin IIFE — served from a
-// static page (no bundler), exactly the `plain-html-iife` consumer shape. The
-// browser scenario logic lives here (not in each checked-out tree) so it is
-// byte-identical across the base and head SHAs; only the loaded dist differs.
-//
-// Scenarios:
-//   initial_viewer_mount, local_manifest_readiness, first_canvas_render,
-//   theme_switch, core_interaction, activate_<each plugin>.
-// Interaction + plugin scenarios run with ALL first-party plugins activated and
-// subscribed, so subscription overhead is part of the baseline (ADR 0008).
-//
-// MEMORY is measured separately, against the generated 800-canvas
-// continuous fixture rather than the two-canvas timing manifest — virtualization
-// says nothing on a short manifest — and it reads the RENDERER'S OWN residency
-// counters, not a browser heap metric: decoded tiles are `ImageBitmap`s living
-// outside the JS heap, so a heap ceiling reads near-flat while tiles leak.
-// Those counters exist only on the first-party renderer, so `memory` is `null`
-// for a dist that predates it and the comparison reports the scenario as
-// skipped.
-//
-// Which renderer a dist contains is a property of the DIST, not of this run, so
-// the script detects and records it as `renderer` rather than assuming it. A
-// base ref old enough to have shipped the third-party renderer reports
-// `unknown`, which is what stops its numbers from being read as this renderer's.
-//
-// The TRACING MODE is recorded for the same reason and is enforced the same way:
-// see `tracing` below and `checkTracingMode` in ./lib.mjs.
-//
-// Standalone:  node scripts/perf/measure.mjs --root <builtRepo> --out out.json \
-//                  [--traces-dir dir] [--warmups N] [--runs M] [--size-only]
 
 import {
     cpSync,
@@ -61,14 +28,7 @@ import {
     step,
 } from './lib.mjs';
 
-// The 800-canvas continuous fixture, shared with the e2e suite rather than
-// restated here: it is generated (not checked in), so the perf harness mounts
-// the same middleware the dev server does and the memory scenario measures the
-// exact manifest `canvas-renderer-continuous.spec.ts` asserts against.
-//
-// Imported from REPO_ROOT — the HEAD tree — on purpose: like the scenario bodies
-// below, the fixture is measurement code and must be byte-identical for the base
-// and head dist. Only the loaded dist differs.
+// 800-canvas continuous fixture, shared with the e2e suite.
 const { CONTINUOUS_CANVAS_COUNT, CONTINUOUS_MANIFEST, fixtureMiddleware } =
     await import(
         pathToFileURL(
@@ -81,9 +41,7 @@ const { HEIGHT: FIXTURE_PAGE_HEIGHT, WIDTH: FIXTURE_PAGE_WIDTH } = await import(
     ).href
 );
 
-// Playwright is a devDependency of the `test-consumers` workspace package;
-// resolve it from there (anchoring the require at the driver) so this script
-// needs no root dependency.
+// Playwright resolved from test-consumers so this script needs no root dependency.
 const driverRequire = createRequire(
     pathToFileURL(join(REPO_ROOT, 'test-consumers', 'driver', 'lib.mjs')).href,
 );
@@ -95,10 +53,7 @@ const { serveDir } = await import(
     pathToFileURL(join(REPO_ROOT, 'test-consumers', 'driver', 'lib.mjs')).href
 );
 
-// Real GPU locally through Vulkan (mirrors `scripts/playwright-gpu.ts`); CI
-// runners have no GPU, so there — and only there — fall back to software WebGL
-// for the plugin and demo graphs that still touch it. The viewer's own
-// renderer is Canvas2D and needs none of it.
+// Real GPU locally; software WebGL on CI, which has no GPU.
 const LAUNCH = process.env.CI
     ? {
           args: [
@@ -117,8 +72,7 @@ const LAUNCH = process.env.CI
           ],
       };
 
-// Two-canvas local manifest (data-URI images, no network). The second canvas
-// makes `core_interaction` (next-canvas navigation) a real state change.
+// Two-canvas local manifest; the second canvas makes navigation a real state change.
 function perfManifest() {
     const canvas = (n, fill) => ({
         id: `canvas/p${n}`,
@@ -156,9 +110,6 @@ function perfManifest() {
     };
 }
 
-// The measurement page loads the production plugin IIFEs and the core IIFE
-// staged below. Current trees replace that one served core file with an
-// otherwise-equivalent perf build carrying private renderer counters.
 function perfPage(plugins) {
     const scripts = [
         '/node_modules/triiiceratops/dist/triiiceratops-element.iife.js',
@@ -175,7 +126,7 @@ ${scripts.map((s) => `<script src="${s}"></script>`).join('\n')}
 </html>`;
 }
 
-/** Copy built dist into a served node_modules layout mirroring a real install. */
+/** Copy built dist into a served node_modules layout. */
 function stageWebRoot(root, webRoot) {
     const copyDist = (fromPkgDir, toNodeModulesPath) => {
         const from = join(root, fromPkgDir, 'dist');
@@ -213,13 +164,8 @@ function stageWebRoot(root, webRoot) {
     );
 }
 
-// ── Browser-side scenario bodies ───────────────────────────────────────────
-// Each runs inside the page and returns elapsed milliseconds via
-// performance.now(). They are passed to page.evaluate so the exact same code
-// runs against the base and head dist.
+// ── Browser-side scenario bodies ──
 
-// Fresh load session: measures mount, manifest readiness, and first canvas
-// render as three phases of ONE real page load.
 const SESSION_FN = () =>
     new Promise((resolve, reject) => {
         const stage = document.getElementById('stage');
@@ -259,8 +205,6 @@ const SESSION_FN = () =>
         requestAnimationFrame(poll);
     });
 
-// Build a viewer, activate + subscribe all plugins, wait until ready. Returns
-// the element handle id on window for the follow-up interaction measurement.
 const READY_WITH_PLUGINS_FN = ({ pluginPkgs, toggles }) =>
     new Promise((resolve, reject) => {
         const stage = document.getElementById('stage');
@@ -282,9 +226,6 @@ const READY_WITH_PLUGINS_FN = ({ pluginPkgs, toggles }) =>
         const activate = () => {
             const reg = window.Triiiceratops.plugins;
             el.plugins = pluginPkgs.map((p) => reg.get(p)).filter(Boolean);
-            // Wait until every plugin has mounted its toolbar toggle (activated
-            // AND subscribed) so subscription overhead is live for the follow-up
-            // interaction measurement.
             const waitToggles = () => {
                 const sr = el.shadowRoot;
                 const allUp =
@@ -302,8 +243,6 @@ const READY_WITH_PLUGINS_FN = ({ pluginPkgs, toggles }) =>
         waitCanvas();
     });
 
-// Theme switch on the ready+subscribed viewer: light -> dark, timed to the first
-// frame where the themed token actually changes.
 const THEME_FN = () =>
     new Promise((resolve, reject) => {
         const el = window.__perfEl;
@@ -328,8 +267,6 @@ const THEME_FN = () =>
         requestAnimationFrame(poll);
     });
 
-// Core interaction on the ready+subscribed viewer: click next-canvas, timed to
-// the canvaschange event (post reactive + subscriber flush).
 const INTERACTION_FN = () =>
     new Promise((resolve, reject) => {
         const el = window.__perfEl;
@@ -345,7 +282,6 @@ const INTERACTION_FN = () =>
         setTimeout(() => reject(new Error('canvaschange never fired')), 5000);
     });
 
-// First activation of a single plugin on a ready viewer.
 const ACTIVATE_FN = ({ pkg, toggle }) =>
     new Promise((resolve, reject) => {
         const stage = document.getElementById('stage');
@@ -406,34 +342,7 @@ const RENDERER_FN = () =>
         requestAnimationFrame(poll);
     });
 
-/**
- * The memory scenario: acceptance scenario 4, instrumented.
- *
- * Open the 800-canvas continuous fixture, traverse the WHOLE world in `steps`
- * discrete viewport moves, stop, wait for the tile network to fall quiet, and
- * read the renderer's counters.
- *
- * The traverse is a stepped `setView` rather than a synthesized flick, and the
- * distinction matters for what is being measured. What ADR 0014 claims is that
- * residency is a pure function of viewport position, so eviction is distance-
- * based and the resident set does not depend on how the reader arrived. A stepped
- * traverse is the sharpest possible test of exactly that: it drives the planner
- * over ~800 canvases' worth of history and then asks what is still held. A real
- * flick would visit fewer intermediate positions, so it would be a *weaker*
- * probe of accumulation, and it would make the result depend on fling physics
- * and frame timing, which is not what the budget is about.
- *
- * Returns `null` when the dist has no renderer counters — a dist predating the
- * first-party renderer — which is the honest answer, not a zero.
- *
- * `folio` is the fixture's page dimensions. Not `page`: inside a Playwright
- * harness that word means the browser tab, and this body runs in one.
- *
- * The record reports `stepsCompleted` and `settled` alongside `stepsRequested`,
- * because a truncated traverse or an unsettled read yields a LOWER residency
- * figure than the real one — which would then be written as the budget, or pass
- * it. The caller rejects such a sample rather than treating it as a measurement.
- */
+/** Traverses the 800-canvas world, waits for quiescence, reads renderer counters. */
 const MEMORY_FN = async ({
     manifest,
     folio,
@@ -453,8 +362,7 @@ const MEMORY_FN = async ({
     const deadline = performance.now() + timeout;
     const raf = () => new Promise((r) => requestAnimationFrame(r));
 
-    // Wait for the surface AND its instrumentation. Absence is a renderer
-    // answer, not a timeout to throw on.
+    // Absence is a renderer answer, not a timeout.
     let handle = null;
     for (;;) {
         const surface = el.shadowRoot?.querySelector(
@@ -466,19 +374,12 @@ const MEMORY_FN = async ({
         await raf();
     }
 
-    // Fit the world to learn its extent in world units. The fixture is wider
-    // than it is tall by three orders of magnitude, so the fitted scale is set
-    // by x and `width / scale` is the world's width.
     await handle.fit();
     const world = handle.getView();
     const worldWidth = world.width / world.scale;
     const left = world.centre.x - worldWidth / 2;
 
-    // The zoom is chosen by the PROJECTED PAGE SIZE it produces, because that
-    // is the quantity the planner tiers on — orientation-invariantly, as
-    // sqrt(w x h) in CSS pixels (ADR 0014). Naming the target size rather than a
-    // scale is what makes "this scenario measures the pyramid tier" checkable
-    // against the thresholds instead of being a magic number.
+    // Zoom by projected page size, the quantity the planner tiers on.
     const scale = projectedPageSize / Math.sqrt(folio.width * folio.height);
 
     let stepsCompleted = 0;
@@ -491,19 +392,13 @@ const MEMORY_FN = async ({
         if (performance.now() > deadline) break;
     }
 
-    // Come back off the far edge before reading. The last step of the traverse
-    // sits at the world's right boundary, which is the LEAST populated viewport
-    // of the whole run — the residency window is half outside the world there, so
-    // reading it understates the resident set by roughly half. An interior
-    // position is the state a reader is actually in.
+    // Read from an interior position: the far edge understates residency by half.
     await handle.setView({
         centre: { x: left + worldWidth * readAtFraction, y: world.centre.y },
         scale,
     });
 
-    // Stop, then wait for quiescence rather than a fixed sleep: the reading is
-    // "what is held once the renderer has finished settling", and a fixed sleep
-    // either wastes time or reads mid-decode.
+    // Wait for quiescence rather than a fixed sleep.
     let last = handle.getStats().tileRequestCount;
     let quietSince = performance.now();
     let settled = false;
@@ -540,12 +435,8 @@ const MEMORY_FN = async ({
     };
 };
 
-// ── Runtime driver ─────────────────────────────────────────────────────────
+// ── Runtime driver ──
 
-// One measured run in a fresh page, retried on transient Playwright faults
-// (e.g. "execution context destroyed" navigation races). Page errors are the
-// benign headless GPU/WebGL noise the packed harness already filters — perf
-// runs measure timing, not correctness — so they are ignored here.
 async function attempt(context, baseURL, work, tries = 3) {
     let lastErr;
     for (let t = 0; t < tries; t++) {
@@ -579,13 +470,9 @@ async function runRepeated(context, baseURL, label, fn, arg, warmups, runs) {
 }
 
 async function measureRuntime(root, { warmups, runs, tracesDir }) {
-    // Stage the served web root in an OS temp dir so measuring a live repo
-    // checkout (e.g. --head-root "$PWD") never pollutes the working tree.
     const webRoot = mkdtempSync(join(tmpdir(), 'tri-perf-web-'));
     stageWebRoot(root, webRoot);
 
-    // The 800-canvas fixture is generated, so it is mounted as a middleware
-    // ahead of the static dist rather than written to disk.
     const server = await serveDir(webRoot, { middleware: fixtureMiddleware() });
     const baseURL = server.baseURL;
     const browser = await chromium.launch(LAUNCH);
@@ -593,10 +480,6 @@ async function measureRuntime(root, { warmups, runs, tracesDir }) {
     const runtime = {};
     let renderer = 'unknown';
     let memory = null;
-    // EVERY plugin is registered, so every first-party plugin's activation and
-    // subscription overhead stays part of the measured baseline (ADR 0008).
-    // Only the ones with a captured activation ceiling are WAITED on; a plugin
-    // marked `paused` in lib.mjs is registered and never timed.
     const pluginPkgs = PLUGINS.map((p) => p.pkg);
     const toggles = ACTIVATION_MEASURED_PLUGINS.map((p) => p.toggle);
 
@@ -612,8 +495,6 @@ async function measureRuntime(root, { warmups, runs, tracesDir }) {
         );
         log(`    renderer: ${renderer}`);
 
-        // Load-session phases (mount / manifest readiness / first canvas render)
-        // measured together from one real load, repeated.
         step('load session (mount, manifest readiness, first canvas render)');
         const sessSamples = { mount: [], manifest: [], canvas: [] };
         for (let i = 0; i < warmups + runs; i++) {
@@ -681,7 +562,6 @@ async function measureRuntime(root, { warmups, runs, tracesDir }) {
             `    core_interaction: median ${round2(runtime.core_interaction.median)} ms`,
         );
 
-        // First activation of each plugin that mounts one.
         for (const p of ACTIVATION_MEASURED_PLUGINS) {
             step(`first activation: ${p.key}`);
             runtime[`activate_${p.key}`] = await runRepeated(
@@ -695,11 +575,6 @@ async function measureRuntime(root, { warmups, runs, tracesDir }) {
             );
         }
 
-        // The renderer probe already told us whether the counters can exist, so
-        // don't open an 800-canvas manifest twice to rediscover it: on a dist
-        // without them every scenario would traverse the whole world and then
-        // wait out its 180 s timeout looking for instrumentation that is not in
-        // the bundle.
         if (renderer === 'canvas') {
             memory = await measureMemoryScenario(context, baseURL);
         } else {
@@ -720,49 +595,14 @@ async function measureRuntime(root, { warmups, runs, tracesDir }) {
     return { runtime, renderer, memory };
 }
 
-/**
- * How far across the 800-canvas world the memory traverse steps.
- *
- * 160 steps over 800 canvases advances ~5 canvases a step, which is wider than
- * the residency margin — so every step retires the previous position's resident
- * set entirely. That is the condition under which accumulation, if it existed,
- * would be unmissable.
- */
+/** Steps advance ~5 canvases, wider than the residency margin. */
 const MEMORY_STEPS = 160;
-/** Consecutive quiet time (no new tile request) that counts as settled. */
+/** Quiet time that counts as settled. */
 const MEMORY_QUIET_MS = 500;
-/**
- * Where in the world the settled reading is taken, as a fraction of its width.
- *
- * Not the right edge the traverse ends on: there the residency window is half
- * outside the world, so it is the least-populated viewport of the entire run and
- * a reading taken there understates the resident set. 0.75 is well past the
- * traversed history and fully interior.
- */
+/** Interior read position; the far edge understates residency. */
 const MEMORY_READ_AT_FRACTION = 0.75;
 
-/**
- * The memory scenarios, one per residency tier the traverse can be conducted in.
- *
- * Every canvas in the fixture is the same size, so a single zoom puts the whole
- * river in ONE tier — which means one scenario cannot cover both residency paths
- * ADR 0014 describes, and measuring only the zoomed-in one would leave the
- * thumbnail ladder unbudgeted.
- *
- * Sizes are projected page size in CSS px, against the shipped thresholds
- * (`pyramidThreshold` 320, `boxThreshold` 24 in `renderer/rendererDefaults.ts`):
- *   · 810 — comfortably above 320: the river is pyramid-tier and costs tiles.
- *           This is reading zoom, roughly one page filling a 700 px-tall viewport.
- *   · 156 — between 24 and 320: the river is thumbnail-tier, which is acceptance
- *           scenario 4's "no empty river" state and the only one in which the
- *           resolved-thumbnail half of the required set is resident at all.
- *
- * `expectPyramidCanvases` states which tier the scenario is supposed to be
- * measuring, and it is checked rather than assumed: the zoom is derived from the
- * shipped thresholds, so a threshold change would silently turn the thumbnail
- * scenario into a second pyramid scenario and leave the thumbnail ladder
- * unbudgeted again while every number still looked plausible.
- */
+/** One scenario per residency tier (pyramid 810px, thumbnail 156px). */
 const MEMORY_SCENARIO_SPECS = [
     {
         key: 'continuous_800_flick',
@@ -802,13 +642,7 @@ async function measureMemoryScenario(context, baseURL) {
                 log('    no renderer counters on this dist — memory skipped');
                 return null;
             }
-            // A truncated traverse or an unsettled read is NOT a measurement: it
-            // reports fewer resident tiles and fewer decoded bytes than the real
-            // settled state, so accepting it would either write a budget the
-            // renderer cannot actually meet or let a real regression pass under
-            // one. Tile service is CPU-bound in this harness (the fixture encodes
-            // every PNG synchronously in-process, on the same box as the
-            // browser), so this is a live risk, not a theoretical one.
+            // A partial or unsettled read understates residency; reject it.
             if (value.stepsCompleted !== value.stepsRequested) {
                 throw new Error(
                     `memory scenario ${spec.key}: traverse truncated at ` +
@@ -840,10 +674,6 @@ async function measureMemoryScenario(context, baseURL) {
             if (i >= MEMORY_WARMUPS) samples.push(value);
         }
 
-        // Median each NUMERIC counter independently: this is a settled-state
-        // reading, so a per-counter median is the robust summary and no counter
-        // is derived from another. `settled` is a boolean and every sample had to
-        // be `true` to get here, so it is asserted rather than averaged.
         const result = {};
         for (const key of Object.keys(samples[0])) {
             if (typeof samples[0][key] !== 'number') continue;
@@ -881,13 +711,7 @@ export async function measure(root, opts = {}) {
         warmups,
         runs,
         sizes,
-        // Whether Playwright tracing was on for the timed runs. Recorded for
-        // the same reason as `renderer`: it changes what the numbers MEAN, not
-        // just their noise. Tracing's DOM snapshots are not evenly distributed
-        // across scenarios (a style install pays for a whole snapshot), so a
-        // traced median and an untraced ceiling are not comparable quantities
-        // and `compare.mjs` refuses to enforce one against the other. A
-        // `--size-only` run timed nothing, so it has no tracing mode.
+        // Traced and untraced medians are not comparable; record the mode.
         tracing: opts.sizeOnly ? null : opts.tracesDir ? 'playwright' : 'off',
         renderer: browserResult.renderer,
         runtime: browserResult.runtime,

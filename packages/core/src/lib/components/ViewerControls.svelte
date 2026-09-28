@@ -250,8 +250,6 @@
         );
     });
 
-    // --- Zoom buttons ------------------------------------------------------
-    //
     // A zoom button is a step AND a hold. `pointerdown` starts a smooth zoom
     // that runs until release; a press let go inside `ZOOM_HOLD_MS` has barely
     // moved, so the trailing `click` supplies the discrete step instead. Past
@@ -293,8 +291,6 @@
         else viewerState.zoomOut();
     }
 
-    // --- Idle chrome -------------------------------------------------------
-    //
     // Over a claimed canvas this bar is drawn on top of the thing being read —
     // a video's caption cues, or a sound recording's waveform, which is the
     // whole rect. So while a recording plays and nothing is happening the bar

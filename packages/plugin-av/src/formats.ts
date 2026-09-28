@@ -1,36 +1,10 @@
-/**
- * Which alternative of a Choice this browser plays: a Choice over time-based
- * media is a set of renditions of one work, and only some of them decode here.
- */
+/** Playability decides, not order; explicit selection wins outright. */
 
 import { canPlayHls, isHlsSource } from './hlsLink';
 import type { AvMediaKind, AvSource } from './sources';
 
-/** Whether this browser will attempt a source at all. */
 export type PlayabilityProbe = (source: AvSource) => boolean;
 
-/**
- * The alternative to attach, or `null` when the annotation places none.
- *
- * **Playability decides, not order**, and that is a deliberate departure from
- * the first-item-wins rule core follows for a Choice of images. Every image
- * alternative renders, so first-wins is a preference; a media alternative the
- * engine cannot decode renders nothing at all, so first-wins would hand a
- * reader on Chrome the curator's ProRes master and call the canvas unplayable
- * while an MP4 of the same work sat one entry below it. `canPlayType` is the
- * only thing that can tell those two cases apart.
- *
- * An explicit selection wins outright, playable or not: the host asked for that
- * rendition, and answering with a different one would make
- * `selectChoice` a suggestion. It may well surface the "can't play"
- * treatment, which is the honest report of what was asked for.
- *
- * With nothing playable and nothing selected the FIRST alternative comes back
- * rather than `null`. Attaching it is what produces the "can't play" treatment:
- * the media element's own `error` is the stage's existing path to it, so a
- * browser that refuses every rendition says so through the same seam a dead URL
- * takes.
- */
 export function selectSource(
     alternatives: readonly AvSource[],
     selectedChoiceId: string | undefined,

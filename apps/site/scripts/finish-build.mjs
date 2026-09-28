@@ -1,35 +1,5 @@
 #!/usr/bin/env node
-// Finish the built tree: relocate the not-found page, index the prose, and
-// write the domain file.
-//
-// Every step needs the whole tree in place and none belongs inside the bundler,
-// which is what makes this the post-build step rather than a plugin.
-//
-// ---- The not-found page ---------------------------------------------------
-//
-// SvelteKit prerenders the `/404` page route to `build/404/index.html`. GitHub
-// Pages serves `404.html` from the root of the published tree for every
-// unmatched path, and `/404.html` is the URL this site's contract promises. The
-// directory is removed afterwards so the published root gains no top-level entry
-// no owner accounts for — `scripts/url-contract.mjs` check 4 would report it.
-//
-// The relocation is why `paths.relative` is off in svelte.config.js: a
-// page-relative asset path computed for `/404/` resolves outside the tree once
-// the document sits at the root.
-
-// ---- The domain file ------------------------------------------------------
-//
-// Written on deploys that set PUBLISH_CNAME=1, and omitted from local builds:
-// Pages serves an uploaded artifact, so a repository-root file would never
-// reach the served tree. The domain is bound in the repository's Pages
-// settings, so the deploy workflow always sets the flag; a local build
-// without it serves from whatever host it runs on and writes no file.
-
-// ---- The search index ----------------------------------------------------
-//
-// The indexer reads the built HTML, so it can only run once the tree exists.
-// Which pages it takes is declared in the markup rather than here; see
-// `scripts/search-index.mjs`.
+// Post-build: relocate 404, index prose, write CNAME.
 
 import {
     existsSync,
@@ -43,7 +13,6 @@ import { fileURLToPath } from 'node:url';
 
 import { buildSearchIndex } from './search-index.mjs';
 
-/** The host the site is published at; the same origin `$lib/site` declares. */
 const SITE_HOST = 'triiiceratops.org';
 
 const APP_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));

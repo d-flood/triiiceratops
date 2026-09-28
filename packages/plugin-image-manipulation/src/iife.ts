@@ -1,24 +1,4 @@
-/**
- * Self-contained IIFE entry — loadable from a `<script>` tag with no bundler.
- *
- * Loading this bundle bootstraps the `window.Triiiceratops` namespace if absent
- * and registers the plugin factory into `window.Triiiceratops.plugins`. It does NOT activate anything — activation is explicit and per
- * viewer:
- *
- * ```html
- * <script src="triiiceratops-element.iife.js"></script>
- * <script src="triiiceratops-plugin-image-manipulation.iife.js"></script>
- * <script>
- *   const viewer = document.querySelector('triiiceratops-viewer');
- *   viewer.plugins = [
- *     window.Triiiceratops.plugins.get('@triiiceratops/plugin-image-manipulation'),
- *   ];
- * </script>
- * ```
- *
- * The plugin script may load before OR after core: the registry is bootstrapped
- * order-independently, so both script orders work.
- */
+/** IIFE entry: registers the plugin factory, activates nothing. */
 
 import { ImageManipulationPlugin } from './plugin';
 import { registerBrowserPlugin } from '@triiiceratops/plugin-sdk/register';

@@ -1,26 +1,3 @@
-/**
- * The PDF-export plugin, authored entirely on `@triiiceratops/plugin-sdk`.
- *
- * `definePlugin` returns the framework-neutral factory core activates through the
- * structural seam (it carries its own `activate(host)`); core never imports this
- * package, its Svelte runtime, or its `pdf-lib` dependency. The UI is Svelte,
- * mounted through the neutral `view.mount(container, context)` contract and torn
- * down by the returned cleanup. Styles install through the SDK style service
- * (root-aware), strings resolve through the per-viewer locale service over this
- * package's catalog, and the toolbar glyph is a `svgIcon` descriptor.
- *
- * The factory-with-config authoring API is preserved: `createPdfExportPlugin(config)`
- * stays the public entry (a consumer can supply a cover sheet, filename provider,
- * OCR overlay provider, custom image loader, etc.), adapted to `definePlugin`
- * internally. The consumer `config` is captured in the `view.mount` closure and
- * handed to the panel through Svelte's context map, so each activation renders
- * with its own configuration. A preconfigured default (`PdfExportPlugin`) is
- * exported alongside it.
- *
- * The plugin sizes export requests from `ViewerState.containerSize`, a
- * first-party query-only read, so it requires no capability.
- */
-
 import { mount, unmount } from 'svelte';
 
 import {

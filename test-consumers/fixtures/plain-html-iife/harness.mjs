@@ -1,8 +1,6 @@
 import { expect } from '@playwright/test';
 
-// plain-html-iife: no bundler. A static page loads the self-contained element
-// IIFE from the installed package path via a <script> tag and renders a local
-// manifest. No build step — the installed tarball is served as-is.
+// plain-html-iife: no bundler; static page loads the element IIFE.
 export default {
     name: 'plain-html-iife',
     buildScript: null,

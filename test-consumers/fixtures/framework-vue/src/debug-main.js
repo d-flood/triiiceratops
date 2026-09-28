@@ -1,40 +1,4 @@
-// The development-warning route — artifact-level proof of the wrapper warnings.
-//
-// The four wrapper-side development warnings (an unbound handle, a
-// property-tier prop rebuilt every render, a second `ViewerState`, and a
-// `state`-cadence projection reading a query-only viewport value) are gated on
-// `ViewerConfig.debug`. In the PUBLISHED package the wrappers and the element
-// bundle carry two different copies of the logger module, so for a while
-// `config: { debug: true }` configured the element's copy and left the
-// wrappers' silent forever — while every source-level test passed, because
-// under vitest the two copies are one.
-//
-// Nothing here reaches into the library. The proof is a real consumer,
-// installed from a real packed tarball, watching real `console.warn` output:
-//
-//   phase 1  `config: { debug: false }`  — provoke everything, expect silence
-//   phase 2  `config: { debug: true }`   — provoke everything, expect warnings
-//   phase 3  `config: { debug: false }`  — provoke everything, expect silence
-//
-// Three viewers, deliberately:
-//
-//   · Viewer A is mounted ONCE and lives through all three phases. Its `config`
-//     carries the `debug` flag, and the `state`-cadence projection that reads
-//     a query-only viewport value hangs off it — so that projection is created and first read
-//     while debug is still OFF, which is the ordering a published wrapper
-//     actually produces (the flag is bridged when the property tier is
-//     applied) and the one a probe decided too early would miss forever.
-//   · Viewer B is remounted every phase, so each phase gets a FRESH property
-//     applier whose once-per-prop warning has not been used up. Its own config
-//     deliberately carries no `debug` key at all: a second viewer with an
-//     unrelated config must not switch off the diagnostics viewer A asked for.
-//   · Viewer C lives inside a `<KeepAlive>` and is remounted every phase, so
-//     each phase can round-trip it and publish a second `ViewerState` with a
-//     binding whose once-only re-availability warning is still unused.
-//
-// Written with `h()` rather than single-file components so it stays line for
-// line comparable with the React fixture's `debug-main.js`; the client-contract
-// route next door is the one that proves the SFC authoring story.
+// Development-warning route: artifact-level proof the wrapper warnings fire only with `config.debug`.
 
 import {
     createApp,

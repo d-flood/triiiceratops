@@ -1,15 +1,10 @@
 /**
- * The share URL's three kinds of state: the IIIF-meaningful view carried in
- * `iiif-content`, viewer configuration carried in `config`, and sparse per-tab
- * persistence — all read from the URL and `sessionStorage`.
- *
- * Shared by every surface that reads or writes a share URL, so that they cannot
- * drift on what "only the keys the reader set" means.
+ * The share URL's three kinds of state, shared by every surface that reads or
+ * writes one so they cannot drift.
  */
 
 import { parseContentState, type CanvasRegion } from 'triiiceratops';
 
-/** The parameter name the IIIF Content State API reserves. */
 const IIIF_CONTENT_PARAM = 'iiif-content';
 
 export const CONFIG_STORAGE_KEY = 'triiiceratops-demo:config';
@@ -17,11 +12,7 @@ export const CONFIG_STORAGE_KEY = 'triiiceratops-demo:config';
 /** Presence forces clean defaults without clearing what is stored. */
 export const CLEAN_CONFIG_PARAM = 'clean-config';
 
-/**
- * A nested *partial* of the viewer configuration: only the keys a user set. It
- * is never materialized, because an untouched key must stay `undefined` so the
- * manifest's own answer wins.
- */
+/** A nested *partial* of the viewer configuration: an untouched key stays `undefined` so the manifest's own answer wins. */
 export type SparseConfig = Record<string, unknown>;
 
 export type ViewTarget = {
@@ -34,11 +25,7 @@ function isPlainObject(value: unknown): value is SparseConfig {
     return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-/**
- * A deep copy of plain JSON-shaped data. `structuredClone` cannot be used: the
- * configuration reaching these functions is a Svelte state proxy, and cloning a
- * Proxy throws.
- */
+/** Deep copy of JSON-shaped data. `structuredClone` throws on a Svelte state proxy. */
 export function clonePlain<T>(value: T): T {
     if (Array.isArray(value)) {
         return value.map((item) => clonePlain(item)) as unknown as T;
@@ -88,10 +75,7 @@ function sameLeaf(a: unknown, b: unknown): boolean {
 }
 
 /**
- * The leaf paths whose values in `next` differ from `baseline`, as a sparse
- * object. Keys present in `baseline` but absent from `next` are not reported: a
- * removal has no leaf value to record, so it is silently dropped from the
- * overlay.
+ * Leaf paths in `next` differing from `baseline`. Removals are not reported.
  */
 export function diffSparse(
     next: SparseConfig,
@@ -118,17 +102,7 @@ export function diffSparse(
     return delta;
 }
 
-/**
- * The overlay with every retraction taken out of it.
- *
- * `record` reports a retracted key as `undefined` rather than by deleting it —
- * that is what tells the tracker's baseline the reader retracted a value
- * instead of never having set one — but the overlay is what gets serialized,
- * shared and pasted into somebody's source, and `viewingMode: undefined` reads
- * there as a line that says nothing. A branch left holding only retractions is
- * the same statement one level up: `search: {}` in a snippet claims the reader
- * decided something about search when what they decided was nothing.
- */
+/** The overlay with every retraction taken out of it, so shared snippets state only what was decided. */
 export function pruneSparse(sparse: SparseConfig): SparseConfig {
     const pruned: SparseConfig = {};
 
@@ -147,7 +121,7 @@ export function pruneSparse(sparse: SparseConfig): SparseConfig {
     return pruned;
 }
 
-/** Every leaf path in a sparse object. An empty object counts as a leaf. */
+/** Every leaf path in a sparse object; an empty object counts as a leaf. */
 export function collectPaths(sparse: SparseConfig): string[][] {
     const paths: string[][] = [];
 
@@ -192,18 +166,9 @@ export function setAtPath(
 // ==================== sparse tracking ====================
 
 /**
- * The bookkeeping that keeps persistence sparse.
- *
- * `baseline` is the configuration nobody chose: the defaults, plus every value
- * the viewer has since reported for itself. Whatever the live configuration says
- * that the baseline does not is user intent, and the `userSet` overlay
- * accumulates exactly those path→value pairs — the values the *user* picked,
- * which is what gets persisted and shared.
- *
- * Because a value the viewer reports is folded into the baseline, a toggle the
- * user makes inside the viewer's own chrome is indistinguishable from a value
- * the viewer decided for itself, so it is not persisted. The settings pane is
- * the surface that records intent.
+ * Keeps persistence sparse. `baseline` is what nobody chose; `userSet` accumulates
+ * only what the live configuration says that the baseline does not. A viewer-reported
+ * value folds into the baseline, so chrome toggles are not persisted.
  */
 export function createSparseTracker<T extends object>(
     defaults: T,
@@ -218,10 +183,8 @@ export function createSparseTracker<T extends object>(
         },
 
         /**
-         * A value the viewer reported. Writing `config` only on an actual change
-         * is what keeps the viewer→config sync effect from re-triggering itself.
-         * A path the user already set keeps its overlay value: the viewer
-         * reporting its own answer is not the user changing their mind.
+         * A value the viewer reported. Writes `config` only on an actual change to
+         * avoid re-triggering the viewer→config sync; a user-set path keeps its value.
          */
         applyViewerValue(
             config: SparseConfig,
@@ -234,10 +197,6 @@ export function createSparseTracker<T extends object>(
             }
         },
 
-        /**
-         * Folds everything the configuration says that the baseline does not
-         * into both the baseline and the overlay, and returns the overlay.
-         */
         record(config: SparseConfig): SparseConfig {
             for (const path of collectPaths(diffSparse(config, baseline))) {
                 const value = getAtPath(config, path);
@@ -257,10 +216,7 @@ export function createSparseTracker<T extends object>(
 
 // ==================== per-tab persistence ====================
 
-/*
- * Every `sessionStorage` access is guarded: Safari's private mode throws on
- * access rather than degrading to a no-op store.
- */
+/* Every `sessionStorage` access is guarded: Safari private mode throws on access. */
 
 export function readStoredConfig(): SparseConfig {
     try {
@@ -307,11 +263,7 @@ function base64url(value: string): string {
         .replace(/=+$/, '');
 }
 
-/**
- * A content state identifies resources by absolute URI, but the playground's own
- * sample manifests are shipped at root-relative paths. A bare relative id fails
- * `parseContentState`'s URI test and yields a dead link.
- */
+/** Sample manifests ship at root-relative paths, which fail `parseContentState`'s URI test. */
 function absolutize(id: string, base: string): string {
     try {
         return new URL(id, base).href;
@@ -321,11 +273,8 @@ function absolutize(id: string, base: string): string {
 }
 
 /**
- * The emitting half of `parseContentState`. A manifest on its own is a legal
- * content state as a bare URI, and that is what it becomes: wrapping it in an
- * Annotation whose `target` is the manifest id would have the parser hand the
- * manifest id back as a canvas id. A known canvas becomes a base64url-encoded
- * W3C Annotation naming its manifest in `partOf`.
+ * The emitting half of `parseContentState`. A manifest alone becomes a bare URI:
+ * wrapping it would return the manifest id as a canvas id.
  */
 export function serializeContentState(
     target: ViewTarget,
@@ -336,8 +285,7 @@ export function serializeContentState(
     const manifestId = absolutize(target.manifestId, base);
     if (!target.canvasId) return manifestId;
 
-    // `parseIiifXywh` matches the first `xywh=`, so any fragment already on the
-    // canvas id would win over the region being shared.
+    // `parseIiifXywh` matches the first `xywh=`.
     const canvasId = absolutize(target.canvasId, base).split('#')[0];
 
     const { region } = target;
@@ -372,15 +320,7 @@ function parseSharedConfig(param: string | null): SparseConfig {
     }
 }
 
-/**
- * The share URL. The view travels as a content state, configuration travels as
- * its own parameter, and configuration never enters the content state.
- *
- * A URL already sent may carry a `mode` parameter, which the playground
- * switched its own view on. Nothing reads it — the resolvers below name the
- * parameters they want — so such a link still resolves to exactly the view and
- * configuration it carried; `shareUrl.fixtures.test.ts` holds that.
- */
+/** The share URL. Configuration travels in its own parameter, never in the content state. */
 export function buildShareUrl({
     pathname,
     target,
@@ -403,10 +343,8 @@ export function buildShareUrl({
 }
 
 /**
- * The configuration handed to the viewer, the sparse overlay that produced it,
- * and whether this load is a clean one. A URL `config` beats stored
- * configuration; `clean-config` starts from an empty overlay and leaves storage
- * untouched, and a clean load must also not write to it.
+ * The configuration for the viewer plus the sparse overlay that produced it. URL
+ * `config` beats stored configuration; `clean-config` leaves storage untouched.
  */
 export function resolveInitialConfig<T extends object>({
     search,
@@ -422,8 +360,7 @@ export function resolveInitialConfig<T extends object>({
         return { config: clonePlain(defaults), sparse: {}, clean };
     }
 
-    // An empty `config=` carries no overlay; treating it as present would make
-    // it a second clean-defaults switch.
+    // An empty `config=` carries no overlay.
     const shared = params.get('config') || null;
     const sparse =
         shared !== null ? parseSharedConfig(shared) : readStoredConfig();
@@ -435,10 +372,7 @@ export function resolveInitialConfig<T extends object>({
     };
 }
 
-/**
- * The view to open. The legacy `manifest` and `canvas` parameters win; a
- * content state is consulted only when no `manifest` is given.
- */
+/** The view to open. Legacy `manifest` wins; content state applies only without it. */
 export function resolveInitialView(search: string | URLSearchParams): {
     manifestUrl: string;
     canvasId: string;
@@ -465,43 +399,20 @@ export function resolveInitialView(search: string | URLSearchParams): {
 
 // ==================== dropped content state ====================
 
-/**
- * The read side of a `DataTransfer`, which is all a drop payload needs — and all
- * a test has to build, since jsdom implements neither `DataTransfer` nor
- * `DragEvent`.
- */
+/** The read side of a `DataTransfer`. */
 export type DropPayloadSource = Pick<DataTransfer, 'types' | 'getData'>;
 
-/**
- * The one flavour cookbook recipe 0599 and Content State API §3.4 define for
- * drag and drop. A drag source sets the content state on `text/plain` and a
- * destination reads it from there; nothing else is part of the exchange.
- *
- * Notably not `text/uri-list`: recipe 0599's drag source is an `<img>`, and a
- * browser fills that flavour with the image's own `src` before `dragstart`
- * runs, so a reader that consults it gets the IIIF logo instead of the state.
- */
+/** The drag-and-drop flavour from cookbook recipe 0599 and Content State API §3.4. Not `text/uri-list`: a dragged `<img>` offers its own `src` there. */
 const DROP_TYPE = 'text/plain';
 
-/**
- * Whether a drag in flight carries something that could be a content state.
- * Read from `types` alone: during `dragover` the payload itself is unreadable,
- * so the flavour on offer is all a host can decide a drop state on.
- */
+/** Read from `types` alone: during `dragover` the payload itself is unreadable. */
 export function carriesContentState(
     transfer: DropPayloadSource | null | undefined,
 ): boolean {
     return transfer?.types.includes(DROP_TYPE) ?? false;
 }
 
-/**
- * The content state a drop carries, ready for `parseContentState`, or `null`.
- *
- * Recipe 0599 drags a stringified content-state Annotation; the Content State
- * API also allows a bare Manifest URI as a state in its own right. Both are
- * text, and `parseContentState` tells them apart, so the payload passes through
- * untouched.
- */
+/** The content state a drop carries, ready for `parseContentState`, or `null`. Both an Annotation and a bare Manifest URI pass through untouched. */
 export function readDroppedContentState(
     transfer: DropPayloadSource | null | undefined,
 ): string | null {

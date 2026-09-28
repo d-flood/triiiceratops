@@ -1,7 +1,4 @@
-// A tiny framework-free plugin under test, authored with the packed SDK's
-// `definePlugin` + `svgIcon`. It selects `toolbarOpen`, renders its value,
-// installs a stylesheet, and tears everything down in its cleanup — exactly the
-// lifecycle the conformance suite checks.
+// Tiny plugin under test, exercising the full lifecycle the conformance suite checks.
 import { definePlugin, svgIcon } from '@triiiceratops/plugin-sdk';
 
 const ICON = svgIcon('<svg viewBox="0 0 1 1"><path d="M0 0h1v1H0z" /></svg>');

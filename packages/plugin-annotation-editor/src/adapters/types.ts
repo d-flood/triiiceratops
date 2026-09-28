@@ -1,9 +1,5 @@
 import type { W3CAnnotationBody, AnnotationStorageAdapter } from '../types';
 
-/**
- * IIIF/W3C media-fragment selector (`xywh=…`, `t=…`). The value carries the
- * fragment expression.
- */
 export interface FragmentSelector {
     type: 'FragmentSelector';
     conformsTo?: string;
@@ -11,7 +7,6 @@ export interface FragmentSelector {
     [key: string]: unknown;
 }
 
-/** IIIF `PointSelector` — a single canvas-space point (integer px per D2). */
 export interface PointSelector {
     type: 'PointSelector';
     x: number;
@@ -19,24 +14,17 @@ export interface PointSelector {
     [key: string]: unknown;
 }
 
-/** W3C `SvgSelector` — an SVG shape (polygon, path, …) as its `value`. */
 export interface SvgSelector {
     type: 'SvgSelector';
     value: string;
     [key: string]: unknown;
 }
 
-/**
- * Escape hatch for selector types the plugin doesn't model explicitly (e.g. a
- * `RangeSelector`, or a host-specific selector). Keeps the union open so a
- * round-trip never narrows away an unknown selector.
- */
 export interface UnknownSelector {
     type: string;
     [key: string]: unknown;
 }
 
-/** Open selector union — never narrow away unknown selector types. */
 export type W3CSelector =
     | FragmentSelector
     | PointSelector

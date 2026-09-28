@@ -1,19 +1,4 @@
-/**
- * The test viewer context.
- *
- * `createTestViewerContext` assembles a REAL, compiled `ViewerState` (from
- * `triiiceratops/testing`) with RECORDING DOUBLES for the style, UI, and locale
- * services and an injectable renderer stand-in that defaults to absent. This is the
- * canonical shape of CONTEXT.md's **Test viewer context**: "the harness is fake;
- * the state is never fake." Commands, `subscribe`, selector memoization, and the
- * batched notification flush are all the production implementations — only the
- * host-owned services and the renderer are stand-ins.
- *
- * The doubles only RECORD calls; they need not implement teardown. `runActivation`
- * auto-tracks every `styles.install` and `locale.subscribe` an
- * activation performs and releases them on deactivation, so a recording double is
- * free to be a pure log.
- */
+/** Real `ViewerState` with recording doubles; the harness is fake, the state never is. */
 
 import type {
     IconDescriptor,

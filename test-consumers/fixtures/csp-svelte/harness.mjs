@@ -4,14 +4,7 @@ import { collectCspViolations, formatViolations } from '../../shared/csp.mjs';
 
 const NONCE = 'tri-csp-lightdom';
 
-// csp-svelte: a Vite + Svelte light-DOM consumer built and served under a strict
-// CSP (see index.html). Proves:
-//   · the light-DOM viewer renders and is themed under `script-src 'self'` +
-//     `style-src 'self' 'nonce-…'` (no unsafe-eval, no unsafe-inline for scripts),
-//   · a real plugin's `context.styles.install` takes the nonce-aware `<style>`
-//     fallback (the non-constructable branch) and carries the page nonce, and
-//   · zero `securitypolicyviolation` events fire.
-// Runs on every desktop engine (chromium, firefox, webkit).
+// csp-svelte: light-DOM consumer under strict CSP, zero violations, every engine.
 export default {
     name: 'csp-svelte',
     buildScript: 'build',
@@ -29,7 +22,6 @@ export default {
         const violations = await collectCspViolations(page);
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // The viewer mounts and the renderer paints the first canvas under the strict CSP.
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });
@@ -37,7 +29,6 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // Themed via the same-origin stylesheet (tokens applied, not UA default).
         const bg = await page.evaluate(() => {
             const el = document.querySelector('#triiiceratops-viewer');
             return getComputedStyle(el).backgroundColor;
@@ -46,10 +37,7 @@ export default {
             'rgba(0, 0, 0, 0)',
         );
 
-        // The plugin activated (core renders its toolbar button on the
-        // core-owned-chrome path), so its `context.styles.install` ran.
-        // Accessible name = the plugin's DISPLAY title
-        // (`image_adjustments_title`), not its package name.
+        // Accessible name is the display title, not the package name.
         await expect(
             page.locator(
                 '[data-flyout-toggle][aria-label="Image Adjustments"]',
@@ -58,9 +46,7 @@ export default {
             timeout: 30_000,
         });
 
-        // Nonce fallback branch: the plugin style is a `<style>` element (not a
-        // constructable sheet) carrying the page nonce, proving the style
-        // service's non-constructable path ran and survives `style-src`.
+        // Nonce `<style>` fallback, carrying the page nonce.
         const pluginStyle = await page.evaluate(() => {
             const el = document.querySelector(
                 'style[data-triiiceratops-plugin-style]',
@@ -78,13 +64,7 @@ export default {
             'plugin fallback <style> carries the page nonce',
         ).toBe(NONCE);
 
-        // pdf-export uses idiomatic Svelte `<style>` + `@triiiceratops/ui`
-        // components. Their Svelte-scoped CSS is extracted at build (`bundledCss()`)
-        // and installed through the same style service under the id `bundled`.
-        // Open its core-rendered panel so `view.mount` runs, then assert the
-        // build-extracted component CSS took the nonce `<style>` fallback (the
-        // path Svelte's un-nonced `append_styles` would otherwise have taken and
-        // strict `style-src` would have blocked).
+        // pdf-export's Svelte-scoped CSS takes the same nonce fallback.
         await page.getByRole('button', { name: 'Open Menu' }).click();
         const pdfButton = page.locator('[aria-label="PDF Export"]');
         await expect(pdfButton).toBeVisible({ timeout: 30_000 });
@@ -98,10 +78,6 @@ export default {
                 ? {
                       present: true,
                       nonce: el.nonce || el.getAttribute('nonce'),
-                      // The `@triiiceratops/ui` Button ships a Svelte-scoped
-                      // `.btn.svelte-*` rule; its presence proves the extracted
-                      // component CSS (not just the plugin's hand-written sheet)
-                      // reached the DOM under CSP.
                       hasScopedButton: /\.btn\.svelte-/.test(
                           el.textContent || '',
                       ),
@@ -121,7 +97,6 @@ export default {
             'extracted CSS contains the @triiiceratops/ui Button scoped rule',
         ).toBe(true);
 
-        // Zero CSP violations across the whole journey.
         const found = await violations.read();
         expect(
             found.length,

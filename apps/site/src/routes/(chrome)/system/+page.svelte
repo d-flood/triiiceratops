@@ -10,10 +10,6 @@
         ratio,
     } from '@triiiceratops/shell';
 
-    /**
-     * The appendix renders the palette module rather than a list of its own, so
-     * a token cannot be documented here with a value the shell does not use.
-     */
     const rows = PAIRINGS.map((pairing) => ({
         pairing,
         light: ratio(pairing, 'light'),

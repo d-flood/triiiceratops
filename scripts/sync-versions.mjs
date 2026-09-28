@@ -1,31 +1,10 @@
-/**
- * Rewrites the version literals that have to track a package manifest.
- *
- * These are literals rather than `package.json` imports deliberately: `api.ts`
- * is bundled into the element and `competitors.ts` into the site, where a JSON
- * import would carry a whole manifest in to quote one field of it. Reading the
- * version at runtime is therefore out, and the literal is rewritten instead.
- *
- * Runs as part of `changeset version` (see the root `version:packages` script),
- * so a rewritten literal lands in the same "Version Packages" commit that bumps
- * the manifests and can never disagree with one on `main`. The three tests that
- * assert the agreement — `api.version.test.ts`, `conformance.test.ts`,
- * `measured.test.ts` — stay the backstop for a site this list doesn't know.
- *
- * Usage:
- *   node scripts/sync-versions.mjs
- */
+/** Rewrites version literals that track a package manifest. */
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REPO_ROOT } from './package-version.mjs';
 
-/**
- * Each site names the package whose version governs it and a pattern whose one
- * capture group is the literal to replace. A pattern that does not match
- * exactly once is a hard error: it means the constant was renamed or duplicated
- * and this script would otherwise silently stop maintaining it.
- */
+/** Each site names a package version and the literal to replace; must match exactly once. */
 const SITES = [
     {
         file: 'packages/core/src/lib/plugin/api.ts',

@@ -22,7 +22,7 @@ export const REPO_ROOT = resolve(HARNESS_DIR, '..');
 export const FIXTURES_DIR = join(HARNESS_DIR, 'fixtures');
 export const SHARED_DIR = join(HARNESS_DIR, 'shared');
 
-// --- logging ---------------------------------------------------------------
+// --- logging ---
 
 const c = {
     reset: '\x1b[0m',
@@ -53,12 +53,9 @@ export function fail(label, detail = '') {
     );
 }
 
-// --- process running -------------------------------------------------------
+// --- process running ---
 
-/**
- * Run a command to completion. Rejects on non-zero exit. Captures output so
- * failures can surface a tail of the log.
- */
+/** Run a command to completion; rejects on non-zero exit. */
 export function run(cmd, args, opts = {}) {
     return new Promise((resolvePromise, reject) => {
         const child = spawn(cmd, args, {
@@ -99,13 +96,13 @@ export function run(cmd, args, opts = {}) {
     });
 }
 
-// --- filesystem ------------------------------------------------------------
+// --- filesystem ---
 
 export function makeTempDir(prefix) {
     return mkdtempSync(join(tmpdir(), prefix));
 }
 
-/** Copy a fixture template into a fresh temp dir, excluding build/install junk. */
+/** Copy a fixture template into a fresh temp dir. */
 export function copyFixture(fixtureName, destRoot) {
     const src = join(FIXTURES_DIR, fixtureName);
     const dest = join(destRoot, fixtureName);
@@ -125,17 +122,12 @@ export function copyFixture(fixtureName, destRoot) {
     return dest;
 }
 
-/** Stable vendored tarball filename for a (possibly scoped) package name. */
+/** Stable vendored tarball filename. */
 export function vendoredTarballName(depName) {
     return `${depName.replace(/[@/]/g, '_')}.tgz`;
 }
 
-/**
- * Point a fixture dependency at the freshly packed tarball, vendored to a stable
- * relative path so the committed lockfile stays valid except for the tarball's
- * own integrity hash. `depName` defaults to `triiiceratops`; pass the scoped
- * name (e.g. `@triiiceratops/plugin-sdk`) to inject additional packed packages.
- */
+/** Point a fixture dependency at the freshly packed tarball. */
 export function injectTarball(
     fixtureDir,
     tarballPath,
@@ -153,16 +145,7 @@ export function injectTarball(
     writeFileSync(pkgPath, JSON.stringify(pkg, null, 4) + '\n');
 }
 
-/**
- * Remove the locally-packed dependency's resolved node from committed lockfiles
- * so the package manager re-resolves the FRESHLY vendored tarball instead of a
- * stale, integrity-cached copy.
- *
- * Committed lockfiles pin third-party deps for determinism — but a committed
- * `file:` integrity would make npm restore whatever content it cached under that
- * hash, defeating the "inject the fresh tarball" contract. Third-party entries
- * are left untouched; only the local package's node is dropped and re-resolved.
- */
+/** Drop the local package's lockfile node so the fresh tarball re-resolves. */
 export function refreshLocalDepInLockfiles(fixtureDir, depName) {
     // npm: package-lock.json (lockfileVersion 2/3)
     const npmLock = join(fixtureDir, 'package-lock.json');
@@ -172,8 +155,7 @@ export function refreshLocalDepInLockfiles(fixtureDir, depName) {
         if (json.dependencies) delete json.dependencies[depName];
         writeFileSync(npmLock, JSON.stringify(json, null, 2) + '\n');
     }
-    // pnpm 12 verifies a `file:` tarball against its locked integrity even on a
-    // non-frozen install, so strip the local tarball's pinned hash.
+    // pnpm verifies `file:` integrity even on non-frozen installs; strip the pinned hash.
     const pnpmLock = join(fixtureDir, 'pnpm-lock.yaml');
     if (existsSync(pnpmLock)) {
         const tarball = `file:vendor/${vendoredTarballName(depName)}`;
@@ -193,7 +175,7 @@ export function distributeManifest(fixtureDir, target) {
     cpSync(join(SHARED_DIR, 'local-manifest.json'), dest);
 }
 
-// --- static file server ----------------------------------------------------
+// --- static file server ---
 
 const MIME = {
     '.html': 'text/html; charset=utf-8',
@@ -208,31 +190,13 @@ const MIME = {
     '.wasm': 'application/wasm',
 };
 
-/**
- * Serve a directory over HTTP on an ephemeral port. Returns { baseURL, close }.
- * SPA-style: unknown paths without an extension fall back to index.html.
- *
- * `middleware` is an optional `(req, res, next)` handler consulted BEFORE the
- * filesystem, so a caller can mount generated endpoints alongside the static
- * dist — the performance harness uses it for the 800-canvas IIIF fixture, which
- * is generated rather than checked in and therefore has no file to serve.
- *
- * It must call `next()` **synchronously** for anything it does not answer. This is
- * not a style preference: fall-through is decided by whether `next()` has run by
- * the time the handler returns, so a middleware that awaits anything before
- * calling `next()` leaves the request neither answered nor served from disk, and
- * it hangs until the client times out. A middleware needing async work must take
- * ownership of the response itself (answer it, or 404/500 it) rather than
- * deferring `next()`.
- */
+/** Serve a directory on an ephemeral port. Unknown extensionless paths fall back to index.html. */
 export function serveDir(rootDir, { middleware } = {}) {
     return new Promise((resolvePromise) => {
         const server = createServer((req, res) => {
             try {
                 if (middleware) {
-                    // Synchronous by contract (see the JSDoc): `handled` is read
-                    // the instant the handler returns, so a deferred `next()`
-                    // arrives too late to fall through.
+                    // `next()` must run synchronously or the request hangs.
                     let handled = true;
                     middleware(req, res, () => {
                         handled = false;
@@ -277,10 +241,7 @@ export function serveDir(rootDir, { middleware } = {}) {
     });
 }
 
-// Headless Chromium has no real GPU, so any WebGL a fixture's graph touches can
-// emit environment-specific context/param warnings (e.g. MAX_TEXTURE_IMAGE_UNITS
-// null). These are not consumer-facing defects in the packed artifact — the
-// canvas still renders — so they are filtered from the page-error assertion.
+// Headless-GPU WebGL noise filtered from the page-error assertion.
 const BENIGN_BROWSER_ERROR =
     /webgl|gl parameter|swiftshader|graphics card|too many contexts/i;
 

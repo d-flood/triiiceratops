@@ -1,17 +1,5 @@
 #!/usr/bin/env node
-/*
- * Serve the built tree over HTTP for the browser suite.
- *
- * The score gate has to measure the published site rather than a development
- * server: the SEO category reads `robots.txt` and `sitemap.xml` at the tree's
- * root, the search bundle is written after the bundler has finished, and the
- * consumer examples are placed afterwards too. A development server proxying
- * those in would be a second definition of the site, able to be correct while
- * the real one is broken.
- *
- * Static only, and deliberately dumb — the closer this is to a plain file host,
- * the closer the measurement is to production.
- */
+/* Static file host for measuring the published tree. */
 
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -55,12 +43,6 @@ if (!existsSync(join(root, 'index.html'))) {
     process.exit(1);
 }
 
-/**
- * Resolve a request path to a file inside `root`, or `null`.
- *
- * A directory resolves to its `index.html`, which is what makes the site's
- * trailing-slash routes (`/size/`) work the way a static host serves them.
- */
 function resolveFile(pathname) {
     let decoded;
     try {
@@ -68,8 +50,6 @@ function resolveFile(pathname) {
     } catch {
         return null;
     }
-    // `normalize` collapses `..` before the prefix check, so a traversal attempt
-    // is rejected rather than escaping the root.
     const candidate = resolve(join(root, normalize(decoded)));
     if (candidate !== root && !candidate.startsWith(root + sep)) return null;
     if (!existsSync(candidate)) return null;
@@ -98,8 +78,6 @@ const server = createServer((request, response) => {
     response.writeHead(200, {
         'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
         'content-length': statSync(file).size,
-        // A published host sets a real policy; the suite only needs the
-        // measurement to see a cacheable, immutable-safe response.
         'cache-control': 'public, max-age=3600',
         'x-content-type-options': 'nosniff',
     });

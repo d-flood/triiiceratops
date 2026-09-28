@@ -1,25 +1,4 @@
-/*
- * The manifests `/features/` shows that are variations on material already here.
- *
- * Each one republishes canvases from `material/landing/manifest.json` or
- * `material/sound/manifest.json` under an id space of its own, with one IIIF
- * property added or changed: the languages a manifest can be written in, a note
- * anchored to a point, an annotation page kept in another file, an alternative
- * order for the same leaves, a start that names a second rather than a canvas.
- * The images, their tile pyramids and the recordings are the sets they came
- * from — nothing here fetches or writes a pixel or a sample.
- *
- * Generated rather than committed by hand because they are DERIVED: the landing
- * manifest is itself generated (`generate-landing-material.mjs`), and a
- * hand-copied canvas would keep a plate, a dimension or a service path the
- * regenerated set no longer has. Run `pnpm material:features` after
- * `pnpm material:landing`.
- *
- * The recordings' own media and provenance stay where they are, in
- * `static/material/sound/` and its `PROVENANCE.md`: this script republishes
- * their canvases, and the durations it lays segments out from are read from
- * that manifest rather than restated here.
- */
+/* Derived `/features/` manifests republishing landing/sound canvases with one property changed. */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -45,7 +24,6 @@ function en(value) {
     return { en: [value] };
 }
 
-/** One landing canvas, republished under `base`'s id space. */
 function canvas(slug, base) {
     const source = bySlug.get(slug);
     if (!source) throw new Error(`the landing set has no canvas ${slug}`);
@@ -57,16 +35,6 @@ function canvas(slug, base) {
     return copy;
 }
 
-/**
- * One recording's canvas, republished under `base`'s id space.
- *
- * Unlike a plate, a sound canvas can carry several painting annotations laid
- * end to end on one timeline, and each one's target carries the `#t=` segment
- * it occupies — so the rewrite has to keep every fragment while moving the
- * canvas the fragments hang off. The media ids are left alone: the files stay
- * where `PROVENANCE.md` says they are, and republishing a canvas must not
- * imply a second copy of a recording.
- */
 function soundCanvas(slug, base) {
     const source = soundBySlug.get(slug);
     if (!source) throw new Error(`the sound set has no canvas ${slug}`);
@@ -84,7 +52,6 @@ function soundCanvas(slug, base) {
     return copy;
 }
 
-/** A companion Canvas, moved into `base`'s id space with its painting. */
 function companion(source, base) {
     const copy = structuredClone(source);
     const slug = copy.id.split('/').slice(-2).join('-');
@@ -95,7 +62,6 @@ function companion(source, base) {
     return copy;
 }
 
-/** The `#t=` seconds each of a composed canvas's segments begins at. */
 function segmentStarts(canvasJson) {
     return canvasJson.items[0].items.map((annotation) =>
         Number(annotation.target.split('#t=')[1].split(',')[0]),
@@ -111,11 +77,6 @@ function write(name, manifest, file = 'manifest.json') {
     written += 1;
 }
 
-// ---------------------------------------------------------------------------
-// Written in several languages, so the chrome offers a language to read it in.
-//
-// The titles are the ones the holding institutions use, not translations made
-// here: a picker that switched between inventions would demonstrate nothing.
 const MULTILINGUAL = '/material/multilingual';
 write('multilingual', {
     '@context': 'http://iiif.io/api/presentation/3/context.json',
@@ -186,10 +147,6 @@ write('multilingual', {
     }),
 });
 
-// ---------------------------------------------------------------------------
-// The three links IIIF has for leaving the viewer. Each points at something
-// that really exists: the record the scan came from, a JPEG of the whole plate
-// served from here, and the Image API description of the pyramid behind it.
 const LINKS = '/material/links';
 write('links', {
     '@context': 'http://iiif.io/api/presentation/3/context.json',
@@ -229,11 +186,6 @@ write('links', {
     items: [canvas('haeckel', LINKS)],
 });
 
-// ---------------------------------------------------------------------------
-// A note anchored to a shape rather than a box.
-//
-// The outline is traced on the plate's own pixel grid (4649 × 5177) around the
-// basket and its loaf, at the lower left of the table.
 const OUTLINE = '/material/outline';
 const BASKET = [
     [399, 3547],
@@ -284,8 +236,6 @@ write('outline', {
     items: [milkmaid],
 });
 
-// ---------------------------------------------------------------------------
-// The whole set again, with the publisher naming where a reader should arrive.
 const START = '/material/start';
 write('start', {
     '@context': 'http://iiif.io/api/presentation/3/context.json',
@@ -299,10 +249,7 @@ write('start', {
     items: [...bySlug.keys()].map((slug) => canvas(slug, START)),
 });
 
-// ---------------------------------------------------------------------------
-// A canvas the server has no picture for. The image id is deliberately one
-// nothing is written to: what the page shows is the viewer's placard, and a
-// file placed there later would quietly retire the feature.
+// Image id intentionally unwritten: shows the viewer's missing-image placard.
 const MISSING = '/material/missing';
 write('missing', {
     '@context': 'http://iiif.io/api/presentation/3/context.json',
@@ -345,14 +292,6 @@ write('missing', {
     ],
 });
 
-// ---------------------------------------------------------------------------
-// The same leaves in a second order the publisher declares.
-//
-// A Range carrying `behavior: sequence` is an alternative ordering of canvases
-// the manifest already has, so both orders here are the same eleven plates and
-// neither adds or hides one. The second is by the date of the work, which the
-// canvas labels themselves record — an order invented for the demonstration
-// would show the picker working and mean nothing.
 const SEQUENCES = '/material/sequences';
 const BY_DATE = [
     'aleppo',
@@ -395,12 +334,6 @@ write('sequences', {
     })),
 });
 
-// ---------------------------------------------------------------------------
-// A note anchored to a point.
-//
-// The Sun's face on Cellarius's plate, at the centre of the arrangement the
-// plate is about. A point rather than a box because the thing being marked is a
-// position, not an area: the marker is the whole of what a PointSelector says.
 const POINT = '/material/point';
 const cellarius = canvas('cellarius', POINT);
 cellarius.annotations = [
@@ -438,13 +371,6 @@ write('point', {
     items: [cellarius],
 });
 
-// ---------------------------------------------------------------------------
-// Tags, and a note that marks no region.
-//
-// Every annotation here targets the whole canvas, which is the point: a note
-// about the sheet as a whole has no region to draw, and the viewer lists it
-// rather than inventing an outline for it. Two of the three carry `tagging`
-// bodies, which the panel shows as badges instead of prose.
 const TAGS = '/material/tags';
 const atkins = canvas('atkins', TAGS);
 atkins.annotations = [
@@ -496,16 +422,6 @@ write('tags', {
     items: [atkins],
 });
 
-// ---------------------------------------------------------------------------
-// Notes the canvas names and does not carry.
-//
-// The canvas's `annotations` is a reference — an id and a type, no `items` —
-// so the page is a second document the viewer has to go and fetch when the
-// reader reaches the canvas. Written as two files for that reason: a page
-// inlined here would be the very thing this manifest is not.
-//
-// The regions are the page's own layout, measured on the scan: three columns
-// of text, and the marginal masora written above and below the block.
 const REFERENCED = '/material/referenced';
 const aleppo = canvas('aleppo', REFERENCED);
 aleppo.annotations = [
@@ -568,15 +484,6 @@ write(
     'annotations.json',
 );
 
-// ---------------------------------------------------------------------------
-// Two plates with their printed lines transcribed.
-//
-// `supplementing` annotations targeting the region each line occupies: the
-// shape an OCR pipeline emits, and what the PDF export reads to lay selectable
-// text under the picture. Transcribed from these scans rather than recognised
-// by a program, which is why there are six lines and not six hundred — every
-// line of type on either plate is here, because these are plates rather than
-// pages of prose.
 const OCR = '/material/ocr';
 const OCR_LINES = {
     haeckel: [
@@ -635,20 +542,6 @@ write('ocr', {
     }),
 });
 
-// ---------------------------------------------------------------------------
-// The older IIIF, in the vocabulary it actually uses.
-//
-// Presentation 2.1 throughout: `@id` and `@type`, a `sequences` array with the
-// canvases inside it, `images` carrying an `oa:Annotation` whose `resource` is
-// `on` the canvas, `description` where 3.0 has `summary`, and `attribution`
-// where 3.0 has `requiredStatement`. A great many published manifests are still
-// this document, which is the whole reason to serve one.
-//
-// The image service stays the Image API 3.0 level-0 one the tiles are actually
-// cut for: the two APIs version separately, and a v2 Presentation document
-// naming a v3 service is a real combination rather than a contrivance. It is
-// declared with both spellings of id and profile so the service is legible
-// whichever version a reader's tooling expects.
 const V2 = '/material/presentation2';
 write('presentation2', {
     '@context': 'http://iiif.io/api/presentation/2/context.json',
@@ -711,14 +604,6 @@ write('presentation2', {
     ],
 });
 
-// ---------------------------------------------------------------------------
-// Notes pinned to seconds of a recording.
-//
-// A `commenting` annotation whose target carries `#t=` is timed commentary: it
-// belongs to a moment rather than to a region, and there is nowhere on a
-// timeline to draw it, so it is read rather than seen. Each note here begins at
-// the second one march's file gives way to the next, and the seconds are read
-// off the canvas's own segments so a re-transcode cannot leave them behind.
 const TIMED = '/material/timed';
 const timedMarches = soundCanvas('marine-band', TIMED);
 const STARTS = segmentStarts(timedMarches);
@@ -757,14 +642,6 @@ write('timed', {
     items: [timedMarches],
 });
 
-// ---------------------------------------------------------------------------
-// A start that names a second, not just a canvas.
-//
-// Cookbook 0015's shape: `start` is a SpecificResource whose `source` is the
-// canvas and whose `PointSelector` carries `t`. The second named is the third
-// march's own beginning, taken from the canvas's segments, so the playhead
-// arrives where a chapter does. It is a seek and never a play — nothing here
-// asks the browser to make a sound at a reader who did not ask for one.
 const MOMENT = '/material/moment';
 const momentMarches = soundCanvas('marine-band', MOMENT);
 write('moment', {
@@ -784,18 +661,6 @@ write('moment', {
     items: [soundCanvas('lost-chord', MOMENT), momentMarches],
 });
 
-// ---------------------------------------------------------------------------
-// A collection whose members are real volumes, not single sheets.
-//
-// The point of a collection is that it holds MANIFESTS, and a member with one
-// canvas in it cannot show that: navigating such a collection looks exactly
-// like paging a manifest. So the eleven plates are grouped by subject into four
-// members of two to four canvases each, and every member is a document of its
-// own that the viewer has to fetch when the reader picks it.
-//
-// Grouped by what the works are rather than by anything invented for the
-// demonstration, and no member carries `navDate`: the panel then orders them by
-// label, which is the ordinary case and the one worth showing.
 const COLLECTION = '/material/collection';
 const VOLUMES = [
     [
@@ -815,7 +680,6 @@ if (VOLUMES.flatMap(([, , slugs]) => slugs).length !== bySlug.size) {
     throw new Error('the volumes and the landing set have drifted apart');
 }
 
-/** The small pre-cut rendition of a canvas's own image, for a panel row. */
 function thumbnailOf(canvasJson) {
     const body = canvasJson.items[0].items[0].body;
     return [
@@ -837,9 +701,6 @@ const volumes = VOLUMES.map(([slug, label, members]) => {
         summary: en(
             `${members.length} plates from this site's public-domain set, gathered as one volume of a collection.`,
         ),
-        // Each volume republishes its plates under its own id space, exactly as
-        // the other derived manifests do: two volumes sharing a canvas id would
-        // be one canvas belonging to two documents.
         items: members.map((member) => canvas(member, base)),
     };
     write('collection', manifest, `${slug}.json`);

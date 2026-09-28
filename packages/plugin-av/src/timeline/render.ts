@@ -1,16 +1,5 @@
-/**
- * Drawing the peaks model into a 2D context — the pixel half of the waveform,
- * and part of the lazily-imported waveform chunk.
- *
- * Pixels rather than DOM because there is nothing here to operate: every seek
- * the waveform invites is already reachable through the transport's real
- * `role="slider"` and through the timeline lane's own tap handling, so this is
- * decoration over geometry the DOM already carries (ADR 0016).
- */
-
 import type { Peaks } from './peaks';
 
-/** What to draw, in the drawing surface's own pixels. */
 export interface WaveformView {
     /** Surface size in CSS pixels. */
     readonly width: number;

@@ -4,33 +4,11 @@ import type {
     AnnotationStorageAdapter,
 } from './types';
 
-/**
- * LocalStorage-based annotation adapter — the reference minimal adapter.
- *
- * It is pure storage: `localStorage` reads and writes, nothing more. Display
- * sync (to the owning viewer's state), caching, id reconciliation, and error
- * handling are all owned by the plugin's `AnnotationStore`, so a custom adapter
- * only needs to implement these few storage methods. This is the shape
- * every adapter should aim for.
- *
- * ── LocalStorage namespace (FROZEN) ────────────────────────────────────────
- * 1.0 writes under a new, stable, versioned, package-qualified key:
- *
- *     @triiiceratops/plugin-annotation-editor:v1:<manifestId>:<canvasId>
- *
- * This key is FROZEN — it is the stable 1.0 contract and must not change without
- * a `:v2:` bump. The prerelease adapter used a different, unversioned key
- * (`triiiceratops:annotations:<manifestId>:<canvasId>`). RC-era data is
- * neither read, migrated, deleted, nor overwritten: this adapter never touches
- * the old namespace, so prerelease keys are left byte-identical and untouched
- * (they are disposable RC data). This is local/single-browser storage — not a
- * production multi-user adapter.
- */
+/** Reference minimal adapter. Storage key is frozen 1.0 contract; never touch RC namespace. */
 export class LocalStorageAdapter implements AnnotationStorageAdapter {
     readonly id = 'localStorage';
     readonly name = 'Local Storage';
 
-    /** The frozen 1.0 namespace prefix (see the class doc). */
     private static readonly KEY_PREFIX =
         '@triiiceratops/plugin-annotation-editor:v1';
 

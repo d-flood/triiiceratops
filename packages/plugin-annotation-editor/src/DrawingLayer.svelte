@@ -1,33 +1,5 @@
 <script lang="ts">
-    /*
-     * The drawing surface: the DOM the plugin owns inside core's overlay-layer
-     * container.
-     *
-     * Arming is modal and this is the whole suppression mechanism. While a tool
-     * is armed the root takes `pointer-events: auto` across the full surface, so
-     * a drag draws; while it is not, the root is `pointer-events: none` and the
-     * same drag reaches the renderer underneath and pans. The layer is a SIBLING
-     * of the renderer root, so a gesture it takes never traverses the renderer's
-     * canvas at all — no input claim, and none of the momentum-cancel, pointer
-     * capture and false-stability side effects an arbiter claim would carry
-     * (ADR 0020).
-     *
-     * Modal does not mean trapped. The wheel and the arrow keys reach the
-     * renderer on their own — the wheel is bound on the stage, which explicitly
-     * accepts events raised inside an overlay layer, and the pan keys are bound
-     * on the renderer root, which core refocuses after a press on a layer — so
-     * neither is implemented here and neither may be broken here. The one
-     * escape hatch this layer owns is holding Space, which simply drops the
-     * surface back to click-through for the duration.
-     *
-     * Each tool answers to exactly ONE gesture, so nothing here discriminates
-     * tap from drag: rectangle and ellipse are always a drag, polygon is a
-     * click per vertex, a point is a single click, and whole canvas has no
-     * gesture at all. Core reads the gesture arbiter's one tap decision, and a
-     * second recogniser in a plugin would reintroduce the two thresholds that
-     * decision exists to avoid. The only threshold is the minimum-size guard on
-     * a COMMITTED region — a point has no size to judge.
-     */
+    /* Modal drawing surface; armed takes pointer events, disarmed pans through. */
     import { tick, untrack } from 'svelte';
     import {
         DEFAULT_POINT_DIAMETER,

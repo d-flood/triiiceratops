@@ -1,28 +1,4 @@
-/**
- * Plugin conformance suite.
- *
- * `runPluginConformance(factory)` registers a battery of vitest cases that
- * activate the plugin against a real test viewer context and assert the
- * lifecycle contracts every plugin must honor:
- *
- * - mount/cleanup symmetry — `mount` runs once, its cleanup runs once on
- *   deactivation, and deactivation is idempotent;
- * - subscription disposal — no `ViewerState` subscription leaks past
- *   deactivation (a command afterwards reaches no plugin listener);
- * - locale-change handling — an active-locale switch does not fail the plugin;
- * - style cleanup — every installed stylesheet is released on deactivation;
- * - error isolation — a sibling throwing view yields a PHASE-CORRECT failure
- *   through `host.reportError`, and the real viewer state stays live;
- * - published state (ADR 0018), for a plugin that publishes any — every member
- *   carrying a real classification (and every classification naming a real
- *   member), an observable member seen to change waking subscribers by the next
- *   flush, and the publication retired with the activation. A plugin that
- *   publishes nothing passes these vacuously.
- *
- * The cases are exported as {@link conformanceCases} so a harness (or the kit's
- * own tests) can drive an individual check directly — e.g. to assert that a
- * deliberately-leaky plugin FAILS the subscription-disposal check.
- */
+/** Lifecycle contracts every plugin honors; publish-nothing passes vacuously. */
 
 import { describe, expect, it } from 'vitest';
 

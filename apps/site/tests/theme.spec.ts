@@ -1,28 +1,10 @@
-/**
- * Both schemes, in a browser: what only a browser can see.
- *
- * The three states — an explicit light choice, an explicit dark choice, and no
- * stored choice following the machine — and the one that cannot be tested any
- * other way: the theme being right on the *first* paint rather than after the
- * page settles.
- *
- * Ratios are not asserted here. They are arithmetic on the palette, checked in
- * `tests/unit/palette.test.ts`; a browser adds nothing but flakiness to them.
- */
-
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { THEME_STORAGE_KEY } from '../src/lib/theme';
 
-/** The two grounds, from the palette, as the browser will report them. */
 const BONE = { light: 'rgb(247, 242, 233)', dark: 'rgb(26, 22, 19)' };
 
-/**
- * The body's background once it has settled.
- *
- * Polled rather than read once: a colour read while a transition or the first
- * style recalculation is still in flight is a value no scheme ever declared.
- */
+/* Polled: a mid-transition read is a value no scheme declared. */
 async function settledGround(page: Page): Promise<string> {
     let ground = '';
     await expect(async () => {
@@ -30,7 +12,6 @@ async function settledGround(page: Page): Promise<string> {
             () => getComputedStyle(document.body).backgroundColor,
         );
         expect([BONE.light, BONE.dark]).toContain(seen);
-        // Two identical reads a frame apart: settled, not merely plausible.
         const again = await page.evaluate(
             () =>
                 new Promise<string>((resolve) =>
@@ -53,15 +34,7 @@ function toggle(page: Page) {
         .getByRole('button', { name: /Switch to (light|dark) theme/ });
 }
 
-/**
- * Click a control until the scheme has actually changed.
- *
- * Every route is prerendered, so the control is present and clickable before the
- * page hydrates and a single click can land on markup that has no handler yet.
- * Retrying is the assertion that the control works, without reaching for a
- * hydration signal that is SvelteKit's internal business. A click that did take
- * satisfies the check on the first pass, so this cannot toggle twice.
- */
+/* Retry: a click can land before hydration attached a handler. */
 async function switchTo(
     page: Page,
     control: Locator,
@@ -126,17 +99,15 @@ test.describe('an explicit choice', () => {
         await page.goto('/');
         await switchTo(page, toggle(page), 'dark');
 
-        // A followed link, then a fresh document load of the same route. The
-        // appendix is out of the rail by design, so the footer is where it is
-        // linked from.
+        // A followed link, then a fresh document load of the same route.
         await page
-            .getByRole('contentinfo')
-            .getByRole('link', { name: 'Design system' })
+            .getByRole('navigation', { name: 'Site navigation' })
+            .locator('a[href="/install/"]')
             .click();
-        await expect(page).toHaveURL(/\/system\/$/);
+        await expect(page).toHaveURL(/\/install\/$/);
         expect(await settledGround(page)).toBe(BONE.dark);
 
-        await page.goto('/system/');
+        await page.goto('/install/');
         expect(await settledGround(page)).toBe(BONE.dark);
     });
 });

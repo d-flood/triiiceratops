@@ -46,9 +46,6 @@
         ...rest
     }: Props = $props();
 
-    // The button is driven entirely through custom properties. Setting them
-    // inline per variant/size keeps a single static `.btn` rule (and avoids Svelte
-    // pruning dynamically-applied utility classes).
     const VARIANT_VARS: Record<Variant, string> = {
         default: '',
         primary:
@@ -61,7 +58,6 @@
             '--btn-color:var(--tri-color-warning);--btn-fg:var(--tri-color-warning-content);',
         error: '--btn-color:var(--tri-color-error);--btn-fg:var(--tri-color-error-content);',
     };
-    // [--fontsize, --btn-p, size multiplier of --tri-size-field]
     const SIZE_VARS: Record<Size, string> = {
         xs: '--fontsize:0.6875rem;--btn-p:0.5rem;--size:calc(var(--tri-size-field,0.25rem)*6);',
         sm: '--fontsize:0.75rem;--btn-p:0.75rem;--size:calc(var(--tri-size-field,0.25rem)*8);',
@@ -125,7 +121,6 @@
         transition-duration: 0.2s;
         transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 
-        /* defaults (overridable via inline size/variant vars) */
         --size: calc(var(--tri-size-field, 0.25rem) * 10);
         --btn-bg: var(--btn-color, var(--tri-toolbar-bg));
         --btn-fg: var(--tri-content);

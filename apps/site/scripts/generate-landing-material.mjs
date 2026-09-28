@@ -227,8 +227,6 @@ function canvas(work, { width, height }) {
 
 try {
     if (!MANIFEST_ONLY) {
-        // Generated tiles must agree with the manifest written below; never mix
-        // a successful earlier run with a changed source list.
         rmSync(ROOT, { recursive: true, force: true });
         mkdirSync(IMAGES, { recursive: true });
     }

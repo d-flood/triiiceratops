@@ -1,14 +1,4 @@
 <script lang="ts">
-    /*
-     * The shelf of loadable manifests: the Cookbook catalog grouped as the
-     * Cookbook groups it, followed by the manifests that have no catalog entry.
-     *
-     * A plain list rather than a collapsible drawer: it is one element of a page
-     * here — beside the viewer on a wide viewport, above it on a narrow one —
-     * so there is nothing for it to get out of the way of. The group names are
-     * real headings, which is how a reader gets past forty recipes to the one
-     * kind they came for.
-     */
     import {
         groupRecipes,
         INSTITUTIONAL_MANIFESTS,
@@ -23,7 +13,6 @@
         activeUrl = '',
         onSelect,
     }: {
-        /** The manifest currently loaded, marked in the list. */
         activeUrl?: string;
         onSelect: (url: string) => void;
     } = $props();
@@ -52,21 +41,13 @@
         },
     ].filter((section) => section.entries.length > 0);
 
-    /*
-     * Only a recipe the catalog has a verdict on says anything. An entry with
-     * no `support` field has no catalog entry at all, and reading that as
-     * either verdict would be inventing one.
-     */
     function status(entry: ManifestEntry): string | undefined {
         if (!entry.support || entry.support === 'supported') return undefined;
         return entry.reason ? `Unsupported — ${entry.reason}` : 'Unsupported';
     }
 </script>
 
-<!-- `data-pagefind-ignore`: the page wears the chrome, so its body is the
-     site's search scope, and forty recipe names are forty pages' worth of IIIF
-     vocabulary that would out-match real prose on half the site's queries. The
-     heading and the lede above still make the page findable. -->
+<!-- Recipe names would out-match real prose in site search. -->
 <nav class="recstage__rail" aria-label="Manifests" data-pagefind-ignore>
     {#each sections as section (section.key)}
         <h2 class="recstage__head">{section.heading}</h2>

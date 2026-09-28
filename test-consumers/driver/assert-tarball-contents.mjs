@@ -1,24 +1,8 @@
-// Tarball-level content contract (allowlist-oriented).
-//
-// Published tarballs
-// contain ONLY public entries, their transitive runtime/Svelte modules,
-// declarations, CSS, IIFEs, intentional testing exports, README, LICENSE, and
-// package metadata. Demo manifests, favicons, internal tests, fixtures, test
-// hosts, demo-only components, build tooling, and throwaway entries are excluded.
-//
-// This inspects the ACTUAL packed `.tgz` (not `dist/`). A file passes only if it
-// matches an ALLOW rule AND no REJECT rule — so an allowed extension (`.js`)
-// living in a rejected location (`dist/test/…`, `__fixtures__`) still fails.
-//
-// One rule needs more than the allowlist: no published package may ship a
-// typeface. A font FILE is already excluded by the extension allowlist, but a
-// face embedded in a stylesheet as a data URI is ordinary CSS bytes, so the
-// stylesheets are read as well — see `assertTarballNoEmbeddedFonts`.
+// Tarball content contract: packed `.tgz` holds only public entries, declarations, CSS, IIFEs, and metadata.
 
 import { execFileSync } from 'node:child_process';
 
-// Top-level files npm/pnpm may ship alongside `dist/` (always includes package
-// metadata, license, and readme regardless of the `files` field).
+// Top-level files npm/pnpm may ship alongside `dist/`.
 const TOP_LEVEL_ALLOWED = new Set([
     'package.json',
     'LICENSE',
@@ -30,45 +14,22 @@ const TOP_LEVEL_ALLOWED = new Set([
     'CHANGELOG.md',
 ]);
 
-// Files the CORE tarball must CONTAIN, not merely be permitted to contain.
-// The allowlist above is a ceiling; these are
-// the floor. `dist/react.*` and `dist/vue.*` are the precompiled framework
-// wrappers `triiiceratops/react` and `triiiceratops/vue` resolve to — the
-// subpaths are part of core's published contract, so a build that silently
-// stops emitting them must fail the release, not ship a package whose export
-// map points at nothing.
-//
-// The per-file list is deliberately short: `assertCoreExportTargets` derives
-// the rest from the PACKED `exports` map, so any subpath added later is checked
-// without touching this file.
+// Files the core tarball must contain. The rest of the export map is derived, not listed.
 const REQUIRED_CORE_DIST_FILES = [
     'dist/react.js',
     'dist/react.d.ts',
     'dist/vue.js',
     'dist/vue.d.ts',
-    // The Svelte entry. Listed for the same non-vacuity reason as the wrappers:
-    // if `svelte-package` ever stops emitting it, `.` would still build and every
-    // Svelte-free assertion would still pass — the failure would surface only as
-    // Svelte consumers being unable to import the component at all.
+    // The Svelte entry: losing it breaks Svelte consumers while Svelte-free checks stay green.
     'dist/svelte.js',
     'dist/svelte.d.ts',
-    // The German chrome catalog, published as an asset rather than bundled into
-    // the element artifacts. `./locales/*` is a wildcard subpath, so
-    // `assertCoreExportTargets` cannot derive this one from the export map —
-    // and a build that stopped emitting it would leave every German-reading
-    // host importing nothing.
+    // The German catalog behind the `./locales/*` wildcard, which cannot be derived from the export map.
     'dist/locales/de.json',
-    // Imported by the shipped chrome itself (`dist/state/i18n.svelte.js`), so
-    // its absence is a runtime failure in every consumer, not a missing
-    // subpath.
+    // Imported by the shipped chrome itself, so its absence fails every consumer at runtime.
     'dist/messages/en.json',
 ];
 
-/**
- * Core's optional framework peers. React and Vue are OPTIONAL peers, never
- * runtime dependencies — a React consumer installs no Vue, a Vue consumer
- * installs no React, and neither installs Svelte.
- */
+/** Core's optional framework peers: never runtime dependencies. */
 const CORE_OPTIONAL_PEERS = [
     { name: 'react', range: /^\^19(\.|$)/ },
     { name: 'svelte', range: /^\^5(\.|$)/ },
@@ -78,18 +39,7 @@ const CORE_OPTIONAL_PEERS = [
 /** Never a production dependency of core, whatever else changes. */
 const CORE_FORBIDDEN_RUNTIME_DEPS = ['react', 'react-dom', 'svelte', 'vue'];
 
-// Extensions permitted inside `dist/`: JS + Svelte source (core is
-// source-distributed), TypeScript declarations, CSS, and source maps. Notably
-// ABSENT: `.json` (would admit fixture manifests), `.ico`/images, `.html`.
-//
-// The one exception is the locale catalogs, admitted by `isAllowedPath` from
-// their two directories only — `dist/messages/en.json`, which the shipped
-// chrome imports, and `dist/locales/*.json`, the assets the
-// `triiiceratops/locales/*` subpath publishes.
-//
-// `dist/react.js`, `dist/react.d.ts`, `dist/vue.js`, and `dist/vue.d.ts` — the
-// framework wrapper entries — are admitted by the `.js` / `.d.ts` rules here and
-// REQUIRED by `REQUIRED_CORE_DIST_FILES` above.
+// Extensions permitted in `dist/`. `.json` admitted only for locale catalogs below.
 const ALLOWED_DIST_SUFFIXES = [
     '.js',
     '.mjs',
@@ -102,7 +52,7 @@ const ALLOWED_DIST_SUFFIXES = [
     '.map', // .js.map / .d.ts.map source maps
 ];
 
-/** Path segments that mark a file as test/fixture/demo/tooling material. */
+/** Path segments marking test/fixture/demo/tooling material. */
 function isRejectedPath(rel) {
     const segments = rel.split('/');
     const base = segments[segments.length - 1];
@@ -129,7 +79,6 @@ function isRejectedPath(rel) {
 /** Directories under `dist/` whose `.json` files are locale catalogs. */
 const LOCALE_DIRS = ['messages', 'locales'];
 
-/** Does `rel` match an allow rule (correct location + permitted kind)? */
 function isAllowedPath(rel) {
     if (!rel.includes('/')) return TOP_LEVEL_ALLOWED.has(rel);
     const segments = rel.split('/');
@@ -141,10 +90,6 @@ function isAllowedPath(rel) {
     return ALLOWED_DIST_SUFFIXES.some((s) => base.endsWith(s));
 }
 
-/**
- * Classify one archive entry (path already stripped of the `package/` prefix).
- * Returns { ok, reason }.
- */
 export function classifyEntry(rel) {
     const rejected = isRejectedPath(rel);
     if (rejected) return { ok: false, reason: `forbidden (${rejected})` };
@@ -152,10 +97,6 @@ export function classifyEntry(rel) {
     return { ok: true, reason: '' };
 }
 
-/**
- * Validate a list of archive entries (each prefixed with `package/`). Returns
- * { ok, problems: [{ entry, reason }], hasLicense, hasPackageJson }.
- */
 export function validateEntries(entries) {
     const problems = [];
     let hasLicense = false;
@@ -180,7 +121,7 @@ export function validateEntries(entries) {
     };
 }
 
-/** List the file entries inside a `.tgz` (directories filtered out). */
+/** List the file entries inside a `.tgz`. */
 export function listTarball(tarballPath) {
     const out = execFileSync('tar', ['tzf', tarballPath], {
         encoding: 'utf8',
@@ -191,10 +132,6 @@ export function listTarball(tarballPath) {
         .filter((l) => l && !l.endsWith('/'));
 }
 
-/**
- * Assert a package tarball's contents against the allowlist. Returns
- * { ok, checks: [{ name, ok, detail }] }.
- */
 export function assertTarballContents(tarballPath, pkgName) {
     const entries = listTarball(tarballPath);
     const { ok, problems, hasLicense, hasPackageJson } =
@@ -233,18 +170,7 @@ export function readTarballPackageJson(tarballPath) {
     return JSON.parse(out);
 }
 
-/**
- * Classify one `peerDependencies` value from a PACKED tarball.
- *
- * A published peer must be a semver RANGE — never a bare exact pin and never a
- * residual `workspace:` protocol. Workspace-internal peers are declared
- * `workspace:^` in each package manifest, which `pnpm pack` rewrites to
- * `^<current version>` (a CARET range). Caret (not tilde, not the pin that
- * `workspace:*` produces) is deliberate: `^1.0.0-rc.x` admits future compatible
- * minor/patch core releases, so an already-published plugin keeps peer-matching
- * instead of mismatching on every core patch. External peers (svelte/react/…)
- * are already caret ranges and pass the same rule.
- */
+/** A published peer must be a range, never a pin or `workspace:`. */
 export function classifyPeerRange(value) {
     if (typeof value !== 'string' || value === '')
         return { ok: false, reason: 'empty/non-string peer range' };
@@ -255,10 +181,6 @@ export function classifyPeerRange(value) {
     return { ok: false, reason: `not a range — exact pin (${value})` };
 }
 
-/**
- * Assert every `peerDependencies` value in a packed tarball is a range.
- * Packages with no `peerDependencies` pass trivially. Returns { ok, checks }.
- */
 export function assertTarballPeerRanges(tarballPath, pkgName) {
     const pkg = readTarballPackageJson(tarballPath);
     const peers = pkg.peerDependencies ?? {};
@@ -279,14 +201,12 @@ export function assertTarballPeerRanges(tarballPath, pkgName) {
     };
 }
 
-/** Every `./dist/...` path an `exports`/`main`/`module`/`types`/… field names. */
+/** Every `./dist/...` path an export field names. */
 export function collectExportTargets(pkg) {
     const targets = new Set();
     const visit = (node) => {
         if (typeof node === 'string') {
-            // A wildcard subpath (`./dist/locales/*`) names a pattern, not a
-            // file; what it must actually resolve to is asserted by
-            // REQUIRED_CORE_DIST_FILES instead.
+            // Wildcards name a pattern, asserted via REQUIRED_CORE_DIST_FILES.
             if (node.includes('*')) return;
             if (node.startsWith('./dist/')) targets.add(node.slice(2));
             return;
@@ -301,21 +221,7 @@ export function collectExportTargets(pkg) {
     return [...targets].sort();
 }
 
-/**
- * Assert the CORE tarball actually ships what its export map promises, and that
- * the framework wrapper subpaths are among them.
- *
- * Two failure modes this catches that the allowlist cannot, because the
- * allowlist only says what MAY appear:
- *   · a build stops emitting `dist/react.js` (e.g. `svelte-package` clears
- *     `dist/` and a later step is skipped) — the package publishes with an
- *     export map pointing at a missing file, and every React consumer's install
- *     resolves to nothing;
- *   · a subpath is removed from `exports` — `triiiceratops/react` stops
- *     resolving even though the file is still in the tarball.
- *
- * Returns { ok, checks }.
- */
+/** Core tarball ships what its export map promises, including framework subpaths. */
 export function classifyCoreExportTargets(pkg, distRelativeEntries) {
     const present = new Set(distRelativeEntries);
 
@@ -326,8 +232,6 @@ export function classifyCoreExportTargets(pkg, distRelativeEntries) {
         missingTargets: collectExportTargets(pkg).filter(
             (target) => !present.has(target),
         ),
-        // The subpaths themselves, so removing `./react` from the export map
-        // fails here rather than silently in a consumer's resolver.
         missingSubpaths: ['./react', './vue'].filter((subpath) => {
             const condition = pkg.exports?.[subpath];
             return (
@@ -371,14 +275,7 @@ export function assertCoreExportTargets(tarballPath, pkgName) {
     return { ok: checks.every((c) => c.ok), checks };
 }
 
-/**
- * Assert core's framework peer metadata.
- *
- * `react`, `vue`, and `svelte` must be declared peers, marked OPTIONAL, and must
- * not appear in `dependencies`. Getting this wrong is what turns "install
- * `triiiceratops` and your own framework" into npm pulling Vue into a React app
- * (or Svelte into both). Returns { ok, checks }.
- */
+/** Framework peers must be optional and absent from dependencies. */
 export function assertCoreOptionalPeers(tarballPath, pkgName) {
     const pkg = readTarballPackageJson(tarballPath);
     const peers = pkg.peerDependencies ?? {};
@@ -420,21 +317,7 @@ export function assertCoreOptionalPeers(tarballPath, pkgName) {
     return { ok: checks.every((c) => c.ok), checks };
 }
 
-/**
- * Every `@font-face` rule declared in a stylesheet, as its own text.
- *
- * A published package may not ship a typeface. The file-extension half of that
- * rule is enforced by the allowlist above — no `.woff2` suffix is admitted
- * anywhere — but the sharper failure is a face EMBEDDED in a stylesheet as a
- * data URI, which arrives as ordinary CSS bytes and no extension rule can see.
- * The comparison's own measurements record a competitor shipping 58% of its
- * stylesheet that way.
- *
- * Any `@font-face` at all is the failure, embedded or linked: the viewer names
- * two font custom properties and falls back to the reader's system faces (see
- * the theming guide at `/docs/theming/`), so a consumer's page carries only the
- * type it chose.
- */
+/** Every `@font-face` rule in a stylesheet. Any match fails: no shipped typefaces. */
 export function findFontFaceRules(css) {
     const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
     const rules = [];
@@ -452,7 +335,7 @@ export function findFontFaceRules(css) {
     return rules;
 }
 
-/** The stylesheet entries of a tarball, as `[relative path, contents]`. */
+/** The stylesheet entries of a tarball. */
 function tarballStylesheets(tarballPath) {
     return listTarball(tarballPath)
         .filter(
@@ -467,12 +350,6 @@ function tarballStylesheets(tarballPath) {
         ]);
 }
 
-/**
- * Assert no stylesheet in a packed tarball declares a face. Returns
- * { ok, checks }. Every offending rule is named with its file and its own text
- * truncated, so the failure says which package and which rule rather than that
- * something somewhere ships a font.
- */
 export function assertTarballNoEmbeddedFonts(tarballPath, pkgName) {
     const problems = [];
     for (const [rel, css] of tarballStylesheets(tarballPath)) {
@@ -492,13 +369,6 @@ export function assertTarballNoEmbeddedFonts(tarballPath, pkgName) {
     };
 }
 
-/**
- * One-time self-check: prove the no-font rule bites on both halves — a planted
- * `.woff2` in a `dist/`, and a face embedded in a stylesheet as a data URI.
- * Kept as a permanent guard rather than mutating a real tarball, and paired with
- * a clean stylesheet so the detector cannot pass by flagging everything.
- * Returns { ok, detail }.
- */
 export function selfCheckNoFonts() {
     const planted = validateEntries([
         'package/package.json',
@@ -531,11 +401,6 @@ export function selfCheckNoFonts() {
     };
 }
 
-/**
- * One-time self-check: prove the peer-range classifier REJECTS an exact pin and
- * a residual `workspace:*`, and ACCEPTS a caret range — a permanent guard so the
- * assertion can't silently degrade to a no-op. Returns { ok, detail }.
- */
 export function selfCheckPeerRangeRejectsPin() {
     const exactPin = classifyPeerRange('1.0.0-rc.25');
     const workspacePin = classifyPeerRange('workspace:*');
@@ -548,13 +413,6 @@ export function selfCheckPeerRangeRejectsPin() {
     };
 }
 
-/**
- * One-time self-check: prove the framework-subpath assertions actually bite —
- * a tarball missing `dist/react.js`, an export map whose `./vue` lost its
- * `types` condition, and an export target no archive entry backs must all be
- * reported. Kept as a permanent guard rather than mutating a real tarball.
- * Returns { ok, detail }.
- */
 export function selfCheckFrameworkSubpathAssertions() {
     const healthy = {
         exports: {
@@ -590,8 +448,6 @@ export function selfCheckFrameworkSubpathAssertions() {
         healthy,
         entries.filter((e) => e !== 'dist/react.js'),
     );
-    // The Svelte entry is required for the same non-vacuity reason: losing it
-    // breaks every Svelte consumer while leaving all Svelte-free checks green.
     const droppedSvelte = classifyCoreExportTargets(
         healthy,
         entries.filter((e) => e !== 'dist/svelte.js'),
@@ -605,9 +461,6 @@ export function selfCheckFrameworkSubpathAssertions() {
         },
         entries,
     );
-    // The locale asset the `./locales/*` wildcard promises. The wildcard itself
-    // is not a file, so a clean package must not report it missing, and the
-    // catalog behind it must be reported when it goes.
     const droppedLocale = classifyCoreExportTargets(
         healthy,
         entries.filter((e) => e !== 'dist/locales/de.json'),
@@ -632,12 +485,6 @@ export function selfCheckFrameworkSubpathAssertions() {
     };
 }
 
-/**
- * One-time self-check: prove the validator REJECTS a planted `foo.test.js` in a
- * `dist/` (AC: "must fail if a planted foo.test.js lands in a dist/"). Kept as a
- * permanent regression guard instead of mutating a real tarball. Returns
- * { ok, detail }.
- */
 export function selfCheckPlantedTest() {
     const planted = [
         'package/package.json',
@@ -649,9 +496,6 @@ export function selfCheckPlantedTest() {
         'package/dist/demo/manifest.json', // the second plant
     ];
     const { ok, problems } = validateEntries(planted);
-    // Both plants caught, and neither locale catalog mistaken for one: the
-    // `.json` exception has to stay narrow enough to keep rejecting a fixture
-    // manifest that lands anywhere else under dist/.
     const missed = ['dist/foo.test.js', 'dist/demo/manifest.json'].filter(
         (entry) => !problems.some((p) => p.entry === entry),
     );

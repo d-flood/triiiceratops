@@ -33,8 +33,6 @@ import type {
 } from '../types/viewport.js';
 
 export interface RendererPort {
-    // ---- Commands ---------------------------------------------------------
-
     /**
      * Multiply the zoom by `factor`, anchored at a screen-space point — the
      * world point under `anchor` stays under it. Omitting the anchor zooms
@@ -72,8 +70,6 @@ export interface RendererPort {
      */
     fitView(): void;
 
-    // ---- Queries ----------------------------------------------------------
-
     /**
      * Screen pixels per canvas-space unit, or `0` before the surface is sized.
      * The single number relating the two spaces.
@@ -107,8 +103,6 @@ export interface RendererPort {
     /** The surface's size in CSS pixels; zeroes before it is measured. */
     getContainerSize(): ContainerSize;
 
-    // ---- Coordinates ------------------------------------------------------
-
     /** Canvas space → screen space. */
     canvasToScreen(
         point: ViewportPoint,
@@ -120,15 +114,11 @@ export interface RendererPort {
         canvasId?: string,
     ): ViewportPoint | null;
 
-    // ---- Presentation -----------------------------------------------------
-
     /**
      * Adopt an adjustment set. Called on every change and once at attach, so a
      * renderer mounting after the adjustments were set still shows them.
      */
     applyImageAdjustments(adjustments: ImageAdjustments): void;
-
-    // ---- Cadence ----------------------------------------------------------
 
     /**
      * Subscribe to the renderer's **own animation events** — what the `frame`
@@ -137,8 +127,6 @@ export interface RendererPort {
      * need". Returns an idempotent unsubscribe.
      */
     onFrame(listener: () => void): () => void;
-
-    // ---- Discrete input reserved for selection -----------------------------
 
     /**
      * Subscribe to a **single tap** on the image surface, in screen space.

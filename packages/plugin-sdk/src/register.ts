@@ -1,26 +1,3 @@
-/**
- * Self-contained browser registration into the `window.Triiiceratops` namespace.
- *
- * The namespace is an order-independent registry: every core OR plugin IIFE
- * bootstraps it if absent (`window.Triiiceratops ??= …`), so a plugin script may
- * load and register before core. This helper mirrors core's registry shape
- * exactly (register / get / has / list, keyed by name with version as the
- * first-wins tiebreaker); when core loads it reuses whichever runtime object
- * already exists and fills in `coreVersion` / `pluginApiVersion` /
- * `capabilities`. Registration NEVER activates anything (CONTEXT.md
- * **Registration**) — activation stays explicit and per viewer.
- *
- * Shipped as the `@triiiceratops/plugin-sdk/register` subpath and consumed by
- * every plugin's IIFE entry. It imports only types (erased at build) and
- * nothing else from the SDK, so bundling it into a plugin IIFE pulls no runtime
- * and no Svelte into the bundle — the copy stays cheap and self-contained.
- *
- * A plugin that CANNOT load before core — one whose bundle reads core's shared
- * Svelte runtime off the namespace — has nothing to bootstrap and uses
- * `@triiiceratops/plugin-sdk/register-shared` instead, which is this file
- * without the registry.
- */
-
 import type { SdkPlugin } from 'triiiceratops';
 
 import type { PluginFactoryRegistry } from './browserNamespace.js';

@@ -1,18 +1,4 @@
-/**
- * The two playlist behaviors this plugin honours, read where IIIF Presentation
- * 3 defines them, and the one decision they make between them.
- *
- * `auto-advance` is valid on a Collection, a Manifest, a Canvas or a Range, and
- * says that reaching the end of one canvas's timeline moves on to the next.
- * `repeat` is valid on a Collection or a Manifest ONLY, does nothing on its own,
- * and — with `auto-advance` also in effect — returns to the first canvas instead
- * of stopping at the last. It is not a per-canvas loop, and it does not override
- * `auto-advance`: it depends on it.
- *
- * Only `behavior` is read. The Presentation 2 `viewingHint` vocabulary has no
- * term for either of these, so core's `getCanvasBehaviors` (which merges the
- * two, and is core-internal in any case) would answer nothing extra here.
- */
+/** `repeat` needs `auto-advance`; never a per-canvas loop. */
 
 /** A resource's `behavior` terms, however the JSON spells them. */
 export function readBehaviors(resource: unknown): readonly string[] {

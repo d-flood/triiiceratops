@@ -1,20 +1,7 @@
 <script lang="ts">
     import { chooseTheme, currentTheme } from './theme';
 
-    /**
-     * The colour-scheme toggle: a small round control, in the rail's brand row
-     * on the prose routes and in the bare viewer's top bar.
-     *
-     * The brand row is the only row in the rail that is not a page, so the
-     * control does not disturb the flat equal-weight list; and the coloured link
-     * block below would imply it is a destination.
-     *
-     * Which face it shows is decided entirely in CSS, from `data-theme` and
-     * `prefers-color-scheme` — the same two inputs the palette reads. Painting
-     * it from script would mean the prerendered markup guessing a scheme it
-     * cannot know, and correcting itself after hydration: a flash of the wrong
-     * icon on the page whose whole point is not flashing.
-     */
+    /* Face decided in CSS from `data-theme`/`prefers-color-scheme`: script would flash the wrong icon after hydration. */
 
     function toggle() {
         chooseTheme(currentTheme() === 'dark' ? 'light' : 'dark');

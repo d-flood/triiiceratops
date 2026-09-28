@@ -1,13 +1,3 @@
-/**
- * Plugin conformance suite.
- *
- * `runPluginConformance` mounts the plugin against a REAL test viewer context
- * (real `ViewerState`, real batched notifications) with recording-double
- * services, and asserts the lifecycle contracts every plugin must honor:
- * mount/cleanup symmetry, subscription disposal, locale-change handling, style
- * cleanup, and error isolation. A passing run reflects production semantics.
- */
-
 import {
     definePlugin,
     negotiateCompatibility,

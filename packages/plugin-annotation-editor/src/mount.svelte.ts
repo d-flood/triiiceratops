@@ -1,34 +1,3 @@
-/**
- * The framework-neutral mount seam for the annotation editor.
- *
- * `view.mount(container, context)` (in `plugin.ts`) delegates here. This lives in
- * a `.svelte.ts` module because it uses `$effect.root` to drive the display-sync
- * loader (which owns `$effect`s) outside a component, and a plugin-runtime
- * reactive mirror of the owning viewer's state (see `viewerMirror.svelte.ts`).
- *
- * Per activation (per viewer) it:
- *  1. installs the build-extracted component CSS through the SDK style service;
- *  2. builds the reactive `ViewerState` mirror (which also carries the surface's
- *     open state, since core never re-runs `mount` on open/close) + a reactive
- *     locale `t`;
- *  3. constructs ONE `AnnotationStore` (per viewer — never shared across viewers,
- *     so annotations can't leak between viewers) and points display sync at the
- *     mirror;
- *  4. runs the loader in an `$effect.root` so the read-only overlay tracks canvas
- *     changes even while the panel is closed;
- *  5. registers the drawing layer, the DOM core places over the image for this
- *     plugin to own, sharing one `DrawingSession` with the panel so arming a
- *     tool there arms the surface here;
- *  6. mounts the panel content into the core-provided container, handing the
- *     mirror + `t` down through context.
- *
- * Core owns the chrome: it renders the toolbar button and the docked-panel /
- * anchored-flyout surface, and hands `mount` a content-only `container`, so
- * the content always renders `embedded` (no self-rendered button, header, or
- * positioning).
- *
- * The returned cleanup tears every piece down in reverse.
- */
 import { mount, unmount } from 'svelte';
 
 import type { PluginContext } from '@triiiceratops/plugin-sdk';

@@ -1,38 +1,5 @@
 #!/usr/bin/env node
-// Shipped-element size gate.
-//
-// Measures the two published Web Component artifacts — the self-contained IIFE
-// (`./element`) and the ESM registration entry (`./element/register`) — as raw
-// bytes, gzip level 9, and Brotli quality 11. Those are the same compression
-// settings the published comparison quotes — `packages/comparison` — so if one
-// moves, move the other, or the advertised numbers and the gate drift apart.
-//
-// Two modes, mirroring `scripts/coverage-check.mjs`:
-//   - default: compares every artifact against `size-baseline.json` and exits
-//     non-zero if any measurement exceeds its budget;
-//   - `--update`: rewrites `size-baseline.json` from the current build. Every
-//     reduction slice re-baselines here, so "the bundle got smaller" arrives as
-//     a reviewed diff rather than a claim.
-//
-// The failure mode is an *increase*. A deterministic build produces
-// deterministic bytes, so unlike the coverage gate there is no flake to absorb.
-// SLACK below is the one concession: half a kilobyte per artifact per metric,
-// enough that a toolchain or dependency patch does not turn every unrelated PR
-// red, and small enough that it cannot hide a reduction slice's worth of bytes.
-//
-// It is not headroom to spend. Landing first-party source changes that eat into
-// it, rather than re-baselining them, is how a gate quietly stops gating: the
-// next honest regression arrives to find the budget already consumed. Any
-// deliberate size change belongs in the baseline, where a reviewer can see it.
-//
-// Both artifacts are built to one `es2022` floor — Safari 16.4+, Chrome 94+,
-// Firefox 93+, the supported floor the install documentation states — so the
-// two figures are comparable: neither entry carries private fields downleveled
-// to a syntax the floor supports natively. Lowering either build's target would
-// show up here as an increase on that artifact alone.
-//
-// This runs as part of `pnpm build:element`; it needs built artifacts, so it
-// deliberately does not run under `pnpm test`.
+// Shipped-element size gate against size-baseline.json.
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -50,23 +17,7 @@ const SLACK = 512;
 /** The published element artifacts, in `packages/core/dist`. */
 const ARTIFACTS = ['triiiceratops-element.iife.js', 'triiiceratops-element.js'];
 
-/**
- * The standing competitive budget.
- *
- * The per-artifact baselines above ratchet core against ITSELF, which says
- * nothing about the promise the project actually makes. That promise is about
- * the viewer a reader loads, and once audiovisual manifests are in scope that
- * is core PLUS the AV plugin — TIFY, the nearest competitor, supports audio and
- * video, so comparing core alone against it is not a comparison.
- *
- * So core may grow. What may not grow past this line is the pair. Exceeding it
- * is a CI failure rather than something discovered when the comparison document
- * is rewritten.
- *
- * `gzip` because that is what the published comparison quotes and what a CDN
- * serves. The figure is TIFY's measured size under the same settings this
- * script uses; re-measure it there, not here, if it is ever refreshed.
- */
+/** Core + AV pair must stay under TIFY's measured gzip size. */
 const COMPETITIVE_BUDGET = {
     competitor: 'TIFY',
     gzip: 141467,
@@ -189,9 +140,7 @@ if (builtParts.length < COMPETITIVE_BUDGET.parts.length) {
         );
         process.exit(1);
     }
-    // `pnpm build:element` builds core alone, so a skip here is the ordinary
-    // case rather than a problem. `build:all` passes `--require-pair`, which is
-    // where the budget is actually enforced.
+    // A core-only build skips here; `build:all` passes `--require-pair`.
     console.log(`\n${message}`);
 } else {
     const total = builtParts.reduce((sum, p) => sum + measure(p).gzip, 0);

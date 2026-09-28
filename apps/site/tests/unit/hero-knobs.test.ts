@@ -1,22 +1,3 @@
-/**
- * The front page's knobs, held to the settings they claim to write.
- *
- * The hero's whole argument is that these are the viewer's own settings rather
- * than a menu of looks, so a knob naming a key the viewer does not have would
- * make the page a liar in the one place it is trying hardest to be believed.
- *
- * Layout knobs are resolved against the builder's control surface rather than
- * against the API report directly: `builder-surface.test.ts` already resolves
- * every one of those paths against the committed report, so going through it
- * means the front page can only name settings that suite has already proved
- * exist — and the two surfaces cannot drift into disagreeing about a value.
- * Theme knobs are resolved against the committed token report, which is what
- * the builder's theming controls are checked against for the same reason.
- *
- * The counts in the group headings are checked too. A number in marketing copy
- * that nothing checks is a number that quietly stops being true.
- */
-
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 

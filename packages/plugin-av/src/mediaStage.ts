@@ -1,16 +1,4 @@
-/**
- * One claimed canvas's **stage**: the DOM box the plugin renders that canvas's
- * media into, and the media element inside it.
- *
- * DOM rather than painted pixels because a reader must be able to operate it
- * (ADR 0016), and imperative rather than Svelte because the box is repositioned
- * on every frame the viewport moves — a write that belongs in the same frame the
- * tiles are painted in, not on a reactive flush.
- *
- * The element never gets the native `controls` attribute: the transport is the
- * viewer's, so that it is themed, localized, keyboard-operable, and anchored the
- * same way on every canvas.
- */
+/** One claimed canvas's stage: DOM box plus media element. No native `controls`. */
 
 import type { CaptionTrack } from './captions';
 import { warnAboutUnloadableCaptionTrack } from './degradation';

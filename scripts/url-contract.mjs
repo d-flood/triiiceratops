@@ -1,46 +1,5 @@
 #!/usr/bin/env node
-// The site's public URL gate.
-//
-// Asserts the built tree against `site-urls.json`, the committed manifest of the
-// site's public URLs. One build emits the whole published tree, so the tree this
-// reads is the tree that ships.
-//
-// FATAL checks (exit 1) — a broken promise about a public URL:
-//
-//   1. Every URL in the manifest resolves to a non-empty regular file. A path
-//      nobody meant to move cannot move silently. A manifest URL whose
-//      normalized form escapes the publish root is itself an error.
-//   2. Every relative `href`/`src` in the two pages emitted at a depth their
-//      source does not show — the site root and 404 — resolves inside the tree.
-//      That is exactly how a link that reads correctly in the editor emits
-//      broken: the not-found page is rendered at `/404/` and served from the
-//      root.
-//   3. An application path serves the application its `app` field names.
-//      Every route of the site resolves to a non-empty index.html, so check 1
-//      cannot tell `/viewer/` from any other page that happens to render a
-//      viewer — and a build that served something else there breaks roughly
-//      thirty-four IIIF Cookbook recipes, which link `/viewer/` directly
-//      through the cookbook's own `_includes/viewer_link.html`. That path was
-//      kept rather than moved for those links; see the `/viewer/` entry's note
-//      in the manifest. It has gone wrong on the deployed host once already.
-//
-// ADVISORY check (warning, exit 0):
-//
-//   4. Top-level entries the manifest does not account for are REPORTED, never
-//      removed. Whether a served path outside the contract should stay is a
-//      human's call, so this one never fails the build.
-//
-// The link checks read `href`/`src` with a regex rather than an HTML parser:
-// these documents are small and machine- or hand-written in this repo, and an
-// HTML parser dependency in a link check is a worse trade than a false positive
-// a maintainer reads in a diff. Double-quoted, single-quoted and unquoted
-// attribute values are all matched; anything else — an attribute value assembled
-// by script, say — is invisible to this check.
-//
-// Usage:
-//   node scripts/url-contract.mjs [--tree <dir>]
-//
-// `--tree` defaults to `apps/site/build`, the tree the site's own build emits.
+// Asserts the built tree against site-urls.json.
 
 import {
     existsSync,
@@ -54,67 +13,23 @@ import { REPO_ROOT } from './package-version.mjs';
 
 const MANIFEST = join(REPO_ROOT, 'site-urls.json');
 
-/**
- * How to produce each owner's part of the tree, quoted back in failure output so
- * the reader knows which build to run rather than which file to create by hand.
- * The keys are the manifest's `owner` vocabulary.
- */
+/** How to produce each owner's part of the tree. */
 const OWNER_HINTS = {
     site: 'run `pnpm build:site`',
     examples:
         'run `pnpm build:examples`, then `pnpm build:site` — the site build places its output',
 };
 
-/**
- * Served out of the publish root but not public URLs, and so not manifest
- * entries. A manifest entry is a promise about a URL somebody can link; nothing
- * here is linkable, which is the same category as the dotfiles check 4 skips.
- *
- *   CNAME  host configuration, describing the domain rather than a path on it.
- *   _app   the static adapter's asset directory for the marketing site: hashed
- *          JavaScript and CSS the site's own markup references. It is served,
- *          but no page links it and no reader could type it. Listing it in the
- *          URL contract instead would make a promise about a path whose contents
- *          are renamed by every build.
- *   material
- *          the example manifests and their images, which the marketing site's
- *          embedded viewers load. Served, referenced only from the site's own
- *          markup and from the manifests themselves, and never a URL a reader
- *          is offered. Promising them would freeze fixture paths that exist to
- *          be swapped for better material.
- *   fonts  the self-hosted typefaces the site's stylesheet names in
- *          `@font-face` and its head preloads. Served, referenced only from CSS
- *          and from a `rel=preload`, and never a page anyone could link. The
- *          documentation is part of the same build and reads the same copies.
- */
+/** Served from the publish root but not public URLs. */
 const HOST_CONTROL_FILES = new Set(['CNAME', '_app', 'fonts', 'material']);
 
-/**
- * The meta name every application page carries, whose content is the `app` the
- * page declares itself to be.
- *
- * A marker tag rather than a title or a body string. A title is copy: it gets
- * reworded, and one page's title routinely contains another's verbatim, so a
- * substring test can pass on a tree with the wrong page at this path. This is
- * exact-matched, and no reader sees it, so no rewording of a heading or a social
- * card can quietly change what it says.
- */
+/** The meta name carrying the `app` a page declares itself to be. */
 export const APP_MARKER = 'triiiceratops:app';
 
-/**
- * The manifest field naming which application a path serves.
- *
- * Keyed on the entry rather than on its `owner`: the bare viewer is a route of
- * the site application like every page around it, so `owner` cannot tell it from
- * any of them. An entry without this field is not confusable with an
- * application's page and is left alone.
- */
+/** The manifest field naming which application a path serves. */
 const APPLICATION_FIELD = 'app';
 
-/**
- * The pages check 2 walks: the ones served at a depth their source does not
- * show, relative to the tree.
- */
+/** Pages served below their source depth. */
 const OWNED_PAGES = ['index.html', '404.html'];
 
 function parseArgs(argv) {
@@ -128,25 +43,19 @@ function parseArgs(argv) {
     return args;
 }
 
-/** A manifest URL becomes a path within the tree: a trailing `/` → index.html. */
+/** A manifest URL becomes a path within the tree. */
 function resolveUrl(url) {
     const path = url.endsWith('/') ? `${url}index.html` : url;
     return normalize(path.replace(/^\/+/, ''));
 }
 
-/**
- * The top-level names the manifest accounts for: the first path segment of each
- * entry's resolved path. Derived rather than listed, so promising a URL in the
- * manifest is the whole of what it takes to account for its top-level name, and
- * the two can never disagree.
- */
 function ownedTopLevel(manifest) {
     return new Set(
         manifest.urls.map((entry) => resolveUrl(entry.url).split(sep)[0]),
     );
 }
 
-/** True when `absolute` is inside `root` (or is `root` itself). */
+/** True when `absolute` is inside `root`. */
 function isInside(root, absolute) {
     const rel = relative(root, absolute);
     return rel === '' || (!rel.startsWith('..') && !rel.startsWith(sep));
@@ -158,14 +67,7 @@ function isNonEmptyFile(absolute) {
     return stat.isFile() && stat.size > 0;
 }
 
-/**
- * A link target resolves if it names a non-empty file, or a directory holding a
- * non-empty index.html.
- *
- * `lstat`, not `stat`: a symlink is not a served file. The static host uploads
- * a tarred artifact, and a symlink pointing outside the publish root resolves
- * for the checker while serving nothing.
- */
+/** A link target resolves if it names a served file or a directory with an index. */
 function targetResolves(absolute) {
     if (!existsSync(absolute)) return false;
     const stat = lstatSync(absolute);
@@ -177,13 +79,7 @@ function targetResolves(absolute) {
     return indexStat.isFile() && indexStat.size > 0;
 }
 
-/**
- * Relative `href`/`src` targets in one HTML document.
- *
- * HTML comments are stripped first: a commented-out example link is not a link.
- * The lookbehind is what keeps `data-src=`, `xlink:href=` and friends out — they
- * are populated by script at runtime, not resolved by the host.
- */
+/** Relative `href`/`src` targets in one HTML document. */
 function relativeTargets(html) {
     const targets = new Set();
     const withoutComments = html.replaceAll(/<!--[\s\S]*?-->/g, '');
@@ -201,22 +97,13 @@ function relativeTargets(html) {
     return [...targets];
 }
 
-/** Where a link on `pagePath` lands, as an absolute path. Root-relative allowed. */
+/** Where a link on `pagePath` lands. */
 function linkTarget(tree, pagePath, target) {
     if (target.startsWith('/')) return normalize(join(tree, target.slice(1)));
     return normalize(join(tree, dirname(pagePath), target));
 }
 
-/**
- * The references on the page at `pagePath` that land on nothing served inside
- * `tree`, each as `{ page, target, landing }`. `skip` opts a target out before
- * it is tested, for the links a caller has decided are somebody else's business.
- *
- * Exported because two callers ask the same question of two different sets of
- * pages — check 2 below, and the consumer examples' placement in
- * `apps/site/scripts/place-examples.mjs`. A link check spelled differently in
- * each is a link check that only partly exists.
- */
+/** References on a page that land on nothing served inside `tree`. */
 export function unresolvedTargets(tree, pagePath, html, { skip } = {}) {
     const broken = [];
     for (const target of relativeTargets(html)) {
@@ -229,15 +116,7 @@ export function unresolvedTargets(tree, pagePath, html, { skip } = {}) {
     return broken;
 }
 
-/**
- * Which application `html` declares itself to be, or `null` if it declares
- * nothing.
- *
- * Attributes are read off each `<meta>` tag rather than matched in one pass, so
- * the order they are written in does not matter. Comments are stripped first,
- * for the same reason `relativeTargets` strips them: a commented-out tag is not
- * a tag.
- */
+/** Which application `html` declares itself to be, or `null`. */
 export function appMarker(html) {
     const withoutComments = html.replaceAll(/<!--[\s\S]*?-->/g, '');
     const value = (attrs, attribute) => {
@@ -255,15 +134,7 @@ export function appMarker(html) {
     return null;
 }
 
-/**
- * Application paths in `tree` serving somebody else's application, as
- * `{ url, path, app, found }`. Empty means each application path serves the
- * application the manifest names.
- *
- * A path that is absent is not reported here: check 1 already names it as a
- * missing promise, and saying it twice buries the identity failures this exists
- * to surface.
- */
+/** Application paths serving somebody else's application. */
 export function applicationMismatches(tree, manifest) {
     const mismatches = [];
     for (const entry of manifest.urls) {
@@ -297,9 +168,7 @@ function main() {
         process.exit(1);
     }
 
-    // ---- 1. Every promised URL resolves ---------------------------------
-    // Collected, not thrown: a reviewer wants the whole list of what is
-    // missing, which usually names one absent build rather than one bad path.
+    // ---- 1. Every promised URL resolves ----
     const missing = [];
     const escapingUrls = [];
     for (const entry of manifest.urls) {
@@ -315,7 +184,7 @@ function main() {
         console.log(`  ${entry.url} -> ${path} [${ok ? 'ok' : 'MISSING'}]`);
     }
 
-    // ---- 2. Relative links in the pages served below their source -------
+    // ---- 2. Relative links in pages served below their source ----
     const brokenLinks = [];
     for (const page of OWNED_PAGES) {
         const absolute = join(tree, page);
@@ -324,7 +193,7 @@ function main() {
         brokenLinks.push(...unresolvedTargets(tree, page, html));
     }
 
-    // ---- 3. The application paths serve their own application ----------
+    // ---- 3. Application paths serve their own application ----
     const wrongApplication = applicationMismatches(tree, manifest);
 
     const fatal =
@@ -395,9 +264,7 @@ function main() {
         process.exit(1);
     }
 
-    // ---- 4. Unowned top-level entries: report, never remove --------------
-    // Dotfiles are skipped for the same reason as HOST_CONTROL_FILES: they are
-    // host and tooling control files (`.nojekyll` and the like), never public URLs.
+    // ---- 4. Unowned top-level entries: report, never remove ----
     const owned = ownedTopLevel(manifest);
     const unowned = readdirSync(tree).filter(
         (name) =>

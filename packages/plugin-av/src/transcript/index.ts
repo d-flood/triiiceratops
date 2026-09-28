@@ -1,35 +1,4 @@
-/**
- * The **transcript panel**: a claimed canvas's WebVTT cues as readable,
- * navigable text, and the editorial notes its manifest timed against the same
- * recording.
- *
- * A lazy chunk, and that is a budget decision rather than an architectural one:
- * the competitive pair budget (`scripts/size-check.mjs`) had 560 gzip to spare
- * when this was written, and a list with real semantics, keyboard operation and
- * its own stylesheet does not fit in it. What stays eager is only the question
- * "does the current canvas offer a transcript at all" — which `mediaStage`
- * already answers with its loaded-track set — plus the `await import()` in
- * `transcriptLink.ts`.
- *
- * Imperative DOM rather than a Svelte component, and that IS architectural: the
- * lazy chunks are built with nothing external (see `vite.config.ts`), so a
- * component here would bundle a second Svelte runtime — the one thing this
- * plugin's packaging exists to avoid, and a build failure under
- * `check-shared-runtime.mjs`.
- *
- * The port below carries VALUES rather than modules. A chunk is built
- * self-contained (`vite.config.ts`), so importing a shared module from the
- * eager side does not share it — in the ESM build it splits both entry and
- * chunk around a third file and the dist stops being the one-entry shape its
- * gates check for. Anything the entry already has (its clock formatter, the
- * track's list name) is therefore handed over rather than imported.
- *
- * Everything crossing this seam is in CANVAS time. A cue's own times are in the
- * clock of the media file it was authored beside, which on a temporally
- * composed canvas is one segment's; the offset from
- * {@link TranscriptPort.source} carries the shift, and nothing here knows what
- * a segment is.
- */
+/** Transcript panel chunk; imperative DOM so no second Svelte runtime is bundled. */
 
 /**
  * What the panel needs from the eager side of the plugin.

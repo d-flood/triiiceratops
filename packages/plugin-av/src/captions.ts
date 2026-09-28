@@ -1,24 +1,4 @@
-/**
- * Canvas → **caption tracks**: the WebVTT resources a canvas offers, in the two
- * shapes real manifests use.
- *
- * 1. A `Text`/`text/vtt` item riding in the painting annotation's body array,
- *    beside the media it captions (`av-video.json`, and the `lunchroom-manners`
- *    shape core's body-array unwrap exists for).
- * 2. A canvas-level annotation with `motivation: supplementing` whose body is a
- *    VTT resource — what both caption cookbook recipes use (0219, 0074) — where
- *    the body may itself be a `Choice` of one track per language (0074).
- *
- * Only `text/vtt` is read. SRT and TTML are not native `<track>` formats and
- * would need a parser and a renderer of our own, and a
- * transcript derived from annotation bodies is a different feature entirely.
- *
- * Embedded annotations only: both caption recipes and both local fixtures carry
- * the supplementing page inline on the canvas, so nothing here fetches. A
- * canvas whose annotation page is an external reference contributes no tracks
- * rather than a promise, which keeps detection synchronous with the scan that
- * claims the canvas.
- */
+/** Caption tracks: only `text/vtt`; embedded annotations only, never fetched. */
 
 import {
     getPaintingAnnotations,

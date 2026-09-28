@@ -1,17 +1,7 @@
-/**
- * Framework-neutral icon assets for the plugin.
- *
- * `ICON` is the toolbar glyph descriptor produced by the SDK's `svgIcon` — core
- * owns the rendered `<svg>` wrapper (sizing, `currentColor`, a11y). `GLYPHS` are
- * the raw inner-SVG strings the Svelte panel renders inline via `{@html}`
- * (@phosphor-icons/core paths, on the 256×256 viewBox).
- */
 import { svgIcon, type IconDescriptor } from '@triiiceratops/plugin-sdk';
 
-/** Shared phosphor viewBox for every glyph below. */
 export const VIEW_BOX = '0 0 256 256';
 
-/** Raw inner-SVG markup (path children) for the glyphs the panel renders. */
 export const GLYPHS = {
     PencilSimple:
         '<path d="M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"/>',
@@ -38,7 +28,6 @@ export const GLYPHS = {
 
 export type GlyphName = keyof typeof GLYPHS;
 
-/** The toolbar glyph (pencil), validated by `svgIcon`; core renders the wrapper. */
 export const ICON: IconDescriptor = svgIcon(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW_BOX}">${GLYPHS.PencilSimple}</svg>`,
 );

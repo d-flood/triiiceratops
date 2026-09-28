@@ -213,10 +213,6 @@ export async function flush(): Promise<void> {
     await Promise.resolve();
 }
 
-// ---------------------------------------------------------------------------
-// The consumer testing helper: a headless `ViewerHandle`.
-// ---------------------------------------------------------------------------
-
 // Re-exported so a consumer annotating their own test helpers never needs a
 // deep import. These are the SAME types `triiiceratops/react` and
 // `triiiceratops/vue` export.

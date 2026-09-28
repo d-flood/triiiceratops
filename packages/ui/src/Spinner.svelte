@@ -35,14 +35,6 @@
 ></span>
 
 <style>
-    /* A conic arc punched into a ring by the mask, rather than a `border`:
-       `border-width` accepts no percentage, so a border ring would need a length
-       per `size` step, while the mask's percentage stops hold the stroke at
-       12.5% of the diameter at every size. `farthest-side` resolves to half the
-       width, so a stop at 75% of it leaves a ring a quarter of the radius thick.
-       `border-radius` is load-bearing, not decoration: the mask's final stop
-       runs to the edge of the BOX, so without it the square's corners stay
-       opaque and the ring renders as a diamond. */
     .loading {
         pointer-events: none;
         aspect-ratio: 1;

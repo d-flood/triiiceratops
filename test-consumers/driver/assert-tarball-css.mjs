@@ -1,11 +1,5 @@
-// Tarball-level CSS assertions.
-//
-// Prior art: packages/core/src/packaging/distributions.test.ts inspects the
-// build's `dist/`. This harness strengthens the same checks by inspecting the
-// CSS *inside the packed `.tgz`* — i.e. exactly the bytes a consumer installs as
-// `triiiceratops/style.css`.
+// Tarball CSS assertions against the packed stylesheet.
 
-// The built-in themes ship with lowercase identifiers.
 const THEMES = ['light', 'dark', 'teal', 'dracula'];
 
 function splitTopLevel(selector) {
@@ -60,10 +54,6 @@ function findUnscopedSelectors(css) {
     return [...new Set(leaks)];
 }
 
-/**
- * Run every CSS assertion against the stylesheet string extracted from the
- * tarball. Returns { ok, checks: [{ name, ok, detail }] }.
- */
 export function assertTarballCss(css) {
     const checks = [];
     const check = (name, ok, detail = '') => checks.push({ name, ok, detail });

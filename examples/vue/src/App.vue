@@ -6,17 +6,13 @@ import {
 } from 'triiiceratops/vue';
 import { useTemplateRef } from 'vue';
 
-// A public IIIF manifest, so the example works with no setup.
 const MANIFEST =
     'https://iiif.wellcomecollection.org/presentation/v2/b18035723';
 
-// An ordinary template ref IS the handle — this wrapper adds no handle API.
 const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
 
-// Reactive read: a `computed` that updates when the selected value changes.
 const canvasId = useViewerSelector(viewer, (state) => state.canvasId);
 
-// Imperative command, straight through the ref.
 function next(): void {
     viewer.value?.state?.nextCanvas();
 }
@@ -31,7 +27,6 @@ function next(): void {
             <code>{{ canvasId ?? 'waiting for the viewer…' }}</code>
         </p>
 
-        <!-- The host element needs a height; the wrapper adds no layout box. -->
         <TriiiceratopsViewer
             ref="viewer"
             :manifest-id="MANIFEST"

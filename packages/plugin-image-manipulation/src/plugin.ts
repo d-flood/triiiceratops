@@ -1,27 +1,3 @@
-/**
- * The image-manipulation plugin, authored entirely on `@triiiceratops/plugin-sdk`.
- *
- * `definePlugin` returns the framework-neutral factory core activates through the
- * structural seam (it carries its own `activate(host)`); core never imports this
- * package or its Svelte runtime. Chrome is core-owned: core renders the
- * toolbar button from `meta.icon`, owns the button's open/close state, and
- * anchors + auto-places the flyout toward the canvas. `view.mount(container,
- * context)` receives a
- * content-only element core has already placed, and this plugin renders ONLY the
- * flyout content into it — it draws no button and positions nothing.
- *
- * `dismiss: 'explicit'` keeps the Flyout open while adjusting (a canvas click
- * pans/zooms without dismissing the editing session).
- *
- * Filter state lives in the Activation-scoped {@link FilterController} created
- * here (per viewer, above the mounted component), so slider positions survive
- * close→reopen and the canvas-change / deactivation resets fire whether the
- * Flyout is open or closed. Filters are applied through the first-party
- * `setImageAdjustments` command, so the plugin needs no capability and no
- * readiness gate: the adjustment set lives in viewer state and is replayed onto
- * whichever renderer mounts.
- */
-
 import { mount, unmount } from 'svelte';
 
 import {

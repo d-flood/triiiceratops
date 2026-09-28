@@ -1,20 +1,4 @@
-/**
- * The canvas-timeline sequencer chunk's entry point.
- *
- * Everything that knows a composed canvas HAS segments is reachable only from
- * here, and this module is only ever reached through the `await import()` in
- * `../sequencerLink.ts`. A page whose manifests paint one body per canvas never
- * fetches these bytes — and, just as important, pays nothing for them: the pair
- * budget against TIFY is tight.
- *
- * **The segment↔canvas-time boundary is this module's surface.** What leaves it
- * is `CanvasSequencer`, whose every member is in canvas time; AVState, the
- * transport, the timeline projection, temporal offsets and `ended` all speak
- * that and learn nothing about segments. Even the scrubber's buffered
- * indication crosses as canvas time: the element's own `TimeRanges` go IN to
- * `bufferedSpans` and canvas-time spans come out, clamped to the window the
- * active segment actually owns.
- */
+/** Sequencer chunk entry; everything leaving it is canvas time. */
 
 import type { AvPlacement, AvSource } from '../sources';
 import type { TimeSpan } from '../transport';

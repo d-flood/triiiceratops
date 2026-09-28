@@ -1,25 +1,13 @@
-/**
- * The **transport**'s pure parts: the formatting and the clock arithmetic
- * behind the view model, as functions that need no DOM and are tested as
- * functions rather than through a browser.
- *
- * Time here is always **canvas time** on the canvas timeline, the same clock
- * `AVState.currentTime` and `AVState.seek` speak.
- */
+/** All times are canvas time. */
 
 import type { CaptionTrack } from './captions';
 
-// The formatter lives beside `parseIiifTime` in core, its inverse; re-exported
-// here because this module is where the transport's time functions are found.
 export { formatMediaTime } from 'triiiceratops';
 
-/** Seconds an arrow key moves the playhead. */
 export const SEEK_STEP_SMALL = 5;
 
-/** Seconds PageUp/PageDown move the playhead. */
 export const SEEK_STEP_LARGE = 30;
 
-/** Where a position sits on a `[0, duration]` scrubber, as `0..1`. */
 export function timeFraction(
     currentTime: number,
     duration: number | null,

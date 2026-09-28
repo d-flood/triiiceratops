@@ -1,17 +1,3 @@
-/**
- * The three faces in their nine files, and the one thing that makes them "the
- * same faces on every surface": the shared shell's stylesheet, the site's head
- * preloads, and the documentation generator's font override all have to name
- * the same files and slice them the same way.
- *
- * Whether the type is *applied* is a browser fact and lives in
- * `tests/type.spec.ts`. What is asserted here is agreement between four files
- * that cannot import from each other — a `.css`, an `.html`, a Jinja partial and
- * a TOML config — and the existence of the bytes all of them point at. That is
- * exactly the failure a browser check cannot see: a face renamed on one surface
- * still renders, in a fallback, and looks nearly right.
- */
-
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -19,7 +5,6 @@ import { TOKENS_CSS } from '@triiiceratops/shell/paths';
 
 import { describe, expect, it } from 'vitest';
 
-/** The three faces, each served as a full file and two `unicode-range` slices. */
 const FACES = [
     {
         stem: 'SourceSerif4Variable-Roman',
@@ -38,18 +23,9 @@ const FACES = [
     },
 ] as const;
 
-/**
- * The slices, in the order a stylesheet has to declare them.
- *
- * `null` is the full face, and it comes FIRST and carries no `unicode-range`: a
- * browser picks the last declared face that covers a codepoint, so the slices
- * have to follow it to win for what they carry. Reversed, every page downloads
- * the whole face and the split buys nothing — which reads as entirely correct
- * in the stylesheet, hence the ordering assertion below.
- */
+/* Full face first, slices after: the browser picks the last declared face covering a codepoint. */
 const SLICES = [null, 'LatinExt', 'Latin'] as const;
 
-/** Every font file the two surfaces name, in declaration order. */
 const FONT_FILES = FACES.flatMap((face) =>
     SLICES.map((slice) => ({
         ...face,
@@ -68,7 +44,6 @@ function read(relative: string): string {
 const TOKENS_CSS_TEXT = readFileSync(TOKENS_CSS, 'utf8');
 const APP_HTML = read('../../src/app.html');
 
-/** The body of every `@font-face` rule in a stylesheet, in source order. */
 function faceRules(css: string): string[] {
     return [...css.matchAll(/@font-face\s*\{([^}]*)\}/g)].map(
         (match) => match[1],

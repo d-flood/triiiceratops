@@ -1,48 +1,7 @@
 #!/usr/bin/env node
-// Production-dependency audit gate.
-//
-// Required CI includes a production audit, run per package. pnpm audits
-// the whole workspace in one pass, but the publishable packages (seven today) ship
-// different production dependency sets, so a single workspace number hides which
-// package actually owns a flagged advisory. This gate:
-//   1. runs `pnpm audit --prod --json` once (production deps only — dev-dep
-//      advisories never reach this gate);
-//   2. resolves each publishable package's own production dependency graph via
-//      `pnpm --filter <pkg> list --prod --depth Infinity --json`;
-//   3. maps every advisory onto the package(s) whose production graph contains
-//      the vulnerable module@version, printing the package, the advisory, and
-//      the dependency path;
-//   4. exits non-zero if any mapped advisory is at severity >= SEVERITY_THRESHOLD.
-//
-// Why map ourselves instead of `pnpm --filter <pkg> audit`: pnpm rejects
-// `--filter` on `audit` ("Unknown option: 'recursive'"), so a filtered per-
-// package audit is not available. The workspace `--prod` audit's advisory set is a
-// superset of the publishable packages' production graphs, so mapping module@
-// version membership back onto each package is both reliable and complete.
-//
-// The publishable set is discovered below by SKIPPING `private: true` manifests,
-// so a package paused by that flag drops out of this report on its own: an
-// advisory against a dependency nothing ships cannot gate a release it is not
-// part of.
-//
-// ─── Severity threshold ──────────────────────────────────────────────────────
-// The gate fails on any advisory at `high` or above in a package's production
-// graph. `moderate`/`low`/`info` advisories are reported but do not fail the
-// build. To change the bar, edit SEVERITY_THRESHOLD below — it is deliberately a
-// named constant, not a CLI flag, so the enforced level is visible in review.
-//
-// ─── Allowlist (advisory exceptions) ─────────────────────────────────────────
-// ALLOWLIST is empty today. If an unavoidable high/critical advisory ever needs
-// excepting (no fix available, not reachable, etc.), add an entry here with a
-// rationale and treat it like a lint-allowlist.md entry — a reviewed commit, not
-// a silenced flag. An allowlisted advisory is downgraded to a warning line and
-// does not fail the build. Match by GitHub advisory id (GHSA-…) or the numeric
-// advisory id, scoped to the owning package.
-//
-//   { advisory: 'GHSA-xxxx-xxxx-xxxx', package: 'triiiceratops', rationale: '…' }
-//
-// Fixing/upgrading a flagged dependency is out of scope for this gate: if the
-// audit turns red, that is a signal to open a dependency bump, not to edit here.
+// Production-dependency audit gate: maps the workspace `pnpm audit --prod`
+// onto each publishable package's own production graph.
+// pnpm rejects `--filter` on `audit`, so the mapping is done here.
 
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -61,7 +20,6 @@ const ALLOWLIST = [];
 
 const thresholdRank = SEVERITY_RANK[SEVERITY_THRESHOLD];
 
-/** Discover the publishable (non-private) workspace packages. */
 function discoverPackages() {
     const packages = [];
     for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
@@ -75,11 +33,6 @@ function discoverPackages() {
     return packages.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/**
- * Resolve a package's production dependency graph. Returns a Map keyed by
- * `name@version` whose value is the dependency path (an array of `name@version`
- * segments from a top-level production dependency down to that node).
- */
 function prodGraph(pkgName) {
     const raw = execFileSync(
         'pnpm',
@@ -101,9 +54,7 @@ function prodGraph(pkgName) {
     const walk = (deps, trail) => {
         if (!deps) return;
         for (const [name, info] of Object.entries(deps)) {
-            // Skip workspace-linked entries (peer deps resolved to sibling
-            // packages): they are the consumer's install, not this package's
-            // shipped production graph, and are audited under their own package.
+            // Workspace-linked entries are audited under their own package.
             if (
                 typeof info.version === 'string' &&
                 info.version.startsWith('link:')
@@ -121,7 +72,6 @@ function prodGraph(pkgName) {
     return graph;
 }
 
-/** Run the workspace production audit and return its parsed JSON report. */
 function runAudit() {
     let stdout;
     try {
@@ -158,7 +108,7 @@ function isAllowlisted(advisory, pkgName) {
     );
 }
 
-// ─── Evaluate ────────────────────────────────────────────────────────────────
+// ─── Evaluate ───
 
 const packages = discoverPackages();
 const graphs = new Map(packages.map((p) => [p.name, prodGraph(p.name)]));
@@ -166,7 +116,6 @@ const graphs = new Map(packages.map((p) => [p.name, prodGraph(p.name)]));
 const report = runAudit();
 const advisories = Object.values(report.advisories || {});
 
-// Per-package severity tallies + the individual findings that map to it.
 const tallies = new Map(
     packages.map((p) => [
         p.name,
@@ -192,8 +141,7 @@ for (const advisory of advisories) {
                 break;
             }
         }
-        // Fallback: advisory with no per-version match — locate the module by
-        // name anywhere in this package's production graph.
+        // Fallback: match by name when the advisory carries no per-version finding.
         if (!matchedPath) {
             for (const [key, path] of graph) {
                 if (key.startsWith(`${moduleName}@`)) {
@@ -218,7 +166,7 @@ for (const advisory of advisories) {
     }
 }
 
-// ─── Report ──────────────────────────────────────────────────────────────────
+// ─── Report ───
 
 console.log(
     `Production audit (fail at severity >= ${SEVERITY_THRESHOLD}) across ${packages.length} publishable package(s):\n`,

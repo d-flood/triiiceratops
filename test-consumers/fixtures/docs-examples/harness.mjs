@@ -1,10 +1,4 @@
-// docs-examples: compiles every `ts` / `tsx` / `js` example that imports
-// package code (extracted from the site's content documents into `generated/` by
-// `scripts/docs-examples.mjs`) against the PACKED tarballs of every package the
-// documentation imports from. `buildScript: 'check'` runs `tsc --noEmit`; a
-// non-zero exit (a broken import path or a wrong public-API/plugin-config shape in
-// the docs) fails the fixture. No browser step — this is a pure type-check seam
-// that proves published guidance matches what users can install.
+// docs-examples: `tsc` over extracted doc samples against packed tarballs. The build is the assertion.
 export default {
     name: 'docs-examples',
     tarballs: [
@@ -19,6 +13,5 @@ export default {
     buildScript: 'check',
     browser: false,
     serveDir: '.',
-    // The `tsc` build step is the assertion; nothing further to check.
     assert: async () => {},
 };

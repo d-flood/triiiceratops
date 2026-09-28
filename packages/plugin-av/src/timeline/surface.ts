@@ -1,29 +1,4 @@
-/**
- * The waveform's drawing surface: a `<canvas>` nested inside the timeline lane,
- * plus the static strip the transport's scrubber shows.
- *
- * Part of the lazily-imported waveform chunk, along with the parsers and the
- * renderer: a stage builds a surface only once peaks have actually resolved, so
- * none of this needs to exist on a page that links no waveform data. The
- * geometry it places itself with is eager and shared with the ruler
- * (`../lane.ts`), which is the surface a bare lane draws instead.
- *
- * ## Why a nested canvas rather than a paint layer
- *
- * ADR 0016 puts pixels in the paint hook and operable targets in DOM, and the
- * waveform is unambiguously pixels: every seek it invites is already reachable
- * through the transport's real slider and through the lane's own tap handling.
- * But the paint hook draws into the RENDERER's canvas, which the plugin's
- * overlay layer sits on top of — and the stage is an opaque box (a black
- * backdrop, a lane with a panel background), so a waveform painted underneath it
- * would be invisible. The surface therefore goes inside the lane, where the
- * pixels can be seen, and the lane stays exactly the tap target: `onLaneTap` resolves the surface to its lane with `closest`, and the seek
- * origin is the LANE's `getBoundingClientRect()`, so nesting cannot shift it.
- *
- * The surface declares no `pointer-events` of its own — the lane's hand-down to
- * the renderer works by making the lane transparent for one hit test, which an
- * `auto` on a descendant would defeat (see `styles.ts`).
- */
+/** Waveform drawing surface; built only once peaks resolve. */
 
 import {
     clipLaneWindow,

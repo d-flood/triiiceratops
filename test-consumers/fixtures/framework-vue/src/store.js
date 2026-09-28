@@ -1,21 +1,17 @@
-// The fixture's own application state, plus the live references the Playwright
-// control surface reads. Kept out of the single-file components so the control
-// surface is one plain module.
+// Fixture application state plus live references for the Playwright control surface.
 
 import { nextTick, reactive, shallowRef } from 'vue';
 import { createTestViewerHandle, flush } from 'triiiceratops/testing';
 
 import * as F from './fixtures.js';
 
-// Every static import above has been evaluated by the time this runs, so a
-// `true` here would mean an entry point registered the element as an import
-// side effect. Registration must be lazy, and triggered by a mounted wrapper.
+// `true` here means an entry point registered the element as an import side effect; registration must be lazy.
 export const definedBeforeMount = !!(
     globalThis.customElements &&
     globalThis.customElements.get('triiiceratops-viewer')
 );
 
-/** Primitive-only, so nothing handed to the viewer is ever a reactive proxy. */
+/** Primitive-only, so the viewer never receives a reactive proxy. */
 export const store = reactive({
     theme: 'light',
     canvasProp: F.CANVAS_1,
@@ -25,16 +21,11 @@ export const store = reactive({
     fragileKey: 0,
     viewer1Mounted: true,
     keepAliveActive: true,
-    // Read by the root template purely so the fixture can force a parent
-    // re-render while every viewer input stays equal.
+    // Forces a parent re-render while every viewer input stays equal.
     renderTick: 0,
 });
 
-/**
- * `shallowRef`, NOT `ref`: a deep `ref` would hand the wrapper a reactive PROXY
- * of the config object, and the property tier's identity comparisons would stop
- * holding.
- */
+/** `shallowRef`: a deep `ref` would hand the wrapper a reactive proxy, breaking identity. */
 export const configRef = shallowRef(F.CONFIG);
 
 /** The consumer testing helper, from the same packed tarball. */

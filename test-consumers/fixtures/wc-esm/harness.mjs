@@ -1,7 +1,6 @@
 import { expect } from '@playwright/test';
 
-// wc-esm: Vite vanilla app registering the viewer custom element through the
-// packaged element entry (ESM import), rendering a local manifest.
+// wc-esm: vanilla app registering the element entry via ESM import.
 export default {
     name: 'wc-esm',
     buildScript: 'build',
@@ -11,8 +10,6 @@ export default {
     async assert({ page, baseURL, pageErrors }) {
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // Custom element upgrades and the renderer paints the first canvas. Playwright CSS
-        // locators pierce the element's open shadow root.
         await expect(page.locator('triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });
@@ -20,7 +17,6 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // Styles live inside the shadow root (no separate element stylesheet).
         const styledInShadow = await page.evaluate(() => {
             const host = document.querySelector('triiiceratops-viewer');
             const root = host && host.shadowRoot;
@@ -37,10 +33,7 @@ export default {
             'element must self-style inside its shadow root',
         ).toBe(true);
 
-        // The chrome renders in German, from the catalog the consumer imported
-        // out of the packed tarball's `triiiceratops/locales/*` subpath and
-        // passed as `messages` — the whole host-supplied-locale path, end to
-        // end, through a real install.
+        // Host-supplied German catalog end to end through a real install.
         await expect(
             page.locator('[data-panel-id="search"][role="dialog"]'),
         ).toHaveAttribute('aria-label', 'Suche', { timeout: 30_000 });

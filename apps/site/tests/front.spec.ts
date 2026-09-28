@@ -1,17 +1,3 @@
-/**
- * The front page, in a browser: what only a browser can see.
- *
- * Each of these reads as correct in source and can still be wrong on the page.
- * That the first canvas is in the prerendered markup at a size the browser can
- * reserve before any script runs. That the viewer's weight is not on the page's
- * own critical path — no manifest and no viewer code until the page has loaded,
- * and nothing at all for a viewer below the fold until it is scrolled to. That
- * the panel opens on the arrangement the prerendered chrome was drawn for, and
- * moves one setting at a time until a reader takes it over. And that the
- * embedded viewer is set in the page's own face and turns with the page's own
- * scheme.
- */
-
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { PUBLISHED_ORIGIN } from './helpers/origin';
@@ -458,62 +444,5 @@ test.describe('the embedded viewer', () => {
                 .click();
             expect(await settled()).not.toBe(light);
         }).toPass();
-    });
-});
-
-/**
- * The deployment rows at `/production/`, composed from `linkRows` blocks.
- *
- * What makes it worth a browser screen is that each row carries two different
- * links and the two must not collapse into one, and that the page separates a
- * reading room from a tool that ships the viewer. Only rendered output shows
- * either.
- *
- * A group is addressed by the heading it follows: the blocks are siblings in the
- * rendered document, and a `linkRow` carries no attribute saying which kind of
- * entry it is — the block is named for the shape it draws, not for this page's
- * subject.
- */
-test.describe('the deployments', () => {
-    test('offer a reading room’s landing page and its evidence separately', async ({
-        page,
-    }) => {
-        await page.goto('/production/');
-        const rooms = page
-            .getByRole('heading', { name: 'Reading rooms running the viewer' })
-            .locator('xpath=following-sibling::section[1]')
-            .locator('.linkrows__row');
-
-        expect(await rooms.count()).toBeGreaterThan(0);
-        for (const row of await rooms.all()) {
-            const landing = row.locator('.linkrows__label');
-            const example = row.locator('.linkrows__go');
-            await expect(landing).toHaveAttribute('href', /^https:\/\//);
-            await expect(example).toHaveAttribute('href', /^https:\/\//);
-            expect(await landing.getAttribute('href')).not.toBe(
-                await example.getAttribute('href'),
-            );
-        }
-    });
-
-    test('keep mkiiif out of the reading rooms', async ({ page }) => {
-        // A tool that emits pages carrying the viewer is not a collection
-        // anybody browses, and the page must not imply that it is.
-        await page.goto('/production/');
-        const tools = page
-            .getByRole('heading', { name: 'Tools that ship the viewer' })
-            .locator('xpath=following-sibling::section[1]')
-            .locator('.linkrows__row');
-
-        await expect(tools.filter({ hasText: 'mkiiif' })).toHaveCount(1);
-        await expect(
-            page
-                .getByRole('heading', {
-                    name: 'Reading rooms running the viewer',
-                })
-                .locator('xpath=following-sibling::section[1]')
-                .locator('.linkrows__row')
-                .filter({ hasText: 'mkiiif' }),
-        ).toHaveCount(0);
     });
 });

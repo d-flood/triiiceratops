@@ -1,33 +1,7 @@
-/**
- * The **stage layout**: what the plugin puts in a claimed canvas's rect, and
- * what the container leaves showing of it.
- *
- * At most ONE thing, filling the whole rect. The rect is the canvas's
- * projection — canvas space, where annotation geometry is persisted — so
- * everything in it is content and is measured in the manifest's own
- * coordinates. A timeline is chrome, and chrome is screen-anchored: that is why
- * a waveform on a canvas whose rect is already spoken for reaches the reader
- * through the control bar's scrubber instead of through this module.
- *
- * Pure arithmetic, deliberately: the stage's job is only to write the numbers
- * onto elements.
- */
+/** Chosen by what core paints in the rect: `video` fills it, `audio-with-image` yields it, `audio` timelines it. */
 
 import type { StageRect } from './mediaStage';
 
-/**
- * What the stage does with a canvas's rect, chosen by **what core paints in
- * it**:
- *
- * - `video` — core paints nothing and the picture is the element, so the media
- *   element fills the rect. Waveform data on video appears in the scrubber.
- * - `audio-with-image` — core paints a companion Canvas here, so the plugin
- *   puts nothing in the rect at all: it belongs to the renderer, and the stage
- *   contributes only a tap target, the glyph and the "can't play" notice.
- *   Waveform data appears in the scrubber, as it does for video.
- * - `audio` — nothing to look at either way, and no declared dimensions to
- *   protect, so the timeline fills the rect and carries the waveform.
- */
 export type StageLayoutKind = 'video' | 'audio' | 'audio-with-image';
 
 /**

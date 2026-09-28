@@ -1,13 +1,4 @@
 // Shared helpers for the performance comparison harness.
-//
-// Pure, dependency-free utilities: artifact discovery + byte sizing (ESM entry
-// graph walking), statistics (median), the fixed regression thresholds and
-// their comparison logic, budget-file IO + absolute-drift enforcement, git
-// worktree management, and summary/table formatting.
-//
-// Playwright and the browser scenario driver live in `measure.mjs`; the
-// orchestrator lives in `compare.mjs`. This file is imported by both so the
-// measurement + comparison logic is byte-identical for the base and head SHAs.
 
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
@@ -18,22 +9,7 @@ export const PERF_DIR = resolve(fileURLToPath(new URL('.', import.meta.url)));
 export const REPO_ROOT = resolve(PERF_DIR, '..', '..');
 export const BUDGETS_PATH = join(REPO_ROOT, 'perf-budgets.json');
 
-// The fixed regression thresholds.
-//  · Deterministic artifact size regression above 5% fails.
-//  · Browser runtime regression fails only when the median increase is BOTH
-//    above 10% AND the absolute median increase exceeds 20 ms.
-//  · Renderer memory regression fails only when a counter's increase is BOTH
-//    above 10% AND above an absolute floor (bytes or tiles), so ordinary
-//    decode-timing jitter in the settle window does not flake.
-//
-// The byte floor is PROPORTIONAL to the scenario being compared, not a flat
-// figure. A flat floor has to be sized for the largest scenario and then
-// swallows the smallest one whole: at 4 MiB it was 4.2x the entire
-// thumbnail-tier measurement, so a regression from thumbnail rung 256 to rung
-// 512 — a 4x increase in decoded bytes, exactly what the size ladder exists to
-// prevent — cleared every gate. A fraction of the scenario's own baseline scales
-// with what is being measured, and the small absolute minimum keeps a
-// near-zero baseline from making the gate hair-trigger.
+// Fixed regression thresholds: size >5%; runtime >10% and >20ms; memory >10% and above floor.
 export const THRESHOLDS = {
     sizeRegressionPct: 0.05,
     runtimePct: 0.1,
@@ -44,51 +20,19 @@ export const THRESHOLDS = {
     memoryAbsTiles: 8,
 };
 
-/**
- * Headroom on a captured byte figure when writing its absolute ceiling.
- *
- * Proportional for the same reason the regression floor is: an additive floor
- * large enough for the pyramid tier is larger than the whole thumbnail-tier
- * measurement, which makes that scenario's ceiling unfailable. 75% absorbs the
- * observed spread of the opportunistic cache across settle windows (the widest
- * seen is ~9%) while still failing a tier or rung regression, which is an
- * order-of-magnitude effect rather than a percentage one.
- */
+/** Proportional headroom on a captured byte figure when writing its ceiling. */
 export const MEMORY_BYTE_CEILING_FACTOR = 1.75;
 
-// Warm-up + measured run counts per scenario. Picked for a stable median in
-// headless CI: the warm-ups prime V8/JIT and the HTTP cache (the browser
-// context is reused across runs), and an ODD number of measured runs yields a
-// single-sample median with no interpolation.
+// Odd measured-run count yields a single-sample median.
 export const DEFAULT_WARMUPS = 3;
 export const DEFAULT_RUNS = 9;
 
-// The memory scenario runs far fewer times: it opens an 800-canvas manifest and
-// traverses the whole world, so one run costs seconds rather than milliseconds.
-// It is also a settled-state reading rather than a race against a clock, so its
-// spread is much narrower than a timing median's and three runs suffice.
+// Fewer memory runs: one traverse costs seconds and spread is narrow.
 export const MEMORY_WARMUPS = 1;
 export const MEMORY_RUNS = 3;
 
-// The first-party plugins measured for ESM/IIFE size and first-activation time.
-// `pkg` is the browser-runtime registry name; `toggle` is the stable toolbar
-// button marker each plugin renders once activated (used as the "activated"
-// signal).
-// The package-name aria-label fallback lets the head-owned harness measure base
-// artifacts built before Toolbar exposed the stable data-plugin-toggle marker —
-// and before SDK plugins gained a `title`, when the button's accessible name
-// still WAS the package name. Current builds match on the first alternative.
-//
-// `sized: false` keeps a plugin's artifacts out of the size gates entirely: no
-// row is collected for it, so neither the base-vs-head delta nor an absolute
-// ceiling applies. The bundle-size promise the project makes is about the viewer
-// a reader loads — core plus the AV plugin, which is the pair
-// scripts/size-check.mjs gates against TIFY. The annotation editor is a
-// deliberately heavy optional plugin whose bytes are never in that pair, so it
-// carries no byte budget; a row for it only ever gated the editor against its
-// own past. The plugin is still registered and built for the runtime scenarios,
-// because ADR 0008 puts every first-party plugin's subscription overhead inside
-// the interaction baseline.
+// First-party plugins measured for ESM/IIFE size and first-activation time.
+// `toggle` is the toolbar marker used as the "activated" signal.
 export const PLUGINS = [
     {
         key: 'image-manipulation',
@@ -120,37 +64,14 @@ export const PLUGINS = [
         key: 'av',
         dir: 'packages/plugin-av',
         pkg: '@triiiceratops/plugin-av',
-        // It activates with every plugin for the interaction baseline. There is
-        // no useful first-activation signal on the image-only timing manifest.
         paused: true,
         sized: false,
     },
 ];
 
-/**
- * Plugins whose ACTIVATION is not measured, and why.
- *
- * `@triiiceratops/plugin-annotation-editor` activates and installs its toolbar
- * button again, so the harness could measure it — but `perf-budgets.json` carries
- * no `activate_annotation-editor` ceiling, having been captured while the plugin
- * was paused. Re-listing it needs a reviewed perf capture in the same commit,
- * because `theme_switch` and `core_interaction` wait for every measured plugin to
- * be up before they measure anything, and an uncaptured scenario would fail the
- * absolute gate rather than report a number.
- *
- * Its artifacts are not sized either (`sized: false` above), so the plugin is
- * built and registered for the interaction baseline and gated on nothing.
- *
- * `@triiiceratops/plugin-av` is likewise activated and subscribed for that
- * baseline, but the image-only timing manifest gives it no meaningful first
- * activation signal. Its specialized entry and lazy-chunk size rows are
- * collected separately below.
- */
 export const ACTIVATION_MEASURED_PLUGINS = PLUGINS.filter((p) => !p.paused);
 
-// Runtime scenarios. Interaction + plugin scenarios run with all
-// first-party plugins activated AND subscribed, so subscription overhead is part
-// of the measured baseline (ADR 0008).
+// Runtime scenarios run with all first-party plugins activated and subscribed.
 export const RUNTIME_SCENARIOS = [
     'initial_viewer_mount',
     'local_manifest_readiness',
@@ -160,24 +81,7 @@ export const RUNTIME_SCENARIOS = [
     ...ACTIVATION_MEASURED_PLUGINS.map((p) => `activate_${p.key}`),
 ];
 
-/**
- * Memory scenarios, keyed the way `runtime` is.
- *
- * Both open the generated 800-canvas continuous fixture, traverse the whole
- * world in steps, stop, wait for the network to fall quiet, and read the
- * renderer's own residency counters. They differ only in zoom, and therefore in
- * which residency tier the river is in: pyramid (tiles) and thumbnail (the
- * resolved-thumbnail rung). Every canvas in the fixture is the same size, so one
- * zoom cannot cover both.
- *
- * The gate is deliberately NOT a browser heap metric. Decoded tiles are
- * `ImageBitmap`s, which live outside the JS heap, so `performance.memory` reads
- * near-flat while tiles accumulate — a heap ceiling on this scenario would be an
- * assertion that cannot fail. `residentTileCount` is the load-bearing counter
- * because the required set is never evicted: if the canvas tier stopped gating
- * level residency (ADR 0014), the traversed history accumulates there and no
- * byte budget can trim it.
- */
+/** Memory scenarios: 800-canvas traverse at pyramid and thumbnail zoom. */
 export const MEMORY_SCENARIOS = [
     'continuous_800_flick',
     'continuous_800_thumbnail_flick',
@@ -191,25 +95,7 @@ function memoryByteFloor(base) {
     );
 }
 
-/**
- * The counters a memory scenario is budgeted on, and the absolute floor each
- * one's regression must also clear (a function of the base reading, so a small
- * scenario is not swallowed by a floor sized for a large one).
- *
- * `decodedBytes` is meaningful only while its ceiling sits BELOW the scenario's
- * `byteBudget`: above that, `trim()` already guarantees the bound and the
- * assertion would be vacuous. `checkBudgets` reports that as a failure of the
- * budget file rather than silently passing.
- *
- * `requiredBytes` is budgeted alongside it because it is the only one of the
- * three that moves when the residency TIER or the thumbnail RUNG changes and
- * nothing else does. `residentTileCount` counts tiles, so a rung regression that
- * resolves the same canvases at twice the size leaves it untouched; `decodedBytes`
- * includes the opportunistic cache, which is where the settle-window jitter
- * lives. The required set is a pure function of viewport position and tier
- * (ADR 0014), so its byte total is the sharpest reading of "the same view now
- * costs more pixels".
- */
+/** Memory counters and their regression floors. */
 export const MEMORY_COUNTERS = [
     {
         key: 'residentTileCount',
@@ -220,7 +106,7 @@ export const MEMORY_COUNTERS = [
     { key: 'decodedBytes', unit: 'bytes', floor: memoryByteFloor },
 ];
 
-// --- logging ---------------------------------------------------------------
+// --- logging ---
 
 const c = {
     reset: '\x1b[0m',
@@ -249,7 +135,7 @@ export function warn(msg) {
     log(`${c.yellow}WARN${c.reset} ${msg}`);
 }
 
-// --- process running -------------------------------------------------------
+// --- process running ---
 
 export function run(cmd, args, opts = {}) {
     return new Promise((resolvePromise, reject) => {
@@ -293,7 +179,7 @@ export function run(cmd, args, opts = {}) {
     });
 }
 
-// --- statistics ------------------------------------------------------------
+// --- statistics ---
 
 export function median(values) {
     if (!values.length) return NaN;
@@ -304,7 +190,7 @@ export function median(values) {
         : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-// --- artifact sizing -------------------------------------------------------
+// --- artifact sizing ---
 
 export function fileSize(path) {
     return existsSync(path) ? statSync(path).size : 0;
@@ -318,14 +204,7 @@ function resolveModuleFile(p) {
     return null;
 }
 
-/**
- * Total byte size of the static import graph reachable from an ESM entry file,
- * following only the package's OWN emitted files (relative specifiers). Bare
- * specifiers (svelte, …) are external runtime deps a consumer's
- * bundler provides, so they are not part of the package's shipped byte cost.
- * This is what makes `core:esm-entry-graph` meaningful even though the emitted
- * `dist/index.js` is only a thin re-export shell.
- */
+/** Byte size of the ESM graph reachable via relative imports only. */
 export function esmEntryGraphSize(entryFile) {
     const entry = resolveModuleFile(resolve(entryFile));
     if (!entry) return 0;
@@ -352,13 +231,6 @@ export function esmEntryGraphSize(entryFile) {
     return total;
 }
 
-/**
- * Per-artifact byte sizes for a built repo root. Covers: core
- * ESM entry graph, style.css, element IIFE, each size-gated plugin's ESM + IIFE,
- * the SDK ESM entry graph, and the AV plugin's entry file plus each of its lazy
- * chunks. These are exactly the published artifacts a consumer loads whose bytes
- * the project makes a promise about.
- */
 export function collectSizes(root) {
     const coreDist = join(root, 'packages/core/dist');
     const sizes = {
@@ -378,27 +250,7 @@ export function collectSizes(root) {
         sizes[`${p.key}:iife`] = fileSize(join(root, p.dir, 'dist/iife.js'));
     }
 
-    /*
-        The AV plugin is sized here rather than through PLUGINS above because
-        it is the one plugin whose dist is a DIRECTORY: `iife.js` fetches
-        `av-hls.js`, `av-timeline.js`, `av-sequencer.js` and
-        `av-transcript.js` from beside itself
-        on demand, and the
-        whole point of that arrangement is that the entry stays small while the
-        chunks are large. One `:iife` row would report the entry and say
-        nothing about what a reader who opens an HLS canvas actually pays, so
-        each artifact gets a row.
-
-        These are FILE sizes, including `av:esm-entry`, where every other
-        plugin's `:esm` row is an entry-graph total. `esmEntryGraphSize` follows
-        `import('./chunk')` as readily as a static import — which is right for a
-        package whose dist is one file, and wrong here: it would fold hls.js
-        back into the very row that exists to show it is not there. What proves
-        static unreachability is `lazy-chunks.guard.test.ts`, which greps both
-        built entries for markers only the chunks can carry; these rows record
-        the shape it protects. The ESM build's own hashed chunks are the same
-        code as the two IIFE chunks below and are not sized twice.
-    */
+    // AV chunks are file sizes, not graph totals, so lazy chunks stay visible.
     const avDist = join(root, 'packages/plugin-av/dist');
     sizes['av:esm-entry'] = fileSize(join(avDist, 'index.js'));
     sizes['av:iife'] = fileSize(join(avDist, 'iife.js'));
@@ -414,24 +266,14 @@ export function collectSizes(root) {
     return sizes;
 }
 
-// --- comparison ------------------------------------------------------------
+// --- comparison ---
 
 /** Whether two measurements came from different renderer generations. */
 export function rendererGenerationChanged(base, head) {
     return base?.renderer !== head?.renderer;
 }
 
-/**
- * Compare per-artifact sizes. A deterministic increase above 5% is a regression
- * Missing artifacts (0 bytes on head where base had bytes) also fail.
- *
- * `accepted` is the optional `acceptedSizeIncreases` map from perf-budgets.json:
- * a reviewed, committed exemption for an intentional cost shift the base
- * measurement cannot represent — work moving out of an external dependency (a
- * bare specifier, never counted in an entry graph) into first-party code. An
- * exempt artifact is excused from the delta gate only while its head size stays
- * at or below the accepted `headBytes`, so further growth still fails.
- */
+/** Size regression is a deterministic increase above 5%; missing artifacts fail. */
 export function compareSizes(base, head, accepted = {}) {
     const rows = [];
     let regressed = false;
@@ -459,10 +301,6 @@ export function compareSizes(base, head, accepted = {}) {
     return { rows, regressed };
 }
 
-/**
- * Compare runtime medians. A scenario regresses only when BOTH conditions hold:
- * median increase > 10% AND absolute median increase > 20 ms.
- */
 export function compareRuntime(base, head) {
     const rows = [];
     let regressed = false;
@@ -482,20 +320,7 @@ export function compareRuntime(base, head) {
     return { rows, regressed };
 }
 
-/**
- * Compare renderer memory counters. A counter regresses only when BOTH the
- * increase exceeds `memoryPct` AND the absolute increase exceeds that counter's
- * floor — the same double gate the runtime medians use, for the same reason.
- *
- * A scenario missing from either side yields a `skipped` row rather than a pass:
- * the counters exist only on the first-party renderer, so a base that predates
- * it has nothing to diff against and pretending otherwise would report "ok" for
- * a comparison that never happened.
- *
- * `null` — not merely `undefined` — is the shape a measurement uses for "this
- * dist has no counters", so both sides are coerced rather than defaulted: an ES
- * default parameter fires only on `undefined`, and `Object.keys(null)` throws.
- */
+/** Missing counters yield `skipped`, never a pass. */
 export function compareMemory(baseMemory, headMemory) {
     const base = baseMemory ?? {};
     const head = headMemory ?? {};
@@ -527,30 +352,14 @@ export function compareMemory(baseMemory, headMemory) {
     return { rows, regressed };
 }
 
-// --- budgets (absolute drift) ----------------------------------------------
+// --- budgets ---
 
 export function loadBudgets() {
     if (!existsSync(BUDGETS_PATH)) return null;
     return JSON.parse(readFileSync(BUDGETS_PATH, 'utf8'));
 }
 
-/**
- * Build a budget file from a set of head measurements. Size ceilings allow the
- * 5% drift; runtime ceilings carry generous headroom over the captured
- * median so ordinary headless-CI timing noise does not flake, while gross
- * regressions still trip the base-vs-head gate. Intentional cost increases are
- * accepted by regenerating this committed file in the PR (reviewed budget bump).
- *
- * Any `acceptedSizeIncreases` already committed are carried forward — they
- * exempt an artifact from the base-vs-head delta gate, which regenerating
- * absolute ceilings does not address, so a recapture must not silently drop them.
- *
- * `baselineRef` defaults to what the MEASUREMENT says it measured, never to the
- * previous file's value: inheriting it makes one stale literal self-perpetuating,
- * so every later regeneration keeps naming a ref whose build cannot produce the
- * numbers in the file. A `--head-root` capture has no ref at all, and
- * `working-tree` is the honest answer for it.
- */
+/** Build a budget file from head measurements. */
 export function buildBudgets(
     measurement,
     baselineRef = measurement.sha ?? measurement.ref ?? 'working-tree',
@@ -573,15 +382,10 @@ export function buildBudgets(
         const m = val.median;
         runtime[key] = {
             medianMs: round2(m),
-            // Headroom: 50% + 50ms over the captured median tolerates CI noise
-            // yet still catches a gross absolute regression.
             ceilingMs: round2(m * 1.5 + 50),
         };
     }
-    // Tile-count ceilings carry the runtime-style 50% + floor headroom. BYTE
-    // ceilings are purely proportional (see MEMORY_BYTE_CEILING_FACTOR): an
-    // additive floor sized for the pyramid tier exceeds the whole thumbnail-tier
-    // measurement and makes that ceiling unfailable.
+    // Byte ceilings stay proportional so the thumbnail tier keeps a real ceiling.
     const memory = {};
     for (const [key, val] of Object.entries(measurement.memory ?? {})) {
         if (!val) continue;
@@ -598,9 +402,7 @@ export function buildBudgets(
             ceilingDecodedBytes: Math.ceil(
                 val.decodedBytes * MEMORY_BYTE_CEILING_FACTOR,
             ),
-            // Recorded, not enforced: the ceiling above is only a real assertion
-            // while it stays below this, because the scheduler's `trim()`
-            // already bounds `decodedBytes` by it.
+            // `trim()` already bounds `decodedBytes`; recorded for the vacuity check.
             byteBudget: val.byteBudget,
         };
     }
@@ -608,15 +410,7 @@ export function buildBudgets(
     return {
         $schema: './scripts/perf/perf-budgets.schema.json',
         baselineRef,
-        // Which renderer produced these numbers, detected from the measured
-        // dist. Recorded so a capture taken against an artifact that predates
-        // the first-party renderer cannot be filed as this renderer's ceilings.
         ...(measurement.renderer ? { renderer: measurement.renderer } : {}),
-        // Which TRACING MODE produced the runtime medians these ceilings are
-        // derived from. Recorded for the same reason as `renderer`: it decides
-        // what the numbers mean. Enforced by `checkTracingMode`, so the
-        // "capture untraced, enforce untraced" pairing is a property of the file
-        // rather than a convention the next caller has to remember.
         ...(measurement.tracing ? { tracing: measurement.tracing } : {}),
         capturedAt: new Date().toISOString(),
         note:
@@ -638,23 +432,11 @@ export function buildBudgets(
             ? { acceptedSizeIncreases }
             : {}),
         runtime,
-        // Always emitted, even empty. The schema requires the key, and a
-        // `--size-only` capture that dropped it wrote a file its own schema
-        // rejected; an explicit `{}` says "no memory measured" where an absent
-        // key said nothing at all.
         memory,
     };
 }
 
-/**
- * Check a budget file against its own schema's `required` lists.
- *
- * Deliberately not a full JSON-Schema implementation and deliberately not a new
- * dependency: what actually went wrong was a `required` key the generator did not
- * emit, and reading the schema's own `required` arrays catches exactly that class
- * without anything to keep in sync. Returns human-readable problems; empty means
- * consistent.
- */
+/** Check a budget file against its schema's `required` lists. */
 export function validateBudgets(
     budgets,
     schemaPath = join(PERF_DIR, 'perf-budgets.schema.json'),
@@ -682,25 +464,8 @@ export function validateBudgets(
     return problems;
 }
 
-/**
- * Refuse to enforce runtime ceilings against a measurement taken in a different
- * TRACING MODE than the one that produced them.
- *
- * Playwright tracing is not a uniform tax: its DOM snapshots make
- * `activate_image-manipulation` 5.7 ms untraced and 64.6 ms traced on the same
- * build, while the load phases barely move. Ceilings are therefore captured
- * `--no-traces`, and the enforcing run must pass `--no-traces` too — otherwise
- * the job fails on the cost of observing, not on a regression, and the only
- * thing standing between the two is that whoever wrote the workflow remembered
- * the flag. This makes it a checked property of the budget file.
- *
- * Returns a human-readable problem, or `null` when the modes agree. A budget
- * file with no `tracing` field predates the record and cannot be checked: that
- * is a warning for the caller, not a silent pass, hence the distinct
- * `unrecorded` kind.
- */
+/** Refuse ceilings enforced against a different tracing mode. */
 export function checkTracingMode(budgets, measurement) {
-    // Nothing was timed, so no runtime ceiling is being enforced.
     if (!measurement?.tracing) return null;
     const recorded = budgets?.tracing;
     if (!recorded) {
@@ -726,11 +491,7 @@ export function checkTracingMode(budgets, measurement) {
     };
 }
 
-/**
- * Enforce absolute ceilings against a head measurement — fails even when
- * base == head (a no-op change cannot drift the artifacts past the committed
- * budget). Returns the offending rows.
- */
+/** Enforce absolute ceilings against a head measurement. */
 export function checkBudgets(
     budgets,
     measurement,
@@ -769,14 +530,7 @@ export function checkBudgets(
             });
         }
     }
-    // `--size-only` never opened a browser, so it has no memory reading and no
-    // opinion about one. Reporting the memory ceilings as failures there would
-    // make that mode permanently red and train the reader to ignore the section
-    // that matters in a full run.
     if (skipMemory) return failures;
-    // A scenario the head MEASURED but the budget file does not cover is
-    // unenforced, which is the failure mode an always-emitted (possibly empty)
-    // `memory` key would otherwise hide: schema-valid and toothless.
     for (const scenario of Object.keys(measurement.memory ?? {})) {
         if (!budgets.memory?.[scenario]) {
             failures.push({
@@ -790,10 +544,7 @@ export function checkBudgets(
     for (const [scenario, budget] of Object.entries(budgets.memory ?? {})) {
         const val = measurement.memory?.[scenario];
         if (!val) {
-            // A budgeted memory scenario that produced no counters is a failure,
-            // not a skip. The counters live on the renderer itself, so a silent
-            // pass here is precisely how a build whose renderer never mounted
-            // would sail through the memory gate.
+            // Missing counters fail: a renderer that never mounted must not pass.
             failures.push({
                 kind: 'memory',
                 key: `${scenario} (not measured)`,
@@ -802,9 +553,7 @@ export function checkBudgets(
             });
             continue;
         }
-        // The byte ceiling asserts nothing once it exceeds the ceiling the
-        // scheduler's own `trim()` already enforces, so say so out loud rather
-        // than reporting a pass.
+        // A ceiling above `trim()`'s own bound is vacuous; report it as failure.
         if (
             Number.isFinite(val.byteBudget) &&
             budget.ceilingDecodedBytes >= val.byteBudget
@@ -833,7 +582,7 @@ export function checkBudgets(
     return failures;
 }
 
-// --- git worktrees ---------------------------------------------------------
+// --- git worktrees ---
 
 export async function addWorktree(dir, ref) {
     await run('git', ['worktree', 'add', '--detach', '--force', dir, ref], {
@@ -858,7 +607,7 @@ export async function resolveSha(ref) {
     return out.trim();
 }
 
-// --- formatting ------------------------------------------------------------
+// --- formatting ---
 
 export function round2(n) {
     return Math.round(n * 100) / 100;
@@ -925,7 +674,7 @@ export function formatMemoryTable(rows) {
     return lines.join('\n');
 }
 
-// --- misc ------------------------------------------------------------------
+// --- misc ---
 
 export function parseArgs(argv) {
     const args = {};

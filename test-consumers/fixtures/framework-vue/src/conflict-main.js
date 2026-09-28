@@ -1,10 +1,4 @@
-// The version-conflict route.
-//
-// A FOREIGN `<triiiceratops-viewer>` — no `viewerState` getter, so no state
-// bridge — is registered before the wrapper mounts. Custom-element registration
-// is first-wins and cannot be replaced, so the wrapper must diagnose this
-// promptly and framework-natively rather than waiting forever for an
-// availability event that will never arrive.
+// Version-conflict route: foreign tag registration is first-wins, so the wrapper must diagnose promptly.
 
 import { createApp, defineComponent, h, onErrorCaptured, ref } from 'vue';
 import { TriiiceratopsViewer } from 'triiiceratops/vue';

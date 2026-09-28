@@ -1,21 +1,4 @@
-/**
- * Public-API guards, run by CI after a build:
- *
- *   1. No `any` in PUBLIC `.d.ts` output. Scans every package's reachable public
- *      declaration graph (see `api-report/dts.mjs`) for the `any` type token.
- *      Pre-existing, structural exceptions live in
- *      `api-reports/dts-any-allowlist.txt`, whose header carries the raw-JSON
- *      IIIF boundary rationale; `lint-allowlist.md` entry 4 carries the
- *      human-facing owner and review date. A NEW, non-allowlisted `any` on any
- *      public declaration fails the build.
- *
- * Usage:
- *   node scripts/check-public-api.mjs                 # enforce (CI)
- *   node scripts/check-public-api.mjs --write-allowlist   # regenerate baseline
- *
- * Requires the packages' `dist` `.d.ts` to be built first (CI builds, then runs
- * this; `pnpm api:report` builds as a side effect too).
- */
+/** Fails on any new public `any`; see api-report/dts.mjs. */
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -45,7 +28,6 @@ const PACKAGES = [
     { name: '@triiiceratops/plugin-av', dir: 'plugin-av' },
 ];
 
-/** Normalized, stable key for one `any` occurrence. */
 function keyFor(pkgName, hit) {
     return `${pkgName} :: ${hit.file} :: ${hit.line}`;
 }

@@ -6,19 +6,8 @@
         <title>Triiiceratops — Web Component example</title>
         <link rel="stylesheet" href="app.css" />
 
-        <!-- The custom element injects all its styles into its own shadow root,
-             so no separate element stylesheet is needed. -->
         <script src="../../dist/triiiceratops-element.iife.js"></script>
-        <!--
-            `@triiiceratops/plugin-av`, from its own dist DIRECTORY — the entry
-            fetches `av-hls.js`, `av-waveform.js`, `av-sequencer.js` and
-            `av-transcript.js` from beside its own script URL, on demand.
-
-            It must come AFTER core's script, and it is the one plugin of which
-            that is true: it bundles no Svelte and reads core's runtime off
-            `window.Triiiceratops`. Two classic scripts execute in source order,
-            so writing it second is all the ordering this needs.
-        -->
+        <!-- After core: AV reads core's runtime off `window.Triiiceratops`. -->
         <script src="../../dist/plugin-av/iife.js"></script>
     </head>
     <body>
@@ -45,10 +34,6 @@
         ></triiiceratops-viewer>
 
         <script>
-            // Registration is explicit and per viewer: loading a plugin IIFE
-            // only puts its factory in `window.Triiiceratops.plugins`. The
-            // image viewer above deliberately gets none, so the two show core
-            // alone and core-plus-plugin side by side.
             document.getElementById('av').plugins = [
                 window.Triiiceratops.plugins.get('@triiiceratops/plugin-av'),
             ];

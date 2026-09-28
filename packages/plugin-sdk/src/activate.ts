@@ -1,13 +1,3 @@
-/**
- * Per-viewer plugin activation.
- *
- * Activation is explicit and per viewer (CONTEXT.md **Activation**): each call
- * negotiates compatibility, then constructs an isolated context with its own
- * selector runtime (one `ViewerState.subscribe`) and its own cleanup list. On
- * `deactivate()` the mount cleanup runs and the selector subscription is
- * dropped, so no callbacks fire afterward. Deactivation is idempotent.
- */
-
 import type {
     PluginActivation,
     PluginContext,

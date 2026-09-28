@@ -48,8 +48,6 @@ export class ManifestsState {
         };
     }
 
-    // === Manifest Fetching ===
-
     /**
      * Fetch a IIIF resource by URL and return the raw JSON.
      * Does not register it as a manifest. Used for collection detection.

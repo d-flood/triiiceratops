@@ -1,18 +1,3 @@
-/**
- * The builder's control surface, held to the published interfaces it claims to
- * set.
- *
- * The route's whole promise is that a reader can hand the resulting
- * configuration to a developer and have it work, so a control naming a key the
- * viewer does not have is worse than a missing control. Each path is resolved
- * against the committed API report — the machine-readable form of the viewer's
- * public types — and each theming control against the committed token report.
- *
- * The reports are read rather than the packages' sources: an application sees a
- * package only through what it publishes, and these are what the repository
- * publishes of it.
- */
-
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 

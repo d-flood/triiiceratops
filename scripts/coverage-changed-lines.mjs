@@ -1,30 +1,5 @@
 #!/usr/bin/env node
-// Changed-lines coverage report — `pnpm coverage:changed`.
-//
-// REPORTING, NOT GATING. This surfaces what fraction of the lines a PR actually
-// changed are covered by tests. It never fails the build on a low number — the
-// per-package floor gate (`pnpm coverage:check`) is the enforcement mechanism.
-// This script exits non-zero ONLY on operational errors (a bad ref, or missing
-// coverage data), which must fail loudly rather than silently print zeros.
-//
-// How it works:
-//   1. `git diff <base>...HEAD` (three-dot: the diff is taken from the
-//      merge-base of <base> and HEAD, i.e. only what this branch changed).
-//      Added line numbers are parsed from `--unified=0` hunk headers.
-//   2. Each package's `pnpm test:coverage` run already writes v8 output to
-//      `packages/<pkg>/coverage/coverage-final.json` (Istanbul shape: per-file
-//      `statementMap` + `s` hit counts). A source line is INSTRUMENTABLE if a
-//      statement starts on it, and COVERED if any such statement was executed.
-//   3. For each changed line we ask: is its file instrumented by some package?
-//        · yes + line is instrumentable → counts toward covered/instrumentable
-//        · yes + line not instrumentable (blank/comment) → in-scope, not counted
-//        · no (config, docs, test, generated, demo — excluded by coverage
-//          config) → EXCLUDED, and reported as such.
-//
-// Usage:
-//   pnpm coverage:changed -- --base <ref>     (default: origin/$GITHUB_BASE_REF,
-//                                              else main)
-//   pnpm coverage:changed -- --base <ref> --head <ref>
+// Changed-lines coverage report. Reporting only, never gating.
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -35,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, '..');
 const packagesDir = join(repoRoot, 'packages');
 
-/** Fail loudly on operational errors (bad ref, missing data). */
+/** Fail loudly on operational errors. */
 function fail(msg) {
     console.error(`coverage:changed: ${msg}`);
     process.exit(1);
@@ -70,13 +45,9 @@ function git(args) {
     }
 }
 
-// --- coverage data ---------------------------------------------------------
+// --- coverage data ---
 
-/**
- * Load every package's `coverage-final.json` and derive a per-file set of
- * instrumentable line numbers and the subset that is covered. Returns a map of
- * absolute file path -> { pkg, instrumentable: Set<number>, covered: Set<number> }.
- */
+/** Per-file instrumentable/covered lines from every package's coverage-final.json. */
 function loadCoverage() {
     const files = new Map();
     let packagesWithData = 0;
@@ -129,11 +100,6 @@ function loadCoverage() {
     return files;
 }
 
-/**
- * Istanbul statement coverage -> per-line coverage. A line is instrumentable if
- * a statement starts on it; covered if the max hit count of statements starting
- * on it is > 0 (istanbul's own line-coverage derivation).
- */
 function deriveLineCoverage(fileCov) {
     const instrumentable = new Set();
     const lineHits = new Map();
@@ -155,12 +121,8 @@ function deriveLineCoverage(fileCov) {
     return { instrumentable, covered };
 }
 
-// --- diff parsing ----------------------------------------------------------
+// --- diff parsing ---
 
-/**
- * Parse `git diff --unified=0 <base>...HEAD` into a map of new-file path ->
- * Set<number> of added line numbers. Deleted files (+++ /dev/null) are skipped.
- */
 function changedLinesByFile(base, head) {
     const diff = git([
         'diff',
@@ -184,7 +146,6 @@ function changedLinesByFile(base, head) {
             continue;
         }
         if (line.startsWith('@@') && current) {
-            // @@ -a,b +c,d @@  -> added lines c..c+d-1 (d defaults to 1).
             const m = /@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
             if (!m) continue;
             const start = Number(m[1]);
@@ -208,8 +169,6 @@ function main() {
     }
     const head = typeof args.head === 'string' ? args.head : 'HEAD';
 
-    // Validate the refs up front so a typo fails loudly rather than as an empty
-    // (misleading zero) report.
     if (!git(['rev-parse', '--verify', '--quiet', `${base}^{commit}`])) {
         fail(`base ref not found: ${base}`);
     }
@@ -220,7 +179,6 @@ function main() {
     const coverage = loadCoverage();
     const changed = changedLinesByFile(base, head);
 
-    // Per-package tallies plus an excluded (out-of-scope) counter.
     const perPkg = new Map(); // pkg -> { covered, instrumentable }
     let excludedLines = 0; // changed lines in files outside coverage scope
     let excludedFiles = 0;
@@ -251,8 +209,7 @@ function main() {
         }
     }
 
-    // Emit a GitHub-flavoured markdown report (renders in job summaries; still
-    // readable as plain text on a terminal).
+    // Emit a GitHub-flavoured markdown report.
     const out = [];
     out.push('## Changed-lines coverage');
     out.push('');
@@ -294,9 +251,6 @@ function main() {
     }
     out.push('');
 
-    // Print the report to stdout as GitHub-flavoured markdown. The CI step pipes
-    // this into $GITHUB_STEP_SUMMARY (see .github/workflows/test.yml); locally it
-    // is readable as plain text.
     console.log(out.join('\n'));
 }
 

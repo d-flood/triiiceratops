@@ -2,11 +2,7 @@ import { expect } from '@playwright/test';
 
 import { collectCspViolations, formatViolations } from '../../shared/csp.mjs';
 
-// csp-trusted-types: the self-contained Web Component IIFE + a plugin IIFE under
-// `require-trusted-types-for 'script'` (Chromium only — the only engine that
-// enforces Trusted Types today). Proves the viewer + a plugin render with core's
-// pass-through Trusted Types default policy handling every Svelte/`{@html}` DOM
-// sink, with zero policy violations and no uncaught errors.
+// csp-trusted-types: IIFEs under `require-trusted-types-for 'script'`, chromium only.
 export default {
     name: 'csp-trusted-types',
     buildScript: null,
@@ -23,8 +19,6 @@ export default {
         const violations = await collectCspViolations(page);
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // The custom element renders under Trusted Types (Svelte's
-        // `<template>.innerHTML` is a TT sink; the default policy certifies it).
         await expect(page.locator('triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });
@@ -32,11 +26,7 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // A plugin also operates under Trusted Types (its `{@html}` icons go
-        // through the same policy). Core renders its toolbar button
-        // (core-owned chrome).
-        // Accessible name = the plugin's DISPLAY title
-        // (`image_adjustments_title`), not its package name.
+        // Accessible name is the display title, not the package name.
         await expect(
             page.locator(
                 '[data-flyout-toggle][aria-label="Image Adjustments"]',

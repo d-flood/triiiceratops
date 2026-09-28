@@ -1,25 +1,5 @@
 #!/usr/bin/env node
-// Build the site's client-side search index from the built HTML.
-//
-// The index is produced from the published output rather than from the content
-// documents behind it. Reading the built pages is what keeps this cheap and what
-// keeps it correct as blocks change: an indexer that walked document JSON would
-// need to know how every block renders, and would silently miss the routes that
-// still render from code.
-//
-// Scope is declared in the markup, never here. The chrome layout marks its `main`
-// with `data-pagefind-body`, so every prose route — marketing and documentation
-// alike — is in scope, and `/demo/` and `/viewer/` are out of it because they
-// hang off the root layout and draw their own chrome. The navigations that sit
-// inside the body region carry `data-pagefind-ignore`, so a page does not match a
-// query for the title of the page next to it in the sidebar. Nothing in this file
-// names a path, which is the point: a new route is indexed by wearing the chrome.
-//
-// Pagefind's assets are a promise about a public path, so `/pagefind/pagefind.js`
-// is an entry in `site-urls.json` and `pnpm urls:check` holds it.
-//
-// Usage:
-//   node scripts/search-index.mjs [--build <dir>]
+// Search index built from the published HTML; scope is declared in the markup.
 
 import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -30,21 +10,10 @@ import * as pagefind from 'pagefind';
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 
-/** The bundle directory Pagefind writes, and the path the site loads it from. */
 export const BUNDLE_DIRECTORY = 'pagefind';
 
-/** The attribute a page's markup uses to declare its indexable body region. */
 const BODY_MARKER = 'data-pagefind-body';
 
-/**
- * Every built page that declares a body to index.
- *
- * Counted here so the indexer can hold its own result to the markup's
- * declaration. Pagefind falls back to indexing every page's whole `<body>` when
- * it finds the marker nowhere at all, which would quietly pull the bare viewer
- * in — the exact scope this is meant to exclude — so the fallback has to be
- * caught rather than trusted.
- */
 function markedPages(build) {
     return readdirSync(build, { recursive: true, withFileTypes: true })
         .filter((entry) => entry.isFile() && entry.name.endsWith('.html'))
@@ -55,7 +24,6 @@ function markedPages(build) {
         ).length;
 }
 
-/** How many pages the written index actually holds, across every language. */
 function indexedPages(output) {
     const entry = JSON.parse(
         readFileSync(join(output, 'pagefind-entry.json'), 'utf8'),
@@ -77,13 +45,6 @@ function parseArgs(argv) {
     return args;
 }
 
-/**
- * Index the built tree at `build`, writing the bundle into it.
- *
- * Throws rather than exiting, so the caller decides what a failure means. An
- * index with no pages in it is a failure: it would publish a search field that
- * answers every query with nothing, and that is invisible in a green build.
- */
 export async function buildSearchIndex({ build }) {
     if (!existsSync(build)) {
         throw new Error(
@@ -102,9 +63,6 @@ export async function buildSearchIndex({ build }) {
     }
 
     const output = join(build, BUNDLE_DIRECTORY);
-    // Replaced rather than merged: Pagefind's fragment and index files are
-    // content-hashed, so a stale one from a previous build would be served
-    // forever without ever being referenced.
     rmSync(output, { recursive: true, force: true });
 
     const { errors: createErrors, index } = await pagefind.createIndex();
@@ -131,8 +89,6 @@ export async function buildSearchIndex({ build }) {
             );
         }
 
-        // The written index's own count, not `addDirectory`'s: that one reports
-        // every file it read, whether or not the file declared a body region.
         const pages = indexedPages(output);
         if (pages !== declared) {
             throw new Error(

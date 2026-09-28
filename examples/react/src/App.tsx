@@ -5,20 +5,14 @@ import {
     useViewerSelector,
 } from 'triiiceratops/react';
 
-// A public IIIF manifest, so the example works with no setup.
 const MANIFEST =
     'https://iiif.wellcomecollection.org/presentation/v2/b18035723';
 
 export function App() {
-    // The handle is a stable box the component fills in. It is `null` until the
-    // custom element publishes its viewer state, which is why reads below are
-    // optional.
     const handle = useViewerHandle();
 
-    // Reactive read: re-renders only when the selected value changes.
     const canvasId = useViewerSelector(handle, (state) => state.canvasId);
 
-    // The live state object, for commands and on-demand reads.
     const viewer = useViewer(handle);
 
     return (
@@ -49,7 +43,6 @@ export function App() {
                 </code>
             </p>
 
-            {/* The host element needs a height; the wrapper adds no layout box. */}
             <TriiiceratopsViewer
                 handle={handle}
                 manifestId={MANIFEST}

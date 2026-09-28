@@ -5,7 +5,6 @@ body {
     font-family: system-ui, sans-serif;
 }
 
-/* Two stacked viewers, so the page scrolls rather than clipping the second. */
 triiiceratops-viewer {
     display: block;
     width: 100%;

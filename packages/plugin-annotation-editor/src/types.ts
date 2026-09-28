@@ -2,11 +2,6 @@ import type { Component } from 'svelte';
 import type { PluginUiTarget } from '@triiiceratops/plugin-sdk';
 import type { W3CAnnotation, AdapterLoadResult } from './adapters/types';
 
-/**
- * The person an annotation is attributed to. Only `id` and `name` are ever
- * read — they are what creator stamping writes onto a new annotation — so the
- * shape is declared here rather than borrowed from a drawing library.
- */
 export interface AnnotationEditorUser {
     id: string;
     name?: string;
@@ -58,9 +53,7 @@ export interface AnnotationBodyEditorApi<
     HostContext = unknown,
     TBody = W3CAnnotationBody,
 > {
-    /** Full selected annotation in canvas space. */
     annotation: W3CAnnotation<TBody>;
-    /** Current annotation bodies normalized to an array; body shape is host-owned. */
     bodies: unknown[];
     context: AnnotationEditorRuntimeContext<HostContext, TBody>;
     isHydrating: boolean;
@@ -98,49 +91,24 @@ export interface AnnotationEditorUiConfig {
     allowMultipleBodies?: boolean;
 }
 
-/**
- * The storage contract a host implements to bring its own annotation server.
- * It is pure storage — the plugin's `AnnotationStore` owns display sync,
- * caching, id reconciliation, stamping, and error handling — so a conforming
- * adapter is roughly these five functions (see `LocalStorageAdapter`).
- *
- * The `W3CAnnotation` / `AdapterLoadResult` shapes are defined in
- * `adapters/types.ts`; they are imported here (type-only, so the cycle is
- * erased at compile time) to keep the adapter contract fully typed.
- */
+/** Pure storage; the store owns display sync, caching, reconciliation, stamping, errors. */
 export interface AnnotationStorageAdapter<TBody = W3CAnnotationBody> {
     readonly id: string;
     readonly name: string;
-    /**
-     * Return the canvas's annotations. Skeleton entries (bodies not yet loaded)
-     * carry `__fullBodyLoaded: false`; the plugin reads that marker once and
-     * strips it (see {@link AdapterLoadResult}).
-     */
     load(
         manifestId: string,
         canvasId: string,
     ): Promise<AdapterLoadResult<TBody>[]>;
-    /** Fetch the full body for a previously-skeleton annotation. */
     hydrate?(
         manifestId: string,
         canvasId: string,
         annotationId: string,
     ): Promise<AdapterLoadResult<TBody> | null>;
-    /**
-     * Persist a new annotation. Servers that mint their own annotation IRI on
-     * create may return the canonical annotation (or just its id string); the
-     * plugin then reconciles the id everywhere. Returning `void` keeps the
-     * client-generated id (the LocalStorageAdapter path).
-     */
     create(
         manifestId: string,
         canvasId: string,
         annotation: W3CAnnotation<TBody>,
     ): Promise<W3CAnnotation<TBody> | string | void>;
-    /**
-     * Persist an update. Returning the (possibly server-normalized) annotation
-     * replaces the cached copy; returning `void` keeps the sent payload.
-     */
     update(
         manifestId: string,
         canvasId: string,
@@ -154,7 +122,6 @@ export interface AnnotationStorageAdapter<TBody = W3CAnnotationBody> {
     destroy?(): void;
 }
 
-/** The adapter operations whose failures are surfaced. */
 export type AnnotationPersistenceOp =
     | 'load'
     | 'create'
@@ -162,19 +129,11 @@ export type AnnotationPersistenceOp =
     | 'delete'
     | 'hydrate';
 
-/**
- * Structured description of a failed persistence operation handed to
- * `config.onPersistenceError`. The plugin has already rolled back its optimistic
- * cache/display changes by the time this fires; `retry()` re-runs the exact
- * failed operation with the same payload.
- */
 export interface AnnotationPersistenceError {
     op: AnnotationPersistenceOp;
-    /** The affected annotation id, when the operation targets one. */
     annotationId?: string;
     manifestId: string;
     canvasId: string;
-    /** The value the adapter threw/rejected with. */
     cause: unknown;
     retry: () => Promise<void>;
 }
@@ -183,56 +142,32 @@ export interface AnnotationEditorConfig<
     TBody = W3CAnnotationBody,
     THostContext = unknown,
 > {
-    /** Render target for the plugin chrome. Defaults to `'panel'`. */
     target?: PluginUiTarget;
 
-    /** Storage adapter for persistence */
     adapter?: AnnotationStorageAdapter<TBody>;
 
-    /** Current user for attribution */
     user?: AnnotationEditorUser;
 
-    /** Available drawing tools */
     tools?: DrawingTool[];
 
-    /** Default drawing tool */
     defaultTool?: DrawingTool;
 
-    /** Optional extension hook surface for host apps */
     extension?: AnnotationEditorExtension<THostContext, TBody>;
 
-    /** Optional replacement for the built-in annotation body editor. */
     bodyEditor?: AnnotationBodyEditor<THostContext, TBody>;
 
-    /** Optional UI chrome and built-in body editor knobs. */
     ui?: AnnotationEditorUiConfig;
 
-    /** Optional hook to prefill a new annotation before its first save */
     prepareAnnotation?: (
         annotation: W3CAnnotation<TBody>,
     ) => W3CAnnotation<TBody>;
 
-    /** Optional gate for whether new annotations can be created right now */
     canCreateAnnotation?: () => boolean;
 
-    /** Optional status message explaining why creation is unavailable */
     getCreateDisabledReason?: () => string | null;
 
-    /**
-     * Motivation stamped onto new annotations that don't already carry one.
-     * Defaults to `'commenting'`. A host-set `motivation` (or one applied by
-     * `extension.beforeSave`) is never overwritten.
-     */
     defaultMotivation?: string;
 
-    /**
-     * Called when a persistence operation fails. The plugin has already rolled
-     * back its optimistic cache/display changes and re-signalled selection; the
-     * host decides how to surface the failure and may call `retry()` to re-run
-     * the exact failed operation. When omitted, the plugin logs to the console
-     * and shows a dismissible error line in the panel so failures are never
-     * invisible.
-     */
     onPersistenceError?: (error: AnnotationPersistenceError) => void;
 }
 
@@ -243,7 +178,6 @@ export type DrawingTool =
     | 'point'
     | 'wholeCanvas';
 
-/** W3C Annotation Body */
 export interface W3CAnnotationBody {
     type?: string;
     purpose?: string;
@@ -258,7 +192,6 @@ export interface W3CAnnotationBody {
     modified?: string;
 }
 
-/** Standard W3C purposes for autocomplete */
 export const W3C_PURPOSES = [
     'commenting',
     'tagging',

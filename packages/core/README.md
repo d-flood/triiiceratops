@@ -8,7 +8,7 @@ This project is heavily inspired by Mirador 4, which I still view as the premier
 
 ## Features
 
-- **IIIF Presentation API**: Compatible with versions 2.0 and 3.0
+- **IIIF Presentation API**: Compatible with versions 2.0, 3.0 and 4.0
 - **Canvas Navigation**: Browse canvases via thumbnail gallery (dockable to any side) or prev/next controls
 - **Viewing Modes**: Supports single-page ("individuals"), book view ("paged") with offset, and continuous scroll ("continuous")
 - **Behaviors**: Automatically detects and applies IIIF `behavior` and `viewingDirection` (including RTL and top-to-bottom support)

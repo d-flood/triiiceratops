@@ -4,16 +4,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const APP_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-/*
- * Names the editor stack cannot be bundled without, and that nothing else in the
- * tree carries.
- *
- * The ProseMirror marker is its class-name prefix rather than the bare word:
- * `ProseMirror-focused`, `ProseMirror-hideselection` and their siblings are
- * string literals in prosemirror-view and survive minification, while the bare
- * word also appears in a validation message Uncial's renderer ships — which is
- * prose about a document format, not a copy of the library.
- */
+/* `ProseMirror-` prefix survives minification; the bare word also matches Uncial prose. */
 const EDITOR_STACK_MARKERS = [
     ['tiptap', /tiptap/i],
     ['ProseMirror-', /ProseMirror-/],

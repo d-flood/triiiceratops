@@ -1,41 +1,14 @@
-/**
- * The site's two colour palettes, and the pairings they are used in.
- *
- * The dark palette is **selected**, not inverted. A warm-paper identity has no
- * automatic dark counterpart, and every accent has to be re-measured against a
- * dark ground: the brand amber is unusable as text or as a data mark on the bone
- * surface (1.99) and comfortable on the dark one (8.09), and the orange has to
- * step *lighter* for dark rather than darker. Both facts come from the design
- * record's measurements; neither falls out of a transformation.
- *
- * Filled colour fields keep their light values in both schemes, because a colour
- * field carries its own ground with it and re-stepping it only weakens the
- * identity. That is why `amber`, `amber-ink`, `cta`, `cta-ink`, `ink-block` and
- * the two inks that sit on it have one value each.
- *
- * This module is the appendix route's source, and the unit suite holds it and
- * `tokens.css` to the same values — the stylesheet renders the palette and
- * cannot import from here, so the agreement is asserted rather than assumed.
- */
+/** Dark palette selected, not inverted; filled fields keep light values in both schemes. */
 
 export type Scheme = 'light' | 'dark';
 
 export type ColourToken = {
-    /** The custom property name, with its `--` prefix. */
     readonly name: string;
     readonly light: string;
-    /** Equal to `light` for a token that deliberately does not re-step. */
     readonly dark: string;
     readonly role: string;
 };
 
-/**
- * Every colour token in the shell, with both schemes' values.
- *
- * Exhaustive by test: a hex-valued custom property in `tokens.css`'s `:root`
- * that is missing here fails the unit suite, so the appendix cannot fall behind
- * the stylesheet.
- */
 export const COLOURS: readonly ColourToken[] = [
     {
         name: '--bone',
@@ -207,18 +180,6 @@ export type Pairing = {
     readonly role: string;
 };
 
-/**
- * Every pairing in which a token is used as text at body size, in both schemes.
- *
- * These are the pairings that have to clear 4.5. The list is what the shell
- * actually does, not every arithmetic combination: the orange is text on the
- * page grounds and never on a rail band, where it would measure below 4.5 — the
- * rail's own text is the ink and the muted ink.
- *
- * The data marks are absent because they are not text; their non-text threshold
- * is stated separately, and the brand amber's exclusion from marks on the light
- * ground is the whole reason the emphasised mark re-steps.
- */
 export const PAIRINGS: readonly Pairing[] = [
     { ink: '--ink', ground: '--bone', role: 'Body text on the page' },
     { ink: '--ink', ground: '--paper', role: 'Body text on a raised ground' },
@@ -250,15 +211,12 @@ export const PAIRINGS: readonly Pairing[] = [
     { ink: '--paper', ground: '--ink', role: 'The skip link' },
 ];
 
-/** The data marks, which are not text and so answer to the 3:1 threshold. */
 export const MARK_PAIRINGS: readonly Pairing[] = [
     { ink: '--mark', ground: '--bone', role: 'De-emphasized mark' },
     { ink: '--mark-emphasis', ground: '--bone', role: 'Emphasized mark' },
 ];
 
-/** WCAG 2 minimum for text at body size. */
 export const AA_TEXT = 4.5;
-/** WCAG 2 minimum for a graphical object such as a data mark. */
 export const AA_NON_TEXT = 3;
 
 function channel(value: number): number {
@@ -268,7 +226,6 @@ function channel(value: number): number {
         : Math.pow((unit + 0.055) / 1.055, 2.4);
 }
 
-/** Relative luminance of a `#rrggbb` colour, per WCAG 2. */
 export function luminance(hex: string): number {
     const value = Number.parseInt(hex.slice(1), 16);
     return (
@@ -278,14 +235,12 @@ export function luminance(hex: string): number {
     );
 }
 
-/** Contrast ratio between two `#rrggbb` colours, per WCAG 2. */
 export function contrast(a: string, b: string): number {
     const first = luminance(a);
     const second = luminance(b);
     return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
 }
 
-/** A pairing's measured ratio in one scheme, to two decimal places. */
 export function ratio(pairing: Pairing, scheme: Scheme): number {
     return (
         Math.round(
@@ -297,14 +252,7 @@ export function ratio(pairing: Pairing, scheme: Scheme): number {
     );
 }
 
-/**
- * The figures the design record states, as the anchor for everything computed
- * from the palette here.
- *
- * The record measured these; this table exists so that a mistyped hex changes a
- * number the suite is watching rather than one nobody has ever seen. Do not
- * adjust a figure to match a value — the palette is the thing that is wrong.
- */
+/** Do not adjust a figure to match a value — the palette is wrong. */
 export const RECORDED: readonly {
     readonly pairing: Pairing;
     readonly scheme: Scheme;
@@ -382,12 +330,5 @@ export const RECORDED: readonly {
     },
 ];
 
-/**
- * The brand amber against the light page ground: the measurement that decides
- * the two values which invert between the schemes.
- *
- * Recorded rather than merely asserted, because it is the reason the emphasised
- * data mark is orange on light and amber on dark — the opposite of what brand
- * instinct wants, and the first thing a later reader will try to "fix".
- */
+/** Amber on bone: 1.99, which is why the emphasized mark re-steps. */
 export const AMBER_ON_BONE = 1.99;

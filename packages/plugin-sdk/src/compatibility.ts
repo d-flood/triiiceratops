@@ -1,25 +1,4 @@
-/**
- * Semver compatibility negotiation.
- *
- * A plugin declares `coreRange`, `pluginApiRange`, and `requiredCapabilities`.
- * At activation the SDK checks them against the host's declared `coreVersion`,
- * `pluginApiVersion`, and `capabilities` and, on any mismatch, throws an
- * actionable {@link PluginCompatibilityError} naming every failed check.
- *
- * A small self-contained semver implementation is used deliberately: the base
- * SDK is dependency-light and framework-neutral, and every byte here ships in
- * every plugin bundle, so it takes on no runtime dependency (not even `semver`)
- * and implements only the three range styles a plugin declares in practice —
- * an exact version, a caret range, and a `>=` lower bound. Anything else
- * (`~`, `*`, `=`, `>`, `<`, `<=`, a space-joined AND, a `||` OR set) is REFUSED
- * with a thrown error rather than answered, because the alternative to a narrow
- * implementation is not a broad one but a silently wrong one: a range style the
- * SDK does not understand would otherwise read as "incompatible" and take a
- * working plugin off the page with no explanation.
- *
- * Prereleases compare per semver ordering (a prerelease is lower than its
- * release), so `1.0.0-rc.25` satisfies `>=1.0.0-rc.0` but not `^1.0.0`.
- */
+/** Only exact, caret, and `>=` ranges are answered; anything else throws. */
 
 import type { PluginHost, SdkPluginMeta } from 'triiiceratops';
 

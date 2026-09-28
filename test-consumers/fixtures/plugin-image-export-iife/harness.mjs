@@ -1,17 +1,10 @@
 import { expect } from '@playwright/test';
 
-// plugin-image-export-iife: no bundler. A static page loads the self-contained
-// core element IIFE and the self-contained plugin IIFE from installed package
-// paths, then activates the plugin explicitly through the shared
-// `window.Triiiceratops.plugins` registry. Tested in BOTH script orders
-// (core-first and plugin-first) to prove the order-independent bootstrap, and in
-// each order it triggers an export and asserts a download-ready binary Blob is
-// produced (the plugin's async/binary validation duty).
+// plugin-image-export-iife: no bundler; both script orders, asserts a non-empty Blob.
 
 async function drivePage(page, baseURL, pathname, pageErrors) {
     await page.goto(`${baseURL}/${pathname}`, { waitUntil: 'load' });
 
-    // The custom element upgrades and the renderer paints inside the shadow root.
     await expect(page.locator('triiiceratops-viewer')).toBeVisible({
         timeout: 30_000,
     });
@@ -19,7 +12,6 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
         page.locator('#triiiceratops-viewer canvas').first(),
     ).toBeVisible({ timeout: 30_000 });
 
-    // The registry resolved the factory regardless of load order.
     const registered = await page.evaluate(() =>
         Boolean(
             window.Triiiceratops?.plugins?.get(
@@ -31,22 +23,15 @@ async function drivePage(page, baseURL, pathname, pageErrors) {
         true,
     );
 
-    // Reset the blob-interception log for this page load.
     await page.evaluate(() => {
         window.__triDownloads = [];
     });
 
-    // Open the plugin panel via the core-rendered toolbar button (core-owned
-    // chrome) — labelled with the plugin's DISPLAY title
-    // (`image_download_title` from the plugin's own catalog, NOT its package
-    // name), living in the viewer's shadow root; the Playwright locator pierces
-    // it. The page opens the toolbar via the element's `config` (`toolbarOpen`)
-    // so the button is visible.
+    // Accessible name is the display title, not the package name.
     const toggle = page.locator('[aria-label="Download Image"]');
     await expect(toggle).toBeVisible({ timeout: 30_000 });
     await toggle.click();
 
-    // Trigger the export once a resolution option resolves (async).
     const downloadButton = page.locator('[data-tri-id-download]');
     await expect(downloadButton).toBeVisible({ timeout: 10_000 });
     await expect(downloadButton).toBeEnabled({ timeout: 15_000 });
@@ -84,7 +69,6 @@ export default {
         '@triiiceratops/plugin-image-export',
     ],
     async assert({ page, baseURL, pageErrors }) {
-        // Blob interception: record every object URL minted for a Blob.
         await page.addInitScript(() => {
             window.__triDownloads = [];
             const original = URL.createObjectURL.bind(URL);
@@ -97,15 +81,13 @@ export default {
                         });
                     }
                 } catch {
-                    // ignore non-Blob arguments
+                    // Non-Blob arguments need no recording.
                 }
                 return original(obj);
             };
         });
 
-        // Order A: core IIFE first, then plugin IIFE.
         await drivePage(page, baseURL, 'index.html', pageErrors);
-        // Order B: plugin IIFE first (bootstraps the namespace), then core.
         await drivePage(page, baseURL, 'index-plugin-first.html', pageErrors);
     },
 };

@@ -1,39 +1,5 @@
 <script lang="ts">
-    /*
-     * The image-manipulation flyout CONTENT. Core owns the chrome: it renders
-     * the toolbar button from `meta.icon`, owns open/close, and anchors +
-     * auto-places this content toward the canvas. This component renders ONLY
-     * the content into the core-provided container — it draws no toggle
-     * button and positions nothing.
-     *
-     * The look restores `main`'s design: a boxless set of three vertical sliders
-     * (the shared `@triiiceratops/ui` themed Range rotated −90°) floating over the
-     * canvas above a frosted glass base carrying each slider's icon + percentage
-     * and the invert/grayscale/reset actions (each wrapped in the shared
-     * `@triiiceratops/ui` Tooltip).
-     *
-     * CSP-safe idiomatic Svelte: this component and the `@triiiceratops/ui`
-     * primitives it renders keep ordinary Svelte-scoped style blocks. The build
-     * (`emitCss:true` + `bundledCss()`, see vite.config.ts) EXTRACTS that scoped
-     * CSS into the `virtual:tri-bundled-css` module instead of letting Svelte's
-     * `append_styles` inject an un-nonced style element (which a strict `style-src`
-     * blocks and reports — the `csp-svelte` packed fixture). The plugin entry
-     * installs the extracted CSS through the nonce-aware SDK style service, so the
-     * scoped rules reach the DOM CSP-safe. Only genuinely-global, ancestor-keyed
-     * placement rules live in `styles.ts`.
-     *
-     * Filter state is NOT held here — it lives in the Activation-scoped
-     * `FilterController` handed in through Svelte's context map, so it survives the
-     * Flyout being closed and reopened and the two resets (canvas change,
-     * deactivation) fire whether the Flyout is open or closed.
-     *
-     * Placement: core sets the growth direction (`up`/`down`/`left`/`right`) as a
-     * class on the ancestor `[data-flyout-panel]`. The slider/base stacking flips
-     * for a downward flyout purely through the ancestor-keyed CSS in `styles.ts`
-     * (the content-only container is detached when this component mounts, so there
-     * is no placement value to read here). Tooltips point up (toward the canvas)
-     * for the viewer's default inline bottom-bar placement.
-     */
+    /* Flyout content only, core owns chrome. Filter state lives in FilterController. */
     import { getContext } from 'svelte';
 
     import { Range, Tooltip } from '@triiiceratops/ui';

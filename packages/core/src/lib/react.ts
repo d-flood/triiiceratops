@@ -1,32 +1,12 @@
 /**
  * `triiiceratops/react` — the React 19 framework wrapper.
  *
- * A React application renders `<TriiiceratopsViewer>` with typed props, creates
- * a handle with `useViewerHandle()`, and reads the viewer's live state through
- * `useViewer()` and `useViewerSelector()`. Registration of the self-contained
- * custom element is automatic, lazy, and shared; Svelte stays behind the
- * custom-element boundary at runtime AND at type-check time.
+ * React 19 is an OPTIONAL peer: importing this module on a server is safe and
+ * registers nothing.
  *
- * ```ts
- * const handle = useViewerHandle();
- * const canvasId = useViewerSelector(handle, (state) => state.canvasId);
- * return createElement(TriiiceratopsViewer, {
- *     handle,
- *     manifestId: 'https://example.org/manifest',
- *     onCanvasChange: (snapshot) => setUrlCanvas(snapshot.canvasId),
- * });
- * ```
- *
- * React 19 is an OPTIONAL peer dependency: `react` is a bare import specifier
- * here and never a runtime dependency of core. Importing this module on a
- * server is safe — nothing touches `window`, `document`, or `customElements`
- * at evaluation, and nothing is registered.
- *
- * **Re-export boundary.** Everything below comes from the framework substrate,
- * `triiiceratops/selectors`, or the shared `types/*` modules. Nothing is
- * re-exported from core's `.` entry: its declarations reach the compiled
- * `TriiiceratopsViewer.svelte.d.ts`, which imports `svelte`, and inheriting
- * that would break this subpath's no-Svelte type promise.
+ * Nothing below is re-exported from core's `.` entry: its declarations reach
+ * the compiled `TriiiceratopsViewer.svelte.d.ts`, which imports `svelte`, and
+ * inheriting that would break this subpath's no-Svelte type promise.
  */
 
 export {
@@ -42,11 +22,6 @@ export {
     type ViewerProviderProps,
     type ViewerSelectorOptions,
 } from './react/index.js';
-
-// ---------------------------------------------------------------------------
-// The framework-neutral contracts a React consumer reaches for. Same objects,
-// same types, as `triiiceratops/vue` exposes.
-// ---------------------------------------------------------------------------
 
 export {
     TriiiceratopsCoreConflictError,
@@ -66,11 +41,6 @@ export {
 } from './framework/index.js';
 
 export type { SelectorCadence } from './state/selectors/index.js';
-
-// ---------------------------------------------------------------------------
-// Shared public types that appear in the props and callbacks above, so common
-// usage never needs a deep import.
-// ---------------------------------------------------------------------------
 
 export type { ViewerStateSnapshot } from './state/viewer.svelte.js';
 export type {

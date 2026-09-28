@@ -1,15 +1,4 @@
-// The double-bound-handle route.
-//
-// One handle, two viewers. A handle identifies exactly ONE viewer, so the
-// second one to mount must fail loudly and framework-natively rather than
-// silently taking the box over — otherwise every read through that handle
-// follows whichever viewer happened to mount last, and a page with two viewers
-// is quietly wrong.
-//
-// React's handle is the `useViewerHandle()` slot, passed with the `handle`
-// prop; Vue's is an ordinary template ref. The two fixtures differ only in that
-// wiring: both must produce the SAME `TriiiceratopsHandleConflictError`, naming
-// both elements, promptly, on the real packed artifact.
+// Double-bound-handle route: one handle on two viewers must fail with `TriiiceratopsHandleConflictError`.
 
 import { Component, createElement as h } from 'react';
 import { createRoot } from 'react-dom/client';

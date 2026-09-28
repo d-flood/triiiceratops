@@ -1,13 +1,3 @@
-/**
- * The media-backed implementation of {@link AVState}: one published state over
- * whichever media element the current canvas's stage holds.
- *
- * Kept out of `avState.ts` so the module a host's `getAVState` import reaches
- * carries the CONTRACT and nothing else — the port, the factory and their types
- * are this package's business, and a d.ts rollup publishes every declaration in
- * a reachable module.
- */
-
 import type { AVState, AvCaptionTrack } from './avState';
 
 /** Below this `readyState` a playing element has nothing to play (spec name: `HAVE_FUTURE_DATA`). */

@@ -1,9 +1,4 @@
-// Packed vitest-kit consumer: verifies that `@triiiceratops/plugin-sdk/testing`
-// and the compiled `triiiceratops/testing` entry import and operate in a plain
-// vitest project (jsdom, NO Svelte tooling) that installed only the tarballs.
-//
-// It runs the full conformance suite against the demo plugin AND asserts the
-// real batched-notification timing directly.
+// Plain vitest consumer on packed tarballs, no Svelte tooling.
 import { describe, expect, it } from 'vitest';
 
 import { activatePlugin } from '@triiiceratops/plugin-sdk';
@@ -20,7 +15,6 @@ import {
 
 import { createDemoPlugin } from './plugin.js';
 
-// The whole conformance battery, running with no Svelte compiler present.
 runPluginConformance(() => createDemoPlugin());
 
 describe('demo plugin against the real compiled headless viewer state', () => {
@@ -46,7 +40,6 @@ describe('demo plugin against the real compiled headless viewer state', () => {
         expect(label.textContent).toBe('closed');
 
         tc.viewerState.toggleToolbar();
-        // Batched: no synchronous delivery.
         expect(label.textContent).toBe('closed');
 
         await flush();

@@ -1,18 +1,5 @@
 <script lang="ts">
-    /*
-     * The image-download panel. Framework-neutral seam in, Svelte inside: this
-     * component is compiled INTO the plugin package (its own bundled Svelte
-     * runtime) and mounted through `view.mount` — it never imports core's Svelte
-     * runtime or `svelte/internal`, and reaches viewer state only through the
-     * SDK-owned `PluginContext`.
-     *
-     * Because the plugin runs its OWN Svelte runtime, reading core's `$state`
-     * off `viewerState` inside a `$derived` would NOT be reactive across the
-     * runtime boundary. Cross-runtime reactivity is bridged explicitly: a
-     * `stateTick` counter is bumped by `viewerState.subscribe` (batched,
-     * member-level core notifications) and every viewer-derived value reads it,
-     * so the panel recomputes on the next flush after any inventoried change.
-     */
+    /* Own Svelte runtime; cross-runtime reactivity bridged via `viewerState.subscribe` tick. */
     import { getContext } from 'svelte';
 
     import { Button, Select } from '@triiiceratops/ui';

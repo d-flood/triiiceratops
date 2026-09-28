@@ -1,13 +1,5 @@
-// Standards-based ESM entry for the Web Component (for bundler users).
-//
-// Importing this module for its side effects registers the
-// <triiiceratops-viewer> custom element and bootstraps the window.Triiiceratops
-// browser runtime namespace — identical tag, properties, methods, events,
-// styles, and content-state behavior as the self-contained IIFE entry
-// (custom-element.ts). Bundler consumers resolve dependencies through their own
-// graph and register plugins through window.Triiiceratops.plugins.
-//
-//   import 'triiiceratops/element/register';
+// Standards-based ESM entry: importing for side effects registers the
+// <triiiceratops-viewer> custom element and bootstraps the browser runtime.
 
 import TriiiceratopsViewerElement from './components/TriiiceratopsViewerElement.svelte';
 import { installBrowserRuntime, VIEWER_ELEMENT_TAG } from './browser-runtime';

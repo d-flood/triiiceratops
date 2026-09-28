@@ -1,30 +1,4 @@
-/**
- * API snapshot generator — `pnpm api:report`.
- *
- * Regenerates every machine-readable public-contract snapshot under
- * `api-reports/`, so a contract change shows up as a reviewable diff and CI can
- * fail on uncommitted drift (see `.github/workflows/test.yml` → `api-report`).
- *
- * Snapshots (one file per surface):
- *   - `<pkg>.api.md`          per-package public declaration report (d.ts rollup)
- *   - `exports.json`          per-package `exports` map (+ main/module/types/…)
- *   - `custom-element.json`   custom-element properties / methods / events
- *   - `browser-runtime.json`  `TriiiceratopsBrowserRuntime` shape + capabilities
- *   - `plugin-api.json`       plugin API version + capability vocabulary
- *   - `css-tokens.json`       public `--tri-*` CSS token list
- *   - `state-inventory.json`  state inventory (member + classification + commands)
- *
- * Declaration mechanism: d.ts snapshot (reachability rollup), NOT api-extractor
- * — one mechanism. Non-TS surfaces are simple JSON snapshots.
- *
- * Determinism: run twice → no diff. The value/shape snapshots are read from the
- * checked-in source of truth (state inventory, public tokens, plugin/api
- * constants, package.json). The declaration reports are read from freshly built
- * `dist` — so this script builds the needed `.d.ts` first (unless `--no-build`).
- * The concrete `coreVersion` string is intentionally NOT snapshotted (it changes
- * every release); the browser-runtime snapshot records its shape + the
- * semver-governed capability list instead.
- */
+/** API snapshot generator — `pnpm api:report`. */
 
 import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
@@ -47,7 +21,7 @@ const CORE_SRC = resolve(REPO, 'packages/core/src');
 
 const noBuild = process.argv.includes('--no-build');
 
-/** Publishable packages, in a stable order. `dir` is the package directory name. */
+/** Publishable packages, in a stable order. */
 const PACKAGES = [
     { name: 'triiiceratops', dir: 'core' },
     { name: '@triiiceratops/plugin-sdk', dir: 'plugin-sdk' },
@@ -67,7 +41,7 @@ const PACKAGES = [
     { name: '@triiiceratops/plugin-av', dir: 'plugin-av' },
 ];
 
-/** Slug used for a package's declaration-report filename. */
+/** Slug for a package's declaration-report filename. */
 function slug(name: string): string {
     return name
         .replace('@triiiceratops/', '')
@@ -82,11 +56,11 @@ function stableJson(value: unknown): string {
     return JSON.stringify(value, null, 4) + '\n';
 }
 
-// ── Build the declaration inputs (fresh dist `.d.ts`) ───────────────────────
+// ── Build the declaration inputs ──
 function buildDeclarations(): void {
     const run = (args: string) =>
         execSync(`pnpm ${args}`, { cwd: REPO, stdio: 'inherit' });
-    // Core first — plugins type-check/emit against core's built `dist` types.
+    // Core first — plugins emit against core's built `dist` types.
     run('--filter triiiceratops build:lib');
     run('--filter triiiceratops build:testing');
     run('--filter @triiiceratops/plugin-sdk build');
@@ -97,7 +71,7 @@ function buildDeclarations(): void {
     run('--filter @triiiceratops/plugin-av build:types');
 }
 
-// ── Per-package declaration reports (d.ts rollup) ───────────────────────────
+// ── Per-package declaration reports ──
 function emitDeclarationReports(): void {
     for (const pkg of PACKAGES) {
         const report = renderDeclarationReport(pkgDir(pkg.dir), pkg.name);
@@ -105,7 +79,7 @@ function emitDeclarationReports(): void {
     }
 }
 
-// ── Per-package exports map ─────────────────────────────────────────────────
+// ── Per-package exports map ──
 function emitExports(): void {
     const map: Record<string, unknown> = {};
     for (const pkg of PACKAGES) {
@@ -125,7 +99,7 @@ function emitExports(): void {
     writeFileSync(resolve(OUT, 'exports.json'), stableJson(map));
 }
 
-// ── State inventory (member + classification + commands) ────────────────────
+// ── State inventory ──
 function emitStateInventory(): void {
     const entries = STATE_INVENTORY.map((e) => ({
         member: e.member,
@@ -153,11 +127,7 @@ function emitStateInventory(): void {
     );
 }
 
-// ── Public CSS tokens ────────────────────────────────────────────────────────
-// `themeConfigKey` is the friendly key that sets the token, or null where the
-// token can only be written as raw CSS. It is here so that the theming
-// documentation's token table can be derived from this report rather than
-// transcribed into a document and gated against drift.
+// ── Public CSS tokens ──
 function emitCssTokens(): void {
     const keyByVar = new Map(
         Object.entries(CSS_VAR_MAP).map(([key, token]) => [token.cssVar, key]),
@@ -176,7 +146,7 @@ function emitCssTokens(): void {
     );
 }
 
-// ── Plugin API version + capability vocabulary ──────────────────────────────
+// ── Plugin API version + capability vocabulary ──
 function emitPluginApi(): void {
     writeFileSync(
         resolve(OUT, 'plugin-api.json'),
@@ -187,10 +157,7 @@ function emitPluginApi(): void {
     );
 }
 
-/**
- * Extract the member-signature lines of a named `interface`/`declare namespace`
- * body from a source file (comments stripped, whitespace collapsed).
- */
+/** Member-signature lines of a named interface body. */
 function interfaceMembers(fileText: string, name: string): string[] {
     const start = fileText.indexOf(`interface ${name}`);
     if (start === -1) return [];
@@ -217,7 +184,7 @@ function interfaceMembers(fileText: string, name: string): string[] {
         .filter(Boolean);
 }
 
-// ── Browser runtime shape + capabilities ────────────────────────────────────
+// ── Browser runtime shape + capabilities ──
 function emitBrowserRuntime(): void {
     const src = readFileSync(
         resolve(CORE_SRC, 'lib/browser-runtime.ts'),
@@ -247,27 +214,19 @@ function emitBrowserRuntime(): void {
     );
 }
 
-// ── Custom-element properties / methods / events ────────────────────────────
+// ── Custom-element properties / methods / events ──
 function emitCustomElement(): void {
     const elSrc = readFileSync(
         resolve(CORE_SRC, 'lib/components/TriiiceratopsViewerElement.svelte'),
         'utf8',
     );
 
-    // Attribute-backed properties from the `<svelte:options customElement props>`.
     const propsBlock = elSrc.slice(
         elSrc.indexOf('props: {'),
         elSrc.indexOf('},\n    }}'),
     );
-    // Property-only inputs: declared as props so Svelte defines a prototype
-    // accessor and ports a pre-upgrade assignment, but the observed attribute
-    // Svelte derives from the declaration is INERT and unsupported. Recorded so
-    // a future contributor does not wire the attribute up.
+    // Property-only inputs carry non-serializable values; the attribute is inert.
     const PROPERTY_ONLY_INPUTS = new Set(['searchProvider', 'plugins']);
-    // Carried into the snapshot beside the flag, because the flag alone reads
-    // like an oversight. These inputs take a function (`searchProvider`) or an
-    // array of live plugin objects (`plugins`); an attribute could only ever
-    // carry a string, so wiring one up would silently stringify the value.
     const PROPERTY_ONLY_NOTE =
         'INERT. Svelte derives an observed attribute from every declared prop, ' +
         'but this input carries a non-serializable value: the PROPERTY is the ' +
@@ -298,23 +257,16 @@ function emitCustomElement(): void {
         });
     }
 
-    // JS-only callback properties (no attribute) exposed on the element.
     const callbackProps = ['onpluginerror', 'onviewererror'].filter((p) =>
         elSrc.includes(p),
     );
 
-    // Getter-only properties the Svelte compiler emits from instance exports
-    // (`create_custom_element`'s `exports`). These live on the constructor's
-    // prototype with no setter — the state bridge, and the version handshake a
-    // framework wrapper probes.
     const readonlyProps: string[] = [];
     const exportRe = /export\s*\{\s*\w+\s+as\s+(\w+)\s*\}/g;
     while ((m = exportRe.exec(elSrc))) {
         readonlyProps.push(m[1]);
     }
 
-    // Events. The state-change family is derived from the dispatch call sites in
-    // ViewerState; `pluginerror`/`viewererror` from their event-name constants.
     const viewerSrc = readFileSync(
         resolve(CORE_SRC, 'lib/state/viewer.svelte.ts'),
         'utf8',
@@ -382,8 +334,6 @@ function emitCustomElement(): void {
             ),
             callbackProperties: callbackProps.sort(),
             readonlyProperties: readonlyProps.sort(),
-            // The Svelte-compiled custom element exposes no imperative methods
-            // beyond the standard HTMLElement surface; properties are the API.
             methods: [],
             events,
         }),

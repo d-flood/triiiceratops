@@ -1,19 +1,6 @@
 <script lang="ts">
     import { SEARCH_BUNDLE_PATH } from './site';
 
-    /**
-     * Search across the whole site's prose: the marketing pages and the
-     * documentation, in one field, because they are one site.
-     *
-     * The index is a post-build artefact, so the bundle is fetched at runtime
-     * from its published path rather than imported. It is fetched on the first
-     * keystroke and not before: a reader who never searches pays nothing, and
-     * the score gate never sees the request.
-     *
-     * On a development server there is no index — it does not exist until the
-     * build has run — so the field says so instead of failing silently.
-     */
-
     type Result = {
         readonly url: string;
         readonly meta: { readonly title?: string };
@@ -33,10 +20,8 @@
     let searching = $state(false);
     let unavailable = $state(false);
 
-    /** Results beyond this are noise in a rail-width list. */
     const LIMIT = 8;
 
-    /** Long enough that typing a word does not fetch a result for each letter. */
     const DEBOUNCE = 150;
 
     let engine: Promise<Pagefind> | undefined;
@@ -48,8 +33,6 @@
         return engine;
     }
 
-    // A query issued after this one has landed; anything older is dropped rather
-    // than allowed to overwrite it out of order.
     let latest = 0;
 
     async function run(term: string) {
@@ -110,10 +93,6 @@
         bind:value={query}
         oninput={onInput}
     />
-    <!-- A live region rather than a silent list: a query that matches nothing
-         has to say so, and the count is what tells a screen reader user the
-         list below has changed. Always in the document — a region created at
-         the moment its text appears is announced by nothing. -->
     <p class="search__status" role="status">{status}</p>
     {#if results.length > 0}
         <ul class="search__results">

@@ -1,22 +1,5 @@
 #!/usr/bin/env node
-// Packed-consumer test harness driver (`pnpm test:packed`).
-//
-// Flow:
-//   1. Build core's publishable dist.
-//   2. Pack a real `.tgz` (exactly what npm would publish).
-//   3. Assert tarball-level CSS (tokens, all themes, scoping, no plugin CSS).
-//   4. For each fixture × each package manager (npm AND pnpm):
-//        copy the fixture out of the workspace → inject the freshly packed
-//        tarball → install → build → serve → assert against the built output.
-//
-// Every fixture consumes ONLY the packed tarball, never workspace source.
-// All browser journeys use a local manifest (no network IIIF).
-//
-// Assertions run after the pack step, before fixtures: assert-tarball-css
-// (stylesheet), assert-tarball-contents (allowlist contract for every packed
-// package + planted-test self-check), and the core-only dependency-absence
-// check.
-// ---------------------------------------------------------------------------
+// Packed-consumer test harness driver. Every fixture consumes only the packed tarball.
 
 import { chromium, firefox, webkit } from '@playwright/test';
 import {
@@ -59,78 +42,46 @@ import {
     step,
 } from './lib.mjs';
 
-// Packages packed into tarballs for the fixtures below. Core first (its dist must
-// exist before the SDK type-checks against it); the SDK follows.
-//
-// This list and `scripts/release/packages.mjs` (the packages that reach npm) hold
-// the same set today, but they answer different questions and must stay separate:
-// packing proves a tarball's contents, and a package may need packing for a
-// fixture without being something we publish.
+// Packages packed for the fixtures below. Core first; SDK after.
 const PACKAGES_TO_PACK = [
     {
         filter: 'triiiceratops',
-        // Build steps required so the packed dist is complete. `build:testing`
-        // compiles the headless `triiiceratops/testing` entry AFTER
-        // `build:lib` (it needs the dist types).
         build: ['build:lib', 'build:testing', 'build:element'],
         tarballName: 'triiiceratops.tgz',
     },
     {
         filter: '@triiiceratops/plugin-sdk',
-        // `build` = tsc; resolves `triiiceratops` types from the core dist built
-        // above, so this entry must stay AFTER core.
         build: ['build'],
         tarballName: '_triiiceratops_plugin-sdk.tgz',
     },
     {
-        // Tracer plugin. `build` = ESM + IIFE (vite) + types (tsc);
-        // resolves `triiiceratops` and `@triiiceratops/plugin-sdk` types/dist
-        // from the entries built above, so it must stay AFTER both. Other
-        // plugin packages are added here the same way (AFTER the SDK).
         filter: '@triiiceratops/plugin-image-manipulation',
         build: ['build'],
         tarballName: '_triiiceratops_plugin-image-manipulation.tgz',
     },
     {
-        // Image-download plugin. Same shape as the tracer: `build` =
-        // ESM + IIFE (vite) + types (tsc). Its export helpers consume core's
-        // `triiiceratops/image-export` seam, so it must stay AFTER core and the
-        // SDK.
         filter: '@triiiceratops/plugin-image-export',
         build: ['build'],
         tarballName: '_triiiceratops_plugin-image-export.tgz',
     },
     {
-        // Audiovisual plugin. `build` = ESM + IIFE + lazy IIFE chunks (vite) +
-        // types (tsc), then a shared-runtime guard. Its IIFE deliberately bundles
-        // no Svelte and no core utilities — it reads both off
-        // `window.Triiiceratops` — so it must stay AFTER core and the SDK.
         filter: '@triiiceratops/plugin-av',
         build: ['build'],
         tarballName: '_triiiceratops_plugin-av.tgz',
     },
     {
-        // Pdf-export plugin. `build` = ESM + IIFE (vite) + types (tsc);
-        // it carries its own `pdf-lib` runtime dependency (outside core) and
-        // resolves `triiiceratops` + `@triiiceratops/plugin-sdk` types/dist from
-        // the entries built above, so it must stay AFTER both.
         filter: '@triiiceratops/plugin-pdf-export',
         build: ['build'],
         tarballName: '_triiiceratops_plugin-pdf-export.tgz',
     },
     {
-        // The annotation-editor plugin. `build` = ESM + IIFE (vite) +
-        // types (tsc); resolves `triiiceratops` and `@triiiceratops/plugin-sdk`
-        // from the entries built above, so it must stay AFTER both.
         filter: '@triiiceratops/plugin-annotation-editor',
         build: ['build'],
         tarballName: '_triiiceratops_plugin-annotation-editor.tgz',
     },
 ];
 
-// Fixtures: core-only consumers, plus the SDK framework-adapter fixtures (each
-// consumes the packed SDK subpath + a live packed `ViewerState`), plus
-// per-plugin fixtures.
+// Fixtures: core consumers, SDK adapter fixtures, and per-plugin fixtures.
 export const FIXTURES = [
     'svelte-vite',
     'sveltekit-ssr',
@@ -140,74 +91,21 @@ export const FIXTURES = [
     'plugin-vue',
     'plugin-lit',
     'plugin-svelte',
-    // Plain vitest project (no Svelte tooling) exercising the SDK
-    // test kit + compiled `triiiceratops/testing` entry against real state.
     'vitest-kit',
-    // The image-manipulation plugin, consumed from its
-    // packed tarball. `-svelte` activates the ESM entry on a real viewer and
-    // asserts the renderer's canvas gets the CSS filter; `-iife` loads core + plugin
-    // IIFEs in BOTH script orders; `-failure` proves plugin failure isolation
-    // for a real SDK plugin.
     'plugin-image-manip-svelte',
     'plugin-image-manip-iife',
     'plugin-image-manip-failure',
-    // The image-download plugin, consumed from its packed
-    // tarball. `-svelte` activates the ESM entry on a real viewer, triggers an
-    // export, and asserts a download-ready binary Blob is produced (async +
-    // binary output validation duty); `-iife` loads core + plugin IIFEs in BOTH
-    // script orders and asserts the same.
     'plugin-image-export-svelte',
     'plugin-image-export-iife',
-    // The pdf-export plugin, consumed from its packed
-    // tarball. `-svelte` activates the ESM entry on a real viewer and asserts a
-    // real multi-page PDF export completes (download intercepted; bytes start
-    // `%PDF`); `-iife` loads core + plugin IIFEs in BOTH script orders and
-    // asserts the same export from the self-contained no-bundler path.
     'plugin-pdf-export-svelte',
     'plugin-pdf-export-iife',
-    // The annotation-editor plugin, consumed from its packed
-    // tarball. `-conformance` runs the adapter conformance suite from the packed
-    // `@triiiceratops/plugin-annotation-editor/testing` subpath in a plain vitest
-    // project (no Svelte tooling, no viewer).
-    //
-    // `plugin-annotation-svelte` is absent from this list: that fixture's journey
-    // drives Annotorious's click-move-click rectangle gesture and asserts against
-    // `.a9s-annotationlayer`, and the editing surface is first-party, so neither
-    // the gesture nor the class exists. Its directory is retained, unrun, to be
-    // re-listed once the journey is rewritten against the drawing layer's own
-    // gestures and DOM. Do not weaken its assertions to make it pass.
+    // Unrun: journey targets the replaced Annotorious surface; re-list once rewritten.
     'plugin-annotation-conformance',
-    // Strict-TS declaration consumer. Type-checks a consumer of the
-    // public viewport API against the packed core tarball under
-    // `skipLibCheck: false` + `types: []`, proving core's public `.d.ts` stands
-    // on its own — no ambient global, and no third-party type the consumer
-    // would have to install by hand.
     'strict-dts',
-    // Doc-example compilation. A non-browser fixture that type-checks
-    // (`tsc --noEmit`) every `ts`/`tsx`/`js` code sample importing package code
-    // (extracted from the site's content documents into its `generated/` dir by
-    // `scripts/docs-examples.mjs`) against the packed tarballs of every packed
-    // package, so published documentation matches what users can install.
     'docs-examples',
-    // CSP + Trusted Types fixtures. Each is a packed-consumer page
-    // served under a strict Content-Security-Policy (delivered via a
-    // `<meta http-equiv>` in its HTML) and asserts zero `securitypolicyviolation`
-    // events. `csp-svelte` (light DOM) and `csp-wc-iife` (Web Component) run on
-    // all three desktop engines (chromium, firefox, webkit) via their `browsers`
-    // list; `csp-trusted-types` runs on chromium only (the only engine enforcing
-    // Trusted Types). They exercise the style service's nonce-aware fallback and
-    // core's Trusted Types default policy.
     'csp-svelte',
     'csp-wc-iife',
     'csp-trusted-types',
-    // The framework-wrapper release seam.
-    // Each is a plain Vite app whose ONLY package dependency is the packed core
-    // tarball plus its own framework — no Svelte, no Svelte Vite plugin, no
-    // plugin SDK — and each serves three routes driven by one Playwright pass:
-    // the full client contract, a server-rendered route that hydrates with zero
-    // mismatch diagnostics, and a route that pre-registers a foreign
-    // `<triiiceratops-viewer>` and must fail fast with a version-conflict
-    // diagnostic. They share one journey (`framework-consumer-assert.mjs`).
     'framework-react',
     'framework-vue',
 ];
@@ -252,7 +150,7 @@ export async function buildAndPack(tarballDir) {
             .pop();
         if (!produced)
             throw new Error(`pnpm pack produced no tarball for ${pkg.filter}`);
-        // Stabilise the filename so committed lockfiles reference a fixed path.
+        // Stabilise the filename for committed lockfiles.
         const stable = join(tarballDir, pkg.tarballName);
         await run('cp', [produced, stable]);
         tarballs[pkg.filter] = stable;
@@ -263,7 +161,6 @@ export async function buildAndPack(tarballDir) {
 
 async function assertCssFromTarball(tarballPath, tarballDir) {
     heading('Tarball-level CSS assertions (triiiceratops/style.css)');
-    // Extract just the stylesheet the consumer installs.
     await run('tar', [
         'xzf',
         tarballPath,
@@ -287,7 +184,6 @@ async function assertContentsFromTarballs(tarballs) {
     heading('Tarball content contract (allowlist, every packed package)');
     let ok = true;
 
-    // One-time guard that the allowlist actually rejects a planted test file.
     const planted = selfCheckPlantedTest();
     (planted.ok ? pass : fail)(
         'contract: rejects a planted dist/foo.test.js',
@@ -296,8 +192,6 @@ async function assertContentsFromTarballs(tarballs) {
     results.push({ label: 'tarball-contents-planted', ok: planted.ok });
     ok = ok && planted.ok;
 
-    // One-time guard that the peer-range check rejects an exact pin /
-    // residual `workspace:` and accepts a caret/tilde range.
     const peerSelf = selfCheckPeerRangeRejectsPin();
     (peerSelf.ok ? pass : fail)(
         'contract: peer-range check rejects a pin / workspace:',
@@ -306,9 +200,6 @@ async function assertContentsFromTarballs(tarballs) {
     results.push({ label: 'tarball-peer-range-self', ok: peerSelf.ok });
     ok = ok && peerSelf.ok;
 
-    // One-time guard that the framework-subpath
-    // assertions below reject a missing `dist/react.js` and a `./vue` subpath
-    // that lost its `types` condition.
     const subpathSelf = selfCheckFrameworkSubpathAssertions();
     (subpathSelf.ok ? pass : fail)(
         'contract: framework-subpath checks reject a missing wrapper artifact',
@@ -317,8 +208,6 @@ async function assertContentsFromTarballs(tarballs) {
     results.push({ label: 'tarball-subpath-self', ok: subpathSelf.ok });
     ok = ok && subpathSelf.ok;
 
-    // One-time guard that the no-font rule rejects both a planted `.woff2` and
-    // a face embedded in a stylesheet as a data URI.
     const fontSelf = selfCheckNoFonts();
     (fontSelf.ok ? pass : fail)(
         'contract: no-font rule rejects a planted face, file or embedded',
@@ -339,8 +228,6 @@ async function assertContentsFromTarballs(tarballs) {
         results.push({ label: `tarball-contents:${pkg.filter}`, ok: pkgOk });
         ok = ok && pkgOk;
 
-        // Published peers must be ranges, not exact pins — an exact pin from
-        // `workspace:*` would mismatch on every core patch.
         const { ok: peerOk, checks: peerChecks } = assertTarballPeerRanges(
             tarball,
             pkg.filter,
@@ -351,8 +238,6 @@ async function assertContentsFromTarballs(tarballs) {
         results.push({ label: `tarball-peers:${pkg.filter}`, ok: peerOk });
         ok = ok && peerOk;
 
-        // No typeface, in any form. The extension half is the allowlist's; this
-        // reads every published stylesheet for a declared face.
         const { ok: fontOk, checks: fontChecks } = assertTarballNoEmbeddedFonts(
             tarball,
             pkg.filter,
@@ -363,10 +248,7 @@ async function assertContentsFromTarballs(tarballs) {
         results.push({ label: `tarball-fonts:${pkg.filter}`, ok: fontOk });
         ok = ok && fontOk;
 
-        // Core only: the export map must be
-        // backed by real files (the framework wrappers among them) and the
-        // framework peers must be optional, ranged, and absent from
-        // `dependencies`.
+        // Core only: export targets backed by files, peers optional and ranged.
         if (pkg.filter !== 'triiiceratops') continue;
 
         const { ok: targetsOk, checks: targetChecks } = assertCoreExportTargets(
@@ -396,17 +278,13 @@ async function assertContentsFromTarballs(tarballs) {
     return ok;
 }
 
-// Recursively collect the names of any forbidden package directories resolved
-// under a `node_modules` tree. Detects both flat (`node_modules/pdf-lib`) and
-// nested (`.../node_modules/@annotorious/…`) placements.
+// Collect forbidden package dirs under node_modules.
 function findForbiddenDeps(nodeModulesDir, forbidden, found = new Set()) {
     if (!existsSync(nodeModulesDir)) return found;
     for (const name of readdirSync(nodeModulesDir)) {
         if (name === '.bin') continue;
         const full = join(nodeModulesDir, name);
         if (name.startsWith('@')) {
-            // Scope dir: a forbidden scope (e.g. @annotorious) is a direct hit;
-            // otherwise descend into each scoped package.
             if (forbidden.has(name)) {
                 found.add(name);
                 continue;
@@ -455,7 +333,7 @@ async function assertCoreOnlyDeps(coreTarball, workRoot) {
         },
     );
 
-    // Plugin-only runtime deps that MUST NOT resolve into a core-only install.
+    // Plugin-only deps must not resolve into a core-only install.
     const forbidden = new Set(['@annotorious', 'pdf-lib', 'phosphor-svelte']);
     const found = findForbiddenDeps(
         join(fixtureDir, 'node_modules'),
@@ -481,8 +359,7 @@ export async function installFixture(pm, fixtureDir) {
             },
         );
     } else {
-        // pnpm 11 requires each standalone consumer to explicitly approve
-        // esbuild's postinstall script, which Vite-based fixtures require.
+        // Standalone consumers must approve esbuild's postinstall for Vite.
         writeFileSync(
             join(fixtureDir, 'pnpm-workspace.yaml'),
             'allowBuilds:\n  esbuild: true\n',
@@ -499,16 +376,10 @@ export async function installFixture(pm, fixtureDir) {
     }
 }
 
-// Playwright browser types, keyed by the name a fixture declares in its
-// `browsers` list. Desktop-CSP fixtures run on all three engines;
-// every other fixture defaults to chromium only (see runFixture).
+// Playwright browsers keyed by fixture `browsers` list.
 const BROWSER_TYPES = { chromium, firefox, webkit };
 
-// Launch options per engine. Locally Chromium runs on the machine's real GPU
-// through Vulkan (mirrors `scripts/playwright-gpu.ts`, the Playwright-config
-// path); CI runners have no GPU, so there — and only there — Chromium falls
-// back to software WebGL (SwiftShader). Firefox and WebKit reject those
-// Chromium flags, so they launch with defaults.
+// Real GPU locally; software WebGL on CI. Firefox/WebKit use defaults.
 const LAUNCH_OPTIONS = {
     chromium: process.env.CI
         ? {
@@ -531,13 +402,7 @@ const LAUNCH_OPTIONS = {
     webkit: {},
 };
 
-/**
- * The one genuinely DOM-free case. Import both packed framework
- * subpaths in plain Node — no `window`, no `document`, no `customElements` —
- * and assert evaluation succeeds with no registration side effect. It needs the
- * optional `react` and `vue` peers resolvable, but no fixture: the whole
- * assertion is a single Node script.
- */
+/** Import both framework subpaths DOM-free and assert no registration side effect. */
 async function assertFrameworkNodeImport(coreTarball, workRoot) {
     heading('Framework subpaths import in Node with no browser globals');
     const dir = join(workRoot, 'framework-node-import');
@@ -649,7 +514,6 @@ async function withBrowser(rootDir, fn, browserName = 'chromium') {
         consoleMessages.push({ type: m.type(), text: m.text() }),
     );
     page.on('pageerror', (e) => {
-        // Drop environment-specific GPU/WebGL noise; keep real consumer errors.
         if (!isBenignBrowserError(e.message)) pageErrors.push(e);
     });
     try {
@@ -676,7 +540,7 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
     const destRoot = join(workRoot, `${fixtureName}-${pm}`);
     const fixtureDir = copyFixture(fixtureName, destRoot);
 
-    // Inject each packed tarball this fixture consumes (default: core only).
+    // Inject each packed tarball this fixture consumes.
     const tarballDeps = cfg.tarballs ?? ['triiiceratops'];
     for (const dep of tarballDeps) {
         if (!tarballs[dep]) {
@@ -690,12 +554,6 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
     step(`${fixtureName} [${pm}]: install`);
     await installFixture(pm, fixtureDir);
 
-    // An optional type-check step, run BEFORE the build and reported as its own
-    // step so a compile failure is not mistaken for a bundler failure. The
-    // framework fixtures use it for the headline promise: `tsc` with
-    // `skipLibCheck: false` and no Svelte installed, so a Svelte type leaking
-    // into `triiiceratops/react` / `/vue` / `/selectors` / `/testing` fails the
-    // packed run rather than waiting for a human to notice.
     if (cfg.checkScript) {
         step(`${fixtureName} [${pm}]: ${pm} run ${cfg.checkScript}`);
         await run(pm, ['run', cfg.checkScript], {
@@ -714,16 +572,11 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
 
     const serveRoot = join(fixtureDir, cfg.serveDir);
     if (cfg.browser) {
-        // Most fixtures run on chromium only; CSP fixtures declare a
-        // wider `browsers` list and run their assertion once per engine.
         const browsers = cfg.browsers ?? ['chromium'];
         for (const browserName of browsers) {
             step(`${fixtureName} [${pm}] (${browserName}): serve + assert`);
             await withBrowser(
                 serveRoot,
-                // `fixtureDir` lets a browser fixture also assert on what the
-                // package manager actually installed (no Svelte
-                // package, no Svelte Vite plugin, no plugin SDK).
                 (ctx) => cfg.assert({ ...ctx, fixtureDir, serveRoot }),
                 browserName,
             );
@@ -761,8 +614,7 @@ async function main() {
         );
         allOk = allOk && nodeImportOk;
 
-        // Optional local dev filter: `PACKED_ONLY=csp-svelte,csp-wc-iife` runs a
-        // subset. Unset in CI, so the full suite always runs there.
+        // `PACKED_ONLY` filters fixtures locally; unset in CI.
         const only = process.env.PACKED_ONLY
             ? new Set(process.env.PACKED_ONLY.split(','))
             : null;
@@ -797,10 +649,7 @@ async function main() {
     process.exit(0);
 }
 
-// Guarded so `view-fixture.mjs` (and anything else) can import the pieces
-// above — buildAndPack, installFixture, FIXTURES — without triggering the
-// full suite as an import side effect. Only run when this file is the
-// process entrypoint (`node run.mjs`, i.e. `pnpm test:packed`).
+// Importable without running the suite; only run as entrypoint.
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     main().catch((err) => {
         console.error(err);

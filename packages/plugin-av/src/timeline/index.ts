@@ -1,23 +1,4 @@
-/**
- * The timeline chunk's entry point: everything that draws over an audio
- * canvas's lane.
- *
- * Two drawings and the geometry they share. The **ruler** is the graduations a
- * lane always gets — ticks, clock labels, the played span and the playhead.
- * The **waveform** replaces it where the canvas links `audiowaveform` data,
- * and brings the parsers that read it.
- *
- * All of it is reachable only through the `await import()` in
- * `../timelineLink.ts`, so a page with no audio canvas to graduate never
- * fetches these bytes: a page of images or of video requests nothing.
- *
- * The chunk is **self-contained** and must stay that way. It may take types
- * from the eager graph, never values: the IIFE build cannot code-split, and
- * takes each lazy module out of its graph by rewriting the specifier into a
- * runtime URL (`vite.config.ts`), which a module shared with the entry would
- * defeat. Anything the ruler needs from eager code — the transport's clock —
- * is handed in.
- */
+/** Timeline chunk entry; self-contained, reached only via `timelineLink`. */
 
 export { clipLaneWindow, type LaneWindow, type VisibleBox } from './lane';
 export { parsePeaks, peaksDuration, type Peaks } from './peaks';

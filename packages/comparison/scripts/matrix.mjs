@@ -1,32 +1,7 @@
 #!/usr/bin/env node
-// The Cookbook support matrix's reader.
-//
-// Fetches the IIIF Cookbook's own support matrix, parses every cell of it, and
-// rewrites `src/matrix.json`.
-//
-//   node scripts/matrix.mjs
-//
-// The matrix is one HTML table per recipe category, recipes down the side and
-// viewers across the top, and each cell is an icon whose `alt` is the claim:
-// Yes, Partial or No. That is the whole format, and parsing it is why the
-// comparison can draw per-recipe coverage rather than a count: a count says a
-// viewer supports 31 recipes, and the matrix says which 31.
-//
-// The categories are not read. A recipe appears under more than one of them, so
-// rows are folded by recipe slug — and what the site bands its columns by is
-// `@triiiceratops/cookbook`'s own `RecipeGroup`, which it already has labels
-// for. The count of distinct slugs is the matrix's own recipe total, which moves
-// when the Cookbook publishes a new recipe.
-//
-// Like `measure.mjs` this runs on demand only, and for the same reason: the
-// matrix records what each project has submitted about itself and moves without
-// reference to this repository, so a scheduled run would rewrite a published
-// comparison with nobody reading the diff. Re-run it deliberately, read the
-// diff, and commit the result.
-//
-// It is not a support claim about Triiiceratops. `@triiiceratops/cookbook` is
-// the only place that lives; the matrix's own Triiiceratops column is an
-// external reading of us, carried here so the site can show both.
+// Reads the IIIF Cookbook support matrix (one HTML table per category, cell claim
+// in each icon's `alt`) and rewrites `src/matrix.json`. Rows fold by recipe slug;
+// runs on demand only.
 
 import { writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -38,7 +13,6 @@ const OUTPUT = join(PACKAGE_ROOT, 'src', 'matrix.json');
 
 const SOURCE = 'https://iiif.io/api/cookbook/recipe/matrix/';
 
-/** The claim an icon carries, keyed by the icon's file name. */
 const MARKS = { yes: 'yes', partial: 'partial', no: 'no' };
 
 function fail(message) {
@@ -71,8 +45,7 @@ const html = await response.text();
 
 const tables = [...html.matchAll(/<table[\s\S]*?<\/table>/g)]
     .map((match) => match[0])
-    // The page opens with a table describing the viewers themselves. A matrix
-    // table is the one whose first cell is the recipe column.
+    // A matrix table is the one whose first cell is the recipe column.
     .filter((table) => {
         const rows = rowsOf(table);
         return (
@@ -113,8 +86,6 @@ for (const [at, table] of tables.entries()) {
             const mark = icon === null ? null : MARKS[icon[1]];
             if (mark === undefined) fail(`unknown icon ${icon[1]}`);
             if (mark === null) continue;
-            // A recipe listed under two categories carries the same cell in
-            // both; a disagreement would mean the page contradicts itself.
             const seen = entry.marks[viewer];
             if (seen !== undefined && seen !== mark) {
                 fail(`${entry.id} reads ${seen} and ${mark} for ${viewer}`);

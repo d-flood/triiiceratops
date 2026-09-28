@@ -5,8 +5,6 @@
         HOSTED_VIEWER_PATH,
         REPOSITORY_URL,
     } from './site';
-
-    // Tools and resources stay directly reachable below the numbered introduction.
 </script>
 
 <div class="rail__out">

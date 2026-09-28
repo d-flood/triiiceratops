@@ -1,17 +1,3 @@
-/**
- * The palettes: measured, selected, and in agreement with the stylesheet.
- *
- * Three obligations are asserted here, because none of them is visible in a
- * browser until a reader with low vision fails to read the page:
- *
- * 1. Every text pairing clears AA at body size, in both schemes.
- * 2. Every figure the design record measured is still the figure the palette
- *    produces — the anchor that catches a mistyped hex.
- * 3. The palette module and `tokens.css` say the same thing. The stylesheet cannot
- *    import from the module, and the dark values appear in two blocks there, so
- *    three copies have to be held together by something.
- */
-
 import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
@@ -37,7 +23,6 @@ const SCHEMES: Scheme[] = ['light', 'dark'];
 
 const TOKENS = readFileSync(TOKENS_CSS, 'utf8');
 
-/** The hex-valued custom properties declared in one CSS block. */
 function declarations(block: string): Map<string, string> {
     const found = new Map<string, string>();
     for (const [, name, value] of block.matchAll(
@@ -48,7 +33,6 @@ function declarations(block: string): Map<string, string> {
     return found;
 }
 
-/** The body of the first rule whose selector line contains `needle`. */
 function block(needle: string): string {
     const start = TOKENS.indexOf(needle);
     expect(start, `tokens.css declares a block for ${needle}`).toBeGreaterThan(

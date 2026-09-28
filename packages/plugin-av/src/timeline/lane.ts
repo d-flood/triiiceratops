@@ -1,22 +1,4 @@
-/**
- * The plumbing every drawing over the timeline lane shares: which part of a
- * projected lane is on screen, what span of the recording that part covers, and
- * the `<canvas>` it is drawn into.
- *
- * A projected lane is not bounded by the viewer. At a deep zoom it is tens of
- * thousands of pixels wide, and a backing store that size is megabytes of
- * pixels nobody can see, so a surface over the lane is the lane CLIPPED to the
- * visible area, drawing the slice of the timeline projection that area covers.
- * That clipping IS the temporal zoom: zooming in narrows
- * `[startTime, endTime]` over a surface of roughly constant width, so each
- * column covers less time and the drawing sharpens.
- *
- * Eager, because the ruler is: every bare audio canvas draws one. The waveform
- * surface arrives with the lazy chunk and reaches back here for the same
- * geometry rather than carrying a second copy of it — the arithmetic is subtle
- * enough that two copies would drift, and the two surfaces graduate the same
- * window.
- */
+/** Lane clipped to visible area; clipping is the temporal zoom. */
 
 import type { StageRect } from '../mediaStage';
 

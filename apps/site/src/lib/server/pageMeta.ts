@@ -1,21 +1,3 @@
-/**
- * One list of the site's pages, with each page's own words resolved.
- *
- * A content route's words live in its document's meta; a code route's live in
- * the route declaration. Everything the chrome renders — the rail's labels, the
- * document title, the description, the next-page link, each page's heading and
- * lede — reads this list, so neither kind of route is a special case anywhere
- * above it.
- *
- * The resolution is also the gate: a declared content route with no document
- * fails the build here, rather than prerendering a page with no heading. Its
- * reverse — a document nobody declared — cannot happen, because the route
- * declarations are what the content route's prerender entries come from.
- *
- * The documentation is in this list too. A documentation page's words live in
- * its document exactly as a marketing page's do, and everything above reads one
- * list, so the sidebar and the rail label their pages from the same resolution.
- */
 import { readFileSync } from 'node:fs';
 
 import { defaultMapPathToSource } from 'uncial-cms/sveltekit';
@@ -67,11 +49,6 @@ function resolve(route: SiteRoute): SitePage {
     };
 }
 
-/**
- * A documentation page. The rail does not carry it — the sidebar does — but it
- * is offered to a crawler like any other prose the site publishes, which is the
- * one combination the rail's grouping cannot express.
- */
 function resolveDoc(route: DocRoute): SitePage {
     return {
         path: route.path,

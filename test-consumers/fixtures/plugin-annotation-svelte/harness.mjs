@@ -1,26 +1,9 @@
 import { expect } from '@playwright/test';
 
-// NOT RUN. This fixture is deliberately absent from `FIXTURES` in
-// `test-consumers/driver/run.mjs`: the journey below is written against
-// Annotorious, which the first-party drawing layer replaced. It draws a
-// rectangle with click-move-click (the drawing layer drags a bounding box) and
-// counts shapes inside `.a9s-annotationlayer`, a class nothing renders. It is
-// kept intact — tarballs, app, assertions — as the specification a rewritten
-// journey has to satisfy before it is re-listed. Do not "fix" it by weakening
-// the assertions.
-//
-// plugin-annotation-svelte: a Vite + Svelte app that renders the real viewer from
-// the packed `triiiceratops` tarball and activates the migrated
-// `@triiiceratops/plugin-annotation-editor` plugin (packed ESM entry, its default
-// `LocalStorageAdapter`). The journey drives the full annotate flow — create a
-// point + a region, edit a body, undo, redo, reload — and asserts persistence
-// against the FROZEN v1 LocalStorage namespace and the read-only overlay
-// (`[data-annotation-id]`), with only the edited annotation living in the
-// Annotorious editing layer.
+// NOT RUN: journey targets the replaced Annotorious surface. Do not weaken assertions to re-list it.
 
 const V1_PREFIX = '@triiiceratops/plugin-annotation-editor:v1';
 
-// Read every annotation the packed adapter persisted under the v1 namespace.
 async function stored(page) {
     return page.evaluate((prefix) => {
         const all = [];

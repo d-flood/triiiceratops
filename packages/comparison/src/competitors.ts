@@ -1,22 +1,11 @@
 /**
- * The pinned viewer list the bundle-size comparison measures: every viewer, the
- * version measured, and the page that loads it. `scripts/measure.mjs` drives one
- * browser session per entry per session kind and writes `measured.json`; nothing
- * here records a byte count.
- *
- * A version is pinned so a re-measurement is a re-measurement rather than a
- * different comparison. Bumping one is a deliberate edit whose diff shows both
- * the version and the figures that moved.
+ * The pinned viewer list the bundle-size comparison measures. A version is pinned
+ * so a re-measurement stays the same comparison.
  */
 
-/**
- * The two session kinds every viewer that can play time-based media is measured
- * in. A viewer that code-splits per media type pays different bytes for an
- * audiovisual manifest than for an image one, which only a session can show.
- */
+/** A viewer that code-splits per media type pays different bytes per manifest, which only a session shows. */
 export type SessionKind = 'image' | 'audiovisual';
 
-/** The IIIF Cookbook manifest each session kind is driven against. */
 export const SESSION_MANIFESTS: Record<SessionKind, string> = {
     image: 'https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json',
     audiovisual:
@@ -26,74 +15,43 @@ export const SESSION_MANIFESTS: Record<SessionKind, string> = {
 export interface Competitor {
     /** Stable key, used by `measured.json` and by anything rendering the data. */
     id: string;
-    /** The viewer's own name, as its project spells it. */
     name: string;
-    /** The exact release measured. */
     version: string;
-    /**
-     * True for a Triiiceratops row. Its artifacts are served from this
-     * repository's own `dist` directories instead of a registry CDN — everything
-     * else about the measurement, including that it is a real browser session,
-     * is identical, so no row is produced differently from its neighbours.
-     */
+    /** True for a Triiiceratops row, served from this repository's own `dist` directories. */
     local?: boolean;
-    /**
-     * The session kinds this viewer has. A viewer with no audiovisual support
-     * gets no audiovisual row rather than a row equal to its image one.
-     */
+    /** A viewer with no audiovisual support gets no audiovisual row. */
     sessions: SessionKind[];
     /**
-     * The viewer's own documented embed, as a whole HTML document.
-     * `{{MANIFEST}}` is the session's manifest URL; `{{BASE}}` is the local
-     * artifact root, and is only used by `local` entries.
+     * The viewer's own documented embed. `{{MANIFEST}}` is the session's manifest
+     * URL; `{{BASE}}` is the local artifact root, only used by `local` entries.
      */
     embed: string;
     /**
      * URL prefixes whose responses count toward this viewer's session. Anything
-     * outside them — the manifest, its images, its media, a favicon — is the
-     * IIIF content the viewer then fetches, not the viewer.
+     * outside them — the manifest, its images, its media, a favicon — is content,
+     * not the viewer.
      */
     assetBases: string[];
-    /**
-     * Artifacts that exist beside the entry files but that no session fetches.
-     * Measured so the published breakdown of what lazy loading defers can be
-     * rendered from data rather than transcribed.
-     */
     lazyArtifacts?: string[];
     /**
-     * This viewer's column heading in the Cookbook
-     * [support matrix](https://iiif.io/api/cookbook/recipe/matrix/), spelled
-     * exactly as the matrix spells it, which is how a row here is joined to its
-     * per-recipe cells in `COOKBOOK_MATRIX`.
-     *
-     * A name and not a count: the counts live in the matrix data, so a viewer's
-     * coverage cannot drift from the cells it is drawn from.
-     *
-     * Absent for a viewer the matrix has no column for, which gets no coverage
-     * row rather than a row of empty cells.
-     *
-     * The Triiiceratops entries carry none. The matrix does have a column for
-     * us, but a Triiiceratops support claim is recorded in
-     * `@triiiceratops/cookbook` and nowhere else; the site reads the matrix's
-     * own column directly to state how far behind it currently runs.
+     * This viewer's column heading in the Cookbook support matrix, spelled exactly
+     * as the matrix spells it. Absent for a viewer the matrix has no column for.
+     * Never set on a Triiiceratops entry: that claim lives in `@triiiceratops/cookbook`.
      */
     matrixColumn?: string;
     /** Why these artifacts are the ones a page loads. Carries no figures. */
     note?: string;
 }
 
-// A Triiiceratops row is built from this repository's own sources, so these are
-// the workspace's own versions rather than a registry release. `measured.test.ts`
-// holds them to the package manifests; they are not read from those manifests
-// here because this module is bundled into the site, and a JSON import would
-// carry a whole package.json into the browser to quote one field of it.
+// Workspace versions, not registry releases. Not read from those manifests here:
+// a JSON import would carry a whole package.json into the browser.
 const TRIIICERATOPS_VERSION = '1.1.0';
 const PLUGIN_AV_VERSION = '1.0.5';
 
 const viewerElement =
     '<triiiceratops-viewer manifest-id="{{MANIFEST}}" style="display: block; width: 100%; height: 100vh;"></triiiceratops-viewer>';
 
-/** The viewers the comparison measures, smallest first is not assumed anywhere. */
+/** Order is not significant. */
 export const COMPETITORS: Competitor[] = [
     {
         id: 'triiiceratops',

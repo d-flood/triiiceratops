@@ -1,7 +1,6 @@
 import { expect } from '@playwright/test';
 
-// svelte-vite: minimal Vite + Svelte app importing `triiiceratops` and
-// `triiiceratops/style.css`, rendering a local manifest.
+// svelte-vite: Vite + Svelte app on `triiiceratops` + stylesheet.
 export default {
     name: 'svelte-vite',
     buildScript: 'build',
@@ -11,7 +10,6 @@ export default {
     async assert({ page, baseURL, pageErrors }) {
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // The viewer mounts and the renderer paints the first canvas.
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });
@@ -19,8 +17,6 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // Styles arrived via the documented stylesheet export: the root carries
-        // theme tokens, so its background is not the UA default transparent.
         const bg = await page.evaluate(() => {
             const el = document.querySelector('#triiiceratops-viewer');
             return getComputedStyle(el).backgroundColor;

@@ -1,34 +1,5 @@
-/**
- * `/configure/`, in a browser: the three things about the builder that no unit
- * test can see.
- *
- * That a manifest the reader pastes actually reaches the preview — the whole
- * reason a share link from this page is worth sending is that it points at the
- * sender's own material. That a control changes the running viewer rather than
- * rebuilding it, because the argument the page makes is that chrome is
- * configuration and not a different build. And that a share URL's pair puts
- * both halves back, live, so the link a curator sends opens on what they saw.
- *
- * The one theming assertion here is the same kind of claim: the swatches open
- * on the viewer's own palette, read out of its stylesheet at runtime. A swatch
- * that came back black would mean the token scope had moved and every colour
- * control was starting from a lie.
- *
- * The second half of the file is the handoffs — the share URL, the
- * configuration object and the framework snippet — read back out of the
- * clipboard, and the round trip through this route's own URL that the encoding
- * exists for.
- */
-
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-/**
- * What the builder opens on, and a second manifest to paste over it.
- *
- * The first is the front page's own local tile tree. The second is the site's
- * other static material, so the assertion about a pasted manifest arriving
- * depends on nobody's image server.
- */
 const EXAMPLE = '/material/landing/manifest.json';
 const OTHER = '/material/multi-target-array/manifest.json';
 
@@ -36,16 +7,6 @@ function preview(page: Page) {
     return page.locator('.pv__live .viewer-root');
 }
 
-/**
- * The editor's groups are tabs, so a control has to be reached before it can be
- * used. The tab is found from the control rather than named: every panel is in
- * the document whether or not it is showing, so which group offers a control is
- * a question the page can answer, and a control that moves group moves this
- * click with it instead of failing it.
- *
- * Reading a control needs none of this, for the same reason — a hidden panel's
- * inputs still hold their values.
- */
 async function reach(page: Page, control: Locator) {
     const pane = await control.evaluate(
         (element) => element.closest('[role="tabpanel"]')!.id,
@@ -54,7 +15,6 @@ async function reach(page: Page, control: Locator) {
     await expect(control).toBeVisible();
 }
 
-/** The viewer is imported after `load`, so every screen waits for it. */
 async function running(page: Page) {
     await expect(preview(page)).toBeVisible({ timeout: 20_000 });
 }
@@ -68,9 +28,6 @@ test('opens on the example manifest, and loads a manifest the reader pastes', as
     const field = page.getByLabel('Your IIIF manifest');
     await expect(field).toHaveValue(EXAMPLE);
 
-    // Open the information panel first, so what the pasted manifest resolves to
-    // is readable from the manifest alone — the assertion is about the material
-    // arriving, not about somebody else's image server answering.
     const information = page.getByLabel('Information open');
     await reach(page, information);
     await information.check();
@@ -90,9 +47,6 @@ test('changes the preview without rebuilding the viewer', async ({ page }) => {
     await page.goto('/configure/');
     await running(page);
 
-    // A mark on the live viewer's own root. If the element survives the change,
-    // the mark does; if the viewer were remounted, a fresh element would not
-    // carry it.
     await preview(page).evaluate((root) => {
         root.setAttribute('data-e2e-mark', 'kept');
     });
@@ -105,8 +59,6 @@ test('changes the preview without rebuilding the viewer', async ({ page }) => {
     await expect(preview(page).locator('img').first()).toBeVisible();
     await expect(preview(page)).toHaveAttribute('data-e2e-mark', 'kept');
 
-    // And the same for a theming token, which reaches the viewer by a different
-    // input than the configuration does.
     const background = page.getByLabel('Viewer background');
     await reach(page, background);
     await background.fill('#123456');
@@ -128,11 +80,7 @@ test('restores the configuration and the manifest a share URL carries', async ({
     const asked = page.waitForRequest((request) =>
         request.url().endsWith(OTHER),
     );
-    /*
-     * `mode` is a parameter the builder no longer emits. It is left in this URL
-     * on purpose: links carrying one are in circulation, and what they promise
-     * is that the view and the configuration still arrive.
-     */
+    /* `mode` no longer emitted but still in circulation; must still restore. */
     await page.goto(
         `/configure/?mode=image&iiif-content=${encodeURIComponent(contentState)}&config=${encodeURIComponent(config)}`,
     );
@@ -152,30 +100,14 @@ test('opens its swatches on the viewer’s own palette', async ({ page }) => {
     await page.goto('/configure/');
     await running(page);
 
-    // By id rather than by label: several controls' labels start with the same
-    // word, and which token is meant is exactly what the id says. The three sit
-    // in three different groups, and each is reached in turn.
     for (const key of ['primary', 'viewerBg', 'content']) {
         const swatch = page.locator(`#tok-${key}`);
         await reach(page, swatch);
         await expect(swatch).toHaveValue(/^#[0-9a-f]{6}$/);
-        // Black is what an unresolved token reads as, and no built-in theme
-        // paints any of these three with it.
         await expect(swatch).not.toHaveValue('#000000');
     }
 });
 
-/*
- * The theme is the ground the theming half reads through, so picking one has to
- * move every swatch a reader has not set — which is a claim about the probe
- * reading the viewer's stylesheet again under a different theme, and only a
- * browser can answer it.
- *
- * A reader is free to try the themes until they set a value of their own, and
- * then the choice is fixed: a theme moving under a colour somebody chose is the
- * one thing this control must not be able to do. `Start over` is the way back,
- * and it has to be a real one.
- */
 test('starts the theming half from a built-in theme', async ({ page }) => {
     await page.goto('/configure/');
     await running(page);
@@ -184,15 +116,12 @@ test('starts the theming half from a built-in theme', async ({ page }) => {
     await reach(page, swatch);
     const scheme = await swatch.inputValue();
 
-    // The switcher stands at the head of the theming half, so reaching any of
-    // its tabs is reaching it.
     await expect(page.getByLabel('Light')).toBeChecked();
     await page.getByLabel('Dracula').check();
 
     await expect(swatch).not.toHaveValue(scheme);
     await expect(swatch).toHaveValue(/^#[0-9a-f]{6}$/);
 
-    // Free to compare while nothing of the reader's own is at stake.
     await page.getByLabel('Teal').check();
     const teal = await swatch.inputValue();
     expect(teal).toMatch(/^#[0-9a-f]{6}$/);
@@ -209,14 +138,6 @@ test('starts the theming half from a built-in theme', async ({ page }) => {
     await expect(swatch).toHaveValue(scheme);
 });
 
-/*
- * The preview stands on a named theme, always, and the snippet names the same
- * one: the overlays this page hands over are sparse, so an override means
- * nothing without the ground it departs from.
- *
- * Which theme a reader opens on is the scheme the page is in, so a reader
- * reading in dark is not handed a white viewer to work against.
- */
 test.describe('the ground the preview stands on', () => {
     test('is a theme the viewer ships, named on the element', async ({
         page,

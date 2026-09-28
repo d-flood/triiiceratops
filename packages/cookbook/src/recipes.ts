@@ -1,9 +1,4 @@
-/**
- * The IIIF Cookbook recipe catalog: the single source for what Triiiceratops
- * supports, and the only place a support claim is recorded. The marketing site's
- * capability axis is computed from here at build time, so a support claim moves
- * on this file and nowhere else.
- */
+/** The IIIF Cookbook recipe catalog: the only place a support claim is recorded. */
 
 /** The Cookbook's own categories, with its audiovisual recipes gathered into one group. */
 export type RecipeGroup =
@@ -21,36 +16,17 @@ export type RecipeSupport = 'supported' | 'unsupported';
 export interface CookbookRecipe {
     /** Cookbook recipe id, e.g. `0489-multimedia-canvas`. Its numeric prefix is the recipe number. */
     id: string;
-    /** The recipe's own title, as the Cookbook publishes it. */
     name: string;
-    /**
-     * The manifest or collection to load. A recipe that publishes several named
-     * manifests records the one the demo picker and the specs use.
-     */
+    /** A recipe publishing several manifests records the one the demo picker and the specs use. */
     manifestUrl: string;
-    /**
-     * The Cookbook's own category, except that `'audiovisual'` gathers the 16 ids
-     * derived and verified in the manifest fixtures' `PROVENANCE.md`
-     * (`packages/core/src/lib/test/fixtures/manifests/`) — the recipes whose
-     * manifests carry a `Sound` or `Video` painting body.
-     */
+    /** The Cookbook's own category, except `'audiovisual'` gathers the recipes whose manifests carry a `Sound` or `Video` painting body. */
     group: RecipeGroup;
-    /**
-     * Binary by policy: a recipe whose own feature does not happen is
-     * `'unsupported'`, however much of its manifest still renders. There is no
-     * degraded middle claim, so a support figure counted from here never needs a
-     * footnote to be read correctly.
-     */
+    /** Binary by policy: no degraded middle claim. */
     support: RecipeSupport;
-    /** True for a recipe that needs `@triiiceratops/plugin-av` to reach its `support` level. */
     requiresPluginAv: boolean;
-    /**
-     * True when the Cookbook support matrix's own Triiiceratops cell reads Yes.
-     * An external claim we carry so the documentation can cite the matrix without
-     * attributing our own `support` status to it; the two can legitimately differ.
-     */
+    /** True when the matrix's own Triiiceratops cell reads Yes. An external claim; the two can legitimately differ. */
     matrixSupport: boolean;
-    /** Why the recipe is unsupported. Required whenever `support` is not `'supported'`. */
+    /** Required whenever `support` is not `'supported'`. */
     reason?: string;
 }
 
@@ -66,15 +42,11 @@ export const RECIPE_GROUP_LABELS: Record<RecipeGroup, string> = {
     audiovisual: 'Audio & video',
 };
 
-/** The recipe number a recipe id starts with, e.g. `'0489'`. */
 export function recipeNumber(recipe: CookbookRecipe): string {
     return recipe.id.slice(0, recipe.id.indexOf('-'));
 }
 
-/**
- * The Cookbook [support matrix](https://iiif.io/api/cookbook/recipe/matrix/)
- * deduplicated to its 69 distinct recipes.
- */
+/** The Cookbook support matrix deduplicated to distinct recipes. */
 export const COOKBOOK_RECIPES: CookbookRecipe[] = [
     {
         id: '0001-mvm-image',

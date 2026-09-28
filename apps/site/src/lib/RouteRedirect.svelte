@@ -5,7 +5,6 @@
 
     let { to }: { to: string } = $props();
 
-    // Static hosting cannot send an HTTP redirect; preserve shared view selections.
     onMount(() => {
         window.location.replace(
             to + window.location.search + window.location.hash,

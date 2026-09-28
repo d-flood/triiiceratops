@@ -299,7 +299,6 @@
     }: Props = $props();
 
     let allPlugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
-    // The SDK path is the one plugin path.
     let sdkPlugins = $derived(allPlugins.filter(isSdkPlugin));
 
     let rootElement: HTMLElement | undefined = $state();
@@ -652,7 +651,6 @@
         }
     });
 
-    // ---- SDK plugin activation ----------------------------------------------
     // SDK plugins carry their own framework-neutral `activate(host)`. Core owns
     // a container per plugin, negotiates nothing itself (the plugin's activate
     // does compatibility/context/selectors), and supplies the host: the
@@ -1085,7 +1083,6 @@
         }
     });
 
-    // ---- Same-side toolbar/panel resolution (the "edge-rail" fix) ----
     // A side toolbar (left/right) that shares its side with a docked panel/gallery
     // is rendered as the OUTERMOST (screen-edge) column of that side bar instead
     // of floating over the image, so its close affordance no longer collides with

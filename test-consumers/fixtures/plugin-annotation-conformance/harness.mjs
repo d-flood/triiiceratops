@@ -1,9 +1,4 @@
-// plugin-annotation-conformance: a PLAIN vitest project that runs the adapter
-// conformance suite from the packed `@triiiceratops/plugin-annotation-editor/testing`
-// subpath. `buildScript: 'test'` runs `vitest run`; a non-zero exit
-// (any failing contract case) fails the fixture. No browser step — this proves
-// the acceptance criterion "the conformance suite runs from the new `/testing`
-// subpath in a packed consumer".
+// plugin-annotation-conformance: conformance suite from the packed `/testing` subpath; `vitest run` is the assertion.
 export default {
     name: 'plugin-annotation-conformance',
     tarballs: [
@@ -14,6 +9,5 @@ export default {
     buildScript: 'test',
     browser: false,
     serveDir: '.',
-    // The `vitest run` build step is the assertion; nothing further to check.
     assert: async () => {},
 };

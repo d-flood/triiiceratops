@@ -22,16 +22,6 @@ export { isCrossOriginImageFailure } from 'triiiceratops/image-export';
 export type ImageDownloadFormat = 'image/png' | 'image/jpeg';
 export type ImageDownloadMode = 'composite' | 'single' | 'world';
 
-/**
- * The default name for a downloaded image: the manifest's label and the canvas's
- * label, in that order, sanitized for a filesystem.
- *
- * Both labels are localized IIIF language maps, so the caller resolves them in
- * the viewer's **active locale** rather than passing raw JSON here — a reader
- * browsing in French should get `Evangiles-Folio-2r.jpg`, not the English label.
- * Either may resolve to nothing (a manifest with no label, an unlabeled canvas),
- * and whichever survives is used alone.
- */
 export function buildImageDownloadFilename(
     canvasLabel: string,
     mode: ImageDownloadMode,
@@ -53,10 +43,6 @@ type ExportOptions = {
     getSelectedChoice?: (canvasId: string) => string | undefined;
 };
 
-/**
- * The image server a resolved image comes from, for an error message that names
- * who declined. `null` when there is no absolute URL to read a host from.
- */
 export function getImageHost(resolved: ResolvedCanvasImage): string | null {
     const source = resolved.serviceId ?? resolved.resourceId;
     if (!source) return null;
@@ -67,11 +53,6 @@ export function getImageHost(resolved: ResolvedCanvasImage): string | null {
     }
 }
 
-/**
- * Every painting image on `canvas` resolved for the "single image" picker
- * and to detect whether "composite canvas" mode has more than one image to
- * offer.
- */
 export function getCanvasImageChoices(
     canvas: any,
     getSelectedChoice?: (canvasId: string) => string | undefined,
@@ -79,21 +60,12 @@ export function getCanvasImageChoices(
     return resolveAllCanvasImages(canvas, { getSelectedChoice });
 }
 
-/**
- * Resolution options for downloading a single image from a canvas.
- */
 export function resolveSingleImageSizeOptions(
     resolvedImage: ResolvedCanvasImage,
 ): Promise<ExportSizeOption[]> {
     return resolveExportSizeOptions(resolvedImage);
 }
 
-/**
- * Resolution options for downloading an entire (possibly composite) canvas.
- * There's no single canonical request URL once there's more than one image,
- * so this always returns a relative Original/50%/25% ladder based on the
- * canvas's own declared IIIF dimensions.
- */
 export function resolveCompositeCanvasSizeOptions(
     canvas: any,
     getSelectedChoice?: (canvasId: string) => string | undefined,
@@ -168,10 +140,6 @@ async function buildComposeEntry(
         scale,
     );
 
-    // Level0 services can only be requested at their native/declared sizes
-    // (see resolveExportSizeOptions), so a composited member image from one
-    // may be fetched at a different resolution than the rest of the page and
-    // scaled to fit here via drawImage rather than via a resized request.
     const blob = await fetchExportImageBlob(resolved, {
         width: placement.width,
     });
@@ -195,35 +163,17 @@ type WorldLayout = {
     worldHeight: number;
 };
 
-/**
- * Every canvas currently laid out together in the viewer that this plugin can
- * actually produce an image from (e.g. both pages of a spread in `paged` mode).
- * Used both to build the "current view" composite and to let "single image"
- * mode target one of several visible canvases instead of only ever the active
- * one.
- *
- * A canvas whose painting bodies are all non-image — the **unsupported
- * presentation**, a video or a sound recording sharing the spread — is left out
- * here rather than downstream. It is the difference between an export the
- * reader is never offered and one offered, chosen, and then refused for want of
- * a resolution to pick.
- */
+/** Canvases laid out together that this plugin can produce an image from. */
 export function getVisibleCanvasesForDownload(viewerState: ViewerState): any[] {
-    return (
-        getVisibleCanvasEntries({
-            canvases: viewerState.canvases,
-            currentCanvasId: viewerState.canvasId,
-            currentCanvasIndex: viewerState.currentCanvasIndex,
-            viewingMode: viewerState.viewingMode,
-            pagedOffset: viewerState.pagedOffset,
-        })
-            .map((entry) => entry.canvas)
-            // Classified over the SELECTED body: a mixed Choice resting on its
-            // video alternative resolves to no image, and asking about the
-            // alternatives as authored answers `false` and offers an export that
-            // can only fall through to the poster thumbnail.
-            .filter((canvas) => !isUnsupportedCanvasFor(viewerState, canvas))
-    );
+    return getVisibleCanvasEntries({
+        canvases: viewerState.canvases,
+        currentCanvasId: viewerState.canvasId,
+        currentCanvasIndex: viewerState.currentCanvasIndex,
+        viewingMode: viewerState.viewingMode,
+        pagedOffset: viewerState.pagedOffset,
+    })
+        .map((entry) => entry.canvas)
+        .filter((canvas) => !isUnsupportedCanvasFor(viewerState, canvas));
 }
 
 function buildWorldLayout(
@@ -242,16 +192,6 @@ function buildWorldLayout(
                 x: resolved.x,
                 y: resolved.y,
                 width: resolved.width,
-                // The box this image occupies on its manifest Canvas. Layout
-                // reads only the ratio, so passing the box's own width and
-                // height gives each source exactly the extent the manifest
-                // declares for it. The image service's dimensions are image
-                // space and are deliberately not used as canvas geometry.
-                //
-                // The live renderer lays out from the same manifest box, so
-                // there is no divergence left between what a "current view"
-                // export composes and what the reader is looking at: manifest
-                // dimensions win permanently for geometry.
                 sourceWidth: resolved.width,
                 sourceHeight: resolved.height,
                 tileSource: { resolved },
@@ -285,14 +225,6 @@ function buildWorldLayout(
     return { entries, worldWidth: maxX - minX, worldHeight: maxY - minY };
 }
 
-/**
- * Resolution options for downloading everything currently laid out together
- * in the viewer (e.g. a two-page spread in `paged` viewing mode). Reuses the
- * same layout math the viewer itself uses (`getCanvasDisplayLayouts`), so the
- * downloaded image matches what's on screen; there's no single native
- * reference size across canvases, so this offers a relative ladder against
- * the first image's own native width as the reference scale.
- */
 export function resolveWorldSizeOptions(
     viewerState: ViewerState,
     getSelectedChoice?: (canvasId: string) => string | undefined,
@@ -332,11 +264,6 @@ export async function exportCurrentWorld(
     const entries = await Promise.all(
         layout.entries.map(async ({ resolved, x, y, width }) => {
             const pixelWidth = Math.max(1, Math.round(width * scale));
-            // The image is drawn into the box the manifest declares for it,
-            // which is exactly the box layout was given and sized the world
-            // from. Deriving this from the image service's own dimensions
-            // instead would overflow the world whenever a Canvas and its
-            // image disagree, and composeImages would clip the overflow.
             const aspect =
                 resolved.width > 0 && resolved.height > 0
                     ? resolved.height / resolved.width

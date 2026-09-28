@@ -1,33 +1,4 @@
-/**
- * The **canvas timeline** of a temporally composed canvas: the segment map, and
- * the mapping between canvas time and a (segment, element-time offset) pair.
- *
- * Pure, and the only module in this package that knows what a `t=` window
- * means. Everything outside the sequencer speaks canvas time — 0 to the
- * canvas's duration — and this is where that promise is made good.
- *
- * ## Coordinates
- *
- * A painting annotation's target fragment gives its window ON THE CANVAS
- * TIMELINE. The body itself always plays from its own zero, so a segment's
- * element time is `canvasTime - segment.start`. (A `t=` on the BODY — a
- * `SpecificResource` source with its own fragment — would say otherwise; no
- * vendored recipe uses one and this release does not read it.)
- *
- * ## Normalization
- *
- * Real manifests are not guaranteed to tile a duration cleanly, so three shapes
- * are defined rather than left to chance, each announced once to the developer
- * console:
- *
- * - **A body with no `t=` on a multi-body canvas** claims no window, and a body
- *   that claimed the whole duration would swallow every sibling. It is dropped.
- * - **Overlapping windows**: the earlier body wins, and the later one starts
- *   where the earlier one ends. A window entirely covered by an earlier one is
- *   dropped.
- * - **A gap** between windows plays as nothing at all: the playhead skips
- *   forward to the next window's start, and a seek into a gap lands there too.
- */
+/** Segment map; only module that reads `t=` windows. Element time is `canvasTime - segment.start`. */
 
 import type { AvPlacement, AvSource } from '../sources';
 

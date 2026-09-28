@@ -1,25 +1,5 @@
 <script lang="ts">
-    /*
-     * The PDF-export panel. Framework-neutral seam in, Svelte inside: this
-     * component is compiled INTO the plugin package (its own bundled Svelte
-     * runtime) and mounted through `view.mount` — it never imports core's Svelte
-     * runtime or `svelte/internal`, and reaches viewer state only through the
-     * SDK-owned `PluginContext` (selectors, locale), never Svelte context.
-     *
-     * Chrome ownership: core owns
-     * the toolbar button (rendered from the plugin's `icon`) and the docked panel
-     * chrome (surface, sticky header with the plugin icon + title, and open/close).
-     * This component renders ONLY the panel's content body into the content-only
-     * container core hands `view.mount` — no self-toggle, no `open` state, no
-     * self-positioning. The controls are restored to `main`'s themed look with the
-     * shared `@triiiceratops/ui` primitives (`Select`, `Button`).
-     *
-     * It merges core's former `PdfExportController` + `PdfExportPanel`: it owns the
-     * selection state, derives the exportable range, and drives
-     * `exportCanvasRangeAsPdf` (its own bundled `pdf-lib`). Progress reporting is
-     * component-local state: async progress flows through supported paths, with
-     * no writes to core internals.
-     */
+    /* Own Svelte runtime; renders content only, core owns chrome. */
     import { getContext } from 'svelte';
 
     import { Button, Select } from '@triiiceratops/ui';

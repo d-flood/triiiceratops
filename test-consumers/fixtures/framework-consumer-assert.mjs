@@ -2,26 +2,9 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { expect } from '@playwright/test';
 
-// The shared journey for the two packed framework-wrapper consumer fixtures
-// (`framework-react`, `framework-vue`).
-//
-// Both fixtures build five routes from the SAME packed `triiiceratops`
-// tarball and expose one identical in-page control surface (`window.__tri` on
-// the client route, `window.__ssr` on the server route, `window.__conflict` on
-// the version-conflict route, `window.__debug` on the development-warning
-// route, and `window.__doubleBind` on the double-bound-handle route), so this
-// one journey can drive both frameworks and prove their behaviour is genuinely
-// the same contract rather than two similar ones.
-//
-// Everything asserted here is PUBLIC wrapper behaviour observed from outside:
-// DOM attributes and properties, rendered readouts, delivered event payloads,
-// the two-member imperative handle, and the element's documented `viewerState`
-// bridge. No framework internals, no Svelte effects, no private fields, and no
-// subscription collection sizes.
-//
-// Runs in the driver process, so it is never copied into the built consumer.
+// Shared journey for the packed framework-wrapper fixtures. Runs in the driver process.
 
-/** Canvas and manifest identifiers, kept in step with each fixture's `src/fixtures.js`. */
+/** Canvas and manifest ids, matching each fixture's `src/fixtures.js`. */
 const MANIFEST_ID = 'local://primary';
 const C1 = 'primary/c1';
 const C2 = 'primary/c2';
@@ -71,11 +54,6 @@ function installedPackageNames(fixtureDir) {
     return names;
 }
 
-/**
- * Acceptance criterion 1: no Svelte package, no Svelte Vite plugin, no plugin
- * SDK — declared, configured, or resolved — and (Vue) no custom-element
- * compiler configuration anywhere in the fixture.
- */
 function assertNoSvelteAndNoSdk(fixtureDir, { absentPeer }) {
     const pkg = JSON.parse(
         readFileSync(join(fixtureDir, 'package.json'), 'utf8'),
@@ -115,8 +93,6 @@ function assertNoSvelteAndNoSdk(fixtureDir, { absentPeer }) {
 
     for (const file of fixtureFiles(fixtureDir)) {
         if (!/\.(m?js|tsx?|json|html|vue)$/.test(file.path)) continue;
-        // `harness.mjs` is driver-side orchestration, not part of the consumer
-        // application, and it is never installed or built.
         if (file.path === 'harness.mjs') continue;
         const text = readFileSync(file.full, 'utf8');
         const specifiers = [
@@ -137,21 +113,7 @@ function assertNoSvelteAndNoSdk(fixtureDir, { absentPeer }) {
     ).toBe(false);
 }
 
-/**
- * The headline promise, pinned as configuration.
- *
- * The fixture's `check` script (`tsc -p tsconfig.json`, run by the driver before
- * the build) is the automated form of "a consumer with no Svelte installed
- * compiles the framework subpaths under `skipLibCheck: false`". That only means
- * something while the settings hold and the program actually reaches those
- * declarations, so both are asserted here rather than trusted: flipping
- * `skipLibCheck`, adding an ambient `types` entry, or deleting the imports fails
- * the fixture instead of quietly retiring the guarantee.
- *
- * `.` is deliberately exempt — it is the Svelte consumer's entry and exports the
- * compiled component — so importing it from the type-check program is an error
- * here too.
- */
+/** The `check` script and tsconfig must hold, and the program must reach the subpaths. */
 function assertStrictTypeCheck(fixtureDir, { framework }) {
     const pkg = JSON.parse(
         readFileSync(join(fixtureDir, 'package.json'), 'utf8'),

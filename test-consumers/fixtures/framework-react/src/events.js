@@ -1,12 +1,4 @@
-// One witness for all six translated event channels, shared by both viewers.
-//
-// The wrapper's callback (React) / emit (Vue) records the payload it received.
-// A DOM listener on `document` — the events are `bubbles: true, composed: true`,
-// so they escape the shadow root and reach it AFTER the wrapper's own
-// element-level listener — then compares that payload against the raw
-// `CustomEvent.detail` by IDENTITY. That is the whole "framework handlers
-// receive the exact detail object, not the DOM envelope" contract, observed
-// from outside the wrapper.
+// Witness for all six event channels; compares wrapper payload against `CustomEvent.detail` by identity.
 
 export const CHANNELS = [
     'statechange',
@@ -42,7 +34,7 @@ function record(viewer, channel) {
     return entry;
 }
 
-/** Called from the framework callback/emit with the DETAIL it was handed. */
+/** Called from the framework callback with the detail it was handed. */
 export function onFrameworkEvent(viewer, channel, detail) {
     const entry = record(viewer, channel);
     entry.callbackCount++;
@@ -58,7 +50,7 @@ export function onFrameworkEvent(viewer, channel, detail) {
 
 let lastPluginError = null;
 
-/** The exact `PluginError` most recently delivered, with its callable `retry()`. */
+/** Most recent `PluginError`, with its `retry()`. */
 export function retryLastPlugin() {
     if (!lastPluginError) return 'no plugin error was delivered';
     if (typeof lastPluginError.retry !== 'function') {
@@ -68,7 +60,7 @@ export function retryLastPlugin() {
     return 'retried';
 }
 
-/** Install the document-level witness. Call once, at module scope. */
+/** Install the document-level witness. */
 export function installWitness() {
     for (const channel of CHANNELS) {
         document.addEventListener(channel, (event) => {

@@ -40,7 +40,6 @@
     const viewerState = getContext<ViewerState>(VIEWER_STATE_KEY);
     const focusMemory = getContext<FocusMemory | undefined>(FOCUS_MEMORY_KEY);
 
-    // --- Inline (Unified Bar) row balancing ---
     // In `inline` mode the action <ul> is allowed to wrap. Flexbox fills rows
     // greedily (6 + 1), so once the icons need a second row we compute an even
     // split (4 + 3) by capping the group's width to `ceil(count / rows)`
@@ -120,7 +119,6 @@
 
     const isOpen = $derived(viewerState.toolbarOpen);
 
-    // --- Unified Bar open/close animation ---
     // The group is revealed/collapsed by animating a max-width CLIP over it. While
     // animating (and closed) it is held to a single `nowrap` row (see `.collapsed`
     // below), so it never reflows taller (opening) or unwraps ~2× wider (closing);
@@ -193,15 +191,11 @@
         };
     });
 
-    // --- Configuration ---
-    // Compose the internal placement string from the nested toolbar config
-    // (side = left/right, anchor = top/center). Defaults: left + center.
     const side = $derived(viewerState.config.toolbar?.side || 'left');
     const anchor = $derived(viewerState.config.toolbar?.anchor || 'center');
     const position = $derived(anchor === 'top' ? `top-${side}` : side);
     const isTop = $derived(anchor === 'top');
 
-    // --- Away edge ---
     // The direction pointing away from the edge the buttons sit on, and toward
     // the canvas. Everything anchored to a toolbar button grows or points this
     // way: its tooltip, and a flyout panel. When inline (unified) the buttons
@@ -257,7 +251,6 @@
     // anchors the bar's trailing control on the same terms.
     const leadTooltipEdge = $derived(inline ? 'tt-edge-start' : '');
 
-    // --- Standard Viewer Actions ---
     const toolbarConfig = $derived(viewerState.config.toolbar || {});
     const showSearch = $derived(toolbarConfig.showSearch !== false);
     const showGallery = $derived(toolbarConfig.showGallery !== false);
@@ -380,7 +373,6 @@
               : 'File',
     );
 
-    // [mode, glyph, label] for the viewing-mode menu's radio items.
     const viewingModeItems = $derived([
         ['individuals', 'File', m.viewing_mode_individuals()],
         ['paged', 'BookOpen', m.viewing_mode_paged()],
@@ -412,8 +404,6 @@
             : []),
     ]);
 
-    // [side, glyph, label] for the gallery menu's radio items — the four dock
-    // sides, each glyph pointing at the edge it docks to, plus the off state.
     // 'off' is a placement in the menu's terms, not a dock side, so choosing a
     // side implies showing the gallery and choosing 'off' hides it.
     const galleryPlacementItems = $derived([
@@ -509,9 +499,6 @@
               onclick: () => void;
           };
 
-    // The built-in toolbar entries in render order. A new flyout entry belongs in
-    // this list, with a matching `{:else if}` branch of the `{#each}` below
-    // rendering `flyoutMenu` with its own rows snippet.
     const toolbarEntries: ToolbarEntry[] = $derived([
         {
             key: 'collection',

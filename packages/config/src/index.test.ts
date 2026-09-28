@@ -24,11 +24,7 @@ import {
 const MANIFEST = 'https://example.org/iiif/book1/manifest';
 const CANVAS = 'https://example.org/iiif/book1/canvas/p2';
 
-/**
- * A faithful subset of the demo's `defaultConfig`: fully populated, nested, and
- * deliberately carrying no `viewingMode`. That is a key the manifest answers for
- * itself.
- */
+/** A subset of the demo's `defaultConfig`. Carries no `viewingMode`: the manifest answers that. */
 const defaults = {
     showToggle: true,
     toolbarOpen: true,
@@ -117,8 +113,6 @@ describe('serializeContentState', () => {
     });
 
     it('absolutizes a root-relative manifest id so the bare URI parses', () => {
-        // The playground's own sample manifests ship at root-relative paths, and
-        // `parseContentState` only accepts an absolute http(s) URI.
         const state = serializeContentState(
             { manifestId: '/demo/demo-manifests/book.json' },
             'https://example.org/demo/index.html',
@@ -145,8 +139,6 @@ describe('serializeContentState', () => {
     });
 
     it('drops an existing fragment before appending the shared region', () => {
-        // `parseIiifXywh` matches the first `xywh=`, so a fragment already on
-        // the canvas id would win over the region being shared.
         const state = serializeContentState({
             manifestId: MANIFEST,
             canvasId: `${CANVAS}#xywh=1,2,3,4`,
@@ -208,8 +200,6 @@ describe('sharing round-trips through parseContentState', () => {
         const contentState = shared.get('iiif-content')!;
 
         expect(shared.get('config')).toBe('{"gallery":{"open":true}}');
-        // What the parser reads back is the view and nothing else: no
-        // configuration reaches the IIIF payload.
         expect(parseContentState(contentState)).toEqual({
             manifestId: MANIFEST,
             canvasId: CANVAS,
@@ -236,17 +226,10 @@ describe('stored configuration never masks a manifest default', () => {
         });
         const config = clonePlain(defaults) as Record<string, unknown>;
 
-        // The viewer reporting the manifest's advertised behavior back to the
-        // playground is not a user choice.
         tracker.applyViewerValue(config, ['viewingMode'], 'paged');
         const stored = tracker.record(config);
 
-        /*
-         * Absence is the assertion. A stored `viewingMode` of any value would be
-         * handed to the viewer on the next load and win over whatever the next
-         * manifest advertises, so the only correct overlay is one in which the
-         * key does not exist at all.
-         */
+        // Absence is the assertion: a stored `viewingMode` would win over the next manifest.
         expect('viewingMode' in stored).toBe(false);
         expect(config.viewingMode).toBe('paged');
     });
@@ -257,8 +240,6 @@ describe('stored configuration never masks a manifest default', () => {
 
         tracker.applyViewerValue(config, ['canvasId'], CANVAS);
 
-        // Nothing the playground would hand the viewer names a canvas, so the
-        // manifest's own `start` stays the only answer available.
         expect('canvasId' in tracker.record(config)).toBe(false);
 
         const resolved = resolveInitialConfig({ search: '', defaults });
@@ -273,8 +254,6 @@ describe('stored configuration never masks a manifest default', () => {
         config.viewingMode = 'paged';
         expect(tracker.record(config)).toEqual({ viewingMode: 'paged' });
 
-        // Loading a manifest that advertises continuous viewing moves the live
-        // configuration, but the overlay records intent, not the current value.
         tracker.applyViewerValue(config, ['viewingMode'], 'continuous');
 
         expect(tracker.record(config)).toEqual({ viewingMode: 'paged' });
@@ -283,8 +262,6 @@ describe('stored configuration never masks a manifest default', () => {
     it('records only a preset’s own deltas, not the materialized config it assigns', () => {
         const tracker = createSparseTracker(defaults);
 
-        // A preset reassigns the configuration wholesale from the defaults, so
-        // every key it does not change must stay out of the overlay.
         const config = {
             ...(clonePlain(defaults) as Record<string, unknown>),
             toolbarOpen: false,
@@ -405,7 +382,6 @@ describe('escapes from stored configuration', () => {
             defaults,
         });
 
-        // An empty `config=` must not act as a second clean-defaults switch.
         expect(clean).toBe(false);
         expect(config.toolbarOpen).toBe(false);
     });
@@ -471,7 +447,6 @@ describe('drop payloads', () => {
         expect(carriesContentState(null)).toBe(false);
     });
 
-    // Recipe 0599's own drag source: a stringified content-state Annotation.
     it('passes a content-state document through untouched', () => {
         const document = JSON.stringify({
             '@context': 'http://iiif.io/api/presentation/3/context.json',
@@ -495,11 +470,7 @@ describe('drop payloads', () => {
         ).toBe(MANIFEST);
     });
 
-    /*
-     * The failure recipe 0599 walks into: its drag source is an `<img>`, so the
-     * browser offers the logo's own URL on `text/uri-list` alongside the state
-     * the page set on `text/plain`. Reading the wrong one loads a PNG.
-     */
+    /* A dragged `<img>` also offers its own URL on `text/uri-list`; reading it loads a PNG. */
     it('ignores the text/uri-list a dragged image comes with', () => {
         const document = JSON.stringify({
             '@context': 'http://iiif.io/api/presentation/3/context.json',

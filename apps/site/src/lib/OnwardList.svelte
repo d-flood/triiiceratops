@@ -3,14 +3,6 @@
 
     import type { SitePage } from './routes';
 
-    /**
-     * The rest of the site, as ruled rows: every page the rail carries except
-     * the one being read, numbered by its position in the rail so the two
-     * orderings agree.
-     */
-
-    // `page.data` is not narrowed to one route's data, so the layout's own fields
-    // arrive untyped in a block rendered inside a page.
     const nav = $derived((page.data.nav ?? []) as SitePage[]);
     const onward = $derived(
         nav

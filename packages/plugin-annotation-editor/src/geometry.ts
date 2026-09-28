@@ -1,14 +1,6 @@
 /**
- * Projection between the viewer's screen space and a canvas's own coordinate
- * space, for the shapes the drawing layer commits.
- *
- * Pure functions only — no Svelte, no DOM. The caller supplies the projection
- * as a callback (core's `screenToCanvas` / `canvasToScreen` bound to a canvas
- * id), so every geometric claim here is asserted without a browser (story 42).
+ * Projection between screen space and canvas space for drawing-layer shapes.
  */
-
-// Type-only, and so erased: `editableShape` builds `EditableGeometry` out of
-// this module's own `Point` and `Rect`, and nothing here imports its runtime.
 import type { EditableGeometry } from './editableShape';
 
 export interface Point {
@@ -23,33 +15,15 @@ export interface Rect {
     height: number;
 }
 
-/**
- * Maps a point from one space to the other, or `null` when the viewer cannot
- * answer for the canvas asked about — core's coordinate helpers return `null`
- * rather than a point belonging to a different canvas.
- */
+/** Maps a point or `null` when the viewer cannot answer for the canvas. */
 export type ProjectPoint = (point: Point) => Point | null;
 
-/**
- * The smallest region, in CANVAS pixels, that may become an annotation.
- *
- * Canvas pixels rather than screen pixels because the shape is persisted in
- * canvas space: the same drag at 8× zoom and at fit zoom must be judged the same
- * way, and only the canvas-space extent is invariant across the zoom the reader
- * happens to be at. Four is above the two-pixel hand jitter this guard exists to
- * discard (story 7), and far below any region a reader would deliberately draw
- * on a folio-sized canvas — a IIIF canvas of a manuscript page runs to thousands
- * of units across, so four of them are a smudge, not a feature.
- */
+/** Minimum region in canvas pixels that may become an annotation. */
 export const MIN_SHAPE_SIZE_CANVAS_PX = 4;
 
 /** The media-fragment profile a `FragmentSelector`'s `xywh=` conforms to. */
 export const MEDIA_FRAGMENT_CONFORMS_TO = 'http://www.w3.org/TR/media-frags/';
 
-/**
- * The axis-aligned box two corners span, in whichever order they were given —
- * a drag up-and-left describes the same region as the same drag reversed.
- */
 export function normaliseRect(from: Point, to: Point): Rect {
     return {
         x: Math.min(from.x, to.x),
@@ -59,14 +33,6 @@ export function normaliseRect(from: Point, to: Point): Rect {
     };
 }
 
-/**
- * The canvas-space box a screen-space drag describes.
- *
- * Both corners are projected before they are normalised, so the result is the
- * box in the canvas's own coordinates whatever the viewport's zoom and pan are.
- * `null` when either corner does not project — the drag then belongs to no
- * canvas and nothing may be committed from it.
- */
 export function screenDragToCanvasRect(
     from: Point,
     to: Point,
@@ -78,11 +44,7 @@ export function screenDragToCanvasRect(
     return normaliseRect(start, end);
 }
 
-/**
- * Whether a committed region is large enough to persist
- * ({@link MIN_SHAPE_SIZE_CANVAS_PX}). A validity check on a finished shape, not
- * gesture recognition: the armed tool already decided the gesture was a drag.
- */
+/** Validity check on a finished shape, not gesture recognition. */
 export function isDrawableRect(rect: Rect): boolean {
     return (
         rect.width >= MIN_SHAPE_SIZE_CANVAS_PX &&
@@ -90,14 +52,7 @@ export function isDrawableRect(rect: Rect): boolean {
     );
 }
 
-/**
- * A canvas-space rect as a media-fragment `xywh=` value.
- *
- * Rounded to whole canvas pixels — the unit a IIIF canvas is expressed in, and
- * what every reader of the fragment (core's own target parser included) treats
- * the numbers as. Edges are rounded rather than origin-plus-size so a rect never
- * grows or shrinks by a pixel more than the rounding of its own edges.
- */
+/** Canvas-space rect as media-fragment `xywh=`, rounded to whole pixels. */
 export function fragmentSelectorValue(rect: Rect): string {
     const x = Math.round(rect.x);
     const y = Math.round(rect.y);
@@ -106,28 +61,11 @@ export function fragmentSelectorValue(rect: Rect): string {
     return `xywh=${x},${y},${width},${height}`;
 }
 
-/* ===== Points ===== */
-
-/**
- * A canvas-space point snapped to whole canvas pixels — the unit a
- * `PointSelector`'s `x`/`y` are written in (ADR 0004). Floats were rejected as
- * spurious precision that diffs noisily and diverges from the published IIIF
- * examples, so this is the only rounding a point ever gets.
- */
 export function canvasPixelPoint(point: Point): Point {
     return { x: Math.round(point.x), y: Math.round(point.y) };
 }
 
-/**
- * The canvas pixel a screen point names — the point tool's ENTIRE geometry, a
- * single click with no extent and so no minimum-size guard to pass.
- *
- * The rounding happens once, here, on the projected canvas point. Rounding an
- * intermediate space instead — the screen point the pointer reported, or an
- * image-space step on the way — lands on a different canvas pixel wherever the
- * canvas is larger in its own coordinates than it is on screen, which is every
- * zoom below 1:1. `null` when the point projects to no canvas.
- */
+/** Round once here; rounding an intermediate space lands on the wrong pixel below 1:1. */
 export function screenPointToCanvasPixel(
     point: Point,
     toCanvas: ProjectPoint,
@@ -136,11 +74,6 @@ export function screenPointToCanvasPixel(
     return canvas ? canvasPixelPoint(canvas) : null;
 }
 
-/**
- * The screen-space box a canvas-space rect currently occupies, for the live
- * preview — recomputed whenever the viewport moves. `null` when the rect's
- * canvas is not one the renderer is placing.
- */
 export function canvasRectToScreenRect(
     rect: Rect,
     toScreen: ProjectPoint,
@@ -164,22 +97,8 @@ export function rectContainsPoint(rect: Rect, point: Point): boolean {
     );
 }
 
-/**
- * The control points a bounding-box shape offers: four corners and four edge
- * midpoints, named by compass direction so a handle's id says which edges it
- * moves — `'nw'` moves the north and west edges, `'n'` only the north one.
- *
- * A polygon's control points are its vertices instead, identified by index, so
- * a handle's id is whatever names the thing it moves.
- */
 export type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
-/**
- * The one control point a point annotation offers. Editing a point is moving
- * it, so its handle and its geometry are the same thing — but it goes through
- * the same {@link handleAtPoint} test as every other control point rather than
- * being a parallel mechanism.
- */
 export const POINT_HANDLE_ID = 'point';
 export type PointHandleId = typeof POINT_HANDLE_ID;
 
@@ -194,33 +113,15 @@ export const HANDLE_IDS: readonly HandleId[] = [
     'w',
 ];
 
-/**
- * Whether a control-point id names a bounding box's compass edge, as opposed to
- * a polygon vertex's index or a point's single handle. The three share one drag
- * and one hit test, so the id is what says which shape's maths to run.
- */
 export function isHandleId(id: unknown): id is HandleId {
     return (
         typeof id === 'string' && (HANDLE_IDS as readonly string[]).includes(id)
     );
 }
 
-/**
- * How far, in SCREEN pixels, a pointer may be from a handle's centre and still
- * reach it — half of a comfortable touch target rather than the handle's drawn
- * size, so a handle is grabbable slightly beyond the dot the reader sees.
- *
- * Screen pixels because it describes the reader's aim, which does not change
- * with the zoom: the same finger has to hit the same handle at fit zoom and at
- * 8×.
- */
+/** Hit radius in screen pixels so aim is zoom-invariant. */
 export const HANDLE_HIT_RADIUS = 12;
 
-/**
- * A control point on screen. Generic over what identifies it: a compass edge
- * for a bounding box, a vertex index for a polygon. Both go through the same
- * hit test, so nearest-centre-wins is decided in one place for every shape.
- */
 export interface Handle<Id = HandleId> {
     id: Id;
     x: number;
@@ -273,11 +174,7 @@ export function handleAtPoint<Id>(
     return closest;
 }
 
-/**
- * The rect a handle dragged to `to` describes. The dragged handle's own edges
- * follow the pointer and the opposite ones stay put; a drag past the opposite
- * edge flips the rect rather than producing a negative extent.
- */
+/** Dragged handle's edges follow the pointer; past the opposite edge flips rather than going negative. */
 export function resizeRect(rect: Rect, handle: HandleId, to: Point): Rect {
     let left = rect.x;
     let top = rect.y;
@@ -292,7 +189,6 @@ export function resizeRect(rect: Rect, handle: HandleId, to: Point): Rect {
     return normaliseRect({ x: left, y: top }, { x: right, y: bottom });
 }
 
-/** The same rect translated — a move never changes width or height. */
 export function moveRect(rect: Rect, delta: Point): Rect {
     return {
         x: rect.x + delta.x,
@@ -302,7 +198,6 @@ export function moveRect(rect: Rect, delta: Point): Rect {
     };
 }
 
-/** A rect grown by `by` on every side, for a box that must contain its handles. */
 export function inflateRect(rect: Rect, by: number): Rect {
     return {
         x: rect.x - by,
@@ -312,11 +207,7 @@ export function inflateRect(rect: Rect, by: number): Rect {
     };
 }
 
-/**
- * The rect a media-fragment `xywh=` value names — the read half of
- * {@link fragmentSelectorValue}. `null` for anything that is not a spatial
- * fragment, a temporal `t=` included.
- */
+/** `null` for non-spatial fragments, including temporal `t=`. */
 export function parseFragmentRect(value: unknown): Rect | null {
     if (typeof value !== 'string') return null;
     const match =
@@ -331,32 +222,12 @@ export function parseFragmentRect(value: unknown): Rect | null {
     return { x, y, width, height };
 }
 
-/* ===== Polygons ===== */
-
-/**
- * How many vertices an ellipse's inscribed polygon carries.
- *
- * 64 rather than the more common 32 because this viewer is a deep-zoom one: at
- * the magnifications a reader reaches on a folio, a 32-gon's facets are visibly
- * flat straight edges rather than a curve. Do not lower it — the cost is 64
- * coordinate pairs in a selector, and the benefit is the shape still reading as
- * an ellipse at 8×.
- */
+/** 64 so the shape still reads as an ellipse at 8x. */
 export const ELLIPSE_VERTEX_COUNT = 64;
 
 /** The fewest vertices a closed region can have. */
 export const MIN_POLYGON_VERTICES = 3;
 
-/**
- * The polygon inscribed in a bounding box: {@link ELLIPSE_VERTEX_COUNT} vertices
- * on the ellipse the box circumscribes, starting due east and winding clockwise
- * on screen (y grows downward).
- *
- * This is the ellipse tool's ENTIRE output. Nothing downstream records that the
- * polygon was drawn as an ellipse: core's projector has three geometries and its
- * SVG parser already degrades `<ellipse>` into points on read, so an ellipse
- * that persisted as one would lose fidelity on every round trip.
- */
 export function ellipseVertices(rect: Rect): Point[] {
     const cx = rect.x + rect.width / 2;
     const cy = rect.y + rect.height / 2;
@@ -368,7 +239,6 @@ export function ellipseVertices(rect: Rect): Point[] {
     });
 }
 
-/** The axis-aligned box a set of points spans; `null` for no points. */
 export function polygonBounds(points: readonly Point[]): Rect | null {
     if (points.length === 0) return null;
     const xs = points.map((point) => point.x);
@@ -383,22 +253,11 @@ export function polygonBounds(points: readonly Point[]): Rect | null {
     };
 }
 
-/**
- * Rounded to hundredths, unlike a media fragment's whole pixels: SVG
- * coordinates carry no pixel-unit convention, and a 64-gon inscribed in a small
- * box loses its roundness if every vertex snaps to an integer.
- */
 function svgCoordinate(value: number): number {
     return Math.round(value * 100) / 100;
 }
 
-/**
- * A closed polygon as an `SvgSelector` value, in the canvas's own coordinates.
- *
- * `<polygon>` inside a root `<svg>`, which is what core's selector parser reads
- * — it runs `DOMParser` over the value and collects `points` attributes, so a
- * bare `<polygon>` with no root element would not parse.
- */
+/** Root `<svg>` required; core parses via DOMParser collecting `points`. */
 export function svgPolygonValue(points: readonly Point[]): string {
     const attribute = points
         .map((point) => `${svgCoordinate(point.x)},${svgCoordinate(point.y)}`)
@@ -406,16 +265,7 @@ export function svgPolygonValue(points: readonly Point[]): string {
     return `<svg xmlns="http://www.w3.org/2000/svg"><polygon points="${attribute}" /></svg>`;
 }
 
-/**
- * The vertices an `SvgSelector` value names — the read half of
- * {@link svgPolygonValue}. `null` for anything this editor did not write:
- * curves, multiple shapes, or too few points to close a region.
- *
- * Deliberately narrower than core's parser, which approximates `<circle>`,
- * `<rect>` and `<path>` too. Core degrades those to draw them; this editor
- * would have to WRITE the degraded form back, silently replacing the author's
- * shape, so it declines to open them at all.
- */
+/** Narrower than core: opening degraded shapes would silently replace the author's shape on write. */
 export function parseSvgPolygon(value: unknown): Point[] | null {
     if (typeof value !== 'string') return null;
     const shapes = [
@@ -431,17 +281,14 @@ export function parseSvgPolygon(value: unknown): Point[] | null {
     return points.length >= MIN_POLYGON_VERTICES ? points : null;
 }
 
-/** A point's single handle, at the point itself. */
 export function pointHandles(point: Point): Handle<PointHandleId>[] {
     return [{ id: POINT_HANDLE_ID, ...point }];
 }
 
-/** The polygon's vertices as handles, each identified by its own index. */
 export function polygonHandles(points: readonly Point[]): Handle<number>[] {
     return points.map((point, index) => ({ id: index, ...point }));
 }
 
-/** The same polygon with one vertex moved; every other vertex stays put. */
 export function moveVertex(
     points: readonly Point[],
     index: number,
@@ -450,7 +297,6 @@ export function moveVertex(
     return points.map((point, at) => (at === index ? { ...to } : point));
 }
 
-/** The same polygon translated — a move never reshapes the outline. */
 export function movePolygon(points: readonly Point[], delta: Point): Point[] {
     return points.map((point) => ({
         x: point.x + delta.x,
@@ -458,7 +304,6 @@ export function movePolygon(points: readonly Point[], delta: Point): Point[] {
     }));
 }
 
-/** The same polygon with `at` spliced in before vertex `index`. */
 export function insertVertex(
     points: readonly Point[],
     index: number,
@@ -469,12 +314,7 @@ export function insertVertex(
     return inserted;
 }
 
-/**
- * The same polygon without vertex `index`, or `null` when removing it would
- * leave fewer than {@link MIN_POLYGON_VERTICES} — a two-vertex ring is a line
- * segment, which is not a region and which core's parser would close into one
- * anyway.
- */
+/** `null` when removal would leave fewer than 3 vertices. */
 export function removeVertex(
     points: readonly Point[],
     index: number,
@@ -484,11 +324,6 @@ export function removeVertex(
     return points.filter((_, at) => at !== index);
 }
 
-/**
- * Where a new vertex belongs for a point pressed on the outline: the index to
- * insert BEFORE, chosen as the end of the closest edge, so the inserted vertex
- * lands between the two it was dragged out from.
- */
 export function nearestEdgeInsertIndex(
     points: readonly Point[],
     point: Point,
@@ -511,7 +346,6 @@ function distanceToSegment(point: Point, from: Point, to: Point): number {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const lengthSquared = dx * dx + dy * dy;
-    // A degenerate edge (two coincident vertices) is just its endpoint.
     const t =
         lengthSquared === 0
             ? 0
@@ -526,12 +360,7 @@ function distanceToSegment(point: Point, from: Point, to: Point): number {
     return Math.hypot(from.x + t * dx - point.x, from.y + t * dy - point.y);
 }
 
-/**
- * Whether a point is inside a closed polygon, by crossing count. Used to decide
- * whether a press moves the whole shape, so a press in the concave notch of an
- * outline must not count as inside it — which is exactly what testing the
- * bounding box instead would get wrong.
- */
+/** Crossing count; bbox test would wrongly include concave notches. */
 export function polygonContainsPoint(
     points: readonly Point[],
     point: Point,
@@ -551,21 +380,7 @@ export function polygonContainsPoint(
     return inside;
 }
 
-/* ===== The keyboard verbs ===== */
-
-/**
- * The two nudge steps, in CANVAS pixels.
- *
- * Canvas space rather than screen space so a nudge means the same thing at
- * every zoom: a reader who moves a vertex one step at fit zoom and one step at
- * 8× has moved it the same distance across the folio, which is the distance the
- * annotation records. A step in screen pixels would shrink as the reader zoomed
- * in — the opposite of what precision work wants.
- *
- * One canvas pixel is the finest adjustment a canvas-space geometry can carry;
- * ten crosses a folio-sized canvas in a few hundred presses rather than a few
- * thousand.
- */
+/** Nudge steps in canvas pixels so a step means the same at any zoom. */
 export const NUDGE_STEP_CANVAS_PX = 1;
 export const NUDGE_LARGE_STEP_CANVAS_PX = 10;
 
@@ -577,11 +392,7 @@ const NUDGE_DIRECTIONS: Record<string, Point> = {
     ArrowDown: { x: 0, y: 1 },
 };
 
-/**
- * The canvas-space delta an arrow key describes, or `null` for a key that is
- * not an arrow — which is what tells the caller to leave the event alone so it
- * reaches whatever else wants it.
- */
+/** `null` for non-arrow keys so the event reaches whatever else wants it. */
 export function nudgeDelta(key: string, large: boolean): Point | null {
     const direction = NUDGE_DIRECTIONS[key];
     if (!direction) return null;
@@ -593,18 +404,9 @@ export function translatePoint(point: Point, delta: Point): Point {
     return { x: point.x + delta.x, y: point.y + delta.y };
 }
 
-/**
- * How much of the visible box a keyboard-placed default shape spans.
- *
- * A fraction of the CURRENT view rather than a fixed canvas-space size: a
- * default shape has to be visible and grabbable at whatever zoom the reader is
- * at, and a fixed canvas extent is either a speck at fit zoom or larger than
- * the screen at 8×. The reader then sizes it with the ordinary nudge verbs,
- * which are in canvas space because they are adjustments to a stored geometry.
- */
+/** Fraction of the current view so the default is visible at any zoom. */
 export const DEFAULT_SHAPE_VIEW_FRACTION = 0.25;
 
-/** The box of the given extent centred on a point. */
 export function centredRect(
     centre: Point,
     width: number,
@@ -618,15 +420,6 @@ export function centredRect(
     };
 }
 
-/**
- * The default triangle inscribed in a box: apex at the top edge's midpoint,
- * then the two bottom corners, winding clockwise on screen like
- * {@link ellipseVertices}.
- *
- * The polygon tool's keyboard start. Three vertices because that is the fewest
- * a region can have ({@link MIN_POLYGON_VERTICES}), so every vertex the reader
- * then adds is one they asked for.
- */
 export function triangleVertices(rect: Rect): Point[] {
     const bottom = rect.y + rect.height;
     return [
@@ -636,15 +429,6 @@ export function triangleVertices(rect: Rect): Point[] {
     ];
 }
 
-/**
- * The same polygon with a vertex added just after `index`, at the midpoint of
- * the edge running from it to the next one — so the new vertex is on the
- * outline the reader can see, and lands at `index + 1`.
- *
- * The keyboard's counterpart to the pointer's insert, which takes the position
- * from where the reader double-clicked. A keyboard user has no such position,
- * so the edge's midpoint is the one unambiguous point on it.
- */
 export function insertVertexAfter(
     points: readonly Point[],
     index: number,
@@ -658,22 +442,7 @@ export function insertVertexAfter(
     });
 }
 
-/* ===== Equality ===== */
-
-/**
- * Whether two geometries name the same shape, so a commit can refuse to write
- * one that has not changed.
- *
- * Kinds never compare equal across each other: an edit cannot turn a rect into
- * a polygon, so a mismatch here is two different shapes rather than two
- * spellings of one.
- *
- * A point compares at whole canvas pixels, because that IS a point's geometry
- * — {@link canvasPixelPoint} is the only resolution a `PointSelector` is ever
- * written at (ADR 0004), and the raw projection of a pointer resting on a
- * stored point lands somewhere inside the pixel it already occupies. Rects and
- * polygons compare exactly, on the coordinates the caller holds.
- */
+/** Kinds never compare equal; points compare at whole canvas pixels. */
 export function geometriesEqual(
     a: EditableGeometry,
     b: EditableGeometry,

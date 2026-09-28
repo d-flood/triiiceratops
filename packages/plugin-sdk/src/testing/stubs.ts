@@ -1,18 +1,3 @@
-/**
- * Minimal stub host services, for a test that wants an activation and nothing
- * else.
- *
- * A `PluginHost` supplies `styles`, `locale`, `ui`, and `surface`; core builds
- * the real, per-viewer, root-aware implementations, and the test kit's
- * `createTestViewerContext` hands back recording doubles worth asserting
- * against. These stubs are for the third case: a bare `runActivation` into a
- * container the caller placed, where the services are required by the contract
- * and irrelevant to the test.
- *
- * They live on the testing surface rather than in the SDK's base entry so no
- * plugin bundle carries a service implementation no reader can see.
- */
-
 import type {
     IconDescriptor,
     PluginLocaleService,

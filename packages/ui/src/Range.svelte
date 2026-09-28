@@ -66,17 +66,6 @@
                 min(var(--range-p), var(--radius-selector-max))
         );
 
-        /*
-         * The thumb's depth treatment, the track it paints over itself, and the
-         * progress fill that reaches out of it. Named here rather than at the
-         * two thumb pseudo-elements because `::-webkit-slider-thumb` and
-         * `::-moz-range-thumb` cannot share a selector — a vendor pseudo-element
-         * one engine does not know invalidates the whole list — so the value
-         * would otherwise be written out twice.
-         *
-         * Every property it reads is declared on this element, so the inherited
-         * computed value is the same one each thumb would have resolved.
-         */
         --range-thumb-shadow:
             0 -1px oklch(0% 0 0 / calc(var(--tri-depth) * 0.1)) inset,
             0 8px 0 -4px oklch(100% 0 0 / calc(var(--tri-depth) * 0.1)) inset,

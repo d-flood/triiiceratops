@@ -1,31 +1,4 @@
-/**
- * The headline promise, compiled rather than asserted: a Vue consumer
- * type-checks against `triiiceratops/vue` with **no Svelte installed** and
- * **`skipLibCheck: false`**, so any Svelte type reaching the published
- * declaration graph of this subpath fails the packed run.
- *
- * `skipLibCheck: false` is what gives that teeth — every `.d.ts` this program
- * pulls in is checked, so an unresolvable Svelte type import anywhere in
- * `dist/vue.d.ts`'s closure is an error here even though nothing in this file
- * mentions Svelte. `types: []` keeps ambient `@types/*` packages out, so the
- * only declarations in play are the ones the tarball and `vue` actually ship.
- *
- * It is deliberately NOT a bare `import 'triiiceratops/vue'`: a leak in a type
- * nobody references can hide behind laziness in the checker. Every named export
- * is used for what it is — the component is rendered with props from every
- * tier and every emit handler, the composables are called and their results
- * consumed, each error class is constructed or narrowed to, and every exported
- * type annotates a value.
- *
- * Authored as a `.ts` render function rather than an SFC on purpose: checking
- * a `.vue` file needs `vue-tsc`, and `tsc` is the tool whose `skipLibCheck`
- * behaviour this fixture is pinning. The fixture's real SFCs are covered by the
- * browser journey.
- *
- * `.` is deliberately exempt and must never be imported here: it is the Svelte
- * consumer's entry and exports the compiled component, whose declaration
- * legitimately imports `svelte`.
- */
+/** No-Svelte consumer: `skipLibCheck: false` makes any Svelte type leak fail. */
 
 import { defineComponent, h, shallowRef } from 'vue';
 import type { ComputedRef, ShallowRef, VNode } from 'vue';

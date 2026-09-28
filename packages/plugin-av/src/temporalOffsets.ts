@@ -1,23 +1,5 @@
-/**
- * Turning core's `temporalOffset` into a seek.
- *
- * **Seek, never autoplay.** An offset positions the playhead and leaves playback
- * state exactly as it was; a paused viewer stays paused. `endSeconds` is carried
- * by core and deliberately not enforced here.
- *
- * The only subtlety is timing: an offset commonly arrives with the navigation
- * that first shows the canvas, before its media has any duration to be clamped
- * against or any buffered range to seek within. Such an offset is held and
- * applied at `loadedmetadata`, and a newer offset replaces a held one rather
- * than queueing behind it.
- *
- * "The canvas timeline is ready" is NOT always one element's `loadedmetadata`,
- * which is why the port answers it separately: for a temporally composed canvas
- * it is the segment map's existence, and the element that will play the offset
- * is not even attached until the offset says which segment it lands in.
- */
+/** Seek, never autoplay; held until `loadedmetadata`, newer replaces held. */
 
-/** `readyState` at which the element knows its duration (spec: `HAVE_METADATA`). */
 const HAVE_METADATA = 1;
 
 export interface OffsetSeekerPort {

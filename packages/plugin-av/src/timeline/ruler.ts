@@ -1,28 +1,4 @@
-/**
- * The **timeline ruler**: what a bare audio canvas draws in its lane.
- *
- * A canvas with a duration and no picture is laid out as a lane filling the
- * viewer, and the viewer's own zoom over it is purely temporal
- * (`planScene.laneWorld` in core). Left undrawn that is a featureless
- * rectangle: it shows neither where the playhead is nor which span of the
- * recording is on screen, so zooming into a two-hour tape tells the reader
- * nothing about where they landed and the temporal zoom is unusable. The ruler
- * is the graduations that make the projection legible — ticks at a round
- * interval chosen for the window, a clock label on each, the played span
- * filled, and the playhead.
- *
- * Eager, unlike the waveform: every bare audio canvas has one, so an
- * `await import()` would buy nothing and cost a round trip on the common case.
- *
- * Two neighbouring layouts deliberately draw no ruler:
- *
- * - A canvas with waveform data. The waveform graduates the same window and
- *   says more about the recording, so it replaces this rather than crowding it.
- * - A canvas core paints a companion Canvas into. The rect is spoken for and
- *   anything drawn there would cover the picture (ADR 0016), so the reader
- *   reaches the timeline through the control bar's scrubber — the same answer
- *   waveform data gets on that layout (`stageLayout.ts`).
- */
+/** Timeline ruler: ticks at a round interval for the window, plus playhead. Eager. */
 
 import {
     clipLaneWindow,

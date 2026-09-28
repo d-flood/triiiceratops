@@ -1,13 +1,6 @@
 import { expect } from '@playwright/test';
 
-// plugin-image-export-svelte: a Vite + Svelte app that renders the real viewer
-// from the packed `triiiceratops` tarball and activates the migrated
-// `@triiiceratops/plugin-image-export` plugin (packed ESM entry) through the
-// viewer's `plugins` prop. This journey proves the plugin's validation duty
-// ASYNCHRONOUS operations and BINARY output through the
-// SDK seam. It opens the panel, triggers an export, and asserts a download-ready
-// Blob is produced — captured by intercepting `URL.createObjectURL` (the object
-// URL the download is built from).
+// plugin-image-export-svelte: packed ESM entry; asserts a non-empty Blob via createObjectURL intercept.
 export default {
     name: 'plugin-image-export-svelte',
     buildScript: 'build',
@@ -20,8 +13,6 @@ export default {
         '@triiiceratops/plugin-image-export',
     ],
     async assert({ page, baseURL, pageErrors }) {
-        // Blob interception: record every object URL minted for a Blob so we can
-        // assert the export produced non-empty binary output.
         await page.addInitScript(() => {
             window.__triDownloads = [];
             const original = URL.createObjectURL.bind(URL);
@@ -34,7 +25,7 @@ export default {
                         });
                     }
                 } catch {
-                    // ignore non-Blob arguments
+                    // Non-Blob arguments need no recording.
                 }
                 return original(obj);
             };
@@ -42,7 +33,6 @@ export default {
 
         await page.goto(`${baseURL}/`, { waitUntil: 'load' });
 
-        // Viewer mounts and the renderer paints the first canvas (renderer readiness).
         await expect(page.locator('#triiiceratops-viewer')).toBeVisible({
             timeout: 30_000,
         });
@@ -50,28 +40,20 @@ export default {
             page.locator('#triiiceratops-viewer canvas').first(),
         ).toBeVisible({ timeout: 30_000 });
 
-        // Core renders the plugin's toolbar button (core-owned chrome)
-        // — labelled with the plugin's DISPLAY title
-        // (`image_download_title` from the plugin's own catalog, NOT its package
-        // name) — and owns opening the docked panel. The app opens the toolbar
-        // via config (`toolbarOpen`), so the button sits visible among the
-        // toolbar buttons.
+        // Accessible name is the display title, not the package name.
         const toggle = page.locator('[aria-label="Download Image"]');
         await expect(toggle).toBeVisible({ timeout: 30_000 });
         await toggle.click();
 
-        // The download button enables once a resolution option resolves (async).
         const downloadButton = page.locator('[data-tri-id-download]');
         await expect(downloadButton).toBeVisible({ timeout: 10_000 });
         await expect(downloadButton).toBeEnabled({ timeout: 15_000 });
         await downloadButton.click();
 
-        // The async export completes and reports success.
         await expect(page.locator('[data-tri-id-result]')).toBeVisible({
             timeout: 20_000,
         });
 
-        // A download-ready Blob (non-empty binary output) was produced.
         const downloads = await page.evaluate(
             () => window.__triDownloads ?? [],
         );

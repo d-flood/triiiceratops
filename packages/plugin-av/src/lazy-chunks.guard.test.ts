@@ -1,30 +1,4 @@
-/**
- * Lazy-chunk regression guard, over the BUILT artifacts of BOTH formats.
- *
- * The savings these chunks exist for are invisible in source and easy to lose:
- * one static `import` of `./timeline/…`, `./hls/…` or `./sequencer/…` anywhere
- * in the eager graph pulls the parsers, the renderer, the segment map, or
- * 223 KB gzip of hls.js into the entry, and
- * everything still works — it just costs every page bytes it cannot use. So the
- * built entries are inspected the way `scripts/check-shared-runtime.mjs`
- * inspects the IIFE.
- *
- * Requires `pnpm --filter @triiiceratops/plugin-av build` to have run.
- *
- * Both formats are asserted on, and they reach ONE set of chunk files by two
- * routes. The ESM build emits them under fixed names, which its entry reaches by
- * relative specifier. The IIFE cannot code-split at all (rollup refuses), so
- * `vite.config.ts` takes its lazy modules out of the graph and rewrites the
- * specifier into a runtime URL resolved against the plugin's own script —
- * `import(f("av-hls.js"))` after minification, naming the very files the ESM
- * build emitted. Either way the chunk names come out of the ENTRY's own
- * `import(...)` calls rather than off a directory listing: reading every `.js`
- * in `dist` would let a leftover chunk from an earlier build satisfy the
- * assertion.
- *
- * To verify this guard once: change `hlsLink.ts`'s `await import(...)` to a
- * static import, rebuild, and watch it fail.
- */
+/** Lazy-chunk regression guard over built artifacts. A static import in the eager graph fails it. */
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';

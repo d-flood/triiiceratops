@@ -9,10 +9,6 @@ import type {
     PdfOcrVisibilityMode,
 } from './exportPdf';
 
-/**
- * Consumer-facing configuration for the PDF export plugin, preserving
- * `createPdfExportPlugin(config)`'s factory-with-config authoring contract.
- */
 export type PdfExportConfig = {
     coverSheet?: PdfCoverSheetConfig;
     filename?: string;

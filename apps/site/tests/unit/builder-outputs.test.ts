@@ -1,18 +1,3 @@
-/**
- * The builder's three handoffs: the share URL, the configuration object and the
- * per-framework snippet.
- *
- * The claim each snippet makes is that a reader can paste it and be running, so
- * every one is held to the guide that documents the same framework: the import
- * specifier and the element or component name are read out of
- * `apps/site/content/docs/`, not written twice. A guide that renames its entry
- * point fails here rather than shipping a snippet that resolves to nothing.
- *
- * The sparse rule is the other half. A key the reader never touched must not
- * appear in any of the three, and a snippet for a reader who set nothing is the
- * bare embed — which is the argument the page exists to make.
- */
-
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 

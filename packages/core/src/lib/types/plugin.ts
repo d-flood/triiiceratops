@@ -164,23 +164,8 @@ export interface PluginFlyout {
     dismiss?: 'light' | 'explicit';
 }
 
-// ============================================================================
-// SDK plugin seam
-// ----------------------------------------------------------------------------
-// The framework-neutral plugin authoring contract. `@triiiceratops/plugin-sdk`
-// implements `definePlugin`, activation, selectors, and compatibility
-// negotiation against these types; core owns the types (because `PluginContext`
-// hands out the live `ViewerState`, a core API) and mounts SDK-style plugins
-// through this seam. It is the ONE plugin path in 1.0: the Svelte-only
-// `PluginDef` path was removed so nothing reachable from `ViewerState` refers
-// to a Svelte `Component`.
-//
-// Core deliberately does NOT import the SDK at runtime: an SDK plugin object
-// carries its own `activate(host)` method (a closure over the SDK's activation
-// machinery), so core mounts it purely through this structural seam. That keeps
-// the packages decoupled — the SDK depends on core (types only), never the
-// reverse — and avoids a build/dependency cycle.
-// ============================================================================
+// SDK plugin seam: the framework-neutral authoring contract, and the ONE
+// plugin path in 1.0. Core owns the types; core never imports the SDK.
 
 /**
  * The SDK-owned memoized `{ get(), subscribe() }` view of viewer state
@@ -486,18 +471,8 @@ export interface PluginActivation {
     deactivate(): void;
 }
 
-// ============================================================================
-// Plugin failure isolation
-// ----------------------------------------------------------------------------
-// One structured channel for every plugin lifecycle failure. A failure in any
-// phase for one plugin leaves the viewer and all other plugins operational. The
-// payload is delivered identically two ways: a bubbling, composed `pluginerror`
-// DOM event from the viewer root AND a host callback (Svelte prop / element
-// property).
-//
-// The type is defined ONCE here (core owns the plugin seam types) so it can be
-// reused for the `viewererror` channel and snapshotted for the public API.
-// ============================================================================
+// One structured channel for every plugin lifecycle failure; one plugin's
+// failure leaves the viewer and all other plugins operational.
 
 /**
  * The plugin lifecycle phase a failure occurred in (CONTEXT.md **Retry**). Each

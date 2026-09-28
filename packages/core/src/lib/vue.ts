@@ -1,47 +1,12 @@
 /**
  * `triiiceratops/vue` — the Vue 3.5 framework wrapper.
  *
- * A Vue application renders `<TriiiceratopsViewer>` with typed props, puts an
- * ordinary template ref on it, and reads the viewer's live state through
- * `useViewer()` and `useViewerSelector()`. Registration of the self-contained
- * custom element is automatic, lazy, and shared; Svelte stays behind the
- * custom-element boundary at runtime AND at type-check time.
+ * Vue 3.5 is an OPTIONAL peer: importing this module on a server is safe and
+ * registers nothing.
  *
- * ```vue
- * <script setup lang="ts">
- * import {
- *     TriiiceratopsViewer,
- *     useViewerSelector,
- *     type TriiiceratopsViewerInstance,
- * } from 'triiiceratops/vue';
- *
- * const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
- * const canvasId = useViewerSelector(viewer, (state) => state.canvasId);
- * </script>
- *
- * <template>
- *     <TriiiceratopsViewer
- *         ref="viewer"
- *         manifest-id="https://example.org/manifest"
- *         @canvas-change="(snapshot) => syncUrl(snapshot.canvasId)"
- *     />
- * </template>
- * ```
- *
- * Because the component is a render function, the raw custom-element tag never
- * reaches Vue's template compiler: no `compilerOptions.isCustomElement`
- * configuration is required.
- *
- * Vue 3.5 is an OPTIONAL peer dependency: `vue` is a bare import specifier here
- * and never a runtime dependency of core. Importing this module on a server is
- * safe — nothing touches `window`, `document`, or `customElements` at
- * evaluation, and nothing is registered.
- *
- * **Re-export boundary.** Everything below comes from the framework substrate,
- * `triiiceratops/selectors`, or the shared `types/*` modules. Nothing is
- * re-exported from core's `.` entry: its declarations reach the compiled
- * `TriiiceratopsViewer.svelte.d.ts`, which imports `svelte`, and inheriting
- * that would break this subpath's no-Svelte type promise.
+ * Nothing below is re-exported from core's `.` entry: its declarations reach
+ * the compiled `TriiiceratopsViewer.svelte.d.ts`, which imports `svelte`, and
+ * inheriting that would break this subpath's no-Svelte type promise.
  */
 
 export {
@@ -58,11 +23,6 @@ export {
     type ViewerProviderProps,
     type ViewerSelectorOptions,
 } from './vue/index.js';
-
-// ---------------------------------------------------------------------------
-// The framework-neutral contracts a Vue consumer reaches for. Same objects,
-// same types, as `triiiceratops/react` exposes.
-// ---------------------------------------------------------------------------
 
 export {
     TriiiceratopsCoreConflictError,
@@ -82,11 +42,6 @@ export {
 } from './framework/index.js';
 
 export type { SelectorCadence } from './state/selectors/index.js';
-
-// ---------------------------------------------------------------------------
-// Shared public types that appear in the props and emits above, so common usage
-// never needs a deep import.
-// ---------------------------------------------------------------------------
 
 export type { ViewerStateSnapshot } from './state/viewer.svelte.js';
 export type {

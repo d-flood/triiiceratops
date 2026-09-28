@@ -1,26 +1,7 @@
 #!/usr/bin/env node
-// The bundle-size comparison's measure script.
-//
-// Drives every pinned viewer in `src/competitors.ts` through a real Chromium
-// session — its own documented embed, against a IIIF Cookbook manifest — records
-// every file the page actually fetched from that viewer's own hosts, compresses
-// those bytes locally at fixed settings, and rewrites `src/measured.json`.
-//
-//   node scripts/measure.mjs
-//
-// Sessions are measured rather than computed from a build because a viewer that
-// code-splits per media type pays different bytes for an audiovisual manifest
-// than for an image one, and only a session can say which chunks arrive. Triiiceratops goes through the same path, from this repository's own
-// `dist` directories, so no row is produced differently from its neighbours.
-//
-// It runs on demand only. It is deliberately not wired to a schedule or to CI:
-// competitor versions move independently, so a scheduled run would rewrite a
-// published marketing claim with nobody reading the diff, and a per-PR run would
-// make every unrelated change depend on a handful of third-party hosts.
-//
-// This is not the shipped-bytes gate. `scripts/size-check.mjs` and
-// `size-baseline.json` ratchet our own artifacts on every build; they are
-// separate on purpose and neither reads the other.
+// Drives every pinned viewer through a real Chromium session and rewrites
+// `src/measured.json`. Sessions are measured because code-splitting viewers fetch
+// different chunks per manifest. Runs on demand only; separate from `size-check.mjs`.
 
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -40,25 +21,16 @@ const GZIP_LEVEL = 9;
 const BROTLI_QUALITY = 11;
 
 /**
- * Where a `{{BASE}}` artifact path resolves on disk. A Triiiceratops row loads
- * this repository's built `dist` output over HTTP, so its session is a session
- * and not a directory listing.
+ * Where a `{{BASE}}` artifact path resolves on disk.
  */
 const MOUNTS = {
     core: join('packages', 'core', 'dist'),
     'plugin-av': join('packages', 'plugin-av', 'dist'),
 };
 
-/**
- * A session is done when nothing it counts has arrived for this long, and never
- * before `MIN_MS`. Both are generous because a code-splitting viewer fetches its
- * chunks in waves: Universal Viewer's later chunks arrive seconds after the gap
- * that looks like the end of the session, and cutting it short silently
- * undercounts a competitor.
- */
+/** Generous: code-splitting viewers fetch later chunks seconds after a quiet gap. */
 const QUIET_MS = 6000;
 const MIN_MS = 15_000;
-/** Never wait longer than this for one session, however busy the page looks. */
 const TIMEOUT_MS = 90_000;
 
 const MIME = {
@@ -88,15 +60,7 @@ function measure(bytes) {
     };
 }
 
-/**
- * Strip `data:` URIs out of a stylesheet before measuring it.
- *
- * Fonts and images are excluded from every row, and a stylesheet that inlines
- * them as `data:` URIs would otherwise smuggle megabytes of glyphs into a
- * viewer's JavaScript-and-CSS total. One competitor's widget stylesheet is
- * mostly inlined faces and icons, so this is the difference between comparing
- * viewers and comparing icon sets.
- */
+/** Strip `data:` URIs out of a stylesheet before measuring it. Fonts and images are excluded from every row. */
 function stripDataUris(bytes) {
     const stripped = bytes
         .toString('utf8')
@@ -111,7 +75,6 @@ function localPathOf(url, base) {
     return join(dir, ...rest);
 }
 
-/** Serves the generated embed pages and this repository's built artifacts. */
 function startServer(competitors) {
     const pages = new Map();
     const server = createServer((request, response) => {
@@ -162,11 +125,7 @@ function startServer(competitors) {
     });
 }
 
-/**
- * Load one embed page and return every file it fetched from the viewer's own
- * hosts, measured. Source maps are excluded, as are the manifest, its images and
- * its media — those are the IIIF content a viewer then fetches, not the viewer.
- */
+/** Load one embed page and return every file it fetched from the viewer's own hosts. Source maps, manifests, images and media are excluded. */
 async function runSession(browser, { url, assetBases }) {
     const context = await browser.newContext();
     const page = await context.newPage();
@@ -180,9 +139,6 @@ async function runSession(browser, { url, assetBases }) {
         if (responseUrl.endsWith('.map')) return;
         if (!assetBases.some((base) => responseUrl.startsWith(base))) return;
         if (!response.ok()) {
-            // A CDN that rate-limits mid-session would otherwise leave this row
-            // quietly short of the chunks the viewer actually loads, which is a
-            // published figure that is simply wrong. Surface it instead.
             if (response.status() >= 400) refused.add(responseUrl);
             return;
         }
@@ -221,18 +177,12 @@ async function runSession(browser, { url, assetBases }) {
         });
     }
     await context.close();
-    // Sorted rather than left in arrival order: parallel chunk requests land in
-    // a different order on every run, and a re-measure's diff should show what
-    // moved, not which chunk won a race.
+    // Sorted: parallel chunk requests land in a different order on every run.
     files.sort((a, b) => a.url.localeCompare(b.url));
     return { files, refused: [...refused] };
 }
 
-/**
- * A third-party CDN can rate-limit or hiccup part-way through a run's worth of
- * sessions, so a refused artifact is retried rather than published as a short
- * row.
- */
+/** A refused artifact is retried rather than published as a short row. */
 async function measureSession(browser, session, label) {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
         const { files, refused } = await runSession(browser, session);
@@ -245,7 +195,6 @@ async function measureSession(browser, session, label) {
     fail(`${label}: its host kept refusing artifacts — try again later`);
 }
 
-/** Re-point a local artifact URL at the repository path it was served from. */
 function asRepositoryPath(files, base) {
     return files.map((file) => ({
         ...file,

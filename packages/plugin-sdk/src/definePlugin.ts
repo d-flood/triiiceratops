@@ -1,14 +1,3 @@
-/**
- * `definePlugin` — the framework-neutral plugin authoring entry.
- *
- * Accepts declarative metadata (package-qualified name, version, `coreRange`,
- * `pluginApiRange`, `requiredCapabilities`, icon, target) and a `PluginView`,
- * and returns the plugin factory object activation consumes. The returned
- * object carries its own `activate(host)` (a closure over the SDK's activation
- * machinery) so core can mount it through the structural seam alone, without
- * importing the SDK at runtime.
- */
-
 import type {
     IconDescriptor,
     LocaleCatalog,
@@ -21,13 +10,8 @@ import type {
 
 import { runActivation } from './activate.js';
 
-// The brand literal core's `isSdkPlugin` guard checks for. Defined locally (not
-// value-imported from `triiiceratops`) so the SDK never pulls core — and its
-// Svelte runtime — into a plugin bundle. It is the stable wire protocol string;
-// its type is exactly core's `SdkPlugin['kind']`.
 const SDK_PLUGIN_KIND = 'triiiceratops-plugin';
 
-/** Declarative configuration accepted by {@link definePlugin}. */
 export interface DefinePluginConfig {
     /**
      * Package-qualified plugin IDENTITY (e.g. `@triiiceratops/plugin-x`). It

@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-// The manifests the Triiiceratops rows claim a version from. Read here rather
-// than in `competitors.ts`, which the site bundles: a test runs in Node, so this
-// costs a reader nothing.
+// Read here rather than in `competitors.ts`, which the site bundles.
 import coreManifest from '../../core/package.json' with { type: 'json' };
 import pluginAvManifest from '../../plugin-av/package.json' with { type: 'json' };
 
@@ -17,7 +15,6 @@ import type { MeasuredFile, MeasuredViewer } from './index';
 const { compression, measuredAt, sessionManifests, viewers } =
     MEASURED_COMPARISON;
 
-/** Every measurement in the committed output, labelled by where it came from. */
 function everyMeasurement(): Array<{
     where: string;
     of: MeasuredFile | MeasuredViewer['sessions'][number];
@@ -49,10 +46,6 @@ describe('the pinned competitor list', () => {
     });
 
     it('versions a Triiiceratops row as the workspace, not as a release', () => {
-        // A self row is measured from this repository's own `dist`, so the
-        // version the page prints beside those bytes is the workspace's. Nothing
-        // derives it at build time, so this gate is what keeps the label on the
-        // artifact it names.
         const byId = new Map(COMPETITORS.map((c) => [c.id, c.version]));
         expect(byId.get('triiiceratops')).toBe(coreManifest.version);
         expect(byId.get('triiiceratops-av')).toBe(
@@ -85,9 +78,6 @@ describe('the pinned competitor list', () => {
     });
 
     it('names no matrix column for a Triiiceratops entry', () => {
-        // The matrix does have a column for us, but a Triiiceratops support
-        // claim comes from the recipe catalog; joining our row to the matrix
-        // here would make the catalog's claim answerable to an external page.
         const doubled = COMPETITORS.filter(
             (c) => c.local && c.matrixColumn !== undefined,
         ).map((c) => c.id);

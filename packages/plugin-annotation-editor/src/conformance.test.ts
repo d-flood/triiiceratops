@@ -1,19 +1,5 @@
-/**
- * The plugin's compatibility declaration, checked against the core it is built
- * beside.
- *
- * The whole declaration is `coreRange`: the drawing layer's container comes from
- * `registerOverlayLayer`, which core treats as always present and therefore does
- * not list as a capability, so there is nothing optional left to require. A
- * floor that this core does not satisfy would fail activation for every
- * consumer in the workspace, and nothing else in this package's suite runs
- * against a real viewer to catch it.
- */
-
 import { describe, expect, it } from 'vitest';
 
-// Safe in a test and not in the plugin source: a test is never bundled, so the
-// shipped artifact still carries no JSON module.
 import pkg from '../package.json';
 
 import { satisfies } from '@triiiceratops/plugin-sdk';

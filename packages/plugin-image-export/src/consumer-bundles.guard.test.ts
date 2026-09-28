@@ -1,32 +1,5 @@
 // @vitest-environment node
-/**
- * Consumer-bundle regression, over the BUILT ESM entry.
- *
- * `dist/index.js` is the artifact a host's bundler consumes, and minifying it
- * can make a consumer's application BIGGER while making this package's own file
- * smaller. Vite's library build knows that and deliberately leaves ES output
- * whitespace-unminified, because collapsing whitespace strips the `@__PURE__`
- * annotations rollup, esbuild and webpack all tree-shake with. The shared
- * plugin build (core's `src/packaging/pluginBuild.ts`) recovers those bytes
- * with a terser pass that keeps the annotations (`preserve_annotations`) — and
- * this file is what proves the annotations are still there and still doing their
- * job, since nothing else in this repository observes what happens to this
- * package inside somebody else's build.
- *
- * No byte ceiling: this package's artifacts are deliberately ungated (only
- * core's element artifacts and the core-plus-AV pair are measured), so what is
- * asserted is the tree-shaking CONTRACT — annotations survive, the declared
- * peers stay bare specifiers a host dedupes against its own copies, and the
- * bundled Svelte runtime this plugin owns is not one of them.
- *
- * Requires `pnpm --filter @triiiceratops/plugin-image-export build` to have run. It runs in the `node`
- * environment rather than this package's default: it drives a real Vite build,
- * and esbuild refuses to start under jsdom's `TextEncoder`.
- *
- * To verify this guard once: set `format.preserve_annotations` to `false` in
- * `pluginBuild`'s terser options, rebuild, and watch the annotation assertion
- * fail.
- */
+/** Consumer-bundle regression over the built ESM entry. */
 
 import { mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

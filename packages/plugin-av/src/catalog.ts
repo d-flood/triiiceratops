@@ -1,15 +1,5 @@
 import type { LocaleCatalog } from '@triiiceratops/plugin-sdk';
 
-/**
- * The plugin's package-owned localization catalog (CONTEXT.md **Active
- * locale**): ships with the plugin rather than living in core's catalogs, so
- * core carries no plugin keys. `en` is the required fallback; a missing key
- * resolves to `en` and then to the key itself.
- *
- * Every string a reader or a screen reader meets is here — the accessibility
- * contract is that the controls announce in the viewer's active locale, which a
- * hard-coded label cannot do.
- */
 export const catalog: LocaleCatalog = {
     en: {
         av_title: 'Audio & Video',

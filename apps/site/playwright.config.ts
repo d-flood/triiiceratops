@@ -9,15 +9,6 @@ import {
     PUBLISHED_PORT,
 } from './tests/helpers/origin';
 
-/*
- * The marketing site's browser screens. This is the seam for what only a browser
- * can see: the rail on every route it carries, the mobile sheet opening, and the
- * appendix being reachable but `noindex`. Chromium only — the site is markup and
- * CSS, and core's own Playwright matrix is where cross-browser rendering is
- * settled.
- *
- * The score gate joins this suite rather than becoming a second harness.
- */
 export default defineConfig({
     testDir: './tests',
     testMatch: '**/*.spec.ts',
@@ -34,23 +25,11 @@ export default defineConfig({
             use: { ...devices['Desktop Chrome'], ...gpuChromium },
         },
     ],
-    /*
-     * Two servers, because the suite asks two different questions. Most screens
-     * ask what the application renders, so they get the development server. The
-     * score gate asks what the published site scores, so it gets the built
-     * tree — see `tests/helpers/origin.ts` for why the distinction is load
-     * bearing rather than tidiness.
-     */
     webServer: [
         {
             command: `pnpm dev --port ${PORT} --host 127.0.0.1 --strictPort`,
             url: ORIGIN,
-            /*
-             * Never reuse: a readiness probe of a bare origin cannot tell this
-             * app's dev server from another workspace app's on the same port,
-             * and the suite would then run green against a stranger. A busy
-             * port fails here instead.
-             */
+            /* A bare-origin probe cannot tell this dev server from a stranger's. */
             reuseExistingServer: false,
         },
         {

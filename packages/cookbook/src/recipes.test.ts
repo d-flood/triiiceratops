@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { COOKBOOK_RECIPES, RECIPE_GROUP_LABELS, recipeNumber } from './recipes';
 
-/**
- * The 16 audiovisual recipe ids derived and verified in
- * `packages/core/src/lib/test/fixtures/manifests/PROVENANCE.md`. Duplicated
- * here so the catalog cannot drift from that derivation without this test going
- * red.
- */
+/** Mirrors `PROVENANCE.md`'s 16 ids so the catalog cannot drift from it. */
 const AUDIOVISUAL_IDS = [
     '0002-mvm-audio',
     '0003-mvm-video',
@@ -50,8 +45,7 @@ describe('cookbook recipe catalog consistency', () => {
             expect(recipe.id).toMatch(/^\d{4}-\S+$/);
             expect(recipeNumber(recipe)).toMatch(/^\d{4}$/);
             expect(recipe.name.trim()).not.toBe('');
-            // A recipe may publish its manifest under a subdirectory of its own
-            // path, as `0608-mvm-3d` does for the Presentation 4 draft.
+            // `0608-mvm-3d` publishes under a subdirectory.
             expect(recipe.manifestUrl).toMatch(
                 new RegExp(
                     `^https://iiif\\.io/api/cookbook/recipe/${recipe.id}/(?:[\\w-]+/)*[\\w-]+\\.json$`,

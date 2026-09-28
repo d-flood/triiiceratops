@@ -95,8 +95,6 @@ export const language = {
     },
 };
 
-// ==================== HOST-SUPPLIED CATALOGS ====================
-
 /**
  * One viewer's chrome catalogs: the `messages` its config carries, merged per
  * key over core's English, plus whatever its `loadMessages` has resolved.
@@ -161,8 +159,6 @@ export function createHostCatalogs(
     };
 }
 
-// ==================== PER-VIEWER ACTIVE LOCALE ====================
-//
 // Locale is a per-viewer contract (CONTEXT.md **Active locale**): a viewer's
 // active locale is the language its own picker chose if the user chose one,
 // otherwise its typed `config.locale`, otherwise the page default. Two viewers

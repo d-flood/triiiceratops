@@ -1,53 +1,12 @@
-/**
- * The front page's configuration surface, as knobs.
- *
- * The hero's argument is that the viewer composes rather than ships a menu of
- * looks, so what the page offers is the settings themselves — a segmented
- * control per setting, and the configuration they currently amount to. Named
- * arrangements are deliberately not used: a label like "Docked toolbar" is a
- * noun phrase, which is the grammar of an enum value, and the viewer has no
- * such value. Every `path` below is a real leaf of the viewer's configuration
- * or theme interface, and `tests/unit/hero-knobs.test.ts` holds them to it.
- *
- * Two groups, in the order a deployment asks the questions: whether it can be
- * made to look like theirs, then where the chrome goes. Eleven knobs of the
- * fifty-two that exist — the group headings carry the real counts, and
- * `/configure/` is the instrument.
- */
+/** The front page's configuration surface, as knobs. */
 
 import type { BuiltInTheme, ThemeConfig } from 'triiiceratops';
 
 import type { ViewerConfig } from './viewerConfig';
 import { SITE_VIEWER_THEME } from './viewerTheme';
 
-/**
- * The site's own tokens, offered as a theme choice alongside the built-ins.
- *
- * It is first, and it is where the page starts, for a reason that is not
- * presentational: `SITE_VIEWER_THEME` is what keeps a dark page from containing
- * a light island, and starting on a built-in would put that island in the
- * prerendered markup for every reader whose scheme disagreed with it. It is
- * also the strongest claim on the page — the viewer wearing somebody else's
- * tokens is the thing a deployment actually needs — so it is a choice a reader
- * can come back to rather than a default they can only leave.
- */
 export const SITE_THEME = 'site';
 
-/**
- * What each theme sets in the four slots this panel offers.
- *
- * Choosing a theme is choosing a set of slot values, and the panel says so: the
- * slot knobs move to the chosen theme's values, because that is what a reader
- * expects a preset to do and because it is the only way the preset/override
- * relationship is visible at all. A slot a reader has not touched is not stored
- * — it reads through to the theme — so a chip standing on the theme's own value
- * emits nothing, and moving off it is what produces a `themeConfig`.
- *
- * The four built-ins' values are the viewer's, declared in its own stylesheet
- * under `[data-theme=…]`, and `tests/unit/hero-knobs.test.ts` reads them out of
- * the published `triiiceratops/style.css` to hold this table to them. `site` is
- * `SITE_VIEWER_THEME`'s own four, which are site tokens rather than colours.
- */
 export const THEME_SLOTS: Record<
     string,
     {
@@ -89,24 +48,12 @@ export const THEME_SLOTS: Record<
     },
 };
 
-/** The slot values of the theme currently chosen. */
 function own(settings: HeroSettings) {
     return THEME_SLOTS[settings.theme];
 }
 
 export type HeroTheme = typeof SITE_THEME | BuiltInTheme;
 
-/**
- * What the panel is set to: a viewer configuration, a theme, and the four
- * theme slots the page offers off it.
- *
- * The slots are nullable because "unset" is a real state and not the same as
- * holding the value the theme would have given anyway. A null slot follows the
- * theme as it changes; one set to the same colour would not, and would emit a
- * `themeConfig` line that changes nothing. Which chip is lit is the same either
- * way, so the difference is invisible on the page and load-bearing in the
- * snippet.
- */
 export type HeroSettings = {
     readonly theme: HeroTheme;
     readonly primary: string | null;
@@ -116,16 +63,6 @@ export type HeroSettings = {
     readonly config: ViewerConfig;
 };
 
-/**
- * The chips a slot offers: every value some theme sets, and two that are
- * nobody's.
- *
- * Every theme's own value has to be in the set, or choosing a theme would move
- * the knob to a value it could not show. The two extras are what makes the row
- * a demonstration rather than a readout — the point is that the slot takes any
- * colour, and a row of only the built-ins' own would suggest otherwise. A fixed
- * set rather than a picker all the same: a picker is `/configure/`'s job.
- */
 export const PRIMARIES: readonly string[] = [
     THEME_SLOTS[SITE_THEME].primary,
     THEME_SLOTS.light.primary,
@@ -135,7 +72,6 @@ export const PRIMARIES: readonly string[] = [
     'oklch(62% 0.13 145)',
 ];
 
-/** Grounds the material can sit on, from a photographer's black to paper. */
 export const VIEWER_BGS: readonly string[] = [
     THEME_SLOTS[SITE_THEME].viewerBg,
     THEME_SLOTS.light.viewerBg,
@@ -145,28 +81,16 @@ export const VIEWER_BGS: readonly string[] = [
     'oklch(0% 0 0)',
 ];
 
-/** Every radius some theme sets, plus one rounder than any of them. */
 export const RADII: readonly string[] = ['0', '2px', '0.5rem', '1rem'];
 
-/** How a knob renders, which is decided by what it sets rather than by taste. */
 export type KnobKind = 'segments' | 'swatches';
 
 export type Knob = {
-    /** The configuration leaf it writes, which is also its label. */
     readonly path: string;
     readonly kind: KnobKind;
     readonly values: readonly string[];
     readonly read: (settings: HeroSettings) => string;
     readonly write: (settings: HeroSettings, value: string) => HeroSettings;
-    /**
-     * Why this knob currently sets nothing, where that is so.
-     *
-     * The viewer collapses parts of its own surface — no toolbar rail exists in
-     * `unified` controls, and a closed gallery has no side to dock to — and a
-     * knob that silently stops working is worse than one that says why. It is
-     * also the clearest evidence on the page that these are settings with real
-     * interactions rather than a list of presets.
-     */
     readonly inert?: (settings: HeroSettings) => string | undefined;
 };
 
@@ -195,10 +119,6 @@ export const THEME_KNOBS: readonly Knob[] = [
         kind: 'segments',
         values: [SITE_THEME, 'light', 'dark', 'teal', 'dracula'],
         read: (settings) => settings.theme,
-        // A theme takes every slot with it, including ones a reader had moved.
-        // On a front page a preset has to be a whole look a reader can see in
-        // one click; a slot that quietly survived it would leave the viewer
-        // showing something no theme actually describes.
         write: (settings, value) => ({
             ...settings,
             theme: value as HeroTheme,
@@ -215,7 +135,6 @@ export const THEME_KNOBS: readonly Knob[] = [
         read: (settings) => settings.primary ?? own(settings).primary,
         write: (settings, value) => ({
             ...settings,
-            // Standing on the theme's own value is not an override of it.
             primary: value === own(settings).primary ? null : value,
         }),
     },
@@ -252,14 +171,6 @@ export const THEME_KNOBS: readonly Knob[] = [
     },
 ];
 
-/**
- * The layout knobs the front page carries.
- *
- * Seven of the eight the viewer declares. `nav.align` is left to
- * `/configure/`: it is the one whose effect a reader is least likely to see at
- * a glance, and a panel that fits without scrolling is worth more here than
- * completeness the heading already states honestly.
- */
 export const LAYOUT_KNOBS: readonly Knob[] = [
     {
         path: 'controls',
@@ -372,29 +283,9 @@ export const LAYOUT_KNOBS: readonly Knob[] = [
     },
 ];
 
-/**
- * What each group's heading says the whole surface is, behind the ten shown.
- *
- * Both counts are held to the code by `tests/unit/hero-knobs.test.ts`: the slot
- * count against `ThemeConfig` in the committed API report, and the arrangement
- * count against the value lists the viewer declares, including the two rules
- * that collapse some of them. A number in marketing copy that nothing checks is
- * a number that quietly stops being true.
- */
 export const THEME_SAY = '4 built-ins, 49 typed slots, or your own tokens';
 export const LAYOUT_SAY = '8 settings, 240 distinct arrangements';
 
-/**
- * Where the page starts, and what the prerendered chrome is drawn for.
- *
- * `ChromeSkeleton` draws this arrangement and nothing else, so a reader whose
- * script has not run — or never runs — sees the chrome the live viewer is about
- * to land in the same places. The cycle only moves once the page has loaded.
- *
- * Every panel the sequence opens is declared closed here rather than left to
- * its default, because the sequence loops back to this state: a setting the
- * last lap turned on and this one never mentions would survive the restart.
- */
 export const HERO_START: HeroSettings = {
     theme: SITE_THEME,
     primary: null,
@@ -412,13 +303,6 @@ export const HERO_START: HeroSettings = {
     },
 };
 
-/**
- * How long the step that opens a group holds, in milliseconds. The rest of a
- * group holds half as long — see {@link HERO_SEQUENCE}.
- *
- * Long enough to read a new arrangement, short enough that a reader waiting for
- * the next one is not left watching a still page.
- */
 export const HERO_DWELL = 2400;
 
 export const ALL_KNOBS: readonly Knob[] = [...THEME_KNOBS, ...LAYOUT_KNOBS];
@@ -427,20 +311,16 @@ export function knobAt(path: string): Knob | undefined {
     return ALL_KNOBS.find((knob) => knob.path === path);
 }
 
-/** One edit to what the panel is set to: the unit a scripted step is built of. */
 type Change = (settings: HeroSettings) => HeroSettings;
 
-/** A knob moved to one of its values, which is most of what the script does. */
 function move(path: string, value: string): Change {
     return (settings) => knobAt(path)!.write(settings, value);
 }
 
-/** A configuration key the panel offers no knob for. */
 function set(config: ViewerConfig): Change {
     return (settings) => withConfig(settings, config);
 }
 
-/** The information pane, whose two settings the script moves separately. */
 function info(patch: NonNullable<ViewerConfig['information']>): Change {
     return (settings) =>
         withConfig(settings, {
@@ -448,16 +328,6 @@ function info(patch: NonNullable<ViewerConfig['information']>): Change {
         });
 }
 
-/**
- * The four runs the sequence is made of, in the order a reader meets them.
- *
- * Grouping is what turns a list of twitches into an argument. Each run takes
- * one part of the viewer's surface and works through it while the rest of the
- * arrangement holds still, so a reader can see what the setting under
- * discussion actually does — and each run leaves the arrangement the next one
- * starts from, which is why the order is not arbitrary and the runs cannot be
- * shuffled.
- */
 const GROUPS = {
     controls: 'Toolbar and controls',
     gallery: 'Gallery',
@@ -471,10 +341,6 @@ type Beat = {
 };
 
 const SCRIPT: readonly Beat[] = [
-    // Toolbar and controls. A split rail on the left with the nav docked to the
-    // bottom edge — where the page starts, and what its prerendered chrome
-    // draws — then the same buttons through every arrangement the viewer offers
-    // for them.
     { group: GROUPS.controls, changes: [] },
     { group: GROUPS.controls, changes: [set({ toolbarOpen: true })] },
     { group: GROUPS.controls, changes: [move('controls', 'unified')] },
@@ -501,9 +367,6 @@ const SCRIPT: readonly Beat[] = [
     },
     { group: GROUPS.controls, changes: [move('nav.edge', 'bottom')] },
 
-    // Gallery. Docked to each of its four sides in turn and back to the one it
-    // opened on, so the run closes where it began and the setting is the only
-    // thing a reader has watched move.
     {
         group: GROUPS.gallery,
         changes: [
@@ -519,15 +382,10 @@ const SCRIPT: readonly Beat[] = [
         changes: [move('gallery.dockPosition', 'bottom')],
     },
 
-    // Panels. The chrome the reader opens rather than the chrome that is always
-    // there, stacked onto an arrangement that already carries a gallery.
     { group: GROUPS.panels, changes: [set({ toolbarOpen: true })] },
     { group: GROUPS.panels, changes: [info({ open: true })] },
     { group: GROUPS.panels, changes: [info({ position: 'left' })] },
 
-    // Theme. The four built-ins and then the site's own tokens, over an
-    // arrangement that does not move: the run's whole claim is that a theme
-    // changes nothing about where the chrome is.
     { group: GROUPS.theme, changes: [move('theme', 'light')] },
     { group: GROUPS.theme, changes: [move('theme', 'dark')] },
     { group: GROUPS.theme, changes: [move('theme', 'teal')] },
@@ -535,36 +393,13 @@ const SCRIPT: readonly Beat[] = [
     { group: GROUPS.theme, changes: [move('theme', SITE_THEME)] },
 ];
 
-/** One stop of the sequence: what the panel is set to, and for how long. */
 export type Step = {
     readonly settings: HeroSettings;
     readonly dwell: number;
     readonly group: string;
-    /**
-     * Whether this step opens its group, which is what earns the full dwell.
-     *
-     * The opener establishes an arrangement and the rest of the run works one
-     * setting inside it, so the two are not worth the same time: a reader needs
-     * to read a new arrangement and only to notice a value change.
-     */
     readonly opens: boolean;
 };
 
-/**
- * The sequence the hero walks, as the settings each step lands on.
- *
- * Written rather than drawn. A shuffle tours more of the surface, but it tours
- * it as a list of unrelated twitches: a reader cannot tell a setting that
- * changed from one the last step happened to leave alone, and no two readers
- * see the same page. A route is a demonstration, and each of its steps means
- * something because of the one before it.
- *
- * The script is deltas and this is what they accumulate to, so a step holds the
- * whole arrangement rather than a change to whatever the reader left behind.
- * The last step's settings are not the first's, and the loop back to step one
- * is itself a visible move: a whole arrangement collapsing back to the plain
- * one the page was served with.
- */
 export const HERO_SEQUENCE: readonly Step[] = SCRIPT.reduce<Step[]>(
     (steps, beat) => {
         const previous = steps.at(-1);
@@ -585,10 +420,8 @@ export const HERO_SEQUENCE: readonly Step[] = SCRIPT.reduce<Step[]>(
     [],
 );
 
-/** A run of the sequence, and the steps it holds, for drawing its dots. */
 export type HeroGroup = {
     readonly name: string;
-    /** Indices into {@link HERO_SEQUENCE}, in order. */
     readonly steps: readonly number[];
 };
 
@@ -603,17 +436,14 @@ export const HERO_GROUPS: readonly HeroGroup[] = HERO_SEQUENCE.reduce<
     ];
 }, []);
 
-/** Where in {@link HERO_SEQUENCE} the panel currently stands. */
 export type Cycle = { readonly at: number };
 
 export const HERO_CYCLE_START: Cycle = { at: 0 };
 
-/** The step the panel currently stands on. */
 export function stepAt(cycle: Cycle): Step {
     return HERO_SEQUENCE[cycle.at];
 }
 
-/** Take the next step, wrapping back to the start of the sequence. */
 export function advance(cycle: Cycle): {
     settings: HeroSettings;
     cycle: Cycle;
@@ -622,7 +452,6 @@ export function advance(cycle: Cycle): {
     return { settings: HERO_SEQUENCE[at].settings, cycle: { at } };
 }
 
-/** Take the previous step, wrapping back to the end of the sequence. */
 export function retreat(cycle: Cycle): {
     settings: HeroSettings;
     cycle: Cycle;
@@ -631,15 +460,6 @@ export function retreat(cycle: Cycle): {
     return { settings: HERO_SEQUENCE[at].settings, cycle: { at } };
 }
 
-/**
- * The theme the viewer is given, as its two props.
- *
- * On `site` the viewer wears the site's own tokens and no built-in is set,
- * because a built-in would win over them. On any other choice the built-in is
- * the base and only the slots a reader has moved are layered on top — which is
- * the relationship the snippet is trying to teach, and it only holds if the
- * site's tokens are not silently mixed in underneath.
- */
 export function heroTheme(settings: HeroSettings): {
     theme?: BuiltInTheme;
     themeConfig?: ThemeConfig;
@@ -654,13 +474,10 @@ export function heroTheme(settings: HeroSettings): {
     if (settings.theme === SITE_THEME) {
         return { themeConfig: { ...SITE_VIEWER_THEME, ...slots } };
     }
-    // Always an object, never undefined: an undefined `themeConfig` prop takes
-    // the embed's default, which is the site's own tokens, and those would sit
-    // on top of the built-in and hide the preset a reader just chose.
+    // Undefined `themeConfig` takes the embed's default and hides the preset.
     return { theme: settings.theme, themeConfig: slots };
 }
 
-/** The configuration the panel is set to, as source a reader can copy. */
 export function heroSnippet(settings: HeroSettings): string {
     const { config } = settings;
     const lines = ['const config = {'];

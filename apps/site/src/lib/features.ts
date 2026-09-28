@@ -1,32 +1,4 @@
-/**
- * The features `/features/` shows, each declared once with the material that
- * exercises it.
- *
- * The page answers one question — what can this viewer actually do — by doing
- * it. So a feature is named plainly, for the thing itself, and every entry
- * carries whatever the running viewer needs in order to stand with that one
- * feature open in front of the reader: the manifest that has it, the canvas
- * worth opening on, the arrangement the stage takes, and the odd command no
- * config leaf expresses.
- *
- * This is not the recipe matrix and must never become one. Compliance is
- * claimed in exactly one place, `@triiiceratops/cookbook`, and nothing here
- * carries a recipe number, a support status or a comparison.
- *
- * Material is this site's own wherever a feature can be shown with it, because
- * it is served from this origin behind pre-cut tiles and arrives in a fraction
- * of the time somebody else's endpoint takes. Where a feature needs a property
- * the front page's set does not declare, the set is republished under an id
- * space of its own with that one property added, by
- * `scripts/generate-feature-material.mjs`. The rest need something this site
- * has no way to serve — a right-to-left codex, an OCR search service, a
- * collection, a film, a recording published in six formats — and those run on
- * the publisher's own server, which is the honest way to show them and the
- * reason the page fetches only the feature showing.
- *
- * `firstCanvas` is the opening canvas's own declared dimensions, recorded here
- * so the reserved box has an aspect ratio before anything has been fetched.
- */
+/** The features `/features/` shows, each with the material that exercises it. */
 
 import type { ThemeConfig, ViewerState } from 'triiiceratops';
 
@@ -35,16 +7,6 @@ import type { Example } from './examples';
 import type { SitePlugin } from './sitePlugins';
 import type { ViewerConfig } from './viewerConfig';
 
-/**
- * The kinds of feature the rail is divided into, in order. A feature names the
- * one it belongs to, and the rail shows one kind at a time.
- *
- * The last two divide by who decided the thing being shown. A publisher writes
- * a manifest and the viewer obeys it; a host registers a plugin and the viewer
- * obeys that instead. The audio and video features stay under their own
- * heading even though a plugin renders them, because what a reader is looking
- * at there is the material rather than the package.
- */
 export const FEATURE_GROUPS = [
     'Image Features',
     'Sound and Video Features',
@@ -55,14 +17,6 @@ export const FEATURE_GROUPS = [
 
 export type FeatureGroup = (typeof FEATURE_GROUPS)[number];
 
-/**
- * What each kind is called on the rail's tab strip.
- *
- * Shorter than the group's own name because a tab is read at a glance and five
- * of them share the width of the rail: the strip is the navigation, and the
- * word that distinguishes one kind from the next is the whole of what it has
- * to carry.
- */
 export const FEATURE_GROUP_TABS: Record<FeatureGroup, string> = {
     'Image Features': 'Images',
     'Sound and Video Features': 'Sound & video',
@@ -72,89 +26,24 @@ export const FEATURE_GROUP_TABS: Record<FeatureGroup, string> = {
 };
 
 export type Feature = {
-    /** The feature, named for itself. */
     readonly name: string;
-    /** The rail tab this feature sits under. */
     readonly group: FeatureGroup;
-    /** What the reader is about to see, in one clause. */
     readonly what: string;
-    /** The material it runs on, as its publisher labels it. */
     readonly material: string;
-    /** Who publishes that material, and where the manifest a reader can open lives. */
     readonly source: { readonly who: string; readonly href: string };
     readonly example: Example;
-    /**
-     * The canvas the stage opens on, where the feature lives on one in
-     * particular. Unset means the manifest's first.
-     */
     readonly canvasId?: string;
-    /**
-     * The arrangement the stage takes: the route's one shared chrome with this
-     * feature switched on. Built by `showing` below, so the shared part cannot
-     * drift between features — what a reader notices is the feature, never the
-     * configuration.
-     */
     readonly config: ViewerConfig;
-    /**
-     * Tokens layered over the site's own inside this feature's viewer, for
-     * presentation no config leaf expresses — here, the metadata panel's
-     * ground. The rounded chrome is the whole route's, not one feature's, so no
-     * feature sets a radius.
-     */
     readonly themeConfig?: ThemeConfig;
-    /**
-     * The plugin this feature is about, loaded only once the feature is picked.
-     *
-     * A reader who never asks for the image tools never downloads them, which
-     * is the same deferral the viewer itself is under on this page.
-     */
     readonly plugin?: () => Promise<SitePlugin>;
-    /**
-     * What this feature does to the running viewer that no config leaf says.
-     *
-     * Config opens the feature; this puts the reader in front of it — the
-     * annotated material selects its note, which is what draws the line from
-     * the note to the part of the painting it is about. Called once the
-     * feature's own manifest has loaded, because everything worth driving is
-     * named in it.
-     */
     readonly drive?: (viewer: ViewerState) => void;
-    /**
-     * Show the canvas's first caption track as soon as one has loaded.
-     *
-     * Not a config leaf and not `drive`'s business: captions start off in every
-     * viewer, and a track joins the offered set only once its file has parsed
-     * with cues in it — which happens on the network's own schedule, long after
-     * the manifest this feature's `drive` waits for. So this is a standing wish
-     * the stage settles when the plugin can honour it, through the caption
-     * members of the plugin's published AVState.
-     */
     readonly captionsOn?: boolean;
-    /**
-     * IIIF Content States this feature offers the reader to drag onto the
-     * viewer beside it.
-     *
-     * The one feature a reader has to do something to see: a link that opens a
-     * region can be described, but a payload dragged out of the page and onto a
-     * viewer is only believable when the two are on screen together.
-     */
     readonly dragPayloads?: readonly DragChip[];
 };
 
-/** One chip a reader drags onto the stage, and the view it carries. */
 export type DragChip = {
-    /** What the chip says it is. */
     readonly label: string;
-    /** The view the chip's content state names, in this site's own relative ids. */
     readonly state: DragTarget;
-    /**
-     * The material this state names, for a chip that names a DIFFERENT manifest
-     * from the feature's own — which the stage has to load, credit and reserve a
-     * box for exactly as it does the feature's.
-     *
-     * Absent means the feature's own manifest, and then the stage moves the view
-     * inside the material it is already showing.
-     */
     readonly carries?: {
         readonly example: Example;
         readonly material: string;
@@ -162,35 +51,13 @@ export type DragChip = {
     };
 };
 
-/**
- * The chrome every feature shares: one rounded bar rather than a toolbar rail,
- * and the viewer's own panel widths and gallery home everywhere else.
- *
- * Every panel and mode this page ever opens is named here in its shut state,
- * and a feature overrides only its own. The stage is a single viewer instance
- * whose state persists across a switch, and the viewer applies the keys a
- * config names rather than resetting the ones it omits — so a feature that
- * named only its own arrangement would leave the previous one's panel standing
- * open beside it. Naming the whole arrangement makes each selection describe
- * the stage completely, which is what lets a reader see one feature at a time.
- */
 const BASE_CONFIG: ViewerConfig = {
     controls: 'unified',
-    // The bar's tool group starts collapsed, and a feature whose control lives
-    // in that group opens it: an unopened group leaves the control the feature
-    // is about behind a hamburger, and a plugin flyout opened behind it has no
-    // button to anchor to and paints nowhere.
     toolbarOpen: false,
-    // The bar's own parts are named here for the same reason the panels are:
-    // the one feature that takes the chrome away would otherwise leave the
-    // stage bare for every feature picked after it.
     showToggle: true,
     showCanvasNav: true,
     showZoomControls: true,
     viewingMode: 'individuals',
-    // Named for the same reason the panels are: the viewer follows a config
-    // leaf until another names a different one, so the route states the
-    // chrome's language rather than inheriting whatever the stage was left in.
     locale: 'en',
     gallery: { open: false, expanded: false },
     information: { open: false },
@@ -200,22 +67,10 @@ const BASE_CONFIG: ViewerConfig = {
     collection: { open: false },
 };
 
-/** The shared chrome with one feature switched on. */
 function showing(highlight: ViewerConfig): ViewerConfig {
     return { ...BASE_CONFIG, ...highlight };
 }
 
-/**
- * The stage with every control taken away, for the one feature whose subject
- * is the surface rather than anything around it.
- *
- * `split` controls rather than the route's `unified`, which is the one place
- * this page departs from its shared chrome and has to: the unified bar is the
- * toolbar's render site, so it stands whether or not the nav and zoom controls
- * are in it. Split returns the toolbar to its own edge, where a closed rail
- * with no toggle draws nothing, and the bar then renders only if something is
- * left to put in it — which, with these three off, there is not.
- */
 function bare(): ViewerConfig {
     return showing({
         controls: 'split',
@@ -225,7 +80,6 @@ function bare(): ViewerConfig {
     });
 }
 
-/** The front page's material, and where a feature shown on it comes from. */
 const LANDING = {
     manifest: '/material/landing/manifest.json',
     canvases: 11,
@@ -233,31 +87,13 @@ const LANDING = {
         who: 'this site’s own public-domain set',
         href: '/material/landing/manifest.json',
     },
-    /**
-     * The plate the features on this manifest open on, named rather than left
-     * to the manifest's order. The stage keeps the canvas it was on when the
-     * manifest does not change, so a feature that named no canvas would open
-     * wherever the previous one left the reader.
-     */
     plate: '/material/landing/canvas/haeckel',
-    /** The map the deep-zoom feature opens on: 62,079 × 62,160. */
+    /** 62,079 × 62,160. */
     map: '/material/landing/canvas/monte',
-    /**
-     * The second plate, for the paged feature: canvas one is a lone recto in
-     * every paged arrangement, so opening there would show the reader a single
-     * leaf on the feature whose whole point is the pair.
-     */
     verso: '/material/landing/canvas/cellarius',
-    /**
-     * The fifth plate, for the continuous strip: it and both its neighbours are
-     * portrait, so the three a desktop shows at once read as one strip with
-     * more of it either side — which is the whole of what continuous means.
-     * Opening on the first plate would put the reader at an end instead.
-     */
     middle: '/material/landing/canvas/shahnama',
 } as const;
 
-/** The site's own recordings, and the canvas each sound feature opens on. */
 const SOUND = {
     manifest: '/material/sound/manifest.json',
     canvases: 2,
@@ -265,24 +101,12 @@ const SOUND = {
         who: 'this site’s own public-domain set',
         href: '/material/sound/manifest.json',
     },
-    /**
-     * One 1888 cylinder in one file. Duration-only and companionless, so the
-     * viewer gives it the whole surface as a timeline.
-     */
     cylinder: '/material/sound/canvas/lost-chord',
-    /** Four Sousa marches tiling one timeline, under one cover image. */
     marches: '/material/sound/canvas/marine-band',
 } as const;
 
-/** The material every feature on the four-march canvas shares. */
 const MARCHES = 'Four Sousa marches, United States Marine Band';
 
-/**
- * The Cookbook's captioned newsreel: 65 seconds, and the only Cookbook
- * audiovisual recipe whose media is small enough to fetch on a page that
- * fetches the feature showing. Its captions come in two languages, which is
- * what makes it three features rather than one.
- */
 const NEWSREEL = {
     manifest:
         'https://iiif.io/api/cookbook/recipe/0074-multiple-language-captions/manifest.json',
@@ -295,12 +119,10 @@ const NEWSREEL = {
     firstCanvas: { width: 288, height: 384 },
 } as const;
 
-/** The AV plugin, which the sound and video features share. */
 const AV_PLUGIN = async () =>
     (await import('@triiiceratops/plugin-av'))
         .AvPlugin as unknown as SitePlugin;
 
-/** The two export plugins, each the subject of one feature. */
 const PDF_PLUGIN = async () =>
     (await import('@triiiceratops/plugin-pdf-export'))
         .PdfExportPlugin as unknown as SitePlugin;
@@ -308,7 +130,6 @@ const IMAGE_DOWNLOAD_PLUGIN = async () =>
     (await import('@triiiceratops/plugin-image-export'))
         .ImageDownloadPlugin as unknown as SitePlugin;
 
-/** The note the annotated material selects, as its manifest names it. */
 const NOTE_ID =
     'https://iiif.io/api/cookbook/recipe/0346-multilingual-annotation-body/annotation/p0001-comment';
 
@@ -333,10 +154,6 @@ export const FEATURES: readonly Feature[] = [
             },
         },
         canvasId: LANDING.map,
-        // Nothing but the surface: the first thing the page shows a reader is
-        // the material itself. Every feature after this one arrives with the
-        // viewer's own bar, so the bar needs no entry of its own — what this
-        // one has to establish is that the material comes first.
         config: bare(),
     },
     {
@@ -367,8 +184,6 @@ export const FEATURES: readonly Feature[] = [
             canvases: LANDING.canvases,
             label: 'Canvases paired as facing pages',
             firstCanvas: { width: 2928, height: 2469 },
-            // The box is an opening rather than a leaf: two pages side by side
-            // is what the reader sees.
             reserve: { width: 2928 * 2, height: 2469 },
         },
         canvasId: LANDING.verso,
@@ -405,11 +220,6 @@ export const FEATURES: readonly Feature[] = [
             label: 'Material read from right to left',
             firstCanvas: { width: 3497, height: 4823 },
         },
-        // Each canvas here is already a photographed opening, so the reader
-        // moves an opening at a time in `individuals`: pairing them again would
-        // put two spreads on screen and halve the size of both. No canvas is
-        // named — the reader starts at the front cover, where the book itself
-        // starts, and the manifest declares it first.
         config: showing({}),
     },
     {
@@ -427,13 +237,6 @@ export const FEATURES: readonly Feature[] = [
             label: 'Two orders declared for one set of canvases',
             firstCanvas: { width: 3645, height: 5267 },
         },
-        // The strip along the foot is the feature, as much as the picker is: an
-        // order is a sequence of leaves, and eleven thumbnails in a row show
-        // one where the opening canvas alone cannot. Switching orders reorders
-        // the strip in place, which is the whole claim made visible.
-        //
-        // No canvas named, so each order opens on its own first leaf rather
-        // than on one this page chose.
         config: showing({
             toolbarOpen: true,
             openMenu: 'sequence',
@@ -473,8 +276,6 @@ export const FEATURES: readonly Feature[] = [
             label: 'A manifest that names the canvas to open on',
             firstCanvas: { width: 5230, height: 7884 },
         },
-        // Named by the manifest's own `start`, so the stage must not name one:
-        // a canvas here would be the page overriding the property it is about.
         config: showing({}),
     },
     {
@@ -488,20 +289,10 @@ export const FEATURES: readonly Feature[] = [
         },
         example: {
             manifest: '/material/collection/collection.json',
-            // The opening volume's canvases, not the collection's members: the
-            // count the chrome shows is of the material on the stage.
             canvases: 4,
             label: 'The manifests inside one collection',
-            // Members carry no `navDate`, so the panel orders them by label and
-            // `Botany and zoology` is the volume the stage opens on.
             firstCanvas: { width: 3645, height: 5267 },
         },
-        // Both at once, because either alone misreads the feature. The panel
-        // lists the manifests; the strip along the foot shows the canvases of
-        // the one open. Without the strip, moving between members looks like
-        // paging a single manifest — which is the one thing a collection is
-        // not — and every member here has several leaves so that the strip
-        // has something to say.
         config: showing({
             collection: { open: true },
             gallery: { open: true, expanded: false, dockPosition: 'bottom' },
@@ -555,8 +346,6 @@ export const FEATURES: readonly Feature[] = [
             label: 'Caption tracks in more than one language',
             firstCanvas: NEWSREEL.firstCanvas,
         },
-        // The list belongs to the transport, which the plugin registers into
-        // the bar; naming it here is what opens it without a reader hunting.
         config: showing({ toolbarOpen: true, openMenu: 'captions' }),
         plugin: AV_PLUGIN,
     },
@@ -570,8 +359,6 @@ export const FEATURES: readonly Feature[] = [
             manifest: SOUND.manifest,
             canvases: SOUND.canvases,
             label: 'A recording drawn as a waveform',
-            // The canvas declares a duration and no dimensions, so the viewer
-            // lays it out at the shallow box it keeps for bare audio.
             firstCanvas: { width: 1000, height: 160 },
         },
         canvasId: SOUND.cylinder,
@@ -624,9 +411,6 @@ export const FEATURES: readonly Feature[] = [
             label: 'Timed notes listed beside the recording',
             firstCanvas: { width: 797, height: 1000 },
         },
-        // The same panel the caption cues fill, holding the manifest's own
-        // timed commentary instead — which is why the panel calls itself Notes
-        // here and Transcript there.
         config: showing({ toolbarOpen: true, plugins: { av: { open: true } } }),
         plugin: AV_PLUGIN,
     },
@@ -664,9 +448,6 @@ export const FEATURES: readonly Feature[] = [
             label: 'A manifest that names the second to open at',
             firstCanvas: { width: 797, height: 1000 },
         },
-        // Named by the manifest's own `start`, canvas and second together, so
-        // the stage names neither: either would be the page overriding the
-        // property it is about. A seek and never a play.
         config: showing({}),
         plugin: AV_PLUGIN,
     },
@@ -684,13 +465,8 @@ export const FEATURES: readonly Feature[] = [
                 'https://iiif.io/api/cookbook/recipe/0434-choice-av/manifest.json',
             canvases: 1,
             label: 'A recording offered in several formats at once',
-            // Duration and no dimensions, like the cylinder: the shallow box
-            // the viewer keeps for bare audio.
             firstCanvas: { width: 1000, height: 160 },
         },
-        // The bar lists the alternatives exactly as it does an image Choice,
-        // with the one the browser can decode already taken — which is the
-        // whole of what this feature has to show.
         config: showing({ toolbarOpen: true }),
         plugin: AV_PLUGIN,
     },
@@ -768,9 +544,6 @@ export const FEATURES: readonly Feature[] = [
             label: 'Tags and a whole-canvas note, listed together',
             firstCanvas: { width: 3266, height: 4000 },
         },
-        // Nothing to select: every annotation here targets the whole sheet, so
-        // the panel listing them IS the feature. Driving a selection would
-        // draw an outline around the leaf and suggest the opposite.
         config: showing({ annotations: { open: true } }),
     },
     {
@@ -789,8 +562,6 @@ export const FEATURES: readonly Feature[] = [
             firstCanvas: { width: 3377, height: 3963 },
         },
         config: showing({ annotations: { open: true } }),
-        // One of the fetched notes selected, because the second request is the
-        // feature and a panel that filled itself is the only proof of it.
         drive: (viewer) =>
             viewer.setActiveAnnotationId(
                 '/material/referenced/annotation/column-right',
@@ -812,10 +583,6 @@ export const FEATURES: readonly Feature[] = [
             label: 'A search run against the material’s own text',
             firstCanvas: { width: 2411, height: 3372 },
         },
-        // The leaf carrying the first hit, named rather than left to the
-        // reader: a search whose results are listed over the title page shows
-        // the panel working and the material not, and the run is the same
-        // either way.
         canvasId:
             'https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0005.JP2',
         config: showing({ search: { open: true, query: 'Vererbung' } }),
@@ -853,8 +620,6 @@ export const FEATURES: readonly Feature[] = [
             label: 'A manifest cataloged in several languages',
             firstCanvas: { width: 1335, height: 1908 },
         },
-        // The picker only appears at all where a manifest carries more than one
-        // language, so the entry and the control arrive together.
         config: showing({
             toolbarOpen: true,
             information: { open: true },
@@ -964,10 +729,6 @@ export const FEATURES: readonly Feature[] = [
             label: 'A range of canvases exported as one PDF',
             firstCanvas: { width: 3645, height: 5267 },
         },
-        // Material chosen for what it carries rather than for what it looks
-        // like: both plates publish their lines of type as annotations
-        // anchored to the region each line occupies, so the PDF this panel
-        // makes carries text a reader can select rather than a picture of it.
         config: showing({
             toolbarOpen: true,
             plugins: { 'pdf-export': { open: true } },
@@ -997,8 +758,6 @@ export const FEATURES: readonly Feature[] = [
         name: 'Annotation editor plugin',
         group: 'First Party Plugins',
         what: 'Draw a region — box, ellipse, outline or point — and write a note on it.',
-        // A plate that publishes no annotations of its own, so everything on
-        // the surface is something the reader put there.
         material: 'Ernst Haeckel, Discomedusae (Plate 8), 1904',
         source: LANDING.source,
         example: {
@@ -1012,8 +771,6 @@ export const FEATURES: readonly Feature[] = [
             toolbarOpen: true,
             plugins: { 'annotation-editor': { open: true } },
         }),
-        // The shipped plugin carries the LocalStorage adapter, so what a reader
-        // draws on this page stays in their own browser and reaches no server.
         plugin: async () =>
             (await import('@triiiceratops/plugin-annotation-editor'))
                 .AnnotationEditorPlugin as unknown as SitePlugin,

@@ -1,8 +1,4 @@
-// Framework-neutral fixture data shared by all three routes.
-//
-// Everything here is a hoisted module constant so the wrapper's edge-triggered
-// property tier can be asserted by IDENTITY: `element.manifestJson` must be the
-// very object below, never a stringified attribute.
+// Fixture data shared by all routes. Hoisted so the property tier asserts by identity.
 
 function svgImage(fill) {
     return (

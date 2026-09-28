@@ -449,15 +449,11 @@ export class ViewerState {
         }
     }
 
-    // Error state for tile source fetching and image load failures.
     tileSourceError:
         | { type: 'auth' }
         | { type: 'load'; message?: string; details?: string }
         | null = $state(null);
 
-    // Map of canvasId -> selected choiceId (Content State).
-    // Reactive collection declared as a plain `Map` — see the note on the
-    // `svelte/reactivity` import.
     selectedChoices: Map<string, string> = new SvelteMap<string, string>();
     selectedSequenceIndex = $state(0);
 
@@ -485,7 +481,6 @@ export class ViewerState {
         this.config.viewingDirection = value;
     }
 
-    // UI Configuration
     config: ViewerConfig = $state({});
     searchProvider: SearchProvider | null = $state.raw(null);
     manifestRequestConfig: RequestConfig | undefined = $state.raw(undefined);
@@ -557,8 +552,6 @@ export class ViewerState {
         return this.#galleryExtent;
     }
 
-    // Dedicated reactive state for viewingMode to ensure proper reactivity
-    // when accessed in $derived expressions.
     private _viewingMode = $state<'individuals' | 'paged' | 'continuous'>(
         'individuals',
     );
@@ -587,8 +580,6 @@ export class ViewerState {
      * collapsing restores the strip or rail exactly where it was.
      */
     galleryExpanded = $state(false);
-
-    // ==================== EVENT DISPATCH (Web Component Only) ====================
 
     /**
      * Event target for dispatching CustomEvents.
@@ -874,21 +865,6 @@ export class ViewerState {
         if (this.hasPrevious) this.#step(-1);
     }
 
-    // ==================== VIEWPORT ============================================
-    //
-    // Command state for the viewport, and query-only state beside it. These
-    // replace the renderer pass-through: the parity rule says anything the
-    // viewer's own chrome can do to the viewport a plugin can do too, and the
-    // chrome's zoom buttons, fit control, and keyboard bindings all land here.
-    //
-    // Every command is a no-op before a renderer is attached rather than a
-    // throw. A plugin activating during mount would otherwise have to guard
-    // every call, and "the surface is not sized yet" is a timing fact, not a
-    // caller error — {@link rendererReady} is how a caller that cares waits.
-    //
-    // Coordinates are canvas space (the IIIF Canvas's own dimensions) and
-    // screen space (the surface's CSS pixels). Image space stays inside core.
-
     /**
      * The mounted renderer's command/query seam, or `null` before one mounts.
      *
@@ -1168,8 +1144,6 @@ export class ViewerState {
         }
     }
 
-    // ---- The paint hook ------------------------------------------------------
-
     /**
      * How many times the layer list has changed — the one notifying signal the
      * registry needs.
@@ -1237,8 +1211,6 @@ export class ViewerState {
     get paintLayers(): readonly RegisteredPaintLayer[] {
         return this.paintLayerRegistry.layers;
     }
-
-    // ---- Overlay layers ------------------------------------------------------
 
     /**
      * How many times the overlay layer list has changed — the one notifying
@@ -1342,8 +1314,6 @@ export class ViewerState {
         return this.overlayLayerRegistry.layers;
     }
 
-    // ---- Transport chrome ----------------------------------------------------
-
     /**
      * How many times the registered transport chrome has changed — the one
      * notifying signal that registry needs, the same shape as
@@ -1414,8 +1384,6 @@ export class ViewerState {
     get transportChrome(): readonly RegisteredTransportChrome[] {
         return this.transportChromeRegistry.entries;
     }
-
-    // ---- Canvas claims -------------------------------------------------------
 
     /**
      * The **canvas claim** set: canvas id → the plugin id owning that canvas's
@@ -1817,14 +1785,6 @@ export class ViewerState {
         this.imageAdjustments = NEUTRAL_IMAGE_ADJUSTMENTS;
         this.rendererPort?.applyImageAdjustments(NEUTRAL_IMAGE_ADJUSTMENTS);
     }
-
-    // ---- Query-only viewport state ------------------------------------------
-    //
-    // Per-frame values, readable on demand and deliberately NON-notifying
-    // (CONTEXT.md **Query-only state**): mirroring them into notifying state
-    // would wake every subscriber on every pointer sample. Reading them
-    // reactively is a `frame`-cadence selector — a cadence choice, not a
-    // reclassification.
 
     /**
      * Screen pixels per canvas-space unit — the single number relating the two
@@ -2666,19 +2626,6 @@ export class ViewerState {
         }
     }
 
-    // ==================== PARITY COMMANDS ====================
-    // Supported mutation methods for viewer behaviors the parity rule requires
-    // (see state-inventory.ts). The chrome calls these rather than writing the
-    // fields directly, so each member has ONE write path and an invariant here
-    // cannot be skipped by a component that assigns around it. Direct
-    // assignment remains physically possible for trusted code (ADR 0007) and
-    // still notifies, since notification is reactivity-driven rather than
-    // command-driven (ADR 0008).
-    //
-    // They deliberately do NOT dispatch the legacy web-component `statechange`
-    // event: these are hover- and drag-rate interactions, and the chrome never
-    // dispatched for them.
-
     /** Set (or clear, with null) the currently hovered annotation id. */
     setHoveredAnnotationId(annotationId: string | null): void {
         this.hoveredAnnotationId = annotationId;
@@ -2760,15 +2707,10 @@ export class ViewerState {
         this.dockSide = side;
     }
 
-    // ==================== PLUGIN STATE ====================
-
-    /** Plugin-registered menu buttons */
     pluginMenuButtons: PluginMenuButton[] = $state([]);
 
-    /** Plugin-registered panels */
     pluginPanels: PluginPanel[] = $state([]);
 
-    /** Plugin-registered flyouts (compact popovers anchored to the toolbar button) */
     pluginFlyouts: PluginFlyout[] = $state([]);
 
     /**
@@ -3044,8 +2986,6 @@ export class ViewerState {
         if (changed) this.dispatchStateChange();
     }
 
-    // ==================== PLUGIN METHODS ====================
-
     /**
      * Register the toolbar chrome for an SDK plugin on the core-owned-chrome path.
      * Core renders the button
@@ -3196,16 +3136,6 @@ export class ViewerState {
         this.pluginUiState.clear();
     }
 
-    // ---- Published plugin state (ADR 0018) -----------------------------------
-    //
-    // A plugin whose UI performs actions must make them externally commandable —
-    // the parity rule does not stop at core's own chrome. An activation
-    // therefore publishes ONE state object here, and hosts reach it only through
-    // {@link getPluginState}: ViewerState stays the sole state surface, and core
-    // ships no commands it cannot implement. Core never reads INTO a published
-    // object — its members, their classification, and their notification are the
-    // publishing plugin's contract, checked by the SDK's conformance kit.
-
     /**
      * Published state by plugin id. A reactive map so publish and retire wake
      * the batched watcher: the set of published ids is what a wrapper observes
@@ -3270,19 +3200,6 @@ export class ViewerState {
     getPluginState(pluginId: string): unknown {
         return this.publishedPluginStates.get(pluginId) ?? null;
     }
-
-    // ==================== FRAMEWORK-NEUTRAL SUBSCRIPTIONS (ADR 0008) ==========
-    //
-    // `subscribe` gives plugins a reactivity-driven, batched, payload-free
-    // notification independent of the Web Component event target above. A single
-    // `$effect.root`-based watcher reads every inventoried `command` and
-    // `observable` member; any write source — command, core-internal Svelte
-    // binding, or unsupported direct assignment — re-runs it on the next flush
-    // and wakes subscribers. Completeness is structural (nobody has to remember
-    // to call `notify()`); the price is timing: notifications are batched and
-    // delivered on the microtask flush, never synchronously inside a mutator.
-    // Selectors and `pluginerror` attribution build on top of this;
-    // `invokeSubscriptionListener` is the guarded call site for delivery.
 
     /**
      * Inventoried members whose changes wake subscribers: `command` and

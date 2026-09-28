@@ -1,11 +1,4 @@
 <script lang="ts">
-    /** The mark, inline so the chrome costs no request. Decorative: the
-        wordmark beside it carries the accessible name.
-
-        Traced from the brand artwork in `scripts/social-cards/logo.png`, which
-        is layered: a shadow silhouette with the bright figure sitting on it, so
-        the darker tone shows only at the beak, the frill and the far legs. Both
-        tones are the artwork's own, held across colour schemes as a logo is. */
     let { eye = false }: { eye?: boolean } = $props();
 </script>
 

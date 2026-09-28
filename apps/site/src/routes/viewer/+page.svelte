@@ -12,26 +12,6 @@
     import ThemeToggle from '$lib/ThemeToggle.svelte';
     import Wordmark from '$lib/Wordmark.svelte';
 
-    /**
-     * The bare viewer: a viewer with no chrome, driven by the content state in
-     * the URL.
-     *
-     * Published IIIF Cookbook recipes link this path directly, which is why it
-     * is the one URL in the tree that cannot move.
-     *
-     * The page prerenders to the shell below and nothing more. The viewer — a
-     * canvas renderer — is imported and instantiated in `onMount`, so none of it
-     * runs while the static adapter is rendering.
-     *
-     * It carries no social preview card, as it did not before: a card names one
-     * page, and this one shows whatever material its link points at.
-     *
-     * The one exception to "no chrome" is the strip above the viewer: readers
-     * reach this route cold from a Cookbook link, with no way back to the site
-     * and no way to change the scheme, because the toggle lives in the prose
-     * routes' rail and this route sits outside it.
-     */
-
     type BareViewerComponent =
         (typeof import('$lib/bare-viewer/BareViewer.svelte'))['default'];
 
@@ -45,12 +25,6 @@
         })();
     });
 
-    /*
-     * The site's host, not its name. The bar has to read as a way off this page
-     * rather than as a title for the viewer under it: a product name at the top
-     * left of an application is where that application names itself, and this
-     * one would then be claiming the viewer ships a branded bar.
-     */
     const host = new URL(SITE_ROOT).host;
 
     const title = SITE_NAME;
@@ -80,12 +54,6 @@
     {:else}
         <div class="appwait">
             <p>Loading the viewer…</p>
-            <!--
-                For a reader who will never get past this screen. With scripting
-                on, the viewer takes over mid-load and carries the same sentence
-                across on the same ground, so anything extra here would be a line
-                that appears and then vanishes.
-            -->
             <noscript>
                 <p class="aside">The viewer needs JavaScript.</p>
             </noscript>
@@ -94,10 +62,6 @@
 </div>
 
 <style>
-    /*
-     * The bar takes the height it needs and the viewer takes the rest; nothing
-     * here names a bar height, so the two cannot disagree about one.
-     */
     .route {
         display: flex;
         flex-direction: column;
@@ -114,9 +78,6 @@
         background: var(--paper);
     }
 
-    /* The rail's brand idiom at the size this strip can afford, behind an
-       arrow. The mark and the arrow are decorative; the host is the link's
-       text, and `aria-label` says what following it does. */
     .brand {
         display: flex;
         align-items: center;

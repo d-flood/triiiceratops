@@ -1,16 +1,5 @@
 #!/usr/bin/env node
-// Coverage floor gate.
-//
-// Reads every package's `coverage/coverage-summary.json` (produced by
-// `pnpm test:coverage`), then either:
-//   - default: compares line + branch coverage against `coverage-baseline.json`
-//     and exits non-zero if either metric for any package drops below its
-//     baseline (minus a small flake tolerance);
-//   - `--update`: rewrites `coverage-baseline.json` from the current summaries
-//     (raising — or intentionally lowering — the baseline is a normal reviewed
-//     commit).
-//
-// The baseline is the post-cleanup floor. Coverage may not silently decrease.
+// Coverage floor gate against coverage-baseline.json.
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -21,9 +10,7 @@ const repoRoot = resolve(__dirname, '..');
 const packagesDir = join(repoRoot, 'packages');
 const baselinePath = join(repoRoot, 'coverage-baseline.json');
 
-// v8 coverage numbers can wobble by tiny fractions between runs/environments.
-// A 0.5 percentage-point tolerance absorbs that noise while still catching a
-// real regression (e.g. a deleted test), which moves coverage far more.
+// 0.5pp tolerance absorbs v8 wobble while catching real regressions.
 const TOLERANCE = 0.5;
 
 const update = process.argv.includes('--update');
@@ -59,7 +46,6 @@ function readMetrics(summaryPath) {
 const packages = collectSummaries();
 const names = Object.keys(packages).sort();
 
-// Gather current metrics; a missing summary is a hard error (coverage not run).
 const current = {};
 const missing = [];
 for (const name of names) {

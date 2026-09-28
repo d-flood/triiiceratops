@@ -1,14 +1,3 @@
-/**
- * The marketing site's shell, in a browser: what only a browser can see.
- *
- * The rail on every route it carries, the mobile bar and its full-screen sheet,
- * the footer's four institutional facts, the pages a crawler is not offered, and
- * that the one application route declares itself to be the viewer.
- *
- * The crawl policy's other half is asserted where it is visible: absence from
- * the sitemap in `tests/unit/routes.test.ts`.
- */
-
 import { expect, test, type Page } from '@playwright/test';
 
 import { APP_MARKER, BARE_VIEWER_APP } from '../src/lib/applications';

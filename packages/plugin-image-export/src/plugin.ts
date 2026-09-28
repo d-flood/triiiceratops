@@ -1,21 +1,3 @@
-/**
- * The image-download plugin, authored entirely on `@triiiceratops/plugin-sdk`.
- *
- * `definePlugin` returns the framework-neutral factory core activates through the
- * structural seam (it carries its own `activate(host)`); core never imports this
- * package or its Svelte runtime. The UI is Svelte, mounted through the neutral
- * `view.mount(container, context)` contract and torn down by the returned
- * cleanup. Styles install through the SDK style service (root-aware), strings
- * resolve through the per-viewer locale service over this package's catalog, and
- * the toolbar glyph is a `svgIcon` descriptor. Export reads canvas geometry from
- * raw Canvas JSON and core's first-party layout helpers, so the plugin requires
- * no capability.
- *
- * This plugin's validation duty is asynchronous
- * operations and binary output: the panel runs async IIIF fetch/compositing and
- * produces a download-ready `Blob` through the SDK seam.
- */
-
 import { mount, unmount } from 'svelte';
 
 import {

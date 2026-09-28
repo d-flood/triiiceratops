@@ -1,10 +1,6 @@
 /**
  * The bundle-size comparison's data: the pinned viewer list and the committed
- * output of the last measurement. Consumers read both through this entrypoint.
- *
- * Nothing here is published. The data lives in its own package rather than being
- * exported from the viewer core for the same reason the recipe catalog does — see
- * CONTEXT.md, "Shipped surface".
+ * output of the last measurement.
  */
 
 // The import attribute is required, not decorative: consumers reach this module
@@ -20,7 +16,6 @@ import type { SessionKind } from './competitors';
 
 /** Bytes on the wire at each compression level the comparison quotes. */
 export interface Measurement {
-    /** Uncompressed bytes. */
     raw: number;
     /** gzip at the level recorded in `MeasuredComparison.compression`. */
     gzip: number;
@@ -35,7 +30,6 @@ export interface MeasuredFile extends Measurement {
      * repository-relative path for a Triiiceratops row.
      */
     url: string;
-    /** The file's own name, for a table that cannot show a whole URL. */
     name: string;
 }
 
@@ -54,63 +48,42 @@ export interface MeasuredViewer {
     /** True for a Triiiceratops row, so a chart can mark its own bar. */
     isSelf: boolean;
     sessions: MeasuredSession[];
-    /** Artifacts that exist beside the entry files but that no session fetched. */
     lazyArtifacts?: MeasuredFile[];
-    /** `Competitor.note` — why these artifacts are what a page loads. */
     note?: string;
 }
 
 export interface MeasuredComparison {
-    /** The date of the measurement, `YYYY-MM-DD`, so a page can state it. */
+    /** `YYYY-MM-DD`. */
     measuredAt: string;
-    /** The compression settings every figure was produced with. */
     compression: { gzipLevel: number; brotliQuality: number };
-    /** The manifest each session kind was driven against. */
     sessionManifests: Record<SessionKind, string>;
     viewers: MeasuredViewer[];
 }
 
-/**
- * The committed output of `pnpm --filter @triiiceratops/comparison measure`.
- * Regenerated on demand only: competitor versions move independently, and a
- * scheduled re-measurement would rewrite a published claim unreviewed.
- */
+/** Committed output of `pnpm --filter @triiiceratops/comparison measure`. Regenerated on demand only. */
 export const MEASURED_COMPARISON = measured as MeasuredComparison;
 
-/** What one cell of the Cookbook support matrix claims. */
 export type MatrixMark = 'yes' | 'partial' | 'no';
 
-/** One recipe's row of the matrix: every viewer's cell for that recipe. */
 export interface MatrixRecipe {
-    /** The Cookbook recipe slug, e.g. `0001-mvm-image`. Joins to a `CookbookRecipe.id`. */
+    /** Joins to a `CookbookRecipe.id`. */
     id: string;
-    /** The recipe's title, as the matrix spells it. */
     name: string;
     /** Keyed by the matrix's own column heading — see `Competitor.matrixColumn`. */
     marks: Record<string, MatrixMark>;
 }
 
 export interface CookbookMatrix {
-    /** The date the matrix was read, `YYYY-MM-DD`, so a page can state it. */
+    /** `YYYY-MM-DD`. */
     readAt: string;
-    /** The page read, so a figure drawn from this can cite it. */
     source: string;
-    /** Every column heading, in the matrix's own order. */
     viewers: string[];
-    /** Every distinct recipe the matrix lists, by slug. */
     recipes: MatrixRecipe[];
 }
 
 /**
- * The committed output of `pnpm --filter @triiiceratops/comparison matrix`: the
- * Cookbook support matrix, every cell of it, as read on `readAt`.
- *
- * Regenerated on demand only, for the same reason as the measurement — the
- * matrix records what each project has submitted about itself, so a scheduled
- * run would rewrite a published comparison unreviewed.
- *
- * It covers more viewers than the comparison measures, and its recipe list can
- * be ahead of `@triiiceratops/cookbook`'s: a consumer joins on the recipe slugs
- * it knows and states what it left out.
+ * Committed output of `pnpm --filter @triiiceratops/comparison matrix`, regenerated
+ * on demand only. Covers more viewers than the comparison measures; consumers join
+ * on the recipe slugs they know.
  */
 export const COOKBOOK_MATRIX = matrix as CookbookMatrix;

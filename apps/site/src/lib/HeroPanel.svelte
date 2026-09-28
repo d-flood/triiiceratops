@@ -9,43 +9,6 @@
         type Knob,
     } from './heroConfigurations';
 
-    /**
-     * The hero's configuration surface: two labelled groups in one column.
-     *
-     * Neither group scrolls and neither is behind a tab. A tab would put one of
-     * the two axes out of sight, and — more to the point — every other control
-     * here changes the viewer, so a control that only changed the panel would be
-     * the one dead click in a surface whose whole argument is causation. Fixed
-     * halves with a scroll region each were the other candidate; two nested
-     * scrollers inside a page that also scrolls is worse on a trackpad and has
-     * to become something else entirely on a phone. What makes one column fit
-     * instead is the shown set — five theme knobs and six layout ones — with
-     * each group's heading stating the real count behind them, and a label that
-     * sits beside its control rather than above it.
-     *
-     * Native radios, one group per knob: a segmented control is a
-     * one-of-several choice, and the platform's radio gives arrow-key
-     * navigation, the roving tab stop and the group semantics for nothing. The
-     * input covers its label, so the label is the hit target and the focus ring
-     * belongs to it.
-     *
-     * The group headings are `h2`, not `h3`: they are the first headings under
-     * the page's `h1`, and a level skipped there is a real navigation defect for
-     * anyone moving by heading, whatever the size looks like.
-     *
-     * Above both groups, the transport: what is moving the panel, and the three
-     * controls over it. A cycle a reader cannot stop is the panel taking the
-     * surface away from them at a fixed rate, and the countdown is what makes
-     * the next move something they are waiting for rather than something that
-     * happens to them. Back and forward step the same sequence the cycle is
-     * walking, so a reader who missed a change can go and look at it.
-     *
-     * A group's accessible name is exactly its visible label — the configuration
-     * path, nothing appended — so the two cannot disagree. The reason a knob is
-     * currently inert is a description rather than part of the name, which is
-     * what it is: the control still sets `toolbar.side`, and what has changed is
-     * whether anything reads it.
-     */
     let {
         settings,
         set,
@@ -58,38 +21,19 @@
         onToggle,
     }: {
         settings: HeroSettings;
-        /** Called with a knob and the value a reader picked on it. */
         set: (knob: Knob, value: string) => void;
-        /** Whether the cycle is running, which is what the middle control says. */
         cycling: boolean;
-        /**
-         * Bumped by the hero whenever a fresh dwell starts. The countdown is
-         * keyed to it, so the bar restarts with the step it is counting to and
-         * the two cannot come apart.
-         */
         beat: number;
-        /** How long the step now showing holds, which the countdown sweeps. */
         dwell: number;
-        /** Which step of `HERO_SEQUENCE` the panel stands on. */
         at: number;
         onBack: () => void;
         onForward: () => void;
         onToggle: () => void;
     } = $props();
 
-    /** Unique per instance, so two panels on one page cannot share a group. */
     const uid = $props.id();
 
-    /**
-     * Play the wash that marks a knob as the one that just moved.
-     *
-     * On update only, never on create: the pulse says a value changed, and a
-     * panel that flashed all eleven rows the moment it hydrated would be saying
-     * it about nothing. Restarting a CSS animation means taking the class off,
-     * forcing layout to flush the removal, and putting it back — reading
-     * `offsetWidth` is what makes the browser treat it as two states rather
-     * than one no-op.
-     */
+    /* Update-only: restart the CSS animation via a forced reflow. */
     function pulse(node: HTMLElement, value: string) {
         let showing = value;
         return {

@@ -7,19 +7,6 @@
     import type { ContentDocument } from 'uncial/core';
     import type { EditorController, StatusView } from 'uncial-cms/session';
 
-    /**
-     * A content route's edit variant: the site's own layout, head and measure,
-     * with Uncial's editor component where the body would be.
-     *
-     * The editor is rendered here rather than mounted by `mountEditorPage`,
-     * which builds a custom element with a shadow root. Style isolation is the
-     * wrong trade for a page whose whole purpose is showing an author the
-     * measure, face and ground a reader will see: no rule this site sets on
-     * `body` crosses that boundary, so the editor inherited none of them and the
-     * site had to restate them all against the inside of the shadow root.
-     * `createEditorSession` is the same storage, autosave, deploy status and
-     * conflict recovery with the surface left to the host.
-     */
     let { data } = $props();
 
     type EditorComponent = (typeof import('uncial/editor'))['Editor'];
@@ -32,23 +19,14 @@
     let controller: EditorController | undefined;
 
     onMount(() => {
-        // The whole editing surface sits behind `import.meta.env.DEV`, which
-        // Vite replaces with a literal when building. The dynamic imports are
-        // then unreachable and dropped, so the editor stack is absent from the
-        // build rather than merely unrouted — which is what
-        // `scripts/assert-no-editor-code.mjs` checks.
+        /* DEV-only: dynamic imports drop from the build, keeping the editor out of production. */
         if (!import.meta.env.DEV) return;
 
         let cancelled = false;
 
         void Promise.all([
             import('uncial/editor'),
-            // The session only: the package root also exports `mountEditorPage`,
-            // which pulls in the custom element and loads the editor's chrome
-            // stylesheet after this site's corrections to it.
             import('uncial-cms/session'),
-            // Uncial's own chrome plus this site's corrections to it; the
-            // stylesheet imports the first so the second is always later.
             import('$lib/editor-chrome.css'),
         ]).then(([editor, cms]) => {
             if (cancelled) return;
@@ -65,13 +43,8 @@
                     status: (view) => (status = view),
                     setDocument: (next) => {
                         doc = next;
-                        // Seed the metadata panel from the loaded document.
-                        // Without this it shows schema defaults, and committing
-                        // metadata would clobber the document's own.
                         meta = next.meta ?? {};
                     },
-                    // Autosave leaves nothing to press, so there is no control
-                    // whose enabled state this could describe.
                     saveEnabled: () => {},
                     conflictVisible: (visible) => (conflict = visible),
                 },

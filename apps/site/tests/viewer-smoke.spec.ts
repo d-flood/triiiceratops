@@ -1,19 +1,3 @@
-/**
- * The bare viewer route's smoke screens: a content state opens a view, a bare
- * URL offers the fallback input, a failed manifest keeps that input reachable, an
- * audio content state plays, the chrome speaks the reader's language, and a
- * `config` parameter is not public API on the cookbook's URL.
- *
- * `/viewer/` is the one URL in the tree that cannot move — published IIIF
- * Cookbook recipes link it directly — so these screens drive that path and no
- * other.
- *
- * Every content state here is a bare IIIF URI naming a manifest, the form a
- * cookbook recipe's link carries; the manifests are fulfilled by `page.route`
- * from `tests/fixtures`. The page never reads `iiif-content` itself, so a passing
- * screen has watched the VIEWER read it (ADR 0006).
- */
-
 import { expect, test, type Page } from '@playwright/test';
 
 import { HOSTED_VIEWER_PATH as VIEWER_PATH } from '../src/lib/site';

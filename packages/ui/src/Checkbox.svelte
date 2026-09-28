@@ -31,7 +31,6 @@
         ...rest
     }: Props = $props();
 
-    // [--size multiplier, padding]
     const SIZE: Record<Size, string> = {
         xs: '--size:calc(var(--tri-size-selector,0.25rem)*4);padding:0.125rem;',
         sm: '--size:calc(var(--tri-size-selector,0.25rem)*5);padding:0.1875rem;',

@@ -1,14 +1,4 @@
-/**
- * The **degradation contract**: manifest shapes this release renders less than
- * fully, each announced once to the developer console and never to the reader.
- *
- * These are curator-facing diagnostics in core's unreadable-canvas style (user
- * story 45): the manifest is valid, the viewer keeps working, and what it did
- * not honour is stated plainly. They are deliberately NOT viewer errors — a
- * degraded render must stay degraded rather than become a surfaced failure — and
- * deliberately not debug-gated, because the curator who needs to read them has
- * no reason to have turned debug on.
- */
+/** Manifest shapes rendered less than fully; announced once to console, never to reader. */
 
 import { readBehaviors } from './behaviors';
 import { PLUGIN_META } from './identity';

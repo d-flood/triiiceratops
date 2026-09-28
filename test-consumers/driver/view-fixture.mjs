@@ -1,17 +1,5 @@
 #!/usr/bin/env node
-// Ad-hoc fixture viewer — NOT part of `pnpm test:packed`.
-//
-// Runs the same setup the packed-consumer harness runs for one fixture
-// (build + pack real tarballs, install the fixture against them, build it),
-// then serves the built output on a local port and leaves it running so you
-// can open it in your own browser and click around. Nothing gets cleaned up
-// until you Ctrl+C — no Playwright involved.
-//
-// Usage:
-//   node test-consumers/driver/view-fixture.mjs <fixture-name> [--pm=pnpm|npm]
-//   pnpm --filter @triiiceratops/test-consumers exec node driver/view-fixture.mjs plugin-react
-//
-// Run without arguments to list known fixtures.
+// Serve one fixture's built output for manual inspection. Not part of `pnpm test:packed`.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { FIXTURES, buildAndPack, installFixture } from './run.mjs';

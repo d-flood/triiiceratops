@@ -1,17 +1,3 @@
-/**
- * The type, in a browser: what only a browser can see.
- *
- * Two facts, and configuration proves neither. That no page reaches a third
- * party for a face is a statement about the requests a real page makes, so it is
- * asserted by watching them — a stylesheet that still names a font host, or a
- * preload that 404s into a system fallback, both read as correct in source. And
- * that the faces actually arrive is read off `document.fonts`, which is the
- * browser's own account of which families it loaded rather than which ones the
- * cascade asked for.
- *
- * Which files exist and which surfaces name them is `tests/unit/type.test.ts`.
- */
-
 import { expect, test, type Page } from '@playwright/test';
 
 import { ROUTES } from '../src/lib/routes';
