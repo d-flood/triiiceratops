@@ -137,26 +137,6 @@ export {};
 // ======================================================================
 // FILE: dist/index.d.ts
 // ======================================================================
-/**
- * `@triiiceratops/plugin-pdf-export` — ESM entry.
- *
- * Import the plugin factory and activate it explicitly on a viewer. The
- * factory-with-config API is preserved from the RC core subpath:
- *
- * ```ts
- * import {
- *     PdfExportPlugin,
- *     createPdfExportPlugin,
- * } from '@triiiceratops/plugin-pdf-export';
- *
- * // Preconfigured:
- * // Svelte:  <TriiiceratopsViewer plugins={[PdfExportPlugin]} />
- * // WC:      viewer.plugins = [PdfExportPlugin];
- *
- * // With consumer config (cover sheet, filename provider, OCR overlays, …):
- * const plugin = createPdfExportPlugin({ coverSheet: { fields: [...] } });
- * ```
- */
 export { createPdfExportPlugin, PdfExportPlugin } from './plugin';
 export type { PdfExportConfig, PdfExportSelection, PdfExportSelectionChangeHandler, } from './types';
 export type { PdfCanvasOcrOverlayProvider, PdfCoverSheetConfig, PdfCoverSheetField, PdfExportFilenameProvider, PdfExportFilenameProviderContext, PdfExportOcrProviderContext, PdfImageLoader, PdfImageLoaderParams, PdfImageRequestConfig, PdfOcrPlacementMode, PdfOcrSizingMode, PdfOcrVisibilityMode, PdfTextOverlay, } from './exportPdf';
@@ -165,28 +145,6 @@ export { buildCoverSheetFields, buildImageRequestInit, buildPdfFilename, extract
 // ======================================================================
 // FILE: dist/plugin.d.ts
 // ======================================================================
-/**
- * The PDF-export plugin, authored entirely on `@triiiceratops/plugin-sdk`.
- *
- * `definePlugin` returns the framework-neutral factory core activates through the
- * structural seam (it carries its own `activate(host)`); core never imports this
- * package, its Svelte runtime, or its `pdf-lib` dependency. The UI is Svelte,
- * mounted through the neutral `view.mount(container, context)` contract and torn
- * down by the returned cleanup. Styles install through the SDK style service
- * (root-aware), strings resolve through the per-viewer locale service over this
- * package's catalog, and the toolbar glyph is a `svgIcon` descriptor.
- *
- * The factory-with-config authoring API is preserved: `createPdfExportPlugin(config)`
- * stays the public entry (a consumer can supply a cover sheet, filename provider,
- * OCR overlay provider, custom image loader, etc.), adapted to `definePlugin`
- * internally. The consumer `config` is captured in the `view.mount` closure and
- * handed to the panel through Svelte's context map, so each activation renders
- * with its own configuration. A preconfigured default (`PdfExportPlugin`) is
- * exported alongside it.
- *
- * The plugin sizes export requests from `ViewerState.containerSize`, a
- * first-party query-only read, so it requires no capability.
- */
 import { type SdkPlugin } from '@triiiceratops/plugin-sdk';
 import type { PdfExportConfig } from './types';
 /**
@@ -201,10 +159,6 @@ export declare const PdfExportPlugin: SdkPlugin;
 // FILE: dist/types.d.ts
 // ======================================================================
 import type { PdfCanvasOcrOverlayProvider, PdfCoverSheetConfig, PdfExportFilenameProvider, PdfImageLoader, PdfImageRequestConfig, PdfOcrPlacementMode, PdfOcrSizingMode, PdfOcrVisibilityMode } from './exportPdf';
-/**
- * Consumer-facing configuration for the PDF export plugin, preserving
- * `createPdfExportPlugin(config)`'s factory-with-config authoring contract.
- */
 export type PdfExportConfig = {
     coverSheet?: PdfCoverSheetConfig;
     filename?: string;

@@ -1253,20 +1253,6 @@ export {};
 /**
  * `triiiceratops/image-export` — the shared, framework-neutral canvas
  * image-resolution and export toolkit consumed by first-party image plugins.
- *
- * These helpers (IIIF canvas image resolution, size-option ladders, canvas
- * compositing, blob fetching/downloading, multi-canvas layout math, OCR/
- * annotation geometry, and thumbnail fallbacks) are pure functions used by
- * core's own rendering AND by the `@triiiceratops/plugin-image-export` and
- * `@triiiceratops/plugin-pdf-export` packages, which run in the same realm as
- * core. Because the code is genuinely shared and remains with its owning
- * package (core), it is exposed here as a single real public seam rather than
- * duplicated into each plugin or moved into an unpublished catch-all shared
- * package. The closure imports no Svelte and no viewer state, so a plugin
- * bundling this seam into its self-contained IIFE pulls in no
- * `svelte/internal`. Re-exports are explicit (not `export *`) because the source
- * modules share some symbol names (`getCanvasId`), which a wildcard would make
- * ambiguous.
  */
 export { buildIiifImageRequestUrl, getCanvasId, getCanvasLabel, getDeclaredCanvasDimensions, resolveAllCanvasImages, resolveCanvasImage, type ResolvedCanvasImage, } from './utils/resolveCanvasImage';
 export { buildRelativeSizeOptions, clampCompositeSize, composeImages, downloadBlob, fetchExportImageBlob, fetchImageBlob, getCompositeImagePlacement, getResolvedImageExportUrl, isCrossOriginImageFailure, isLevel0ImageService, loadImageElement, resolveExportSizeOptions, sanitizeFilenamePart, type ComposeImageEntry, type ExportSizeOption, } from './utils/imageExport';
@@ -1544,32 +1530,12 @@ export declare function createPluginSurface(state: ViewerState, chromeId: string
 /**
  * `triiiceratops/react` — the React 19 framework wrapper.
  *
- * A React application renders `<TriiiceratopsViewer>` with typed props, creates
- * a handle with `useViewerHandle()`, and reads the viewer's live state through
- * `useViewer()` and `useViewerSelector()`. Registration of the self-contained
- * custom element is automatic, lazy, and shared; Svelte stays behind the
- * custom-element boundary at runtime AND at type-check time.
+ * React 19 is an OPTIONAL peer: importing this module on a server is safe and
+ * registers nothing.
  *
- * ```ts
- * const handle = useViewerHandle();
- * const canvasId = useViewerSelector(handle, (state) => state.canvasId);
- * return createElement(TriiiceratopsViewer, {
- *     handle,
- *     manifestId: 'https://example.org/manifest',
- *     onCanvasChange: (snapshot) => setUrlCanvas(snapshot.canvasId),
- * });
- * ```
- *
- * React 19 is an OPTIONAL peer dependency: `react` is a bare import specifier
- * here and never a runtime dependency of core. Importing this module on a
- * server is safe — nothing touches `window`, `document`, or `customElements`
- * at evaluation, and nothing is registered.
- *
- * **Re-export boundary.** Everything below comes from the framework substrate,
- * `triiiceratops/selectors`, or the shared `types/*` modules. Nothing is
- * re-exported from core's `.` entry: its declarations reach the compiled
- * `TriiiceratopsViewer.svelte.d.ts`, which imports `svelte`, and inheriting
- * that would break this subpath's no-Svelte type promise.
+ * Nothing below is re-exported from core's `.` entry: its declarations reach
+ * the compiled `TriiiceratopsViewer.svelte.d.ts`, which imports `svelte`, and
+ * inheriting that would break this subpath's no-Svelte type promise.
  */
 export { TriiiceratopsViewer, useViewer, useViewerHandle, useViewerSelector, ViewerProvider, type TriiiceratopsViewerProps, type TriiiceratopsViewerRef, type ViewerEventProps, type ViewerProjection, type ViewerProviderProps, type ViewerSelectorOptions, } from './react/index.js';
 export { TriiiceratopsCoreConflictError, TriiiceratopsElementRegistrationError, TriiiceratopsElementVersionError, TriiiceratopsHandleConflictError, VIEWER_ELEMENT_TAG, VIEWER_EVENT_CHANNELS, VIEWER_STATE_AVAILABLE_EVENT, type ReadonlyViewerState, type TriiiceratopsViewerElement, type ViewerEventChannel, type ViewerEventDetail, type ViewerEventDetailMap, type ViewerHandle, type ViewerHandleSlot, } from './framework/index.js';
@@ -4804,11 +4770,8 @@ export declare class ViewerState {
      * follow from it.
      */
     setDockSide(side: string): void;
-    /** Plugin-registered menu buttons */
     pluginMenuButtons: PluginMenuButton[];
-    /** Plugin-registered panels */
     pluginPanels: PluginPanel[];
-    /** Plugin-registered flyouts (compact popovers anchored to the toolbar button) */
     pluginFlyouts: PluginFlyout[];
     /**
      * Per-viewer annotation-edit channel shared by the annotation shape overlay
@@ -5125,41 +5088,9 @@ export declare const VIEWER_STATE_KEY = "triiiceratops:viewerState";
 // FILE: dist/svelte.d.ts
 // ======================================================================
 /**
- * `triiiceratops/svelte` — the Svelte 5 entry point.
- *
- * This is a SUPERSET of the framework-neutral `.` entry: everything the root
- * exports is re-exported here, plus the three groups that can only work with
- * Svelte installed. A Svelte consumer imports from this subpath and nothing
- * else; migrating from pre-1.0 is a single specifier change:
- *
- * ```diff
- * - import { TriiiceratopsViewer, ViewerState } from 'triiiceratops';
- * + import { TriiiceratopsViewer, ViewerState } from 'triiiceratops/svelte';
- * ```
- *
- * **Why these three groups live here and not on `.`.** Each reaches Svelte at
- * runtime, and the component additionally reaches it at type-check time:
- *
- * - `components/TriiiceratopsViewer.svelte` — a compiled component, whose
- *   declaration is `import("svelte").Component<…>`. This is the ONLY type-level
- *   Svelte reference in the published surface.
- * - `state/viewer.svelte` — a rune module; imports `svelte/reactivity` (and
- *   `svelte`) at runtime. Its DECLARATIONS are Svelte-free by construction (the
- *   reactive-collection members are typed as the plain built-ins that
- *   `SvelteSet`/`SvelteMap` extend), so `.` still re-exports `ViewerState` as a
- *   TYPE — only the constructible class moved here.
- * - `state/manifests.svelte` — likewise imports `svelte/reactivity`.
- *
- * Keeping them on `.` meant a React or Vue consumer who type-checked anything
- * reached from the root entry needed `svelte` installed. `svelte` is an OPTIONAL
- * peer dependency, so it generally is not — which made the root entry's name
- * ("the package") disagree with its audience ("Svelte users"). See
- * `SVELTE_CONSUMER_SUBPATHS` in `src/packaging/dtsSvelteImports.ts`, which now
- * holds `.` to the same strict no-Svelte rule as every other subpath and exempts
- * this one instead.
- *
- * A consumer who needs a constructible `ViewerState` WITHOUT Svelte installed
- * wants `triiiceratops/testing`, whose bundle inlines the reactivity runtime.
+ * `triiiceratops/svelte` — the Svelte 5 entry point. A superset of the
+ * framework-neutral `.` entry, plus the component and constructible state that
+ * need Svelte installed. Without Svelte, use `triiiceratops/testing`.
  */
 export * from './index';
 export { default as TriiiceratopsViewer } from './components/TriiiceratopsViewer.svelte';
@@ -8343,47 +8274,12 @@ export declare function getSequenceNodeIndexById(nodes: StructureNode[], nodeId:
 /**
  * `triiiceratops/vue` — the Vue 3.5 framework wrapper.
  *
- * A Vue application renders `<TriiiceratopsViewer>` with typed props, puts an
- * ordinary template ref on it, and reads the viewer's live state through
- * `useViewer()` and `useViewerSelector()`. Registration of the self-contained
- * custom element is automatic, lazy, and shared; Svelte stays behind the
- * custom-element boundary at runtime AND at type-check time.
+ * Vue 3.5 is an OPTIONAL peer: importing this module on a server is safe and
+ * registers nothing.
  *
- * ```vue
- * <script setup lang="ts">
- * import {
- *     TriiiceratopsViewer,
- *     useViewerSelector,
- *     type TriiiceratopsViewerInstance,
- * } from 'triiiceratops/vue';
- *
- * const viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');
- * const canvasId = useViewerSelector(viewer, (state) => state.canvasId);
- * </script>
- *
- * <template>
- *     <TriiiceratopsViewer
- *         ref="viewer"
- *         manifest-id="https://example.org/manifest"
- *         @canvas-change="(snapshot) => syncUrl(snapshot.canvasId)"
- *     />
- * </template>
- * ```
- *
- * Because the component is a render function, the raw custom-element tag never
- * reaches Vue's template compiler: no `compilerOptions.isCustomElement`
- * configuration is required.
- *
- * Vue 3.5 is an OPTIONAL peer dependency: `vue` is a bare import specifier here
- * and never a runtime dependency of core. Importing this module on a server is
- * safe — nothing touches `window`, `document`, or `customElements` at
- * evaluation, and nothing is registered.
- *
- * **Re-export boundary.** Everything below comes from the framework substrate,
- * `triiiceratops/selectors`, or the shared `types/*` modules. Nothing is
- * re-exported from core's `.` entry: its declarations reach the compiled
- * `TriiiceratopsViewer.svelte.d.ts`, which imports `svelte`, and inheriting
- * that would break this subpath's no-Svelte type promise.
+ * Nothing below is re-exported from core's `.` entry: its declarations reach
+ * the compiled `TriiiceratopsViewer.svelte.d.ts`, which imports `svelte`, and
+ * inheriting that would break this subpath's no-Svelte type promise.
  */
 export { provideViewer, TriiiceratopsViewer, useViewer, useViewerSelector, ViewerProvider, type TriiiceratopsViewerInstance, type TriiiceratopsViewerProps, type ViewerEmits, type ViewerHandleRef, type ViewerProjection, type ViewerProviderProps, type ViewerSelectorOptions, } from './vue/index.js';
 export { TriiiceratopsCoreConflictError, TriiiceratopsElementRegistrationError, TriiiceratopsElementVersionError, TriiiceratopsHandleConflictError, VIEWER_ELEMENT_TAG, VIEWER_EVENT_CHANNELS, VIEWER_STATE_AVAILABLE_EVENT, type ReadonlyViewerState, type TriiiceratopsViewerElement, type ViewerEventChannel, type ViewerEventDetail, type ViewerEventDetailMap, type ViewerHandle, type ViewerHandleSlot, } from './framework/index.js';

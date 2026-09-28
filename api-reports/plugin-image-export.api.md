@@ -14,87 +14,25 @@ import { type ExportSizeOption, type ResolvedCanvasImage } from 'triiiceratops/i
 export { isCrossOriginImageFailure } from 'triiiceratops/image-export';
 export type ImageDownloadFormat = 'image/png' | 'image/jpeg';
 export type ImageDownloadMode = 'composite' | 'single' | 'world';
-/**
- * The default name for a downloaded image: the manifest's label and the canvas's
- * label, in that order, sanitized for a filesystem.
- *
- * Both labels are localized IIIF language maps, so the caller resolves them in
- * the viewer's **active locale** rather than passing raw JSON here — a reader
- * browsing in French should get `Evangiles-Folio-2r.jpg`, not the English label.
- * Either may resolve to nothing (a manifest with no label, an unlabeled canvas),
- * and whichever survives is used alone.
- */
 export declare function buildImageDownloadFilename(canvasLabel: string, mode: ImageDownloadMode, format: ImageDownloadFormat, manifestLabel?: string | null): string;
 type ExportOptions = {
     format?: ImageDownloadFormat;
     getSelectedChoice?: (canvasId: string) => string | undefined;
 };
-/**
- * The image server a resolved image comes from, for an error message that names
- * who declined. `null` when there is no absolute URL to read a host from.
- */
 export declare function getImageHost(resolved: ResolvedCanvasImage): string | null;
-/**
- * Every painting image on `canvas` resolved for the "single image" picker
- * and to detect whether "composite canvas" mode has more than one image to
- * offer.
- */
 export declare function getCanvasImageChoices(canvas: any, getSelectedChoice?: (canvasId: string) => string | undefined): ResolvedCanvasImage[];
-/**
- * Resolution options for downloading a single image from a canvas.
- */
 export declare function resolveSingleImageSizeOptions(resolvedImage: ResolvedCanvasImage): Promise<ExportSizeOption[]>;
-/**
- * Resolution options for downloading an entire (possibly composite) canvas.
- * There's no single canonical request URL once there's more than one image,
- * so this always returns a relative Original/50%/25% ladder based on the
- * canvas's own declared IIIF dimensions.
- */
 export declare function resolveCompositeCanvasSizeOptions(canvas: any, getSelectedChoice?: (canvasId: string) => string | undefined): ExportSizeOption[];
 export declare function exportSingleImage(resolvedImage: ResolvedCanvasImage, sizeOption: ExportSizeOption): Promise<Blob>;
 export declare function exportCompositeCanvas(canvas: any, sizeOption: ExportSizeOption, options?: ExportOptions): Promise<Blob>;
-/**
- * Every canvas currently laid out together in the viewer that this plugin can
- * actually produce an image from (e.g. both pages of a spread in `paged` mode).
- * Used both to build the "current view" composite and to let "single image"
- * mode target one of several visible canvases instead of only ever the active
- * one.
- *
- * A canvas whose painting bodies are all non-image — the **unsupported
- * presentation**, a video or a sound recording sharing the spread — is left out
- * here rather than downstream. It is the difference between an export the
- * reader is never offered and one offered, chosen, and then refused for want of
- * a resolution to pick.
- */
+/** Canvases laid out together that this plugin can produce an image from. */
 export declare function getVisibleCanvasesForDownload(viewerState: ViewerState): any[];
-/**
- * Resolution options for downloading everything currently laid out together
- * in the viewer (e.g. a two-page spread in `paged` viewing mode). Reuses the
- * same layout math the viewer itself uses (`getCanvasDisplayLayouts`), so the
- * downloaded image matches what's on screen; there's no single native
- * reference size across canvases, so this offers a relative ladder against
- * the first image's own native width as the reference scale.
- */
 export declare function resolveWorldSizeOptions(viewerState: ViewerState, getSelectedChoice?: (canvasId: string) => string | undefined): ExportSizeOption[];
 export declare function exportCurrentWorld(viewerState: ViewerState, sizeOption: ExportSizeOption, options?: ExportOptions): Promise<Blob>;
 
 // ======================================================================
 // FILE: dist/index.d.ts
 // ======================================================================
-/**
- * `@triiiceratops/plugin-image-export` — ESM entry.
- *
- * Import the plugin factory and activate it explicitly on a viewer:
- *
- * ```ts
- * import { ImageDownloadPlugin } from '@triiiceratops/plugin-image-export';
- * // Svelte:  <TriiiceratopsViewer plugins={[ImageDownloadPlugin]} />
- * // WC:      viewer.plugins = [ImageDownloadPlugin];
- * ```
- *
- * The `exportImage` helpers are re-exported with their original signatures for
- * hosts that want to drive image export programmatically.
- */
 export { ImageDownloadPlugin } from './plugin';
 export { buildImageDownloadFilename, exportCompositeCanvas, exportCurrentWorld, exportSingleImage, getCanvasImageChoices, getImageHost, getVisibleCanvasesForDownload, isCrossOriginImageFailure, resolveCompositeCanvasSizeOptions, resolveSingleImageSizeOptions, resolveWorldSizeOptions, } from './exportImage';
 export type { ImageDownloadFormat, ImageDownloadMode } from './exportImage';
@@ -102,23 +40,6 @@ export type { ImageDownloadFormat, ImageDownloadMode } from './exportImage';
 // ======================================================================
 // FILE: dist/plugin.d.ts
 // ======================================================================
-/**
- * The image-download plugin, authored entirely on `@triiiceratops/plugin-sdk`.
- *
- * `definePlugin` returns the framework-neutral factory core activates through the
- * structural seam (it carries its own `activate(host)`); core never imports this
- * package or its Svelte runtime. The UI is Svelte, mounted through the neutral
- * `view.mount(container, context)` contract and torn down by the returned
- * cleanup. Styles install through the SDK style service (root-aware), strings
- * resolve through the per-viewer locale service over this package's catalog, and
- * the toolbar glyph is a `svgIcon` descriptor. Export reads canvas geometry from
- * raw Canvas JSON and core's first-party layout helpers, so the plugin requires
- * no capability.
- *
- * This plugin's validation duty is asynchronous
- * operations and binary output: the panel runs async IIIF fetch/compositing and
- * produces a download-ready `Blob` through the SDK seam.
- */
 import { type SdkPlugin } from '@triiiceratops/plugin-sdk';
 /** The image-download plugin factory. Activate it explicitly, per viewer. */
 export declare const ImageDownloadPlugin: SdkPlugin;

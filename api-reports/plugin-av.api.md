@@ -9,25 +9,8 @@
 // ======================================================================
 // FILE: dist/avState.d.ts
 // ======================================================================
-/**
- * **AVState** — the playback state this activation publishes (ADR 0018), and the
- * only way anything outside the plugin commands playback: a host reaches it
- * through `viewerState.getPluginState('av')`, and this plugin's own UI goes
- * through the same object rather than touching a media element directly.
- *
- * All times are **canvas time on the canvas timeline** (CONTEXT.md): `duration`
- * is the canvas's duration and `currentTime`/`seek` are canvas-time positions.
- * While one body plays one canvas that mapping is the identity, which is why
- * this module reads the element's clock — but nothing on the published surface
- * says so, so a sequencer can supply the mapping behind the same members.
- */
+/** AVState: all times are canvas time on the canvas timeline. */
 import type { PublishedState } from '@triiiceratops/plugin-sdk';
-/**
- * One caption track a host may switch on, as the manifest authored it.
- *
- * The label is content — a track called "Sottotitoli" is called that in every
- * locale — so it is published verbatim and never translated.
- */
 export interface AvCaptionTrack {
     /** The WebVTT resource's id, and the handle {@link AVState.setCaptionTrack} takes. */
     readonly url: string;
@@ -106,19 +89,6 @@ export declare function getAVState(viewerState: {
 // ======================================================================
 // FILE: dist/index.d.ts
 // ======================================================================
-/**
- * `@triiiceratops/plugin-av` — ESM entry.
- *
- * ```ts
- * import { AvPlugin } from '@triiiceratops/plugin-av';
- *
- * // Svelte:  <TriiiceratopsViewer plugins={[AvPlugin]} />
- * // WC:      viewer.plugins = [AvPlugin];
- * ```
- *
- * This build leaves `svelte` external as an ordinary peer, so a consumer's
- * bundler dedupes it against core's copy.
- */
 export { AvPlugin } from './plugin';
 export { getAVState } from './avState';
 export type { AVState, AvCaptionTrack } from './avState';
@@ -128,38 +98,7 @@ export { scanCanvasForAv } from './sources';
 // ======================================================================
 // FILE: dist/plugin.d.ts
 // ======================================================================
-/**
- * `@triiiceratops/plugin-av` — the audiovisual plugin, authored entirely on
- * `@triiiceratops/plugin-sdk`.
- *
- * `definePlugin` returns the framework-neutral factory core activates through
- * the structural seam (it carries its own `activate(host)`); core never imports
- * this package. The reader-facing surface is not this panel but the **stage**:
- * DOM in an overlay layer over each claimed canvas, built and placed by
- * `createAvStageManager`.
- *
- * `requiredCapabilities` names the seams this plugin cannot work without, so it
- * fails closed rather than half-working:
- *
- * - `canvas-claim` — without it the plugin would render over an
- *   unsupported-content placard it cannot suppress.
- * - `shared-svelte-runtime` — without it there is no `window.Triiiceratops`
- *   Svelte to consume, and this plugin's IIFE bundles none of its own.
- * - `shared-core-utils` — without it there are no curated core utilities on the
- *   namespace, and this plugin's IIFE bundles no copies of its own either.
- * - `transport-chrome` — without it there is nowhere to register the playback
- *   controls, and this plugin builds none of its own: a reader would get a
- *   staged recording with no way to play it.
- *
- * `coreRange` is a caret over the 1.x line, not an exact pin and not an open
- * lower bound. `>=` would be satisfied by a core 2.0 on a future Svelte, and
- * `svelte/internal` is private API with no semver guarantee: the capability
- * says a runtime is shared, and only the same-major line says it is the same
- * runtime. The caret admits the prerelease this plugin was built against and
- * every 1.x core after it — including the 1.0.0 stable the release tooling
- * mints from it — while refusing 2.0.0 and above, so the floor moves only
- * deliberately, at a core major, and never as release busywork.
- */
+/** AV plugin: reader surface is the stage, not the panel. */
 import { type SdkPlugin } from '@triiiceratops/plugin-sdk';
 /** The audiovisual plugin. Activate it explicitly, per viewer. */
 export declare const AvPlugin: SdkPlugin;
@@ -167,26 +106,9 @@ export declare const AvPlugin: SdkPlugin;
 // ======================================================================
 // FILE: dist/sources.d.ts
 // ======================================================================
-/**
- * Canvas → **source provider**: which time-based bodies a canvas paints, and
- * which of them this release plays.
- *
- * A canvas maps to a provider, never to "the one body": `0064-opera-one-canvas`
- * tiles a single canvas's duration with two videos, and the sequencer plays such
- * a canvas through as one work. Everything here reports every placement it found
- * and marks the canvas composed; what the placements MEAN on the canvas timeline
- * is the sequencer's to decide, out of the `t=` fragment carried here unparsed.
- *
- * What a body *is* is never decided here. `isImageBody` and
- * `paintingBodyAlternatives` are core's own painting classifier, exported for
- * exactly this caller, and a second implementation of that rule is the drift
- * this seam exists to prevent.
- */
-/** Which element plays a source. */
+/** Canvas source provider: which time-based bodies a canvas paints. */
 export type AvMediaKind = 'video' | 'audio';
-/** One playable time-based resource. */
 export interface AvSource {
-    /** The resource id, as authored — what the media element's `src` becomes. */
     readonly url: string;
     readonly kind: AvMediaKind;
     readonly format: string | null;
@@ -197,52 +119,19 @@ export interface AvSource {
      */
     readonly paintsPicture: boolean;
 }
-/** One painting annotation that places a time-based body on the canvas. */
 export interface AvPlacement {
-    /**
-     * This annotation's index among the canvas's painting annotations. It is
-     * how a segment finds the caption tracks authored beside its own body:
-     * `captionTracksForCanvas` numbers tracks over the same list.
-     */
     readonly annotation: number;
-    /**
-     * The target's media fragment, as authored and unparsed (`''` when there is
-     * none). The sequencer reads the `t=` window out of it to build the segment
-     * map; nothing else looks inside it.
-     */
     readonly fragment: string;
-    /**
-     * Every time-based resource this annotation could place, in manifest order
-     * — one entry unless a `Choice` offers renditions. Which of them is
-     * attached is `formats.ts`' decision and depends on the browser, so it is
-     * deliberately not made here: parsing must answer the same way whoever
-     * asks.
-     */
     readonly alternatives: readonly AvSource[];
-    /** The annotation's target carries an `xywh=` media fragment. */
     readonly spatial: boolean;
 }
-/** What one canvas paints in time-based media. */
 export interface AvCanvasScan {
     readonly canvasId: string;
-    /** Declared canvas dimensions, or `null` for a duration-only canvas. */
     readonly width: number | null;
     readonly height: number | null;
-    /**
-     * The canvas's declared duration in seconds, or `null` when it declares
-     * none. This is the canvas timeline's length, which a media element only
-     * agrees with once `loadedmetadata` has fired — so it is what gives a
-     * scrubber a range to draw before a byte of media has arrived.
-     */
     readonly duration: number | null;
-    /** Every time-based placement, in manifest order. */
     readonly placements: readonly AvPlacement[];
-    /**
-     * Several bodies share this canvas's duration, so the canvas timeline is a
-     * segment map rather than the identity mapping and a sequencer plays it.
-     */
     readonly temporallyComposed: boolean;
-    /** At least one time-based body is placed into part of the canvas rect. */
     readonly spatiallyTargeted: boolean;
 }
 /**

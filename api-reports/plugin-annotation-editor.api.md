@@ -11,32 +11,10 @@
 // FILE: dist/adapters/LocalStorageAdapter.d.ts
 // ======================================================================
 import type { W3CAnnotation, AdapterLoadResult, AnnotationStorageAdapter } from './types';
-/**
- * LocalStorage-based annotation adapter — the reference minimal adapter.
- *
- * It is pure storage: `localStorage` reads and writes, nothing more. Display
- * sync (to the owning viewer's state), caching, id reconciliation, and error
- * handling are all owned by the plugin's `AnnotationStore`, so a custom adapter
- * only needs to implement these few storage methods. This is the shape
- * every adapter should aim for.
- *
- * ── LocalStorage namespace (FROZEN) ────────────────────────────────────────
- * 1.0 writes under a new, stable, versioned, package-qualified key:
- *
- *     @triiiceratops/plugin-annotation-editor:v1:<manifestId>:<canvasId>
- *
- * This key is FROZEN — it is the stable 1.0 contract and must not change without
- * a `:v2:` bump. The prerelease adapter used a different, unversioned key
- * (`triiiceratops:annotations:<manifestId>:<canvasId>`). RC-era data is
- * neither read, migrated, deleted, nor overwritten: this adapter never touches
- * the old namespace, so prerelease keys are left byte-identical and untouched
- * (they are disposable RC data). This is local/single-browser storage — not a
- * production multi-user adapter.
- */
+/** Reference minimal adapter. Storage key is frozen 1.0 contract; never touch RC namespace. */
 export declare class LocalStorageAdapter implements AnnotationStorageAdapter {
     readonly id = "localStorage";
     readonly name = "Local Storage";
-    /** The frozen 1.0 namespace prefix (see the class doc). */
     private static readonly KEY_PREFIX;
     private storageKey;
     load(manifestId: string, canvasId: string): Promise<AdapterLoadResult[]>;
@@ -52,39 +30,27 @@ export declare class LocalStorageAdapter implements AnnotationStorageAdapter {
 // FILE: dist/adapters/types.d.ts
 // ======================================================================
 import type { W3CAnnotationBody, AnnotationStorageAdapter } from '../types';
-/**
- * IIIF/W3C media-fragment selector (`xywh=…`, `t=…`). The value carries the
- * fragment expression.
- */
 export interface FragmentSelector {
     type: 'FragmentSelector';
     conformsTo?: string;
     value: string;
     [key: string]: unknown;
 }
-/** IIIF `PointSelector` — a single canvas-space point (integer px per D2). */
 export interface PointSelector {
     type: 'PointSelector';
     x: number;
     y: number;
     [key: string]: unknown;
 }
-/** W3C `SvgSelector` — an SVG shape (polygon, path, …) as its `value`. */
 export interface SvgSelector {
     type: 'SvgSelector';
     value: string;
     [key: string]: unknown;
 }
-/**
- * Escape hatch for selector types the plugin doesn't model explicitly (e.g. a
- * `RangeSelector`, or a host-specific selector). Keeps the union open so a
- * round-trip never narrows away an unknown selector.
- */
 export interface UnknownSelector {
     type: string;
     [key: string]: unknown;
 }
-/** Open selector union — never narrow away unknown selector types. */
 export type W3CSelector = FragmentSelector | PointSelector | SvgSelector | UnknownSelector;
 /** W3C Web Annotation target (a `SpecificResource` pointing at a canvas). */
 export interface W3CTarget {
@@ -133,19 +99,6 @@ export type { AnnotationStorageAdapter };
 // ======================================================================
 // FILE: dist/index.d.ts
 // ======================================================================
-/**
- * `@triiiceratops/plugin-annotation-editor` — ESM entry.
- *
- * ```ts
- * import {
- *     createAnnotationEditorPlugin,
- *     AnnotationEditorPlugin,
- *     LocalStorageAdapter,
- * } from '@triiiceratops/plugin-annotation-editor';
- * // Svelte:  <TriiiceratopsViewer plugins={[AnnotationEditorPlugin]} />
- * // WC:      viewer.plugins = [AnnotationEditorPlugin];
- * ```
- */
 export { createAnnotationEditorPlugin, AnnotationEditorPlugin } from './plugin';
 export type { AnnotationEditorConfig, AnnotationBodyEditor, AnnotationBodyEditorApi, AnnotationEditorExtension, AnnotationEditorRuntimeContext, AnnotationEditorUiConfig, AnnotationEditorUser, AnnotationPersistenceError, AnnotationPersistenceOp, DrawingTool, W3CAnnotationBody, W3CPurpose, AnnotationStorageAdapter, } from './types';
 export { W3C_PURPOSES } from './types';
@@ -155,73 +108,16 @@ export { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
 // ======================================================================
 // FILE: dist/plugin.d.ts
 // ======================================================================
-/**
- * The annotation-editor plugin, authored on `@triiiceratops/plugin-sdk`.
- *
- * `definePlugin` returns the framework-neutral factory core activates through the
- * structural seam (it carries its own `activate(host)`); core never imports this
- * package or its Svelte runtime. The domain machinery — Store, Adapter seam,
- * per-viewer display sync, undo/redo, body editors, the drawing layer — is driven
- * from the neutral `view.mount(container, context)` contract (see
- * `mount.svelte.ts`).
- *
- * `uiId` is load-bearing, not cosmetic: core decides whether an annotation shape
- * is editable by finding a toolbar button whose plugin id is the literal
- * `'annotation-editor'` (`AnnotationShapeOverlay.svelte`). Renaming it makes
- * every shape non-editable, and no test in this package would catch it.
- */
+/** `uiId` must stay `'annotation-editor'`: core finds editable shapes by it. */
 import { type SdkPlugin } from '@triiiceratops/plugin-sdk';
 import type { AnnotationEditorConfig } from './types';
-/**
- * Create an annotation-editor plugin with custom configuration.
- *
- * @example
- * ```ts
- * import {
- *     createAnnotationEditorPlugin,
- *     LocalStorageAdapter,
- * } from '@triiiceratops/plugin-annotation-editor';
- *
- * const annotationPlugin = createAnnotationEditorPlugin({
- *     adapter: new LocalStorageAdapter(),
- *     user: { id: 'user-123', name: 'Jane Doe' },
- * });
- * // Svelte:  <TriiiceratopsViewer plugins={[annotationPlugin]} />
- * // WC:      viewer.plugins = [annotationPlugin];
- * ```
- */
 export declare function createAnnotationEditorPlugin(config?: AnnotationEditorConfig): SdkPlugin;
-/**
- * Pre-configured annotation-editor plugin with the LocalStorage adapter. For
- * advanced configuration use {@link createAnnotationEditorPlugin}.
- */
 export declare const AnnotationEditorPlugin: SdkPlugin;
 
 // ======================================================================
 // FILE: dist/testing/index.d.ts
 // ======================================================================
 import type { AnnotationStorageAdapter } from '../types';
-/**
- * Adapter authoring kit — a reusable conformance suite so adapter authors can
- * verify their implementation against the contract the plugin relies on.
- *
- * An adapter is pure storage: the plugin owns display sync, caching, id
- * bookkeeping, timestamp/attribution stamping, and error handling. This suite
- * therefore checks only storage behavior — load/create/update/delete round-trips,
- * verbatim body preservation (including structured/unknown shapes), key isolation,
- * and the two opt-in capabilities (server-assigned ids and hydrate).
- *
- * @example
- * ```ts
- * import { runAdapterContractTests } from '@triiiceratops/plugin-annotation-editor/testing';
- * import { MyAdapter } from './MyAdapter';
- *
- * runAdapterContractTests(() => new MyAdapter(), {
- *   supportsIdReconciliation: true,
- *   supportsHydrate: true,
- * });
- * ```
- */
 export interface AdapterContractOptions {
     /**
      * The adapter mints its own canonical id on `create` and returns it (as an
@@ -254,11 +150,6 @@ export declare function runAdapterContractTests(factory: () => AnnotationStorage
 import type { Component } from 'svelte';
 import type { PluginUiTarget } from '@triiiceratops/plugin-sdk';
 import type { W3CAnnotation, AdapterLoadResult } from './adapters/types';
-/**
- * The person an annotation is attributed to. Only `id` and `name` are ever
- * read — they are what creator stamping writes onto a new annotation — so the
- * shape is declared here rather than borrowed from a drawing library.
- */
 export interface AnnotationEditorUser {
     id: string;
     name?: string;
@@ -285,9 +176,7 @@ export interface AnnotationEditorExtension<HostContext = unknown, TBody = W3CAnn
     onSelectionChange?: (annotation: W3CAnnotation<TBody> | null, context: AnnotationEditorRuntimeContext<HostContext, TBody>) => void;
 }
 export interface AnnotationBodyEditorApi<HostContext = unknown, TBody = W3CAnnotationBody> {
-    /** Full selected annotation in canvas space. */
     annotation: W3CAnnotation<TBody>;
-    /** Current annotation bodies normalized to an array; body shape is host-owned. */
     bodies: unknown[];
     context: AnnotationEditorRuntimeContext<HostContext, TBody>;
     isHydrating: boolean;
@@ -314,101 +203,42 @@ export interface AnnotationEditorUiConfig {
     /** Allow adding more body rows in the built-in body editor. Defaults to `true`. */
     allowMultipleBodies?: boolean;
 }
-/**
- * The storage contract a host implements to bring its own annotation server.
- * It is pure storage — the plugin's `AnnotationStore` owns display sync,
- * caching, id reconciliation, stamping, and error handling — so a conforming
- * adapter is roughly these five functions (see `LocalStorageAdapter`).
- *
- * The `W3CAnnotation` / `AdapterLoadResult` shapes are defined in
- * `adapters/types.ts`; they are imported here (type-only, so the cycle is
- * erased at compile time) to keep the adapter contract fully typed.
- */
+/** Pure storage; the store owns display sync, caching, reconciliation, stamping, errors. */
 export interface AnnotationStorageAdapter<TBody = W3CAnnotationBody> {
     readonly id: string;
     readonly name: string;
-    /**
-     * Return the canvas's annotations. Skeleton entries (bodies not yet loaded)
-     * carry `__fullBodyLoaded: false`; the plugin reads that marker once and
-     * strips it (see {@link AdapterLoadResult}).
-     */
     load(manifestId: string, canvasId: string): Promise<AdapterLoadResult<TBody>[]>;
-    /** Fetch the full body for a previously-skeleton annotation. */
     hydrate?(manifestId: string, canvasId: string, annotationId: string): Promise<AdapterLoadResult<TBody> | null>;
-    /**
-     * Persist a new annotation. Servers that mint their own annotation IRI on
-     * create may return the canonical annotation (or just its id string); the
-     * plugin then reconciles the id everywhere. Returning `void` keeps the
-     * client-generated id (the LocalStorageAdapter path).
-     */
     create(manifestId: string, canvasId: string, annotation: W3CAnnotation<TBody>): Promise<W3CAnnotation<TBody> | string | void>;
-    /**
-     * Persist an update. Returning the (possibly server-normalized) annotation
-     * replaces the cached copy; returning `void` keeps the sent payload.
-     */
     update(manifestId: string, canvasId: string, annotation: W3CAnnotation<TBody>): Promise<W3CAnnotation<TBody> | void>;
     delete(manifestId: string, canvasId: string, annotationId: string): Promise<void>;
     destroy?(): void;
 }
-/** The adapter operations whose failures are surfaced. */
 export type AnnotationPersistenceOp = 'load' | 'create' | 'update' | 'delete' | 'hydrate';
-/**
- * Structured description of a failed persistence operation handed to
- * `config.onPersistenceError`. The plugin has already rolled back its optimistic
- * cache/display changes by the time this fires; `retry()` re-runs the exact
- * failed operation with the same payload.
- */
 export interface AnnotationPersistenceError {
     op: AnnotationPersistenceOp;
-    /** The affected annotation id, when the operation targets one. */
     annotationId?: string;
     manifestId: string;
     canvasId: string;
-    /** The value the adapter threw/rejected with. */
     cause: unknown;
     retry: () => Promise<void>;
 }
 export interface AnnotationEditorConfig<TBody = W3CAnnotationBody, THostContext = unknown> {
-    /** Render target for the plugin chrome. Defaults to `'panel'`. */
     target?: PluginUiTarget;
-    /** Storage adapter for persistence */
     adapter?: AnnotationStorageAdapter<TBody>;
-    /** Current user for attribution */
     user?: AnnotationEditorUser;
-    /** Available drawing tools */
     tools?: DrawingTool[];
-    /** Default drawing tool */
     defaultTool?: DrawingTool;
-    /** Optional extension hook surface for host apps */
     extension?: AnnotationEditorExtension<THostContext, TBody>;
-    /** Optional replacement for the built-in annotation body editor. */
     bodyEditor?: AnnotationBodyEditor<THostContext, TBody>;
-    /** Optional UI chrome and built-in body editor knobs. */
     ui?: AnnotationEditorUiConfig;
-    /** Optional hook to prefill a new annotation before its first save */
     prepareAnnotation?: (annotation: W3CAnnotation<TBody>) => W3CAnnotation<TBody>;
-    /** Optional gate for whether new annotations can be created right now */
     canCreateAnnotation?: () => boolean;
-    /** Optional status message explaining why creation is unavailable */
     getCreateDisabledReason?: () => string | null;
-    /**
-     * Motivation stamped onto new annotations that don't already carry one.
-     * Defaults to `'commenting'`. A host-set `motivation` (or one applied by
-     * `extension.beforeSave`) is never overwritten.
-     */
     defaultMotivation?: string;
-    /**
-     * Called when a persistence operation fails. The plugin has already rolled
-     * back its optimistic cache/display changes and re-signalled selection; the
-     * host decides how to surface the failure and may call `retry()` to re-run
-     * the exact failed operation. When omitted, the plugin logs to the console
-     * and shows a dismissible error line in the panel so failures are never
-     * invisible.
-     */
     onPersistenceError?: (error: AnnotationPersistenceError) => void;
 }
 export type DrawingTool = 'rectangle' | 'ellipse' | 'polygon' | 'point' | 'wholeCanvas';
-/** W3C Annotation Body */
 export interface W3CAnnotationBody {
     type?: string;
     purpose?: string;
@@ -422,6 +252,5 @@ export interface W3CAnnotationBody {
     created?: string;
     modified?: string;
 }
-/** Standard W3C purposes for autocomplete */
 export declare const W3C_PURPOSES: readonly ["commenting", "tagging", "describing", "classifying", "identifying", "linking", "bookmarking", "highlighting", "questioning", "replying"];
 export type W3CPurpose = (typeof W3C_PURPOSES)[number];

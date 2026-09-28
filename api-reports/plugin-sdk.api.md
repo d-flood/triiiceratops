@@ -16,15 +16,6 @@
 // ======================================================================
 // FILE: dist/activate.d.ts
 // ======================================================================
-/**
- * Per-viewer plugin activation.
- *
- * Activation is explicit and per viewer (CONTEXT.md **Activation**): each call
- * negotiates compatibility, then constructs an isolated context with its own
- * selector runtime (one `ViewerState.subscribe`) and its own cleanup list. On
- * `deactivate()` the mount cleanup runs and the selector subscription is
- * dropped, so no callbacks fire afterward. Deactivation is idempotent.
- */
 import type { PluginActivation, PluginHost, SdkPluginMeta } from 'triiiceratops';
 /**
  * The one id this viewer knows a plugin by, for a caller that has to name a
@@ -70,28 +61,7 @@ export declare function activatePlugin(plugin: SdkPluginMeta & {
 // ======================================================================
 // FILE: dist/compatibility.d.ts
 // ======================================================================
-/**
- * Semver compatibility negotiation.
- *
- * A plugin declares `coreRange`, `pluginApiRange`, and `requiredCapabilities`.
- * At activation the SDK checks them against the host's declared `coreVersion`,
- * `pluginApiVersion`, and `capabilities` and, on any mismatch, throws an
- * actionable {@link PluginCompatibilityError} naming every failed check.
- *
- * A small self-contained semver implementation is used deliberately: the base
- * SDK is dependency-light and framework-neutral, and every byte here ships in
- * every plugin bundle, so it takes on no runtime dependency (not even `semver`)
- * and implements only the three range styles a plugin declares in practice —
- * an exact version, a caret range, and a `>=` lower bound. Anything else
- * (`~`, `*`, `=`, `>`, `<`, `<=`, a space-joined AND, a `||` OR set) is REFUSED
- * with a thrown error rather than answered, because the alternative to a narrow
- * implementation is not a broad one but a silently wrong one: a range style the
- * SDK does not understand would otherwise read as "incompatible" and take a
- * working plugin off the page with no explanation.
- *
- * Prereleases compare per semver ordering (a prerelease is lower than its
- * release), so `1.0.0-rc.25` satisfies `>=1.0.0-rc.0` but not `^1.0.0`.
- */
+/** Only exact, caret, and `>=` ranges are answered; anything else throws. */
 import type { PluginHost, SdkPluginMeta } from 'triiiceratops';
 /**
  * Does `version` satisfy `range`? Returns `false` for an unparseable version.
@@ -122,18 +92,7 @@ export declare function negotiateCompatibility(plugin: SdkPluginMeta, host: Plug
 // ======================================================================
 // FILE: dist/definePlugin.d.ts
 // ======================================================================
-/**
- * `definePlugin` — the framework-neutral plugin authoring entry.
- *
- * Accepts declarative metadata (package-qualified name, version, `coreRange`,
- * `pluginApiRange`, `requiredCapabilities`, icon, target) and a `PluginView`,
- * and returns the plugin factory object activation consumes. The returned
- * object carries its own `activate(host)` (a closure over the SDK's activation
- * machinery) so core can mount it through the structural seam alone, without
- * importing the SDK at runtime.
- */
 import type { IconDescriptor, LocaleCatalog, PluginUiTarget, PluginView, SdkPlugin } from 'triiiceratops';
-/** Declarative configuration accepted by {@link definePlugin}. */
 export interface DefinePluginConfig {
     /**
      * Package-qualified plugin IDENTITY (e.g. `@triiiceratops/plugin-x`). It
@@ -213,16 +172,6 @@ export declare function definePlugin(config: DefinePluginConfig): SdkPlugin;
 // ======================================================================
 // FILE: dist/index.d.ts
 // ======================================================================
-/**
- * `@triiiceratops/plugin-sdk` — framework-neutral plugin authoring SDK.
- *
- * The base entry has zero runtime framework dependencies: everything imported
- * from `triiiceratops` here is type-only (erased at build), and the runtime code
- * (`definePlugin`, activation, selectors, compatibility) is self-contained.
- * Framework adapters (Svelte/React/Vue/Lit) and the test kit — which carries the
- * stub host services — are separate subpaths, so nothing a shipped plugin cannot
- * reach is bundled into it.
- */
 export { definePlugin } from './definePlugin.js';
 export type { DefinePluginConfig } from './definePlugin.js';
 export { svgIcon, SvgIconError } from './svgIcon.js';
@@ -348,50 +297,12 @@ export declare function useViewerSelector<T>(context: PluginContext, selector: (
 // ======================================================================
 // FILE: dist/register-shared.d.ts
 // ======================================================================
-/**
- * Browser registration for a plugin that cannot load before core.
- *
- * `@triiiceratops/plugin-sdk/register` bootstraps `window.Triiiceratops` if it
- * is absent, so a plugin script may register before core's script runs. A plugin
- * whose bundle reads core's shared Svelte runtime off that namespace has no such
- * freedom: its own load-order gate refuses to evaluate the bundle at all without
- * a core already on the page, and any core that installs the namespace installs
- * `plugins` with it. Bootstrapping a registry it can never be the first to need
- * is dead weight in every one of its bytes, so this entry registers into the
- * namespace core installed and does nothing else.
- *
- * The `?.` is not a load-order fallback — the gate has already guaranteed the
- * namespace — but the honest way to say that this entry never creates one.
- */
 import type { SdkPlugin } from 'triiiceratops';
-/** Register the plugin factory into the core-installed namespace. */
 export declare function registerBrowserPlugin(plugin: SdkPlugin): void;
 
 // ======================================================================
 // FILE: dist/register.d.ts
 // ======================================================================
-/**
- * Self-contained browser registration into the `window.Triiiceratops` namespace.
- *
- * The namespace is an order-independent registry: every core OR plugin IIFE
- * bootstraps it if absent (`window.Triiiceratops ??= …`), so a plugin script may
- * load and register before core. This helper mirrors core's registry shape
- * exactly (register / get / has / list, keyed by name with version as the
- * first-wins tiebreaker); when core loads it reuses whichever runtime object
- * already exists and fills in `coreVersion` / `pluginApiVersion` /
- * `capabilities`. Registration NEVER activates anything (CONTEXT.md
- * **Registration**) — activation stays explicit and per viewer.
- *
- * Shipped as the `@triiiceratops/plugin-sdk/register` subpath and consumed by
- * every plugin's IIFE entry. It imports only types (erased at build) and
- * nothing else from the SDK, so bundling it into a plugin IIFE pulls no runtime
- * and no Svelte into the bundle — the copy stays cheap and self-contained.
- *
- * A plugin that CANNOT load before core — one whose bundle reads core's shared
- * Svelte runtime off the namespace — has nothing to bootstrap and uses
- * `@triiiceratops/plugin-sdk/register-shared` instead, which is this file
- * without the registry.
- */
 import type { SdkPlugin } from 'triiiceratops';
 /** Bootstrap `window.Triiiceratops` if absent and register the plugin factory. */
 export declare function registerBrowserPlugin(plugin: SdkPlugin): void;
@@ -399,62 +310,11 @@ export declare function registerBrowserPlugin(plugin: SdkPlugin): void;
 // ======================================================================
 // FILE: dist/renderer.d.ts
 // ======================================================================
-/**
- * Renderer-readiness helper.
- *
- * **This is not `whenOsdReady` renamed.** That helper meant "the third-party
- * viewer object exists — here it is, you may touch it", and it resolved WITH
- * that object. With no pass-through there is nothing to hand over, so the two
- * are not interchangeable and carrying the old semantics forward under a new
- * name would have been the wrong half of the choice.
- *
- * The decision taken: the helper **becomes a first-paint signal** rather than
- * retiring. It resolves `void`, and what it promises is that the renderer has a
- * **sized surface and accepts commands** — i.e. that
- * `ViewerState.viewportScale` / `viewportCentre` / `viewportBounds` /
- * `containerSize` answer with real numbers instead of zeroes and `null`s, and
- * that `zoomTo`, `panTo`, `fitBounds`, and `fitCanvas` will do something rather
- * than no-op.
- *
- * It survives rather than retiring because the question it answers is still
- * asked, by anything that has to place something over the image: a plugin
- * measuring where a canvas point lands on screen before the surface is sized
- * gets an honest `null`, and polling for it is exactly what a readiness helper
- * exists to prevent.
- *
- * Framework-neutral by construction: it reads `viewerState.rendererReady` and
- * waits on the framework-neutral `ViewerState.subscribe` fan-out — no Svelte
- * runtime, no renderer import, and no renderer object anywhere in the result.
- */
+/** Resolves once the renderer has a sized surface and accepts commands. */
 import type { ViewerState } from 'triiiceratops';
-/** Options for {@link whenRendererReady}. */
 export interface WhenRendererReadyOptions {
-    /**
-     * Abort the wait. When the signal fires before the renderer is ready, the
-     * internal `ViewerState` subscription is dropped (no leak past a plugin's
-     * teardown) and the promise rejects with the signal's reason. Pass a
-     * controller you abort from the plugin's cleanup so a viewer that never
-     * mounts a renderer does not leave a dangling subscription.
-     */
     signal?: AbortSignal;
 }
-/**
- * Resolve once the owning viewer's renderer has a sized surface and accepts
- * commands. Resolves synchronously (a microtask) if it already does; otherwise
- * it waits on the batched notification path, so the promise settles on the
- * flush after core marks the renderer ready — `rendererReady` is an inventoried
- * observable member.
- *
- * Resolves `void`, deliberately: there is no object to hand out, and a helper
- * that returned one would be the pass-through rebuilt.
- *
- * Note that readiness is not permanent. A renderer that unmounts sets
- * `rendererReady` back to `false`; this helper answers "is it ready now (or
- * when next it becomes ready)", not "has it ever been ready".
- *
- * @param state The owning viewer's live state (from `PluginContext.viewerState`).
- * @param options Optional {@link WhenRendererReadyOptions} (e.g. an `AbortSignal`).
- */
 export declare function whenRendererReady(state: ViewerState, options?: WhenRendererReadyOptions): Promise<void>;
 
 // ======================================================================
@@ -479,20 +339,6 @@ export declare function dispatchPluginCommandError(node: EventTarget, pluginName
 // ======================================================================
 // FILE: dist/selectors.d.ts
 // ======================================================================
-/**
- * Memoized viewer-state selectors: a re-export of the ONE framework-neutral
- * selector runtime core owns (`triiiceratops/selectors`).
- *
- * The implementation lives in core so plugin activations and the React/Vue
- * framework wrappers cannot drift on equality, memoization, cadence, disposal,
- * or error semantics. Each plugin activation gets its OWN runtime (one
- * `ViewerState.subscribe` registration each), and projection/listener failures
- * carry plugin attribution through the `SelectorRuntimeOptions` hooks
- * `runActivation` passes.
- *
- * `triiiceratops/selectors` is a Svelte-free entry point, so re-exporting it
- * keeps the SDK's base entry free of the viewer's Svelte graph.
- */
 export { createSelectorRuntime } from 'triiiceratops/selectors';
 export type { SelectorRuntime, SelectorRuntimeOptions, SelectorSource, SourceSelectors, } from 'triiiceratops/selectors';
 
@@ -578,31 +424,7 @@ export declare function svgIcon(svg: string): IconDescriptor;
 // ======================================================================
 // FILE: dist/testing/conformance.d.ts
 // ======================================================================
-/**
- * Plugin conformance suite.
- *
- * `runPluginConformance(factory)` registers a battery of vitest cases that
- * activate the plugin against a real test viewer context and assert the
- * lifecycle contracts every plugin must honor:
- *
- * - mount/cleanup symmetry — `mount` runs once, its cleanup runs once on
- *   deactivation, and deactivation is idempotent;
- * - subscription disposal — no `ViewerState` subscription leaks past
- *   deactivation (a command afterwards reaches no plugin listener);
- * - locale-change handling — an active-locale switch does not fail the plugin;
- * - style cleanup — every installed stylesheet is released on deactivation;
- * - error isolation — a sibling throwing view yields a PHASE-CORRECT failure
- *   through `host.reportError`, and the real viewer state stays live;
- * - published state (ADR 0018), for a plugin that publishes any — every member
- *   carrying a real classification (and every classification naming a real
- *   member), an observable member seen to change waking subscribers by the next
- *   flush, and the publication retired with the activation. A plugin that
- *   publishes nothing passes these vacuously.
- *
- * The cases are exported as {@link conformanceCases} so a harness (or the kit's
- * own tests) can drive an individual check directly — e.g. to assert that a
- * deliberately-leaky plugin FAILS the subscription-disposal check.
- */
+/** Lifecycle contracts every plugin honors; publish-nothing passes vacuously. */
 import type { SdkPlugin } from 'triiiceratops';
 /** A factory returning a FRESH plugin instance for each conformance case. */
 export type PluginFactory = () => SdkPlugin;
@@ -625,22 +447,7 @@ export declare function runPluginConformance(factory: PluginFactory): void;
 // ======================================================================
 // FILE: dist/testing/context.d.ts
 // ======================================================================
-/**
- * The test viewer context.
- *
- * `createTestViewerContext` assembles a REAL, compiled `ViewerState` (from
- * `triiiceratops/testing`) with RECORDING DOUBLES for the style, UI, and locale
- * services and an injectable renderer stand-in that defaults to absent. This is the
- * canonical shape of CONTEXT.md's **Test viewer context**: "the harness is fake;
- * the state is never fake." Commands, `subscribe`, selector memoization, and the
- * batched notification flush are all the production implementations — only the
- * host-owned services and the renderer are stand-ins.
- *
- * The doubles only RECORD calls; they need not implement teardown. `runActivation`
- * auto-tracks every `styles.install` and `locale.subscribe` an
- * activation performs and releases them on deactivation, so a recording double is
- * free to be a pure log.
- */
+/** Real `ViewerState` with recording doubles; the harness is fake, the state never is. */
 import type { IconDescriptor, LocaleCatalog, PluginContext, PluginLocaleService, PluginStyleService, PluginSurface, PluginUiService, PluginUiTarget, ViewerState } from 'triiiceratops';
 import { type HeadlessViewerFixtures, type RendererStub, type RendererStubOptions } from 'triiiceratops/testing';
 import { whenRendererReady } from '../renderer.js';
@@ -790,34 +597,7 @@ export declare function createTestViewerContext(options?: TestViewerContextOptio
 // ======================================================================
 // FILE: dist/testing/index.d.ts
 // ======================================================================
-/**
- * `@triiiceratops/plugin-sdk/testing` — the plugin-author test kit.
- *
- * A plugin author validates a plugin without a full application by mounting it
- * against a **test viewer context**: a REAL, compiled `ViewerState` (real
- * commands, real batched notifications) with recording-double services and a
- * mountable headless renderer stand-in (CONTEXT.md **Test viewer context** —
- * "the harness is fake; the state is never fake"). Because the state is the production
- * implementation, a passing test reflects production semantics.
- *
- * ── Flush timing rule (READ THIS) ─────────────────────────────────────────
- * Notifications are BATCHED and delivered on the reactive flush, never
- * synchronously inside a command. After a command (or `setLocale`/`attachRenderer`),
- * `await flush()` before asserting a subscriber reacted:
- *
- *   import { createTestViewerContext, flush } from '@triiiceratops/plugin-sdk/testing';
- *   const { context } = createTestViewerContext();
- *   const open = context.selectors.select((s) => s.toolbarOpen);
- *   let seen = open.get();
- *   open.subscribe((v) => { seen = v; });
- *   context.viewerState.toggleToolbar();
- *   await flush();            // ← notification lands here
- *   expect(seen).toBe(true);
- *
- * This kit is unit-level. Renderer-dependent behavior — anything that needs a
- * real viewport, a projected coordinate or a pointer gesture — is validated at
- * the browser seam, not here: the kit ships no renderer fake.
- */
+/** Test kit: real `ViewerState`, recording doubles. Await `flush()` after commands. */
 export { flush, createHeadlessViewerState, type HeadlessViewerFixtures, } from 'triiiceratops/testing';
 export { createTestViewerContext, whenRendererReady, type TestViewerContext, type TestViewerContextOptions, type RecordingStyleService, type RecordedStyleInstall, type RecordingUiService, type RecordedUiRequest, type TestLocaleService, } from './context.js';
 export { createStubStyleService, createStubLocaleService, createStubUiService, createStubSurfaceService, } from './stubs.js';
@@ -826,20 +606,6 @@ export { runPluginConformance, conformanceCases, type PluginFactory, type Confor
 // ======================================================================
 // FILE: dist/testing/stubs.d.ts
 // ======================================================================
-/**
- * Minimal stub host services, for a test that wants an activation and nothing
- * else.
- *
- * A `PluginHost` supplies `styles`, `locale`, `ui`, and `surface`; core builds
- * the real, per-viewer, root-aware implementations, and the test kit's
- * `createTestViewerContext` hands back recording doubles worth asserting
- * against. These stubs are for the third case: a bare `runActivation` into a
- * container the caller placed, where the services are required by the contract
- * and irrelevant to the test.
- *
- * They live on the testing surface rather than in the SDK's base entry so no
- * plugin bundle carries a service implementation no reader can see.
- */
 import type { PluginLocaleService, PluginStyleService, PluginSurface, PluginUiService } from 'triiiceratops';
 /** No-op style service: records nothing, returns a no-op uninstaller. */
 export declare function createStubStyleService(): PluginStyleService;
