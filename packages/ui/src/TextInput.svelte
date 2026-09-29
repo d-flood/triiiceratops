@@ -3,7 +3,10 @@
 
     type Size = 'xs' | 'sm' | 'md' | 'lg';
 
-    interface Props extends Omit<HTMLInputAttributes, 'size'> {
+    interface Props extends Pick<
+        HTMLInputAttributes,
+        'type' | 'placeholder' | 'disabled' | 'onkeydown'
+    > {
         value?: string;
         size?: Size;
         /** Transparent until focus. */
@@ -19,7 +22,9 @@
         type = 'text',
         class: className = '',
         style = '',
-        ...rest
+        placeholder,
+        disabled,
+        onkeydown,
     }: Props = $props();
 
     const SIZE: Record<Size, string> = {
@@ -37,7 +42,9 @@
     class:ghost
     bind:value
     style={computedStyle}
-    {...rest}
+    {placeholder}
+    {disabled}
+    {onkeydown}
 />
 
 <style>

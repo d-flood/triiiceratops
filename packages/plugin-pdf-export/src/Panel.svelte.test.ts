@@ -178,6 +178,25 @@ describe('PDF export panel over an audiovisual canvas', () => {
         await unmount(app);
     });
 
+    it('renders the attributes it passes to the Select and Button primitives', async () => {
+        const { app } = await mountPanel(target, [
+            imageCanvas('one'),
+            imageCanvas('two'),
+        ]);
+
+        const start = target.querySelector('[data-tri-pdf-start]');
+        const end = target.querySelector('[data-tri-pdf-end]');
+        expect(start?.tagName).toBe('SELECT');
+        expect(start?.id).toBe('tri-pdf-start');
+        expect(end?.tagName).toBe('SELECT');
+        expect(end?.id).toBe('tri-pdf-end');
+        expect(target.querySelector('[data-tri-pdf-export]')?.tagName).toBe(
+            'BUTTON',
+        );
+
+        await unmount(app);
+    });
+
     it('explains a range with nothing exportable in it instead of failing namelessly', async () => {
         const { app } = await mountPanel(target, [videoCanvas('film')]);
 

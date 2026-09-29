@@ -150,9 +150,7 @@ export function createViewerBinding(
         if (availabilityCount > 1 && !warnedReavailability) {
             warnedReavailability = true;
             logger.warn(
-                'A <triiiceratops-viewer> published a second ViewerState: it ' +
-                    'was detached long enough for its viewer to be destroyed, ' +
-                    'so the previous state is gone. The wrapper has rebound.',
+                'published a second ViewerState after a long detach; rebound',
             );
         }
 
@@ -218,10 +216,7 @@ export function createViewerBinding(
                 if (options.onRegistrationError) {
                     options.onRegistrationError(error);
                 } else {
-                    logger.error(
-                        '<triiiceratops-viewer> registration failed',
-                        error,
-                    );
+                    logger.error('registration failed', error);
                 }
             });
             const existing = next.viewerState;

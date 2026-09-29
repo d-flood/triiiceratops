@@ -29,41 +29,73 @@
 
     let canvases = $derived(viewerState.canvases as ManifestCanvas[]);
 
-    let thumbnails = $derived.by(() =>
-        canvases.map((canvas: ManifestCanvas, index: number) => {
-            const canvasId = getCanvasId(canvas) || `canvas-${index}`;
+    type Thumb = {
+        id: string;
+        label: string;
+        src: string;
+        index: number;
+        hasChoice: boolean;
+        unsupported: boolean;
+    };
+
+    type ThumbInputs = {
+        index: number;
+        choice: string | undefined;
+        locale: string;
+        claimed: boolean;
+    };
+
+    // Plain memos, not state: an entry whose inputs are unchanged keeps its
+    // identity, so the keyed each-block below leaves it alone.
+    const thumbMemo = new WeakMap<
+        ManifestCanvas,
+        ThumbInputs & { thumb: Thumb }
+    >();
+
+    function thumbnailFor(canvas: ManifestCanvas, index: number): Thumb {
+        const canvasId = getCanvasId(canvas) || `canvas-${index}`;
+        const choice = viewerState.getSelectedChoice(canvasId);
+        const claimed = viewerState.isCanvasClaimed(canvasId);
+        const locale = viewerLocale;
+        const memo = thumbMemo.get(canvas);
+        if (
+            memo &&
+            memo.index === index &&
+            memo.choice === choice &&
+            memo.locale === locale &&
+            memo.claimed === claimed
+        ) {
+            return memo.thumb;
+        }
+
+        const thumb: Thumb = {
+            id: canvasId,
+            // Reads the raw JSON directly — canvases have no getLabel()
+            // accessor to fall back on.
+            label: getCanvasLabel(canvas, index, locale),
             // Resolved over the reader's selected alternative, the same body
             // `unsupported` below is decided on.
-            let src = getThumbnailSrc(
-                canvas,
-                200,
-                viewerState.getSelectedChoice(canvasId),
-            );
+            src: getThumbnailSrc(canvas, 200, choice),
+            index,
+            hasChoice: getCanvasChoices(canvas).length > 0,
+            // The AV variant of the no-thumbnail treatment. A canvas core
+            // cannot render has no image to fall back to and would
+            // otherwise be indistinguishable from a folio whose thumbnail
+            // is missing — the strip is where a reader tells a sound
+            // recording from a broken page.
+            //
+            // A CLAIMED canvas is a plugin's, and the glyph is part of the
+            // unsupported presentation the claim suppresses: the strip has
+            // no business announcing unshowable content for a canvas
+            // something is showing (CONTEXT.md **Canvas claim**).
+            unsupported:
+                isUnsupportedCanvasFor(viewerState, canvas) && !claimed,
+        };
+        thumbMemo.set(canvas, { thumb, index, choice, locale, claimed });
+        return thumb;
+    }
 
-            return {
-                id: canvasId,
-                // Reads the raw JSON directly — canvases have no getLabel()
-                // accessor to fall back on.
-                label: getCanvasLabel(canvas, index, viewerLocale),
-                src,
-                index,
-                hasChoice: getCanvasChoices(canvas).length > 0,
-                // The AV variant of the no-thumbnail treatment. A canvas core
-                // cannot render has no image to fall back to and would
-                // otherwise be indistinguishable from a folio whose thumbnail
-                // is missing — the strip is where a reader tells a sound
-                // recording from a broken page.
-                //
-                // A CLAIMED canvas is a plugin's, and the glyph is part of the
-                // unsupported presentation the claim suppresses: the strip has
-                // no business announcing unshowable content for a canvas
-                // something is showing (CONTEXT.md **Canvas claim**).
-                unsupported:
-                    isUnsupportedCanvasFor(viewerState, canvas) &&
-                    !viewerState.isCanvasClaimed(canvasId),
-            };
-        }),
-    );
+    let thumbnails = $derived(canvases.map(thumbnailFor));
 
     /**
      * The paged pairing of the whole manifest. Only meaningful in `paged` mode,
@@ -74,11 +106,17 @@
         getPagedCanvasGroups(canvases, viewerState.pagedOffset),
     );
 
+    let pagedGroupByCanvas = $derived(
+        new Map(
+            pagedGroups.flatMap((group) =>
+                group.entries.map((entry) => [entry.canvasId, group] as const),
+            ),
+        ),
+    );
+
     /** The paged pair a canvas belongs to. */
     function groupOf(canvasId: string) {
-        return pagedGroups.find((group) =>
-            group.entries.some((entry) => entry.canvasId === canvasId),
-        );
+        return pagedGroupByCanvas.get(canvasId);
     }
 
     function selectCanvas(canvasId: string) {
@@ -108,9 +146,9 @@
     // Auto-scroll active thumbnail into view
     $effect(() => {
         if (!galleryElement || !viewerState.canvasId) return;
-        // Wait for thumbnails to be available - this creates a reactive dependency
-        // so the effect re-runs when thumbnails populate after manifest loads
-        if (thumbnails.length === 0) return;
+        // Tracks the canvas list so it re-runs once a manifest's canvases
+        // arrive, but never the thumbnail entries: a recompute must not scroll.
+        if (canvases.length === 0) return;
 
         let targetId = viewerState.canvasId;
 
@@ -247,8 +285,6 @@
         return () => window.removeEventListener('keydown', onKeydown);
     });
 
-    type Thumb = (typeof thumbnails)[number];
-
     // One entry per thumbnail button: a paged pair, or a single canvas. Every
     // viewing mode produces these, so the strip has one rendering path. `index`
     // is the first thumb's canvas index, so the nth pane's displayed number is
@@ -260,24 +296,34 @@
         hasChoice: boolean;
     };
 
+    const groupMemo = new WeakMap<Thumb, ThumbnailGroup>();
+
+    function groupFor(first: Thumb, second: Thumb | null): ThumbnailGroup {
+        const memo = groupMemo.get(first);
+        if (memo && memo.thumbs[1] === (second ?? undefined)) return memo;
+
+        const thumbs = second ? [first, second] : [first];
+        const group: ThumbnailGroup = {
+            id: first.id,
+            index: first.index,
+            thumbs,
+            hasChoice: thumbs.some((thumb) => thumb.hasChoice),
+        };
+        groupMemo.set(first, group);
+        return group;
+    }
+
     const groupedThumbnails = $derived.by(() => {
-        const groups: ThumbnailGroup[] = [];
         const thumbs = thumbnails;
 
         // Outside paged mode every canvas stands alone, and pairing is not
         // merely unwanted but wrong: `getPagedCanvasGroups` does not know the
         // viewing mode and would pair regardless.
         if (viewerState.viewingMode !== 'paged') {
-            return thumbs.map(
-                (thumb): ThumbnailGroup => ({
-                    id: thumb.id,
-                    index: thumb.index,
-                    thumbs: [thumb],
-                    hasChoice: thumb.hasChoice,
-                }),
-            );
+            return thumbs.map((thumb) => groupFor(thumb, null));
         }
 
+        const groups: ThumbnailGroup[] = [];
         for (const pagedGroup of pagedGroups) {
             const i = pagedGroup.startIndex;
             const first = thumbs[i];
@@ -290,14 +336,7 @@
                 pagedGroup.endIndex > pagedGroup.startIndex
                     ? thumbs[i + 1]
                     : null;
-            const groupThumbs = second ? [first, second] : [first];
-
-            groups.push({
-                id: first.id,
-                index: i,
-                thumbs: groupThumbs,
-                hasChoice: groupThumbs.some((thumb) => thumb.hasChoice),
-            });
+            groups.push(groupFor(first, second ?? null));
         }
         return groups;
     });

@@ -1,7 +1,8 @@
 // @vitest-environment node
-/** Consumer-bundle regression over the built ESM entry. */
+/** Consumer-bundle regression over the built ESM entry and IIFE. */
 
 import { mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,10 +10,16 @@ import { fileURLToPath } from 'node:url';
 import { build, type Rollup } from 'vite';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-const ENTRY = resolve(
-    dirname(fileURLToPath(import.meta.url)),
-    '../dist/index.js',
-);
+const DIST = resolve(dirname(fileURLToPath(import.meta.url)), '../dist');
+const ENTRY = join(DIST, 'index.js');
+const IIFE = join(DIST, 'iife.js');
+const PDF_LIB_CHUNK = join(DIST, 'pdf-lib.js');
+
+/** A pdf-lib class name absent from this package's own source. */
+const PDF_LIB_MARKER = 'PDFCrossRefStream';
+
+const read = (file: string) =>
+    existsSync(file) ? readFileSync(file, 'utf8') : '';
 
 /** The peers the ESM build declares; a consumer's bundler resolves them. */
 const PEERS = ['@triiiceratops/plugin-sdk', 'triiiceratops', 'pdf-lib'];
@@ -106,9 +113,9 @@ describe('the built ESM entry survives a consumer bundle', () => {
             // What a consumer's bundle may still reference by bare specifier is
             // exactly the declared peers: anything else here is a dependency
             // this package bundled into the host's application by accident.
-            // `svelte` is deliberately absent from the set — these plugins
-            // bundle their own runtime rather than sharing core's, which is the
-            // asymmetry with the AV plugin.
+            // `svelte` is absent from the set: though an optional peer, it is
+            // externalized only by the `svelte`-condition build in
+            // `dist/svelte/`; this default build bundles its own runtime.
             const specifiers = new Set<string>();
             for (const match of consumer.matchAll(/from\s*["']([^"']+)["']/g)) {
                 if (match[1]) specifiers.add(match[1]);
@@ -136,5 +143,41 @@ describe('the built ESM entry survives a consumer bundle', () => {
             // `minifyCss` over the `?raw` import fails here too.
             expect(consumer).toContain('.tri-pdf{');
         });
+    });
+});
+
+describe('the built IIFE leaves pdf-lib to its sibling chunk', () => {
+    it('carries no pdf-lib code', () => {
+        const iife = read(IIFE);
+        expect(iife, `${IIFE} is missing`).not.toBe('');
+        expect(iife).not.toContain(PDF_LIB_MARKER);
+        expect(iife).toContain('"pdf-lib.js"');
+    });
+
+    it('ships pdf-lib as an import-free module beside it', () => {
+        const chunk = read(PDF_LIB_CHUNK);
+        expect(chunk, `${PDF_LIB_CHUNK} is missing`).toContain(PDF_LIB_MARKER);
+        expect(chunk).not.toMatch(/\bimport\s*[({"'*]|\bfrom\s*["']/);
+        expect(chunk).toMatch(/\bPDFDocument\b/);
+    });
+});
+
+describe('the optional svelte peer', () => {
+    it('starts at the Svelte version the svelte build is compiled with', () => {
+        const manifest = JSON.parse(
+            readFileSync(
+                resolve(
+                    dirname(fileURLToPath(import.meta.url)),
+                    '../package.json',
+                ),
+                'utf8',
+            ),
+        );
+        const { version } = createRequire(import.meta.url)(
+            'svelte/package.json',
+        ) as { version: string };
+
+        expect(manifest.peerDependencies.svelte).toBe(`^${version}`);
+        expect(manifest.peerDependenciesMeta.svelte.optional).toBe(true);
     });
 });

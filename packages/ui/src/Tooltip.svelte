@@ -1,6 +1,5 @@
 <script lang="ts">
     import type { Snippet } from 'svelte';
-    import type { HTMLAttributes } from 'svelte/elements';
 
     type Placement = 'top' | 'bottom' | 'left' | 'right';
     type Color =
@@ -13,7 +12,7 @@
         | 'warning'
         | 'error';
 
-    interface Props extends HTMLAttributes<HTMLSpanElement> {
+    interface Props {
         /** Tooltip text. */
         tip?: string;
         placement?: Placement;
@@ -33,7 +32,6 @@
         class: className = '',
         style = '',
         children,
-        ...rest
     }: Props = $props();
 
     let computedStyle = $derived(
@@ -46,7 +44,6 @@
     class:tooltip-open={open}
     data-tip={tip}
     style={computedStyle}
-    {...rest}
 >
     {@render children?.()}
 </span>

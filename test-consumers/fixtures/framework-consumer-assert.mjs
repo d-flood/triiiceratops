@@ -683,7 +683,7 @@ export async function assertFrameworkFixture(ctx, options) {
         `${framework}: an unmemoized property-tier prop must warn with debug on`,
     ).toHaveLength(1);
     expect(loud.warnings.find((w) => /re-assigned/.test(w))).toContain(
-        '`themeConfig`',
+        'themeConfig',
     );
 
     // The selector runtime's batched-cadence viewport warning,
@@ -693,12 +693,12 @@ export async function assertFrameworkFixture(ctx, options) {
     // was still off. The idle one is the strict case — its version can never
     // advance, so a probe decided once, too early, would never fire again.
     expect(
-        loud.warnings.filter((w) => /`state`-cadence selector read/.test(w)),
+        loud.warnings.filter((w) => /state selector read/.test(w)),
         `${framework}: a state-cadence projection reading the viewport must warn`,
     ).toHaveLength(2);
-    expect(
-        loud.warnings.find((w) => /`state`-cadence selector read/.test(w)),
-    ).toContain("cadence: 'frame'");
+    expect(loud.warnings.find((w) => /state selector read/.test(w))).toContain(
+        "cadence: 'frame'",
+    );
 
     // React only: a handle created and never passed to a viewer.
     if (capabilities.unboundHandle) {

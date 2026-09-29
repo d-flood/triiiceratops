@@ -62,7 +62,7 @@
             "type": "String",
             "reflect": false,
             "attributeSupported": false,
-            "attributeNote": "INERT. Svelte derives an observed attribute from every declared prop, but this input carries a non-serializable value: the PROPERTY is the only supported channel. Do not wire the attribute up."
+            "attributeNote": "INERT. The element observes an attribute for every declared prop, but this input carries a non-serializable value: the PROPERTY is the only supported channel. Do not wire the attribute up."
         },
         {
             "property": "readContentStateFromUrl",
@@ -76,7 +76,7 @@
             "type": "String",
             "reflect": false,
             "attributeSupported": false,
-            "attributeNote": "INERT. Svelte derives an observed attribute from every declared prop, but this input carries a non-serializable value: the PROPERTY is the only supported channel. Do not wire the attribute up."
+            "attributeNote": "INERT. The element observes an attribute for every declared prop, but this input carries a non-serializable value: the PROPERTY is the only supported channel. Do not wire the attribute up."
         },
         {
             "property": "theme",

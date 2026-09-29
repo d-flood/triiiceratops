@@ -14,7 +14,11 @@ const distDir = join(repoRoot, 'packages', 'core', 'dist');
 /** Absolute byte slack allowed above the baseline, per artifact per metric. */
 const SLACK = 512;
 
-/** The published element artifacts, in `packages/core/dist`. */
+/**
+ * The published element artifacts, in `packages/core/dist`. Both are built for
+ * one floor, Chrome 111+, Firefox 113+, Safari 16.4+ (`es2022` JS), so their
+ * figures are comparable.
+ */
 const ARTIFACTS = ['triiiceratops-element.iife.js', 'triiiceratops-element.js'];
 
 /** Core + AV pair must stay under TIFY's measured gzip size. */

@@ -221,14 +221,22 @@ function emitCustomElement(): void {
         'utf8',
     );
 
-    const propsBlock = elSrc.slice(
-        elSrc.indexOf('props: {'),
-        elSrc.indexOf('},\n    }}'),
+    const tableSrc = readFileSync(
+        resolve(CORE_SRC, 'lib/components/viewerElement.svelte.ts'),
+        'utf8',
+    );
+    const tableStart = tableSrc.indexOf('ELEMENT_PROPS');
+    const propsBlock = tableSrc.slice(
+        tableStart,
+        tableSrc.indexOf('\n};', tableStart),
+    );
+    const callbackProps = ['onpluginerror', 'onviewererror'].filter((p) =>
+        elSrc.includes(p),
     );
     // Property-only inputs carry non-serializable values; the attribute is inert.
     const PROPERTY_ONLY_INPUTS = new Set(['searchProvider', 'plugins']);
     const PROPERTY_ONLY_NOTE =
-        'INERT. Svelte derives an observed attribute from every declared prop, ' +
+        'INERT. The element observes an attribute for every declared prop, ' +
         'but this input carries a non-serializable value: the PROPERTY is the ' +
         'only supported channel. Do not wire the attribute up.';
     const attrProps: Array<{
@@ -243,6 +251,7 @@ function emitCustomElement(): void {
         /(\w+):\s*\{\s*attribute:\s*'([^']+)',\s*type:\s*'([^']+)',\s*reflect:\s*(true|false)/g;
     let m: RegExpExecArray | null;
     while ((m = entryRe.exec(propsBlock))) {
+        if (callbackProps.includes(m[1])) continue;
         attrProps.push({
             property: m[1],
             attribute: m[2],
@@ -256,10 +265,6 @@ function emitCustomElement(): void {
                 : {}),
         });
     }
-
-    const callbackProps = ['onpluginerror', 'onviewererror'].filter((p) =>
-        elSrc.includes(p),
-    );
 
     const readonlyProps: string[] = [];
     const exportRe = /export\s*\{\s*\w+\s+as\s+(\w+)\s*\}/g;

@@ -4,7 +4,7 @@
  *
  * The framework-wrapper tests deliberately use the real compiled element rather
  * than an idealized double, because every hazard worth testing lives in the
- * element's own semantics: Svelte's asynchronous `connectedCallback`, the
+ * element's own semantics: the asynchronous `connectedCallback`, the
  * porting of properties assigned before upgrade, kebab attribute mapping, the
  * getter-only state bridge, and the destroy/re-mount cycle a detach-then-
  * reattach produces. A double would agree with whatever the wrapper assumed.
@@ -14,21 +14,14 @@
 
 import { tick } from 'svelte';
 
-import TriiiceratopsViewerElementComponent from '../../components/TriiiceratopsViewerElement.svelte';
+import { ViewerElement } from '../../components/viewerElement.svelte';
 import type { ViewerState } from '../../state/viewer.svelte';
 
 /** The tag both Web Component entries register. */
 export const VIEWER_TAG = 'triiiceratops-viewer';
 
-/**
- * The custom-element class the Svelte compiler produced for the wrapper —
- * exactly what `custom-element.ts` / `element.ts` hand to the browser runtime.
- */
-export const RealViewerElementCtor = (
-    TriiiceratopsViewerElementComponent as unknown as {
-        element: CustomElementConstructor;
-    }
-).element;
+/** Exactly what `custom-element.ts` / `element.ts` hand to the browser runtime. */
+export const RealViewerElementCtor: CustomElementConstructor = ViewerElement;
 
 /** The element as a test sees it: the bridge plus the property-tier inputs. */
 export interface RealViewerElement extends HTMLElement {
@@ -84,7 +77,7 @@ export function isRealViewerElementDefined(): boolean {
 }
 
 /**
- * Svelte's `connectedCallback` awaits a microtask before mounting, effects
+ * The element's `connectedCallback` awaits a microtask before mounting, effects
  * flush after that, and the availability event is dispatched from a further
  * microtask.
  */

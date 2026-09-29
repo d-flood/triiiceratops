@@ -20,22 +20,12 @@
  * the localization library whose locale strategy used to write one.
  *
  * It then asserts the artifacts themselves are worth importing: each must carry
- * the wrapper's custom-element attribute map. That failure mode is visible
- * nowhere else. Both entry points read the compiler's `element` static through
- * an `as unknown as { element: CustomElementConstructor }` cast, which erases
- * the only type-level evidence it exists, so a degraded element type-checks
- * clean; and `scripts/size-check.mjs` fails only on growth, so a bundle that
- * LOST work reads to it as an improvement.
- *
- * This script also used to count `create_custom_element(…)` call shapes, to
- * catch a global `compilerOptions.customElement: true` compiling all 34
- * components as custom elements. It cannot: with the terser pass added in
- * `src/packaging/terserElement.ts`, a single call site gets the helper INLINED,
- * so the correct artifact has no call left to match while the regression keeps
- * the helper shared and every one of its 34 calls intact — the heuristic read 0
- * for right and 34 for wrong. The count moved to `wrapperCustomElementGuard` in
- * `src/packaging/elementCompileOptions.ts`, which counts the compiler's own
- * output during the same `build:element` run and gets an exact number.
+ * the element's attribute table (`ELEMENT_PROPS` in
+ * `src/lib/components/viewerElement.svelte.ts`). `scripts/size-check.mjs`
+ * fails only on growth, so a bundle that LOST work reads to it as an
+ * improvement. Svelte's own custom-element wrapper must be absent; whether any
+ * component is compiled as a custom element is counted exactly by
+ * `noCustomElementGuard` in `src/packaging/elementCompileOptions.ts`.
  *
  * Run directly: `node ./scripts/check-element-artifact.mjs`.
  */
@@ -86,36 +76,22 @@ const ELEMENT_ARTIFACTS = [
 ];
 
 /**
- * An entry of the `props_definition` object Svelte's custom-element codegen
- * builds from `<svelte:options customElement={{ props: … }} />`. Nothing else in
- * the bundle emits `attribute: '…'`, and the keys and string values here are
- * data the minifier must preserve.
+ * An entry of the element's `ELEMENT_PROPS` table. Nothing else in the bundle
+ * emits `attribute: '…'`, and the keys and string values here are data the
+ * minifier must preserve.
  *
- * This is the presence signal, and it is finer-grained than "is there an element
- * class". Deleting the wrapper's `<svelte:options>` block still leaves a
- * registered element — `dynamicCompileOptions` upgrades the file either way —
- * but one with no attribute map at all: `manifest-id`, `canvas-id`, `theme` and
- * the rest silently stop being attributes, and the element goes on registering
- * as if nothing happened.
- *
- * This is ALSO the only check here that notices terser property mangling. That
- * was built and measured: with `mangle: { properties: true }` in
- * `src/packaging/terserElement.ts`, the artifact keeps `"manifest-id"` as a
- * string and keeps `static get observedAttributes()` — the getter name is in
- * terser's `domprops` reserved list, and `mangle.properties.builtins` defaults
- * to `false` — but every `attribute:` key is renamed away, and this regex drops
- * to zero matches.
+ * This is ALSO the only check here that notices terser property mangling: with
+ * `mangle: { properties: true }` in `src/packaging/terserElement.ts`, the
+ * artifact keeps `"manifest-id"` as a string and keeps `static get
+ * observedAttributes()` — the getter name is in terser's `domprops` reserved
+ * list — but every `attribute:` key is renamed away, and this regex drops to
+ * zero matches.
  */
 const CUSTOM_ELEMENT_ATTRIBUTE = /attribute\s*:\s*['"][a-z-]+['"]/g;
 
 /**
- * The `static get observedAttributes()` of Svelte's custom-element base class:
- * the mechanism that turns the map above into observed attributes.
- *
- * A presence assertion on the base class, nothing subtler. Both minifier shapes
- * keep the name verbatim because it is spec-defined, so what this catches is the
- * base class going missing or being replaced wholesale — a Svelte custom-element
- * codegen change, not a minifier setting.
+ * The element's `static get observedAttributes()`, which turns the table above
+ * into observed attributes. Both minifier shapes keep the spec-defined name.
  */
 const OBSERVED_ATTRIBUTES = /static\s+get\s+observedAttributes\s*\(\s*\)/;
 
@@ -164,6 +140,78 @@ const FORBIDDEN_TEXT = [
             `catalogs under src/lib/messages; the localization library and its ` +
             `cookie-backed locale strategy are gone and must not return with a ` +
             `dependency.`,
+    },
+    {
+        // Svelte's custom-element base class keeps its props definition on
+        // `$$p_d`, and the legacy class component it mounts defines the
+        // Svelte 4 `$destroy`. Terser keeps property names verbatim.
+        pattern: /\$\$p_d\b|\$destroy\b/,
+        problem: (name) =>
+            `${name} carries Svelte's custom-element wrapper ` +
+            `(\`create_custom_element\` and its legacy \`createClassComponent\`). ` +
+            `<triiiceratops-viewer> is the hand-written element in ` +
+            `src/lib/components/viewerElement.svelte.ts, mounted with the ` +
+            `public \`mount\`; find the component compiled with ` +
+            `\`customElement\` or the \`svelte/legacy\` import that brought ` +
+            `it back.`,
+    },
+    ...['hydration_mismatch', 'hydration_failed'].map((code) => ({
+        pattern: new RegExp(`svelte\\.dev/e/${code}\\b`),
+        problem: (name) =>
+            `${name} carries Svelte's SSR-hydration diagnostic \`${code}\`. ` +
+            `The element is never server-rendered; ` +
+            `src/packaging/svelteRuntimeTrims.ts fixes Svelte's SSR-hydration ` +
+            `flag off so those paths tree-shake away. Check that both element ` +
+            `configs register \`svelteRuntimeTrims\`, and what in this Svelte ` +
+            `release reintroduced a path outside the flag.`,
+    })),
+    {
+        pattern: /\bhash\s*:\s*["'`][\w-]+["'`]\s*,\s*code\s*:/,
+        problem: (name) =>
+            `${name} carries a per-component \`{ hash, code }\` stylesheet ` +
+            `object, so Svelte injects that component's CSS at runtime. The ` +
+            `element ships one shadow stylesheet: check that both element ` +
+            `configs set \`emitCss: true\` and register \`elementStylesheet\` ` +
+            `from src/packaging/elementStylesheet.ts, and that no component is ` +
+            `compiled as a custom element.`,
+    },
+    {
+        pattern: /\.svelte-[a-z0-9]+|[" ]svelte-[a-z0-9]+[" ]/,
+        problem: (name) =>
+            `${name} carries a \`svelte-\` scoping class. Core's element ` +
+            `builds scope with the short index hashes from ` +
+            `src/packaging/elementStylesheet.ts; check that both element ` +
+            `configs pass \`cssHash: elementCssHash(…)\`.`,
+    },
+    {
+        pattern: /svelte\.dev\/e\/async_derived_orphan\b/,
+        problem: (name) =>
+            `${name} carries Svelte's async-template machinery ` +
+            `(\`async_derived_orphan\`). Template effects in the element build ` +
+            `are synchronous-only; check that both element configs register ` +
+            `\`svelteRuntimeTrims\` from src/packaging/svelteRuntimeTrims.ts.`,
+    },
+    {
+        // Neither path has a diagnostic code. `set_attributes` names each
+        // spread handler's slot `'$$' + key`; no other client runtime code
+        // builds a string on the `$$` prefix.
+        pattern: /["'`]\$\$["'`]\s*\+/,
+        problem: (name) =>
+            `${name} carries Svelte's attribute-spreading runtime ` +
+            `(\`set_attributes\`). The UI primitives and core components ` +
+            `declare every attribute they accept; find the \`{...rest}\` or ` +
+            `other spread onto an element that brought it back.`,
+    },
+    {
+        // `<svelte:element>`'s block resolves its namespace with
+        // `next_tag === 'svg'`; nothing else in the runtime compares a tag
+        // name to "svg".
+        pattern:
+            /["'`]svg["'`]\s*===\s*[\w$]+\s*\?|[\w$]+\s*===\s*["'`]svg["'`]\s*\?/,
+        problem: (name) =>
+            `${name} carries Svelte's dynamic-element block ` +
+            `(\`<svelte:element>\`). Render each tag as its own branch, as ` +
+            `AnnotationShapeOverlay and SanitizedHtml do.`,
     },
 ];
 
@@ -270,11 +318,11 @@ for (const artifact of ELEMENT_ARTIFACTS) {
 
     if ((code.match(CUSTOM_ELEMENT_ATTRIBUTE)?.length ?? 0) === 0) {
         problems.push(
-            `${name} declares no custom-element attributes: the wrapper's ` +
-                `<svelte:options customElement={{ props: … }} /> block did not reach ` +
-                `the bundle. <triiiceratops-viewer> would still register, and would ` +
-                `ignore manifest-id, canvas-id, theme and every other ` +
-                `attribute. The other way to get here is terser property ` +
+            `${name} declares no custom-element attributes: the ` +
+                `ELEMENT_PROPS table in src/lib/components/viewerElement.svelte.ts ` +
+                `did not reach the bundle. <triiiceratops-viewer> would ignore ` +
+                `manifest-id, canvas-id, theme and every other attribute. The ` +
+                `other way to get here is terser property ` +
                 `mangling: check that \`mangle\` in ` +
                 `src/packaging/terserElement.ts has not grown a ` +
                 `\`properties\` setting.`,
@@ -286,8 +334,9 @@ for (const artifact of ELEMENT_ARTIFACTS) {
         problems.push(
             `${name} declares custom-element attributes but no ` +
                 `\`static get observedAttributes()\`, so nothing ever observes ` +
-                `them. Svelte's custom-element base class is not in this ` +
-                `bundle, or no longer declares the getter under that name.`,
+                `them. The element in src/lib/components/viewerElement.svelte.ts ` +
+                `is not in this bundle, or no longer declares the getter under ` +
+                `that name.`,
         );
     }
 
@@ -323,7 +372,7 @@ if (problems.length > 0) {
 
 console.log(
     `check-element-artifact: ${checked} dynamic element-bundle import(s) resolve; ` +
-        `${ELEMENT_ARTIFACTS.length} artifact(s) carry the wrapper's attribute map ` +
+        `${ELEMENT_ARTIFACTS.length} artifact(s) carry the element's attribute table ` +
         `and observe it, carry none of the ${FORBIDDEN_TEXT.length} forbidden ` +
         `identifier(s), and emit none of the ` +
         `${markerCount} light-dom-only reset(s)' ${markedRules.length} ` +

@@ -142,8 +142,7 @@ describe('minifyElementChunk', () => {
     it.each(['iife', 'es'] as const)(
         'preserves the custom-element attribute map (%s)',
         async (format) => {
-            // The shape Svelte's custom-element codegen emits from
-            // `<svelte:options customElement={{ props: … }} />`. Module mode
+            // The shape of the element's `ELEMENT_PROPS` table. Module mode
             // adds mangling licence, so the attribute contract is checked
             // under both formats rather than the script-scope one only.
             const code =

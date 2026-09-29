@@ -817,9 +817,9 @@ async function loadCanvasImageBlob({
 /**
  * pdf-lib's namespace, threaded from `exportCanvasRangeAsPdf`'s `await
  * import('pdf-lib')` rather than imported at the top: the ESM consumer's
- * bundler must be free to split it out, so nothing in this module may reach
- * pdf-lib before an export starts. (The IIFE inlines dynamic imports, so its
- * bundle is unaffected.)
+ * bundler must be free to split it out, and the IIFE fetches it as the sibling
+ * `pdf-lib.js` chunk, so nothing in this module may reach pdf-lib before an
+ * export starts.
  */
 type PdfLib = typeof import('pdf-lib');
 

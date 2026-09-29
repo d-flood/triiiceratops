@@ -605,6 +605,232 @@
 			"type": "heading",
 			"attrs": {
 				"level": 2,
+				"slug": "self-hosting-the-script-tag-iife",
+				"id": "5bd83e58-1da0-483c-a4df-6885ad6a97ab"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Self-hosting the script tag (IIFE)"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Host the ",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "dist",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " directory, not one file out of it.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " The IIFE leaves pdf-lib out of "
+				},
+				{
+					"type": "text",
+					"text": "iife.js",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and fetches it from the sibling "
+				},
+				{
+					"type": "text",
+					"text": "pdf-lib.js",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " the first time a reader exports, by a URL resolved against its own "
+				},
+				{
+					"type": "text",
+					"text": "document.currentScript.src",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", so a page that never exports never downloads it. Copy "
+				},
+				{
+					"type": "text",
+					"text": "node_modules/@triiiceratops/plugin-pdf-export/dist/",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " somewhere your server serves it and point the script tag inside that directory. Either script order still works."
+				}
+			],
+			"attrs": {
+				"id": "32eda705-8fc9-4515-ae65-b0bca5c48ed6"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "A deployment that copies only "
+				},
+				{
+					"type": "text",
+					"text": "iife.js",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " loads and registers normally, then fails every export: the reader sees the usual export-failure message, and the "
+				},
+				{
+					"type": "text",
+					"text": "pluginerror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " event still has "
+				},
+				{
+					"type": "text",
+					"text": "phase: 'command'",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and a "
+				},
+				{
+					"type": "text",
+					"text": "retry",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", with a "
+				},
+				{
+					"type": "text",
+					"text": "detail.error",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " whose message names the chunk URL that failed to load."
+				}
+			],
+			"attrs": {
+				"id": "ce424771-8379-4bbe-833b-9e84ede9f6bc"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Under a Content Security Policy the chunk is a script, so its origin must be allowed by "
+				},
+				{
+					"type": "text",
+					"text": "script-src",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". See "
+				},
+				{
+					"type": "text",
+					"text": "Content Security Policy",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/csp/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			],
+			"attrs": {
+				"id": "e1bac286-6998-4b2d-b172-f122484b6a16"
+			}
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
 				"slug": "audiovisual-canvases",
 				"id": "59f9367e-3c4c-404f-9019-99b0461831f7"
 			},

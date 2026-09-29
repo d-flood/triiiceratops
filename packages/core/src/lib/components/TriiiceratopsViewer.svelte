@@ -26,6 +26,7 @@
     } from '../state/reducedMotion';
     import { FOCUS_MEMORY_KEY, createFocusMemory } from '../utils/focusMemory';
     import { VIEWER_STATE_KEY, ViewerState } from '../state/viewer.svelte';
+    import { startManifestRequest } from '../state/earlyManifestRequest';
     import { applyTheme } from '../theme/themeManager';
     import type { BuiltInTheme, ThemeConfig } from '../theme/types';
     import type {
@@ -83,6 +84,7 @@
         getVisibleViewerCanvases,
     } from '../utils/resolveCanvasImage';
     import { findCanvasIndexById } from '../utils/iiifIds';
+    import { copyJson, sameJson } from '../utils/sameJson';
     import { getCanvasId } from './viewerControls';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
     import AnnotationShapeOverlay from './AnnotationShapeOverlay.svelte';
@@ -350,6 +352,15 @@
     // "state_referenced_locally" warning about capturing initial prop values.
     const internalViewerState = new ViewerState(null, undefined);
     viewerState = internalViewerState; // Expose via bindable prop
+    untrack(() => {
+        if (manifestId && !manifestJson) {
+            startManifestRequest(
+                internalViewerState,
+                manifestId,
+                config?.requests,
+            );
+        }
+    });
     setContext(VIEWER_STATE_KEY, internalViewerState);
 
     // Route state-level actionable failures (search, viewport, content) out
@@ -633,8 +644,11 @@
         }
     }
 
-    // Track last applied config to prevent redundant updates and loops
+    // Track last applied config to prevent redundant updates and loops. The
+    // message catalogs are compared structurally rather than serialized: they
+    // dwarf the rest of the config.
     let lastConfigStr = '';
+    let lastMessages: ViewerConfig['messages'];
 
     // Opt-in developer diagnostics: production is quiet by default.
     // `config.debug` gates the core logger; actionable failures still surface
@@ -644,9 +658,12 @@
     $effect(() => {
         configureLogging({ debug: config?.debug ?? false });
         if (!config) return;
-        const str = JSON.stringify(config);
-        if (str !== lastConfigStr) {
+        const { messages, ...rest } = config;
+        const str = JSON.stringify(rest);
+        const messagesChanged = !sameJson(lastMessages, messages);
+        if (str !== lastConfigStr || messagesChanged) {
             lastConfigStr = str;
+            if (messagesChanged) lastMessages = copyJson(messages);
             internalViewerState.updateConfig(config);
         }
     });
@@ -734,10 +751,7 @@
 
         // Debug-gated developer log; production stays quiet unless a host wires a
         // channel or enables debug.
-        logger.error(
-            `Plugin "${record.plugin.name}" failed in "${phase}"`,
-            error,
-        );
+        logger.error(`plugin ${record.plugin.name} ${phase} failed`, error);
 
         dispatchFromRoot(PLUGIN_ERROR_EVENT, payload);
         // Host callback — the SAME object.
@@ -858,7 +872,7 @@
             try {
                 record.deactivate();
             } catch (error) {
-                logger.error('SDK plugin teardown threw', error);
+                logger.error('plugin teardown threw', error);
             }
             // Leave nothing of this plugin behind in viewer state either. A
             // mount that threw half-way may already have registered overlay
@@ -919,7 +933,7 @@
         try {
             record.deactivate();
         } catch (error) {
-            logger.error('SDK plugin deactivation threw', error);
+            logger.error('plugin deactivate threw', error);
         }
         record.el.remove();
     }

@@ -11,11 +11,12 @@
     import { isAnnotationEditorOpen } from '../utils/annotationEditing';
     import { collectCanvasAnnotations } from '../utils/canvasAnnotations';
     import {
+        placePreparedShapes,
         prepareAnnotationShapes,
-        projectPreparedShapes,
         shapeContainsPoint,
-        type AnnotationShape,
         type ScreenRect,
+        type ShapeCommon,
+        type ShapePlacement,
     } from '../utils/annotationShapes';
     import type { CanvasImageSpaceDimensions } from '../utils/canvasImageSpace';
     import { getCanvasId } from '../utils/iiifIds';
@@ -32,7 +33,7 @@
      * shapes all share `anno-readonly-wrap`, which positions a fill child; the
      * editable arm carries its own visual treatment on the button itself.
      */
-    const EDITABLE_WRAPPER_CLASS: Record<AnnotationShape['type'], string> = {
+    const EDITABLE_WRAPPER_CLASS: Record<ShapePlacement['type'], string> = {
         RECTANGLE: 'anno-rect',
         POLYGON: 'anno-polygon-btn',
         POINT: 'anno-point',
@@ -112,19 +113,7 @@
      */
     $effect(() =>
         viewerState.subscribeSurfaceTap((point) => {
-            const hit = [...shapes]
-                .reverse()
-                .find(
-                    (shape) =>
-                        isTappableShape(shape) &&
-                        shapeContainsPoint(
-                            shape,
-                            point.x,
-                            point.y,
-                            pointMarkerSize,
-                        ),
-                );
-
+            const hit = topmostShapeAt(point.x, point.y, isTappableShape);
             viewerState.setActiveAnnotationId(hit ? hit.annotationId : null);
         }),
     );
@@ -246,7 +235,8 @@
     });
 
     /**
-     * Every shown annotation's tooltip text and canvas-space geometry.
+     * Every shown annotation's tooltip text and canvas-space geometry — the
+     * shape objects the markup is keyed and labelled from.
      *
      * The half of a shape a pan or a zoom cannot change, so it is assembled here
      * — once per change of the shown set, their body text, the active locale or
@@ -261,25 +251,51 @@
     );
 
     /**
-     * Where every shown shape is, in surface-local CSS pixels.
+     * Where every shown shape is, in surface-local CSS pixels, index for index
+     * with {@link preparedShapes}.
      *
      * Re-projected on the frame tick, and on `rendererReady` so the shapes
      * appear as soon as a renderer can answer where the canvas is rather than at
-     * the next viewport movement.
+     * the next viewport movement. Positions only: the shape objects, and every
+     * attribute the markup reads off them, are untouched by a frame.
      */
-    const shapes: AnnotationShape[] = $derived.by(() => {
+    const placements: (ShapePlacement | null)[] = $derived.by(() => {
         void frameTick;
         void viewerState.rendererReady;
 
         if (preparedShapes.length === 0) return [];
 
         // Each shape through ITS canvas. A canvas the renderer has not laid out
-        // answers `null` and the shape is dropped rather than drawn at another
-        // page's offset.
-        return projectPreparedShapes(preparedShapes, (point, canvasId) =>
+        // answers `null` and the shape is not drawn rather than drawn at
+        // another page's offset.
+        return placePreparedShapes(preparedShapes, (point, canvasId) =>
             viewerState.canvasToScreen(point, canvasId ?? undefined),
         );
     });
+
+    /**
+     * The topmost placed shape containing a surface-local point that `accepts`
+     * admits — the one a click would have reached. Walked backwards in place,
+     * since this runs per pointer move.
+     */
+    function topmostShapeAt(
+        x: number,
+        y: number,
+        accepts: (shape: ShapeCommon) => boolean,
+    ): ShapeCommon | null {
+        for (let index = preparedShapes.length - 1; index >= 0; index -= 1) {
+            const shape = preparedShapes[index].common;
+            const placement = placements[index];
+            if (
+                placement &&
+                accepts(shape) &&
+                shapeContainsPoint(placement, x, y, pointMarkerSize)
+            ) {
+                return shape;
+            }
+        }
+        return null;
+    }
 
     /**
      * The box every shape type is positioned by, in surface-local CSS pixels.
@@ -289,18 +305,18 @@
      * reader zooms, where a rectangle and a polygon's bounds scale with the
      * image.
      */
-    function shapeBox(shape: AnnotationShape): ScreenRect {
-        if (shape.type === 'RECTANGLE') return shape.rect;
-        if (shape.type === 'POLYGON') return shape.bounds;
+    function shapeBox(placement: ShapePlacement): ScreenRect {
+        if (placement.type === 'RECTANGLE') return placement.rect;
+        if (placement.type === 'POLYGON') return placement.bounds;
         return {
-            x: shape.point.x - pointMarkerSize / 2,
-            y: shape.point.y - pointMarkerSize / 2,
+            x: placement.point.x - pointMarkerSize / 2,
+            y: placement.point.y - pointMarkerSize / 2,
             width: pointMarkerSize,
             height: pointMarkerSize,
         };
     }
 
-    function isEditableShape(shape: AnnotationShape): boolean {
+    function isEditableShape(shape: ShapeCommon): boolean {
         return annotationEditorOpen && !shape.isSearchHit;
     }
 
@@ -312,7 +328,7 @@
      * row hovered, or the annotation selected — and otherwise a page-sized
      * rectangle would sit over the whole image permanently.
      */
-    function isShapeDrawn(shape: AnnotationShape): boolean {
+    function isShapeDrawn(shape: ShapeCommon): boolean {
         return (
             !shape.isFullCanvasTarget ||
             viewerState.hoveredAnnotationId === shape.annotationId ||
@@ -328,16 +344,16 @@
      * including the ones that mean "clear the selection". It stays reachable
      * from the annotation panel, which is where a whole-page note belongs.
      */
-    function isTappableShape(shape: AnnotationShape): boolean {
+    function isTappableShape(shape: ShapeCommon): boolean {
         return !shape.isFullCanvasTarget;
     }
 
     /** Whether a shape is the selected annotation's. */
-    function isActiveShape(shape: AnnotationShape): boolean {
+    function isActiveShape(shape: ShapeCommon): boolean {
         return viewerState.activeAnnotationId === shape.annotationId;
     }
 
-    function shouldShowShapeTooltip(shape: AnnotationShape): boolean {
+    function shouldShowShapeTooltip(shape: ShapeCommon): boolean {
         return (
             !shape.isSearchHit && !shape.isFullCanvasTarget && !!shape.tooltip
         );
@@ -375,8 +391,8 @@
      * Read-only shapes take no pointer events — a drag that starts over one must
      * still pan the image — so `:hover` cannot do this. The test runs against the
      * same numbers the shapes were positioned from, which is also why it needs no
-     * layout read: `getBoundingClientRect` per pointer move over an annotation is
-     * exactly what the overlay-performance journey measures.
+     * layout read beyond the layer's own origin: `getBoundingClientRect` per
+     * pointer move is exactly what the overlay-performance journey measures.
      */
     function updateReadonlyTooltip(event: PointerEvent) {
         if (!root || !isOverRenderer(event.target)) {
@@ -384,20 +400,15 @@
             return;
         }
 
-        const bounds = root.getBoundingClientRect();
+        const bounds = rootBounds(root);
         const x = event.clientX - bounds.left;
         const y = event.clientY - bounds.top;
 
-        // Last first: the topmost shape wins, which is the one a click would
-        // have reached.
-        const hovered = [...shapes]
-            .reverse()
-            .find(
-                (shape) =>
-                    !isEditableShape(shape) &&
-                    shouldShowShapeTooltip(shape) &&
-                    shapeContainsPoint(shape, x, y, pointMarkerSize),
-            );
+        const hovered = topmostShapeAt(
+            x,
+            y,
+            (shape) => !isEditableShape(shape) && shouldShowShapeTooltip(shape),
+        );
 
         if (!hovered) {
             readonlyTooltip = null;
@@ -414,6 +425,25 @@
             ),
             side: getTooltipSide(event.clientX, event.clientY),
         };
+    }
+
+    /**
+     * The layer's client rect, read at most once per browser frame.
+     *
+     * Pointer moves can outnumber frames, and the rect cannot change between
+     * two of them without a layout that belongs to a later frame, so the read
+     * is kept until the next animation frame and then dropped.
+     */
+    let rootRect: DOMRect | null = null;
+
+    function rootBounds(element: HTMLElement): DOMRect {
+        if (!rootRect) {
+            rootRect = element.getBoundingClientRect();
+            requestAnimationFrame(() => {
+                rootRect = null;
+            });
+        }
+        return rootRect;
     }
 
     function clearReadonlyTooltip() {
@@ -507,77 +537,106 @@
     so a pan can start on top of them. A full-canvas annotation has no meaningful
     box, so it is drawn only while its panel row is hovered.
 
-    One element serves all three shape types: the wrapper's position, id,
+    One wrapper serves all three shape types: the wrapper's position, id,
     label, handlers and tooltip state are the same question for each, and only
-    its class and its children differ. The a11y ignore below is for the
-    editable/read-only pairing: the compiler cannot see which tag
-    `<svelte:element>` resolves to, and the handlers exist only on the
-    `<button>` arm — a read-only shape is a `div` with no handler at all.
+    its class and its children differ.
 -->
+{#snippet shapeContents(
+    shape: ShapeCommon,
+    placement: ShapePlacement,
+    editable: boolean,
+    hovered: boolean,
+    active: boolean,
+)}
+    {#if placement.type === 'POLYGON'}
+        <svg class="anno-polygon-svg" class:readonly={!editable}>
+            <polygon
+                points={placement.points
+                    .map((point) => point.join(','))
+                    .join(' ')}
+                class="anno-polygon-shape"
+                class:interactive={editable}
+                class:search-hit={shape.isSearchHit}
+                class:hovered
+                class:active
+            />
+        </svg>
+    {:else if !editable}
+        <div
+            class={placement.type === 'RECTANGLE'
+                ? 'anno-rect-fill'
+                : 'anno-point-fill'}
+            class:search-hit={shape.isSearchHit}
+            class:hovered
+            class:active
+        ></div>
+    {/if}
+{/snippet}
+
 <div
     bind:this={root}
     class="anno-shape-layer"
     data-testid="annotation-shapes"
     {@attach measureMarker}
 >
-    {#each shapes as shape (shape.id)}
-        {#if isShapeDrawn(shape)}
+    {#each preparedShapes as prepared, index (prepared.common.id)}
+        {@const shape = prepared.common}
+        {@const type = prepared.geometry.type}
+        {@const placement = placements[index]}
+        {#if placement && isShapeDrawn(shape)}
             {@const editable = isEditableShape(shape)}
             {@const tip = editable && shouldShowShapeTooltip(shape)}
             {@const hovered = !editable && readonlyTooltip?.id === shape.id}
             {@const active = isActiveShape(shape)}
-            {@const box = shapeBox(shape)}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <svelte:element
-                this={editable ? 'button' : 'div'}
-                type={editable ? 'button' : undefined}
-                id="annotation-visual-{shape.id}"
-                data-annotation-id={shape.annotationId}
-                class={editable
-                    ? EDITABLE_WRAPPER_CLASS[shape.type]
-                    : 'anno-readonly-wrap'}
-                class:tooltip={tip}
-                class:tooltip-primary={tip}
-                class:search-hit={editable &&
-                    shape.type !== 'POLYGON' &&
-                    shape.isSearchHit}
-                class:active={editable && shape.type !== 'POLYGON' && active}
-                data-tip={tip ? shape.tooltip : undefined}
-                aria-label={editable ? shape.tooltip : undefined}
-                style="left: {box.x}px; top: {box.y}px; width: {box.width}px; height: {box.height}px;"
-                onclick={editable
-                    ? (event: MouseEvent) =>
-                          requestAnnotationEdit(shape.annotationId, event)
-                    : undefined}
-                onkeydown={editable
-                    ? (event: KeyboardEvent) =>
-                          handleShapeKeydown(shape.annotationId, event)
-                    : undefined}
-            >
-                {#if shape.type === 'POLYGON'}
-                    <svg class="anno-polygon-svg" class:readonly={!editable}>
-                        <polygon
-                            points={shape.points
-                                .map((point) => point.join(','))
-                                .join(' ')}
-                            class="anno-polygon-shape"
-                            class:interactive={editable}
-                            class:search-hit={shape.isSearchHit}
-                            class:hovered
-                            class:active
-                        />
-                    </svg>
-                {:else if !editable}
-                    <div
-                        class={shape.type === 'RECTANGLE'
-                            ? 'anno-rect-fill'
-                            : 'anno-point-fill'}
-                        class:search-hit={shape.isSearchHit}
-                        class:hovered
-                        class:active
-                    ></div>
-                {/if}
-            </svelte:element>
+            {@const box = shapeBox(placement)}
+            {#if editable}
+                <button
+                    type="button"
+                    id="annotation-visual-{shape.id}"
+                    data-annotation-id={shape.annotationId}
+                    class={EDITABLE_WRAPPER_CLASS[type]}
+                    class:tooltip={tip}
+                    class:tooltip-primary={tip}
+                    class:search-hit={type !== 'POLYGON' && shape.isSearchHit}
+                    class:active={type !== 'POLYGON' && active}
+                    data-tip={tip ? shape.tooltip : undefined}
+                    aria-label={shape.tooltip}
+                    style:left="{box.x}px"
+                    style:top="{box.y}px"
+                    style:width="{box.width}px"
+                    style:height="{box.height}px"
+                    onclick={(event: MouseEvent) =>
+                        requestAnnotationEdit(shape.annotationId, event)}
+                    onkeydown={(event: KeyboardEvent) =>
+                        handleShapeKeydown(shape.annotationId, event)}
+                >
+                    {@render shapeContents(
+                        shape,
+                        placement,
+                        editable,
+                        hovered,
+                        active,
+                    )}
+                </button>
+            {:else}
+                <div
+                    id="annotation-visual-{shape.id}"
+                    data-annotation-id={shape.annotationId}
+                    class="anno-readonly-wrap"
+                    style:left="{box.x}px"
+                    style:top="{box.y}px"
+                    style:width="{box.width}px"
+                    style:height="{box.height}px"
+                >
+                    {@render shapeContents(
+                        shape,
+                        placement,
+                        editable,
+                        hovered,
+                        active,
+                    )}
+                </div>
+            {/if}
         {/if}
     {/each}
 </div>

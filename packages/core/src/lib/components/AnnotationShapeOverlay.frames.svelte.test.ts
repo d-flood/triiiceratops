@@ -2,15 +2,16 @@
  * What the overlay does on the frame tick, and what it refuses to do again.
  *
  * A pan or a zoom moves every shape on screen without changing a word of its
- * tooltip or a number of its canvas-space geometry, so those are prepared once
- * and only projected per frame. The counters below are the assertion: the real
- * helpers run, wrapped so the test can say how often each half was asked.
+ * tooltip or a number of its canvas-space geometry, so the shapes are prepared
+ * once and only their placements recomputed per frame. The counters below are
+ * the assertion: the real helpers run, wrapped so the test can say how often
+ * each half was asked.
  */
 
 import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const counts = vi.hoisted(() => ({ prepare: 0, project: 0 }));
+const counts = vi.hoisted(() => ({ prepare: 0, place: 0 }));
 
 vi.mock('../utils/annotationShapes', async (importOriginal) => {
     const actual =
@@ -23,11 +24,11 @@ vi.mock('../utils/annotationShapes', async (importOriginal) => {
             counts.prepare += 1;
             return actual.prepareAnnotationShapes(...args);
         },
-        projectPreparedShapes: (
-            ...args: Parameters<typeof actual.projectPreparedShapes>
+        placePreparedShapes: (
+            ...args: Parameters<typeof actual.placePreparedShapes>
         ) => {
-            counts.project += 1;
-            return actual.projectPreparedShapes(...args);
+            counts.place += 1;
+            return actual.placePreparedShapes(...args);
         },
     };
 });
@@ -78,7 +79,7 @@ describe('AnnotationShapeOverlay — frame cadence', () => {
 
     beforeEach(() => {
         counts.prepare = 0;
-        counts.project = 0;
+        counts.place = 0;
     });
 
     afterEach(async () => {
@@ -98,6 +99,7 @@ describe('AnnotationShapeOverlay — frame cadence', () => {
         return mounted as unknown as {
             tickFrame: () => void;
             frameSubscriptionCount: () => number;
+            tapAt: (point: { x: number; y: number }) => void;
         };
     }
 
@@ -122,9 +124,9 @@ describe('AnnotationShapeOverlay — frame cadence', () => {
         });
 
         const preparedOnce = counts.prepare;
-        const projectedOnce = counts.project;
+        const placedOnce = counts.place;
         expect(preparedOnce).toBeGreaterThan(0);
-        expect(projectedOnce).toBeGreaterThan(0);
+        expect(placedOnce).toBeGreaterThan(0);
 
         const positions: string[] = [shapeElement().style.left];
         for (let frame = 1; frame <= 4; frame += 1) {
@@ -137,7 +139,7 @@ describe('AnnotationShapeOverlay — frame cadence', () => {
         // The still half ran once for the whole pan; the moving half ran again
         // for every frame of it.
         expect(counts.prepare).toBe(preparedOnce);
-        expect(counts.project).toBe(projectedOnce + 4);
+        expect(counts.place).toBe(placedOnce + 4);
 
         // And the shape followed the viewport: the image-space rect at 20,40 is
         // a canvas rect at 10,20 through a half-size canvas.
@@ -208,6 +210,150 @@ describe('AnnotationShapeOverlay — frame cadence', () => {
         const host = render({ annotations: [], canvases: [CANVAS] });
 
         expect(host.frameSubscriptionCount()).toBe(0);
-        expect(counts.project).toBe(0);
+        expect(counts.place).toBe(0);
+    });
+
+    it('moves shapes on a frame tick by position alone, re-deriving nothing', () => {
+        let offset = 0;
+        const host = render({
+            annotations: [
+                rectangle(),
+                {
+                    id: 'anno-polygon',
+                    type: 'Annotation',
+                    motivation: 'commenting',
+                    body: { type: 'TextualBody', value: 'A polygon' },
+                    target: {
+                        type: 'SpecificResource',
+                        source: 'canvas-1',
+                        selector: {
+                            type: 'SvgSelector',
+                            value: '<svg><polygon points="0,0 10,0 5,10"/></svg>',
+                        },
+                    },
+                },
+            ],
+            canvases: [CANVAS],
+            canvasToScreen: (point: { x: number; y: number }) => ({
+                x: point.x + offset,
+                y: point.y + offset,
+            }),
+        });
+
+        const layer = document.querySelector(
+            '[data-testid="annotation-shapes"]',
+        )!;
+        const before = [...layer.querySelectorAll('[data-annotation-id]')];
+        expect(before).toHaveLength(2);
+        const prepared = counts.prepare;
+
+        const observer = new MutationObserver(() => {});
+        observer.observe(layer, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+        });
+        for (let frame = 1; frame <= 3; frame += 1) {
+            offset = frame * 10;
+            host.tickFrame();
+            flushSync();
+        }
+        const records = observer.takeRecords();
+        observer.disconnect();
+
+        expect(counts.prepare).toBe(prepared);
+        expect([...layer.querySelectorAll('[data-annotation-id]')]).toEqual(
+            before,
+        );
+        expect(records.length).toBeGreaterThan(0);
+        expect(
+            records.filter(
+                (record) =>
+                    record.type !== 'attributes' ||
+                    record.attributeName !== 'style',
+            ),
+        ).toEqual([]);
+        expect(shapeElement().style.left).toBe('40px');
+    });
+
+    it('re-derives the shapes when the annotation geometry changes', () => {
+        const props = $state({
+            annotations: [rectangle()],
+            canvases: [CANVAS],
+        });
+        const host = render(props);
+
+        host.tickFrame();
+        flushSync();
+        const beforeChange = counts.prepare;
+
+        props.annotations = [
+            {
+                ...rectangle(),
+                target: 'https://example.org/image.jpg#xywh=40,40,60,80',
+            },
+        ];
+        flushSync();
+
+        expect(counts.prepare).toBeGreaterThan(beforeChange);
+        expect(shapeElement().style.left).toBe('20px');
+    });
+
+    it('shows a selection change on the same shape element', () => {
+        const host = render({ annotations: [rectangle()], canvases: [CANVAS] });
+        const element = shapeElement();
+        const fill = () => element.querySelector('.anno-rect-fill')!;
+        expect(fill().classList.contains('active')).toBe(false);
+
+        host.tapAt({ x: 20, y: 30 });
+        flushSync();
+
+        expect(shapeElement()).toBe(element);
+        expect(fill().classList.contains('active')).toBe(true);
+    });
+
+    it('reads the layer rect once per animation frame, however many pointer moves land in it', () => {
+        const frameCallbacks: FrameRequestCallback[] = [];
+        const requestFrame = vi
+            .spyOn(window, 'requestAnimationFrame')
+            .mockImplementation((callback) => {
+                frameCallbacks.push(callback);
+                return frameCallbacks.length;
+            });
+        render({ annotations: [rectangle()], canvases: [CANVAS] });
+
+        const layer = document.querySelector<HTMLElement>(
+            '[data-testid="annotation-shapes"]',
+        )!;
+        const rectReads = vi.spyOn(layer, 'getBoundingClientRect');
+        const renderer = document.querySelector(
+            '[data-testid="stub-renderer"]',
+        )!;
+        const move = (clientX: number) => {
+            renderer.dispatchEvent(
+                new MouseEvent('pointermove', {
+                    bubbles: true,
+                    clientX,
+                    clientY: 30,
+                }),
+            );
+            flushSync();
+        };
+        const tooltip = () =>
+            document
+                .querySelector('.readonly-tooltip')
+                ?.getAttribute('data-tip') ?? null;
+
+        for (const x of [12, 14, 16, 18, 20]) move(x);
+        expect(rectReads).toHaveBeenCalledTimes(1);
+        expect(tooltip()).toBe('A region worth marking');
+
+        for (const callback of frameCallbacks.splice(0)) callback(0);
+        move(5);
+        move(20);
+        expect(rectReads).toHaveBeenCalledTimes(2);
+        expect(tooltip()).toBe('A region worth marking');
+
+        requestFrame.mockRestore();
     });
 });

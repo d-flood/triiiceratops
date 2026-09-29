@@ -1,9 +1,20 @@
 // Shared helpers for the performance comparison harness.
 
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
+import {
+    cpSync,
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    readFileSync,
+    rmSync,
+    statSync,
+    symlinkSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 
 export const PERF_DIR = resolve(fileURLToPath(new URL('.', import.meta.url)));
 export const REPO_ROOT = resolve(PERF_DIR, '..', '..');
@@ -76,6 +87,8 @@ export const RUNTIME_SCENARIOS = [
     'initial_viewer_mount',
     'local_manifest_readiness',
     'first_canvas_render',
+    'time_to_first_tile',
+    'time_to_first_image',
     'theme_switch',
     'core_interaction',
     ...ACTIVATION_MEASURED_PLUGINS.map((p) => `activate_${p.key}`),
@@ -231,10 +244,66 @@ export function esmEntryGraphSize(entryFile) {
     return total;
 }
 
-export function collectSizes(root) {
+const SVELTE_CONSUMER_APP = join(PERF_DIR, 'svelte-consumer');
+
+/** Initial JS + CSS of a Vite app built against `root`'s own core build. */
+export async function svelteConsumerSizes(root) {
+    const core = resolve(root, 'packages/core');
+    if (!existsSync(join(core, 'dist/svelte.js'))) return {};
+    const app = mkdtempSync(join(tmpdir(), 'triiiceratops-svelte-consumer-'));
+    try {
+        cpSync(SVELTE_CONSUMER_APP, app, { recursive: true });
+        const modules = join(app, 'node_modules');
+        mkdirSync(join(modules, '@sveltejs'), { recursive: true });
+        symlinkSync(core, join(modules, 'triiiceratops'), 'dir');
+        for (const dep of ['svelte', 'vite', '@sveltejs/vite-plugin-svelte']) {
+            symlinkSync(
+                join(core, 'node_modules', dep),
+                join(modules, dep),
+                'dir',
+            );
+        }
+        await run(
+            process.execPath,
+            [join(modules, 'vite/bin/vite.js'), 'build', '--logLevel', 'error'],
+            { cwd: app, timeout: 120_000 },
+        );
+        const dist = join(app, 'dist');
+        const manifest = JSON.parse(
+            readFileSync(join(dist, '.vite/manifest.json'), 'utf8'),
+        );
+        const files = new Set();
+        const visit = (key) => {
+            const chunk = manifest[key];
+            if (files.has(chunk.file)) return;
+            files.add(chunk.file);
+            for (const css of chunk.css ?? []) files.add(css);
+            for (const dep of chunk.imports ?? []) visit(dep);
+        };
+        visit('index.html');
+        const totals = { raw: 0, gzip: 0, brotli: 0 };
+        for (const file of files) {
+            const input = readFileSync(join(dist, file));
+            totals.raw += input.length;
+            totals.gzip += gzipSync(input, { level: 9 }).length;
+            totals.brotli += brotliCompressSync(input, {
+                params: { [constants.BROTLI_PARAM_QUALITY]: 11 },
+            }).length;
+        }
+        return {
+            'core:svelte-consumer:raw': totals.raw,
+            'core:svelte-consumer:gzip': totals.gzip,
+            'core:svelte-consumer:brotli': totals.brotli,
+        };
+    } finally {
+        rmSync(app, { recursive: true, force: true });
+    }
+}
+
+export async function collectSizes(root) {
     const coreDist = join(root, 'packages/core/dist');
     const sizes = {
-        'core:esm-entry-graph': esmEntryGraphSize(join(coreDist, 'index.js')),
+        ...(await svelteConsumerSizes(root)),
         'core:style.css': fileSize(join(coreDist, 'triiiceratops.css')),
         'core:element-iife': fileSize(
             join(coreDist, 'triiiceratops-element.iife.js'),
@@ -249,6 +318,9 @@ export function collectSizes(root) {
         );
         sizes[`${p.key}:iife`] = fileSize(join(root, p.dir, 'dist/iife.js'));
     }
+    sizes['pdf-export:iife-chunk-pdf-lib'] = fileSize(
+        join(root, 'packages/plugin-pdf-export/dist/pdf-lib.js'),
+    );
 
     // AV chunks are file sizes, not graph totals, so lazy chunks stay visible.
     const avDist = join(root, 'packages/plugin-av/dist');
@@ -273,7 +345,7 @@ export function rendererGenerationChanged(base, head) {
     return base?.renderer !== head?.renderer;
 }
 
-/** Size regression is a deterministic increase above 5%; missing artifacts fail. */
+/** Size regression is a deterministic increase above 5%; missing artifacts fail, new ones do not. */
 export function compareSizes(base, head, accepted = {}) {
     const rows = [];
     let regressed = false;
@@ -285,7 +357,10 @@ export function compareSizes(base, head, accepted = {}) {
         const exemption = accepted[key];
         const exempt = Boolean(exemption) && h <= exemption.headBytes;
         const missing = b > 0 && h === 0;
-        const fail = missing || (pct > THRESHOLDS.sizeRegressionPct && !exempt);
+        const added = !(key in base) && h > 0;
+        const fail =
+            missing ||
+            (pct > THRESHOLDS.sizeRegressionPct && !exempt && !added);
         if (fail) regressed = true;
         rows.push({
             key,
@@ -295,6 +370,7 @@ export function compareSizes(base, head, accepted = {}) {
             pct,
             fail,
             ...(missing ? { missing: true } : {}),
+            ...(added ? { added: true } : {}),
             ...(exempt ? { exempt: true, reason: exemption.reason } : {}),
         });
     }
@@ -631,7 +707,7 @@ export function formatSizeTable(rows) {
             `| \`${r.key}\` | ${kib(r.base)} | ${kib(r.head)} | ${
                 r.deltaBytes >= 0 ? '+' : ''
             }${r.deltaBytes} | ${pct(r.pct)} | ${
-                r.fail ? 'FAIL' : r.exempt ? 'accepted' : 'ok'
+                r.fail ? 'FAIL' : r.exempt ? 'accepted' : r.added ? 'new' : 'ok'
             } |`,
         );
     }

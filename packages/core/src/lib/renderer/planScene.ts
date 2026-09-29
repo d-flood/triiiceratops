@@ -465,25 +465,90 @@ function deriveMinZoom(layout: LayoutRect[], boxThreshold: number): number {
  * shape this entry point was split out to avoid. Computed once, beside the
  * layout it summarizes.
  */
-export function planViewportLimits(input: PlanWorldInput): ViewportLimits {
+export function planViewportLimits(
+    input: PlanWorldInput,
+    cached = true,
+): ViewportLimits {
     const sized = resolveGeometry(
         input.canvases,
         input.knownMetadata,
         input.surfaceAspect,
     );
     const layout = layoutCanvases(sized, input);
+    const index = indexLayout(layout, cached);
 
     return {
         layout,
-        bounds: worldBounds(layout),
+        bounds: index.bounds,
         minZoom: deriveMinZoom(layout, input.budgets.boxThreshold),
         lane: laneWorld(sized, layout),
         sourcePixelsPerWorldUnit: deriveSourceResolution(
             sized,
-            layout,
+            index.rects,
             input.knownMetadata,
         ),
     };
+}
+
+/**
+ * What a frame asks of a layout that only a new layout can change: the rect
+ * lookup, each rect's reading-order position and neighbours, the world's
+ * bounds, and the canvases that were laid out.
+ */
+interface LayoutIndex {
+    rects: Map<string, LayoutRect>;
+    positions: Map<LayoutRect, number>;
+    neighbours: string[][];
+    bounds: Box | null;
+    layoutable: { canvases: PlannerCanvas[]; value: PlannerCanvas[] } | null;
+}
+
+/**
+ * Keyed on the layout array itself, which the host's `viewportLimits` memo
+ * hands back unchanged frame after frame: continuous mode lays out the whole
+ * manifest, so rebuilding these per frame is O(manifest) for an answer that
+ * moves only when the layout does.
+ */
+const layoutIndexes = new WeakMap<LayoutRect[], LayoutIndex>();
+
+function indexLayout(layout: LayoutRect[], cached: boolean): LayoutIndex {
+    const hit = cached ? layoutIndexes.get(layout) : undefined;
+    if (hit) return hit;
+
+    const index: LayoutIndex = {
+        rects: new Map(layout.map((rect) => [rect.canvasId, rect])),
+        positions: new Map(layout.map((rect, position) => [rect, position])),
+        // The neighbours by INDEX, not by distance: "the next page" is a
+        // statement about reading order, and it stays correct in a
+        // right-to-left or bottom-to-top world, where the next canvas is at a
+        // lower coordinate rather than a higher one.
+        neighbours: layout.map((_, position) =>
+            [layout[position - 1], layout[position], layout[position + 1]]
+                .filter((rect) => rect !== undefined)
+                .map((rect) => rect.canvasId),
+        ),
+        bounds: worldBounds(layout),
+        layoutable: null,
+    };
+    if (cached) layoutIndexes.set(layout, index);
+
+    return index;
+}
+
+/**
+ * Laid out, therefore plannable — and in layout's own order, so a canvas
+ * dropped for having no usable geometry is absent from both.
+ */
+function layoutableCanvases(
+    canvases: PlannerCanvas[],
+    index: LayoutIndex,
+): PlannerCanvas[] {
+    if (index.layoutable?.canvases === canvases) return index.layoutable.value;
+
+    const value = canvases.filter((canvas) => index.rects.has(canvas.id));
+    index.layoutable = { canvases, value };
+
+    return value;
 }
 
 /**
@@ -528,12 +593,11 @@ export interface ViewportLimits extends PlannedWorld {
  */
 function deriveSourceResolution(
     sized: SizedCanvas[],
-    layout: LayoutRect[],
+    rects: Map<string, LayoutRect>,
     knownMetadata: Record<string, ImageServiceFacts>,
 ): number {
     if (sized.length === 0) return 0;
 
-    const rects = new Map(layout.map((rect) => [rect.canvasId, rect]));
     let deepest = 0;
 
     for (const entry of sized) {
@@ -635,6 +699,7 @@ function intersects(a: Box, b: Box): boolean {
  */
 function residencyWindow(
     layout: LayoutRect[],
+    index: LayoutIndex,
     viewport: Viewport,
     marginFactor: number,
 ): Set<string> {
@@ -643,23 +708,15 @@ function residencyWindow(
     const resident = new Set<string>();
 
     /** A canvas and the two the reader could turn to next. */
-    function addWithNeighbours(index: number): void {
-        // The neighbours by INDEX, not by distance: "the next page" is a
-        // statement about reading order, and it stays correct in a
-        // right-to-left or bottom-to-top world, where the next canvas is at a
-        // lower coordinate rather than a higher one.
-        for (const rect of [
-            layout[index - 1],
-            layout[index],
-            layout[index + 1],
-        ]) {
-            if (rect) resident.add(rect.canvasId);
+    function addWithNeighbours(position: number): void {
+        for (const canvasId of index.neighbours[position]) {
+            resident.add(canvasId);
         }
     }
 
-    layout.forEach((rect, index) => {
+    layout.forEach((rect, position) => {
         if (intersects(rect, margin)) resident.add(rect.canvasId);
-        if (intersects(rect, visible)) addWithNeighbours(index);
+        if (intersects(rect, visible)) addWithNeighbours(position);
     });
 
     // A zero-area viewport is not "in the gutter" — it is a surface that has
@@ -667,7 +724,7 @@ function residencyWindow(
     const inWorld =
         visible.width > 0 &&
         visible.height > 0 &&
-        boxContains(worldBounds(layout) ?? EMPTY_BOX, viewport.centre);
+        boxContains(index.bounds ?? EMPTY_BOX, viewport.centre);
 
     if (resident.size === 0 && inWorld) {
         // Nothing intersected, and the centre is inside the world: the
@@ -675,7 +732,7 @@ function residencyWindow(
         // the one the reader is standing between, so it and its neighbours are
         // exactly what the window held one pixel either side.
         const nearest = nearestRect(layout, viewport.centre);
-        if (nearest) addWithNeighbours(layout.indexOf(nearest));
+        if (nearest) addWithNeighbours(index.positions.get(nearest)!);
     }
 
     return resident;
@@ -717,6 +774,7 @@ function residencyWindow(
  */
 function tierFloor(
     layout: LayoutRect[],
+    index: LayoutIndex,
     viewport: Viewport,
     nearby: ReadonlySet<string>,
 ): Set<string> {
@@ -725,9 +783,8 @@ function tierFloor(
         nearby.size > 0 ? nearestRect(layout, viewport.centre) : null;
     if (!nearest) return floor;
 
-    const index = layout.indexOf(nearest);
-    for (const rect of [layout[index - 1], layout[index], layout[index + 1]]) {
-        if (rect && nearby.has(rect.canvasId)) floor.add(rect.canvasId);
+    for (const canvasId of index.neighbours[index.positions.get(nearest)!]) {
+        if (nearby.has(canvasId)) floor.add(canvasId);
     }
 
     return floor;
@@ -771,11 +828,13 @@ function planPyramid(
     minPixelRatio: number,
     marginFactor: number,
     maxDecodedPixels: number,
+    skipCovered: boolean,
     residentTiles: ReadonlySet<TileKey>,
     requests: TileRequest[],
     draws: TileDraw[],
 ): void {
     const visible = viewportBox(viewport);
+    const firstDraw = draws.length;
     const margin = inflate(visible, marginFactor);
     const inMargin = intersects(box, margin);
 
@@ -833,6 +892,7 @@ function planPyramid(
             );
             const tileBox = tileCanvasRect(pyramid, level, column, row, box);
             const { url, fallback } = tileRequest(pyramid, level, column, row);
+            const onScreen = intersects(tileBox, visible);
 
             requests.push({
                 key,
@@ -840,12 +900,13 @@ function planPyramid(
                 level: level.level,
                 url,
                 priority: distanceToBox(viewport.centre, tileBox),
+                visible: onScreen,
                 ...(fallback ? { fallback } : {}),
             });
 
             // Drawn only if held AND actually on screen: the margin exists to
             // prefetch, not to paint.
-            if (residentTiles.has(key) && intersects(tileBox, visible)) {
+            if (residentTiles.has(key) && onScreen) {
                 draws.push({
                     key,
                     canvasId,
@@ -856,6 +917,71 @@ function planPyramid(
             }
         }
     }
+
+    if (skipCovered && OPAQUE_FORMAT.test(pyramid.format)) {
+        dropCoveredDraws(
+            pyramid,
+            box,
+            visible,
+            viewport.scale * dpr,
+            draws,
+            firstDraw,
+        );
+    }
+}
+
+const OPAQUE_FORMAT = /^jpe?g$/i;
+
+/**
+ * Drop this pyramid's draws (from `first` on) that the next finer level covers
+ * on screen.
+ *
+ * Coverage is asked of the finer level's grid, which tiles the whole image, so
+ * it is exact rather than measured from float boxes; it holds transitively
+ * because the finest drawn level is never dropped. The screen is padded by a
+ * device pixel because the backing store is the viewport rounded.
+ */
+function dropCoveredDraws(
+    pyramid: TilePyramid,
+    box: Box,
+    visible: Box,
+    devicePixelsPerUnit: number,
+    draws: TileDraw[],
+    first: number,
+): void {
+    const drawn = new Set(draws.slice(first).map((draw) => draw.key));
+    const pad = 1 / devicePixelsPerUnit;
+    const left = visible.x - pad;
+    const top = visible.y - pad;
+    const right = visible.x + visible.width + pad;
+    const bottom = visible.y + visible.height + pad;
+
+    let kept = first;
+    for (const draw of draws.slice(first)) {
+        const finer = pyramid.levels[draw.level + 1];
+        const x = Math.max(draw.x, left);
+        const y = Math.max(draw.y, top);
+        const covered =
+            finer &&
+            tilesIntersecting(pyramid, finer, box, {
+                x,
+                y,
+                width: Math.min(draw.x + draw.width, right) - x,
+                height: Math.min(draw.y + draw.height, bottom) - y,
+            }).every(({ column, row }) =>
+                drawn.has(
+                    tileKey(
+                        draw.canvasId,
+                        pyramid.serviceId,
+                        finer.level,
+                        column,
+                        row,
+                    ),
+                ),
+            );
+        if (!covered) draws[kept++] = draw;
+    }
+    draws.length = kept;
 }
 
 /**
@@ -1011,7 +1137,7 @@ function planThumbnail(
     // makes the queue centre-out and the page the reader is looking at arrive
     // first.
     const priority = distanceToBox(viewport.centre, box);
-    const visible = viewportBox(viewport);
+    const onScreen = intersects(box, viewportBox(viewport));
 
     /** The rungs this image holds: the cheapest, then the one it wants. */
     const rungs =
@@ -1056,12 +1182,13 @@ function planThumbnail(
                 level: index,
                 url: resolved.url,
                 priority,
+                visible: onScreen,
                 rung,
                 ...(resolved.fallback ? { fallback: resolved.fallback } : {}),
             });
         }
 
-        if (residentTiles.has(key) && intersects(box, visible)) {
+        if (residentTiles.has(key) && onScreen) {
             draws.push({ key, canvasId, level: index, order, ...box });
         }
     });
@@ -1146,6 +1273,7 @@ function carryBaseLevel(
     source: SourceDescriptor,
     box: Box,
     order: number,
+    viewport: Viewport,
     facts: ImageServiceFacts | undefined,
     residentTiles: ReadonlySet<TileKey>,
     requests: TileRequest[],
@@ -1183,12 +1311,14 @@ function carryBaseLevel(
         if (!residentTiles.has(key)) continue;
 
         const { url, fallback } = tileRequest(pyramid, level, column, row);
+        const tileBox = tileCanvasRect(pyramid, level, column, row, box);
         requests.push({
             key,
             canvasId,
             level: 0,
             url,
             priority: 0,
+            visible: intersects(tileBox, viewportBox(viewport)),
             ...(fallback ? { fallback } : {}),
         });
         draws.push({
@@ -1196,7 +1326,7 @@ function carryBaseLevel(
             canvasId,
             level: 0,
             order,
-            ...tileCanvasRect(pyramid, level, column, row, box),
+            ...tileBox,
         });
     }
 }
@@ -1260,6 +1390,7 @@ function baseLevelTile(
         level: 0,
         url,
         priority,
+        visible: false,
         ...(fallback ? { fallback } : {}),
     };
 }
@@ -1320,7 +1451,7 @@ function isSizeLadderSource(
     );
 }
 
-export function planScene(input: PlanSceneInput): ScenePlan {
+export function planScene(input: PlanSceneInput, cached = true): ScenePlan {
     const { canvases, viewport, budgets, knownMetadata } = input;
     const residentTiles = input.residentTiles ?? new Set<TileKey>();
     // 1 is the CSS-pixel screen, which is what a caller that does not know its
@@ -1329,28 +1460,33 @@ export function planScene(input: PlanSceneInput): ScenePlan {
     // Idle unless the host says otherwise, which is what a test that does not
     // care about the gate — and a caller with nothing moving — is describing.
     const viewStable = input.viewStable ?? true;
+    const skipCovered = viewStable && input.skipCoveredTiles !== false;
 
     // The same function the host's per-sample clamping calls, so the world the
     // pan constraint is measured against can never diverge from the world that
     // is painted — and the host's own answer where it has one, so a frame lays
     // the manifest out once rather than twice.
     const { layout, minZoom } =
-        input.viewportLimits ?? planViewportLimits(input);
-    const rects = new Map(layout.map((rect) => [rect.canvasId, rect]));
-    // Laid out, therefore plannable — and in layout's own order, so a canvas
-    // dropped for having no usable geometry is absent from both.
-    const layoutable = canvases.filter((canvas) => rects.has(canvas.id));
+        input.viewportLimits ?? planViewportLimits(input, cached);
+    const index = indexLayout(layout, cached);
+    const rects = index.rects;
+    const layoutable = layoutableCanvases(canvases, index);
     // The virtualization gate. Everything outside it is box tier whatever its
     // projected size, which is what keeps the required set a function of the
     // VIEWPORT rather than of the manifest's length.
-    const nearby = residencyWindow(layout, viewport, budgets.marginFactor);
+    const nearby = residencyWindow(
+        layout,
+        index,
+        viewport,
+        budgets.marginFactor,
+    );
     // Lazy, because the scan behind it costs O(manifest) and can only ever
     // matter on a frame where a NEARBY canvas came out box tier — which is the
     // zoomed-out case and nothing else. At reading zoom every member of the
     // residency window projects large, so this is never built.
     let floor: Set<string> | null = null;
     const flooredTier = (canvasId: string): ResidencyTier =>
-        (floor ??= tierFloor(layout, viewport, nearby)).has(canvasId)
+        (floor ??= tierFloor(layout, index, viewport, nearby)).has(canvasId)
             ? 'thumbnail'
             : 'box';
 
@@ -1491,6 +1627,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
                 level: 0,
                 url: resolved.url,
                 priority,
+                visible: false,
                 rung: THUMBNAIL_BASE_RUNG,
                 ...(resolved.fallback ? { fallback: resolved.fallback } : {}),
             });
@@ -1625,6 +1762,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
                         slot.source,
                         slot.box,
                         slot.order,
+                        viewport,
                         facts,
                         residentTiles,
                         tileRequests,
@@ -1706,6 +1844,7 @@ export function planScene(input: PlanSceneInput): ScenePlan {
                 budgets.minPixelRatio,
                 budgets.marginFactor,
                 budgets.maxDecodedPixels,
+                skipCovered,
                 residentTiles,
                 tileRequests,
                 tileDraws,

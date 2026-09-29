@@ -92,7 +92,11 @@ export function scopeSelector(selector: string): string {
             const t = s
                 .replace(/:root\b/g, ROOT)
                 .replace(/:host\b/g, ROOT)
-                .replace(/\[data-theme\](?![\w=~^$*|-])/g, ROOT);
+                .replace(/\[data-theme\](?![\w=~^$*|-])/g, ROOT)
+                .replace(
+                    /(?<=[(,]\s*)\.viewer-root(?:\s*,\s*\.viewer-root)+(?=\s*\))/g,
+                    ROOT,
+                );
             out.push(t);
             continue;
         }

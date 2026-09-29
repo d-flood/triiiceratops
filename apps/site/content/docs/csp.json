@@ -1707,6 +1707,66 @@
 			}
 		},
 		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The PDF export plugin has one lazy chunk too.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Its IIFE fetches pdf-lib from the sibling "
+				},
+				{
+					"type": "text",
+					"text": "pdf-lib.js",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " the first time a reader exports, so that file is governed by "
+				},
+				{
+					"type": "text",
+					"text": "script-src",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " in the same way and is served from the same "
+				},
+				{
+					"type": "text",
+					"text": "dist/",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " directory."
+				}
+			],
+			"attrs": {
+				"id": "e1d87c72-fb9a-4f17-b8d7-8e2192abc4c5"
+			}
+		},
+		{
 			"type": "heading",
 			"attrs": {
 				"level": 2,

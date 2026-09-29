@@ -115,10 +115,7 @@ export function createViewerPropApplier(
         if (count > threshold && !warned.has(prop)) {
             warned.add(prop);
             logger.warn(
-                `The \`${prop}\` viewer prop was re-assigned ${count} times on ` +
-                    `one <triiiceratops-viewer>. Property-tier inputs compare ` +
-                    `shallowly, so a value rebuilt every render is written ` +
-                    `every render. Keep its identity stable.`,
+                `${prop} re-assigned ${count} times; keep its identity stable`,
             );
         }
     }

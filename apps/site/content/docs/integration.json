@@ -821,6 +821,466 @@
 			"type": "heading",
 			"attrs": {
 				"level": 2,
+				"slug": "bundling-and-load-performance",
+				"id": "fb41f553-3768-4803-8401-a8c8d0da5b59"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Bundling and load performance"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "keep-the-published-size",
+				"id": "46aac489-0e8d-41ff-9b19-a3e29e9c2bf0"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Keep the published size"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The element ships minified for an "
+				},
+				{
+					"type": "text",
+					"text": "es2022",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " target. A bundler that re-minifies it undoes part of that work: under Vite’s default target the element grows by about 11 KB Brotli, from downlevelling modern syntax and re-mangling names. Set the build target to "
+				},
+				{
+					"type": "text",
+					"text": "es2022",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to skip the downlevelling:"
+				}
+			],
+			"attrs": {
+				"id": "b581c30b-08ab-4844-815f-0869fedd30d0"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "704612d5-97c8-4d0f-a800-a82562efa2ec"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import { defineConfig } from 'vite';\n\nexport default defineConfig({\n    build: { target: 'es2022' },\n});"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The same target saves apps that import "
+				},
+				{
+					"type": "text",
+					"text": "triiiceratops/svelte",
+					"marks": [
+						{
+							"type": "code"
+						},
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/svelte/"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " about 3.3 KB Brotli."
+				}
+			],
+			"attrs": {
+				"id": "6641b3a8-ef28-404c-b6c1-e98d887a96dc"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "To avoid re-minification entirely, keep the element out of the bundle and load the ESM file as a static module script, from a CDN or a copy of "
+				},
+				{
+					"type": "text",
+					"text": "node_modules/triiiceratops/dist/triiiceratops-element.js",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " served as-is. It is a single self-contained file. The React and Vue wrappers skip importing their own copy when "
+				},
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " is already defined."
+				}
+			],
+			"attrs": {
+				"id": "67836bc7-749a-44a1-9546-cb6d5e899136"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "2ddad827-ab15-422f-9a7f-abf45dfd16f3"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script\n    type=\"module\"\n    src=\"https://unpkg.com/triiiceratops/dist/triiiceratops-element.js\"\n></script>"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "start-it-sooner",
+				"id": "abf65ae8-7e3a-495b-ac7b-f175f4f58bbf"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Start it sooner"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The viewer requests its manifest only once the element has loaded and connected, and its first tiles only after that. Resource hints in the page "
+				},
+				{
+					"type": "text",
+					"text": "<head>",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " start that work earlier:"
+				}
+			],
+			"attrs": {
+				"id": "be7f0050-1155-4a93-ac54-3a4dda4da162"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "a51de788-599a-4ab0-97ae-cf1a4620f2a6"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<link\n    rel=\"preload\"\n    as=\"fetch\"\n    href=\"https://example.org/manifest.json\"\n    crossorigin=\"anonymous\"\n/>\n<link\n    rel=\"modulepreload\"\n    href=\"https://unpkg.com/triiiceratops/dist/triiiceratops-element.js\"\n/>\n<link rel=\"preconnect\" href=\"https://images.example.org\" crossorigin />"
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"attrs": {
+				"id": "bf995609-4046-461e-9060-66fb2224d46c"
+			},
+			"content": [
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "799a239d-6044-4322-bd38-389f5dae1296"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "preload",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " fetches the manifest in parallel with the element. The browser uses it only when it matches the viewer’s own request: the "
+								},
+								{
+									"type": "text",
+									"text": "href",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " must equal "
+								},
+								{
+									"type": "text",
+									"text": "manifest-id",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " exactly, and the credentials mode must agree. The viewer requests the manifest with "
+								},
+								{
+									"type": "text",
+									"text": "fetch()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " in CORS mode with credentials "
+								},
+								{
+									"type": "text",
+									"text": "'same-origin'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", which "
+								},
+								{
+									"type": "text",
+									"text": "crossorigin=\"anonymous\"",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " matches. With "
+								},
+								{
+									"type": "text",
+									"text": "requests.withCredentials: true",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " it sends "
+								},
+								{
+									"type": "text",
+									"text": "'include'",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " instead; use "
+								},
+								{
+									"type": "text",
+									"text": "crossorigin=\"use-credentials\"",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". With "
+								},
+								{
+									"type": "text",
+									"text": "requests.headers",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " configured, the viewer’s request differs from the preload and the browser won’t use it; leave the preload out."
+								}
+							],
+							"attrs": {
+								"id": "a3ea5901-81fe-41d4-b27a-ffd8bf4bdd36"
+							}
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "9dc43023-5b9a-4b40-8c2b-019cf89a3edc"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "modulepreload",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " fetches and compiles the ESM element before the module script that runs it. Point it at the same URL as that script. It does not apply to the IIFE build, which is a classic script."
+								}
+							],
+							"attrs": {
+								"id": "5cfa3536-f963-45d5-a2d4-f28c0e370e89"
+							}
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "676fbaf3-004f-4721-ac83-97c7c4881784"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "preconnect",
+									"marks": [
+										{
+											"type": "code"
+										},
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " opens the connection to the IIIF image server before the first "
+								},
+								{
+									"type": "text",
+									"text": "info.json",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " and tile requests. Those are anonymous CORS fetches, so the hint needs "
+								},
+								{
+									"type": "text",
+									"text": "crossorigin",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " to warm the connection they use."
+								}
+							],
+							"attrs": {
+								"id": "b41a6299-ff62-4411-96c5-bf6dd23b4563"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
 				"slug": "driving-the-element-directly",
 				"id": "724c9a21-f9a2-4939-97ae-603095eaf2ff"
 			},

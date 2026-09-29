@@ -1,20 +1,13 @@
 <script lang="ts">
-    import type { HTMLAttributes } from 'svelte/elements';
-
     type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
-    interface Props extends HTMLAttributes<HTMLSpanElement> {
+    interface Props {
         size?: Size;
         class?: string;
         style?: string;
     }
 
-    let {
-        size = 'md',
-        class: className = '',
-        style = '',
-        ...rest
-    }: Props = $props();
+    let { size = 'md', class: className = '', style = '' }: Props = $props();
 
     const SIZE: Record<Size, string> = {
         xs: 'calc(var(--tri-size-selector,0.25rem)*4)',
@@ -31,7 +24,6 @@
     style={computedStyle}
     role="status"
     aria-live="polite"
-    {...rest}
 ></span>
 
 <style>

@@ -153,4 +153,33 @@ describe('image-manipulation filter behavior', () => {
 
         cleanup();
     });
+
+    it('renders the attributes it passes to the Range primitive', async () => {
+        const tc = createTestViewerContext({ catalog });
+
+        const cleanup = ImageManipulationPlugin.view.mount(
+            container,
+            tc.context,
+        );
+        await flush();
+
+        const sliders = [
+            ...container.querySelectorAll<HTMLInputElement>(
+                'input[data-tri-im-slider]',
+            ),
+        ];
+        expect(sliders.map((el) => el.dataset.triImSlider)).toEqual([
+            'brightness',
+            'contrast',
+            'saturation',
+        ]);
+        const brightness = sliders[0]!;
+        expect(brightness.type).toBe('range');
+        expect(brightness.getAttribute('min')).toBe('0');
+        expect(brightness.getAttribute('max')).toBe('200');
+        expect(brightness.getAttribute('aria-label')).toBe('Brightness');
+        expect(brightness.title).toBe('Brightness: 100%');
+
+        cleanup();
+    });
 });

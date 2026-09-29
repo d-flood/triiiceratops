@@ -1,21 +1,10 @@
 /*
- * Conservative CSS minifier for the self-contained element builds (build-time
- * tooling — lives in src/packaging, never published).
- *
- * The element builds set `emitCss: false` so scoped component CSS is compiled
- * into JS string literals and injected at runtime into the custom element's
- * shadow root. That bypasses Vite's CSS pipeline entirely, so nothing in the
- * build ever minifies it: every maintainer comment and every indent in every
- * `<style>` block is shipped to every visitor.
- *
- * This module closes that gap as a Svelte STYLE PREPROCESSOR, registered only in
- * `vite.config.element.ts` and `vite.config.element-esm.ts`. The
- * `svelte-package` path (`svelte.config.js`) deliberately does NOT get it:
- * Svelte consumers keep receiving commented, readable CSS and minify it with
- * their own bundler. It is also imported directly, outside the preprocessor
- * shape, by `packages/plugin-av/vite.config.ts`, which runs it over the plain
- * `.css` files that package pulls into its IIFE as `?raw` strings — a bundle
- * with the same gap and the same reason to close it.
+ * Conservative CSS minifier for plain `.css` files pulled into self-contained
+ * bundles as `?raw` strings (build-time tooling — lives in src/packaging, never
+ * published). Those strings bypass Vite's CSS pipeline entirely, so nothing
+ * else in the build minifies them: every maintainer comment and every indent
+ * would ship to every visitor. `packages/plugin-av/vite.config.ts` and
+ * `pluginBuild.ts` run it over theirs.
  *
  * The transformation is deliberately narrow, because the output is never
  * re-parsed by anything that would catch a mistake:
@@ -167,41 +156,4 @@ export function minifyCss(css: string): string {
     }
 
     return out;
-}
-
-/*
- * The style-preprocessor shape Svelte expects. Typed structurally rather than
- * imported from `svelte/compiler` so this module stays a plain build-time
- * helper with no compiler import.
- */
-export interface StylePreprocessorInput {
-    content: string;
-    attributes: Record<string, string | boolean>;
-    markup: string;
-    filename?: string;
-}
-
-export interface StylePreprocessor {
-    name: string;
-    style(input: StylePreprocessorInput): { code: string } | undefined;
-}
-
-/**
- * Svelte style preprocessor wrapping {@link minifyCss}. Register it ONLY in the
- * element build configs; the `svelte-package` path must keep shipping readable
- * CSS.
- */
-export function minifyCssPreprocessor(): StylePreprocessor {
-    return {
-        name: 'triiiceratops-minify-css',
-        style({ content, attributes }) {
-            // Every `<style>` block in this repository is plain CSS. A block
-            // declaring another language belongs to whatever preprocessor
-            // handles it, and this scanner's rules would not hold for it.
-            if (attributes.lang !== undefined && attributes.lang !== 'css') {
-                return undefined;
-            }
-            return { code: minifyCss(content) };
-        },
-    };
 }

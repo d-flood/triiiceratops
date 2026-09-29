@@ -101,8 +101,7 @@ export function createViewerHandleSlot(): ViewerHandleSlot {
                 if (everClaimed || warnedUnbound) return;
                 warnedUnbound = true;
                 logger.warn(
-                    'A viewer handle was created but never passed to a ' +
-                        '<TriiiceratopsViewer>; reads through it stay null.',
+                    'viewer handle never passed to a viewer; reads stay null',
                 );
             }, 0);
             let cancelled = false;

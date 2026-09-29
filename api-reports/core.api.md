@@ -2783,6 +2783,12 @@ export interface TileRequest {
      */
     priority: number;
     /**
+     * Whether the tile intersects the viewport itself rather than only the
+     * margin. Anything else is prefetch, and is fetched at low network
+     * priority so what the reader sees sharpens first.
+     */
+    visible: boolean;
+    /**
      * A second spelling of the same image, tried **once** if `url` fails, and
      * remembered for `group` so the rest of that group skips the failed
      * spelling entirely.
@@ -3030,6 +3036,12 @@ export interface PlanSceneInput extends PlanWorldInput {
      * gesture rather than being demoted and blanking.
      */
     viewStable?: boolean;
+    /**
+     * Whether a stable view may leave out coarse tiles that finer opaque tiles
+     * cover on screen (`planScene.dropCoveredDraws`). Defaults to `true`; the
+     * devtools handle turns it off to compare the two paints.
+     */
+    skipCoveredTiles?: boolean;
 }
 /**
  * The planner's pure output for one frame. A value produced and discarded each
@@ -3084,6 +3096,7 @@ export interface ScenePlan {
 // FILE: dist/state/manifests.svelte.d.ts
 // ======================================================================
 import type { RequestConfig } from '../types/config';
+import { type StructureNode } from '../utils/structures';
 /**
  * One manifest's entry in the cache: the **raw JSON as fetched**, the fetch
  * error if there was one, and whether a fetch is in flight. Nothing here is
@@ -3096,6 +3109,7 @@ export interface ManifestEntry {
     isFetching?: boolean;
 }
 export declare class ManifestsState {
+    #private;
     manifests: Record<string, ManifestEntry>;
     private pendingFetches;
     /**
@@ -3152,6 +3166,8 @@ export declare class ManifestsState {
     private getCanvasAnnotationListRefs;
     private matchesAnnotationSource;
     ensureCanvasAnnotations(manifestId: string, canvasId: string, sourceId?: string): Promise<any[]>;
+    /** The manifest's parsed structures, read from its raw JSON. */
+    getStructures(manifestId: string): StructureNode[];
     /**
      * How many sequences the active manifest offers, as the sequence picker
      * counts them. Ranges with `behavior: "sequence"` define the sequences when
@@ -3962,11 +3978,6 @@ export declare class ViewerState {
     get canvases(): any[];
     get sequenceCount(): number;
     get currentCanvasIndex(): number;
-    /**
-     * `currentCanvasIndex` is a linear search of the canvas list, so callers
-     * that already hold it pass it in: read from inside the group predicate it
-     * would search the whole list again for every group.
-     */
     private getCurrentPagedCanvasGroupIndex;
     get hasNext(): boolean;
     get hasPrevious(): boolean;
@@ -6938,16 +6949,15 @@ export declare const VIEWER_STATE_AVAILABLE_EVENT = "viewerstateavailable";
 /**
  * The supported bridge surface of the `<triiiceratops-viewer>` element.
  *
- * `viewerState` is getter-only on the element prototype: the Svelte compiler
- * emits it from an instance export, so a host physically cannot replace the
- * owning viewer's state. Its presence on the registered constructor's prototype
+ * `viewerState` is getter-only on the element prototype, so a host physically
+ * cannot replace the owning viewer's state. Its presence on the registered constructor's prototype
  * is also the version handshake a framework wrapper probes to confirm it is
  * talking to a compatible core.
  *
  * `searchProvider` is a property-only input forwarded to the viewer's existing
- * native search behavior. There is no reflected attribute; Svelte derives an
- * inert `searchprovider` observed attribute from the prop declaration, and a
- * non-function value is ignored with a debug-gated warning.
+ * native search behavior. There is no reflected attribute; the element's
+ * `searchprovider` observed attribute is inert, and a non-function value is
+ * ignored with a debug-gated warning.
  */
 export interface TriiiceratopsViewerElement extends HTMLElement {
     /**

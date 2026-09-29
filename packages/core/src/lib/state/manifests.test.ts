@@ -329,8 +329,7 @@ describe('ManifestsState', () => {
             ]);
 
             // Replacing the source document must be visible to the very next
-            // read: the enumeration is derived from the raw JSON each time, not
-            // held in a lookup that outlives the call.
+            // read: the cached enumeration is keyed on the source JSON itself.
             await state.registerManifest(
                 MANIFEST_ID,
                 withOneRange([

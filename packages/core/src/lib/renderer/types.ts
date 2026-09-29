@@ -327,6 +327,12 @@ export interface TileRequest {
      */
     priority: number;
     /**
+     * Whether the tile intersects the viewport itself rather than only the
+     * margin. Anything else is prefetch, and is fetched at low network
+     * priority so what the reader sees sharpens first.
+     */
+    visible: boolean;
+    /**
      * A second spelling of the same image, tried **once** if `url` fails, and
      * remembered for `group` so the rest of that group skips the failed
      * spelling entirely.
@@ -577,6 +583,12 @@ export interface PlanSceneInput extends PlanWorldInput {
      * gesture rather than being demoted and blanking.
      */
     viewStable?: boolean;
+    /**
+     * Whether a stable view may leave out coarse tiles that finer opaque tiles
+     * cover on screen (`planScene.dropCoveredDraws`). Defaults to `true`; the
+     * devtools handle turns it off to compare the two paints.
+     */
+    skipCoveredTiles?: boolean;
 }
 
 /**

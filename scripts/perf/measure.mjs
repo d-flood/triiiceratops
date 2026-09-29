@@ -35,7 +35,13 @@ const { CONTINUOUS_CANVAS_COUNT, CONTINUOUS_MANIFEST, fixtureMiddleware } =
             join(REPO_ROOT, 'packages/core/scripts/iiifFixturePlugin.mjs'),
         ).href
     );
-const { HEIGHT: FIXTURE_PAGE_HEIGHT, WIDTH: FIXTURE_PAGE_WIDTH } = await import(
+const {
+    HEIGHT: FIXTURE_PAGE_HEIGHT,
+    WIDTH: FIXTURE_PAGE_WIDTH,
+    draw,
+    encodePng,
+    renderRegion,
+} = await import(
     pathToFileURL(
         join(REPO_ROOT, 'packages/core/scripts/generate-grid-image.mjs'),
     ).href
@@ -110,6 +116,114 @@ function perfManifest() {
     };
 }
 
+const TILED_SERVICE = '/tiled';
+const TILED_TILE_SIZE = 256;
+const TILED_SCALE_FACTORS = [1, 2, 4, 8];
+
+// Single-canvas manifest over a static level-0 tile tree.
+function tiledManifest() {
+    const size = { height: FIXTURE_PAGE_HEIGHT, width: FIXTURE_PAGE_WIDTH };
+    return {
+        '@context': 'http://iiif.io/api/presentation/3/context.json',
+        id: '/tiled-manifest.json',
+        type: 'Manifest',
+        label: { en: ['Performance harness tiled manifest'] },
+        items: [
+            {
+                id: 'canvas/t1',
+                type: 'Canvas',
+                ...size,
+                items: [
+                    {
+                        id: 'page/t1/1',
+                        type: 'AnnotationPage',
+                        items: [
+                            {
+                                id: 'annotation/t1-image',
+                                type: 'Annotation',
+                                motivation: 'painting',
+                                body: {
+                                    id: `${TILED_SERVICE}/full/max/0/default.png`,
+                                    type: 'Image',
+                                    format: 'image/png',
+                                    ...size,
+                                    service: [
+                                        {
+                                            id: TILED_SERVICE,
+                                            type: 'ImageService3',
+                                            profile: 'level0',
+                                        },
+                                    ],
+                                },
+                                target: 'canvas/t1',
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+}
+
+/** Write the level-0 tree: `info.json` plus `{region}/{w},{h}/0/default.png`. */
+function writeTiledFixture(webRoot) {
+    const dir = join(webRoot, TILED_SERVICE);
+    const pixels = draw();
+    const write = (region, rect, w, h) => {
+        const to = join(dir, region, `${w},${h}`, '0');
+        mkdirSync(to, { recursive: true });
+        writeFileSync(
+            join(to, 'default.png'),
+            encodePng(renderRegion(pixels, rect, w, h), w, h),
+        );
+    };
+    for (const factor of TILED_SCALE_FACTORS) {
+        const span = TILED_TILE_SIZE * factor;
+        for (let y = 0; y < FIXTURE_PAGE_HEIGHT; y += span) {
+            for (let x = 0; x < FIXTURE_PAGE_WIDTH; x += span) {
+                const width = Math.min(span, FIXTURE_PAGE_WIDTH - x);
+                const height = Math.min(span, FIXTURE_PAGE_HEIGHT - y);
+                const rect = { x, y, width, height };
+                const w = Math.ceil(width / factor);
+                const h = Math.ceil(height / factor);
+                const whole =
+                    width === FIXTURE_PAGE_WIDTH &&
+                    height === FIXTURE_PAGE_HEIGHT;
+                write(
+                    whole ? 'full' : `${x},${y},${width},${height}`,
+                    rect,
+                    w,
+                    h,
+                );
+            }
+        }
+    }
+    writeFileSync(
+        join(dir, 'info.json'),
+        JSON.stringify({
+            '@context': 'http://iiif.io/api/image/3/context.json',
+            id: TILED_SERVICE,
+            type: 'ImageService3',
+            protocol: 'http://iiif.io/api/image',
+            profile: 'level0',
+            width: FIXTURE_PAGE_WIDTH,
+            height: FIXTURE_PAGE_HEIGHT,
+            preferredFormats: ['png'],
+            tiles: [
+                { width: TILED_TILE_SIZE, scaleFactors: TILED_SCALE_FACTORS },
+            ],
+            sizes: TILED_SCALE_FACTORS.map((factor) => ({
+                width: Math.ceil(FIXTURE_PAGE_WIDTH / factor),
+                height: Math.ceil(FIXTURE_PAGE_HEIGHT / factor),
+            })),
+        }),
+    );
+    writeFileSync(
+        join(webRoot, 'tiled-manifest.json'),
+        JSON.stringify(tiledManifest()),
+    );
+}
+
 function perfPage(plugins) {
     const scripts = [
         '/node_modules/triiiceratops/dist/triiiceratops-element.iife.js',
@@ -162,6 +276,7 @@ function stageWebRoot(root, webRoot) {
         join(webRoot, 'manifest.json'),
         JSON.stringify(perfManifest()),
     );
+    writeTiledFixture(webRoot);
 }
 
 // ── Browser-side scenario bodies ──
@@ -199,6 +314,29 @@ const SESSION_FN = () =>
                     return reject(new Error('canvas never rendered'));
                 return resolve(result);
             }
+            requestAnimationFrame(poll);
+        };
+        stage.appendChild(el);
+        requestAnimationFrame(poll);
+    });
+
+/** Insertion to the renderer's first frame with a tile or static image painted. */
+const FIRST_CONTENT_FN = (manifest) =>
+    new Promise((resolve, reject) => {
+        const stage = document.getElementById('stage');
+        stage.innerHTML = '';
+        const el = document.createElement('triiiceratops-viewer');
+        el.setAttribute('manifest-id', manifest);
+        el.style.cssText = 'display:block;width:600px;height:400px';
+        const t0 = performance.now();
+        const deadline = t0 + 30000;
+        const poll = () => {
+            const at = el.shadowRoot
+                ?.querySelector('[data-testid="canvas-renderer-surface"]')
+                ?.__triiiceratopsRenderer?.firstContentPaintAt();
+            if (at != null) return resolve(at - t0);
+            if (performance.now() > deadline)
+                return reject(new Error('content never painted'));
             requestAnimationFrame(poll);
         };
         stage.appendChild(el);
@@ -527,6 +665,27 @@ async function measureRuntime(root, { warmups, runs, tracesDir }) {
             log(`    ${k}: median ${round2(runtime[k].median)} ms (n=${runs})`);
         }
 
+        step('time to first tile (tiled level-0 manifest)');
+        runtime.time_to_first_tile = await runRepeated(
+            context,
+            baseURL,
+            'time_to_first_tile',
+            FIRST_CONTENT_FN,
+            '/tiled-manifest.json',
+            warmups,
+            runs,
+        );
+        step('time to first image (static-image manifest)');
+        runtime.time_to_first_image = await runRepeated(
+            context,
+            baseURL,
+            'time_to_first_image',
+            FIRST_CONTENT_FN,
+            '/manifest.json',
+            warmups,
+            runs,
+        );
+
         // Interaction scenarios: fresh viewer per run with all plugins
         // activated + subscribed, then measure just the interaction.
         step('theme switch (plugins activated + subscribed)');
@@ -697,7 +856,7 @@ async function measureMemoryScenario(context, baseURL) {
 export async function measure(root, opts = {}) {
     const warmups = opts.warmups ?? DEFAULT_WARMUPS;
     const runs = opts.runs ?? DEFAULT_RUNS;
-    const sizes = collectSizes(root);
+    const sizes = await collectSizes(root);
     const browserResult = opts.sizeOnly
         ? { runtime: {}, renderer: 'unknown', memory: null }
         : await measureRuntime(root, {

@@ -48,17 +48,22 @@
     let actionsEl: HTMLUListElement | undefined = $state();
 
     function balanceInlineRows(el: HTMLUListElement) {
-        el.style.maxWidth = '';
+        el.style.maxWidth = inlineRowsCap(el);
+    }
+
+    // Measures only, so the one style write above follows every read. None of
+    // these measurements depend on the cap being written.
+    function inlineRowsCap(el: HTMLUListElement): string {
         const items = Array.from(el.children) as HTMLElement[];
         const n = items.length;
-        if (n < 2) return;
+        if (n < 2) return '';
 
         const bar = el.closest('.control-bar') as HTMLElement | null;
         const container =
             (bar?.offsetParent as HTMLElement | null) ??
             bar?.parentElement ??
             null;
-        if (!bar || !container) return;
+        if (!bar || !container) return '';
 
         const barStyle = getComputedStyle(bar);
         const left = parseFloat(barStyle.left) || 0;
@@ -67,7 +72,7 @@
             (parseFloat(barStyle.paddingLeft) || 0) +
             (parseFloat(barStyle.paddingRight) || 0);
         const avail = container.clientWidth - left - right - padX;
-        if (avail <= 0) return;
+        if (avail <= 0) return '';
 
         const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
         let sum = 0;
@@ -78,11 +83,11 @@
             if (w > widest) widest = w;
         }
         const natural = sum + gap * (n - 1);
-        if (natural <= avail) return; // fits on one row — no cap needed
+        if (natural <= avail) return ''; // fits on one row — no cap needed
 
         const rows = Math.ceil(natural / avail);
         const perRow = Math.ceil(n / rows);
-        el.style.maxWidth = `${perRow * widest + (perRow - 1) * gap + 1}px`;
+        return `${perRow * widest + (perRow - 1) * gap + 1}px`;
     }
 
     $effect(() => {

@@ -16,8 +16,9 @@
             }
         </style>
         <!-- Script order A: core element IIFE FIRST, then the plugin IIFE. The
-             plugin IIFE bundles its own pdf-lib, so no bundler/dependency
-             install is needed on the no-bundler path. -->
+             plugin IIFE fetches pdf-lib from its sibling dist/pdf-lib.js on
+             first export, so no bundler/dependency install is needed on the
+             no-bundler path. -->
         <script src="/node_modules/triiiceratops/dist/triiiceratops-element.iife.js"></script>
         <script src="/node_modules/@triiiceratops/plugin-pdf-export/dist/iife.js"></script>
     </head>

@@ -246,17 +246,17 @@ async function verifyDimensions(
         !aspectsAgree(measured.width / measured.height, serviceAspect);
 
     logger.warn(
-        `${serviceId}: aspect ${serviceAspect.toFixed(3)} in info.json ` +
+        `${serviceId}: aspect ${serviceAspect.toFixed(3)} info.json ` +
             `(${facts.width}x${facts.height}), ` +
-            `${declaredAspect.toFixed(3)} in the manifest, ` +
-            `${measured ? `${measured.width}x${measured.height} served` : 'nothing served'}` +
+            `${declaredAspect.toFixed(3)} manifest, ` +
+            `${measured ? `${measured.width}x${measured.height}` : 'none'} served` +
             // Unmeasurable: the disagreement is real but unattributable, and
             // the declared facts are the only ones there are.
             (!measured
-                ? ' — undecidable'
+                ? '; undecidable'
                 : convicted
-                  ? ' — info.json wrong, whole images only'
-                  : ' — manifest wrong, tiling survives'),
+                  ? '; info.json wrong, no tiles'
+                  : '; manifest wrong, tiles kept'),
     );
 
     if (!measured || !convicted) return facts;

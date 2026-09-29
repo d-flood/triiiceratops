@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getVisibleCanvasEntries } from '../components/viewerControls';
 import { collectionV3WithNavDates } from '../test/fixtures/manifests';
 import { manifestsState } from './manifests.svelte';
 import { ViewerState } from './viewer.svelte';
@@ -515,6 +516,89 @@ describe('ViewerState manifest behavior', () => {
         expect(state.canvasId).toBe(ids[2]);
     });
 
+    it('parses structures a constant number of times per navigation, however often the canvas list is read', async () => {
+        const ids = Array.from(
+            { length: 200 },
+            (_, index) => `http://example.org/canvas/structured/${index}`,
+        );
+        const json = v3Manifest('http://example.org/manifest/structured', {
+            canvases: ids.map((id) => v3Canvas(id)),
+        });
+        const structures = [
+            {
+                id: 'range-physical',
+                type: 'Range',
+                behavior: ['sequence'],
+                items: ids.map((id) => ({ id, type: 'Canvas' })),
+            },
+        ];
+        let parses = 0;
+        Object.defineProperty(json, 'structures', {
+            get() {
+                parses += 1;
+                return structures;
+            },
+            enumerable: true,
+        });
+
+        await load(json);
+
+        const parsesPerNavigation = (target: string, reads: number) => {
+            const before = parses;
+            state.setCanvas(target);
+            for (let read = 0; read < reads; read++) {
+                void state.canvases;
+                void state.currentCanvasIndex;
+                void state.hasNext;
+                void state.hasPrevious;
+                void state.sequenceCount;
+                void state.structures;
+                void state.sequenceStructures;
+                void state.nonSequenceStructures;
+            }
+            return parses - before;
+        };
+
+        parsesPerNavigation(ids[1], 1);
+        const once = parsesPerNavigation(ids[2], 1);
+        expect(parsesPerNavigation(ids[3], 20)).toBe(once);
+        expect(parsesPerNavigation(ids[4], 1)).toBe(once);
+        expect(state.canvases).toBe(state.canvases);
+        expect(state.structures).toBe(state.structures);
+        expect(state.currentCanvasIndex).toBe(4);
+    });
+
+    it('hands the planner the raw canvas JSON the cache registered, not a proxy', async () => {
+        const json = v3Manifest('http://example.org/manifest/raw', {
+            canvases: [
+                v3Canvas(CANVAS_1),
+                v3Canvas(CANVAS_2),
+                v3Canvas(CANVAS_3),
+            ],
+        });
+
+        await load(json);
+        state.setCanvas(CANVAS_2);
+
+        expect(state.canvases).toEqual(json.items);
+        state.canvases.forEach((canvas, index) =>
+            expect(canvas).toBe(json.items[index]),
+        );
+
+        state.viewingMode = 'paged';
+        const visible = getVisibleCanvasEntries({
+            canvases: state.canvases,
+            currentCanvasId: state.canvasId,
+            currentCanvasIndex: state.currentCanvasIndex,
+            viewingMode: 'paged',
+            pagedOffset: state.pagedOffset,
+        });
+        expect(visible.length).toBeGreaterThan(0);
+        for (const entry of visible) {
+            expect(json.items).toContain(entry.canvas);
+        }
+    });
+
     it('auto-loads the earliest manifest when opening a chronology collection', async () => {
         serve({
             'http://example.org/collection/navdate': collectionV3WithNavDates,
@@ -536,6 +620,61 @@ describe('ViewerState manifest behavior', () => {
             { headers: undefined, credentials: 'same-origin' },
         );
         expect(state.manifestId).toBe('http://example.org/manifest/1986');
+    });
+
+    it('never has more than four collection member fetches in flight, taken in member order', async () => {
+        const collectionId = 'http://example.org/collection/windowed';
+        const memberIds = Array.from(
+            { length: 10 },
+            (_, i) => `http://example.org/manifest/windowed-${i}`,
+        );
+        const byUrl: Record<string, unknown> = {
+            [collectionId]: {
+                '@context': 'http://iiif.io/api/presentation/3/context.json',
+                id: collectionId,
+                type: 'Collection',
+                label: { en: ['Windowed'] },
+                items: memberIds.map((id) => ({
+                    id,
+                    type: 'Manifest',
+                    label: { en: [id] },
+                })),
+            },
+        };
+        for (const id of memberIds) {
+            byUrl[id] = v3Manifest(id, {
+                canvases: [
+                    v3Canvas(`${id}/canvas`, {
+                        thumbnail: [{ id: `${id}/thumb.jpg`, type: 'Image' }],
+                    }),
+                ],
+            });
+        }
+        registeredIds.push(...Object.keys(byUrl));
+
+        let inFlight = 0;
+        let maxInFlight = 0;
+        const started: string[] = [];
+        mockFetch.mockImplementation(async (url: string) => {
+            if (url === collectionId) {
+                return { ok: true, json: async () => byUrl[url] };
+            }
+            started.push(url);
+            maxInFlight = Math.max(maxInFlight, ++inFlight);
+            await new Promise((resolve) => setTimeout(resolve, 5));
+            inFlight -= 1;
+            return { ok: true, json: async () => structuredClone(byUrl[url]) };
+        });
+
+        await state.setManifest(collectionId);
+        await vi.waitFor(() =>
+            expect(state.collectionItems.map((item) => item.thumbnail)).toEqual(
+                memberIds.map((id) => `${id}/thumb.jpg`),
+            ),
+        );
+
+        expect(maxInFlight).toBe(4);
+        expect(started).toEqual(memberIds);
     });
 
     it('does not report a current canvas index until a canvas is selected', async () => {

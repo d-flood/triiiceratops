@@ -9,7 +9,7 @@ import {
 } from 'vitest';
 import { tick } from 'svelte';
 
-import TriiiceratopsViewerElement from './TriiiceratopsViewerElement.svelte';
+import { ViewerElement } from './viewerElement.svelte';
 import { ViewerState } from '../state/viewer.svelte';
 import { configureLogging, type LogLevel } from '../logging/logger';
 import { VIEWER_STATE_AVAILABLE_EVENT } from '../types/viewerElement';
@@ -18,25 +18,18 @@ import type { SearchProvider, SearchResultGroup } from '../types/config';
 /**
  * The custom element's state bridge.
  *
- * These tests drive the REAL compiled custom element — registered through
+ * These tests drive the REAL custom element — registered through
  * `customElements.define` exactly as the Web Component entries do — because
  * every hazard here lives in the element's own semantics: the asynchronous
- * `connectedCallback`, the getter-only prototype property the Svelte compiler
- * emits for an instance export, pre-connection property porting, and the
- * destroy/re-mount cycle a detach-then-reattach produces.
+ * `connectedCallback`, the getter-only prototype `viewerState`,
+ * pre-connection property porting, and the destroy/re-mount cycle a
+ * detach-then-reattach produces.
  */
 
 const TAG = 'triiiceratops-viewer';
 
-/**
- * The custom-element class the Svelte compiler produced for the wrapper —
- * exactly what `custom-element.ts` / `element.ts` hand to the browser runtime.
- */
-const ElementCtor = (
-    TriiiceratopsViewerElement as unknown as {
-        element: CustomElementConstructor;
-    }
-).element;
+/** Exactly what `custom-element.ts` / `element.ts` hand to the browser runtime. */
+const ElementCtor: CustomElementConstructor = ViewerElement;
 
 /** The element's bridge surface, as seen by a Web Component host. */
 interface BridgeElement extends HTMLElement {

@@ -1,120 +1,3 @@
-<!--
-    svelte-check runs with `customElement: false` so ordinary components are not
-    analyzed as custom elements. This wrapper IS compiled as a custom element in
-    the real element builds (vite.config.element*.ts, which upgrade this one
-    file via `dynamicCompileOptions`), so the customElement options below are
-    correct there. svelte-check cannot apply per-file customElement, so it emits
-    `options_missing_custom_element` for this one file; that single code is
-    ignored via the `--compiler-warnings` flag on the `check` script and recorded
-    in lint-allowlist.md (svelte-ignore does not apply to <svelte:options>).
--->
-<svelte:options
-    customElement={{
-        shadow: 'open',
-        props: {
-            manifestId: {
-                attribute: 'manifest-id',
-                type: 'String',
-                reflect: true,
-            },
-            manifestJson: {
-                attribute: 'manifest-json',
-                type: 'Object',
-                reflect: false,
-            },
-            canvasId: {
-                attribute: 'canvas-id',
-                type: 'String',
-                reflect: true,
-            },
-            theme: {
-                attribute: 'theme',
-                type: 'String',
-                reflect: true,
-            },
-            contentState: {
-                attribute: 'content-state',
-                type: 'String',
-                reflect: false,
-            },
-            // A real HTML boolean attribute: PRESENCE opts in. Svelte's
-            // `Boolean` coercion is `value != null`, so — exactly like
-            // `disabled` — `read-content-state-from-url="false"` is still on.
-            // `viewerElementAttributes` therefore omits the attribute for a
-            // false-valued framework prop rather than stringifying it.
-            readContentStateFromUrl: {
-                attribute: 'read-content-state-from-url',
-                type: 'Boolean',
-                reflect: false,
-            },
-            // A real HTML boolean attribute, on the same terms.
-            acceptDroppedContentState: {
-                attribute: 'accept-dropped-content-state',
-                type: 'Boolean',
-                reflect: false,
-            },
-            themeConfig: {
-                attribute: 'theme-config',
-                type: 'String',
-                reflect: false,
-            },
-            config: {
-                attribute: 'config',
-                type: 'String',
-                reflect: false,
-            },
-            initialCanvasRegion: {
-                attribute: 'initial-canvas-region',
-                type: 'String',
-                reflect: false,
-            },
-            messages: {
-                attribute: 'messages',
-                type: 'String',
-                reflect: false,
-            },
-            // Property-only input, on the same terms as `searchProvider`
-            // below: a catalog loader is a function, and the derived
-            // `loadmessages` attribute can only ever deliver a string, which
-            // the script below ignores.
-            loadMessages: {
-                attribute: 'loadmessages',
-                type: 'String',
-                reflect: false,
-            },
-            // Property-only input. Declaring it here is what makes Svelte
-            // define a prototype accessor for it and port a value assigned
-            // BEFORE the element upgrades (`custom-element.js`
-            // `connectedCallback`). Svelte derives an observed attribute from
-            // every declared prop, so an inert `searchprovider` attribute
-            // exists; `type: 'String'` keeps a stray attribute a harmless
-            // string (an `Object` type would JSON.parse and throw), and the
-            // script below ignores every non-function value.
-            searchProvider: {
-                attribute: 'searchprovider',
-                type: 'String',
-                reflect: false,
-            },
-            // Property-only input, stated explicitly for the same reason as
-            // `searchProvider` above. Svelte already emits a prototype
-            // accessor and an observed attribute for every DECLARED prop
-            // (`transform-client.js` fills in `{}` for props missing from this
-            // map), so `element.plugins = [...]` has always reached the
-            // component — but the defaults were implicit and therefore absent
-            // from the API report. Pinning them here records that the derived
-            // `plugins` attribute is inert and unsupported: `type: 'String'`
-            // keeps a stray one a harmless string rather than something
-            // JSON.parse would throw on, and the inner viewer already ignores
-            // any non-array value. Framework wrappers use the property only.
-            plugins: {
-                attribute: 'plugins',
-                type: 'String',
-                reflect: false,
-            },
-        },
-    }}
-/>
-
 <script lang="ts">
     import styles from '../../app.css?inline';
     import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
@@ -228,17 +111,28 @@
 
     let internalViewerState: ViewerState | undefined = $state();
 
-    /**
-     * The state bridge (see `../types/viewerElement`). Exporting the binding
-     * makes the Svelte compiler list `viewerState` in `create_custom_element`'s
-     * `exports`, which defines a GETTER-ONLY property on the element prototype
-     * reading `this.$$c?.viewerState`. That is exactly the required contract
-     * with no custom code: `undefined` before the inner viewer mounts,
-     * `undefined` again once disconnection clears `$$c`, no setter at all, and
-     * — because it lives on the prototype — the version handshake a framework
-     * wrapper can probe on the registered constructor.
-     */
+    // Read by `viewerElement.svelte.ts`: `viewerState` is the state bridge,
+    // and the props report their resolved values, defaults included, for the
+    // element's getters and reflection.
     export { internalViewerState as viewerState };
+    export {
+        manifestId,
+        manifestJson,
+        canvasId,
+        contentState,
+        readContentStateFromUrl,
+        acceptDroppedContentState,
+        plugins,
+        theme,
+        themeConfig,
+        config,
+        initialCanvasRegion,
+        messages,
+        loadMessages,
+        searchProvider,
+        onpluginerror,
+        onviewererror,
+    };
 
     let eventTargetSet = false;
 
@@ -267,7 +161,7 @@
     let validatedTheme = $derived.by((): BuiltInTheme | undefined => {
         if (!theme) return undefined;
         if (isBuiltInTheme(theme)) return theme;
-        logger.warn(`Invalid theme "${theme}"; inheriting.`);
+        logger.warn(`bad theme ${theme}; inherited`);
         return undefined;
     });
 
@@ -311,18 +205,15 @@
     });
 
     // `loadMessages` is property-only: the inert `loadmessages` observed
-    // attribute Svelte derives from the prop declaration can only ever deliver
-    // a string, so anything that is not a function is dropped here.
+    // attribute can only ever deliver a string, so anything that is not a
+    // function is dropped here.
     let validatedLoadMessages = $derived.by(
         (): ViewerConfig['loadMessages'] => {
             if (loadMessages === undefined || loadMessages === null) {
                 return undefined;
             }
             if (typeof loadMessages !== 'function') {
-                logger.warn(
-                    'Ignoring non-function loadMessages; it is property-only: ' +
-                        'element.loadMessages = (locale) => ….',
-                );
+                logger.warn('loadMessages is not a function; ignored');
                 return undefined;
             }
             return loadMessages;
@@ -368,17 +259,13 @@
     );
 
     // `searchProvider` is property-only: the inert `searchprovider` observed
-    // attribute Svelte derives from the prop declaration can only ever deliver
-    // a string, so anything that is not a function is dropped here rather than
-    // reaching the search path.
+    // attribute can only ever deliver a string, so anything that is not a
+    // function is dropped here rather than reaching the search path.
     let validatedSearchProvider = $derived.by((): SearchProvider | null => {
         if (searchProvider === undefined || searchProvider === null)
             return null;
         if (typeof searchProvider !== 'function') {
-            logger.warn(
-                'Ignoring non-function searchProvider; it is property-only: ' +
-                    'element.searchProvider = (query, context) => ….',
-            );
+            logger.warn('searchProvider is not a function; ignored');
             return null;
         }
         return searchProvider;
@@ -399,8 +286,9 @@
     );
 </script>
 
+<!-- The wrapper's rule rides in the shadow root's one sheet. -->
 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-{@html `<style>${styles}</style>`}
+{@html `<style>${styles}.te-root{width:100%;height:100%}</style>`}
 
 <div bind:this={hostElement} class="te-root">
     <TriiiceratopsViewer
@@ -421,10 +309,3 @@
         bind:viewerState={internalViewerState}
     />
 </div>
-
-<style>
-    .te-root {
-        width: 100%;
-        height: 100%;
-    }
-</style>

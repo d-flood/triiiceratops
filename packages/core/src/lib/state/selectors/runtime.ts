@@ -327,7 +327,7 @@ export function createSelectorRuntime<S extends SelectorSource>(
                 if (probe.readViewport) {
                     warnedViewportRead = true;
                     logger.warn(
-                        `A \`state\`-cadence selector read query-only \`${probe.readViewport}\`, so it will appear frozen. Pass \`cadence: 'frame'\`.`,
+                        `state selector read ${probe.readViewport}, will freeze; use cadence: 'frame'`,
                     );
                 }
                 return probe.value;

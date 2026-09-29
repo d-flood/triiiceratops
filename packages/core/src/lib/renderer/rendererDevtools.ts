@@ -25,6 +25,7 @@
  */
 import type { CanvasErrorKind } from './canvasErrors';
 import type { RendererPort } from './rendererPort';
+import type { StaticImages } from './staticImages';
 import type { TileScheduler } from './tileScheduler';
 import type { Point, ResidencyTier, Viewport } from './types';
 
@@ -55,8 +56,10 @@ export interface RendererInternals {
      */
     onDetach(fn: () => void): () => void;
     setByteBudget(bytes: number): void;
+    setSkipCoveredTiles(on: boolean): void;
     /** The tile scheduler itself, which carries every residency counter. */
     tiles: TileScheduler;
+    staticImages: StaticImages;
     getTiers(): Record<string, ResidencyTier>;
     /** Live and reactive; the handle copies it before publishing. */
     canvasErrors: Record<string, CanvasErrorKind>;

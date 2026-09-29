@@ -9,13 +9,14 @@
  * needs a DOM. They live here so they can be asserted in plain Node rather than
  * inferred from a Svelte component's behaviour in a browser.
  *
- * Nothing here holds state or reads the viewport: a caller passes the world and
- * the point it cares about.
+ * Nothing here reads reactive state: a caller passes the world and the point
+ * it cares about. The one memo, {@link createPlacementLookup}, holds only an
+ * index over the layout it was last asked about.
  */
 
 import type { CanvasSize } from '../types/viewport';
 import type { Box } from './tilePyramid';
-import type { LayoutRect, Point } from './types';
+import type { LayoutRect, Point, Viewport } from './types';
 
 /**
  * The outer edge of every laid-out canvas, or `null` for an empty world.
@@ -242,6 +243,64 @@ export function canvasPointToWorld(
     return {
         x: rect.x + (point.x / width) * rect.width,
         y: rect.y + (point.y / height) * rect.height,
+    };
+}
+
+/**
+ * Canvas space → screen space in one step, with no intermediate world point.
+ *
+ * The same arithmetic, in the same order, as `canvasPointToWorld` followed by
+ * `viewportMath.canvasToScreen`, so the answer is bit-identical to the two-step
+ * conversion; it only skips the allocation between them.
+ */
+export function canvasPointToScreen(
+    point: Point,
+    placement: CanvasPlacement,
+    viewport: Viewport,
+): Point {
+    const { rect } = placement;
+    const width = usableExtent(placement.width, rect.width);
+    const height = usableExtent(placement.height, rect.height);
+    const worldX = rect.x + (point.x / width) * rect.width;
+    const worldY = rect.y + (point.y / height) * rect.height;
+    return {
+        x: (worldX - viewport.centre.x) * viewport.scale + viewport.width / 2,
+        y: (worldY - viewport.centre.y) * viewport.scale + viewport.height / 2,
+    };
+}
+
+/**
+ * Canvas id → placement, indexed once per layout.
+ *
+ * Every coordinate helper on the renderer port starts by placing a canvas, and
+ * a frame that projects shapes on a spread or a run of folios asks about
+ * several canvases in turn, so a single remembered answer would miss on every
+ * alternation. The index is rebuilt when the layout's identity changes, which
+ * is the only time a placement can. The first rect for an id wins, as `find`
+ * would have answered.
+ */
+export function createPlacementLookup(
+    declaredSize: (canvasId: string) => {
+        width: number | null;
+        height: number | null;
+    },
+): (layout: LayoutRect[], canvasId: string) => CanvasPlacement | null {
+    let indexed: LayoutRect[] | null = null;
+    let byId = new Map<string, CanvasPlacement>();
+
+    return (layout, canvasId) => {
+        if (indexed !== layout) {
+            byId = new Map();
+            for (const rect of layout) {
+                if (byId.has(rect.canvasId)) continue;
+                byId.set(rect.canvasId, {
+                    rect,
+                    ...declaredSize(rect.canvasId),
+                });
+            }
+            indexed = layout;
+        }
+        return byId.get(canvasId) ?? null;
     };
 }
 

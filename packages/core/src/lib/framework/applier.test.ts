@@ -360,8 +360,7 @@ describe('unmemoized property warning', () => {
 
         const warnings = records.filter((r) => r.level === 'warn');
         expect(warnings).toHaveLength(1);
-        expect(warnings[0].message).toContain('`config`');
-        expect(warnings[0].message).toContain('re-assigned');
+        expect(warnings[0].message).toMatch(/\bconfig\b/);
     });
 
     it('warns per prop, not once for the whole applier', () => {
@@ -378,7 +377,7 @@ describe('unmemoized property warning', () => {
 
         const warned = records
             .filter((r) => r.level === 'warn')
-            .map((r) => (r.message.includes('`config`') ? 'config' : 'other'));
+            .map((r) => (/\bconfig\b/.test(r.message) ? 'config' : 'other'));
         expect(warned).toEqual(['other', 'config']);
     });
 

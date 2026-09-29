@@ -195,7 +195,7 @@
             "source": "Constructed over vendored cookbook recipe manifest 0009-book-1 and collection 0032-collection",
             "recipe": "0032-collection",
             "capturedAt": "2026-08-20",
-            "warns": "names no Manifest",
+            "warns": "partOf",
             "expected": null
         },
         {
@@ -208,7 +208,7 @@
             "source": "Constructed over vendored cookbook recipe manifest 0009-book-1",
             "recipe": "0009-book-1",
             "capturedAt": "2026-08-20",
-            "warns": "targets, all but the first dropped",
+            "warns": "targets",
             "expected": {
                 "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
                 "canvasId": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p1"
@@ -239,7 +239,7 @@
             "source": "Constructed over vendored cookbook recipe manifest 0009-book-1",
             "recipe": "0009-book-1",
             "capturedAt": "2026-08-20",
-            "warns": "no `motivation: contentState`",
+            "warns": "motivation",
             "expected": {
                 "manifestId": "https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json",
                 "canvasId": "https://iiif.io/api/cookbook/recipe/0009-book-1/canvas/p1"
