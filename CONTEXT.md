@@ -65,6 +65,8 @@ draft, never the raw drawn shape.
 **Hydration**:
 Fetching an annotation's full body on demand (typically at selection) when the adapter
 returned only a skeleton from `load`.
+_Avoid_: bare "hydration" for Svelte attaching to server-rendered markup — say "SSR
+hydration"
 
 **Skeleton**:
 A partially loaded annotation whose body is a preview/stub pending hydration. A
