@@ -1,4 +1,4 @@
 export const PLUGIN_META = {
     name: '@triiiceratops/plugin-annotation-editor',
-    version: '1.0.0',
+    version: '1.1.0',
 } as const;

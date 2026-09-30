@@ -17,6 +17,26 @@ const SITES = [
         pattern: /(?<=^ {4}version: ')[^']+(?=',$)/m,
     },
     {
+        file: 'packages/plugin-annotation-editor/src/identity.ts',
+        pkg: 'packages/plugin-annotation-editor',
+        pattern: /(?<=^ {4}version: ')[^']+(?=',$)/m,
+    },
+    {
+        file: 'packages/plugin-image-export/src/identity.ts',
+        pkg: 'packages/plugin-image-export',
+        pattern: /(?<=^ {4}version: ')[^']+(?=',$)/m,
+    },
+    {
+        file: 'packages/plugin-image-manipulation/src/plugin.ts',
+        pkg: 'packages/plugin-image-manipulation',
+        pattern: /(?<=^ {4}version: ')[^']+(?=',$)/m,
+    },
+    {
+        file: 'packages/plugin-pdf-export/src/identity.ts',
+        pkg: 'packages/plugin-pdf-export',
+        pattern: /(?<=^ {4}version: ')[^']+(?=',$)/m,
+    },
+    {
         file: 'packages/comparison/src/competitors.ts',
         pkg: 'packages/core',
         pattern: /(?<=^const TRIIICERATOPS_VERSION = ')[^']+(?=';$)/m,
