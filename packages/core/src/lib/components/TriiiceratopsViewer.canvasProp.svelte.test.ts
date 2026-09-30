@@ -118,6 +118,26 @@ describe('TriiiceratopsViewer canvasId prop on manifest load', () => {
         await unmount(app);
     });
 
+    it('starts the manifest request before the mount effect, and issues it once', async () => {
+        mockFetch.mockClear();
+        const props = $state({
+            manifestId: MANIFEST_ID,
+            viewerState: undefined as any,
+        });
+
+        const app = mount(TriiiceratopsViewer, { target, props });
+        const manifestRequests = () =>
+            mockFetch.mock.calls.filter(([url]) => url === MANIFEST_ID);
+        expect(manifestRequests()).toHaveLength(1);
+
+        await settle();
+
+        expect(props.viewerState?.manifestId).toBe(MANIFEST_ID);
+        expect(manifestRequests()).toHaveLength(1);
+
+        await unmount(app);
+    });
+
     it('shows the requested canvas when the consumer mirrors viewer state back into the prop', async () => {
         const props = $state({
             manifestId: MANIFEST_ID,

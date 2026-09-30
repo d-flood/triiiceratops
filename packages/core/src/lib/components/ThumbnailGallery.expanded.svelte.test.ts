@@ -10,6 +10,7 @@ import {
 import { mount, unmount, tick } from 'svelte';
 
 import TriiiceratopsViewer from './TriiiceratopsViewer.svelte';
+import { getThumbnailSrc } from '../utils/getThumbnailSrc';
 import {
     getGalleryThumbFrameHeight,
     getGalleryThumbFrameWidth,
@@ -38,6 +39,12 @@ import {
  *   fill.
  * - The overlay covers the center column only: side panels stay usable.
  */
+
+vi.mock('../utils/getThumbnailSrc', async (importOriginal) => {
+    const actual =
+        await importOriginal<typeof import('../utils/getThumbnailSrc')>();
+    return { getThumbnailSrc: vi.fn(actual.getThumbnailSrc) };
+});
 
 const MANIFEST_ID = 'https://example.org/iiif/book/manifest';
 const CANVAS = (name: string) => `${MANIFEST_ID}/canvas/${name}`;
@@ -580,5 +587,102 @@ describe('expanded thumbnail gallery', () => {
         expect(props.viewerState?.galleryExpanded).toBe(false);
         expect(band()).not.toBeNull();
         expect(overlay()).toBeNull();
+    });
+});
+
+describe('thumbnail gallery recomputation', () => {
+    const NATURAL = 'https://example.org/image/natural.jpg';
+    const XRAY = 'https://example.org/image/x-ray.jpg';
+    const choiceCanvas = makeCanvas('page-2');
+    choiceCanvas.images[0].resource = {
+        '@type': 'oa:Choice',
+        default: { '@id': NATURAL, '@type': 'dctypes:Image' },
+        item: [{ '@id': XRAY, '@type': 'dctypes:Image' }],
+    } as any;
+    const choiceManifest = {
+        ...manifestJson,
+        sequences: [
+            {
+                ...manifestJson.sequences[0],
+                canvases: [
+                    makeCanvas('page-1'),
+                    choiceCanvas,
+                    makeCanvas('page-3'),
+                ],
+            },
+        ],
+    };
+
+    let target: HTMLElement;
+    let app: ReturnType<typeof mount> | undefined;
+
+    beforeEach(() => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => ({ ok: true, json: async () => choiceManifest })),
+        );
+        target = document.createElement('div');
+        document.body.appendChild(target);
+    });
+
+    afterEach(async () => {
+        if (app) await unmount(app);
+        app = undefined;
+        target.remove();
+        vi.restoreAllMocks();
+    });
+
+    async function mountViewer() {
+        const props = $state({
+            manifestId: MANIFEST_ID,
+            config: {
+                gallery: { open: true, dockPosition: 'bottom' },
+            } as Record<string, unknown>,
+            viewerState: undefined as any,
+        });
+        app = mount(TriiiceratopsViewer, { target, props });
+        await settle();
+        return props.viewerState;
+    }
+
+    const thumbSrc = (name: string) =>
+        target
+            .querySelector(`[data-id="${CANVAS(name)}"] img`)
+            ?.getAttribute('src');
+
+    it('recomputes only the entry whose Choice changed', async () => {
+        const state = await mountViewer();
+        const others = [
+            target.querySelector(`[data-id="${CANVAS('page-1')}"]`),
+            target.querySelector(`[data-id="${CANVAS('page-3')}"]`),
+        ];
+        vi.mocked(getThumbnailSrc).mockClear();
+
+        state.selectChoice(CANVAS('page-2'), XRAY);
+        await settle();
+
+        expect(vi.mocked(getThumbnailSrc)).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(getThumbnailSrc).mock.calls[0][2]).toBe(XRAY);
+        expect(thumbSrc('page-2')).toBe(XRAY);
+        expect(target.querySelector(`[data-id="${CANVAS('page-1')}"]`)).toBe(
+            others[0],
+        );
+        expect(target.querySelector(`[data-id="${CANVAS('page-3')}"]`)).toBe(
+            others[1],
+        );
+    });
+
+    it('scrolls on navigation but not on a recompute', async () => {
+        const state = await mountViewer();
+        const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+
+        state.selectChoice(CANVAS('page-2'), XRAY);
+        state.activeLocale = 'fr';
+        await settle();
+        expect(scroll).not.toHaveBeenCalled();
+
+        state.setCanvas(CANVAS('page-3'));
+        await settle();
+        expect(scroll).toHaveBeenCalledTimes(1);
     });
 });

@@ -15,6 +15,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *
  * `BUILD_FORMAT=es`   → `dist/index.js` (the ESM entry) + `dist/testing/index.js`
  *                       (the adapter-conformance kit subpath).
+ * `BUILD_FORMAT=svelte` → `dist/svelte/index.js` (the ESM entry, with the Svelte
+ *                       runtime left external for the `svelte` condition).
  * `BUILD_FORMAT=iife` → `dist/iife.js` (a `<script>`-loadable bundle that
  *                       registers into `window.Triiiceratops.plugins`).
  *
@@ -36,6 +38,7 @@ export default defineConfig(
             index: 'src/index.ts',
             'testing/index': 'src/testing/index.ts',
         },
+        svelteEntries: ['index'],
         iifeEntry: 'src/iife.ts',
         extraExternal: ['vitest'],
     }),

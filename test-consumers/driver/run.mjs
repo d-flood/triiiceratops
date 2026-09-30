@@ -104,6 +104,7 @@ export const FIXTURES = [
     'plugin-image-export-iife',
     'plugin-pdf-export-svelte',
     'plugin-pdf-export-iife',
+    'plugin-svelte-condition',
     // Unrun: journey targets the replaced Annotorious surface; re-list once rewritten.
     'plugin-annotation-conformance',
     'strict-dts',

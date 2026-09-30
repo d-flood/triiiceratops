@@ -34,8 +34,8 @@
  *     not buy the risk of terser assuming things about coercion and prototypes
  *     in Svelte's compiled signal plumbing.
  *   - Default mangling, meaning identifiers only. Property mangling is what
- *     would break this artifact quietly: the wrapper's custom-element props
- *     definition is a plain object whose `attribute` keys and `'manifest-id'`
+ *     would break this artifact quietly: the element's `ELEMENT_PROPS` table
+ *     is a plain object whose `attribute` keys and `'manifest-id'`
  *     style string values ARE the attribute contract, and a renamed key leaves
  *     `<triiiceratops-viewer>` registering happily while ignoring every
  *     attribute it is given. Turning it on was built and measured: the artifact

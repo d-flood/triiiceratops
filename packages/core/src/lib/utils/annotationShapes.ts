@@ -47,7 +47,7 @@ export interface ScreenRect {
     height: number;
 }
 
-interface ShapeCommon {
+export interface ShapeCommon {
     /** `renderId` — unique per geometry, so a multi-target annotation keys. */
     id: string;
     /** The annotation the shape belongs to; several shapes may share one. */
@@ -60,12 +60,12 @@ interface ShapeCommon {
     tooltip: string;
 }
 
-export interface RectangleShape extends ShapeCommon {
+export interface RectanglePlacement {
     type: 'RECTANGLE';
     rect: ScreenRect;
 }
 
-export interface PolygonShape extends ShapeCommon {
+export interface PolygonPlacement {
     type: 'POLYGON';
     /** The shape's bounding box, which positions the `<svg>`. */
     bounds: ScreenRect;
@@ -73,10 +73,23 @@ export interface PolygonShape extends ShapeCommon {
     points: [number, number][];
 }
 
-export interface PointShape extends ShapeCommon {
+export interface PointPlacement {
     type: 'POINT';
     point: ScreenPoint;
 }
+
+/**
+ * Where a shape is on screen this frame, and nothing else — the only part of a
+ * shape a pan or a zoom changes.
+ */
+export type ShapePlacement =
+    | RectanglePlacement
+    | PolygonPlacement
+    | PointPlacement;
+
+export type RectangleShape = ShapeCommon & RectanglePlacement;
+export type PolygonShape = ShapeCommon & PolygonPlacement;
+export type PointShape = ShapeCommon & PointPlacement;
 
 export type AnnotationShape = RectangleShape | PolygonShape | PointShape;
 
@@ -231,11 +244,29 @@ export function projectPreparedShapes(
     const shapes: AnnotationShape[] = [];
 
     for (const entry of prepared) {
-        const shape = projectPreparedShape(entry, toScreen);
-        if (shape) shapes.push(shape);
+        const placement = placePreparedShape(entry, toScreen);
+        if (placement) shapes.push({ ...entry.common, ...placement });
     }
 
     return shapes;
+}
+
+/**
+ * Every prepared shape's placement this frame, index for index, with `null`
+ * where the renderer cannot place it.
+ *
+ * The per-frame half for a caller that keeps its shape objects across frames
+ * and moves them: nothing here copies a shape's text or flags, so a frame
+ * allocates positions and only positions.
+ */
+export function placePreparedShapes(
+    prepared: readonly PreparedShape[],
+    toScreen: (
+        point: ScreenPoint,
+        canvasId: string | null,
+    ) => ScreenPoint | null,
+): (ShapePlacement | null)[] {
+    return prepared.map((entry) => placePreparedShape(entry, toScreen));
 }
 
 /**
@@ -255,13 +286,13 @@ export function projectAnnotationShapes(
     );
 }
 
-function projectPreparedShape(
+function placePreparedShape(
     prepared: PreparedShape,
     project: (
         point: ScreenPoint,
         canvasId: string | null,
     ) => ScreenPoint | null,
-): AnnotationShape | null {
+): ShapePlacement | null {
     const { common, geometry } = prepared;
     const toScreen = (point: ScreenPoint) => project(point, common.canvasId);
 
@@ -278,7 +309,6 @@ function projectPreparedShape(
         if (!topLeft || !bottomRight) return null;
 
         return {
-            ...common,
             type: 'RECTANGLE',
             rect: {
                 x: topLeft.x,
@@ -293,7 +323,7 @@ function projectPreparedShape(
         const point = toScreen({ x: geometry.x, y: geometry.y });
         if (!point) return null;
 
-        return { ...common, type: 'POINT', point };
+        return { type: 'POINT', point };
     }
 
     const projected: ScreenPoint[] = [];
@@ -318,7 +348,6 @@ function projectPreparedShape(
     }
 
     return {
-        ...common,
         type: 'POLYGON',
         bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
         // Relative to the bounding box, because the `<svg>` is positioned at it.
@@ -359,7 +388,7 @@ function pointInPolygon(
  * `pointSize` is the point marker's diameter in screen pixels.
  */
 export function shapeContainsPoint(
-    shape: AnnotationShape,
+    shape: ShapePlacement,
     x: number,
     y: number,
     pointSize: number,

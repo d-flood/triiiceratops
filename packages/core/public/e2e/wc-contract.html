@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Triiiceratops WC contract fixture</title>
+        <!--
+            Loads nothing on its own: wc-contract.spec.ts decides when each
+            built entry is defined, so it can stage elements before upgrade.
+        -->
+        <script>
+            let loads = 0;
+            window.loadViewerElement = (entry) => {
+                loads += 1;
+                if (entry === 'esm') {
+                    return import(
+                        `/dist/triiiceratops-element.js?load=${loads}`
+                    );
+                }
+                return new Promise((resolve, reject) => {
+                    let thrown;
+                    const onError = (event) => {
+                        thrown = event.error;
+                        event.preventDefault();
+                    };
+                    const script = document.createElement('script');
+                    script.src = `/dist/triiiceratops-element.iife.js?load=${loads}`;
+                    window.addEventListener('error', onError);
+                    script.onload = () => {
+                        window.removeEventListener('error', onError);
+                        if (thrown) reject(thrown);
+                        else resolve();
+                    };
+                    script.onerror = reject;
+                    document.head.append(script);
+                });
+            };
+        </script>
+        <style>
+            triiiceratops-viewer {
+                display: block;
+                width: 600px;
+                height: 400px;
+            }
+        </style>
+    </head>
+    <body></body>
+</html>

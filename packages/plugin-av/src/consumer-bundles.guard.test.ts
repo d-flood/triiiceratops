@@ -2,6 +2,7 @@
 /** Consumer-bundle regression over the built ESM entry. */
 
 import { mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -190,5 +191,25 @@ describe('the built ESM entry survives a consumer bundle', () => {
                 }
             },
         );
+    });
+});
+
+describe('the optional svelte peer', () => {
+    it('starts at the Svelte version the ESM build is compiled with', () => {
+        const manifest = JSON.parse(
+            readFileSync(
+                resolve(
+                    dirname(fileURLToPath(import.meta.url)),
+                    '../package.json',
+                ),
+                'utf8',
+            ),
+        );
+        const { version } = createRequire(import.meta.url)(
+            'svelte/package.json',
+        ) as { version: string };
+
+        expect(manifest.peerDependencies.svelte).toBe(`^${version}`);
+        expect(manifest.peerDependenciesMeta.svelte.optional).toBe(true);
     });
 });

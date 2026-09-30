@@ -11,7 +11,19 @@
         | 'error';
     type Size = 'xs' | 'sm' | 'md' | 'lg';
 
-    interface Props extends HTMLButtonAttributes {
+    interface Props extends Pick<
+        HTMLButtonAttributes,
+        | 'type'
+        | 'disabled'
+        | 'title'
+        | 'aria-label'
+        | 'aria-pressed'
+        | 'aria-expanded'
+        | 'onclick'
+        | 'onpointerdown'
+        | 'onpointerup'
+        | 'onpointercancel'
+    > {
         variant?: Variant;
         size?: Size;
         /** Square button sized to its height, fully rounded. */
@@ -29,6 +41,10 @@
         children?: Snippet;
         /** The rendered `<button>`, for a caller that must focus or measure it. */
         element?: HTMLButtonElement | null;
+        'data-tip'?: string;
+        'data-testid'?: string;
+        'data-tri-id-download'?: boolean;
+        'data-tri-pdf-export'?: boolean;
     }
 
     let {
@@ -43,7 +59,20 @@
         style = '',
         children,
         element = $bindable(null),
-        ...rest
+        type,
+        disabled,
+        title,
+        'aria-label': ariaLabel,
+        'aria-pressed': ariaPressed,
+        'aria-expanded': ariaExpanded,
+        onclick,
+        onpointerdown,
+        onpointerup,
+        onpointercancel,
+        'data-tip': dataTip,
+        'data-testid': dataTestid,
+        'data-tri-id-download': dataTriIdDownload,
+        'data-tri-pdf-export': dataTriPdfExport,
     }: Props = $props();
 
     const VARIANT_VARS: Record<Variant, string> = {
@@ -79,7 +108,20 @@
     class:outline
     class:active
     style={computedStyle}
-    {...rest}
+    {type}
+    {disabled}
+    {title}
+    aria-label={ariaLabel}
+    aria-pressed={ariaPressed}
+    aria-expanded={ariaExpanded}
+    {onclick}
+    {onpointerdown}
+    {onpointerup}
+    {onpointercancel}
+    data-tip={dataTip}
+    data-testid={dataTestid}
+    data-tri-id-download={dataTriIdDownload}
+    data-tri-pdf-export={dataTriPdfExport}
 >
     {@render children?.()}
 </button>

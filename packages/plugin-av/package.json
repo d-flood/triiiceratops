@@ -51,7 +51,7 @@
     },
     "peerDependencies": {
         "@triiiceratops/plugin-sdk": "workspace:^",
-        "svelte": "^5.0.0",
+        "svelte": "^5.56.10",
         "triiiceratops": "workspace:^"
     },
     "peerDependenciesMeta": {

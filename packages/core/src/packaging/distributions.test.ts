@@ -390,23 +390,21 @@ describe('published distributions ship styles + themes', () => {
             }
         });
 
-        it('observes every attribute the wrapper declares', () => {
-            // `observedAttributes` is a static getter on Svelte's
-            // custom-element base class, reading the compiled props
-            // definition. Asking the live constructor for it — rather than
-            // grepping the text, which is all the other guards on this
+        it('observes every attribute the element declares', () => {
+            // Asking the live constructor for `observedAttributes` — rather
+            // than grepping the text, which is all the other guards on this
             // artifact do — is what makes the attribute contract survive the
             // round trip through two minifiers. Expected values come from the
-            // wrapper source, so the two cannot drift.
-            const wrapper = readFileSync(
+            // element's table, so the two cannot drift.
+            const table = readFileSync(
                 resolve(
                     PACKAGE_ROOT,
-                    'src/lib/components/TriiiceratopsViewerElement.svelte',
+                    'src/lib/components/viewerElement.svelte.ts',
                 ),
                 'utf8',
             );
             const declared = [
-                ...wrapper.matchAll(/attribute:\s*'([a-z-]+)'/g),
+                ...table.matchAll(/attribute:\s*'([a-z-]+)'/g),
             ].map((m) => m[1]);
             expect(declared.length).toBeGreaterThan(0);
 

@@ -1202,6 +1202,44 @@
 									"text": "<script src=\"https://unpkg.com/triiiceratops/dist/triiiceratops-element.iife.js\"></script>\n<script src=\"https://unpkg.com/@triiiceratops/plugin-image-manipulation/dist/iife.js\"></script>\n\n<triiiceratops-viewer manifest-id=\"https://example.org/manifest.json\"></triiiceratops-viewer>\n\n<script>\n    customElements.whenDefined('triiiceratops-viewer').then(() => {\n        const viewer = document.querySelector('triiiceratops-viewer');\n        viewer.plugins = [\n            window.Triiiceratops.plugins.get(\n                '@triiiceratops/plugin-image-manipulation',\n            ),\n        ];\n    });\n</script>"
 								}
 							]
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "The AV and PDF export IIFEs fetch lazy chunks from beside themselves, so self-host each of those plugins' whole "
+								},
+								{
+									"type": "text",
+									"text": "dist/",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " directory rather than copying out "
+								},
+								{
+									"type": "text",
+									"text": "iife.js",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " alone."
+								}
+							],
+							"attrs": {
+								"id": "80632311-069e-4f14-8d0c-888d26aa1bfa"
+							}
 						}
 					]
 				},
@@ -4873,7 +4911,20 @@
 									"content": [
 										{
 											"type": "text",
-											"text": "PDF export plugin (IIFE)"
+											"text": "PDF export plugin (IIFE; serve the whole "
+										},
+										{
+											"type": "text",
+											"text": "dist/",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " directory, which holds its lazy pdf-lib chunk)"
 										}
 									],
 									"attrs": {

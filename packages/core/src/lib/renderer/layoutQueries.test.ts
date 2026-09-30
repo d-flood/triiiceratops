@@ -9,14 +9,16 @@
  * for a DOM global.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
     boxContains,
     canvasBoxToWorld,
+    canvasPointToScreen,
     canvasPointToWorld,
     canvasExtent,
     canvasScaleFactor,
+    createPlacementLookup,
     fitTargetBounds,
     navigationTargetBounds,
     nearestRect,
@@ -26,6 +28,7 @@ import {
     worldPointToCanvas,
 } from './layoutQueries';
 import type { LayoutRect } from './types';
+import { canvasToScreen } from './viewportMath';
 
 /** A left-to-right world of `count` 1200x900 folios with a 12-unit gutter. */
 const PAGE = { width: 1200, height: 900 };
@@ -455,5 +458,76 @@ describe('canvasScaleFactor', () => {
                 height: 0,
             }),
         ).toBe(1);
+    });
+});
+
+describe('canvasPointToScreen', () => {
+    it('is bit-identical to converting through world space', () => {
+        const placement = {
+            rect: { canvasId: 'c', x: 500.3, y: 40.7, width: 800, height: 999 },
+            width: 1601,
+            height: null,
+        };
+        const viewport = {
+            width: 1023,
+            height: 767,
+            centre: { x: 611.1, y: 403.9 },
+            scale: 0.371,
+        };
+        for (const point of [
+            { x: 0, y: 0 },
+            { x: 1, y: 1 },
+            { x: 333.3, y: 17.07 },
+            { x: 1601, y: 999 },
+            { x: -12.5, y: 2000.25 },
+        ]) {
+            expect(canvasPointToScreen(point, placement, viewport)).toEqual(
+                canvasToScreen(canvasPointToWorld(point, placement), viewport),
+            );
+        }
+    });
+});
+
+describe('createPlacementLookup', () => {
+    const declared = (canvasId: string) => ({
+        width: canvasId === 'f1' ? 2400 : null,
+        height: null,
+    });
+
+    it('answers what a find over the layout would, including null', () => {
+        const layout = world(4);
+        const lookup = createPlacementLookup(declared);
+
+        for (const id of ['f0', 'f1', 'f3', 'missing']) {
+            const rect = layout.find((entry) => entry.canvasId === id);
+            expect(lookup(layout, id)).toEqual(
+                rect ? { rect, ...declared(id) } : null,
+            );
+        }
+    });
+
+    it('never scans the layout on repeated reads across several canvases', () => {
+        const layout = world(800);
+        const lookup = createPlacementLookup(declared);
+        lookup(layout, 'f0');
+
+        const find = vi.spyOn(layout, 'find');
+        for (let read = 0; read < 100; read += 1) {
+            lookup(layout, 'f10');
+            lookup(layout, 'f11');
+            lookup(layout, 'f700');
+        }
+
+        expect(find).not.toHaveBeenCalled();
+        expect(lookup(layout, 'f11')).toBe(lookup(layout, 'f11'));
+    });
+
+    it('re-indexes when the layout changes identity', () => {
+        const lookup = createPlacementLookup(declared);
+        const before = world(2);
+        const after = world(2).map((rect) => ({ ...rect, y: 50 }));
+
+        expect(lookup(before, 'f1')!.rect.y).toBe(0);
+        expect(lookup(after, 'f1')!.rect.y).toBe(50);
     });
 });

@@ -1,9 +1,9 @@
 {
     "$schema": "./scripts/perf/perf-budgets.schema.json",
-    "baselineRef": "working-tree@official-1.0-release",
+    "baselineRef": "working-tree@smaller-element-faster-first-tile#24",
     "renderer": "canvas",
     "tracing": "off",
-    "capturedAt": "2026-09-12T00:47:54.675Z",
+    "capturedAt": "2026-09-30T17:26:25.727Z",
     "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median; byte ceilings are proportional (x1.75) so a small scenario is not swallowed by an additive floor sized for a large one. baselineRef names the commit that was MEASURED, which for a working-tree capture is not a released tag. Reproduce a capture with an ordinary build of that commit: the first-party Canvas2D renderer is the only renderer, so no environment variable selects it.",
     "thresholds": {
         "sizeRegressionPct": 0.05,
@@ -15,53 +15,65 @@
         "memoryAbsTiles": 8
     },
     "size": {
-        "core:esm-entry-graph": {
-            "bytes": 149516,
-            "ceilingBytes": 156992
+        "core:svelte-consumer:raw": {
+            "bytes": 392816,
+            "ceilingBytes": 412457
+        },
+        "core:svelte-consumer:gzip": {
+            "bytes": 121786,
+            "ceilingBytes": 127876
+        },
+        "core:svelte-consumer:brotli": {
+            "bytes": 105176,
+            "ceilingBytes": 110435
         },
         "core:style.css": {
-            "bytes": 17724,
-            "ceilingBytes": 18611
+            "bytes": 17801,
+            "ceilingBytes": 18692
         },
         "core:element-iife": {
-            "bytes": 375686,
-            "ceilingBytes": 394471
+            "bytes": 360023,
+            "ceilingBytes": 378025
         },
         "sdk:esm-entry-graph": {
             "bytes": 14376,
             "ceilingBytes": 15095
         },
         "image-manipulation:esm": {
-            "bytes": 60320,
-            "ceilingBytes": 63336
+            "bytes": 53953,
+            "ceilingBytes": 56651
         },
         "image-manipulation:iife": {
-            "bytes": 66189,
-            "ceilingBytes": 69499
+            "bytes": 59899,
+            "ceilingBytes": 62894
         },
         "image-download:esm": {
-            "bytes": 77688,
-            "ceilingBytes": 81573
+            "bytes": 72823,
+            "ceilingBytes": 76465
         },
         "image-download:iife": {
-            "bytes": 101201,
-            "ceilingBytes": 106262
+            "bytes": 96412,
+            "ceilingBytes": 101233
         },
         "pdf-export:esm": {
-            "bytes": 86176,
-            "ceilingBytes": 90485
+            "bytes": 81311,
+            "ceilingBytes": 85377
         },
         "pdf-export:iife": {
-            "bytes": 543328,
-            "ceilingBytes": 570495
+            "bytes": 105063,
+            "ceilingBytes": 110317
+        },
+        "pdf-export:iife-chunk-pdf-lib": {
+            "bytes": 433974,
+            "ceilingBytes": 455673
         },
         "av:esm-entry": {
-            "bytes": 35488,
-            "ceilingBytes": 37263
+            "bytes": 35810,
+            "ceilingBytes": 37601
         },
         "av:iife": {
-            "bytes": 42404,
-            "ceilingBytes": 44525
+            "bytes": 42818,
+            "ceilingBytes": 44959
         },
         "av:iife-chunk-hls": {
             "bytes": 582417,
@@ -82,36 +94,44 @@
     },
     "runtime": {
         "initial_viewer_mount": {
-            "medianMs": 26.7,
-            "ceilingMs": 90.05
+            "medianMs": 23.3,
+            "ceilingMs": 84.95
         },
         "local_manifest_readiness": {
-            "medianMs": 39.5,
-            "ceilingMs": 109.25
+            "medianMs": 41.6,
+            "ceilingMs": 112.4
         },
         "first_canvas_render": {
-            "medianMs": 41.3,
-            "ceilingMs": 111.95
+            "medianMs": 41.7,
+            "ceilingMs": 112.55
+        },
+        "time_to_first_tile": {
+            "medianMs": 60.3,
+            "ceilingMs": 140.45
+        },
+        "time_to_first_image": {
+            "medianMs": 56.1,
+            "ceilingMs": 134.15
         },
         "theme_switch": {
-            "medianMs": 2.4,
-            "ceilingMs": 53.6
+            "medianMs": 1.8,
+            "ceilingMs": 52.7
         },
         "core_interaction": {
-            "medianMs": 1.7,
-            "ceilingMs": 52.55
+            "medianMs": 1.5,
+            "ceilingMs": 52.25
         },
         "activate_image-manipulation": {
-            "medianMs": 5.1,
-            "ceilingMs": 57.65
+            "medianMs": 5.7,
+            "ceilingMs": 58.55
         },
         "activate_image-download": {
-            "medianMs": 5.8,
-            "ceilingMs": 58.7
+            "medianMs": 5.2,
+            "ceilingMs": 57.8
         },
         "activate_pdf-export": {
-            "medianMs": 6.1,
-            "ceilingMs": 59.15
+            "medianMs": 6.5,
+            "ceilingMs": 59.75
         }
     },
     "memory": {

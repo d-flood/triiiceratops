@@ -15,6 +15,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * format.
  *
  * `BUILD_FORMAT=es`   → `dist/index.js` (the ESM entry consumers import).
+ * `BUILD_FORMAT=svelte` → `dist/svelte/index.js` (the same, with the Svelte
+ *                       runtime left external for the `svelte` condition).
  * `BUILD_FORMAT=iife` → `dist/iife.js`  (a `<script>`-loadable bundle that
  *                       registers into `window.Triiiceratops.plugins`).
  *

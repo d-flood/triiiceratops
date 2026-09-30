@@ -14,6 +14,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * Build the image-export plugin into a SELF-CONTAINED bundle for one format.
  *
  * `BUILD_FORMAT=es`   → `dist/index.js` (the ESM entry consumers import).
+ * `BUILD_FORMAT=svelte` → `dist/svelte/index.js` (the same, with the Svelte
+ *                       runtime left external for the `svelte` condition).
  * `BUILD_FORMAT=iife` → `dist/iife.js`  (a `<script>`-loadable bundle that
  *                       registers into `window.Triiiceratops.plugins`).
  *
@@ -23,7 +25,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * canvas helpers this plugin's export path consumes: `pluginBuild` externalizes
  * core's subpaths by pattern, so the ESM entry leaves it for the consumer's
  * bundler to dedupe, and the IIFE bundles it. It is framework-neutral and
- * carries no `svelte/internal`, so bundling it keeps the dist grep clean.
+ * carries no `svelte/internal`, so bundling it keeps `pluginDistCheck` clean.
  */
 export default defineConfig(
     pluginBuild({

@@ -1,6 +1,5 @@
 <script lang="ts">
     import type { Snippet } from 'svelte';
-    import type { HTMLAttributes } from 'svelte/elements';
 
     type Size = 'xs' | 'sm' | 'md' | 'lg';
     type Variant =
@@ -11,7 +10,7 @@
         | 'warning'
         | 'error';
 
-    interface Props extends HTMLAttributes<HTMLSpanElement> {
+    interface Props {
         variant?: Variant;
         size?: Size;
         outline?: boolean;
@@ -29,7 +28,6 @@
         class: className = '',
         style = '',
         children,
-        ...rest
     }: Props = $props();
 
     const VARIANT: Record<Variant, string> = {
@@ -55,13 +53,7 @@
     );
 </script>
 
-<span
-    class="badge {className}"
-    class:outline
-    class:soft
-    style={computedStyle}
-    {...rest}
->
+<span class="badge {className}" class:outline class:soft style={computedStyle}>
     {@render children?.()}
 </span>
 

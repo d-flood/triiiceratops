@@ -40,6 +40,18 @@ describe('scopeSelector', () => {
         expect(r).toContain('.viewer-root');
     });
 
+    it('collapses the duplicate roots a :root/:host union maps to', () => {
+        expect(scopeSelector(':where(:root, :host)')).toBe(
+            ':where(.viewer-root)',
+        );
+        expect(scopeSelector(':where(:root, :host, [data-theme])')).toBe(
+            ':where(.viewer-root)',
+        );
+        expect(scopeSelector(':where(:root, :host) :focus-visible')).toBe(
+            ':where(.viewer-root) :focus-visible',
+        );
+    });
+
     it('compounds root-level theme blocks onto .viewer-root (no descendant space)', () => {
         expect(scopeSelector("[data-theme='dark']")).toBe(
             ".viewer-root[data-theme='dark']",

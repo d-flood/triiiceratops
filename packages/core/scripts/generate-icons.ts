@@ -66,36 +66,127 @@ function extractInner(svg: string, source: string): string {
     return match[1].trim();
 }
 
-/** One number in path data. Arc flags are bare integers and round to themselves. */
-const PATH_NUMBER = /-?(?:\d+\.\d+|\.\d+|\d+)/g;
+const ARITY: Record<string, number> = {
+    m: 2,
+    l: 2,
+    h: 1,
+    v: 1,
+    c: 6,
+    s: 4,
+    q: 4,
+    t: 2,
+    a: 7,
+    z: 0,
+};
 
-/**
- * Round to one decimal, which is ~0.4% of Phosphor's 256-unit viewBox — well
- * under a pixel at the sizes the chrome renders at. `String` drops a trailing
- * `.0` and prints -0 as 0, and always emits a leading digit.
- */
-function roundCoordinate(literal: string): string {
-    return String(Math.round(Number(literal) * 10) / 10);
+/** Split `d` into commands, each with its numbers grouped into segments. */
+function parsePath(d: string): { cmd: string; segments: number[][] }[] {
+    const commands: { cmd: string; segments: number[][] }[] = [];
+    let rest = d;
+    for (;;) {
+        const head = rest.match(/^[\s,]*([a-zA-Z])/);
+        if (!head) break;
+        rest = rest.slice(head[0].length);
+        const cmd = head[1];
+        const arity = ARITY[cmd.toLowerCase()];
+        const segments: number[][] = [];
+        do {
+            const segment: number[] = [];
+            for (let i = 0; i < arity; i++) {
+                const flag = cmd.toLowerCase() === 'a' && (i === 3 || i === 4);
+                const token = rest.match(
+                    flag
+                        ? /^[\s,]*([01])/
+                        : /^[\s,]*(-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)/,
+                );
+                if (!token) {
+                    if (i === 0 && segments.length > 0) break;
+                    throw new Error(`Could not parse path data: ${d}`);
+                }
+                rest = rest.slice(token[0].length);
+                segment.push(Number(token[1]));
+            }
+            if (segment.length < arity) break;
+            segments.push(segment);
+        } while (arity > 0);
+        commands.push({ cmd, segments });
+    }
+    if (rest.trim() !== '') throw new Error(`Could not parse path data: ${d}`);
+    return commands;
 }
 
 /**
- * Round the coordinates in one `d` attribute value. Path data may separate two
- * numbers with nothing but the second one's sign or decimal point (`-.26.25`,
- * `c.35.79`); since a rounded number can lose either, adjacent numbers get an
- * explicit comma so no pair can merge into one.
+ * Rounds every point to an integer on Phosphor's 256-unit grid. A relative
+ * delta is taken between consecutive ROUNDED absolute points rather than
+ * rounded itself, so rounding error never accumulates along a path.
  */
 function roundPathData(d: string): string {
+    let x = 0;
+    let y = 0;
+    let startX = 0;
+    let startY = 0;
+    let rx = 0;
+    let ry = 0;
+    let rStartX = 0;
+    let rStartY = 0;
     let out = '';
-    let cut = 0;
-    for (const match of d.matchAll(PATH_NUMBER)) {
-        const gap = d.slice(cut, match.index);
-        const rounded = roundCoordinate(match[0]);
-        out += gap;
-        if (gap === '' && cut > 0 && !rounded.startsWith('-')) out += ',';
-        out += rounded;
-        cut = match.index + match[0].length;
+    for (const { cmd, segments } of parsePath(d)) {
+        const lower = cmd.toLowerCase();
+        const relative = cmd === lower;
+        out += cmd;
+        segments.forEach((segment, index) => {
+            const nums: number[] = [];
+            const point = (px: number, py: number) => {
+                const ax = relative ? x + px : px;
+                const ay = relative ? y + py : py;
+                const qx = Math.round(ax);
+                const qy = Math.round(ay);
+                nums.push(relative ? qx - rx : qx, relative ? qy - ry : qy);
+                return [ax, ay, qx, qy];
+            };
+            let end: number[];
+            if (lower === 'h') {
+                const ax = relative ? x + segment[0] : segment[0];
+                const qx = Math.round(ax);
+                nums.push(relative ? qx - rx : qx);
+                end = [ax, y, qx, ry];
+            } else if (lower === 'v') {
+                const ay = relative ? y + segment[0] : segment[0];
+                const qy = Math.round(ay);
+                nums.push(relative ? qy - ry : qy);
+                end = [x, ay, rx, qy];
+            } else if (lower === 'a') {
+                nums.push(
+                    Math.round(segment[0]),
+                    Math.round(segment[1]),
+                    Math.round(segment[2]),
+                    segment[3],
+                    segment[4],
+                );
+                end = point(segment[5], segment[6]);
+            } else if (lower === 'z') {
+                end = [startX, startY, rStartX, rStartY];
+            } else {
+                for (let i = 0; i < segment.length - 2; i += 2) {
+                    point(segment[i], segment[i + 1]);
+                }
+                end = point(
+                    segment[segment.length - 2],
+                    segment[segment.length - 1],
+                );
+            }
+            [x, y, rx, ry] = end;
+            if (lower === 'm' && index === 0) {
+                [startX, startY, rStartX, rStartY] = end;
+            }
+            nums.forEach((n, i) => {
+                const text = String(n);
+                if ((i > 0 || index > 0) && !text.startsWith('-')) out += ',';
+                out += text;
+            });
+        });
     }
-    return out + d.slice(cut);
+    return out;
 }
 
 /** Shrink the markup by rounding coordinates, scoped to `d` attribute values. */

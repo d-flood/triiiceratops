@@ -4,7 +4,7 @@
 
     type Size = 'xs' | 'sm' | 'md' | 'lg';
 
-    interface Props extends Omit<HTMLSelectAttributes, 'size'> {
+    interface Props extends Pick<HTMLSelectAttributes, 'onchange'> {
         value?: unknown;
         size?: Size;
         class?: string;
@@ -13,12 +13,12 @@
     }
 
     let {
-        value = $bindable(),
+        value,
         size = 'md',
         class: className = '',
         style = '',
         children,
-        ...rest
+        onchange,
     }: Props = $props();
 
     const SIZE: Record<Size, string> = {
@@ -33,8 +33,8 @@
 <select
     class="native-select {className}"
     style={computedStyle}
-    bind:value
-    {...rest}
+    {value}
+    {onchange}
 >
     {@render children?.()}
 </select>
@@ -101,7 +101,7 @@
         z-index: 1;
     }
 
-    .native-select:is(:disabled, [disabled]) {
+    .native-select:disabled {
         cursor: not-allowed;
         border-color: var(--tri-panel-bg);
         background-color: var(--tri-panel-bg);

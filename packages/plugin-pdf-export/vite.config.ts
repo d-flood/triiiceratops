@@ -14,8 +14,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * Build the PDF-export plugin into a SELF-CONTAINED bundle for one format.
  *
  * `BUILD_FORMAT=es`   → `dist/index.js` (the ESM entry consumers import).
+ * `BUILD_FORMAT=svelte` → `dist/svelte/index.js` (the same, with the Svelte
+ *                       runtime left external for the `svelte` condition).
  * `BUILD_FORMAT=iife` → `dist/iife.js`  (a `<script>`-loadable bundle that
- *                       registers into `window.Triiiceratops.plugins`).
+ *                       registers into `window.Triiiceratops.plugins`) and
+ *                       `dist/pdf-lib.js`, which it imports on first export.
  *
  * The terser pass, the global-CSS minification, the bundled Svelte runtime and
  * the peer externals are all `pluginBuild`'s; what is specific to this package
@@ -24,9 +27,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * `pdf-lib` is declared in THIS package's `dependencies` — it left core's graph
  * — so it is installed alongside the plugin and the ESM entry leaves it external
  * for the consumer's bundler to resolve exactly as it resolves the peers. A
- * core-only install therefore never pays for it. The IIFE bundles it, like
- * everything else, because a `<script>`-tag consumer has no bundler to resolve
- * it with.
+ * core-only install therefore never pays for it. A `<script>`-tag consumer has
+ * no bundler to resolve it with, so the IIFE fetches a self-contained build of
+ * it from beside itself instead, and a page that never exports never loads it.
  */
 export default defineConfig(
     pluginBuild({
@@ -36,5 +39,6 @@ export default defineConfig(
         entries: { index: 'src/index.ts' },
         iifeEntry: 'src/iife.ts',
         extraExternal: ['pdf-lib'],
+        iifeLazyChunks: { 'pdf-lib': 'pdf-lib.js' },
     }),
 );

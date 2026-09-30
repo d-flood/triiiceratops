@@ -64,10 +64,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *
  * ## The deliberate deviation: neither Svelte nor core's utilities are bundled
  *
- * Every other first-party plugin bundles its own Svelte runtime, and its vite
- * config says why: a plugin released independently of core can be paired with
- * any core version, and `svelte/internal` is private, unversioned API that would
- * break on the first skew. That reasoning is correct and must stay in those
+ * Every other first-party plugin's IIFE and default ESM builds bundle their own
+ * Svelte runtime, and their vite configs say why: a plugin released
+ * independently of core can be paired with any core version, and
+ * `svelte/internal` is private, unversioned API that would break on the first
+ * skew. That reasoning is correct and must stay in those
  * packages — and for third-party plugins, which the authoring docs go on telling
  * to bundle.
  *
@@ -79,9 +80,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * externalizes `svelte` and `svelte/internal/client` onto the globals core
  * exposes on the `window.Triiiceratops` namespace it already owns. The privilege
  * rests on core and plugin being built and released from ONE repo at ONE Svelte
- * version — which is why `coreRange` is pinned to an exact version, and why the
- * script order is core-then-plugin. Neither is left to convention: the
- * `shared-svelte-runtime` capability refuses activation on a core that shares no
+ * version — which is why `coreRange` is a caret range from the core release
+ * this plugin was built beside, and why the script order is core-then-plugin.
+ * Neither is left to convention: the `shared-svelte-runtime` capability refuses activation on a core that shares no
  * runtime, and `output.intro` below refuses to evaluate this bundle at all
  * against a core that is absent or shares a runtime it cannot use.
  *

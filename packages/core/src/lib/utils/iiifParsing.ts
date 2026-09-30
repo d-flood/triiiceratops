@@ -67,10 +67,8 @@ function warnUnreadableCanvas(canvas: any): void {
     );
 
     logger.warn(
-        `canvas ${id}: no painting annotations, renders blank. ` +
-            (spellings.length
-                ? `Declares ${spellings.map((s) => `\`${s}\``).join(' and ')}, nothing readable inside.`
-                : 'Declares no `images`, `items` or `content`.'),
+        `canvas ${id}: nothing to paint` +
+            (spellings.length ? ` in ${spellings.join(', ')}` : ''),
     );
 }
 

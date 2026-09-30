@@ -1,6 +1,6 @@
 // Performance-only custom-element entry. This is built outside dist so the
 // renderer counters used by the harness cannot enter the shipped package.
-import TriiiceratopsViewerElement from '../lib/components/TriiiceratopsViewerElement.svelte';
+import { ViewerElement } from '../lib/components/viewerElement.svelte';
 import {
     installBrowserRuntime,
     VIEWER_ELEMENT_TAG,
@@ -18,17 +18,11 @@ import { installCanvasRendererHandle } from './canvasRendererHandle';
 
 setRendererDevtools(installCanvasRendererHandle);
 
-const elementCtor = (
-    TriiiceratopsViewerElement as unknown as {
-        element: CustomElementConstructor;
-    }
-).element;
-
 installBrowserRuntime({
     coreVersion: CORE_VERSION,
     pluginApiVersion,
     capabilities,
-    elementCtor,
+    elementCtor: ViewerElement,
     tag: VIEWER_ELEMENT_TAG,
     svelteRuntime: SHARED_SVELTE_RUNTIME,
     coreUtils: SHARED_CORE_UTILS,

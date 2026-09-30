@@ -88,12 +88,14 @@
  */
 
 import { once } from '../utils/once';
+import { decodeImage } from './decodeImage';
 import type { TileKey, TileRequest } from './types';
 
 /**
  * A decoded tile. Structurally `ImageBitmap`, the normal result, and also the
- * augmented `HTMLImageElement` used by the no-CORS fallback. Both are accepted
- * by `drawImage`; the structural type lets tests supply one without a browser.
+ * augmented `HTMLImageElement` the no-CORS fallback draws when it cannot make a
+ * bitmap. Both are accepted by `drawImage`; the structural type lets tests
+ * supply one without a browser.
  */
 export interface DecodedTile {
     readonly width: number;
@@ -169,8 +171,15 @@ export interface TileScheduler {
     dispose(): void;
 }
 
-async function fetchTileBlob(url: string, signal: AbortSignal): Promise<Blob> {
-    const response = await fetch(url, { signal });
+async function fetchTileBlob(
+    url: string,
+    signal: AbortSignal,
+    visible: boolean,
+): Promise<Blob> {
+    const response = await fetch(
+        url,
+        visible ? { signal } : { signal, priority: 'low' },
+    );
     if (!response.ok) {
         throw new TileResponseError(`tile request failed: ${response.status}`);
     }
@@ -184,10 +193,15 @@ function decodeBlob(blob: Blob): Promise<DecodedTile> {
 }
 
 /**
- * Decode through the browser's image loader, which may display a cross-origin
- * image without CORS. The element is never attached to the DOM.
+ * Load through the browser's image loader, which may display a cross-origin
+ * image without CORS, then decode it as {@link decodeImage} does for static
+ * images. The element is never attached to the DOM.
  */
-function loadImageTile(url: string, signal: AbortSignal): Promise<DecodedTile> {
+function loadImageTile(
+    url: string,
+    signal: AbortSignal,
+    visible: boolean,
+): Promise<DecodedTile> {
     return new Promise((resolve, reject) => {
         const image = new Image();
         let settled = false;
@@ -215,15 +229,22 @@ function loadImageTile(url: string, signal: AbortSignal): Promise<DecodedTile> {
             settled = true;
             cleanup();
 
-            // Detached images report their intrinsic dimensions through these
-            // mutable properties. `drawImage` still reads the decoded resource.
-            image.width = image.naturalWidth;
-            image.height = image.naturalHeight;
-            const tile = image as HTMLImageElement & DecodedTile;
-            tile.close = () => {
-                image.src = 'data:,';
-            };
-            resolve(tile);
+            void decodeImage(image).then((decoded) => {
+                if (decoded !== image) {
+                    resolve(decoded as ImageBitmap);
+                    return;
+                }
+                // Detached images report their intrinsic dimensions through
+                // these mutable properties. `drawImage` still reads the decoded
+                // resource.
+                image.width = image.naturalWidth;
+                image.height = image.naturalHeight;
+                const tile = image as HTMLImageElement & DecodedTile;
+                tile.close = () => {
+                    image.src = 'data:,';
+                };
+                resolve(tile);
+            });
         };
         image.onerror = () => fail(new Error('tile image failed to load'));
 
@@ -234,6 +255,7 @@ function loadImageTile(url: string, signal: AbortSignal): Promise<DecodedTile> {
         }
 
         image.decoding = 'async';
+        if (!visible) image.fetchPriority = 'low';
         image.src = url;
     });
 }
@@ -335,15 +357,16 @@ export function createTileScheduler(
     async function loadTile(
         url: string,
         signal: AbortSignal,
+        visible: boolean,
     ): Promise<DecodedTile> {
         const service = requestService(url);
         if (imageElementServices.has(service)) {
-            return loadImageTile(url, signal);
+            return loadImageTile(url, signal, visible);
         }
 
         let blob: Blob;
         try {
-            blob = await fetchTileBlob(url, signal);
+            blob = await fetchTileBlob(url, signal, visible);
         } catch (error) {
             // An HTTP answer is a real tile failure. Only a rejected fetch with
             // no response can be CORS, so only that path gets the display-only
@@ -352,7 +375,7 @@ export function createTileScheduler(
                 throw error;
 
             requestCount += 1;
-            const tile = await loadImageTile(url, signal);
+            const tile = await loadImageTile(url, signal, visible);
             imageElementServices.add(service);
             return tile;
         }
@@ -474,7 +497,11 @@ export function createTileScheduler(
 
         void (async () => {
             try {
-                const tile = await loadTile(url, controller.signal);
+                const tile = await loadTile(
+                    url,
+                    controller.signal,
+                    request.visible,
+                );
 
                 retire();
 

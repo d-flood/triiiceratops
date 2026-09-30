@@ -169,9 +169,7 @@ function manifestIdFrom(partOf: unknown): string | undefined {
                         `${declaredTypes(entry).join('/')} ${idOf(entry) ?? '(no id)'}`,
                 )
                 .join(', ');
-            logger.warn(
-                `content state: \`partOf\` names no Manifest, only ${found}.`,
-            );
+            logger.warn(`content state partOf has no Manifest: ${found}`);
             return undefined;
         }
 
@@ -212,7 +210,7 @@ function warnUnlessContentState(document: JsonRecord): void {
     if (names.some((name) => name === 'contentState')) return;
 
     logger.warn(
-        `content state ${idOf(document) ?? '(no id)'}: no \`motivation: contentState\`; resolved anyway.`,
+        `content state ${idOf(document) ?? '(no id)'}: no contentState motivation`,
     );
 }
 
@@ -222,7 +220,7 @@ function resolveAnnotation(document: JsonRecord): ContentStateTarget | null {
     const targets = asArray(document.target);
     if (targets.length > 1) {
         logger.warn(
-            `content state ${idOf(document) ?? '(no id)'}: ${targets.length} targets, all but the first dropped.`,
+            `content state ${idOf(document) ?? '(no id)'}: ${targets.length} targets, first used`,
         );
     }
 

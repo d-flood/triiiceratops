@@ -29,30 +29,7 @@ Rules:
 
 ## Active suppressions
 
-### 1. `options_missing_custom_element` — `packages/core/src/lib/components/TriiiceratopsViewerElement.svelte`
-
-- **Code:** `options_missing_custom_element` (Svelte compiler)
-- **Mechanism:** `--compiler-warnings "options_missing_custom_element:ignore"` on
-  the core `check` script (project-wide; only this one file declares
-  `<svelte:options customElement>`, and `svelte-ignore` does not apply to
-  `<svelte:options>`).
-- **Rationale:** svelte-check runs with `compilerOptions.customElement: false`
-  so ordinary components are not analyzed as custom elements (that is what
-  removed the ~18 `custom_element_props_identifier` warnings). This wrapper IS
-  compiled as a custom element in the real element builds
-  (`vite.config.element.ts` / `vite.config.element-esm.ts`, which upgrade this
-  one file via `dynamicCompileOptions`), where the `customElement` options are
-  correct.
-  svelte-check cannot apply per-file compiler options, so it emits this single
-  false positive; the element itself is verified end-to-end.
-- **Behavior test:** `packages/core/tests/wc-parity.spec.ts` — the
-  `<triiiceratops-viewer>` custom element registers, renders a manifest inside
-  its open shadow root, and its properties/events reach parity with the Svelte
-  component.
-- **Owner:** David Flood <david_flood@fas.harvard.edu>
-- **Recorded:** 2026-07-18 · **Review by:** 2027-01-18
-
-### 2. `a11y_interactive_supports_focus`, `a11y_click_events_have_key_events` — `packages/core/src/lib/components/ui/Select.svelte`
+### 1. `a11y_interactive_supports_focus`, `a11y_click_events_have_key_events` — `packages/core/src/lib/components/ui/Select.svelte`
 
 - **Codes:** `a11y_interactive_supports_focus`,
   `a11y_click_events_have_key_events` (Svelte compiler)
@@ -70,7 +47,7 @@ Rules:
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-07-18 · **Review by:** 2027-01-18
 
-### 3. bare `console.warn` — `packages/plugin-sdk/src/register.ts` (duplicate-registration notice)
+### 2. bare `console.warn` — `packages/plugin-sdk/src/register.ts` (duplicate-registration notice)
 
 - **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
   distribution-cleanup guard (`distribution-cleanup.guard.test.ts`).
@@ -95,7 +72,7 @@ Rules:
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-07-19 · **Review by:** 2027-01-19
 
-### 4. Public-declaration `any` — IIIF resources crossing the raw-JSON boundary
+### 3. Public-declaration `any` — IIIF resources crossing the raw-JSON boundary
 
 - **Code:** public-`any` in emitted `.d.ts` (guarded by `scripts/check-public-api.mjs`)
 - **File / target:** `api-reports/dts-any-allowlist.txt` — the machine-readable
@@ -191,7 +168,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-07-19 · **Updated:** 2026-09-11 · **Review by:** 2027-01-19
 
-### 5. `@ts-expect-error` (TS2307) — `packages/core/src/lib/framework/registration.ts`
+### 4. `@ts-expect-error` (TS2307) — `packages/core/src/lib/framework/registration.ts`
 
 - **Code:** `ts(2307)` "Cannot find module `../triiiceratops-element.js`",
   suppressed by a single inline `@ts-expect-error` with a description.
@@ -220,7 +197,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-07-31 · **Review by:** 2027-01-31
 
-### 6. Public-declaration `any` — Vue's own component typing in `triiiceratops/vue`
+### 5. Public-declaration `any` — Vue's own component typing in `triiiceratops/vue`
 
 - **Code:** public-`any` in emitted `.d.ts` (guarded by `scripts/check-public-api.mjs`)
 - **File / target:** eight lines in `api-reports/dts-any-allowlist.txt` under
@@ -257,7 +234,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-07-31 · **Review by:** 2027-01-31
 
-### 7. `a11y_no_noninteractive_tabindex`, `a11y_no_noninteractive_element_interactions` — `packages/core/src/lib/components/CanvasHost.svelte`
+### 6. `a11y_no_noninteractive_tabindex`, `a11y_no_noninteractive_element_interactions` — `packages/core/src/lib/components/CanvasHost.svelte`
 
 - **Codes:** `a11y_no_noninteractive_tabindex`,
   `a11y_no_noninteractive_element_interactions` (Svelte compiler)
@@ -318,7 +295,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-07 · **Review by:** 2027-02-07
 
-### 8. `svelte/prefer-svelte-reactivity` — plain `Set`/`Map`/`Date` deliberately kept out of reactivity
+### 7. `svelte/prefer-svelte-reactivity` — plain `Set`/`Map`/`Date` deliberately kept out of reactivity
 
 - **Code:** `svelte/prefer-svelte-reactivity` (eslint, `eslint-plugin-svelte`)
 - **Mechanism:** rule-named `eslint-disable-next-line` comments, one per
@@ -342,6 +319,9 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
       synchronous call.
     - `packages/core/src/lib/components/TriiiceratopsViewer.svelte` — a
       function-local `Set` of live plugin instances, used for one diff.
+    - `packages/core/src/lib/components/AnnotationOverlay.svelte` — `found`,
+      the connector lines' row-and-shape element cache, read from the
+      `requestAnimationFrame` update and rendered from by nothing.
     - `packages/plugin-annotation-editor/src/mount.svelte.ts` — the one-time
       context `Map` handed to Svelte's `mount()`.
     - `packages/plugin-annotation-editor/src/AnnotationStore.svelte.ts` — two
@@ -368,7 +348,8 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
   to the port lazily, fire, and detach when the last one leaves) cover the collections whose non-reactivity is
   load-bearing; `packages/core/tests/canvas-renderer-paint-hook.spec.ts` covers
   the diagnostic set's effect (a throwing layer is reported once and never stops a
-  frame). The function-local temporaries have no observable behaviour to pin: they
+  frame), and `packages/core/tests/annotation-overlay-performance.spec.ts`
+  covers the connector cache (a pan runs no document-wide queries). The function-local temporaries have no observable behaviour to pin: they
   do not outlive the call. `ManifestsState`'s two scratch lookups are pinned
   through the query seam instead:
   `packages/core/src/lib/state/manifests.test.ts` (structure-sequence order,
@@ -378,7 +359,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-08 · **Review by:** 2027-02-08
 
-### 9. `svelte/no-dom-manipulating` — `packages/core/src/lib/components/SanitizedHtml.svelte`
+### 8. `svelte/no-dom-manipulating` — `packages/core/src/lib/components/SanitizedHtml.svelte`
 
 - **Code:** `svelte/no-dom-manipulating` (eslint, `eslint-plugin-svelte`)
 - **Mechanism:** one rule-named `eslint-disable-next-line` on the single
@@ -407,7 +388,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-08 · **Review by:** 2027-02-08
 
-### 10. bare `console.warn` — `packages/plugin-image-export/src/Panel.svelte` (cross-origin refusal)
+### 9. bare `console.warn` — `packages/plugin-image-export/src/Panel.svelte` (cross-origin refusal)
 
 - **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
   distribution-cleanup guard (`distribution-cleanup.guard.test.ts`).
@@ -436,7 +417,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-11 · **Review by:** 2027-02-11
 
-### 11. bare `console.warn` — `packages/plugin-av/src/degradation.ts` and `packages/plugin-av/src/sequencer/segments.ts` (manifest degradation warnings)
+### 10. bare `console.warn` — `packages/plugin-av/src/degradation.ts` and `packages/plugin-av/src/sequencer/segments.ts` (manifest degradation warnings)
 
 - **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
   distribution-cleanup guard (`distribution-cleanup.guard.test.ts`).
@@ -490,7 +471,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-13 · **Review by:** 2027-02-13
 
-### 12. `svelte/no-svelte-internal` — `packages/core/src/lib/browser-runtime.ts` (the shared Svelte runtime)
+### 11. `svelte/no-svelte-internal` — `packages/core/src/lib/browser-runtime.ts` (the shared Svelte runtime)
 
 - **Code:** `svelte/no-svelte-internal` (eslint, `eslint-plugin-svelte`)
 - **Mechanism:** one rule-named `eslint-disable-next-line` on the single
@@ -520,7 +501,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-13 · **Review by:** 2027-02-13
 
-### 13. bare `console.error` — `packages/plugin-av/src/sharedRuntimeGate.ts` (the version-skew gate)
+### 12. bare `console.error` — `packages/plugin-av/src/sharedRuntimeGate.ts` (the version-skew gate)
 
 - **Code:** bare `console.*` in `packages/plugin-*/src/**`, banned by the plugin
   distribution-cleanup guard (`distribution-cleanup.guard.test.ts`).
@@ -548,7 +529,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-13 · **Review by:** 2027-02-13
 
-### 14. `svelte/no-at-html-tags` — `apps/site/src/lib/Search.svelte` (the Pagefind excerpt)
+### 13. `svelte/no-at-html-tags` — `apps/site/src/lib/Search.svelte` (the Pagefind excerpt)
 
 - **Code:** `svelte/no-at-html-tags` (eslint, `eslint-plugin-svelte`)
 - **Mechanism:** one rule-named `eslint-disable-next-line` on the single
@@ -571,7 +552,7 @@ any`, and `types/config/search.d.ts :: manifest: any` — all four being members
 - **Owner:** David Flood <david_flood@fas.harvard.edu>
 - **Recorded:** 2026-08-28 · **Review by:** 2027-02-28
 
-### 15. `a11y_no_static_element_interactions` — `packages/plugin-annotation-editor/src/DrawingLayer.svelte`
+### 14. `a11y_no_static_element_interactions` — `packages/plugin-annotation-editor/src/DrawingLayer.svelte`
 
 - **Code:** `a11y_no_static_element_interactions` (Svelte compiler)
 - **File / target:** two `<div>`s in the drawing layer's markup — the

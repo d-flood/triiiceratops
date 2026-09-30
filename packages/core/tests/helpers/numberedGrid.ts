@@ -392,6 +392,39 @@ export async function setByteBudget(page: Page, bytes: number): Promise<void> {
     );
 }
 
+/** Turn the planner's covered-tile skip on or off. */
+export async function setSkipCoveredTiles(
+    page: Page,
+    on: boolean,
+): Promise<void> {
+    await afterSettledPaint(page, () =>
+        page.locator(SURFACE).evaluate((element, value: boolean) => {
+            const handle = (
+                element as HTMLCanvasElement & {
+                    __triiiceratopsRenderer?: {
+                        setSkipCoveredTiles(on: boolean): Promise<void>;
+                    };
+                }
+            ).__triiiceratopsRenderer;
+            if (!handle) throw new Error('renderer test handle not installed');
+            void handle.setSkipCoveredTiles(value);
+        }, on),
+    );
+}
+
+/** How many `drawImage` calls the last painted frame made. */
+export async function lastFrameDrawCount(page: Page): Promise<number> {
+    return page.locator(SURFACE).evaluate((element) => {
+        const handle = (
+            element as HTMLCanvasElement & {
+                __triiiceratopsRenderer?: { lastFrameDrawCount(): number };
+            }
+        ).__triiiceratopsRenderer;
+        if (!handle) throw new Error('renderer test handle not installed');
+        return handle.lastFrameDrawCount();
+    });
+}
+
 /** Animated zoom about a surface-local point, through the real zoom clamp. */
 export async function zoomAt(
     page: Page,

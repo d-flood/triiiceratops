@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { minifyCss, minifyCssPreprocessor } from './minifyCss';
+import { minifyCss } from './minifyCss';
 
 describe('minifyCss', () => {
     it('strips comments', () => {
@@ -110,31 +110,5 @@ describe('minifyCss', () => {
         expect(minifyCss('.a { color: red; } /* unterminated')).toBe(
             '.a{color: red;}',
         );
-    });
-});
-
-describe('minifyCssPreprocessor', () => {
-    it('minifies a style block', () => {
-        const preprocessor = minifyCssPreprocessor();
-        expect(
-            preprocessor.style?.({
-                content: '/* note */ .a { color: red; }',
-                attributes: {},
-                markup: '',
-                filename: 'Fake.svelte',
-            }),
-        ).toEqual({ code: '.a{color: red;}' });
-    });
-
-    it('leaves a style block in another language alone', () => {
-        const preprocessor = minifyCssPreprocessor();
-        expect(
-            preprocessor.style?.({
-                content: '/* note */ .a { color: red; }',
-                attributes: { lang: 'scss' },
-                markup: '',
-                filename: 'Fake.svelte',
-            }),
-        ).toBeUndefined();
     });
 });

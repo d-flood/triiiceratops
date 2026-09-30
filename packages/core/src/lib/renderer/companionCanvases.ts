@@ -213,7 +213,7 @@ export function resolveCompanionCanvases(
             placeholder: null,
             accompanying: null,
             warnings: [
-                `canvas ${base.id} paints images of its own; its companion canvas will not be painted under them`,
+                `canvas ${base.id} has own images; companion not painted`,
             ],
         };
     }
@@ -229,7 +229,7 @@ export function resolveCompanionCanvases(
         const resolved = toPlannerCanvas(json, getSelectedChoice);
         if (!resolved || resolved.images.length === 0) {
             warnings.push(
-                `the ${property} of canvas ${base.id} resolved to nothing requestable; it will not be painted`,
+                `canvas ${base.id} ${property} unrequestable; not painted`,
             );
             return null;
         }

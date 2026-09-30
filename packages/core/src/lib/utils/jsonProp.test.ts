@@ -22,8 +22,8 @@ describe('parseJsonProp', () => {
                 onError,
             }),
         ).toEqual({ enabled: false });
-        expect(onError).toHaveBeenCalledWith(
-            'Invalid config JSON: "not-json". Ignoring.',
-        );
+        expect(onError).toHaveBeenCalledOnce();
+        expect(onError.mock.calls[0][0]).toContain('config');
+        expect(onError.mock.calls[0][0]).toContain('not-json');
     });
 });

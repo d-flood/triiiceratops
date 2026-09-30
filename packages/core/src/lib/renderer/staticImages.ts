@@ -11,43 +11,79 @@
  * placement-keyed record alone would paint the previous choice forever.
  * Residency is therefore keyed on the placement and compared on the resolved
  * URL, which also stands in for a request generation: a load whose URL is no
- * longer the one wanted is discarded.
+ * longer the one wanted is cancelled.
  *
  * This module owns the whole question. Its predecessor, `imageRequests.ts`,
  * owned only the set difference and said in its own header that it existed
  * because the host could not be tested — so the diff had a unit test while the
- * four ordering invariants that actually break (record the failure before the
- * URL; check the URL is still wanted on land; LEAVE a failed URL held; record
- * the held URL before the request starts) sat in a 3000-line component reachable
- * only through Playwright. The seam was cut at the DOM line rather than at an
- * abstraction. Everything here but the `<img>` itself is ordinary data, so a
- * unit test stubs the global `Image` and asserts all of it.
+ * ordering invariants that actually break (cancel a request the moment its URL
+ * is dropped, so it neither paints nor records a failure; LEAVE a failed URL
+ * held; record the held URL before the request starts) sat in a 3000-line
+ * component reachable only through Playwright. The seam was cut at the DOM
+ * line rather than at an abstraction. Everything here but the `<img>` and its
+ * decode is ordinary data, so a unit test stubs the global `Image` and
+ * `createImageBitmap` and asserts all of it.
  */
 
 import type { StaticImageDraw } from './types';
+import { decodeImage } from './decodeImage';
 import { staticImageFailures } from './staticImageFailures';
 
 /** A decoded image the painter can draw. */
-export type DecodedImage = CanvasImageSource;
+export type DecodedImage = ImageBitmap | HTMLImageElement;
 
-/** Start one image request. Calls back at most once. */
+function releaseImage(image: DecodedImage): void {
+    if ('close' in image) image.close();
+}
+
+/**
+ * Start one image request. Calls back at most once, and only after the image
+ * is decoded. Returns the cancel: after it, neither callback runs, a request
+ * still downloading is stopped, and a decode that lands is released.
+ */
 function loadImage(
     url: string,
     {
         onLoad,
         onError,
     }: { onLoad: (image: DecodedImage) => void; onError: () => void },
-): void {
+): () => void {
     const image = new Image();
+    let cancelled = false;
+
+    function detach(): void {
+        image.onload = null;
+        image.onerror = null;
+    }
+
     // Decode off the main thread where the browser can.
     image.decoding = 'async';
     // `crossOrigin` is deliberately NOT set: most IIIF image servers send no
     // CORS headers, and requesting anonymous CORS would turn a working image
     // into a load failure. The cost is a tainted canvas, which only matters to
     // pixel readback — and the geometric e2e fixtures are same-origin.
-    image.onload = () => onLoad(image);
-    image.onerror = () => onError();
+    image.onload = () => {
+        detach();
+        void decodeImage(image).then((decoded) => {
+            if (cancelled) releaseImage(decoded);
+            else onLoad(decoded);
+        });
+    };
+    image.onerror = () => {
+        detach();
+        onError();
+    };
     image.src = url;
+
+    return () => {
+        if (cancelled) return;
+        cancelled = true;
+        // Detached first: the empty data URL is itself an image error.
+        if (image.onload) {
+            detach();
+            image.src = 'data:,';
+        }
+    };
 }
 
 export interface StaticImagesOptions {
@@ -95,12 +131,23 @@ export function createStaticImages(options: StaticImagesOptions): StaticImages {
      * plan no longer contains, so it cannot be looked up there.
      */
     const owners: Record<string, string> = Object.create(null);
+    /** image key → the cancel for a request still loading or decoding. */
+    const cancels: Record<string, () => void> = Object.create(null);
+
+    function release(key: string): void {
+        cancels[key]?.();
+        delete cancels[key];
+        const image = images[key];
+        if (image) releaseImage(image);
+        delete images[key];
+    }
 
     function drop(key: string): void {
         const canvasId = owners[key];
         // Drop the pixels too: a stale image must stop painting the moment it is
-        // superseded, not when its replacement finishes decoding.
-        delete images[key];
+        // superseded, not when its replacement finishes decoding. A request
+        // still in flight is cancelled with them.
+        release(key);
         delete urls[key];
         delete owners[key];
         // And the error with them. The URL this placement resolves to has
@@ -150,24 +197,16 @@ export function createStaticImages(options: StaticImagesOptions): StaticImages {
                 // restarting it.
                 urls[key] = url;
 
-                loadImage(url, {
+                cancels[key] = loadImage(url, {
                     onLoad: (image) => {
-                        // Still the URL this placement wants? A Choice switch, a
-                        // canvas change, or a clear may have superseded it while
-                        // it was in flight.
-                        if (urls[key] !== url) return;
+                        delete cancels[key];
                         images[key] = image;
                         options.onCanvasErrorCleared(canvasId);
                         options.onChanged();
                     },
                     onError: () => {
-                        // Recorded whatever this canvas now wants, and before the
-                        // guard: the URL failed, and that is a fact about the URL
-                        // rather than about the canvas that happened to ask for
-                        // it. A reader who switches Choice away mid-request and
-                        // back must not re-issue it.
+                        delete cancels[key];
                         staticImageFailures.record(url);
-                        if (urls[key] !== url) return;
                         // The URL is deliberately LEFT held, which is what stops
                         // the next frame's reconciliation from asking again: a
                         // request that failed is answered, and a retry loop over
@@ -185,9 +224,7 @@ export function createStaticImages(options: StaticImagesOptions): StaticImages {
         has: (key) => key in images,
 
         clear() {
-            for (const key of Object.keys(images)) delete images[key];
-            // Also clears the in-flight requests: a load that lands afterwards
-            // finds no wanted URL and discards itself.
+            for (const key of Object.keys(urls)) release(key);
             for (const key of Object.keys(urls)) delete urls[key];
             for (const key of Object.keys(owners)) delete owners[key];
         },

@@ -42,7 +42,9 @@ import {
     canvasBoxToWorld,
     canvasExtent,
     canvasPointToWorld,
+    canvasPointToScreen,
     canvasScaleFactor,
+    createPlacementLookup,
     fitTargetBounds,
     navigationTargetBounds,
     nearestRect,
@@ -120,7 +122,6 @@ import {
     anchoredZoomCentre,
     approach,
     approachScale,
-    canvasToScreen as canvasToScreenPoint,
     clamp,
     compensatedScale,
     constrainCentre,
@@ -335,6 +336,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * graph.
      */
     let budgets: PlannerBudgets = { ...DEFAULT_BUDGETS, ...knobs.budgets };
+    let skipCoveredTiles = true;
 
     /**
      * The log-scale zoom per pixel of wheel travel, from
@@ -456,7 +458,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * the cost the frame loop exists to avoid. So the frame loop pushes the
      * answer in, and only when it has changed.
      */
-    let placeholders: CanvasPlaceholder[] = $state([]);
+    let placeholders: CanvasPlaceholder[] = $state.raw([]);
 
     /**
      * What a placeholder says, in the reader's language.
@@ -494,17 +496,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
         if (viewerState.viewingMode === 'continuous') {
             const canvases = viewerState.canvases;
-            // Track exactly TWO signals per canvas — its id, and the Choice
-            // selected on it — and nothing else.
-            //
-            // `viewerState.canvases` is raw manifest JSON behind a deep
-            // `$state` proxy, so every property this walk touches would
-            // otherwise become a dependency of this derivation: on 800 folios
-            // that is tens of thousands of signals to create and to invalidate,
-            // and it costs seconds. What this derivation actually depends on is
-            // which canvases there are and which Choice each has, so those are
-            // read tracked and the walk itself is untracked. The manifest JSON
-            // is immutable once cached, which is what makes that sound.
+            // Track exactly ONE signal per canvas — the Choice selected on
+            // it — beside the list itself. The walk is untracked so nothing
+            // it calls can subscribe per folio.
             // A plain Map, not a SvelteMap: it is built and consumed inside
             // this one derivation and is unreachable afterwards, so there is
             // nothing for reactivity to notify. A SvelteMap here would create a
@@ -578,10 +572,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             );
             if (claimed.length === 0) return companions;
 
-            // Untracked for `plannerCanvases`' reason: `viewerState.canvases` is
-            // raw manifest JSON behind a deep `$state` proxy, and walking a
-            // companion Canvas tracked would make every property of it a
-            // dependency of this derivation.
+            // Untracked for `plannerCanvases`' reason.
             return untrack(() => {
                 // eslint-disable-next-line svelte/prefer-svelte-reactivity
                 const rawById = new Map<string, unknown>();
@@ -683,6 +674,21 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     let lastTiers: Record<string, ResidencyTier> = {};
 
     /**
+     * The reactive inputs to layout, read as ONE signal.
+     *
+     * `viewportLimits()` runs for every coordinate-helper call, and a frame
+     * projecting annotation shapes makes hundreds of those; four signal reads
+     * and an object per call is the per-point cost this collapses into one read
+     * of a value that is stable until one of them changes.
+     */
+    const layoutSignals = $derived({
+        canvases: paintedCanvases,
+        mode: viewerState.viewingMode,
+        direction: viewerState.viewingDirection,
+        preserveCanvasScale: viewerState.preserveCanvasScale,
+    });
+
+    /**
      * Everything that decides where the canvases are — shared verbatim by the
      * full plan and by the cheap per-sample clamp, so the world the pan
      * constraint is measured against cannot diverge from the world that is
@@ -690,10 +696,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      */
     function worldInput() {
         return {
-            canvases: paintedCanvases,
-            mode: viewerState.viewingMode,
-            direction: viewerState.viewingDirection,
-            preserveCanvasScale: viewerState.preserveCanvasScale,
+            ...layoutSignals,
             gapFraction: MULTI_CANVAS_GAP_FRACTION,
             knownMetadata,
             budgets,
@@ -750,6 +753,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             dpr,
             residentTiles: tiles.residentKeys(),
             viewStable: viewStable(),
+            skipCoveredTiles,
         });
     }
 
@@ -1027,20 +1031,22 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * `paint()`'s comment says it belongs: once per frame, in the frame loop.
      */
     function viewportLimits() {
-        const input = worldInput();
+        const signals = layoutSignals;
+        const aspect = surfaceAspect();
         if (
             limitsMemo &&
-            limitsMemo.canvases === input.canvases &&
-            limitsMemo.mode === input.mode &&
-            limitsMemo.direction === input.direction &&
-            limitsMemo.preserveCanvasScale === input.preserveCanvasScale &&
-            limitsMemo.budgets === input.budgets &&
-            limitsMemo.surfaceAspect === input.surfaceAspect &&
+            limitsMemo.canvases === signals.canvases &&
+            limitsMemo.mode === signals.mode &&
+            limitsMemo.direction === signals.direction &&
+            limitsMemo.preserveCanvasScale === signals.preserveCanvasScale &&
+            limitsMemo.budgets === budgets &&
+            limitsMemo.surfaceAspect === aspect &&
             limitsMemo.metadataRevision === metadataRevision
         ) {
             return limitsMemo.value;
         }
 
+        const input = worldInput();
         const value = planViewportLimits(input);
         limitsMemo = {
             canvases: input.canvases,
@@ -1595,35 +1601,17 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * out at all — in `individuals`/`paged` mode that is every canvas except
      * the current spread, and answering `null` is the honest response.
      *
-     * Memoized on the layout's identity because a `frame`-cadence selector
-     * reading `viewportCentre` calls this once per frame, and an 800-folio
-     * manifest would otherwise be a linear scan per read.
+     * Indexed per layout because a `frame`-cadence selector reading
+     * `viewportCentre` calls this once per frame, the shape overlay calls it
+     * per vertex across every canvas of a spread, and an 800-folio manifest
+     * would otherwise be a linear scan per read.
      */
-    let placementMemo: {
-        layout: LayoutRect[];
-        canvasId: string;
-        value: CanvasPlacement | null;
-    } | null = null;
+    const placementIn = createPlacementLookup(declaredCanvasSize);
 
     function placementOf(canvasId?: string): CanvasPlacement | null {
         const id = canvasId ?? viewerState.canvasId;
         if (!id) return null;
-
-        const layout = viewportLimits().layout;
-        if (
-            placementMemo &&
-            placementMemo.layout === layout &&
-            placementMemo.canvasId === id
-        ) {
-            return placementMemo.value;
-        }
-
-        const rect = layout.find((entry) => entry.canvasId === id) ?? null;
-        const value: CanvasPlacement | null = rect
-            ? { rect, ...declaredCanvasSize(id) }
-            : null;
-        placementMemo = { layout, canvasId: id, value };
-        return value;
+        return placementIn(viewportLimits().layout, id);
     }
 
     /**
@@ -1806,10 +1794,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         ): ViewportPoint | null {
             const placement = placementOf(canvasId);
             if (!placement) return null;
-            return canvasToScreenPoint(
-                canvasPointToWorld(point, placement),
-                viewport,
-            );
+            return canvasPointToScreen(point, placement, viewport);
         },
 
         screenToCanvas(
@@ -3535,7 +3520,11 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 budgets = { ...budgets, byteBudget: bytes };
                 tiles.setByteBudget(bytes);
             },
+            setSkipCoveredTiles: (on) => {
+                skipCoveredTiles = on;
+            },
             tiles,
+            staticImages,
             getTiers: () => lastTiers,
             canvasErrors,
             registerPaintLayer:

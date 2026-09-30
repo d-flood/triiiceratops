@@ -170,7 +170,7 @@
     the `.placeholder-layer` below, and it carries `role="document"` for exactly
     this reason. Each such child must either carry `role="document"` (which
     restores browse mode for its own subtree) or be hoisted OUT of this element
-    and rendered as a sibling. Recorded in lint-allowlist.md entry 7.
+    and rendered as a sibling. Recorded in lint-allowlist.md entry 6.
 
     The annotation shape overlay takes the second option: it is a SIBLING of
     this element, mounted by `TriiiceratopsViewer` into the same stage box, so

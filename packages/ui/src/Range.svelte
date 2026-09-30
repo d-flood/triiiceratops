@@ -12,12 +12,17 @@
         | 'warning'
         | 'error';
 
-    interface Props extends Omit<HTMLInputAttributes, 'size'> {
+    interface Props extends Pick<
+        HTMLInputAttributes,
+        'min' | 'max' | 'step' | 'title' | 'aria-label' | 'oninput'
+    > {
         value?: number;
         size?: Size;
         color?: Color;
         class?: string;
         style?: string;
+        'data-testid'?: string;
+        'data-tri-im-slider'?: string;
     }
 
     let {
@@ -26,7 +31,14 @@
         color,
         class: className = '',
         style = '',
-        ...rest
+        min,
+        max,
+        step,
+        title,
+        'aria-label': ariaLabel,
+        oninput,
+        'data-testid': dataTestid,
+        'data-tri-im-slider': dataTriImSlider,
     }: Props = $props();
 
     const SIZE: Record<Size, string> = {
@@ -45,7 +57,14 @@
     class="range {className}"
     bind:value
     style={computedStyle}
-    {...rest}
+    {min}
+    {max}
+    {step}
+    {title}
+    aria-label={ariaLabel}
+    {oninput}
+    data-testid={dataTestid}
+    data-tri-im-slider={dataTriImSlider}
 />
 
 <style>

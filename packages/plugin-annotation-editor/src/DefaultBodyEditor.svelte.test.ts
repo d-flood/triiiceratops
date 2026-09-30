@@ -148,6 +148,35 @@ describe('DefaultBodyEditor', () => {
         await unmount(app);
     });
 
+    it('renders the attributes it passes to the TextInput primitive', async () => {
+        const api = makeApi({
+            isHydrating: true,
+            bodies: [
+                { type: 'TextualBody', purpose: 'tagging', value: 'tag one' },
+                {
+                    type: 'TextualBody',
+                    purpose: 'linking',
+                    value: 'https://example.org',
+                },
+            ],
+        });
+
+        const app = mount(DefaultBodyEditor, { target, props: { api } });
+        await tick();
+
+        const [tag, link] =
+            target.querySelectorAll<HTMLInputElement>('input.body-input');
+        expect(tag!.type).toBe('text');
+        expect(tag!.placeholder).toBe('Tag value...');
+        expect(tag!.disabled).toBe(true);
+        expect(tag!.value).toBe('tag one');
+        expect(link!.type).toBe('url');
+        expect(link!.placeholder).toBe('https://...');
+        expect(link!.disabled).toBe(true);
+
+        await unmount(app);
+    });
+
     it('hides the add-content action when multiple bodies are disabled without dropping existing bodies', async () => {
         const api = makeApi({
             bodies: [

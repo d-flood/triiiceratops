@@ -87,10 +87,32 @@ export const installCanvasRendererHandle: RendererDevtoolsInstaller = (
     internals: RendererInternals,
 ) => {
     const nextPaint = () => settledPaint(internals);
+    let firstContentPaintAt: number | null = null;
+    // The renderer created this context already, so this is the same one.
+    const context = surface.getContext('2d');
+    let drawCount = 0;
+    let lastFrameDrawCount = 0;
+    if (context) {
+        const drawImage = context.drawImage.bind(context) as (
+            ...args: unknown[]
+        ) => void;
+        context.drawImage = ((...args: unknown[]) => {
+            drawCount += 1;
+            drawImage(...args);
+        }) as typeof context.drawImage;
+    }
     // Dropped with the rest of the frame listeners on detach; a remount
     // installs the handle again and subscribes afresh.
     internals.port.onFrame(() => {
+        lastFrameDrawCount = drawCount;
+        drawCount = 0;
         framePaintCount += 1;
+        if (
+            firstContentPaintAt === null &&
+            (internals.tiles.residentKeys().size > 0 ||
+                Object.keys(internals.staticImages.images).length > 0)
+        )
+            firstContentPaintAt = performance.now();
     });
     (
         surface as HTMLCanvasElement & { __triiiceratopsRenderer?: unknown }
@@ -127,6 +149,10 @@ export const installCanvasRendererHandle: RendererDevtoolsInstaller = (
         isMoving: () => internals.isMoving(),
         setBudget: (bytes: number) => {
             internals.setByteBudget(bytes);
+            return nextPaint();
+        },
+        setSkipCoveredTiles: (on: boolean) => {
+            internals.setSkipCoveredTiles(on);
             return nextPaint();
         },
         getStats: () => {
@@ -169,5 +195,7 @@ export const installCanvasRendererHandle: RendererDevtoolsInstaller = (
         registerPaintLayer: internals.registerPaintLayer,
         nextPaint,
         settledPaintCount: () => settledPaintCount,
+        lastFrameDrawCount: () => lastFrameDrawCount,
+        firstContentPaintAt: () => firstContentPaintAt,
     };
 };

@@ -1,6 +1,6 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
-    import { getContext, untrack } from 'svelte';
+    import { getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { getMessages } from '../state/i18n.svelte';
     import { SvelteSet } from 'svelte/reactivity';
@@ -12,13 +12,7 @@
 
     const m = getMessages();
 
-    let searchQuery = $state('');
-
-    $effect(() => {
-        if (viewerState.searchQuery !== untrack(() => searchQuery)) {
-            searchQuery = viewerState.searchQuery;
-        }
-    });
+    let searchQuery = $derived(viewerState.searchQuery);
 
     function handleSearch() {
         viewerState.search(searchQuery);

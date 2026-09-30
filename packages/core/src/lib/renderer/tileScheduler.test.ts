@@ -44,6 +44,7 @@ function immediateDecode(size = { width: 10, height: 20 }) {
 interface Pending {
     url: string;
     signal: AbortSignal;
+    priority: RequestPriority | undefined;
     resolve(): void;
     /** Answer with an HTTP status the loader must treat as a dead tile. */
     reject(): void;
@@ -59,12 +60,13 @@ function controllableFetch() {
 
     vi.stubGlobal(
         'fetch',
-        (url: string, init?: { signal?: AbortSignal }) =>
+        (url: string, init?: RequestInit) =>
             new Promise((resolve, reject) => {
                 const signal = init!.signal!;
                 pending.push({
                     url,
                     signal,
+                    priority: init!.priority,
                     resolve: () =>
                         resolve({ ok: true, blob: async () => ({ size: 1 }) }),
                     reject: () => resolve({ ok: false, status: 404 }),
@@ -175,13 +177,14 @@ function requiredBytes(tiles: ReturnType<typeof createTileScheduler>): number {
     return bytes;
 }
 
-function request(index: number, priority = index): TileRequest {
+function request(index: number, priority = index, visible = true): TileRequest {
     return {
         key: `c1#0/${index},0`,
         canvasId: 'c1',
         level: 0,
         url: `https://images.test/abc/tile-${index}.jpg`,
         priority,
+        visible,
     };
 }
 
@@ -241,6 +244,26 @@ describe('createTileScheduler', () => {
         expect(net.pending.map((entry) => entry.url)).toEqual([
             'https://images.test/abc/tile-3.jpg',
             'https://images.test/abc/tile-1.jpg',
+        ]);
+    });
+
+    it('fetches off-screen tiles at low priority and visible ones at the default', async () => {
+        const net = controllableFetch();
+        const tiles = scheduler({ maxInFlight: 4 });
+
+        tiles.update([
+            request(0, 0, true),
+            request(1, 1, false),
+            request(2, 2, true),
+            request(3, 3, false),
+        ]);
+        await flush();
+
+        expect(net.pending.map((entry) => entry.priority)).toEqual([
+            undefined,
+            'low',
+            undefined,
+            'low',
         ]);
     });
 
@@ -806,5 +829,150 @@ describe('createTileScheduler — the opportunistic cache', () => {
         tiles.dispose();
         expect(tiles.cachedTileCount).toBe(0);
         expect(tiles.decodedBytes).toBe(0);
+    });
+});
+
+describe('createTileScheduler — servers without CORS', () => {
+    /**
+     * A `fetch` the browser blocks, which is what sends the loader to an
+     * `<img>`, and an `Image` whose load the test fires by hand. Each bitmap
+     * decode stays pending until the test settles it, and carries a `close`
+     * spy and the element it was made from.
+     */
+    function noCors({ bitmaps = true } = {}) {
+        vi.stubGlobal('fetch', () =>
+            Promise.reject(new TypeError('Failed to fetch')),
+        );
+
+        const images: StubImage[] = [];
+        class StubImage {
+            onload: (() => void) | null = null;
+            onerror: (() => void) | null = null;
+            decoding = 'auto';
+            fetchPriority = 'auto';
+            src = '';
+            width = 0;
+            height = 0;
+            naturalWidth = 4;
+            naturalHeight = 4;
+            decode = vi.fn(async () => {});
+            constructor() {
+                images.push(this);
+            }
+        }
+        vi.stubGlobal('Image', StubImage);
+
+        const decodes: Array<{
+            source: StubImage;
+            close: () => void;
+            settle(): void;
+        }> = [];
+        vi.stubGlobal('createImageBitmap', (source: StubImage) => {
+            if (!bitmaps) return Promise.reject(new Error('unsupported'));
+            return new Promise((resolve) => {
+                const close = vi.fn();
+                decodes.push({
+                    source,
+                    close,
+                    settle: () => resolve({ width: 4, height: 4, close }),
+                });
+            });
+        });
+
+        return { images, decodes };
+    }
+
+    it('holds a decoded bitmap of the image, not the image element', async () => {
+        const { images, decodes } = noCors();
+        const tiles = scheduler();
+
+        tiles.update([request(0)]);
+        await flush();
+        images[0].onload?.();
+        await flush();
+
+        // Loaded is not drawable: nothing is held until the decode lands.
+        expect(tiles.get(request(0).key)).toBeUndefined();
+        expect(decodes[0].source).toBe(images[0]);
+
+        decodes[0].settle();
+        await flush();
+        const tile = tiles.get(request(0).key);
+        expect(tile).not.toBe(images[0]);
+        expect(tile?.close).toBe(decodes[0].close);
+    });
+
+    it('closes that bitmap exactly once when it is released', async () => {
+        const { images, decodes } = noCors();
+        const tiles = scheduler();
+
+        tiles.update([request(0)]);
+        await flush();
+        images[0].onload?.();
+        await flush();
+        decodes[0].settle();
+        await flush();
+
+        tiles.update([]);
+        tiles.dispose();
+
+        expect(decodes[0].close).toHaveBeenCalledOnce();
+    });
+
+    it('closes a bitmap that lands for a tile no longer wanted', async () => {
+        const { images, decodes } = noCors();
+        const tiles = scheduler();
+
+        tiles.update([request(0)]);
+        await flush();
+        images[0].onload?.();
+        await flush();
+        tiles.update([]);
+
+        decodes[0].settle();
+        await flush();
+
+        expect(tiles.residentKeys().size).toBe(0);
+        expect(decodes[0].close).toHaveBeenCalledOnce();
+    });
+
+    it('loads off-screen tiles at low priority and visible ones at the default', async () => {
+        const { images } = noCors();
+        const tiles = scheduler({ maxInFlight: 4 });
+
+        tiles.update([request(0, 0, true), request(1, 1, false)]);
+        await flush();
+        images[0].onload?.();
+        await flush();
+        tiles.update([
+            request(0, 0, true),
+            request(1, 1, false),
+            request(2, 2, true),
+            request(3, 3, false),
+        ]);
+        await flush();
+
+        expect(images.map((image) => image.fetchPriority)).toEqual([
+            'auto',
+            'low',
+            'auto',
+            'low',
+        ]);
+    });
+
+    it('draws the decoded element where no bitmap can be made', async () => {
+        const { images } = noCors({ bitmaps: false });
+        const tiles = scheduler();
+
+        tiles.update([request(0)]);
+        await flush();
+        images[0].onload?.();
+        await flush();
+
+        expect(tiles.get(request(0).key)).toBe(images[0]);
+        expect(images[0].decode).toHaveBeenCalledOnce();
+
+        tiles.dispose();
+        expect(images[0].src).toBe('data:,');
     });
 });

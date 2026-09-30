@@ -1,3 +1,4 @@
+import { untrack } from 'svelte';
 import type { RequestConfig } from '../types/config';
 import { fetchJson } from '../utils/fetchJson';
 import { getCanvasId, getResourceId } from '../utils/iiifIds';
@@ -6,7 +7,7 @@ import {
     getCanvasesForSequence,
     getSequenceCount as countSequences,
 } from '../utils/iiifParsing';
-import { parseStructures } from '../utils/structures';
+import { parseStructures, type StructureNode } from '../utils/structures';
 import { logger } from '../logging/logger';
 
 /**
@@ -27,6 +28,8 @@ export class ManifestsState {
     // reactively, so nothing gains from tracking them.
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     private pendingFetches = new Map<string, Promise<void>>();
+    #rawJson = new WeakMap<object, any>();
+    #structureSequences = new WeakMap<object, any[][]>();
 
     /**
      * Store a manifest's raw JSON under its id.
@@ -46,6 +49,20 @@ export class ManifestsState {
             json,
             isFetching: false,
         };
+        const proxied = untrack(() => this.manifests[manifestId].json);
+        if (proxied && typeof proxied === 'object') {
+            this.#rawJson.set(proxied, json);
+        }
+    }
+
+    /**
+     * The JSON registered for a manifest, unwrapped from the cache's deep
+     * proxy, for internal read-only walks. Reading it still subscribes to the
+     * entry's `json`, so replacing the document re-derives every reader.
+     */
+    #rawJsonOf(manifestId: string): any {
+        const json = this.manifests[manifestId]?.json;
+        return this.#rawJson.get(json) ?? json;
     }
 
     /**
@@ -137,49 +154,15 @@ export class ManifestsState {
     }
 
     private getStructureSequences(manifestId: string): any[][] {
-        const manifestJson = this.getManifestEntry(manifestId)?.json;
+        const manifestJson = this.#rawJsonOf(manifestId);
+        if (!manifestJson || typeof manifestJson !== 'object') return [];
 
-        // Top-level ranges only, as the sequence picker has always counted
-        // them: `parseStructures` nests a child Range under its parent rather
-        // than returning it here, so a `sequence` marker deeper in the tree
-        // defines no sequence of its own.
-        const sequenceRanges = parseStructures(manifestJson).filter((range) =>
-            range.behaviors.includes('sequence'),
-        );
-
-        if (!sequenceRanges.length) {
-            return [];
+        let sequences = this.#structureSequences.get(manifestJson);
+        if (!sequences) {
+            sequences = parseStructureSequences(manifestJson);
+            this.#structureSequences.set(manifestJson, sequences);
         }
-
-        // Every canvas the manifest declares, keyed by id, so that a range's
-        // canvas references can be resolved to the canvases themselves. Walks
-        // the raw JSON through the first-party enumerator.
-        //
-        // Plain `Map`: this lookup is built and consumed inside this call and
-        // never escapes it, so nothing can observe its mutation. Reactivity
-        // here comes from the `manifests` read above, which registers the
-        // dependency on the source JSON.
-        // eslint-disable-next-line svelte/prefer-svelte-reactivity
-        const canvasById = new Map<string, any>();
-        const sequenceCount = countSequences(manifestJson);
-
-        for (let index = 0; index < sequenceCount; index++) {
-            for (const canvas of getCanvasesForSequence(manifestJson, index)) {
-                const canvasId = getCanvasId(canvas);
-
-                if (canvasId && !canvasById.has(canvasId)) {
-                    canvasById.set(canvasId, canvas);
-                }
-            }
-        }
-
-        return sequenceRanges
-            .map((range) =>
-                range.canvasIds
-                    .map((canvasId) => canvasById.get(canvasId))
-                    .filter(Boolean),
-            )
-            .filter((sequence) => sequence.length > 0);
+        return sequences;
     }
 
     /**
@@ -195,7 +178,7 @@ export class ManifestsState {
      * to read.
      */
     private getCanvasJson(manifestId: string, canvasId: string): any | null {
-        const manifestJson = this.getManifestEntry(manifestId)?.json;
+        const manifestJson = this.#rawJsonOf(manifestId);
 
         const sequenceCount = countSequences(manifestJson);
         for (let index = 0; index < sequenceCount; index++) {
@@ -266,6 +249,11 @@ export class ManifestsState {
         return this.getAnnotations(manifestId, canvasId, sourceId);
     }
 
+    /** The manifest's parsed structures, read from its raw JSON. */
+    getStructures(manifestId: string): StructureNode[] {
+        return parseStructures(this.#rawJsonOf(manifestId));
+    }
+
     /**
      * How many sequences the active manifest offers, as the sequence picker
      * counts them. Ranges with `behavior: "sequence"` define the sequences when
@@ -277,7 +265,7 @@ export class ManifestsState {
             return structureSequences.length;
         }
 
-        return countSequences(this.getManifestEntry(manifestId)?.json);
+        return countSequences(this.#rawJsonOf(manifestId));
     }
 
     /**
@@ -300,7 +288,7 @@ export class ManifestsState {
         }
 
         return getCanvasesForSequence(
-            this.getManifestEntry(manifestId)?.json,
+            this.#rawJsonOf(manifestId),
             sequenceIndex,
         );
     }
@@ -374,3 +362,45 @@ export class ManifestsState {
 }
 
 export const manifestsState = new ManifestsState();
+
+function parseStructureSequences(manifestJson: any): any[][] {
+    // Top-level ranges only, as the sequence picker has always counted
+    // them: `parseStructures` nests a child Range under its parent rather
+    // than returning it here, so a `sequence` marker deeper in the tree
+    // defines no sequence of its own.
+    const sequenceRanges = parseStructures(manifestJson).filter((range) =>
+        range.behaviors.includes('sequence'),
+    );
+
+    if (!sequenceRanges.length) {
+        return [];
+    }
+
+    // Every canvas the manifest declares, keyed by id, so that a range's
+    // canvas references can be resolved to the canvases themselves. Walks
+    // the raw JSON through the first-party enumerator.
+    //
+    // Plain `Map`: this lookup is built and consumed inside this call and
+    // never escapes it, so nothing can observe its mutation.
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const canvasById = new Map<string, any>();
+    const sequenceCount = countSequences(manifestJson);
+
+    for (let index = 0; index < sequenceCount; index++) {
+        for (const canvas of getCanvasesForSequence(manifestJson, index)) {
+            const canvasId = getCanvasId(canvas);
+
+            if (canvasId && !canvasById.has(canvasId)) {
+                canvasById.set(canvasId, canvas);
+            }
+        }
+    }
+
+    return sequenceRanges
+        .map((range) =>
+            range.canvasIds
+                .map((canvasId) => canvasById.get(canvasId))
+                .filter(Boolean),
+        )
+        .filter((sequence) => sequence.length > 0);
+}

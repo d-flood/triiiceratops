@@ -32,15 +32,18 @@
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
+            "svelte": "./dist/svelte/index.js",
             "import": "./dist/index.js"
         },
         "./iife": "./dist/iife.js"
     },
     "scripts": {
-        "build": "pnpm clean && pnpm build:esm && pnpm build:iife && pnpm build:types",
+        "build": "pnpm clean && pnpm build:esm && pnpm build:svelte && pnpm build:iife && pnpm build:types && pnpm check:dist",
         "build:esm": "BUILD_FORMAT=es vite build",
+        "build:svelte": "BUILD_FORMAT=svelte vite build",
         "build:iife": "BUILD_FORMAT=iife vite build",
         "build:types": "tsc -p tsconfig.build.json",
+        "check:dist": "node ../core/src/packaging/pluginDistCheck.ts",
         "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p tsconfig.build.json --noEmit",
         "test": "vitest run",
         "clean": "rm -rf dist",
@@ -50,7 +53,13 @@
     },
     "peerDependencies": {
         "triiiceratops": "workspace:^",
-        "@triiiceratops/plugin-sdk": "workspace:^"
+        "@triiiceratops/plugin-sdk": "workspace:^",
+        "svelte": "^5.56.10"
+    },
+    "peerDependenciesMeta": {
+        "svelte": {
+            "optional": true
+        }
     },
     "dependencies": {
         "pdf-lib": "^1.17.1"

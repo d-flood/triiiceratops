@@ -8,7 +8,10 @@
 
     type Size = 'xs' | 'sm' | 'md' | 'lg';
 
-    interface Props extends Omit<HTMLSelectAttributes, 'size'> {
+    interface Props extends Pick<
+        HTMLSelectAttributes,
+        'id' | 'disabled' | 'aria-label' | 'onchange'
+    > {
         value?: unknown;
         size?: Size;
         /** Transparent until focus. */
@@ -16,6 +19,10 @@
         class?: string;
         style?: string;
         children?: Snippet;
+        'data-tri-id-mode'?: boolean;
+        'data-tri-id-resolution'?: boolean;
+        'data-tri-pdf-start'?: boolean;
+        'data-tri-pdf-end'?: boolean;
     }
 
     let {
@@ -25,7 +32,14 @@
         class: className = '',
         style = '',
         children,
-        ...rest
+        id,
+        disabled,
+        'aria-label': ariaLabel,
+        onchange,
+        'data-tri-id-mode': dataTriIdMode,
+        'data-tri-id-resolution': dataTriIdResolution,
+        'data-tri-pdf-start': dataTriPdfStart,
+        'data-tri-pdf-end': dataTriPdfEnd,
     }: Props = $props();
 
     const SIZE: Record<Size, string> = {
@@ -39,8 +53,8 @@
     const listId = `tri-listbox-${uid++}`;
 
     // The hidden native <select> is the source of truth: bind:value, onchange
-    // (spread via rest), and form submission all flow through it unchanged. The
-    // custom listbox is a themed visual layer that drives it.
+    // and form submission all flow through it unchanged. The custom listbox is
+    // a themed visual layer that drives it.
     let nativeEl = $state<HTMLSelectElement | null>(null);
     let triggerEl = $state<HTMLButtonElement | null>(null);
     let listEl = $state<HTMLDivElement | null>(null);
@@ -50,7 +64,7 @@
     let open = $state(false);
     let activeIndex = $state(-1);
 
-    let isDisabled = $derived(!!(rest.disabled as boolean | undefined));
+    let isDisabled = $derived(!!disabled);
     let selectedValueStr = $derived(value == null ? '' : String(value));
     let selected = $derived(
         items.find((it) => it.value === selectedValueStr) ?? items[0],
@@ -68,7 +82,11 @@
     $effect(() => {
         if (!nativeEl) return;
         rebuild();
-        const mo = new MutationObserver(() => rebuild());
+        // Svelte re-assigns `disabled` whenever the template re-renders, which
+        // records a mutation on the select itself; reacting to it would loop.
+        const mo = new MutationObserver((records) => {
+            if (records.some((r) => r.target !== nativeEl)) rebuild();
+        });
         mo.observe(nativeEl, {
             childList: true,
             subtree: true,
@@ -244,7 +262,14 @@
         bind:value
         tabindex="-1"
         aria-hidden="true"
-        {...rest}
+        {id}
+        {disabled}
+        aria-label={ariaLabel}
+        {onchange}
+        data-tri-id-mode={dataTriIdMode}
+        data-tri-id-resolution={dataTriIdResolution}
+        data-tri-pdf-start={dataTriPdfStart}
+        data-tri-pdf-end={dataTriPdfEnd}
     >
         {@render children?.()}
     </select>
@@ -264,7 +289,7 @@
         aria-activedescendant={open && activeIndex >= 0
             ? `${listId}-opt-${activeIndex}`
             : undefined}
-        aria-label={rest['aria-label'] as string | undefined}
+        aria-label={ariaLabel}
         onclick={toggle}
         onkeydown={onTriggerKeydown}
     >

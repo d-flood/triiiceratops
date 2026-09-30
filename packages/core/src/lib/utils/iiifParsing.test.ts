@@ -668,7 +668,7 @@ describe('the unreadable-canvas warning', () => {
         // The id is what makes the warning actionable -- a warning that does
         // not say WHICH canvas sends the reader back to the manifest.
         expect(message).toContain('http://example.org/canvas/blank');
-        expect(message).toContain('`items`');
+        expect(message).toContain('items');
     });
 
     it('warns at most once per canvas', () => {

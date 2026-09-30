@@ -39,16 +39,15 @@ export const VIEWER_STATE_AVAILABLE_EVENT = 'viewerstateavailable';
 /**
  * The supported bridge surface of the `<triiiceratops-viewer>` element.
  *
- * `viewerState` is getter-only on the element prototype: the Svelte compiler
- * emits it from an instance export, so a host physically cannot replace the
- * owning viewer's state. Its presence on the registered constructor's prototype
+ * `viewerState` is getter-only on the element prototype, so a host physically
+ * cannot replace the owning viewer's state. Its presence on the registered constructor's prototype
  * is also the version handshake a framework wrapper probes to confirm it is
  * talking to a compatible core.
  *
  * `searchProvider` is a property-only input forwarded to the viewer's existing
- * native search behavior. There is no reflected attribute; Svelte derives an
- * inert `searchprovider` observed attribute from the prop declaration, and a
- * non-function value is ignored with a debug-gated warning.
+ * native search behavior. There is no reflected attribute; the element's
+ * `searchprovider` observed attribute is inert, and a non-function value is
+ * ignored with a debug-gated warning.
  */
 export interface TriiiceratopsViewerElement extends HTMLElement {
     /**

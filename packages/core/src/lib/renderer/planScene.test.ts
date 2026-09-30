@@ -178,11 +178,16 @@ function viewport(overrides: Partial<Viewport> = {}): Viewport {
     };
 }
 
+/**
+ * Every plan in this file is also planned with the layout caches bypassed and
+ * with a warm cache, and all three must serialize identically: the caches are
+ * an optimization with no observable effect.
+ */
 function plan(
     canvases: PlannerCanvas[],
     overrides: Partial<Parameters<typeof planScene>[0]> = {},
 ) {
-    return planScene({
+    const input: PlanSceneInput = {
         canvases,
         mode: 'individuals',
         direction: 'left-to-right',
@@ -192,7 +197,15 @@ function plan(
         knownMetadata: {},
         budgets: BUDGETS,
         ...overrides,
-    });
+    };
+    const result = planScene(input);
+    const uncached = planScene(input, false);
+    const warm = planScene({ ...input, viewportLimits: result });
+
+    expect(JSON.stringify(result)).toBe(JSON.stringify(uncached));
+    expect(JSON.stringify(warm)).toBe(JSON.stringify(uncached));
+
+    return result;
 }
 
 /**
@@ -1246,6 +1259,61 @@ describe('planScene — tiled sources', () => {
         }
     });
 
+    describe('covered coarse tiles', () => {
+        const canvases = [serviceCanvas('c1', 1000, 1000)];
+        const base = tileKey('c1', serviceIdOf('c1'), 0, 0, 0);
+        const level1 = [0, 1].flatMap((row) =>
+            [0, 1].map((column) =>
+                tileKey('c1', serviceIdOf('c1'), 1, column, row),
+            ),
+        );
+
+        function coverPlan(
+            overrides: Partial<Parameters<typeof planScene>[0]>,
+        ) {
+            return plan(canvases, {
+                knownMetadata: byService({ c1: FACTS }),
+                residentTiles: new Set([base, ...level1]),
+                ...overrides,
+            });
+        }
+
+        const drawnKeys = (result: ReturnType<typeof plan>) =>
+            result.tileDraws.map((draw) => draw.key);
+
+        it('skips a coarse tile that finer opaque tiles cover on a stable view', () => {
+            const result = coverPlan({});
+
+            expect(drawnKeys(result)).toEqual(level1);
+            expect(result.tileRequests).toEqual(
+                coverPlan({ skipCoveredTiles: false }).tileRequests,
+            );
+        });
+
+        it('paints the coarse tile while the view is moving', () => {
+            expect(drawnKeys(coverPlan({ viewStable: false }))).toEqual([
+                base,
+                ...level1,
+            ]);
+        });
+
+        it('paints the coarse tile when a finer tile is missing', () => {
+            const partial = new Set([base, ...level1.slice(1)]);
+
+            expect(drawnKeys(coverPlan({ residentTiles: partial }))).toContain(
+                base,
+            );
+        });
+
+        it('paints the coarse tile under a format that may carry alpha', () => {
+            const result = coverPlan({
+                knownMetadata: byService({ c1: { ...FACTS, format: 'png' } }),
+            });
+
+            expect(drawnKeys(result)).toContain(base);
+        });
+    });
+
     it('does not draw resident tiles that are off screen: the margin prefetches, it does not paint', () => {
         // A generous margin, so there are tiles that are required and held but
         // outside the viewport — which is exactly the case a painter that drew
@@ -1266,6 +1334,32 @@ describe('planScene — tiled sources', () => {
         const drawn = result.tileDraws.map((draw) => draw.key);
         expect(drawn).toContain(onScreen);
         expect(drawn).not.toContain(inMarginOnly);
+    });
+
+    it('marks a tile request visible only when it intersects the viewport, not only the margin', () => {
+        const input = {
+            viewport: viewport({ centre: { x: 60, y: 60 }, scale: 16 }),
+            knownMetadata: byService({ c1: FACTS }),
+            budgets: { ...BUDGETS, marginFactor: 4 },
+        };
+        const canvases = [serviceCanvas('c1', 1000, 1000)];
+        const required = plan(canvases, input).tileRequests;
+
+        // With everything held, the draw list is exactly the on-screen subset.
+        const held = plan(canvases, {
+            ...input,
+            residentTiles: new Set(required.map((request) => request.key)),
+            skipCoveredTiles: false,
+        });
+        const drawn = new Set(held.tileDraws.map((draw) => draw.key));
+
+        expect(held.tileRequests.some((request) => request.visible)).toBe(true);
+        expect(held.tileRequests.some((request) => !request.visible)).toBe(
+            true,
+        );
+        for (const request of held.tileRequests) {
+            expect(request.visible).toBe(drawn.has(request.key));
+        }
     });
 });
 
@@ -1423,7 +1517,12 @@ describe('planScene — size-ladder sources', () => {
         const coarse = tileKey('c1', serviceIdOf('c1'), 0, 0, 0);
         const fine = tileKey('c1', serviceIdOf('c1'), 1, 0, 0);
 
-        const result = ladderPlan(1, {}, new Set([fine, coarse]));
+        const result = plan([ladderCanvas], {
+            viewport: viewport({ centre: { x: 500, y: 500 }, scale: 1 }),
+            knownMetadata: byService({ c1: LADDER_FACTS }),
+            residentTiles: new Set([fine, coarse]),
+            skipCoveredTiles: false,
+        });
 
         expect(result.tileDraws).toEqual([
             {
@@ -2739,6 +2838,40 @@ describe('planScene — an 800-canvas continuous manifest', () => {
             .filter(([, tier]) => tier === 'pyramid')
             .map(([canvasId]) => canvasId);
     }
+
+    it('plans byte-identical scenes with and without the continuous-mode caches', () => {
+        const input: PlanSceneInput = {
+            canvases: CANVASES,
+            mode: 'continuous',
+            direction: 'left-to-right',
+            preserveCanvasScale: false,
+            gapFraction: GAP_FRACTION,
+            viewport: viewport(),
+            knownMetadata: {},
+            budgets: BUDGETS,
+        };
+        const viewportLimits = planViewportLimits(input);
+
+        // Reading zoom across the manifest, a gutter, and far enough out that
+        // the tier floor decides.
+        const views = [
+            ...[0, 1, 399, 798, 799].map((index) => ({
+                centre: { x: index * PITCH + PAGE.width / 2, y: 450 },
+                scale: 600 / PAGE.height,
+            })),
+            { centre: { x: PITCH - GAP_FRACTION * 600, y: 450 }, scale: 40 },
+            { centre: { x: 400 * PITCH, y: 450 }, scale: 0.001 },
+        ];
+
+        for (const view of views) {
+            const frame = { ...input, viewport: viewport(view) };
+            const cached = planScene({ ...frame, viewportLimits });
+            const uncached = planScene(frame, false);
+
+            expect(cached.layout).toBe(viewportLimits.layout);
+            expect(JSON.stringify(cached)).toBe(JSON.stringify(uncached));
+        }
+    });
 
     it('lays out every canvas without a single request', () => {
         // Layout is pure arithmetic over manifest dimensions, so the world is

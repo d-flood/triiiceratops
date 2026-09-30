@@ -13,6 +13,7 @@ import { once } from '../utils/once.js';
 import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { flushSync, untrack } from 'svelte';
 import { manifestsState } from './manifests.svelte.js';
+import { takeManifestRequest } from './earlyManifestRequest';
 import { NOTIFYING_MEMBERS } from '../generated/notifyingMembers.js';
 import { language } from './i18n.svelte.js';
 import { logger, isDebugEnabled } from '../logging/logger';
@@ -66,11 +67,7 @@ import type {
     PluginUiTarget,
     IconDescriptor,
 } from '../types/plugin';
-import {
-    parseStructures,
-    tableOfContentsRanges,
-    type StructureNode,
-} from '../utils/structures';
+import { tableOfContentsRanges, type StructureNode } from '../utils/structures';
 import { collectManifestLocales } from '../utils/manifestLocales';
 import {
     isCollection,
@@ -132,6 +129,8 @@ const COMPANION_PHASES: readonly string[] = [
 // reports — so the two cannot drift apart. Every other failure sentence is
 // written once at its `refuse` call.
 const SEARCH_FAILED = 'Search request failed.';
+
+const COLLECTION_FETCH_WINDOW = 4;
 
 /**
  * One plugin's UI state: whether its surface stands open, whether the consumer
@@ -758,33 +757,36 @@ export class ViewerState {
         return manifestsState.getManifestEntry(this.manifestId);
     }
 
+    #canvases = $derived(
+        this.manifestId
+            ? manifestsState.getCanvases(
+                  this.manifestId,
+                  this.selectedSequenceIndex,
+              )
+            : [],
+    );
     get canvases() {
-        if (!this.manifestId) return [];
-        const canvases = manifestsState.getCanvases(
-            this.manifestId,
-            this.selectedSequenceIndex,
-        );
-
-        return canvases;
+        return this.#canvases;
     }
 
+    #sequenceCount = $derived(
+        this.manifestId ? manifestsState.getSequenceCount(this.manifestId) : 0,
+    );
     get sequenceCount() {
-        if (!this.manifestId) return 0;
-        return manifestsState.getSequenceCount(this.manifestId);
+        return this.#sequenceCount;
     }
 
+    #currentCanvasIndex = $derived(
+        this.canvasId ? findCanvasIndexById(this.#canvases, this.canvasId) : -1,
+    );
     get currentCanvasIndex() {
-        if (!this.canvasId) {
-            return -1;
-        }
-
-        return findCanvasIndexById(this.canvases, this.canvasId);
+        return this.#currentCanvasIndex;
     }
 
     /** The spreads `paged` mode groups the current canvas list into. */
-    get #pagedGroups() {
-        return getPagedCanvasGroups(this.canvases, this.pagedOffset);
-    }
+    #pagedGroups = $derived(
+        getPagedCanvasGroups(this.#canvases, this.pagedOffset),
+    );
 
     /**
      * Land on a paged group's first canvas. An index naming no group is a
@@ -810,14 +812,8 @@ export class ViewerState {
         if (canvasId) this.setCanvas(canvasId);
     }
 
-    /**
-     * `currentCanvasIndex` is a linear search of the canvas list, so callers
-     * that already hold it pass it in: read from inside the group predicate it
-     * would search the whole list again for every group.
-     */
-    private getCurrentPagedCanvasGroupIndex(
-        currentCanvasIndex: number = this.currentCanvasIndex,
-    ): number {
+    private getCurrentPagedCanvasGroupIndex(): number {
+        const currentCanvasIndex = this.#currentCanvasIndex;
         if (this.viewingMode !== 'paged' || currentCanvasIndex < 0) {
             return -1;
         }
@@ -829,32 +825,27 @@ export class ViewerState {
         );
     }
 
-    get hasNext() {
-        const currentCanvasIndex = this.currentCanvasIndex;
-        if (currentCanvasIndex < 0) {
-            return false;
-        }
-
+    #hasNext = $derived.by(() => {
+        if (this.#currentCanvasIndex < 0) return false;
         if (this.viewingMode === 'paged') {
-            const groupIndex =
-                this.getCurrentPagedCanvasGroupIndex(currentCanvasIndex);
+            const groupIndex = this.getCurrentPagedCanvasGroupIndex();
             return groupIndex >= 0 && groupIndex < this.#pagedGroups.length - 1;
-        } else {
-            return currentCanvasIndex < this.canvases.length - 1;
         }
+        return this.#currentCanvasIndex < this.#canvases.length - 1;
+    });
+    get hasNext() {
+        return this.#hasNext;
     }
 
-    get hasPrevious() {
-        const currentCanvasIndex = this.currentCanvasIndex;
-        if (currentCanvasIndex < 0) {
-            return false;
-        }
-
+    #hasPrevious = $derived.by(() => {
+        if (this.#currentCanvasIndex < 0) return false;
         if (this.viewingMode === 'paged') {
-            return this.getCurrentPagedCanvasGroupIndex(currentCanvasIndex) > 0;
+            return this.getCurrentPagedCanvasGroupIndex() > 0;
         }
-
-        return currentCanvasIndex > 0;
+        return this.#currentCanvasIndex > 0;
+    });
+    get hasPrevious() {
+        return this.#hasPrevious;
     }
 
     nextCanvas() {
@@ -1910,10 +1901,11 @@ export class ViewerState {
 
         let json: any;
         try {
-            json = await manifestsState.fetchResource(
-                manifestId,
-                this.manifestRequestConfig,
-            );
+            json = await (takeManifestRequest(this, manifestId) ??
+                manifestsState.fetchResource(
+                    manifestId,
+                    this.manifestRequestConfig,
+                ));
         } catch (_error: any) {
             await this._loadManifest(manifestId, options?.canvasId);
             this.dispatchStateChange('manifestchange');
@@ -2032,29 +2024,44 @@ export class ViewerState {
             (item) => item.type === 'Manifest' && !item.thumbnail,
         );
 
-        await Promise.allSettled(
-            manifestItems.map(async (item) => {
-                await manifestsState.fetchManifest(
-                    item.id,
-                    this.manifestRequestConfig,
-                );
+        const isStale = () =>
+            this.collectionId !== collectionId ||
+            this.collectionThumbnailHydrationId !== hydrationId;
+        let next = 0;
+        const hydrateNext = async () => {
+            while (next < manifestItems.length && !isStale()) {
+                const item = manifestItems[next++];
+                try {
+                    await manifestsState.fetchManifest(
+                        item.id,
+                        this.manifestRequestConfig,
+                    );
+                    if (isStale()) return;
 
-                if (
-                    this.collectionId !== collectionId ||
-                    this.collectionThumbnailHydrationId !== hydrationId
-                ) {
-                    return;
+                    const firstCanvas = manifestsState.getCanvases(item.id)[0];
+                    const thumbnail = firstCanvas
+                        ? getThumbnailSrc(firstCanvas)
+                        : '';
+
+                    if (thumbnail) {
+                        item.thumbnail = thumbnail;
+                    }
+                } catch {
+                    // Settled like its siblings: one bad member never stops the rest.
                 }
+            }
+        };
 
-                const firstCanvas = manifestsState.getCanvases(item.id)[0];
-                const thumbnail = firstCanvas
-                    ? getThumbnailSrc(firstCanvas)
-                    : '';
-
-                if (thumbnail) {
-                    item.thumbnail = thumbnail;
-                }
-            }),
+        await Promise.all(
+            Array.from(
+                {
+                    length: Math.min(
+                        COLLECTION_FETCH_WINDOW,
+                        manifestItems.length,
+                    ),
+                },
+                hydrateNext,
+            ),
         );
     }
 
@@ -2458,37 +2465,39 @@ export class ViewerState {
         return this.collectionId !== null && this.collectionItems.length > 0;
     }
 
+    #structures = $derived(
+        this.manifestId ? manifestsState.getStructures(this.manifestId) : [],
+    );
     /**
      * Parsed IIIF structures (ranges / table of contents) from the current manifest.
      * Returns an empty array if no structures exist.
      */
     get structures(): StructureNode[] {
-        // Raw manifest JSON. `parseStructures` reads `structures` off the
-        // document itself and handles both the v2 (`sc:Range`) and the v3
-        // (`Range`) spelling, so this is a plain-JSON read for both versions.
-        const manifestJson = this.manifestEntry?.json;
-        if (!manifestJson) return [];
-        return parseStructures(manifestJson);
+        return this.#structures;
     }
 
+    #sequenceStructures = $derived(
+        this.#structures.filter((node) => node.behaviors.includes('sequence')),
+    );
     /**
      * The top-level ranges marked `behavior: sequence` — the manifest's own
      * sequences, which the sequence picker names and the table of contents must
      * leave out.
      */
     get sequenceStructures(): StructureNode[] {
-        return this.structures.filter((node) =>
-            node.behaviors.includes('sequence'),
-        );
+        return this.#sequenceStructures;
     }
 
-    /** The ranges that are a table of contents rather than a sequence. */
-    get nonSequenceStructures(): StructureNode[] {
-        return tableOfContentsRanges(
-            this.structures.filter(
+    #nonSequenceStructures = $derived(
+        tableOfContentsRanges(
+            this.#structures.filter(
                 (node) => !node.behaviors.includes('sequence'),
             ),
-        );
+        ),
+    );
+    /** The ranges that are a table of contents rather than a sequence. */
+    get nonSequenceStructures(): StructureNode[] {
+        return this.#nonSequenceStructures;
     }
 
     /**
@@ -2528,7 +2537,7 @@ export class ViewerState {
 
     searchQuery = $state('');
     pendingSearchQuery = $state<string | null>(null);
-    searchResults: SearchResultGroup[] = $state([]);
+    searchResults: SearchResultGroup[] = $state.raw([]);
     isSearching = $state(false);
     showSearchPanel = $state(false);
 
@@ -2541,7 +2550,7 @@ export class ViewerState {
         this.dispatchStateChange();
     }
 
-    searchAnnotations: any[] = $state([]);
+    searchAnnotations: any[] = $state.raw([]);
 
     async search(query: string) {
         this.dispatchStateChange();
@@ -2608,7 +2617,7 @@ export class ViewerState {
             );
         } catch (e) {
             forceSettled = true;
-            logger.error('Search error:', e);
+            logger.error('search failed', e);
             this.reportError({
                 severity: 'error',
                 scope: 'search',

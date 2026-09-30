@@ -1,11 +1,11 @@
 <script lang="ts">
     import { renderIiifRichText } from '../utils/sanitizeHtml';
-    import type { ClassValue, SvelteHTMLElements } from 'svelte/elements';
+    import type { ClassValue } from 'svelte/elements';
 
     interface Props {
         html?: string;
         class?: ClassValue;
-        tag?: keyof SvelteHTMLElements;
+        tag?: 'div' | 'dd';
     }
 
     let {
@@ -30,13 +30,17 @@
     $effect(() => {
         const fragment = renderIiifRichText(html || '');
         // The host's children are ours alone; the template declares none. See
-        // lint-allowlist.md entry 9.
+        // lint-allowlist.md entry 8.
         // eslint-disable-next-line svelte/no-dom-manipulating
         host?.replaceChildren(fragment);
     });
 </script>
 
-<svelte:element this={tag} bind:this={host} class={className}></svelte:element>
+{#if tag === 'dd'}
+    <dd bind:this={host} class={className}></dd>
+{:else}
+    <div bind:this={host} class={className}></div>
+{/if}
 
 <style>
     :global(.viewer-html) {

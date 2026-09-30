@@ -61,10 +61,9 @@ export default defineConfig({
             // Svelte's append_styles → getRootNode()) so it reaches the
             // <triiiceratops-viewer> shadow root in dev/e2e. A per-file
             // compilerOptions *function* silently disables emitCss:false, so use a
-            // static object; `customElement: true` only upgrades components that
-            // declare <svelte:options customElement>.
+            // static object.
             emitCss: false,
-            compilerOptions: { customElement: true },
+            compilerOptions: { customElement: false },
         }),
     ],
     resolve: {

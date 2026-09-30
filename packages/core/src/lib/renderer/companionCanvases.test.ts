@@ -673,9 +673,10 @@ describe('degradation', () => {
 
         expect(companions.accompanying).toBeNull();
         expect(companions.placeholder).toBeNull();
-        expect(companions.warnings).toEqual([
-            'canvas https://example.test/canvas/1 paints images of its own; its companion canvas will not be painted under them',
-        ]);
+        expect(companions.warnings).toHaveLength(1);
+        expect(companions.warnings[0]).toContain(
+            'https://example.test/canvas/1',
+        );
         // Skipped entirely: the canvas's own images and rect survive whatever
         // phase the claimant asks for.
         const painted = withCompanion(base, companions, 'accompanying');
@@ -701,9 +702,11 @@ describe('degradation', () => {
         const companions = companionsOf(canvas);
 
         expect(companions.accompanying).toBeNull();
-        expect(companions.warnings).toEqual([
-            'the accompanyingCanvas of canvas https://example.test/canvas/1 resolved to nothing requestable; it will not be painted',
-        ]);
+        expect(companions.warnings).toHaveLength(1);
+        expect(companions.warnings[0]).toContain(
+            'https://example.test/canvas/1',
+        );
+        expect(companions.warnings[0]).toContain('accompanyingCanvas');
         // The claimed canvas keeps the treatment it would otherwise have had:
         // a broken companion costs a picture, not the canvas.
         expect(
@@ -1401,9 +1404,8 @@ describe('the v4 spellings', () => {
                     }),
                 );
 
-                expect(companions.warnings).toEqual([
-                    `the ${v4} of canvas https://example.test/canvas/1 resolved to nothing requestable; it will not be painted`,
-                ]);
+                expect(companions.warnings).toHaveLength(1);
+                expect(companions.warnings[0]).toContain(v4);
             });
         });
     }

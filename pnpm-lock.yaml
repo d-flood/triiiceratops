@@ -306,6 +306,9 @@ importers:
       jsdom:
         specifier: ^27.3.0
         version: 27.3.0(postcss@8.5.19)(supports-color@10.2.2)
+      lightningcss:
+        specifier: 1.32.0
+        version: 1.32.0
       prettier:
         specifier: ^3.7.4
         version: 3.7.4
@@ -5157,8 +5160,7 @@ snapshots:
 
   detect-indent@6.1.0: {}
 
-  detect-libc@2.1.2:
-    optional: true
+  detect-libc@2.1.2: {}
 
   devalue@5.8.1: {}
 
@@ -5798,7 +5800,6 @@ snapshots:
       lightningcss-linux-x64-musl: 1.32.0
       lightningcss-win32-arm64-msvc: 1.32.0
       lightningcss-win32-x64-msvc: 1.32.0
-    optional: true
 
   lilconfig@2.1.0: {}
 

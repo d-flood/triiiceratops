@@ -2,6 +2,7 @@
 /** Consumer-bundle regression over the built ESM entry. */
 
 import { mkdtempSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -88,9 +89,9 @@ describe('the built ESM entry survives a consumer bundle', () => {
             // What a consumer's bundle may still reference by bare specifier is
             // exactly the declared peers: anything else here is a dependency
             // this package bundled into the host's application by accident.
-            // `svelte` is deliberately absent from the set — these plugins
-            // bundle their own runtime rather than sharing core's, which is the
-            // asymmetry with the AV plugin.
+            // `svelte` is absent from the set: though an optional peer, it is
+            // externalized only by the `svelte`-condition build in
+            // `dist/svelte/`; this default build bundles its own runtime.
             const specifiers = new Set<string>();
             for (const match of consumer.matchAll(/from\s*["']([^"']+)["']/g)) {
                 if (match[1]) specifiers.add(match[1]);
@@ -118,5 +119,25 @@ describe('the built ESM entry survives a consumer bundle', () => {
             // `minifyCss` over the `?raw` import fails here too.
             expect(consumer).toContain('.tri-id{');
         });
+    });
+});
+
+describe('the optional svelte peer', () => {
+    it('starts at the Svelte version the svelte build is compiled with', () => {
+        const manifest = JSON.parse(
+            readFileSync(
+                resolve(
+                    dirname(fileURLToPath(import.meta.url)),
+                    '../package.json',
+                ),
+                'utf8',
+            ),
+        );
+        const { version } = createRequire(import.meta.url)(
+            'svelte/package.json',
+        ) as { version: string };
+
+        expect(manifest.peerDependencies.svelte).toBe(`^${version}`);
+        expect(manifest.peerDependenciesMeta.svelte.optional).toBe(true);
     });
 });

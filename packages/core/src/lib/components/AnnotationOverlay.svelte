@@ -193,28 +193,46 @@
             elements.forEach((element) => resizeObserver.observe(element));
         };
 
-        function updateCoords() {
-            // The viewer element decides which side of the image the panel is
-            // on, and it is the same answer for every connector, so it is read
-            // once here rather than per annotation.
-            const viewerEl =
-                (toolbarContainer &&
-                    toolbarContainer.closest('#triiiceratops-viewer')) ||
-                root.getElementById('triiiceratops-viewer');
+        // The viewer element decides which side of the image the panel is on,
+        // and it is the same answer for every connector.
+        const viewerEl =
+            (toolbarContainer &&
+                toolbarContainer.closest('#triiiceratops-viewer')) ||
+            root.getElementById('triiiceratops-viewer');
 
+        // Plain `Map`: a DOM-element cache read from the frame loop; nothing renders from it.
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
+        const found = new Map<string, [HTMLElement | null, Element[]]>();
+
+        // A row or shape that has not rendered yet, or was replaced, is looked
+        // up again; a complete, connected pair is reused frame after frame.
+        const lookUp = (annotationId: string) => {
+            let hit = found.get(annotationId);
+            if (
+                !hit?.[0]?.isConnected ||
+                !hit[1].length ||
+                !hit[1].every((visual) => visual.isConnected)
+            ) {
+                // The list item ID lives in AnnotationPanel, which must be rendered for this to work.
+                hit = [
+                    root.getElementById(`annotation-list-item-${annotationId}`),
+                    Array.from(
+                        root.querySelectorAll(
+                            `[data-annotation-id="${CSS.escape(annotationId)}"]`,
+                        ),
+                    ),
+                ];
+                found.set(annotationId, hit);
+            }
+            return hit;
+        };
+
+        function updateCoords() {
             const next: typeof lines = [];
             const observed: Element[] = [];
 
             for (const annotationId of connectedIds) {
-                // The list item ID lives in AnnotationPanel, which must be rendered for this to work.
-                const listItem = root.getElementById(
-                    `annotation-list-item-${annotationId}`,
-                );
-                const visuals = Array.from(
-                    root.querySelectorAll<HTMLElement>(
-                        `[data-annotation-id="${CSS.escape(annotationId)}"]`,
-                    ),
-                );
+                const [listItem, visuals] = lookUp(annotationId);
 
                 if (!listItem || visuals.length === 0) continue;
 

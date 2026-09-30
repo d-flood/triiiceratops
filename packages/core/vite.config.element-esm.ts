@@ -3,20 +3,27 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
+import { cssTarget, lightningcss } from './src/packaging/cssTargets';
 import dropLightDomOnly from './src/packaging/dropLightDomOnly';
-import { wrapperCustomElementGuard } from './src/packaging/elementCompileOptions';
-import { minifyCssPreprocessor } from './src/packaging/minifyCss';
+import { noCustomElementGuard } from './src/packaging/elementCompileOptions';
+import {
+    elementCssHash,
+    elementStylesheet,
+} from './src/packaging/elementStylesheet';
+import { svelteRuntimeTrims } from './src/packaging/svelteRuntimeTrims';
 import { terserElementBuilds } from './src/packaging/terserElement';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Upgrades the wrapper AND fails the build if the wrapper was never found.
-const customElementGuard = wrapperCustomElementGuard();
+const compilerOptions = {
+    customElement: false,
+    cssHash: elementCssHash(resolve(__dirname, '../..')),
+};
 
 // Standards-based ESM registration entry for the Web Component, for bundler
 // consumers. Behavior is identical to the self-contained IIFE
 // (vite.config.element.ts): same compiler options (scoped CSS inlined into the
-// shadow root, only the wrapper upgraded to a custom element), same self-styled
+// shadow root, no component compiled as a custom element), same self-styled
 // shadow DOM, same single self-contained artifact — only the module format and
 // the entry (element.ts, without the legacy globals) differ.
 export default defineConfig({
@@ -25,14 +32,13 @@ export default defineConfig({
     plugins: [
         svelte({
             configFile: false,
-            preprocess: [minifyCssPreprocessor()],
-            emitCss: false,
-            // Only the wrapper gets custom-element codegen; see
-            // elementCompileOptions.ts for why a global flag is wrong.
-            compilerOptions: { customElement: false },
-            dynamicCompileOptions: customElementGuard.dynamicCompileOptions,
+            emitCss: true,
+            // No component is a custom element; see elementCompileOptions.ts.
+            compilerOptions,
         }),
-        customElementGuard.plugin,
+        noCustomElementGuard(),
+        elementStylesheet(),
+        svelteRuntimeTrims(compilerOptions),
         // The same second pass the IIFE gets, from the same module, so the two
         // artifacts cannot be minified to different settings by accident.
         // `'es'` is the one deliberate difference: this artifact really is a
@@ -47,16 +53,21 @@ export default defineConfig({
         // The same shadow-root CSS trim the IIFE gets, from the same module, so
         // the two artifacts cannot ship different stylesheets.
         postcss: { plugins: [dropLightDomOnly()] },
+        lightningcss,
     },
     build: {
         // The same floor the IIFE pins, so neither artifact downlevels what
         // the other ships natively. The supported browser floor for both
-        // element artifacts is Safari 16.4+, Chrome 94+, Firefox 93+ — stated
-        // in the install documentation — and es2022 is the highest target that
-        // floor permits. Vite's default `'modules'` floor (es2020 / safari14)
-        // cost 3,449 gzip bytes here to downlevel for browsers below it.
+        // element artifacts is Chrome 111+, Firefox 113+, Safari 16.4+, because
+        // the CSS uses `oklch` and `color-mix` — stated in the install
+        // documentation and in src/packaging/cssTargets.ts — and es2022 is the
+        // highest target that floor permits. Vite's default `'modules'` floor
+        // (es2020 / safari14) cost 3,449 gzip bytes here to downlevel for
+        // browsers below it.
         target: 'es2022',
         minify: true,
+        cssMinify: 'lightningcss',
+        cssTarget,
         lib: {
             entry: resolve(__dirname, 'src/lib/element.ts'),
             formats: ['es'],

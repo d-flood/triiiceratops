@@ -4,6 +4,8 @@
 # React / Vue / Lit adapter suites against whatever each framework's registry
 # `latest` major currently resolves to, and files a report. It gives early warning
 # of a breaking framework release so a reviewed dependency bump can follow.
+# It also builds the plugins that share the host app's Svelte runtime and mounts
+# them in a packed consumer on the newest Svelte 5 release.
 #
 # It NEVER blocks a pull request: it has no `pull_request` trigger, and the
 # adapter run is `continue-on-error`, so the workflow itself always succeeds. A
@@ -26,7 +28,7 @@ jobs:
     canary:
         name: SDK adapters vs registry latest framework majors
         runs-on: ubuntu-latest
-        timeout-minutes: 30
+        timeout-minutes: 60
         steps:
             - uses: actions/checkout@v7
 
@@ -92,10 +94,39 @@ jobs:
                   echo "status=$STATUS" >> "$GITHUB_OUTPUT"
                   exit $STATUS
 
+            # Back to the pinned baseline so only the consumer's Svelte varies:
+            # `svelte@5`, not `latest`, so a Svelte 6 release is not reported
+            # as a regression.
+            - name: Run runtime-sharing plugins on newest Svelte 5 (non-blocking)
+              id: plugins
+              continue-on-error: true
+              run: |
+                  set -o pipefail
+                  git checkout -- packages/plugin-sdk/package.json pnpm-lock.yaml
+                  pnpm install
+                  pnpm --filter triiiceratops exec playwright install --with-deps chromium
+                  SVELTE=$(npm view svelte@5 version --json | jq -r 'if type == "array" then .[-1] else . end')
+                  (cd test-consumers/fixtures/plugin-svelte-condition && npm pkg set "dependencies.svelte=$SVELTE")
+                  STATUS=0
+                  pnpm --filter @triiiceratops/plugin-sdk build 2>&1 | tee -a plugins.log || STATUS=1
+                  for plugin in image-manipulation image-export pdf-export annotation-editor av; do
+                    pnpm --filter "@triiiceratops/plugin-$plugin" build 2>&1 | tee -a plugins.log || STATUS=1
+                  done
+                  PACKED_ONLY=plugin-svelte-condition pnpm test:packed 2>&1 | tee -a plugins.log || STATUS=1
+                  # The packed run is long; its tail keeps the issue body under GitHub's limit.
+                  {
+                    echo "## Runtime-sharing plugins on Svelte $SVELTE (last 200 lines)"
+                    echo '```'
+                    tail -n 200 plugins.log
+                    echo '```'
+                  } >> canary-report.md
+                  echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+                  exit $STATUS
+
             # File (or update) a report issue only when the canary detected a
             # regression. Never fails the job.
             - name: File canary report issue on regression
-              if: steps.adapters.outcome == 'failure'
+              if: steps.adapters.outcome == 'failure' || steps.plugins.outcome == 'failure'
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
@@ -117,7 +148,7 @@ jobs:
 
             - name: Report status
               run: |
-                  if [ "${{ steps.adapters.outcome }}" = "failure" ]; then
+                  if [ "${{ steps.adapters.outcome }}" = "failure" ] || [ "${{ steps.plugins.outcome }}" = "failure" ]; then
                     echo "::warning::Adapter canary detected a regression against registry latest — see the filed issue."
                   else
                     echo "Adapter canary green against current framework latest majors."

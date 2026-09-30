@@ -1,6 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import { cssTarget, lightningcss } from './src/packaging/cssTargets';
 import scopeViewerRoot from './src/packaging/scopeViewerRoot';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -22,8 +23,11 @@ export default defineConfig({
         postcss: {
             plugins: [scopeViewerRoot()],
         },
+        lightningcss,
     },
     build: {
+        cssMinify: 'lightningcss',
+        cssTarget,
         cssCodeSplit: false,
         lib: {
             entry: resolve(__dirname, 'src/lib/styles-lightdom.ts'),
