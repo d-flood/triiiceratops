@@ -22,7 +22,7 @@
  * actually published, naming one that was not. `api.version.test.ts` reads
  * `package.json` and fails on any disagreement; bump both together.
  */
-export const CORE_VERSION = '1.1.0';
+export const CORE_VERSION = '1.2.0';
 
 /**
  * The plugin API version, independent of {@link CORE_VERSION}. `1.6.0` for
