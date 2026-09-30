@@ -6,6 +6,7 @@ import {
     openGridManifest,
     setView,
 } from './helpers/numberedGrid';
+import { KEY_PAN_SPEED } from '../src/lib/renderer/rendererDefaults';
 
 /*
  * Explicit keyboard-operability journeys. These assert behaviors
@@ -636,33 +637,40 @@ test.describe('Canvas2D renderer — keyboard', () => {
 
         const samples = await traceKeys(page, holdKey(page, 'ArrowRight', 500));
 
-        const steps: number[] = [];
+        const steps: { dx: number; dt: number }[] = [];
         for (let i = 1; i < samples.length; i += 1) {
-            steps.push(samples[i].x - samples[i - 1].x);
+            steps.push({
+                dx: samples[i].x - samples[i - 1].x,
+                dt: samples[i].t - samples[i - 1].t,
+            });
         }
-        const moved = steps.filter((step) => step > 1e-6);
+        const moved = steps.filter((step) => step.dx > 1e-6 && step.dt > 0);
 
         // It panned across MANY frames from a single key-down — a discrete
         // step per key event would have produced exactly one.
         expect(
             moved.length,
-            `the hold panned on ${moved.length} frame(s): ${steps.slice(0, 8).join(', ')}`,
+            `the hold panned on ${moved.length} frame(s): ${steps
+                .slice(0, 8)
+                .map((step) => step.dx)
+                .join(', ')}`,
         ).toBeGreaterThan(2);
 
-        // …and at a steady rate. Summed in halves rather than compared frame
-        // by frame: distance per frame is velocity times FRAME DURATION, and
-        // headless frame pacing jitters several-fold. The failure this rejects
-        // is unmissable at that resolution — OS key repeat compounding into a
-        // spring accelerates without bound.
-        const half = Math.floor(moved.length / 2);
-        const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
-        const early = sum(moved.slice(0, half));
-        const late = sum(moved.slice(half));
+        // …and at the model's constant rate, never beyond it. Measured against
+        // `KEY_PAN_SPEED` over the whole hold rather than by comparing halves:
+        // headless frames run 50-250 ms and the trace's rAF is not the
+        // renderer's, so a half of three or four frames is decided by which
+        // side of one long frame a step lands on. OS key repeat compounding
+        // into a spring accelerates without bound and overshoots any margin.
+        const scale = samples[samples.length - 1].scale;
+        const rate =
+            (moved.reduce((sum, step) => sum + step.dx, 0) * scale * 1000) /
+            moved.reduce((sum, step) => sum + step.dt, 0);
 
         expect(
-            late,
-            `held-key panning accelerated: ${early.toFixed(1)}px in the first half, ${late.toFixed(1)}px in the second`,
-        ).toBeLessThan(early * 1.5);
+            rate,
+            `held-key panning ran at ${rate.toFixed(0)}px/s against a model rate of ${KEY_PAN_SPEED}px/s`,
+        ).toBeLessThan(KEY_PAN_SPEED * 1.5);
     });
 
     test('Shift+arrow pans further, whenever Shift arrives or leaves', async ({
