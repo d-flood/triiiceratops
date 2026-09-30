@@ -1,5 +1,17 @@
 # @triiiceratops/plugin-image-manipulation
 
+## 1.1.0
+
+### Minor Changes
+
+- 7680539: The `<triiiceratops-viewer>` element is about ~3% smaller and loads/paints the first tile sooner. No breaking changes Plugins now ship `svelte`-condition builds that share the host's Svelte runtime, and the PDF export IIFE loads pdf-lib from a separate chunk (105 KB, down from 543 KB).
+
+### Patch Changes
+
+- Updated dependencies [7680539]
+    - triiiceratops@1.2.0
+    - @triiiceratops/plugin-sdk@1.0.0
+
 ## 1.0.0
 
 ### Major Changes
