@@ -25,6 +25,9 @@ importers:
       '@eslint/js':
         specifier: ^9.39.2
         version: 9.39.2
+      '@playwright/test':
+        specifier: ^1.57.0
+        version: 1.57.0
       '@vitest/coverage-v8':
         specifier: 4.0.15
         version: 4.0.15(supports-color@8.1.1)(vitest@4.0.15(@opentelemetry/api@1.9.1)(@types/node@24.10.1)(happy-dom@20.11.6)(jiti@2.7.0)(jsdom@27.3.0(postcss@8.5.6)(supports-color@10.2.2))(lightningcss@1.32.0)(terser@5.49.2))

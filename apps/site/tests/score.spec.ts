@@ -8,6 +8,7 @@ import {
     isIndexed,
     type SiteRoute,
 } from '../src/lib/routes';
+import { launchOptions } from '../../../scripts/playwright-gpu';
 import { CDP_PORT_BASE, PUBLISHED_ORIGIN } from './helpers/origin';
 
 /*
@@ -132,8 +133,10 @@ async function audit(
     exempt: readonly string[],
     categories: readonly Category[],
 ) {
+    const options = launchOptions('chromium');
     const browser = await chromium.launch({
-        args: [`--remote-debugging-port=${cdpPort}`],
+        ...options,
+        args: [...(options.args ?? []), `--remote-debugging-port=${cdpPort}`],
     });
     try {
         const run = await lighthouse(

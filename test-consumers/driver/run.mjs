@@ -11,6 +11,11 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import {
+    ON_GITHUB_ACTIONS,
+    assertChromiumGpu,
+    launchOptions,
+} from '../../scripts/playwright-gpu.ts';
 import { assertTarballCss } from './assert-tarball-css.mjs';
 import {
     assertCoreExportTargets,
@@ -379,29 +384,6 @@ export async function installFixture(pm, fixtureDir) {
 // Playwright browsers keyed by fixture `browsers` list.
 const BROWSER_TYPES = { chromium, firefox, webkit };
 
-// Real GPU locally; software WebGL on CI. Firefox/WebKit use defaults.
-const LAUNCH_OPTIONS = {
-    chromium: process.env.CI
-        ? {
-              args: [
-                  '--use-gl=angle',
-                  '--use-angle=swiftshader',
-                  '--enable-unsafe-swiftshader',
-              ],
-          }
-        : {
-              channel: 'chromium',
-              args: [
-                  '--use-angle=vulkan',
-                  '--enable-features=Vulkan',
-                  '--ignore-gpu-blocklist',
-                  '--enable-gpu-rasterization',
-              ],
-          },
-    firefox: {},
-    webkit: {},
-};
-
 /** Import both framework subpaths DOM-free and assert no registration side effect. */
 async function assertFrameworkNodeImport(coreTarball, workRoot) {
     heading('Framework subpaths import in Node with no browser globals');
@@ -505,7 +487,7 @@ async function withBrowser(rootDir, fn, browserName = 'chromium') {
     const server = await serveDir(rootDir);
     const browserType = BROWSER_TYPES[browserName];
     if (!browserType) throw new Error(`unknown browser "${browserName}"`);
-    const browser = await browserType.launch(LAUNCH_OPTIONS[browserName] ?? {});
+    const browser = await browserType.launch(launchOptions(browserName));
     const context = await browser.newContext();
     const page = await context.newPage();
     const consoleMessages = [];
@@ -572,7 +554,9 @@ async function runFixture(fixtureName, pm, tarballs, workRoot) {
 
     const serveRoot = join(fixtureDir, cfg.serveDir);
     if (cfg.browser) {
-        const browsers = cfg.browsers ?? ['chromium'];
+        const browsers = (cfg.browsers ?? ['chromium']).filter(
+            (b) => ON_GITHUB_ACTIONS || b === 'chromium',
+        );
         for (const browserName of browsers) {
             step(`${fixtureName} [${pm}] (${browserName}): serve + assert`);
             await withBrowser(
@@ -591,6 +575,7 @@ async function main() {
     const packDir = makeTempDir('tri-packed-');
     const workRoot = makeTempDir('tri-consumers-');
     let allOk = true;
+    await assertChromiumGpu();
     try {
         const tarballs = await buildAndPack(packDir);
         const cssOk = await assertCssFromTarball(

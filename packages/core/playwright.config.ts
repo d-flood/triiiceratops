@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 import { E2E_ORIGIN, E2E_PORT } from './tests/helpers/origin';
-import { gpuChromium } from '../../scripts/playwright-gpu';
+import { ON_GITHUB_ACTIONS, launchOptions } from '../../scripts/playwright-gpu';
 
 // Desktop projects (chromium, firefox, webkit) run the core journeys; mobile
 // projects (android-chrome, mobile-webkit) run only the mobile journey set,
@@ -13,8 +13,12 @@ import { gpuChromium } from '../../scripts/playwright-gpu';
 // The accessibility suite pins itself to Chromium at the spec level
 // (`browserName !== 'chromium'` skips), so it is unaffected by the wider desktop
 // matrix here.
+//
+// Firefox and WebKit projects exist on GitHub Actions only; locally only
+// Chromium runs. See `scripts/playwright-gpu.ts`.
 export default defineConfig({
     testDir: './tests',
+    globalSetup: '../../scripts/playwright-gpu.ts',
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
@@ -33,27 +37,37 @@ export default defineConfig({
         // ── Desktop projects: run the core journeys ────────────────────────
         {
             name: 'chromium',
-            use: { ...devices['Desktop Chrome'], ...gpuChromium },
-        },
-        {
-            name: 'firefox',
-            use: { ...devices['Desktop Firefox'] },
-        },
-        {
-            name: 'webkit',
-            use: { ...devices['Desktop Safari'] },
+            use: {
+                ...devices['Desktop Chrome'],
+                launchOptions: launchOptions('chromium'),
+            },
         },
         // ── Mobile projects: run only the `@mobile` journey set ─────────────
         {
             name: 'android-chrome',
-            use: { ...devices['Pixel 7'], ...gpuChromium },
+            use: {
+                ...devices['Pixel 7'],
+                launchOptions: launchOptions('chromium'),
+            },
             grep: /@mobile/,
         },
-        {
-            name: 'mobile-webkit',
-            use: { ...devices['iPhone 13'] },
-            grep: /@mobile/,
-        },
+        ...(ON_GITHUB_ACTIONS
+            ? [
+                  {
+                      name: 'firefox',
+                      use: { ...devices['Desktop Firefox'] },
+                  },
+                  {
+                      name: 'webkit',
+                      use: { ...devices['Desktop Safari'] },
+                  },
+                  {
+                      name: 'mobile-webkit',
+                      use: { ...devices['iPhone 13'] },
+                      grep: /@mobile/,
+                  },
+              ]
+            : []),
     ],
     webServer: {
         command: `pnpm dev --port ${E2E_PORT} --host 127.0.0.1`,

@@ -12,6 +12,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { assertChromiumGpu, launchOptions } from '../playwright-gpu.ts';
 import {
     ACTIVATION_MEASURED_PLUGINS,
     DEFAULT_RUNS,
@@ -52,25 +53,6 @@ const { chromium } = driverRequire('@playwright/test');
 const { serveDir } = await import(
     pathToFileURL(join(REPO_ROOT, 'test-consumers', 'driver', 'lib.mjs')).href
 );
-
-// Real GPU locally; software WebGL on CI, which has no GPU.
-const LAUNCH = process.env.CI
-    ? {
-          args: [
-              '--use-gl=angle',
-              '--use-angle=swiftshader',
-              '--enable-unsafe-swiftshader',
-          ],
-      }
-    : {
-          channel: 'chromium',
-          args: [
-              '--use-angle=vulkan',
-              '--enable-features=Vulkan',
-              '--ignore-gpu-blocklist',
-              '--enable-gpu-rasterization',
-          ],
-      };
 
 // Two-canvas local manifest; the second canvas makes navigation a real state change.
 function perfManifest() {
@@ -475,7 +457,8 @@ async function measureRuntime(root, { warmups, runs, tracesDir }) {
 
     const server = await serveDir(webRoot, { middleware: fixtureMiddleware() });
     const baseURL = server.baseURL;
-    const browser = await chromium.launch(LAUNCH);
+    await assertChromiumGpu();
+    const browser = await chromium.launch(launchOptions('chromium'));
     const context = await browser.newContext();
     const runtime = {};
     let renderer = 'unknown';

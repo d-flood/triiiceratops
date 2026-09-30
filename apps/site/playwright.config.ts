@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-import { gpuChromium } from '../../scripts/playwright-gpu';
+import { launchOptions } from '../../scripts/playwright-gpu';
 
 import {
     ORIGIN,
@@ -12,6 +12,7 @@ import {
 export default defineConfig({
     testDir: './tests',
     testMatch: '**/*.spec.ts',
+    globalSetup: '../../scripts/playwright-gpu.ts',
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
@@ -22,7 +23,10 @@ export default defineConfig({
     projects: [
         {
             name: 'chromium',
-            use: { ...devices['Desktop Chrome'], ...gpuChromium },
+            use: {
+                ...devices['Desktop Chrome'],
+                launchOptions: launchOptions('chromium'),
+            },
         },
     ],
     webServer: [
