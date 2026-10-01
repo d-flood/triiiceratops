@@ -65,8 +65,8 @@ const FRAMEWORK_SUBPATHS = [
     },
 ];
 
-const INSTALL_ATTEMPTS = 6;
-const INSTALL_RETRY_MS = 20_000;
+const INSTALL_ATTEMPTS = 12;
+const INSTALL_RETRY_MS = 30_000;
 
 /** Sleep synchronously. */
 function sleepSync(ms) {
