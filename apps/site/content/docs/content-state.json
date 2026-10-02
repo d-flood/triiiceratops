@@ -101,7 +101,7 @@
 				},
 				{
 					"type": "text",
-					"text": " names the Manifest. It says "
+					"text": " names the Manifest. It describes "
 				},
 				{
 					"type": "text",
@@ -114,7 +114,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". It says nothing about how it reached you."
+					"text": ", not how it was delivered."
 				}
 			],
 			"attrs": {
@@ -165,7 +165,7 @@
 				},
 				{
 					"type": "text",
-					"text": " attribute. The channel is yours by default: the viewer reaches for none of them on its own, because a component that claimed the address bar could hijack your routing or consume an "
+					"text": " attribute. By default the host handles delivery: the viewer reads none of these channels itself, because a component that read the address bar could break your routing or consume an "
 				},
 				{
 					"type": "text",
@@ -178,7 +178,7 @@
 				},
 				{
 					"type": "text",
-					"text": " parameter meant for the page around it, and one that swallowed every drop could take a drag your page meant to handle. Instead, it accepts the payload from you on the "
+					"text": " parameter meant for the page around it, and one that intercepted every drop could take a drag your page meant to handle. Instead, it accepts the payload from you on the "
 				},
 				{
 					"type": "text",
@@ -203,7 +203,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "You can also skip the viewer entirely. "
+					"text": "You can also parse a content state without the viewer. "
 				},
 				{
 					"type": "text",
@@ -331,7 +331,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Three inputs are available on every distribution: the Svelte component, the custom element, and the React and Vue wrappers. The first is the payload; the other two each hand the viewer one ambient channel:"
+					"text": "Three inputs are available on every distribution: the Svelte component, the custom element, and the React and Vue wrappers. The first is the payload; the other two each let the viewer read one ambient channel:"
 				}
 			],
 			"attrs": {
@@ -748,7 +748,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", and the viewer never writes to the address bar, so URL cleanup and re-navigation in a single-page application stay yours."
+					"text": ", and the viewer never writes to the address bar, so URL cleanup and re-navigation in a single-page application remain the host's responsibility."
 				}
 			],
 			"attrs": {
@@ -863,7 +863,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for the same reason the URL flag is: a viewer dropped into a page it does not own must not swallow a drag the page meant to handle itself."
+					"text": " for the same reason the URL flag is: a viewer embedded in a page must not intercept drags the page handles itself."
 				}
 			],
 			"attrs": {
@@ -1060,7 +1060,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The tier wins input by input, not just as a whole: a content state still opens its manifest when you set only "
+					"text": "Precedence applies per input, not to the content state as a whole: a content state still opens its manifest when you set only "
 				},
 				{
 					"type": "text",
@@ -1124,7 +1124,7 @@
 				},
 				{
 					"type": "text",
-					"text": " outranks all of it, but only for the manifest. The reader made the gesture on this viewer, so the viewer opens what it names even when the host has set "
+					"text": " outranks all of it, but only for the manifest. The user dropped the content state on this viewer, so the viewer opens the manifest it names even when the host has set "
 				},
 				{
 					"type": "text",
@@ -1244,7 +1244,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Ingestion never throws. What cannot be honored degrades, and anything worth your attention arrives on the "
+					"text": "Ingestion never throws. What cannot be honored degrades, and problems are reported on the "
 				},
 				{
 					"type": "text",
@@ -1612,7 +1612,7 @@
 								},
 								{
 									"type": "text",
-									"text": " entry declares a type at all, the first entry is taken, since untyped references are common in the wild. When entries "
+									"text": " entry declares a type at all, the first entry is taken, since untyped references are common in practice. When entries "
 								},
 								{
 									"type": "text",

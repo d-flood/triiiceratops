@@ -93,7 +93,7 @@
             config={settings.config}
             theme={themed.theme}
             themeConfig={themed.themeConfig}
-            label="The viewer, running"
+            label="Live viewer"
         />
     </div>
     <HeroPanel

@@ -32,7 +32,7 @@ export function describeDroppedManifest(
     return {
         manifest: manifestId,
         canvases: items.length || 1,
-        label: labelString(document.label) || 'Material carried in by a drop',
+        label: labelString(document.label) || 'Dropped manifest',
         firstCanvas: {
             width: typeof first.width === 'number' ? first.width : 1000,
             height: typeof first.height === 'number' ? first.height : 1000,

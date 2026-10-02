@@ -273,7 +273,7 @@
         <div
             class="featstage__tabs"
             role="tablist"
-            aria-label="Kinds of feature"
+            aria-label="Feature categories"
         >
             {#each FEATURE_GROUPS as group (group)}
                 <button

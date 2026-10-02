@@ -137,7 +137,7 @@ export const FEATURES: readonly Feature[] = [
     {
         name: 'Deep zoom on a single canvas',
         group: 'Image Features',
-        what: 'Nearly four billion pixels. You can zoom in to see those little ships!',
+        what: 'A map of nearly four billion pixels, zoomable to full resolution.',
         material: 'Urbano Monte, Tavola 1–60 (Map of the World), 1587',
         source: LANDING.source,
         example: {
@@ -159,7 +159,7 @@ export const FEATURES: readonly Feature[] = [
     {
         name: 'Thumbnail gallery strip',
         group: 'Image Features',
-        what: 'Every canvas as a strip to move between them.',
+        what: 'Thumbnails of every canvas for navigation.',
         material: 'Eleven plates, prints and paintings',
         source: LANDING.source,
         example: {
@@ -217,7 +217,7 @@ export const FEATURES: readonly Feature[] = [
             manifest:
                 'https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/manifest-rtl.json',
             canvases: 5,
-            label: 'Material read from right to left',
+            label: 'Canvases read right to left',
             firstCanvas: { width: 3497, height: 4823 },
         },
         config: showing({}),
@@ -225,8 +225,8 @@ export const FEATURES: readonly Feature[] = [
     {
         name: 'Alternative order of canvases',
         group: 'Image Features',
-        what: 'The same eleven plates in a second order the manifest declares.',
-        material: 'Eleven plates, prints and paintings, twice over',
+        what: 'Switch to an alternative canvas order declared in the manifest.',
+        material: 'Eleven plates, prints and paintings, in two orders',
         source: {
             who: 'this site’s own public-domain set',
             href: '/material/sequences/manifest.json',
@@ -256,7 +256,7 @@ export const FEATURES: readonly Feature[] = [
             manifest:
                 'https://iiif.io/api/cookbook/recipe/0024-book-4-toc/manifest.json',
             canvases: 6,
-            label: 'A volume’s own table of contents',
+            label: 'Table of contents from the manifest',
             firstCanvas: { width: 1768, height: 2504 },
         },
         config: showing({ structures: { open: true } }),
@@ -281,7 +281,7 @@ export const FEATURES: readonly Feature[] = [
     {
         name: 'Collection',
         group: 'Image Features',
-        what: 'Four volumes in one collection, moved between in place.',
+        what: 'Navigate between the manifests in a collection.',
         material: 'Eleven plates, gathered into four volumes by subject',
         source: {
             who: 'this site’s own public-domain set',
@@ -301,7 +301,7 @@ export const FEATURES: readonly Feature[] = [
     {
         name: 'Alternative images',
         group: 'Image Features',
-        what: 'Natural light or x-ray of the same painting, switched in the bar.',
+        what: 'Switch between natural-light and x-ray images of the same painting.',
         material: 'John Dee performing an experiment before Queen Elizabeth I',
         source: {
             who: 'The IIIF Cookbook',
@@ -319,7 +319,7 @@ export const FEATURES: readonly Feature[] = [
     {
         name: 'Composite image',
         group: 'Image Features',
-        what: 'Two images painted onto one canvas: a cut-out illustration, reconstructed.',
+        what: 'Two images combined on one canvas to reconstruct a cut-out illustration.',
         material: 'Folio from Grandes Chroniques de France, ca. 1460',
         source: {
             who: 'The IIIF Cookbook',
@@ -427,7 +427,7 @@ export const FEATURES: readonly Feature[] = [
             manifest:
                 'https://iiif.io/api/cookbook/recipe/0013-placeholderCanvas/manifest.json',
             canvases: 1,
-            label: 'A film standing behind its poster frame',
+            label: 'Placeholder image shown before video playback',
             firstCanvas: { width: 640, height: 360 },
         },
         config: showing({}),
@@ -445,7 +445,7 @@ export const FEATURES: readonly Feature[] = [
         example: {
             manifest: '/material/moment/manifest.json',
             canvases: 2,
-            label: 'A manifest that names the second to open at',
+            label: 'Playback starting at a time set by the manifest',
             firstCanvas: { width: 797, height: 1000 },
         },
         config: showing({}),
@@ -492,7 +492,7 @@ export const FEATURES: readonly Feature[] = [
     {
         name: 'Polygon annotation',
         group: 'Notes and text',
-        what: 'An outline traced around the bread basket.',
+        what: 'A polygon outlining the bread basket.',
         material: 'Johannes Vermeer, The Milkmaid, ca. 1660',
         source: {
             who: 'this site’s own public-domain set',
@@ -558,7 +558,7 @@ export const FEATURES: readonly Feature[] = [
         example: {
             manifest: '/material/referenced/manifest.json',
             canvases: 1,
-            label: 'Notes fetched from the page the canvas names',
+            label: 'Annotations loaded from an external annotation page',
             firstCanvas: { width: 3377, height: 3963 },
         },
         config: showing({ annotations: { open: true } }),
@@ -580,7 +580,7 @@ export const FEATURES: readonly Feature[] = [
             manifest:
                 'https://iiif.wellcomecollection.org/presentation/b18035723',
             canvases: 36,
-            label: 'A search run against the material’s own text',
+            label: 'Full-text search within the manifest',
             firstCanvas: { width: 2411, height: 3372 },
         },
         canvasId:
@@ -630,7 +630,7 @@ export const FEATURES: readonly Feature[] = [
     {
         name: 'Gracefully handle missing images',
         group: 'Metadata',
-        what: 'A canvas the server has no picture for, still counted and navigable.',
+        what: 'A canvas with a missing image still appears and can be navigated to.',
         material: 'A plate, and a leaf whose image is missing',
         source: {
             who: 'this site’s own public-domain set',
@@ -670,7 +670,7 @@ export const FEATURES: readonly Feature[] = [
                 },
             },
             {
-                label: 'Another manifest entirely',
+                label: 'A different manifest',
                 state: {
                     id: '/material/multilingual/content-state/hiroshige',
                     canvasId: '/material/multilingual/canvas/hiroshige',
@@ -717,7 +717,7 @@ export const FEATURES: readonly Feature[] = [
     {
         name: 'PDF export plugin',
         group: 'First Party Plugins',
-        what: 'OCR text carried as annotations, rendered as selectable text.',
+        what: 'Export canvases as a PDF, with OCR annotations as selectable text.',
         material: 'Two plates, with their printed lines transcribed',
         source: {
             who: 'this site’s own public-domain set',
@@ -744,7 +744,7 @@ export const FEATURES: readonly Feature[] = [
         example: {
             manifest: LANDING.manifest,
             canvases: LANDING.canvases,
-            label: 'A canvas offered for download at its own resolutions',
+            label: 'Canvas download at available resolutions',
             firstCanvas: { width: 3645, height: 5267 },
         },
         canvasId: LANDING.plate,

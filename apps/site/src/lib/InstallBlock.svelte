@@ -25,7 +25,7 @@
 
 <div class="install">
     <section>
-        <h2>Add it to your project</h2>
+        <h2>Install with a package manager</h2>
         <Tabs group={PACKAGE_MANAGER_GROUP} content={tabNodes}>
             {#each PACKAGE_MANAGERS as manager (manager.id)}
                 <Tab
@@ -50,15 +50,14 @@
     </section>
 
     <section>
-        <h2>Or drop it into a page</h2>
+        <h2>Or use a script tag</h2>
         <CopyLine
             text={CDN_SNIPPET}
             label="CDN script and element"
             language="html"
         />
         <p class="install__note">
-            No build step and no framework, so it works inside a template a
-            content system renders.
+            No build step or framework required. Works in CMS templates.
         </p>
     </section>
 </div>

@@ -307,7 +307,7 @@
 								},
 								{
 									"type": "text",
-									"text": " to mount in the browser lazily imports and registers the self-contained custom element. The work is memoized and shared, so a hundred viewers do it once. There is no side-effect import to remember and no "
+									"text": " to mount in the browser lazily imports and registers the self-contained custom element. The work is memoized and shared, so it runs once however many viewers mount. There is no side-effect import to remember and no "
 								},
 								{
 									"type": "text",
@@ -1982,7 +1982,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Threading the handle through every intermediate component gets old. "
+					"text": "Passing the handle through every intermediate component is tedious. "
 				},
 				{
 					"type": "text",
@@ -3398,7 +3398,7 @@
 				},
 				{
 					"type": "text",
-					"text": " writes nothing, so the wrapper never fights the user. There is no controlled mode."
+					"text": " writes nothing, so the wrapper never overrides the user's navigation. There is no controlled mode."
 				}
 			],
 			"attrs": {
@@ -4273,7 +4273,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The imperative escape hatch"
+					"text": "Imperative access"
 				}
 			]
 		},
@@ -4734,7 +4734,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Triiiceratops ships no meta-framework-specific components; there is no Next.js package or adapter. The wrapper is a plain React component with SSR-safe evaluation, and the client-only boundary is yours to place."
+					"text": "Triiiceratops ships no meta-framework-specific components; there is no Next.js package or adapter. The wrapper is a plain React component with SSR-safe evaluation, and you place the client-only boundary yourself."
 				}
 			],
 			"attrs": {
@@ -4751,7 +4751,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "When wiring goes wrong"
+					"text": "Wiring errors"
 				}
 			]
 		},
@@ -5281,7 +5281,7 @@
 				},
 				{
 					"type": "text",
-					"text": " polyfill that reaches for a "
+					"text": " polyfill that requires a "
 				},
 				{
 					"type": "text",
@@ -5763,7 +5763,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "There is no React example page: the wrapper's whole job is to hand you React idioms over the same element every host uses. To see that element running this release's bundles in a browser, open the "
+					"text": "There is no React example page: the wrapper only adds React idioms on top of the same element every host uses. To see that element running this release's bundles in a browser, open the "
 				},
 				{
 					"type": "text",

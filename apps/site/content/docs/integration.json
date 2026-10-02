@@ -32,7 +32,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "This is your page if you are using",
+					"text": "This guide covers",
 					"marks": [
 						{
 							"type": "bold"
@@ -41,7 +41,7 @@
 				},
 				{
 					"type": "text",
-					"text": " Angular, Lit, Solid, vanilla JavaScript, Alpine.js, htmx, Astro, Ember, jQuery, a server-rendered template language (Django, Rails, Laravel, ASP.NET, PHP), a static-site generator, or "
+					"text": " Angular, Lit, Solid, vanilla JavaScript, Alpine.js, htmx, Astro, Ember, jQuery, a server-rendered template language (Django, Rails, Laravel, ASP.NET, PHP), a static-site generator, and "
 				},
 				{
 					"type": "text",
@@ -988,7 +988,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Start it sooner"
+					"text": "Resource hints"
 				}
 			]
 		},
@@ -1565,7 +1565,7 @@
 								},
 								{
 									"type": "text",
-									"text": ". Objects, arrays, and functions cannot travel through an HTML attribute, so assign them to the element. Assignment before the element upgrades is safe: the values are applied when it does."
+									"text": ". Objects, arrays, and functions cannot be passed as HTML attributes, so assign them to the element. Assignment before the element upgrades is safe: the values are applied when it does."
 								}
 							],
 							"attrs": {

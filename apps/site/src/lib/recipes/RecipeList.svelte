@@ -36,7 +36,7 @@
         },
         {
             key: 'local',
-            heading: 'Vendored here',
+            heading: 'Local manifests',
             entries: LOCAL_MANIFESTS,
         },
     ].filter((section) => section.entries.length > 0);

@@ -12,8 +12,8 @@
 </script>
 
 {#if onward.length > 0}
-    <nav aria-label="The rest of the site">
-        <h2>The rest of the site</h2>
+    <nav aria-label="Other pages">
+        <h2>Other pages</h2>
         <div class="rows">
             {#each onward as { entry, number } (entry.path)}
                 <a href={entry.path}>

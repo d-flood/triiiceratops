@@ -25,7 +25,7 @@ test('opens on the example manifest, and loads a manifest the reader pastes', as
     await page.goto('/configure/');
     await running(page);
 
-    const field = page.getByLabel('Your IIIF manifest');
+    const field = page.getByLabel('IIIF manifest URL');
     await expect(field).toHaveValue(EXAMPLE);
 
     const information = page.getByLabel('Information open');
@@ -87,7 +87,7 @@ test('restores the configuration and the manifest a share URL carries', async ({
     await running(page);
     await asked;
 
-    await expect(page.getByLabel('Your IIIF manifest')).toHaveValue(
+    await expect(page.getByLabel('IIIF manifest URL')).toHaveValue(
         contentState,
     );
     await expect(page.getByLabel('Canvas nav edge')).toHaveValue('top');
@@ -129,9 +129,7 @@ test('starts the theming half from a built-in theme', async ({ page }) => {
     const chosen = '#123456';
     await swatch.fill(chosen);
     await expect(page.getByLabel('Teal')).toHaveCount(0);
-    await expect(
-        page.getByText('Started from Teal, with your own values over it.'),
-    ).toBeVisible();
+    await expect(page.getByText('Based on Teal.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Start over' }).click();
     await expect(page.getByLabel('Light')).toBeChecked();
@@ -302,7 +300,7 @@ test.describe('what a reader leaves with', () => {
 
         await expect(page.getByLabel('Gallery open')).toBeChecked();
         await expect(page.getByLabel('Canvas nav edge')).toHaveValue('top');
-        await expect(page.getByLabel('Your IIIF manifest')).toHaveValue(
+        await expect(page.getByLabel('IIIF manifest URL')).toHaveValue(
             new RegExp(`${EXAMPLE}$`),
         );
     });
@@ -351,7 +349,7 @@ test.describe('what a reader leaves with', () => {
 
         // The toolbar opens first: a plugin's button lives in it, and this
         // page's defaults start it closed.
-        const open = page.getByLabel('Open the toolbar to begin with');
+        const open = page.getByLabel('Toolbar open on load');
         await reach(page, open);
         await open.check();
 
@@ -429,7 +427,7 @@ test.describe('what a reader leaves with', () => {
         await reach(page, gallery);
         await gallery.check();
 
-        const query = page.getByLabel('Search the manifest for this on load');
+        const query = page.getByLabel('Search query on load');
         await reach(page, query);
         await query.fill('whale');
 

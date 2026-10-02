@@ -142,7 +142,7 @@
 						},
 						{
 							"type": "text",
-							"text": " fetched only when a manifest needs them. A page of scanned folios loads none of them."
+							"text": " fetched only when a manifest needs them. An image-only manifest loads none of them."
 						}
 					],
 					"attrs": {
@@ -315,7 +315,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is exported ready to use with no configuration. Hand it to the viewer the way you hand it any other plugin. See "
+					"text": " is exported ready to use with no configuration. Add it to the viewer like any other plugin. See "
 				},
 				{
 					"type": "text",
@@ -548,7 +548,7 @@
 				},
 				{
 					"type": "text",
-					"text": " works until a reader reaches anything a chunk serves (an HLS stream, a canvas with linked waveform data, a canvas whose duration is tiled by several media files, or a caption track that loaded with cues in it), and then 404s."
+					"text": " works until a user reaches a feature served by a chunk (an HLS stream, a canvas with linked waveform data, a canvas whose duration is tiled by several media files, or a caption track that loaded with cues in it), and then fails with 404 errors."
 				}
 			],
 			"attrs": {
@@ -829,7 +829,7 @@
 								},
 								{
 									"type": "text",
-									"text": " extension point, so it is themed and placed like the rest of the viewer's chrome. There is only one, and it drives the current canvas. Every other claimed canvas on screen carries a decorative play-state glyph on its own stage, so a reader with several recordings in view can tell which one is playing. Every label comes from the plugin's own locale catalog in the viewer's active locale. Native "
+									"text": " extension point, so it is themed and placed like the rest of the viewer's chrome. There is only one, and it drives the current canvas. Every other claimed canvas on screen carries a decorative play-state glyph on its own stage, so a user with several recordings in view can tell which one is playing. Every label comes from the plugin's own locale catalog in the viewer's active locale. Native "
 								},
 								{
 									"type": "text",
@@ -964,7 +964,7 @@
 								},
 								{
 									"type": "text",
-									"text": " Drawn from audiowaveform data linked from the canvas, parsed into one peaks model whichever on-disk format arrived. Temporal zoom sharpens only to the data's own resolution and never fabricates detail."
+									"text": " Drawn from audiowaveform data linked from the canvas, parsed into one peaks model regardless of file format. Temporal zoom is limited to the data's own resolution."
 								}
 							],
 							"attrs": {
@@ -993,7 +993,7 @@
 								},
 								{
 									"type": "text",
-									"text": " A list of timestamped, keyboard-operable buttons: the entry at the playhead is marked, clicking one seeks without starting playback, and following the playhead stops the moment you scroll away. It draws on three things the current canvas may offer, and lists whichever of them are there:"
+									"text": " A list of timestamped, keyboard-operable buttons: the entry at the playhead is marked, clicking one seeks without starting playback, and following the playhead stops the moment you scroll away. It lists entries from whichever of these sources the current canvas offers:"
 								}
 							],
 							"attrs": {
@@ -1296,7 +1296,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "The panel works for audio and video alike. It is how a sound recording's words become readable, since an "
+									"text": "The panel works for audio and video alike. For audio, it is the only place caption text is shown, since an "
 								},
 								{
 									"type": "text",
@@ -1322,7 +1322,7 @@
 								},
 								{
 									"type": "text",
-									"text": " is video-only for that same reason. The toolbar button is absent on a canvas offering none of the three, so the panel is never opened onto nothing, and it is named for what it holds: "
+									"text": " is video-only for that same reason. The toolbar button is absent on a canvas offering none of the three, so the panel never opens empty. Its label matches its content: "
 								},
 								{
 									"type": "text",
@@ -1990,7 +1990,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Nothing throws at the host.",
+									"text": "No command throws.",
 									"marks": [
 										{
 											"type": "bold"
@@ -2486,7 +2486,7 @@
 										},
 										{
 											"type": "text",
-											"text": " so cues parse; a track that fails to load or carries no cues is dropped rather than offered as a dead control"
+											"text": " so cues parse; a track that fails to load or carries no cues is dropped rather than offered as a non-functional control"
 										}
 									],
 									"attrs": {
@@ -3075,7 +3075,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is only fetched when it is, and nearly every Cookbook caption recipe is cross-origin. The cost is that the requirement lands on the "
+					"text": " is only fetched when it is, and nearly every Cookbook caption recipe is cross-origin. As a result, the requirement applies to the "
 				},
 				{
 					"type": "text",
@@ -3088,7 +3088,7 @@
 				},
 				{
 					"type": "text",
-					"text": " too: a file or stream served without an "
+					"text": " as well: a file or stream served without an "
 				},
 				{
 					"type": "text",
@@ -3101,7 +3101,7 @@
 				},
 				{
 					"type": "text",
-					"text": " header that admits your viewer's origin will fail to load and show the \"can't play\" treatment, even though the same URL plays in a plain "
+					"text": " header that admits your viewer's origin will fail to load and show the \"can't play\" notice, even though the same URL plays in a plain "
 				},
 				{
 					"type": "text",
@@ -3205,7 +3205,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "A stream that cannot play (a dead URL, a CORS or CSP refusal, an offline reader) shows a localized \"can't play this\" notice in that canvas's stage. The rest of the viewer keeps working."
+					"text": "A stream that cannot play (a dead URL, a CORS or CSP refusal, an offline user) shows a localized \"can't play this\" notice in that canvas's stage. The rest of the viewer keeps working."
 				}
 			],
 			"attrs": {
@@ -4173,7 +4173,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "hls.js alone outweighs core and the plugin combined, which is why it is a chunk: a manifest of MP4s never pays for it."
+					"text": "hls.js alone is larger than core and the plugin combined, so it is a separate chunk: a manifest of MP4s never loads it."
 				}
 			],
 			"attrs": {

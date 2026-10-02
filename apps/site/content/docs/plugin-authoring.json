@@ -1104,7 +1104,7 @@
 				},
 				{
 					"type": "text",
-					"text": " uses, and what you'd reach for in a test or a manual harness (a scratch page, a one-off script):"
+					"text": " uses, and what you would use in a test or a manual harness (a scratch page, a one-off script):"
 				}
 			],
 			"attrs": {
@@ -1313,7 +1313,7 @@
 				},
 				{
 					"type": "text",
-					"text": " hands you recording doubles worth asserting against."
+					"text": " provides recording test doubles to assert against."
 				}
 			],
 			"attrs": {
@@ -1566,7 +1566,7 @@
 				},
 				{
 					"type": "text",
-					"text": " to core's 1.x line to say so. A plugin released on its own schedule has no such guarantee and would break on the first version mismatch, so bundling is the right answer for everybody outside this repository. Your IIFE then loads in any order relative to core's."
+					"text": " to core's 1.x line to say so. A plugin released on its own schedule has no such guarantee and would break on the first version mismatch, so plugins outside this repository must bundle their own. Your IIFE then loads in any order relative to core's."
 				}
 			],
 			"attrs": {
@@ -2951,7 +2951,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Publishing state for hosts to command you through"
+					"text": "Publishing plugin state"
 				}
 			]
 		},
@@ -3085,7 +3085,7 @@
 				},
 				{
 					"type": "text",
-					"text": " rather than a stale object. Do not export the state from your package for a host to import; the viewer is the only way in."
+					"text": " rather than a stale object. Do not export the state from your package for a host to import; hosts access it only through the viewer."
 				}
 			],
 			"attrs": {
@@ -3256,7 +3256,7 @@
 								},
 								{
 									"type": "text",
-									"text": " notify, because notifying on every change would flood subscribers. A playhead is the archetype: it moves sixty times a second, and a host reads it on the finer "
+									"text": " notify, because notifying on every change would flood subscribers. A playhead is the typical example: it moves sixty times a second, and a host reads it on the finer "
 								},
 								{
 									"type": "text",
@@ -3937,7 +3937,7 @@
 				},
 				{
 					"type": "text",
-					"text": " when there is. That hides your toolbar button, so a canvas with nothing to show gets no button that opens an empty panel. Core's own annotations and structures buttons are gated the same way. An open surface closes when it becomes unavailable, so nothing is left on screen with no way to dismiss it. Call it whenever the fact changes (a canvas change, a track that settles on the network), from wherever you already compute what the panel renders, so the button and the body cannot disagree."
+					"text": " when there is. That hides your toolbar button, so a canvas with nothing to show gets no button that opens an empty panel. Core's own annotations and structures buttons are gated the same way. An open surface closes when it becomes unavailable, so nothing is left on screen with no way to dismiss it. Call it whenever the fact changes (a canvas change, a track that finishes loading), from wherever you already compute what the panel renders, so the button and the panel content stay in sync."
 				}
 			],
 			"attrs": {
@@ -4703,7 +4703,7 @@
 								},
 								{
 									"type": "text",
-									"text": " How far in and out a reader may zoom is measured against the whole surface, so reserving space never lowers the zoom ceiling under the reader's fingers and never snaps a reader who was already at it back out."
+									"text": " Zoom limits are measured against the whole surface, so reserving space never lowers the maximum zoom or zooms out a user who is already at it."
 								}
 							],
 							"attrs": {
@@ -4787,7 +4787,7 @@
 								},
 								{
 									"type": "text",
-									"text": " replaces yours; there is no per-plugin reservation and no maximum-per-edge merge. In practice one plugin owns the viewer's chrome, so this is a constraint to know rather than one to work around."
+									"text": " replaces yours; there is no per-plugin reservation and no maximum-per-edge merge. In practice only one plugin manages the viewer's chrome, so this rarely matters."
 								}
 							],
 							"attrs": {
@@ -4818,7 +4818,7 @@
 				},
 				{
 					"type": "text",
-					"text": " Up to half the surface's width or height per axis, a fit lands centered in what is left. Past that the viewer's own guarantees take over and the inset is honored in direction but not in full: the reader's zoom floor (half the scale at which a whole canvas fits) stops the fit from shrinking any further, and the pan constraint stops the framed box from being moved past the edge of the laid-out content, which in continuous mode shows up on the first and last canvas of the strip. Both outrank a plugin's request for space, because the alternative is a plugin that can collapse the viewer's zoom range. If your UI needs more than half the surface, it wants to be a panel in the viewer's chrome rather than an overlay with an inset."
+					"text": " Up to half the surface's width or height per axis, a fit lands centered in what is left. Beyond that, the viewer's zoom and pan limits apply and the inset is honored in direction but not in full: the minimum zoom (half the scale at which a whole canvas fits) stops the fit from shrinking any further, and the pan constraint stops the framed box from being moved past the edge of the laid-out content, which in continuous mode shows up on the first and last canvas of the strip. Both take precedence over the inset, so a plugin cannot collapse the viewer's zoom range. If your UI needs more than half the surface, use a panel in the viewer's chrome instead of an overlay with an inset."
 				}
 			],
 			"attrs": {
@@ -4869,7 +4869,7 @@
 				},
 				{
 					"type": "text",
-					"text": " window is neither: the axis with no room left silently falls back to the full surface, so a reader can always zoom out far enough to see a whole canvas."
+					"text": " window is neither: the axis with no room left silently falls back to the full surface, so a user can always zoom out far enough to see a whole canvas."
 				}
 			],
 			"attrs": {
@@ -4916,7 +4916,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". Aim it yourself in one line when you need to: shift by half the inset's asymmetry, converted to canvas space with "
+					"text": ". To center on the inset, shift by half the inset's asymmetry, converted to canvas space with "
 				},
 				{
 					"type": "text",
@@ -4994,7 +4994,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is how a plugin hears it, with the point in screen space. The renderer, which decides which consumer gets each gesture, has already filtered it: it never arrives for a drag, never for a pinch, and never for a gesture some other consumer had claimed. Deciding "
+					"text": " delivers it to a plugin, with the point in screen space. The renderer, which decides which consumer gets each gesture, has already filtered it: it never arrives for a drag, never for a pinch, and never for a gesture some other consumer had claimed. Deciding "
 				},
 				{
 					"type": "text",
@@ -5007,7 +5007,7 @@
 				},
 				{
 					"type": "text",
-					"text": " was tapped is yours, from geometry you already hold, projected with "
+					"text": " was tapped is up to your plugin, using geometry it already holds, projected with "
 				},
 				{
 					"type": "text",
@@ -5068,7 +5068,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the canvases the reader is actually looking at, in layout order: one canvas in "
+					"text": " lists the canvases currently on screen, in layout order: one canvas in "
 				},
 				{
 					"type": "text",
@@ -5159,7 +5159,7 @@
 				},
 				{
 					"type": "text",
-					"text": " removed. The claimant owns what is rendered there, so core has no painting of its own for a comment to be anchored against. Its array identity is stable while the ids are unchanged, so it is safe to hand straight to a React "
+					"text": " removed. The claimant owns what is rendered there, so core has no image of its own to annotate. Its array identity is stable while the ids are unchanged, so it is safe to hand straight to a React "
 				},
 				{
 					"type": "text",
@@ -5494,7 +5494,7 @@
 								},
 								{
 									"type": "text",
-									"text": " gives each laid-out canvas's rect directly, for a layer that wants to draw a whole page rather than something on one."
+									"text": " gives each laid-out canvas's rect directly, for a layer that draws a whole page rather than something on one."
 								}
 							],
 							"attrs": {
@@ -5523,7 +5523,7 @@
 								},
 								{
 									"type": "text",
-									"text": " carries the matrix as numbers for a layer that would rather work in device pixels."
+									"text": " carries the matrix as numbers for a layer that works in device pixels."
 								}
 							],
 							"attrs": {
@@ -5579,7 +5579,7 @@
 				},
 				{
 					"type": "text",
-					"text": " They have no focus, no accessible name, and no keyboard reach, and an automated scan cannot report a missing element. Anything a reader must perceive or operate needs a DOM element beside the picture: the canvas paints pixels, a parallel DOM layer carries the focusable, labeled targets, both projected from one geometry. Core's own annotation shape overlay works that way."
+					"text": " They have no focus, no accessible name, and no keyboard reach, and an automated scan cannot report a missing element. Anything a user must perceive or operate needs a DOM element beside the picture: the canvas paints pixels, a parallel DOM layer carries the focusable, labeled targets, both projected from one geometry. Core's own annotation shape overlay works that way."
 				}
 			],
 			"attrs": {
@@ -5745,7 +5745,7 @@
 				},
 				{
 					"type": "text",
-					"text": " The id the viewer knows you by is not your package name: it is your declared "
+					"text": " The viewer's id for your plugin is not your package name: it is your declared "
 				},
 				{
 					"type": "text",
@@ -6160,7 +6160,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": the viewer has no reason to produce a frame for something that happened on your side, so waiting for one can wait forever."
+					"text": ": the viewer does not produce a frame for changes on your side, so waiting for one may never resolve."
 				}
 			],
 			"attrs": {
@@ -6194,7 +6194,7 @@
 				},
 				{
 					"type": "text",
-					"text": " so that adding a layer cannot cost the reader panning and pinching; each element you want operable opts in with "
+					"text": " so that adding a layer does not block panning and pinching; each element you want operable opts in with "
 				},
 				{
 					"type": "text",
@@ -6207,7 +6207,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", as the pin above does. The trap to know about: if you draw a "
+					"text": ", as the pin above does. Note: if you draw a "
 				},
 				{
 					"type": "text",
@@ -6233,7 +6233,7 @@
 				},
 				{
 					"type": "text",
-					"text": " and opt in only the individual shapes inside it. Otherwise it silently swallows every gesture on the image. Events on your layer never contend with the renderer: it binds its pointer handling inside its own root, and your layer is a sibling of that root."
+					"text": " and opt in only the individual shapes inside it. Otherwise it silently blocks every gesture on the image. Events on your layer never contend with the renderer: it binds its pointer handling inside its own root, and your layer is a sibling of that root."
 				}
 			],
 			"attrs": {
@@ -6254,7 +6254,7 @@
 				},
 				{
 					"type": "text",
-					"text": " It is not remounted when the renderer remounts, so a manifest change leaves your DOM and your state intact. That also means clearing content that was scoped to the old manifest is yours to do, since core cannot know which of your DOM that is. Registering before any renderer has mounted is fine; the container exists regardless, and "
+					"text": " It is not remounted when the renderer remounts, so a manifest change leaves your DOM and your state intact. That also means clearing content that was scoped to the old manifest is your responsibility, since core cannot know which of your DOM that is. Registering before any renderer has mounted is fine; the container exists regardless, and "
 				},
 				{
 					"type": "text",
@@ -6339,7 +6339,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", not a performance judgment: anything a reader must perceive or operate is DOM in an overlay layer, because painted pixels have no focus, no accessible name, and no keyboard reach. Reach for the paint hook for decoration, or for a second rendering of geometry your DOM already carries, such as a heat map under your pins or a thousand tick marks no one clicks. Both hooks exist because the substrates differ, not because one is on its way out ("
+					"text": ", not a performance judgment: anything a user must perceive or operate is DOM in an overlay layer, because painted pixels have no focus, no accessible name, and no keyboard reach. Use the paint hook for decoration, or for a second rendering of geometry your DOM already carries, such as a heat map under your pins or a thousand non-interactive tick marks. Both hooks exist because the substrates differ, not because either is deprecated ("
 				},
 				{
 					"type": "text",
@@ -6501,7 +6501,7 @@
 				},
 				{
 					"type": "text",
-					"text": " never learn a claim exists."
+					"text": " are unaffected by a claim."
 				}
 			],
 			"attrs": {
@@ -6526,7 +6526,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", because core paints nothing there for a comment to be anchored against. Every annotation surface reads that list, including the panel and the overlays, so the reader is not offered a rectangle tool over your video."
+					"text": ", because core renders no image there to annotate. Every annotation surface reads that list, including the panel and the overlays, so annotation tools are not offered over your video."
 				}
 			],
 			"attrs": {
@@ -6589,7 +6589,7 @@
 				},
 				{
 					"type": "text",
-					"text": " It is the id the viewer knows you by, the same value your overlay layer ids are prefixed with, and it is checked: a claim naming an id no plugin of this viewer answers to is "
+					"text": " It is your plugin's id in the viewer, the same value your overlay layer ids are prefixed with, and it is checked: a claim naming an id that matches no plugin on this viewer is "
 				},
 				{
 					"type": "text",
@@ -6641,7 +6641,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". The check is there because that id is what releases your claim if your plugin goes away without releasing it itself; a claim under a name nothing will ever unregister would outlive your activation silently, leaving a canvas with no unsupported presentation and nothing rendering over it for the rest of the session."
+					"text": ". The check is there because that id is what releases your claim if your plugin goes away without releasing it itself; a claim under an id that is never released would silently outlive your activation, leaving a canvas with no unsupported presentation and nothing rendering over it for the rest of the session."
 				}
 			],
 			"attrs": {
@@ -6662,7 +6662,7 @@
 				},
 				{
 					"type": "text",
-					"text": " A second claim on a canvas somebody already holds is refused through the same channel and the first claimant keeps it. Claiming is not last-writer-wins, so a plugin cannot take a canvas another one is already rendering into. A refused call still hands back a dispose, so you never have to branch on whether your claim was accepted; it is simply a no-op."
+					"text": " A second claim on an already-claimed canvas is refused through the same channel and the first claimant keeps it. Claiming is not last-writer-wins, so a plugin cannot take a canvas another one is already rendering into. A refused call still hands back a dispose, so you never have to branch on whether your claim was accepted; it is simply a no-op."
 				}
 			],
 			"attrs": {
@@ -6767,7 +6767,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the question core answers when it decides to show the unsupported presentation, so the two cannot drift apart. "
+					"text": " is the check core uses to decide whether to show the unsupported presentation, so the two cannot drift apart. "
 				},
 				{
 					"type": "text",
@@ -6861,7 +6861,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The second half of a claim: the companion phase"
+					"text": "Companion phase"
 				}
 			]
 		},
@@ -7254,7 +7254,7 @@
 				},
 				{
 					"type": "text",
-					"text": " a property; it never carries one. Core reads the vocabulary itself and resolves the companion through the same descriptor builder every other canvas goes through, so a companion deep-zooms to whatever its image service serves, pans with the viewer's own gestures, and honors Choice bodies, region placements and both id spellings for free. Only the enum passes from your plugin to core. You cannot hand core a Canvas."
+					"text": " a property; it never carries one. Core reads the vocabulary itself and resolves the companion through the same descriptor builder every other canvas goes through, so a companion deep-zooms to whatever its image service serves, pans with the viewer's own gestures, and honors Choice bodies, region placements and both id spellings automatically. Only the enum passes from your plugin to core. You cannot hand core a Canvas."
 				}
 			],
 			"attrs": {
@@ -7266,7 +7266,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Your only contribution is "
+					"text": "Your plugin supplies only the "
 				},
 				{
 					"type": "text",
@@ -7279,7 +7279,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", because that is the one thing core cannot know. A media plugin's schedule is the obvious shape: "
+					"text": ", which core cannot know. A typical media plugin sets "
 				},
 				{
 					"type": "text",
@@ -7318,7 +7318,7 @@
 				},
 				{
 					"type": "text",
-					"text": ") the moment playback really starts."
+					"text": ") when playback starts."
 				}
 			],
 			"attrs": {
@@ -7330,7 +7330,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Four rules worth knowing before you wire it up:"
+					"text": "Four rules:"
 				}
 			],
 			"attrs": {
@@ -7357,7 +7357,7 @@
 								},
 								{
 									"type": "text",
-									"text": " An unclaimed canvas, a canvas another plugin holds, an id no plugin of this viewer answers to, or an unrecognized phase string is refused on the "
+									"text": " An unclaimed canvas, a canvas another plugin holds, an id that matches no plugin on this viewer, or an unrecognized phase string is refused on the "
 								},
 								{
 									"type": "text",
@@ -7412,7 +7412,7 @@
 								},
 								{
 									"type": "text",
-									"text": ": by the claim's own dispose and by the same deactivation backstops. There is no second release to forget."
+									"text": ": by the claim's own dispose and by the same deactivation backstops. No separate release is needed."
 								}
 							],
 							"attrs": {
@@ -7548,7 +7548,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the read for your own chrome: a recording with a picture in its rect needs different lanes from one without. It is reactive inside a Svelte host (the storage is a "
+					"text": " lets your own chrome check for this: a recording with a picture in its rect needs different lanes from one without. It is reactive inside a Svelte host (the storage is a "
 				},
 				{
 					"type": "text",

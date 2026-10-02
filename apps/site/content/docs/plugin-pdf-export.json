@@ -676,7 +676,7 @@
 				},
 				{
 					"type": "text",
-					"text": " the first time a reader exports, by a URL resolved against its own "
+					"text": " the first time a user exports, by a URL resolved against its own "
 				},
 				{
 					"type": "text",
@@ -727,7 +727,7 @@
 				},
 				{
 					"type": "text",
-					"text": " loads and registers normally, then fails every export: the reader sees the usual export-failure message, and the "
+					"text": " loads and registers normally, then fails every export: the user sees the usual export-failure message, and the "
 				},
 				{
 					"type": "text",
@@ -997,7 +997,7 @@
 								},
 								{
 									"type": "text",
-									"text": " in that same context still report the range the reader asked for."
+									"text": " in that same context still report the requested range."
 								}
 							],
 							"attrs": {
@@ -1063,7 +1063,7 @@
 								},
 								{
 									"type": "text",
-									"text": " describes the media; none of them is the canvas, and exporting one would give the reader a page the manifest does not present as the content."
+									"text": " describes the media; none of them is the canvas, and exporting one would give the user a page the manifest does not present as the content."
 								}
 							],
 							"attrs": {

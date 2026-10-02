@@ -340,7 +340,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The id the viewer knows your plugin by"
+					"text": "Your plugin's surface id"
 				}
 			]
 		},
@@ -384,7 +384,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", and seeds the viewer's plugin UI state for it. The viewer knows your plugin only by that id, so it is the only prefix "
+					"text": ", and seeds the viewer's plugin UI state for it. The viewer identifies your plugin only by that id, so it is the only prefix "
 				},
 				{
 					"type": "text",
@@ -812,7 +812,7 @@
 				},
 				{
 					"type": "text",
-					"text": " listener. The stand-in does not decide what was tapped: a real tap arrives already filtered by the renderer's single arbitration point (never a drag, a pinch, or a gesture suppressed by an input claim), and which annotation a point selects is answered from geometry the subscriber holds."
+					"text": " listener. The stand-in does not decide what was tapped: a real tap arrives already filtered by the renderer's single arbitration point (never a drag, a pinch, or a gesture suppressed by an input claim), and the subscriber determines which annotation a point selects from its own geometry."
 				}
 			],
 			"attrs": {

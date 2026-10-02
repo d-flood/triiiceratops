@@ -49,8 +49,8 @@
 
     const measure = [
         ['--measure', '62ch', 'Prose'],
-        ['--content-max', '1120px', 'A page frame’s content'],
-        ['--rail-w', '290px', 'The navigation rail'],
+        ['--content-max', '1120px', 'Page content'],
+        ['--rail-w', '290px', 'Navigation rail'],
     ];
 
     const space = [
@@ -87,10 +87,8 @@
 <section class="band" aria-labelledby="color">
     <h2 id="color">Color</h2>
     <p class="aside">
-        Two palettes, each selected and measured against its own ground rather
-        than derived from the other. A token showing one swatch keeps that value
-        in both schemes: a filled color field carries its own ground with it, so
-        re-stepping it would only weaken the identity.
+        Separate light and dark palettes, each measured against its own
+        background. Tokens with one swatch use the same value in both schemes.
     </p>
     <ul class="swatches">
         {#each COLOURS as token (token.name)}
@@ -151,26 +149,23 @@
         </table>
     </div>
     <p class="aside">
-        The data marks are graphical rather than text, so their threshold is
-        {AA_NON_TEXT}:
+        Chart marks are non-text, so their threshold is {AA_NON_TEXT}:
         {#each marks as mark (mark.pairing.ink)}
             <em
                 >{mark.pairing.ink} on {mark.pairing.ground}
                 {mark.light.toFixed(2)} light, {mark.dark.toFixed(2)} dark.</em
             >
         {/each}
-        The brand amber measures {AMBER_ON_BONE.toFixed(2)} on the light page ground,
-        so it can carry neither text nor a mark there — which is why the emphasized
-        mark in a chart is the orange on light and the amber on dark, the opposite
-        of what brand instinct wants.
+        The brand amber measures {AMBER_ON_BONE.toFixed(2)} on the light background,
+        too low for text or marks, so charts use orange for emphasis in light mode
+        and amber in dark mode.
     </p>
 </section>
 
 <section class="band" aria-labelledby="type">
     <h2 id="type">Type</h2>
     <p class="aside">
-        One family, display through captions. Monospaced type appears only
-        inside a real code block.
+        One font family for all text. Monospace is used only in code blocks.
     </p>
     <div class="scale">
         {#each type as step (step.name)}
@@ -184,7 +179,7 @@
 
 <section class="band band--paper" aria-labelledby="space">
     <h2 id="space">Space</h2>
-    <p class="aside">A 4px base, used for padding, gaps and rhythm alike.</p>
+    <p class="aside">A 4px base unit for padding and gaps.</p>
     <div class="scale">
         {#each space as [name, value] (name)}
             <div>
@@ -203,10 +198,9 @@
 <section class="band" aria-labelledby="measure">
     <h2 id="measure">Measure</h2>
     <p class="aside">
-        Two bounds, and every route obeys both. Prose stops at the measure; a
-        table, a chart or a figure is allowed past it and stops at the content
-        cap. The cap bounds what a full-bleed strip lays out, never the strip: a
-        band’s ground and its top rule still run the whole column.
+        Prose is limited to --measure. Tables, charts and figures can extend to
+        --content-max. Full-width bands keep their background and top rule
+        across the whole column; only their content is capped.
     </p>
     <div class="scale">
         {#each measure as [name, value, role] (name)}

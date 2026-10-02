@@ -339,7 +339,7 @@
         sections: readonly { id: string; title: string }[];
     }[] = [
         {
-            title: 'The viewer',
+            title: 'Viewer',
             sections: [
                 ...CONTROL_GROUPS.map((group) => ({
                     id: slug(group.title),
@@ -349,7 +349,7 @@
             ],
         },
         {
-            title: 'The theme',
+            title: 'Theme',
             sections: TOKEN_GROUPS.map((group) => ({
                 id: slug(group.title),
                 title: group.title,
@@ -585,12 +585,12 @@
 <PageHead />
 
 <section class="bstage" aria-labelledby="builder-h">
-    <h2 id="builder-h" class="vh">The builder</h2>
+    <h2 id="builder-h" class="vh">Builder</h2>
 
     <div class="bstage__show">
         <form class="pick" onsubmit={loadManifest}>
             <label class="pick__label" for="manifest">
-                Your IIIF manifest
+                IIIF manifest URL
             </label>
             <div class="pick__row">
                 <input
@@ -680,15 +680,12 @@
                             </label>
                         {/each}
                     </div>
-                    <p class="note">
-                        Override one or every part of a built-in theme.
-                    </p>
+                    <p class="note">Choose a built-in theme to customize.</p>
                 </fieldset>
             {:else if theming}
                 <p class="bd__fixed note">
-                    Started from {startedFrom}, with your own values over it.
-                    <strong>Start over</strong>, above, begins again from any of
-                    them.
+                    Based on {startedFrom}. Use <strong>Start over</strong> to pick
+                    a different theme.
                 </p>
             {/if}
 
@@ -844,9 +841,7 @@
                 aria-labelledby="tab-{PLUGIN_SECTION}"
                 hidden={section !== PLUGIN_SECTION}
             >
-                <p class="pane__note note">
-                    The following are the first-party plugins available today.
-                </p>
+                <p class="pane__note note">First-party plugins.</p>
                 <div class="pane__body">
                     {#each BUILDER_PLUGINS as plugin (plugin.id)}
                         <div class="row row--plug">
@@ -1004,7 +999,7 @@
 
 <section class="band band--paper handoff" aria-labelledby="take">
     <div class="prose">
-        <h2 id="take">Take it with you</h2>
+        <h2 id="take">Export</h2>
         <p>
             The code blocks below show the current configuration you've set
             above. You can copy them to use in your own project.
@@ -1059,10 +1054,10 @@
                             language={entry.language}
                         />
                         <p class="note">
+                            Full setup:
                             <a class="link" href={entry.href}>
-                                The {entry.label} guide
-                            </a>
-                            covers everything this snippet leaves out.
+                                {entry.label} guide
+                            </a>.
                         </p>
                     </Tab>
                 {/each}

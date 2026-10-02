@@ -67,7 +67,7 @@
 
 <div class="pv">
     {#if Viewer === undefined}
-        <p class="pv__wait">The viewer loads once the page has.</p>
+        <p class="pv__wait">Loading viewer…</p>
     {:else}
         <div class="pv__probe viewer-root" bind:this={probe}></div>
         <div class="pv__live">

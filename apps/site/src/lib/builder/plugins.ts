@@ -19,7 +19,7 @@ export const BUILDER_PLUGINS: readonly BuilderPlugin[] = [
     {
         id: 'image-manipulation',
         label: 'Image tools',
-        say: 'Brightness, contrast, saturation, invert and grayscale, in a flyout over the canvas.',
+        say: 'Brightness, contrast, saturation, invert, and grayscale adjustments.',
         pkg: '@triiiceratops/plugin-image-manipulation',
         symbol: 'ImageManipulationPlugin',
         ...doc('plugin-image-manipulation'),
@@ -30,7 +30,7 @@ export const BUILDER_PLUGINS: readonly BuilderPlugin[] = [
     {
         id: 'av',
         label: 'Audio and video',
-        say: 'Plays a time-based canvas: a media stage, transport in the control bar, captions and a transcript.',
+        say: 'Audio and video playback with captions and transcript.',
         pkg: '@triiiceratops/plugin-av',
         symbol: 'AvPlugin',
         ...doc('plugin-av'),
@@ -41,7 +41,7 @@ export const BUILDER_PLUGINS: readonly BuilderPlugin[] = [
     {
         id: 'pdf-export',
         label: 'PDF download',
-        say: 'Exports a range of canvases as a PDF the browser generates, one page per canvas.',
+        say: 'Export a range of canvases as a PDF, one page per canvas.',
         pkg: '@triiiceratops/plugin-pdf-export',
         symbol: 'PdfExportPlugin',
         ...doc('plugin-pdf-export'),
@@ -52,7 +52,7 @@ export const BUILDER_PLUGINS: readonly BuilderPlugin[] = [
     {
         id: 'image-download',
         label: 'Image download',
-        say: 'Downloads the canvas as a raster image, including a canvas painted with more than one image.',
+        say: 'Download the current canvas as an image, including multi-image canvases.',
         pkg: '@triiiceratops/plugin-image-export',
         symbol: 'ImageDownloadPlugin',
         ...doc('plugin-image-export'),
@@ -63,7 +63,7 @@ export const BUILDER_PLUGINS: readonly BuilderPlugin[] = [
     {
         id: 'annotation-editor',
         label: 'Annotation editor',
-        say: 'Draws rectangle, ellipse, polygon, point and whole-canvas annotations, stored through a pluggable adapter.',
+        say: 'Create rectangle, ellipse, polygon, point, and whole-canvas annotations, with a pluggable storage adapter.',
         pkg: '@triiiceratops/plugin-annotation-editor',
         symbol: 'AnnotationEditorPlugin',
         ...doc('plugin-annotation-editor'),

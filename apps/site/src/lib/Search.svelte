@@ -71,7 +71,7 @@
 
     const status = $derived(
         unavailable
-            ? 'The index is built with the site, so there is nothing to search on a development server.'
+            ? 'Search unavailable: the index is generated at build time, so there is nothing to search on a development server.'
             : searching
               ? 'Searching…'
               : query.trim().length < 2

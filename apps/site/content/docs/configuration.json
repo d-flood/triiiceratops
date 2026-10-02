@@ -57,7 +57,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Pick your stack's tab in any example below and the choice follows you across the site. The React, Vue, and Svelte tabs use those frameworks' components, which are the supported integration path. See the "
+					"text": "Pick your stack's tab in any example below and the selection applies across the site. The React, Vue, and Svelte tabs use those frameworks' components, which are the supported integration path. See the "
 				},
 				{
 					"type": "text",
@@ -262,7 +262,7 @@
 				},
 				{
 					"type": "text",
-					"text": " uses it. The bar then spans its full available width, because a wider seek bar lets the reader seek more precisely, and a full-width bar has nothing to align."
+					"text": " uses it. The bar then spans its full available width, because a wider seek bar allows more precise seeking, and a full-width bar has nothing to align."
 				}
 			],
 			"attrs": {
@@ -2394,7 +2394,7 @@
 				},
 				{
 					"type": "text",
-					"text": " mirrored into viewer state: mirroring them would make the batched watcher fire at animation framerate for every subscriber on the page, so one component's zoom readout would tax every plugin. Cadence solves that with one option instead ("
+					"text": " mirrored into viewer state: mirroring them would make the batched watcher fire at animation framerate for every subscriber on the page, so one component's zoom readout would add work for every plugin. Cadence solves that with one option instead ("
 				},
 				{
 					"type": "text",
@@ -3006,7 +3006,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The supported answers, in order of how much you need:"
+					"text": "The supported options, from least to most custom work:"
 				}
 			],
 			"attrs": {
@@ -4753,7 +4753,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". An open options object would make the renderer's own surface part of what consumers depend on, and changing an undocumented internal would then be a breaking change. If a knob you need is missing, that is a request for core to add it."
+					"text": ". An open options object would make the renderer's own surface part of what consumers depend on, and changing an undocumented internal would then be a breaking change. If you need a knob that is missing, request that core add it."
 				}
 			],
 			"attrs": {
@@ -6083,7 +6083,7 @@
 				},
 				{
 					"type": "text",
-					"text": " (one-way instructions, not enforced bindings), so re-asserting the current value after the reader has navigated writes nothing. "
+					"text": " (one-way instructions, not enforced bindings), so re-asserting the current value after the user has navigated writes nothing. "
 				},
 				{
 					"type": "text",
@@ -6630,7 +6630,7 @@
 				},
 				{
 					"type": "text",
-					"text": " content state is the exception: it is the reader's own gesture, so its manifest opens even on a viewer the host drives with "
+					"text": " content state is the exception: it comes from a user action on this viewer, so its manifest opens even on a viewer the host drives with "
 				},
 				{
 					"type": "text",
@@ -7075,7 +7075,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The viewer ships its chrome in English and takes every other language from you. You can add a language without waiting for a viewer release."
+					"text": "The viewer includes English UI strings only; you supply catalogs for other languages. You can add a language without waiting for a viewer release."
 				}
 			]
 		},
@@ -7119,7 +7119,7 @@
 				},
 				{
 					"type": "text",
-					"text": " entry rewords the viewer's own copy. "
+					"text": " entry overrides the built-in English strings. "
 				},
 				{
 					"type": "text",
@@ -7132,7 +7132,7 @@
 				},
 				{
 					"type": "text",
-					"text": " fetches a catalog for a locale the viewer cannot yet render, so a reader downloads only the language they read in. It is called at most once per locale per viewer: by the toolbar's language picker, by "
+					"text": " fetches a catalog for a locale the viewer cannot yet render, so only the languages in use are downloaded. It is called at most once per locale per viewer: by the toolbar's language picker, by "
 				},
 				{
 					"type": "text",
@@ -7206,7 +7206,7 @@
 				},
 				{
 					"type": "text",
-					"text": " rather than bundled into the viewer, so a host reading only English pays nothing for it."
+					"text": " rather than bundled into the viewer, so English-only hosts do not load it."
 				}
 			]
 		},
@@ -7241,7 +7241,7 @@
 				},
 				{
 					"type": "text",
-					"text": " names. It lists no locale that nothing can supply, so a locale that "
+					"text": " names, and no others. A locale that "
 				},
 				{
 					"type": "text",

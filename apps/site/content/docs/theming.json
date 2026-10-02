@@ -485,7 +485,7 @@
 				},
 				{
 					"type": "text",
-					"text": "). Theme names are case-sensitive. Set no theme and the viewer paints "
+					"text": "). Theme names are case-sensitive. If no theme is set, the viewer uses "
 				},
 				{
 					"type": "text",
@@ -498,7 +498,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". The page, not the viewer, decides which scheme a reader sees. To follow the reader's preference, set it yourself: "
+					"text": ". The viewer does not detect the user's color-scheme preference. To follow it, set the theme yourself: "
 				},
 				{
 					"type": "text",
@@ -1627,7 +1627,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Surfaces are named by the region they paint. "
+					"text": "Surface tokens are named by the region they color. "
 				},
 				{
 					"type": "text",
@@ -2271,7 +2271,7 @@
 				},
 				{
 					"type": "text",
-					"text": " is the global text/icon color. The per-region tokens below inherit from it and let you retint text in one region without touching the rest."
+					"text": " is the global text/icon color. The per-region tokens below inherit from it and let you change the text color in one region without affecting the rest."
 				}
 			],
 			"attrs": {
@@ -3423,7 +3423,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", and the palette), so retinting those retints the plugin panels with them. A plugin that defines its own custom property can be fed through the "
+					"text": ", and the palette), so changing those also changes the plugin panels. A plugin that defines its own custom property can be set through the "
 				},
 				{
 					"type": "text",
@@ -3442,7 +3442,7 @@
 				},
 				{
 					"type": "text",
-					"text": " escape hatch."
+					"text": " key."
 				}
 			],
 			"attrs": {
@@ -3468,7 +3468,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The top-level trio sets the defaults; the per-region overrides inherit from them, so you can keep everything consistent or fine-tune one region."
+					"text": "The three top-level tokens set the defaults; the per-region overrides inherit from them, so you can keep everything consistent or adjust one region."
 				}
 			],
 			"attrs": {
@@ -4285,7 +4285,7 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "Want fully rounded controls?",
+							"text": "Fully rounded controls:",
 							"marks": [
 								{
 									"type": "bold"
@@ -5280,7 +5280,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". It names two custom properties and falls back to the reader's system faces, so out of the box it is set in whatever your platform's UI sans and mono are. These two are public API alongside the "
+					"text": ". It reads two custom properties and falls back to system fonts, so by default it uses the platform's UI sans-serif and monospace fonts. These two are public API alongside the "
 				},
 				{
 					"type": "text",
@@ -5293,7 +5293,7 @@
 				},
 				{
 					"type": "text",
-					"text": " tokens above, despite being outside that namespace: they are the whole mechanism for matching the viewer to your own site's type."
+					"text": " tokens above, despite being outside that namespace: they are the only way to match the viewer's fonts to your site."
 				}
 			],
 			"attrs": {
@@ -5594,7 +5594,7 @@
 				},
 				{
 					"type": "text",
-					"text": " key: a typeface is a property of the page the viewer sits in rather than of a theme, and the viewer is meant to inherit it. Set them wherever they will reach the viewer: on "
+					"text": " key: fonts belong to the host page rather than to a theme, and the viewer is meant to inherit them. Set them wherever they will reach the viewer: on "
 				},
 				{
 					"type": "text",
@@ -5607,7 +5607,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for a whole page, or on the viewer's own element to give it its own type:"
+					"text": " for a whole page, or on the viewer's own element to set fonts for that viewer only:"
 				}
 			],
 			"attrs": {
@@ -5632,7 +5632,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Both take a full font stack rather than a single family. Write out the fallbacks: the viewer cannot load a face for you, so a stack naming only a webfont your page has not fetched renders in the browser's last-resort default. Loading the face (an "
+					"text": "Both take a full font stack rather than a single family. Include fallbacks: the viewer does not load fonts, so a stack that names only a web font your page has not loaded renders in the browser's default font. Loading the font (an "
 				},
 				{
 					"type": "text",
@@ -5883,7 +5883,7 @@
 				},
 				{
 					"type": "text",
-					"text": " escape hatch. Keys are CSS variable names "
+					"text": " key. Keys are CSS variable names "
 				},
 				{
 					"type": "text",

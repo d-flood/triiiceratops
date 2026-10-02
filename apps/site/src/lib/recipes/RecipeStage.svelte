@@ -46,7 +46,7 @@
 
     <div class="recstage__viewer">
         {#if Viewer === undefined}
-            <p class="recstage__wait">The viewer loads once the page has.</p>
+            <p class="recstage__wait">Loading viewer…</p>
         {:else}
             <Viewer
                 manifestId={manifestUrl}

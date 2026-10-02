@@ -29,7 +29,7 @@
 
     const title = SITE_NAME;
     const description =
-        'A bare IIIF viewer. Open the view named by an iiif-content parameter, or paste a manifest URL or content state.';
+        'A standalone IIIF viewer. Opens the view in an iiif-content URL parameter, or a pasted manifest URL or content state.';
 </script>
 
 <svelte:head>

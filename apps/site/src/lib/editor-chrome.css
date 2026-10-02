@@ -1,5 +1,5 @@
 /* Uncial's chrome first, so corrections below win the cascade. DEV-only: it never enters a production build. */
-@import 'uncial/styles/chrome';
+@import 'uncial/styles/chrome.css';
 
 /* ---- The editor's own status line ---------------------------------------- */
 .uncial-cms-chrome {

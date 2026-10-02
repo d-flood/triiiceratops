@@ -236,7 +236,7 @@
 								},
 								{
 									"type": "text",
-									"text": " picker lists only canvases an image can be produced from. On a spread of one page and one video, the video is not offered, so the reader never sees an empty resolution list."
+									"text": " picker lists only canvases an image can be produced from. On a spread of one page and one video, the video is not offered, so the resolution list is never empty."
 								}
 							],
 							"attrs": {
@@ -344,7 +344,7 @@
 								},
 								{
 									"type": "text",
-									"text": " describes the media; none of them is the canvas, and exporting one would give the reader an image the manifest does not present as the content."
+									"text": " describes the media; none of them is the canvas, and exporting one would give the user an image the manifest does not present as the content."
 								}
 							],
 							"attrs": {

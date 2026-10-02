@@ -1,0 +1,3807 @@
+{
+	"type": "doc",
+	"version": 2,
+	"content": [
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "49f497de-8bbb-4406-a568-2f08b9823de5"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Every viewer owns one live "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " object. It is the same object the viewer's own toolbar, panels, and plugins use, and your code can access it too. Use it to read the current position, call commands to change it, and subscribe to changes."
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "3ba5d0cd-6ba6-4624-a82f-329052ddf4f2"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Commands can do anything the built-in UI can do.",
+					"marks": [
+						{
+							"type": "bold"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " Use them to build your own page controls, connect the viewer to the rest of your app, or script it from a test."
+				}
+			]
+		},
+		{
+			"type": "orderedList",
+			"attrs": {
+				"id": "3d4ecff9-19b7-4dfc-b610-7141fa5f0f64"
+			},
+			"content": [
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "5eb533e9-da77-4fc1-b8b7-c529e0545c5f"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "c1cf8464-899e-4d70-83b1-53ac972dc13e"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Get the state",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " from your host: a property on the element, a hook in React, a template ref in Vue, a bound prop in Svelte."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "bdad9380-ecee-4459-80a0-5d304254ef4e"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "3c418f66-c3af-43e2-8363-92ae2cb4139f"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Call commands",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " on it, such as "
+								},
+								{
+									"type": "text",
+									"text": "nextCanvas()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "setCanvas(id)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", or "
+								},
+								{
+									"type": "text",
+									"text": "zoomIn()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "96eb66fb-a010-41bf-8ca3-645e41fb2486"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "02f9edc8-00bb-4984-909d-da15499539c2"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Read and subscribe",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " when your UI needs to show what the viewer is doing."
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "13853b00-80b6-4d9a-937e-efd1dd16602c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Only step 1 differs between hosts. From step 2 on, the code is the same everywhere."
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "1-get-the-state",
+				"id": "b1cc5d2f-64ea-49e8-bb79-83ab0ae5ac6b"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "1. Get the state"
+				}
+			]
+		},
+		{
+			"type": "tabs",
+			"attrs": {
+				"group": "framework",
+				"id": "2757b470-731e-42a7-8f39-c2a0f1ddc861"
+			},
+			"content": [
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "HTML",
+						"id": "9e12d762-fb88-412e-8ec1-88d1a3cb22c1"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "d5edd280-9612-4f4a-b165-e68cb78f2f8b"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "The element exposes the state as a getter-only "
+								},
+								{
+									"type": "text",
+									"text": "viewerState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " property, and fires "
+								},
+								{
+									"type": "text",
+									"text": "viewerstateavailable",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " when it appears:"
+								}
+							]
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "ts",
+								"id": "38566115-ec65-4eca-98bb-069e8c4f16e0"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import 'triiiceratops/element/register';\nimport type { TriiiceratopsViewerElement } from 'triiiceratops';\n\ntype ViewerState = NonNullable<TriiiceratopsViewerElement['viewerState']>;\n\nconst el = document.querySelector<TriiiceratopsViewerElement>(\n    'triiiceratops-viewer',\n)!;\n\nfunction drive(state: ViewerState) {\n    document\n        .querySelector('button#next')!\n        .addEventListener('click', () => state.nextCanvas());\n}\n\n// Listen first, then check: catches state published before or after this runs.\nel.addEventListener('viewerstateavailable', (event) => {\n    drive((event as CustomEvent<ViewerState>).detail);\n});\nif (el.viewerState) drive(el.viewerState);"
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "React",
+						"id": "666acf62-2378-48a6-b0bc-91ea76114b61"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "1a30c92e-2d64-4494-90fd-b204ab050177"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Create a handle, pass it to the component, and read the state through "
+								},
+								{
+									"type": "text",
+									"text": "useViewer()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ":"
+								}
+							]
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "tsx",
+								"id": "718649ce-e7a3-442c-bcf5-2e96bc51ab96"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "import {\n    TriiiceratopsViewer,\n    useViewer,\n    useViewerHandle,\n} from 'triiiceratops/react';\n\nexport function Reader() {\n    const handle = useViewerHandle();\n    const state = useViewer(handle);\n\n    return (\n        <>\n            <button type=\"button\" onClick={() => state?.nextCanvas()}>\n                Next canvas\n            </button>\n            <TriiiceratopsViewer\n                handle={handle}\n                manifestId=\"https://example.org/manifest.json\"\n                style={{ display: 'block', height: '600px' }}\n            />\n        </>\n    );\n}"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "2277b2e3-3c3a-4fab-82fd-dd11de9ca2ae"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "For values you render, use "
+								},
+								{
+									"type": "text",
+									"text": "useViewerSelector()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " instead; see "
+								},
+								{
+									"type": "text",
+									"text": "React: reactive reads",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/react/#reactive-reads",
+												"target": null,
+												"rel": null,
+												"title": null,
+												"class": null
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Vue",
+						"id": "12d194ff-ccee-48fc-bb55-d7cfc0a4181d"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "1f241d08-8955-4892-b04a-09c9a86607f7"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "A template ref is the handle. Its "
+								},
+								{
+									"type": "text",
+									"text": "state",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " member is the viewer state:"
+								}
+							]
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "vue",
+								"id": "fd1f19fc-8db8-40be-8f99-ba8904c5ea06"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script setup lang=\"ts\">\nimport { useTemplateRef } from 'vue';\nimport {\n    TriiiceratopsViewer,\n    type TriiiceratopsViewerInstance,\n} from 'triiiceratops/vue';\n\nconst viewer = useTemplateRef<TriiiceratopsViewerInstance>('viewer');\n\nfunction next(): void {\n    viewer.value?.state?.nextCanvas();\n}\n</script>\n\n<template>\n    <button type=\"button\" @click=\"next\">Next canvas</button>\n    <TriiiceratopsViewer\n        ref=\"viewer\"\n        manifest-id=\"https://example.org/manifest.json\"\n        style=\"display: block; height: 600px\"\n    />\n</template>"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "ef131435-0bc6-4017-b119-934fa2cc2fbd"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "For values you render, use "
+								},
+								{
+									"type": "text",
+									"text": "useViewerSelector()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "; see "
+								},
+								{
+									"type": "text",
+									"text": "Vue: reactive reads",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/vue/#reactive-reads",
+												"target": null,
+												"rel": null,
+												"title": null,
+												"class": null
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tab",
+					"attrs": {
+						"label": "Svelte",
+						"id": "54473d97-a5e1-431b-9da0-8b96aaf620c0"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "93acd306-e6df-49b2-92b4-601c3992d8d2"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Bind "
+								},
+								{
+									"type": "text",
+									"text": "viewerState",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". Its members are already reactive, so you can read them in markup or a "
+								},
+								{
+									"type": "text",
+									"text": "$derived",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ":"
+								}
+							]
+						},
+						{
+							"type": "codeBlock",
+							"attrs": {
+								"language": "html",
+								"id": "0593a93e-4e87-4829-aa85-4c1037db74a9"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "<script lang=\"ts\">\n    import { TriiiceratopsViewer, type ViewerState } from 'triiiceratops/svelte';\n    import 'triiiceratops/style.css';\n\n    let viewerState = $state<ViewerState | undefined>();\n</script>\n\n<button onclick={() => viewerState?.nextCanvas()}>Next canvas</button>\n\n<div style=\"height: 600px;\">\n    <TriiiceratopsViewer\n        bind:viewerState\n        manifestId=\"https://example.org/manifest.json\"\n    />\n</div>"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "5c9d7144-36a9-4f6f-8483-3ca91cf3cb74"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Inside a descendant component, "
+								},
+								{
+									"type": "text",
+									"text": "getContext(VIEWER_STATE_KEY)",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " returns the same instance; see "
+								},
+								{
+									"type": "text",
+									"text": "Svelte",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/svelte/#reading-and-commanding-state",
+												"target": null,
+												"rel": null,
+												"title": null,
+												"class": null
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "callout",
+			"attrs": {
+				"kind": "tip",
+				"title": "The state is undefined until mount",
+				"id": "889722b3-2e30-41a0-a4e4-7f503b7ab843"
+			},
+			"content": [
+				{
+					"type": "paragraph",
+					"attrs": {
+						"id": "de2ac3c2-2eda-4fd6-beb0-071bf5e26c9d"
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "The state exists only once the viewer has mounted, so it is "
+						},
+						{
+							"type": "text",
+							"text": "undefined",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " for a moment after your page renders. The optional calls above ("
+						},
+						{
+							"type": "text",
+							"text": "state?.nextCanvas()",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": ") are the whole pattern. Having the state does not mean a manifest has loaded: navigate once "
+						},
+						{
+							"type": "text",
+							"text": "state.canvasId",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " is set."
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "2-call-commands",
+				"id": "4dc880df-8753-4cf8-adf7-65ed40f44c95"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "2. Call commands"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "a8263aa9-5a9e-4617-b70a-071a06f16b9d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Commands are methods on the state. Call them; do not assign to its properties. "
+				},
+				{
+					"type": "text",
+					"text": "state.setCanvas(id)",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " updates everything that depends on the canvas, while "
+				},
+				{
+					"type": "text",
+					"text": "state.canvasId = id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " skips that work and is not a supported API."
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "1993f2d6-abad-490e-a9f7-8bfaa76bc7c1"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { ViewerState } from 'triiiceratops';\n\ndeclare const state: ViewerState;\n\n// Step through the manifest, or jump to a canvas by id.\nstate.nextCanvas();\nstate.setCanvas('https://example.org/iiif/canvas/p3');\n\n// Open the annotations panel if it is closed.\nif (!state.showAnnotations) state.toggleAnnotations();\n\n// Frame a detail of the current canvas, in canvas coordinates.\nstate.fitBounds({ x: 1200, y: 800, width: 600, height: 400 });\n\n// Open a different manifest at a chosen canvas.\nvoid state.setManifest('https://example.org/iiif/other/manifest.json', {\n    canvasId: 'https://example.org/iiif/other/canvas/1',\n});"
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 3,
+				"slug": "common-commands",
+				"id": "b48cb069-cbe7-406a-8f19-68fc910cfa40"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Common commands"
+				}
+			]
+		},
+		{
+			"type": "table",
+			"attrs": {
+				"id": "a0c7e0e2-2e77-4683-90d1-d0038da353e3"
+			},
+			"content": [
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "2dbf9763-4508-4a2d-abcb-b8101f819d49"
+					},
+					"content": [
+						{
+							"type": "tableHeader",
+							"attrs": {
+								"id": "67419a79-68dd-4056-bb93-11a3e8e18e63"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "619d211b-0320-420f-9514-e82bf224a1bc"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Command"
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableHeader",
+							"attrs": {
+								"id": "24b80b57-21de-42af-963f-95ea4850e025"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "c518ab9f-ac12-4548-b84e-66187ee7baa0"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "What it does"
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "ce51f46a-7332-4b7a-846d-cb8967dbdbeb"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "73bb4d77-8ca8-41b6-9901-d7edca55371a"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "8cd57613-d517-4360-b3a1-69c9681a28b0"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "nextCanvas()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "previousCanvas()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "ccbe249f-04c5-4613-a4c5-5bf4f932f636"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "ca2451d2-88c1-4e51-927a-909ae836b75c"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Step one canvas, or one spread in paged mode. Does nothing at either end."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "af1e8518-7f8f-485a-ba6b-23bb46627e15"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "c056ec55-43db-4275-b7d1-e0435870adda"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "961b0655-2e98-4d26-b85a-c8122a4a993d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "setCanvas(canvasId, time?, region?)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "cddebc56-90fb-4e4c-90a4-281341cd45be"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "22639347-29c1-4fac-a6f5-f5b81f6aa964"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Go to a canvas. Optionally start media at "
+										},
+										{
+											"type": "text",
+											"text": "{ seconds }",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " or frame a region "
+										},
+										{
+											"type": "text",
+											"text": "{ x, y, width, height }",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "57cee096-e973-4c9e-a4eb-185151dcd94b"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "6c90cbdb-afaf-465d-9fe1-6a01cf40d7e0"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "9924ae12-5154-4a2a-9e70-fa98ff0fb215"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "setSequenceIndex(index)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "f3ef5d3d-1ad2-4b8a-bc49-8ab678c9f338"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "27be841d-1ef8-4a9d-a7ef-fe1e0a601f7d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Switch to another sequence in a manifest that has several."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "ecbb755f-f903-49f8-8081-9b119b642614"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "9c4b0544-5567-482c-8e40-19019fddd914"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "f9098e1d-8e16-48c4-b5f6-dd884bfc1541"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "selectChoice(canvasId, choiceId)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "517ca64b-9c97-4e7a-9d75-cd274ac827c0"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "27b716ff-2b4b-45d3-84ea-31e2bcb3726c"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Pick one image from a IIIF Choice on a canvas."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "524d8cd9-b086-4597-9021-fc02ccbb7097"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "2cbca92d-1038-48c0-93ec-e79e124575e2"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "5a1d011c-013f-4346-abde-10c421a45919"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "setManifest(manifestId, { canvasId? })",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "1c3a7ced-8917-429b-94a9-a52b8a72107f"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "ff55c9bc-b265-4c03-a83c-8664158dd5c7"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Fetch and open a manifest, optionally at a canvas. Returns a promise."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "adedda1a-6ac2-4ba4-8ede-fb1f8d92e6b5"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "19aad446-b8a2-4235-9cf0-8e880bb6e378"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "d94c812a-1526-45a0-8c1e-90bd1f6b8eb8"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "setManifestData(manifestId, json, { canvasId? })",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "dfe8dd02-1385-4493-a9ab-a802ab834675"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "b0635200-c1b7-4fbc-90b6-3638a5d543ed"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Open manifest JSON you already have. Returns a promise."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "abb482bc-757e-4c5c-a3dc-c34a06874524"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "319453e5-f69a-434c-801e-8817c1983495"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "1319970a-6ebf-41ed-a8d0-40f0a97f51be"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "zoomIn()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "zoomOut()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "177fe04a-b1d8-4b48-8f03-eb863086bfe2"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "51a99bf1-402f-4cbb-8603-b010a40efb13"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Zoom one step, like the toolbar's + and − buttons."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "86e1f258-3312-4617-b4df-402ea4c1b550"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "8d827665-3e7d-4590-a062-bcdb6849ba98"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "c1616b4a-5fab-44f6-85cd-17eb9c2eee0e"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "zoomTo(scale)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "4216b623-0a13-4ace-a9f5-5fec3abb28a6"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "e186939e-c097-406c-be74-842c3e6b84ad"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Zoom to an absolute scale, in screen pixels per canvas unit (the unit "
+										},
+										{
+											"type": "text",
+											"text": "viewportScale",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " reads)."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "2d766467-ffe3-49e3-9f4e-3b28dfe26e6a"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "e039127c-4ca9-4830-8e0c-c08f05cd74f5"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "eb7e01a3-8a3e-4f98-af8e-cac22a7f1e65"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "panTo({ x, y }, canvasId?)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "ddb241dc-64f2-4f5e-9d32-9fd92ca60e6b"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "fd588f0e-1abf-47a8-ab42-27566261cb29"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Centre the view on a point in canvas coordinates."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "8282fbdf-3f48-463e-a585-a3c933dab50d"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "de5a1e09-6e83-48e2-a4aa-a2c06316fb02"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "eae99dff-8f89-4091-9ea6-abbb0646afe8"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "fitBounds({ x, y, width, height }, canvasId?)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "207a524f-fbf5-4041-883b-28976d8a6f99"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "956e695c-c0b5-4593-8350-c22c52e34060"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Frame a box in canvas coordinates."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "dc87da20-8062-453e-a9c4-f4e0063230ae"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "72ac4963-bdcc-43f5-8ea5-705c0eef4aed"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "7655870f-bd19-4b46-a59e-ceaf2cf81c8d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "fitCanvas(canvasId?)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "6801da8c-3275-40b4-b313-87dbac4c8638"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "3fdab342-5345-414c-a00d-925d311e4fb5"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Fit a whole canvas: the current one, or go to the named one and fit it."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "c8defcb9-5447-441c-a9b4-766e905179c2"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "233ea4f1-5937-4afc-8142-3fd99e5c8bec"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "9966fbc1-509e-40e8-acfe-d130cd2ce70a"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "fitView()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "14ac3962-3cc2-4b9a-b534-2e84759ec1ba"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "d4d08695-74a4-4c98-b48f-ee3832eddd6e"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Re-fit what is on screen, like the Home key."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "d802c7b0-ec51-4f42-bd47-53648b1fc28e"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "efaeabce-de4d-4cf2-8fd5-66e1727df2d5"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "9963b145-315a-4808-8f96-7540fb24aa7d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "toggleAnnotations()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "toggleSearchPanel()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "toggleMetadataPanel()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "toggleStructuresPanel()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "toggleCollectionPanel()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "toggleCanvasInfo()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "8dc0e5bb-e792-429a-a80e-55bd76b2ea7e"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "fb9b0afd-f389-490f-88b6-87b669d22c22"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Open or close that panel."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "482e137e-18a6-4442-97aa-2ac9397c3162"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "b2d36182-0695-482b-9033-25e26be09de7"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "07a9d16e-ad3f-4507-b503-f20d4c47363d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "toggleThumbnailGallery()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "setGalleryExpanded(expanded)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "setDockSide(side)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "9c3443fc-c191-4e24-9be1-b9cbf726fc0a"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "7649699b-584a-42ab-8085-eeddf0b6ad8e"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Show the gallery, expand it into a grid, or dock it to "
+										},
+										{
+											"type": "text",
+											"text": "'top'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "'bottom'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "'left'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", or "
+										},
+										{
+											"type": "text",
+											"text": "'right'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "fe0b356f-0102-4baa-bc55-906a17b8aa01"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "221ec71d-3626-470c-bbeb-539294e78315"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "02fac646-80e2-4833-9211-6bb9be703753"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "toggleToolbar()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "a07f88ad-2c71-4cfd-af39-9d762c64ed18"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "5040624c-975a-4720-98e4-028eb1dafd7b"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Open or close the toolbar."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "4ebfd880-cd40-43b5-89c2-1706ed4e58c2"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "179f58c1-376a-4f65-8376-582494d8ecc1"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "21cf5bab-d1a8-44d8-afaf-4f836b2b161d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "toggleFullScreen()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "c95dfe2d-3b58-4c1e-9752-f86f34590c51"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "e33b7564-e630-479c-a61d-6f2c9eabc06d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Enter or leave fullscreen. Browsers only allow this from a user gesture, such as a click handler."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "74de6734-ece4-47e2-bc54-58f09de97b81"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "4c98a292-b9fb-4dd3-ad8a-98652aa6bdd9"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "8ba50349-1453-4874-8752-e4c0ab6e5e96"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "setViewingMode(mode)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "f57f4d3f-f255-4146-9ac8-e6a86d1aa4cf"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "1c4792d7-9dea-448a-b2bc-59b6a7f4826b"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Switch between "
+										},
+										{
+											"type": "text",
+											"text": "'individuals'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "'paged'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", and "
+										},
+										{
+											"type": "text",
+											"text": "'continuous'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "8dc1a2d6-bbb4-4412-9326-ba16cd59dddf"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "b30151f5-7221-433d-9679-c72193f230ae"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "1d6cf9fd-c114-476e-9b5f-8fe28bbbef5d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "togglePagedOffset()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "202bd719-3145-4dc2-b47a-d9688d1cf6ff"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "606a8e79-d8fa-447e-bdd2-44217012487f"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "In paged mode, shift the spreads by one page, for example to show a cover on its own."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "7233d00c-4d2d-4024-b1ea-f22212268ad0"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "54035fff-f9e7-432d-9881-bcbfb67d5918"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "4f8accf3-fcf7-40f3-b49a-303312ce9fae"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "setLocale(locale)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "a776a0bf-e4fe-4aab-9bb2-27dd49330ac2"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "045b047f-eac8-47f7-82b6-e035923ead6b"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Change the chrome's language. "
+										},
+										{
+											"type": "text",
+											"text": "null",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " reverts to "
+										},
+										{
+											"type": "text",
+											"text": "config.locale",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "553709f4-9e43-47d8-99af-dcaf93e23f24"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "271f9e29-ef4f-46de-ac3b-fa00227e9f84"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "fbb200ef-d7a8-46b5-9fa7-f8135e127e13"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "search(query)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "d6a13398-e702-4da5-8899-8bfc510918e5"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "ac28fc3a-84cc-4e9e-a127-658025e60dc9"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Run a IIIF content search; results are written to "
+										},
+										{
+											"type": "text",
+											"text": "searchResults",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ". It does not open the search panel. Returns a promise. See "
+										},
+										{
+											"type": "text",
+											"text": "programmatic search",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/configuration/#programmatic-search",
+														"target": null,
+														"rel": null,
+														"title": null,
+														"class": null
+													}
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "98c1b0f3-71c5-4b33-9224-6a1495769ee9"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "8306b5d5-0c8d-486b-bd13-c86c0693d65c"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "83143a70-84db-408f-8bbf-808fabefa9a6"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "setAnnotationVisible(id, visible)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "setAllAnnotationsVisible(visible)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "851978fb-3142-4366-a447-e9da6b0f11fe"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "bfd7faef-d83e-4b26-bf1c-3b9849efdb9d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Show or hide annotation overlays."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "b2aa1867-30c5-4cc6-a2dd-473e8d5f8146"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "ca5b3002-4c20-49bf-9c89-f262b6c378e8"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "1a0a0731-2baf-4d86-b239-1c1cd69d4145"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "setActiveAnnotationId(id)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "26aa8854-274c-46b5-8bc9-2d9b03cc5fe0"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "83900f74-03c6-48a9-be95-aa14b38a7c0c"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Select an annotation, as tapping it does. Passing the selected id again deselects it."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "29d9d6a8-db34-43f9-84a2-a7c2ce2a5f83"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "2bf571a4-c62c-44e7-9638-203582a2930e"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "5e6d3cae-bab5-4aab-98e8-a23d66bc1f6c"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "setImageAdjustments({ brightness, contrast, saturation, invert, grayscale })",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "resetImageAdjustments()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "d05d186a-d48a-4356-be0f-c3407566eebb"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "f61f4f8e-a8e2-46f2-8e97-bc8d4811c2e6"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Adjust how the image renders. Pass only the keys you change; numbers are percentages, with 100 meaning unchanged."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "32dfba64-b6e7-4463-a9a5-3555012be190"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "edecd9e2-653f-4ffc-993d-d3688e7821ad"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "1aed14b7-5c7e-4f61-8ca2-da7997d77381"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "setPluginOpen(pluginId, open)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "togglePluginOpen(pluginId)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "c760f1b4-c143-492f-998b-f1a0cd5a7c66"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "24aeb79e-faea-4fae-89ea-3d6856ea6aa9"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Open or close a plugin's panel or flyout. See "
+										},
+										{
+											"type": "text",
+											"text": "controlling plugin UI at runtime",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/plugins/#controlling-plugin-ui-at-runtime",
+														"target": null,
+														"rel": null,
+														"title": null,
+														"class": null
+													}
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "b90942d8-5a52-476a-91c9-b50c54dac43f"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "59ccc61c-3b81-4576-8308-518e87d13f8c"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "39159a54-5024-4ea8-821e-100be3053c59"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "getPluginState(pluginId)",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "8b31508c-e1d3-44d3-833a-02b1ba26faa5"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "581178ba-4889-42a2-8fb9-c1be6be738ba"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Access a plugin's own commands, such as the audio and video plugin's "
+										},
+										{
+											"type": "text",
+											"text": "play()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " and "
+										},
+										{
+											"type": "text",
+											"text": "pause()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ". See "
+										},
+										{
+											"type": "text",
+											"text": "commanding playback",
+											"marks": [
+												{
+													"type": "link",
+													"attrs": {
+														"href": "/docs/plugin-av/#commanding-playback-avstate",
+														"target": null,
+														"rel": null,
+														"title": null,
+														"class": null
+													}
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "323b5b72-3187-4ca3-986b-70c843a8add5"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "This is the common set, not the complete list. The "
+				},
+				{
+					"type": "text",
+					"text": "state inventory",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "https://github.com/d-flood/triiiceratops/blob/main/packages/core/src/lib/state/state-inventory.ts",
+								"target": null,
+								"rel": null,
+								"title": null,
+								"class": null
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " records every member of "
+				},
+				{
+					"type": "text",
+					"text": "ViewerState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and the command that changes it. To change configuration, set the "
+				},
+				{
+					"type": "text",
+					"text": "config",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " prop or property as described in "
+				},
+				{
+					"type": "text",
+					"text": "Configuration",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#passing-configuration",
+								"target": null,
+								"rel": null,
+								"title": null,
+								"class": null
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "3-read-and-subscribe",
+				"id": "80bd48de-d26e-4cc9-9fa4-74efa20ec851"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "3. Read and subscribe"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "3cd30328-65a3-4581-9ea8-0ef63e4a254d"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Read members directly. Reads are synchronous and always current."
+				}
+			]
+		},
+		{
+			"type": "table",
+			"attrs": {
+				"id": "4f165465-2c39-4f0e-8c1e-4c399c734ed6"
+			},
+			"content": [
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "86de2d34-21d4-4d7e-956e-ccaa32346a3d"
+					},
+					"content": [
+						{
+							"type": "tableHeader",
+							"attrs": {
+								"id": "ad221bd0-7bb7-47a2-bcb2-8711f2e13a63"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "4cf4e4f7-de73-448d-9dd6-a261588da495"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Member"
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableHeader",
+							"attrs": {
+								"id": "cf269eac-1dd7-46f3-8e1b-3b9da2100ada"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "b28bd98b-4633-49c2-823e-7ccec2a89a19"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Holds"
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "32d148f6-cfae-4d9f-809d-c35a3f8948f8"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "aac072cc-ccdb-42ab-8d6c-219b588e353b"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "4024042e-8982-40cc-84f4-db601cfb0c9c"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "manifestId",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "canvasId",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "4c92350e-d333-4979-a7be-865e0c9b91c1"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "7b778888-0072-423b-8a97-aa0d250ee3a2"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "The open manifest and canvas, or "
+										},
+										{
+											"type": "text",
+											"text": "null",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "bd09c782-daa8-46d1-a2a9-451e9e15d064"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "7cb60688-9ddb-4932-8d9e-856c7b73f382"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "76b5e6ea-cfb5-461d-b6ec-e60598c0a339"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "canvases",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "currentCanvasIndex",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "1e4b8573-c32e-41ec-84c5-2f1392cc7795"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "f91011e1-edbb-4839-ad74-769cc530209d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "The current sequence's canvases, and the open one's position in it ("
+										},
+										{
+											"type": "text",
+											"text": "-1",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " when none)."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "a21f5791-d4b0-4763-81a8-e1d8f891f7d0"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "3259ec4b-b9f5-459c-92ba-792bd8c487b3"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "745d73e5-b9a1-44db-ae67-997e6b00d9b5"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "hasNext",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "hasPrevious",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "16440830-82c0-4df4-b84e-8d8c5417c67c"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "df7cb5d0-5ae8-4a56-9079-df798b17bb02"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Whether "
+										},
+										{
+											"type": "text",
+											"text": "nextCanvas()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " or "
+										},
+										{
+											"type": "text",
+											"text": "previousCanvas()",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " would move."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "4442d0c3-7649-42c4-be55-1ef56c9753cd"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "158d1e79-f9b2-436f-a64b-16616ba1c29e"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "9a28c708-5ca3-4455-bddf-714d96a10f3c"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "viewingMode",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "344531fb-6b33-4553-a72d-98e1edc6c725"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "4a409672-b0df-47cf-9184-0429967b56f6"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "'individuals'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "'paged'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", or "
+										},
+										{
+											"type": "text",
+											"text": "'continuous'",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": "."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "1c572332-3fea-4e74-b273-3be6691274b8"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "6257229e-dfb4-4cc6-a321-b88c3c3c4099"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "72bec4b7-a3c9-4eb7-a824-900f1221713d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "showAnnotations",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "showSearchPanel",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "showMetadataPanel",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "showStructuresPanel",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "showThumbnailGallery",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "1acdf8bd-1f6e-4eac-8b6b-6c2c2b0655c8"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "c91301cc-6fb6-4f8c-b178-2943af883b90"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Whether each panel is open."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "bfa8ea4e-04ad-47ee-b9c4-180be84568f1"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "4f80527c-7075-498c-9b18-5da738092d63"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "a07057e0-0a39-4fa4-b627-f9fa8d203370"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "searchQuery",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "searchResults",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "isSearching",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "5c4bbdc6-b4d6-488a-8707-2fbe342242e4"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "8288a947-3b4b-4115-9f73-ed241f0657ba"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "The last search and its results."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "9f8c0cd8-afa8-41a9-83c3-ee46a7026c64"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "a7ac5726-dae4-427f-804d-2d0da1d42d50"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "41897af1-11ce-408d-90db-160a3dcb5b94"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "visibleCanvasIds",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "2ae33e70-c26a-4051-9cc4-49e0e12defe4"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "daea495e-f713-45a9-8f18-b3d2e4a438eb"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "The canvases on screen: one, a spread, or the folios in view while scrolling."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "38636670-dc0b-4d88-8965-6d299df0dab6"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "d992216f-2d51-4af5-89f0-3b3d827c1556"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "78f27eab-4af9-4a1e-a800-9a9d69b5f58d"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "rendererReady",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "bee81bad-635f-4975-9688-2d7613caf0b1"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "12af4860-3285-4059-879b-0e545ad5b155"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Whether zoom, pan, and fit commands will take effect yet."
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "tableRow",
+					"attrs": {
+						"id": "abef55d7-a899-4d49-9222-1c17a77ceb71"
+					},
+					"content": [
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "6f0a1904-7cc7-477a-bc82-cec9bf2639f8"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "534446ae-4c31-4859-9ffa-87ad7ac471bf"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "viewportScale",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "viewportCentre",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ", "
+										},
+										{
+											"type": "text",
+											"text": "viewportBounds",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "tableCell",
+							"attrs": {
+								"id": "fdcba336-5df1-4e7a-8223-f33d4e5c1966"
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"attrs": {
+										"id": "a1112649-7630-4f33-ac8a-8354395e15be"
+									},
+									"content": [
+										{
+											"type": "text",
+											"text": "Where the view is right now. Read these on demand; they change every frame and never notify."
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "78da8d16-9c81-4a52-9ea9-7134d533f5d7"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "To be notified of changes, call "
+				},
+				{
+					"type": "text",
+					"text": "subscribe()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Notifications are batched and carry no payload: they mean “state changed, read what you need”. It returns a function that unsubscribes."
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "e72bbd13-eed3-4758-8989-7991759050ef"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import type { ViewerState } from 'triiiceratops';\n\ndeclare const state: ViewerState;\ndeclare const counter: HTMLElement;\n\nconst stop = state.subscribe(() => {\n    counter.textContent = `${state.currentCanvasIndex + 1} / ${state.canvases.length}`;\n});\n\n// Later, when your control goes away:\nstop();"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "ca3e5847-bbab-4b6f-89e2-fa5e352bf826"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Viewport values are the exception: they move every frame, so "
+				},
+				{
+					"type": "text",
+					"text": "subscribe()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " does not notify for them. Use "
+				},
+				{
+					"type": "text",
+					"text": "subscribeFrame()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", which has the same shape and fires as the view animates."
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "4aa8abad-2d2e-4a28-aed4-f557e85d0abb"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "In a framework, prefer its reactive reads over a manual subscription: "
+				},
+				{
+					"type": "text",
+					"text": "useViewerSelector()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " in "
+				},
+				{
+					"type": "text",
+					"text": "React",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/react/#reactive-reads",
+								"target": null,
+								"rel": null,
+								"title": null,
+								"class": null
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "Vue",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/vue/#reactive-reads",
+								"target": null,
+								"rel": null,
+								"title": null,
+								"class": null
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", or plain "
+				},
+				{
+					"type": "text",
+					"text": "$derived",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " in "
+				},
+				{
+					"type": "text",
+					"text": "Svelte",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/svelte/#reading-and-commanding-state",
+								"target": null,
+								"rel": null,
+								"title": null,
+								"class": null
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". The custom element also fires DOM events such as "
+				},
+				{
+					"type": "text",
+					"text": "canvaschange",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "; see "
+				},
+				{
+					"type": "text",
+					"text": "reacting to state changes",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#reacting-to-state-changes",
+								"target": null,
+								"rel": null,
+								"title": null,
+								"class": null
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "things-that-trip-people-up",
+				"id": "97150283-730d-4636-884b-eb066e7fd6c8"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Common pitfalls"
+				}
+			]
+		},
+		{
+			"type": "bulletList",
+			"attrs": {
+				"id": "3f9f97d9-6914-4241-9495-48c642be5e2c"
+			},
+			"content": [
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "8d1753aa-a3e5-4a29-b2c1-cdf8767c67de"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "72763f5d-1c54-4067-b27d-c62c8e652e7e"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "Viewport commands need a renderer.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " "
+								},
+								{
+									"type": "text",
+									"text": "zoomIn()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "panTo()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and the fit commands do nothing until "
+								},
+								{
+									"type": "text",
+									"text": "rendererReady",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " is true."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "1c305582-1bf1-4fcd-a925-6a64510d9673"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "2109df0b-1d5e-466a-a07c-8982e19f3a39"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "`manifestId` and `canvasId` set where the viewer starts.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " They do not hold it there: treat them as starting points, and call "
+								},
+								{
+									"type": "text",
+									"text": "setCanvas()",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " to navigate later. See "
+								},
+								{
+									"type": "text",
+									"text": "controlling the active canvas",
+									"marks": [
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/configuration/#controlling-active-canvas",
+												"target": null,
+												"rel": null,
+												"title": null,
+												"class": null
+											}
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "db67c651-b253-4c47-8569-683bf45a930f"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "cecb0d48-d86b-4186-9ba3-e671b54e5ace"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "One state per viewer.",
+									"marks": [
+										{
+											"type": "bold"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " Two viewers on a page have two independent states. If the element is removed and re-added, it gets a new state and fires "
+								},
+								{
+									"type": "text",
+									"text": "viewerstateavailable",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": " again; drop the old one. The React and Vue handles follow this for you."
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "1527aba0-af12-4709-ab96-972f04df29b2"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "For a full custom toolbar in every framework, see "
+				},
+				{
+					"type": "text",
+					"text": "building your own chrome",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/configuration/#building-your-own-chrome",
+								"target": null,
+								"rel": null,
+								"title": null,
+								"class": null
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			]
+		}
+	],
+	"meta": {
+		"title": "Drive Triiiceratops Programmatically",
+		"shortTitle": "Drive programmatically",
+		"intro": "Reach into a viewer's live state from your own code: read where it is, command it to move, and hear when it changes."
+	}
+}

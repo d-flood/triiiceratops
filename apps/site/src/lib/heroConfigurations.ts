@@ -518,9 +518,7 @@ export function heroSnippet(settings: HeroSettings): string {
 
     if (settings.theme === SITE_THEME) {
         lines.push('');
-        lines.push(
-            '// No built-in theme: the viewer wears this page’s tokens.',
-        );
+        lines.push('// No built-in theme: uses this page’s CSS tokens.');
         lines.push(
             `const themeConfig = { ${[
                 "viewerBg: 'var(--stage)'",
@@ -530,7 +528,7 @@ export function heroSnippet(settings: HeroSettings): string {
         );
     } else if (moved.length > 0) {
         lines.push('');
-        lines.push('// Slots moved off the preset arrive as themeConfig.');
+        lines.push('// Overrides on top of the preset theme.');
         lines.push(`const themeConfig = { ${moved.join(', ')} };`);
     }
 

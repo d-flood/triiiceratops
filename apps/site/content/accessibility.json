@@ -132,7 +132,7 @@
 								},
 								{
 									"type": "text",
-									"text": ": the interface and pan-and-zoom animations respect the reader’s reduced-motion preference."
+									"text": ": the interface and pan-and-zoom animations respect the user’s reduced-motion preference."
 								}
 							]
 						}

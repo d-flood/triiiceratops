@@ -1612,7 +1612,7 @@
 				},
 				{
 					"type": "text",
-					"text": " writes nothing, so your markup never fights a user who navigated internally; read "
+					"text": " writes nothing, so your markup never overrides navigation the user made inside the viewer; read "
 				},
 				{
 					"type": "text",

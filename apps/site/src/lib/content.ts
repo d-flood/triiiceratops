@@ -24,13 +24,13 @@ export const siteConfig: UncialCmsSiteConfig = {
 export const localContentDir = 'content';
 
 const metaFields = {
-    title: { default: '', required: true, placeholder: 'What it handles' },
-    shortTitle: { default: '', required: true, placeholder: 'What it handles' },
+    title: { default: '', required: true, placeholder: 'Page title' },
+    shortTitle: { default: '', required: true, placeholder: 'Short title' },
     intro: {
         default: '',
         required: true,
         input: 'textarea',
-        placeholder: 'One real sentence saying what the page is for.',
+        placeholder: 'One sentence describing the page.',
     },
 } as const;
 
@@ -91,7 +91,7 @@ export const blocks = createBlockRegistry([
     defineSvelteBlock({
         id: 'callout',
         label: 'Callout',
-        description: 'An aside the reader is meant to stop at.',
+        description: 'A highlighted note, tip or warning.',
         attributes: {
             kind: {
                 default: 'note',
@@ -106,7 +106,7 @@ export const blocks = createBlockRegistry([
                         ? value
                         : 'note',
             },
-            title: { default: '', placeholder: 'What it is about' },
+            title: { default: '', placeholder: 'Title' },
         },
         component: Callout as SvelteBlockComponent,
         content: { kind: 'flow' },
@@ -139,8 +139,7 @@ export const blocks = createBlockRegistry([
     defineSvelteBlock({
         id: 'install',
         label: 'Install block',
-        description:
-            'Both install forms: the package-manager tabs and the CDN pair.',
+        description: 'Package-manager install tabs and the CDN script snippet.',
         readOnly: true,
         attributes: {},
         component: InstallBlock as SvelteBlockComponent,
@@ -149,8 +148,7 @@ export const blocks = createBlockRegistry([
     defineSvelteBlock({
         id: 'features',
         label: 'Feature stage',
-        description:
-            'Every feature the viewer has, each one running on the material that has it.',
+        description: 'Interactive feature list, each shown in a live viewer.',
         readOnly: true,
         attributes: {},
         component: FeatureStage as SvelteBlockComponent,
@@ -164,8 +162,7 @@ export const blocks = createBlockRegistry([
             note: {
                 default: '',
                 input: 'textarea',
-                placeholder:
-                    'One line introducing what this group of links is.',
+                placeholder: 'One line describing this group of links.',
             },
         },
         component: LinkRows as SvelteBlockComponent,
@@ -174,14 +171,13 @@ export const blocks = createBlockRegistry([
     defineSvelteBlock({
         id: 'linkRow',
         label: 'Link row',
-        description:
-            'One row: a link, what it is, and an optional second link.',
+        description: 'A link with a description and an optional second link.',
         attributes: {
             label: {
                 default: '',
                 required: true,
                 validate: isFilledString,
-                placeholder: 'What the link is called',
+                placeholder: 'Link text',
             },
             href: {
                 default: '',
@@ -192,7 +188,7 @@ export const blocks = createBlockRegistry([
             note: {
                 default: '',
                 input: 'textarea',
-                placeholder: 'One clause saying what it is.',
+                placeholder: 'Short description',
             },
             actionLabel: { default: '', placeholder: 'Open an example' },
             actionHref: { default: '', placeholder: 'https://' },
@@ -202,8 +198,8 @@ export const blocks = createBlockRegistry([
     }),
     defineSvelteBlock({
         id: 'onward',
-        label: 'The rest of the site',
-        description: 'Every other page the rail carries, as ruled rows.',
+        label: 'Other pages',
+        description: 'Links to the other pages in the site navigation.',
         readOnly: true,
         attributes: {},
         component: OnwardList as SvelteBlockComponent,

@@ -12,7 +12,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Choose your way in"
+					"text": "Integration options"
 				}
 			]
 		},
@@ -24,7 +24,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "A collection website, a digital edition, a research application: Triiiceratops fits into the tools you already use."
+					"text": "Use Triiiceratops in a collection website, a digital edition, or a research application, with the framework you already use."
 				}
 			]
 		},
@@ -156,7 +156,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Start simple. Connect more when you need it."
+					"text": "Standalone or integrated"
 				}
 			]
 		},

@@ -52,12 +52,9 @@
         {/each}
     </div>
     <ul class="cov__key">
-        <li><span class="cov__cell cov__cell--on"></span> works</li>
-        <li>
-            <span class="cov__cell cov__cell--partial"></span> partial, as the matrix
-            marks it
-        </li>
-        <li><span class="cov__cell cov__cell--off"></span> does not</li>
+        <li><span class="cov__cell cov__cell--on"></span> supported</li>
+        <li><span class="cov__cell cov__cell--partial"></span> partial</li>
+        <li><span class="cov__cell cov__cell--off"></span> not supported</li>
         <li>of {COVERAGE.total} recipes</li>
     </ul>
 
@@ -92,7 +89,7 @@
 </section>
 
 <section class="band band--paper" aria-labelledby="table">
-    <h2 id="table">Every viewer measured</h2>
+    <h2 id="table">All viewers</h2>
     <div class="ratios ratios--roman">
         <table>
             <caption class="vh"
@@ -154,10 +151,10 @@
         </p>
         <p>
             Compression is identical for every row: raw bytes, gzip level {COMPRESSION.gzipLevel},
-            Brotli quality {COMPRESSION.brotliQuality}, applied locally, with a
-            multi-file total the sum of those files compressed separately, which
-            is what separate HTTP responses cost. Triiiceratops is built from
-            this repository's own sources and every other row is that project's
+            Brotli quality {COMPRESSION.brotliQuality}, applied locally.
+            Multi-file totals are the sum of each file compressed separately, as
+            separate HTTP responses would be. Triiiceratops is built from this
+            repository's own sources and every other row is that project's
             published artifact at the version in the table, not re-minified.
             Excluded everywhere: source maps, host HTML, manifests, images,
             tiles, media, fonts and external configuration.

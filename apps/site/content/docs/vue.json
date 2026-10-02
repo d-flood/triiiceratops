@@ -3656,7 +3656,7 @@
 				},
 				{
 					"type": "text",
-					"text": " writes nothing, so the wrapper never fights the user."
+					"text": " writes nothing, so the wrapper never overrides the user's navigation."
 				}
 			],
 			"attrs": {
@@ -4645,7 +4645,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The imperative escape hatch"
+					"text": "Imperative access"
 				}
 			]
 		},
@@ -4654,7 +4654,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The same template ref is the escape hatch. It exposes two members: "
+					"text": "The same template ref provides imperative access. It exposes two members: "
 				},
 				{
 					"type": "text",
@@ -5050,7 +5050,7 @@
 				},
 				{
 					"type": "text",
-					"text": " deactivation detaches the element from the document for long enough that the custom element destroys its inner viewer, and reactivation mounts a brand-new one. Both halves of that matter:"
+					"text": " deactivation detaches the element from the document for long enough that the custom element destroys its inner viewer, and reactivation mounts a brand-new one. This has two consequences:"
 				}
 			],
 			"attrs": {
@@ -5235,7 +5235,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "When wiring goes wrong"
+					"text": "Wiring errors"
 				}
 			]
 		},
@@ -5884,7 +5884,7 @@
 				},
 				{
 					"type": "text",
-					"text": " polyfill that reaches for a "
+					"text": " polyfill that requires a "
 				},
 				{
 					"type": "text",
@@ -6278,7 +6278,7 @@
 								},
 								{
 									"type": "text",
-									"text": " covers the three supported answers, with a Vue custom-toolbar example."
+									"text": " covers the three supported alternatives, with a Vue custom-toolbar example."
 								}
 							],
 							"attrs": {
@@ -6328,7 +6328,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "There is no Vue example page: the wrapper's whole job is to hand you Vue idioms over the same element every host uses. To see that element running this release's bundles in a browser, open the "
+					"text": "There is no Vue example page: the wrapper only adds Vue idioms on top of the same element every host uses. To see that element running this release's bundles in a browser, open the "
 				},
 				{
 					"type": "text",

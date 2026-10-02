@@ -20,7 +20,7 @@
 				},
 				{
 					"type": "text",
-					"text": " adds the writing half: a "
+					"text": " adds editing: a "
 				},
 				{
 					"type": "text",
@@ -46,7 +46,7 @@
 				},
 				{
 					"type": "text",
-					"text": " interface so annotations persist wherever your institution keeps them. Every tool is operable from the keyboard, for creating a shape as well as for editing one."
+					"text": " interface for saving annotations to any storage backend. Every tool is operable from the keyboard, for creating a shape as well as for editing one."
 				}
 			],
 			"attrs": {
@@ -79,7 +79,7 @@
 						},
 						{
 							"type": "text",
-							"text": " list. A viewer without it still renders and selects the annotations a manifest publishes; it just offers no way to write one."
+							"text": " list. A viewer without it still renders and selects the annotations a manifest publishes; it cannot create or edit them."
 						}
 					],
 					"attrs": {
@@ -187,7 +187,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for a point, and no selector at all for a whole-canvas note. Nothing in the format is this plugin’s invention, so an annotation written here is readable by anything that reads IIIF."
+					"text": " for a point, and no selector at all for a whole-canvas note. These are standard formats, so any IIIF-compatible software can read the saved annotations."
 				}
 			],
 			"attrs": {
@@ -400,7 +400,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". Hand it to the viewer the way you hand it any other plugin. See "
+					"text": ". Add it to the viewer like any other plugin. See "
 				},
 				{
 					"type": "text",
@@ -785,7 +785,7 @@
 								},
 								{
 									"type": "text",
-									"text": " While the editor’s surface is open, every annotation core draws becomes selectable, focusable and operable. Close the panel and they go back to being the read-only overlay they were. Shapes are editable only while the panel is open."
+									"text": " While the editor’s surface is open, every annotation core draws becomes selectable, focusable and operable. When the panel closes, they are read-only again."
 								}
 							],
 							"attrs": {
@@ -862,7 +862,7 @@
 				},
 				{
 					"type": "text",
-					"text": " for reprojection. No third-party object model sits between the editor and the viewer."
+					"text": " for reprojection. The editor uses no third-party object model."
 				}
 			],
 			"attrs": {
@@ -901,7 +901,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": the reader arms a tool from the panel, and for as long as it is armed the drawing layer takes pointer events across the whole image, so a drag draws instead of panning. Each tool has one gesture, so nothing has to guess whether a press was a click or a drag."
+					"text": ": the user arms a tool from the panel, and for as long as it is armed the drawing layer takes pointer events across the whole image, so a drag draws instead of panning. Each tool has one gesture, so a press is never ambiguous between a click and a drag."
 				}
 			],
 			"attrs": {
@@ -1375,7 +1375,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "A region smaller than four canvas pixels in either dimension is discarded rather than committed, so hand jitter does not litter an annotation set with two-pixel shapes. A point is a click with no extent, so the guard does not apply to it."
+					"text": "A region smaller than four canvas pixels in either dimension is discarded rather than committed, so small accidental drags do not create tiny shapes. A point is a click with no extent, so the guard does not apply to it."
 				}
 			],
 			"attrs": {
@@ -1386,7 +1386,7 @@
 			"type": "callout",
 			"attrs": {
 				"kind": "note",
-				"title": "An ellipse is a creation affordance only",
+				"title": "Ellipses are saved as polygons",
 				"id": "7555bf79-adfd-4d1b-9a8e-9768c4ec836c"
 			},
 			"content": [
@@ -1395,7 +1395,7 @@
 					"content": [
 						{
 							"type": "text",
-							"text": "An ellipse persists as a 64-point polygon inscribed in the dragged box, and is edited afterwards as a polygon. Nothing records that it was once an ellipse, because IIIF has no ellipse selector, and a shape that round-trips as a polygon everywhere else must not pretend otherwise here ("
+							"text": "An ellipse persists as a 64-point polygon inscribed in the dragged box, and is edited afterwards as a polygon. Nothing records that it was once an ellipse, because IIIF has no ellipse selector, and a shape that round-trips as a polygon everywhere else is treated as one here too ("
 						},
 						{
 							"type": "text",
@@ -1532,7 +1532,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Pointer-drag panning is the one thing arming suppresses, and Space is its escape hatch. A tool is armed only while the panel that explains it is on screen. Escape and closing the panel both disarm it, and both cancel rather than commit."
+					"text": "Arming a tool disables only pointer-drag panning; hold Space to pan instead. A tool stays armed only while its panel is open. Escape and closing the panel both disarm it, and both cancel rather than commit."
 				}
 			],
 			"attrs": {
@@ -1571,7 +1571,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": arming a tool and pressing Enter drops a default-sized shape at the center of the current view, which the ordinary editing verbs then move and size. Creating and editing share one set of verbs."
+					"text": ": arming a tool and pressing Enter drops a default-sized shape at the center of the current view, which the standard editing keys then move and resize. Creating and editing use the same keys."
 				}
 			],
 			"attrs": {
@@ -2046,7 +2046,7 @@
 				},
 				{
 					"type": "text",
-					"text": " pixels, not screen pixels, so one press moves a vertex the same distance across the folio at fit zoom as at 8×."
+					"text": " pixels, not screen pixels, so one press moves a vertex the same distance across the image at fit zoom as at 8×."
 				}
 			],
 			"attrs": {
@@ -2085,7 +2085,7 @@
 				},
 				{
 					"type": "text",
-					"text": ". It knows nothing about how a shape is displayed: the plugin owns display sync, caching, create-versus-update resolution, id reconciliation, creator and timestamp stamping, hydration, and error handling around it. A conforming adapter is roughly these four functions."
+					"text": ". It handles no display logic: the plugin owns display sync, caching, create-versus-update resolution, id reconciliation, creator and timestamp stamping, hydration, and error handling around it. A conforming adapter is roughly these four functions."
 				}
 			],
 			"attrs": {
@@ -2338,7 +2338,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Omit the handler and the plugin logs and shows a dismissible error line in the panel, so a failure is never invisible."
+					"text": "Omit the handler and the plugin logs and shows a dismissible error line in the panel, so failures are always visible."
 				}
 			],
 			"attrs": {
@@ -2405,7 +2405,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The suite the built-in adapter passes is exported for yours to run against. It checks storage behavior only (load, create, update and delete round-trips, verbatim body preservation including structured and unknown shapes, key isolation, and the two opt-in capabilities), because storage is all an adapter owns."
+					"text": "The conformance suite used for the built-in adapter is exported so you can run it against your own. It checks storage behavior only (load, create, update and delete round-trips, verbatim body preservation including structured and unknown shapes, key isolation, and the two opt-in capabilities), because an adapter is responsible only for storage."
 				}
 			],
 			"attrs": {
@@ -2456,7 +2456,7 @@
 				},
 				{
 					"type": "text",
-					"text": " blocks, invokes the factory fresh before each test so a stateful adapter starts clean, and uses a unique manifest and canvas pair per test so a storage-backed adapter cannot bleed between them."
+					"text": " blocks, invokes the factory fresh before each test so a stateful adapter starts clean, and uses a unique manifest and canvas pair per test so a storage-backed adapter cannot leak state between tests."
 				}
 			],
 			"attrs": {
@@ -2555,7 +2555,7 @@
 				},
 				{
 					"type": "text",
-					"text": " bump. It stores data in one browser only, which suits a demo, a workshop, or a reader’s private notes. For a multi-user production store, supply your own adapter."
+					"text": " bump. It stores data in one browser only, which suits a demo, a workshop, or a user’s private notes. For a multi-user production store, supply your own adapter."
 				}
 			],
 			"attrs": {
@@ -4017,7 +4017,7 @@
 				},
 				{
 					"type": "text",
-					"text": ": each step is replayed through the same write path a reader’s own edit takes, so display sync, id reconciliation and error rollback all apply to it. The history holds fifty steps and is cleared on a canvas change and on teardown, because an annotation’s id is only meaningful against the canvas it targets."
+					"text": ": each step is replayed through the same write path as a user’s own edit, so display sync, id reconciliation and error rollback all apply to it. The history holds fifty steps and is cleared on a canvas change and on teardown, because an annotation’s id is only meaningful against the canvas it targets."
 				}
 			],
 			"attrs": {
@@ -4136,7 +4136,7 @@
 				},
 				{
 					"type": "text",
-					"text": " rather than on an outside click: while a tool is armed, a click on the canvas is how the reader draws, and a light-dismissing flyout would close itself on the first stroke."
+					"text": " rather than on an outside click: while a tool is armed, clicks on the canvas draw, so a flyout that closed on outside clicks would close on the first stroke."
 				}
 			],
 			"attrs": {
@@ -4937,7 +4937,7 @@
 				},
 				{
 					"type": "text",
-					"text": " like every other panel; the plugin’s own CSS reads the public palette, radius and input tokens, so retinting those retints it."
+					"text": " like every other panel; the plugin’s own CSS reads the public palette, radius and input tokens, so changing those tokens restyles it."
 				}
 			],
 			"attrs": {
@@ -5061,7 +5061,7 @@
 								},
 								{
 									"type": "text",
-									"text": ", because core paints nothing there for a comment to be anchored against. Annotating a point in a recording is a separate future plugin, not a gap in this one."
+									"text": ", because core renders no image there to annotate. Annotating a point in a recording is planned as a separate plugin."
 								}
 							],
 							"attrs": {
@@ -5161,7 +5161,7 @@
 								},
 								{
 									"type": "text",
-									"text": " for anyone else to fetch. Publishing what a reader wrote is your server’s decision, not the viewer’s."
+									"text": " for anyone else to fetch. Publishing saved annotations is handled by your server, not the viewer."
 								}
 							],
 							"attrs": {
@@ -5239,7 +5239,7 @@
 				},
 				{
 					"type": "text",
-					"text": " floor is the whole compatibility statement."
+					"text": " minimum is the only compatibility requirement."
 				}
 			],
 			"attrs": {

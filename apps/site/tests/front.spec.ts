@@ -4,7 +4,7 @@ import { PUBLISHED_ORIGIN } from './helpers/origin';
 import { HERO_EXAMPLE } from '../src/lib/examples';
 
 function heroViewer(page: Page) {
-    return page.getByRole('group', { name: 'The viewer, running' });
+    return page.getByRole('group', { name: 'Live viewer' });
 }
 
 test.describe('the hero', () => {
@@ -246,14 +246,14 @@ test.describe('the hero', () => {
         await expect(page.locator('.hp__dot')).toHaveCount(21);
         await expect(page.locator('.hp__grp')).toHaveCount(4);
 
-        const back = page.getByRole('button', { name: 'Back one setting' });
-        await page.getByRole('button', { name: 'Hold the cycle' }).click();
+        const back = page.getByRole('button', { name: 'Previous example' });
+        await page.getByRole('button', { name: 'Pause examples' }).click();
         const held = await exampleAt(page);
         await page.waitForTimeout(4000);
         expect(await exampleAt(page)).toBe(held);
 
         const forward = page.getByRole('button', {
-            name: 'Forward one setting',
+            name: 'Next example',
         });
         await forward.click();
         const stepped = await exampleAt(page);
@@ -266,7 +266,7 @@ test.describe('the hero', () => {
         await forward.click();
         expect(await exampleAt(page)).toBe(stepped);
 
-        await page.getByRole('button', { name: 'Run the cycle' }).click();
+        await page.getByRole('button', { name: 'Play examples' }).click();
         await expect(async () => {
             expect(await exampleAt(page)).not.toBe(stepped);
         }).toPass({ timeout: 12_000 });
@@ -304,7 +304,7 @@ test.describe('the hero', () => {
     }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto('/');
-        await page.getByRole('button', { name: 'Hold the cycle' }).click();
+        await page.getByRole('button', { name: 'Pause examples' }).click();
 
         const panel = page.locator('.hp');
         const galleryDock = page.getByRole('radiogroup', {

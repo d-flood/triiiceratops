@@ -35,9 +35,7 @@
               ? SITE_NAME
               : `${current.shortTitle} — ${SITE_NAME}`,
     );
-    const description = $derived(
-        current?.intro ?? 'That page is not part of this site.',
-    );
+    const description = $derived(current?.intro ?? 'Page not found.');
 
     const isIndex = $derived(path === '/');
 

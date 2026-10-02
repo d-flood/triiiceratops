@@ -40,9 +40,9 @@ export const ROUTES: readonly SiteRoute[] = [
         group: 1,
         source: 'code',
         meta: {
-            title: 'What it can do',
-            shortTitle: 'What it can do',
-            intro: 'Explore the following (non-exhaustive) features of Triiiceratops.',
+            title: 'Features',
+            shortTitle: 'Features',
+            intro: 'A non-exhaustive selection of Triiiceratops features.',
         },
     },
     {
@@ -50,8 +50,8 @@ export const ROUTES: readonly SiteRoute[] = [
         group: 1,
         source: 'code',
         meta: {
-            title: 'Small and mighty',
-            shortTitle: 'Small and mighty',
+            title: 'Bundle size and recipe coverage',
+            shortTitle: 'Size',
             intro: 'Triiiceratops is currently both the smallest and most capable embeddable IIIF viewer.',
         },
     },
@@ -66,7 +66,7 @@ export const ROUTES: readonly SiteRoute[] = [
         meta: {
             title: 'Build your viewer',
             shortTitle: 'Build your viewer',
-            intro: 'Here you can easily create a layout and theme configuration for your viewer. Share the resulting configuration with others.',
+            intro: 'Create a layout and theme configuration for the viewer, then export or share it.',
         },
     },
     {
@@ -76,7 +76,7 @@ export const ROUTES: readonly SiteRoute[] = [
         meta: {
             title: 'IIIF Cookbook recipes',
             shortTitle: 'Cookbook recipes',
-            intro: 'Every Cookbook recipe the workspace tracks, on one running viewer, with what it does with each.',
+            intro: 'Every tracked IIIF Cookbook recipe, loaded in one viewer, with support status for each.',
         },
     },
     {
@@ -86,7 +86,7 @@ export const ROUTES: readonly SiteRoute[] = [
         meta: {
             title: 'Design system',
             shortTitle: 'Design system',
-            intro: 'An appendix: every design token the site is built from, with the measured contrast ratio that admitted it.',
+            intro: 'All design tokens the site uses, with measured contrast ratios.',
         },
     },
 ];
@@ -113,6 +113,7 @@ export const DOC_ROUTES: readonly DocRoute[] = [
     { path: '/docs/svelte/', section: 'Get started', source: 'content' },
     { path: '/docs/integration/', section: 'Get started', source: 'content' },
     { path: '/docs/configuration/', section: 'Guides', source: 'content' },
+    { path: '/docs/programmatic/', section: 'Guides', source: 'content' },
     { path: '/docs/theming/', section: 'Guides', source: 'content' },
     { path: '/docs/content-state/', section: 'Guides', source: 'content' },
     { path: '/docs/csp/', section: 'Guides', source: 'content' },

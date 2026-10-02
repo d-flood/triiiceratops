@@ -76,15 +76,15 @@ const sides = choices<NonNullable<Information['position']>>({
 export const CONTROL_GROUPS: readonly ControlGroup[] = [
     {
         title: 'Arrangement',
-        note: 'Where the viewer puts its own chrome around the material.',
+        note: 'Placement of the viewer controls.',
         controls: [
             {
                 kind: 'choice',
                 path: ['controls'],
                 label: 'Controls',
                 choices: choices<NonNullable<ViewerConfig['controls']>>({
-                    split: 'A separate toolbar rail',
-                    unified: 'One control bar',
+                    split: 'Separate toolbar',
+                    unified: 'Single control bar',
                 }),
             },
             {
@@ -92,8 +92,8 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
                 path: ['nav', 'style'],
                 label: 'Canvas nav',
                 choices: choices<NonNullable<Nav['style']>>({
-                    docked: 'Docked to the edge',
-                    floating: 'Floating off it',
+                    docked: 'Docked',
+                    floating: 'Floating',
                 }),
             },
             {
@@ -129,8 +129,8 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
                 path: ['toolbar', 'anchor'],
                 label: 'Toolbar anchor',
                 choices: choices<NonNullable<Toolbar['anchor']>>({
-                    center: 'Centered on its side',
-                    top: 'Pinned to the top',
+                    center: 'Center',
+                    top: 'Top',
                 }),
             },
             {
@@ -154,7 +154,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
                 kind: 'choice',
                 path: ['viewingMode'],
                 label: 'Viewing mode',
-                unset: 'Whatever the manifest declares',
+                unset: 'Manifest default',
                 choices: choices<NonNullable<ViewerConfig['viewingMode']>>({
                     individuals: 'One canvas at a time',
                     paged: 'Two-page spread',
@@ -165,7 +165,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
                 kind: 'choice',
                 path: ['viewingDirection'],
                 label: 'Viewing direction',
-                unset: 'Whatever the manifest declares',
+                unset: 'Manifest default',
                 choices: choices<NonNullable<ViewerConfig['viewingDirection']>>(
                     {
                         'left-to-right': 'Left to right',
@@ -177,11 +177,11 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             },
             toggle(
                 ['pagedViewOffset'],
-                'Offset the spread by one canvas, for a cover page',
+                'Show first canvas alone in two-page spread',
             ),
             toggle(
                 ['preserveCanvasScale'],
-                'Preserve the authored canvas scale in multi-canvas layouts',
+                'Preserve canvas scale in multi-canvas layouts',
             ),
             {
                 kind: 'count',
@@ -194,7 +194,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'count',
                 path: ['renderer', 'zoomPerClick'],
-                label: 'Zoom per button press',
+                label: 'Zoom per button click',
                 min: 1.05,
                 max: 3,
                 step: 0.05,
@@ -202,7 +202,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'count',
                 path: ['renderer', 'maxZoomFactor'],
-                label: 'Zoom ceiling, in multiples of a whole-canvas fit',
+                label: 'Max zoom (multiple of fit)',
                 min: 2,
                 max: 32,
                 step: 1,
@@ -210,7 +210,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'count',
                 path: ['renderer', 'maxZoomPixelRatio'],
-                label: 'Zoom ceiling, in device pixels per source pixel',
+                label: 'Max zoom (device pixels per image pixel)',
                 min: 0.5,
                 max: 8,
                 step: 0.5,
@@ -218,7 +218,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'count',
                 path: ['renderer', 'animationTimeConstant'],
-                label: 'Settling time for discrete motion, in seconds',
+                label: 'Animation duration (s)',
                 min: 0.02,
                 max: 0.5,
                 step: 0.01,
@@ -226,8 +226,8 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'text',
                 path: ['search', 'query'],
-                label: 'Search the manifest for this on load',
-                placeholder: 'A word to look for',
+                label: 'Search query on load',
+                placeholder: 'Search term',
             },
         ],
     },
@@ -235,19 +235,16 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
         title: 'Chrome',
         note: 'Which parts of the viewer UI to show or hide.',
         controls: [
-            toggle(['showToggle'], 'The toolbar’s open/close toggle'),
-            toggle(['toolbarOpen'], 'Open the toolbar to begin with'),
-            toggle(['showCanvasNav'], 'The canvas nav bar'),
-            toggle(['showZoomControls'], 'Zoom controls in the nav bar'),
-            toggle(['information', 'showButton'], 'The canvas info button'),
-            toggle(
-                ['transparentBackground'],
-                'A transparent background, so the host page shows through',
-            ),
+            toggle(['showToggle'], 'Toolbar toggle button'),
+            toggle(['toolbarOpen'], 'Toolbar open on load'),
+            toggle(['showCanvasNav'], 'Canvas nav bar'),
+            toggle(['showZoomControls'], 'Zoom controls'),
+            toggle(['information', 'showButton'], 'Canvas info button'),
+            toggle(['transparentBackground'], 'Transparent background'),
             {
                 kind: 'choice',
                 path: ['openMenu'],
-                label: 'A flyout menu already open',
+                label: 'Menu open on load',
                 unset: 'None',
                 choices: choices<NonNullable<ViewerConfig['openMenu']>>({
                     gallery: 'Gallery',
@@ -260,8 +257,8 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'text',
                 path: ['locale'],
-                label: 'The language the viewer speaks',
-                placeholder: 'Your browser’s, unless you name one',
+                label: 'Language',
+                placeholder: 'Browser default (e.g. en, fr)',
             },
         ],
     },
@@ -285,7 +282,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
         note: 'Which panels are open on load, which can be closed, and which side they appear on.',
         controls: [
             toggle(['gallery', 'open'], 'Gallery open'),
-            toggle(['gallery', 'expanded'], 'Gallery expanded to a full grid'),
+            toggle(['gallery', 'expanded'], 'Gallery expanded to grid'),
 
             toggle(['search', 'open'], 'Search open'),
             toggle(['search', 'showCloseButton'], 'Search close button'),
@@ -367,7 +364,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'count',
                 path: ['renderer', 'byteBudget'],
-                label: 'Tile cache ceiling',
+                label: 'Tile cache limit',
                 min: 16,
                 max: 512,
                 step: 16,
@@ -377,7 +374,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'count',
                 path: ['renderer', 'residencyMargin'],
-                label: 'Residency margin, as a multiple of the viewport',
+                label: 'Tile preload margin (× viewport)',
                 min: 1,
                 max: 4,
                 step: 0.1,
@@ -385,7 +382,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'count',
                 path: ['renderer', 'minPixelRatio'],
-                label: 'Least device pixels per level pixel',
+                label: 'Min device pixels per tile pixel',
                 min: 0.25,
                 max: 2,
                 step: 0.05,
@@ -393,7 +390,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'count',
                 path: ['renderer', 'pyramidThreshold'],
-                label: 'Full pyramid at this on-screen size, in pixels',
+                label: 'Full tile pyramid above (px on screen)',
                 min: 80,
                 max: 1200,
                 step: 20,
@@ -401,7 +398,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'count',
                 path: ['renderer', 'boxThreshold'],
-                label: 'Plain box below this on-screen size, in pixels',
+                label: 'Placeholder box below (px on screen)',
                 min: 4,
                 max: 200,
                 step: 4,
@@ -415,37 +412,37 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
             {
                 kind: 'headers',
                 path: ['requests', 'headers'],
-                label: 'Extra headers on the manifest request',
+                label: 'Manifest request headers',
                 placeholder: 'Authorization: Bearer …',
             },
             toggle(
                 ['requests', 'withCredentials'],
-                'Send cookies with the manifest request',
+                'Send cookies with manifest request',
             ),
-            toggle(['debug'], 'Log viewer diagnostics to the console'),
+            toggle(['debug'], 'Debug logging to console'),
         ],
     },
 ];
 
 export const PLUGIN_UI_CONTROLS: readonly BuilderControl[] = [
-    toggle(['visible'], 'Its toolbar button is visible'),
-    toggle(['open'], 'Its panel is open to begin with'),
-    toggle(['showCloseButton'], 'Its panel has a close button'),
+    toggle(['visible'], 'Toolbar button'),
+    toggle(['open'], 'Open on load'),
+    toggle(['showCloseButton'], 'Close button'),
     {
         kind: 'choice',
         path: ['target'],
-        label: 'Renders as',
-        unset: 'However the plugin was authored',
+        label: 'Display as',
+        unset: 'Plugin default',
         choices: choices<NonNullable<PluginUi['target']>>({
-            panel: 'A docked panel',
-            flyout: 'A flyout over the canvas',
+            panel: 'Panel',
+            flyout: 'Flyout',
         }),
     },
     {
         kind: 'choice',
         path: ['position'],
         label: 'Panel position',
-        unset: 'However the plugin was authored',
+        unset: 'Plugin default',
         choices: choices<NonNullable<PluginUi['position']>>({
             left: 'Left',
             right: 'Right',

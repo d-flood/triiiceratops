@@ -121,7 +121,7 @@
             type="button"
             class="hp__tbtn"
             onclick={onBack}
-            aria-label="Back one setting"
+            aria-label="Previous example"
         >
             <!-- Skip-back rather than a bare triangle: play is a bare
                  triangle, and two of those side by side are one control. -->
@@ -133,7 +133,7 @@
             type="button"
             class="hp__tbtn"
             onclick={onToggle}
-            aria-label={cycling ? 'Hold the cycle' : 'Run the cycle'}
+            aria-label={cycling ? 'Pause examples' : 'Play examples'}
         >
             {#if cycling}
                 <svg viewBox="0 0 16 16" aria-hidden="true"
@@ -149,7 +149,7 @@
             type="button"
             class="hp__tbtn"
             onclick={onForward}
-            aria-label="Forward one setting"
+            aria-label="Next example"
         >
             <svg viewBox="0 0 16 16" aria-hidden="true"
                 ><path d="M10 3.5h1.5v9H10zM4 3.5v9l5-4.5z" /></svg

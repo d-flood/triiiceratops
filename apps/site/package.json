@@ -36,7 +36,7 @@
         "@triiiceratops/plugin-pdf-export": "workspace:*",
         "@triiiceratops/shell": "workspace:*",
         "triiiceratops": "workspace:*",
-        "uncial": "^2.0.0"
+        "uncial": "^4.0.0"
     },
     "devDependencies": {
         "@playwright/test": "^1.57.0",
@@ -53,7 +53,7 @@
         "svelte": "^5.56.10",
         "svelte-check": "^4.3.4",
         "typescript": "~5.9.3",
-        "uncial-cms": "^2.0.0",
+        "uncial-cms": "^4.0.3",
         "vite": "^6.0.0",
         "vitest": "^4.0.15"
     }

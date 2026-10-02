@@ -51,14 +51,14 @@ const CATEGORIES: readonly {
     {
         id: 'surface',
         title: 'Surfaces',
-        note: 'The gallery and the input surface follow the viewer’s by default.',
+        note: 'Gallery and input surfaces use the viewer surface by default.',
         kind: 'colour',
         drop: [],
     },
     {
         id: 'content',
         title: 'Content colors',
-        note: 'Text and icons. Each region follows the global content color by default.',
+        note: 'Text and icon colors. Each region uses the global content color by default.',
         kind: 'colour',
         drop: [],
     },

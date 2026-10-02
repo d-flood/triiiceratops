@@ -1490,7 +1490,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Nothing about it is in core's bundle, and nothing activates unless you add it, so a manifest of scanned folios pays nothing for it. "
+					"text": "The plugin is not in core's bundle and does nothing unless you add it, so image-only viewers do not pay for it. "
 				},
 				{
 					"type": "text",
@@ -1520,7 +1520,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Once it renders"
+					"text": "Guides"
 				}
 			]
 		},
@@ -1532,7 +1532,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "The guides below are framework-neutral: every example carries a tab per stack, and the tab you picked above follows you across the site."
+					"text": "The guides below are framework-neutral: every example has a tab per stack, and the tab you select applies across the site."
 				}
 			]
 		},
@@ -1576,6 +1576,71 @@
 								{
 									"type": "text",
 									"text": ": panels (search, annotations, table of contents, collections), layout, the thumbnail gallery, and reading or commanding viewer state."
+								}
+							]
+						}
+					]
+				},
+				{
+					"type": "listItem",
+					"attrs": {
+						"id": "0b8b2084-0868-4774-8994-41cb88ed2538"
+					},
+					"content": [
+						{
+							"type": "paragraph",
+							"attrs": {
+								"id": "b09d9df4-aa2f-449a-b14a-00f230393d9e"
+							},
+							"content": [
+								{
+									"type": "text",
+									"marks": [
+										{
+											"type": "bold"
+										},
+										{
+											"type": "link",
+											"attrs": {
+												"href": "/docs/programmatic/",
+												"target": null,
+												"rel": null,
+												"title": null,
+												"class": null
+											}
+										}
+									],
+									"text": "Drive programmatically"
+								},
+								{
+									"type": "text",
+									"text": ": get the viewer's live state in any host, call commands like "
+								},
+								{
+									"type": "text",
+									"marks": [
+										{
+											"type": "code"
+										}
+									],
+									"text": "setCanvas()"
+								},
+								{
+									"type": "text",
+									"text": " or "
+								},
+								{
+									"type": "text",
+									"marks": [
+										{
+											"type": "code"
+										}
+									],
+									"text": "zoomIn()"
+								},
+								{
+									"type": "text",
+									"text": ", and subscribe to changes."
 								}
 							]
 						}
@@ -1836,7 +1901,7 @@
 								},
 								{
 									"type": "text",
-									"text": ": let readers draw and edit a canvas’s annotations, persisted through a storage adapter you supply. Opt-in, like audio and video."
+									"text": ": let users draw and edit a canvas’s annotations, persisted through a storage adapter you supply. Opt-in, like audio and video."
 								}
 							]
 						}
@@ -2223,7 +2288,7 @@
 								},
 								{
 									"type": "text",
-									"text": ": Renders rectangle, polygon, and point geometries from embedded or external annotation lists; creating and editing them is "
+									"text": ": Renders rectangle, polygon, and point geometries from embedded or external annotation lists; "
 								},
 								{
 									"type": "text",
@@ -2239,11 +2304,11 @@
 											}
 										}
 									],
-									"text": "one opt-in plugin"
+									"text": "an opt-in plugin"
 								},
 								{
 									"type": "text",
-									"text": " away"
+									"text": " adds creating and editing them"
 								}
 							]
 						}
