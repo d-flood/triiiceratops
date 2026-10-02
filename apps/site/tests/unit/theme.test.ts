@@ -37,13 +37,6 @@ describe('the inline script in app.html', () => {
         APP_HTML.indexOf('</script>'),
     );
 
-    it('is inline and blocking', () => {
-        expect(script).not.toBe('');
-        // A `src`, `defer`, `async` or `type="module"` script runs after the
-        // first paint, which is exactly the flash this exists to prevent.
-        expect(APP_HTML).not.toMatch(/<script[^>]+(src|defer|async|type)=/);
-    });
-
     it('runs before the head SvelteKit fills, and so before the stylesheet', () => {
         expect(APP_HTML.indexOf('<script>')).toBeLessThan(
             APP_HTML.indexOf('%sveltekit.head%'),

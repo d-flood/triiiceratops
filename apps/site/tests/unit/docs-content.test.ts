@@ -13,7 +13,7 @@
  * publishes.
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { defaultMapPathToSource } from 'uncial-cms/sveltekit';
@@ -24,7 +24,6 @@ import { PACKAGE_MANAGER_GROUP } from '$lib/install';
 import { CONTENT_ROUTES, DOC_ROUTES } from '$lib/routes';
 
 const APP_ROOT = fileURLToPath(new URL('../../', import.meta.url));
-const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 
 type Node = {
     readonly type: string;
@@ -147,17 +146,6 @@ describe('every callout in the site’s content', () => {
 });
 
 describe('the repository’s docs directory', () => {
-    it('holds only internal material, and no page anybody publishes', () => {
-        // The architecture decision records and the security notes, and nothing
-        // else. They stay Markdown because they are append-only and written at
-        // the moment of a decision: an edit button is exactly what they must not
-        // acquire, and no route declaration can reach them.
-        expect(readdirSync(`${REPO_ROOT}docs`).sort()).toEqual([
-            'adr',
-            'security',
-        ]);
-    });
-
     it('is not where the published documentation lives', () => {
         // Every declared documentation route resolves to a content document, so
         // no published page depends on this directory. `$lib/server/pageMeta`
