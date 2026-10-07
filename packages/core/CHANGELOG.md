@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.2.1
+
+### Patch Changes
+
+- bdbe022: The thumbnail gallery now scrolls only itself to reveal the active canvas, instead of also scrolling the host page.
+
 ## 1.2.0
 
 ### Minor Changes

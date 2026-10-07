@@ -45,7 +45,7 @@ export interface Competitor {
 
 // Workspace versions, not registry releases. Not read from those manifests here:
 // a JSON import would carry a whole package.json into the browser.
-const TRIIICERATOPS_VERSION = '1.2.0';
+const TRIIICERATOPS_VERSION = '1.2.1';
 const PLUGIN_AV_VERSION = '1.1.0';
 
 const viewerElement =
