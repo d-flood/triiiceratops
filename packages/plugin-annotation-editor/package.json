@@ -57,7 +57,7 @@
     "peerDependencies": {
         "triiiceratops": "workspace:^",
         "@triiiceratops/plugin-sdk": "workspace:^",
-        "svelte": "^5.56.10"
+        "svelte": "^5.57.2"
     },
     "peerDependenciesMeta": {
         "svelte": {
@@ -70,7 +70,7 @@
         "@triiiceratops/ui": "workspace:*",
         "@types/node": "^24.10.1",
         "@vitest/coverage-v8": "4.0.15",
-        "svelte": "5.56.10",
+        "svelte": "5.57.2",
         "svelte-check": "^4.3.4",
         "triiiceratops": "workspace:*",
         "typescript": "~5.9.3",

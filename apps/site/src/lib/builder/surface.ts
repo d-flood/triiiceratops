@@ -236,6 +236,7 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
                                 sequence: 'Sequence',
                                 locale: 'Language',
                                 captions: 'Captions',
+                                canvases: 'Canvas list',
                             },
                         ),
                     },

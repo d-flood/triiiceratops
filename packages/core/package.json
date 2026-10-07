@@ -70,7 +70,7 @@
     },
     "peerDependencies": {
         "react": "^19.0.0",
-        "svelte": "^5.0.0",
+        "svelte": "^5.29.0",
         "vue": "^3.5.0"
     },
     "peerDependenciesMeta": {
@@ -146,7 +146,7 @@
         "prettier-plugin-svelte": "^3.4.0",
         "react": "19.2.7",
         "react-dom": "19.2.7",
-        "svelte": "^5.56.10",
+        "svelte": "^5.57.2",
         "svelte-check": "^4.3.4",
         "terser": "^5.49.2",
         "typescript": "~5.9.3",

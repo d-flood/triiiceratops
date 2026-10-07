@@ -50,6 +50,8 @@ export const CORE_ICONS = {
     BookOpen: [],
     CaretDown: [],
     CaretLeft: [],
+    CaretLineLeft: [],
+    CaretLineRight: [],
     CaretRight: [],
     CaretUp: [],
     ChatCenteredText: ['bold'],

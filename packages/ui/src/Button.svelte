@@ -19,6 +19,8 @@
         | 'aria-label'
         | 'aria-pressed'
         | 'aria-expanded'
+        | 'aria-haspopup'
+        | 'aria-controls'
         | 'onclick'
         | 'onpointerdown'
         | 'onpointerup'
@@ -65,6 +67,8 @@
         'aria-label': ariaLabel,
         'aria-pressed': ariaPressed,
         'aria-expanded': ariaExpanded,
+        'aria-haspopup': ariaHaspopup,
+        'aria-controls': ariaControls,
         onclick,
         onpointerdown,
         onpointerup,
@@ -114,6 +118,8 @@
     aria-label={ariaLabel}
     aria-pressed={ariaPressed}
     aria-expanded={ariaExpanded}
+    aria-haspopup={ariaHaspopup}
+    aria-controls={ariaControls}
     {onclick}
     {onpointerdown}
     {onpointerup}

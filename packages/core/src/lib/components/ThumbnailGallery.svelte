@@ -8,6 +8,7 @@
     import { getCanvasChoices } from '../utils/iiifParsing';
     import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
     import { getCanvasLabel } from '../utils/canvasLabels';
+    import { scrollWithin } from '../utils/scrollWithin';
     import { getCanvasId, getPagedCanvasGroups } from './viewerControls';
     import {
         GALLERY_THUMB_VARS,
@@ -161,27 +162,15 @@
             `[data-id="${CSS.escape(targetId)}"]`,
         );
         if (activeEl) {
-            // Scroll only the gallery's own scroller: `scrollIntoView` also
-            // scrolls every scrollable ancestor, yanking the host page.
-            const item = activeEl.getBoundingClientRect();
-            const view = contentElement.getBoundingClientRect();
-            const left =
-                contentElement.scrollLeft +
-                item.left -
-                view.left -
-                (view.width - item.width) / 2;
-            let top = contentElement.scrollTop;
             // Nearest is right for a strip (minimal shuffling) but leaves the
             // active canvas pinned to an edge of a tall grid, so the expanded
             // view centers it instead.
-            if (viewerState.galleryExpanded) {
-                top += item.top - view.top - (view.height - item.height) / 2;
-            } else if (item.top < view.top) {
-                top += item.top - view.top;
-            } else if (item.bottom > view.bottom) {
-                top += item.bottom - view.bottom;
-            }
-            contentElement.scrollTo({ left, top, behavior: 'smooth' });
+            scrollWithin(
+                contentElement,
+                activeEl,
+                viewerState.galleryExpanded ? 'center' : 'nearest',
+                { inline: true, behavior: 'smooth' },
+            );
         }
     });
 

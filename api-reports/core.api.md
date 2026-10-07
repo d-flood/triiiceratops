@@ -1239,7 +1239,7 @@ export type { TriiiceratopsViewerElement };
 // ======================================================================
 // FILE: dist/generated/icons.d.ts
 // ======================================================================
-export type IconName = "ArrowsLeftRight" | "BookOpen" | "CaretDown" | "CaretLeft" | "CaretRight" | "CaretUp" | "ChatCenteredText" | "Check" | "CornersIn" | "CornersOut" | "Eye" | "EyeSlash" | "File" | "Folder" | "House" | "ImageBroken" | "Info" | "List" | "ListBullets" | "MagnifyingGlass" | "MagnifyingGlassMinus" | "MagnifyingGlassPlus" | "Scroll" | "Slideshow" | "Stack" | "Translate" | "X";
+export type IconName = "ArrowsLeftRight" | "BookOpen" | "CaretDown" | "CaretLeft" | "CaretLineLeft" | "CaretLineRight" | "CaretRight" | "CaretUp" | "ChatCenteredText" | "Check" | "CornersIn" | "CornersOut" | "Eye" | "EyeSlash" | "File" | "Folder" | "House" | "ImageBroken" | "Info" | "List" | "ListBullets" | "MagnifyingGlass" | "MagnifyingGlassMinus" | "MagnifyingGlassPlus" | "Scroll" | "Slideshow" | "Stack" | "Translate" | "X";
 export type IconWeight = "regular" | "bold" | "fill";
 type IconTable = Record<IconWeight, Partial<Record<IconName, string>>> & {
     regular: Record<IconName, string>;
@@ -5068,6 +5068,11 @@ export declare class ViewerState {
      */
     private startSubscriptionWatcher;
     /**
+     * Flatten what {@link trackWatchedMembers} observes: each member's identity,
+     * plus a reactive collection's size and contents.
+     */
+    private snapshotWatchedMembers;
+    /**
      * Read every watched member so the watcher effect depends on all of them.
      * Reading a plain member registers an identity dependency; reactive
      * collections additionally need their mutation version read (via `keys()`,
@@ -5982,10 +5987,11 @@ export type ControlsMode = 'split' | 'unified';
 /**
  * A flyout menu of the control bar, named so a host can open one.
  *
- * `captions` is the transport's; the rest are the toolbar's. They share one
- * name because they share the bar and its one-at-a-time rule.
+ * `captions` is the transport's and `canvases` is the canvas nav's; the rest
+ * are the toolbar's. They share one name because they share the bar and its
+ * one-at-a-time rule.
  */
-export type BarMenu = 'gallery' | 'viewing-mode' | 'sequence' | 'locale' | 'captions';
+export type BarMenu = 'gallery' | 'viewing-mode' | 'sequence' | 'locale' | 'captions' | 'canvases';
 /**
  * How the canvas nav (control bar) sits relative to its edge.
  * - `docked`   — flush to the edge, flat (default).
@@ -6305,8 +6311,9 @@ export interface ViewerConfig {
      * The bar holds at most one open at a time, and each control owns its own:
      * the toolbar's four are dismissed by the toolbar, and `captions` — the
      * caption-track list a timed-media claimant registers into the transport —
-     * is dismissed by the transport. Naming a menu no visible control offers
-     * opens nothing.
+     * is dismissed by the transport, and `canvases` — the canvas list behind
+     * the nav's "n / total" — by the canvas nav. Naming a menu no visible
+     * control offers opens nothing.
      * @default null
      */
     openMenu?: BarMenu | null;

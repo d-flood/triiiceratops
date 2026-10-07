@@ -24,6 +24,7 @@
         type ChoiceGroup,
     } from './viewerControls';
     import CanvasInfoPopover from './CanvasInfoPopover.svelte';
+    import CanvasMenu from './CanvasMenu.svelte';
     import Toolbar from './Toolbar.svelte';
     import Transport from './Transport.svelte';
     import { Button, NativeSelect } from './ui';
@@ -764,10 +765,10 @@
                                         : !viewerState.hasNext,
                                 )}
 
-                                <span class="nav-index">
-                                    {viewerState.currentCanvasIndex + 1} / {viewerState
-                                        .canvases.length}
-                                </span>
+                                <CanvasMenu
+                                    openDown={dockedTop}
+                                    {tooltipPlacement}
+                                />
 
                                 <CanvasInfoPopover {tooltipPlacement} />
 
@@ -1042,17 +1043,6 @@
             var(--tri-toolbar-content) 20%,
             transparent
         );
-    }
-
-    .nav-index {
-        font-size: 0.875rem;
-        line-height: 1.25rem;
-        font-family:
-            ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-            'Liberation Mono', 'Courier New', monospace;
-        font-variant-numeric: tabular-nums;
-        white-space: nowrap;
-        padding-inline: 0.25rem;
     }
 
     /* join group (radii handled by the join-aware primitives) */

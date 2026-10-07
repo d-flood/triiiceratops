@@ -39,15 +39,17 @@ export type ControlsMode = 'split' | 'unified';
 /**
  * A flyout menu of the control bar, named so a host can open one.
  *
- * `captions` is the transport's; the rest are the toolbar's. They share one
- * name because they share the bar and its one-at-a-time rule.
+ * `captions` is the transport's and `canvases` is the canvas nav's; the rest
+ * are the toolbar's. They share one name because they share the bar and its
+ * one-at-a-time rule.
  */
 export type BarMenu =
     | 'gallery'
     | 'viewing-mode'
     | 'sequence'
     | 'locale'
-    | 'captions';
+    | 'captions'
+    | 'canvases';
 
 /**
  * How the canvas nav (control bar) sits relative to its edge.
@@ -414,8 +416,9 @@ export interface ViewerConfig {
      * The bar holds at most one open at a time, and each control owns its own:
      * the toolbar's four are dismissed by the toolbar, and `captions` — the
      * caption-track list a timed-media claimant registers into the transport —
-     * is dismissed by the transport. Naming a menu no visible control offers
-     * opens nothing.
+     * is dismissed by the transport, and `canvases` — the canvas list behind
+     * the nav's "n / total" — by the canvas nav. Naming a menu no visible
+     * control offers opens nothing.
      * @default null
      */
     openMenu?: BarMenu | null;

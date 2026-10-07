@@ -50,7 +50,7 @@
         "jsdom": "^27.3.0",
         "lighthouse": "^13.4.1",
         "pagefind": "^1.5.2",
-        "svelte": "^5.56.10",
+        "svelte": "^5.57.2",
         "svelte-check": "^4.3.4",
         "typescript": "~5.9.3",
         "uncial-cms": "^5.1.0",

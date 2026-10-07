@@ -11,7 +11,7 @@
 // fails `build:lib` if a Svelte type import reappears in the public declarations.
 import { once } from '../utils/once.js';
 import { SvelteSet, SvelteMap } from 'svelte/reactivity';
-import { flushSync, untrack } from 'svelte';
+import { untrack } from 'svelte';
 import { manifestsState } from './manifests.svelte.js';
 import { takeManifestRequest } from './earlyManifestRequest';
 import { NOTIFYING_MEMBERS } from '../generated/notifyingMembers.js';
@@ -3245,8 +3245,8 @@ export class ViewerState {
     /** Disposes the reactive watcher's effect root; null until lazily started. */
     #disposeSubscriptionWatcher: (() => void) | null = null;
 
-    /** True once the watcher's priming run has established its dependencies. */
-    #subscriptionWatcherPrimed = false;
+    /** Watched state when the watcher started; cleared by its first run. */
+    #watcherStartSnapshot: unknown[] | null = null;
 
     /**
      * Subscribe to viewer-state changes. The listener is called — with no
@@ -3292,33 +3292,53 @@ export class ViewerState {
             return;
         }
 
-        this.#subscriptionWatcherPrimed = false;
+        this.#watcherStartSnapshot = untrack(() =>
+            this.snapshotWatchedMembers(),
+        );
         this.#disposeSubscriptionWatcher = $effect.root(() => {
             $effect(() => {
                 // Establish a reactive dependency on every watched member.
                 this.trackWatchedMembers();
 
-                if (this.#subscriptionWatcherPrimed) {
-                    // Deliver outside the tracking context so a listener's own
-                    // state reads never become watcher dependencies.
-                    untrack(() => this.notifySubscribers());
-                } else {
-                    // First run only registers dependencies; it must not notify.
-                    this.#subscriptionWatcherPrimed = true;
-                }
+                const start = this.#watcherStartSnapshot;
+                this.#watcherStartSnapshot = null;
+
+                // Deliver outside the tracking context so a listener's own
+                // state reads never become watcher dependencies.
+                untrack(() => {
+                    // The first run may come after the caller's writes (priming
+                    // with `flushSync` nested a flush in the caller's and broke
+                    // `experimental.async` batches), so it notifies only if
+                    // watched state moved since the watcher started.
+                    if (start) {
+                        const now = this.snapshotWatchedMembers();
+                        const unchanged =
+                            start.length === now.length &&
+                            start.every((value, i) => Object.is(value, now[i]));
+                        if (unchanged) return;
+                    }
+                    this.notifySubscribers();
+                });
             });
         });
+    }
 
-        // Prime synchronously so dependencies exist before the caller mutates;
-        // otherwise the effect's initial run would swallow the first change.
-        // `flushSync` throws when Svelte is already flushing (e.g. subscribing
-        // from inside an effect) — tolerate that: the scheduled effect still
-        // primes on the in-progress flush.
-        try {
-            flushSync();
-        } catch {
-            /* already flushing — priming happens on the current flush */
-        }
+    /**
+     * Flatten what {@link trackWatchedMembers} observes: each member's identity,
+     * plus a reactive collection's size and contents.
+     */
+    private snapshotWatchedMembers(): unknown[] {
+        const self = this as unknown as Record<string, unknown>;
+        return ViewerState.WATCHED_MEMBERS.flatMap((member) => {
+            const value = self[member];
+            if (value instanceof SvelteMap) {
+                return [value, value.size, ...[...value].flat()];
+            }
+            if (value instanceof SvelteSet) {
+                return [value, value.size, ...value];
+            }
+            return [value];
+        });
     }
 
     /**
@@ -3396,7 +3416,7 @@ export class ViewerState {
     destroy(): void {
         this.#disposeSubscriptionWatcher?.();
         this.#disposeSubscriptionWatcher = null;
-        this.#subscriptionWatcherPrimed = false;
+        this.#watcherStartSnapshot = null;
         this.#subscriptionListeners = [];
         this.destroyAllPlugins();
     }

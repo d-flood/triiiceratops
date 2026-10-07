@@ -35,7 +35,7 @@
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "^6.2.4",
         "@vitest/coverage-v8": "4.0.15",
-        "svelte": "5.56.10",
+        "svelte": "5.57.2",
         "svelte-check": "^4.3.4",
         "typescript": "~5.9.3",
         "vite": "^6.0.0",
