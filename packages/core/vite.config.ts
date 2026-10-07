@@ -129,7 +129,12 @@ export default defineConfig({
         drop: ['debugger'],
     },
     server: {
-        allowedHosts: ['df-laptop-wsl.flicker-lionfish.ts.net'],
+        host: true,
+        allowedHosts: [
+            'df-laptop-wsl.flicker-lionfish.ts.net',
+            'df-laptop-lx',
+            'df-laptop-lx.flicker-lionfish.ts.net',
+        ],
     },
     test: {
         include: ['src/**/*.{test,spec}.{js,ts}'],

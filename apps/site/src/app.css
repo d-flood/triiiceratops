@@ -2270,6 +2270,30 @@ code {
     border-left: 1px solid var(--rule-2);
 }
 
+.bstage .blk {
+    display: grid;
+    gap: var(--s2);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+.bstage .pane__body > * + .blk {
+    margin-top: var(--s3);
+}
+.bstage .blk legend {
+    padding: 0;
+    margin-bottom: var(--s2);
+    font-size: var(--t-small);
+    font-weight: 600;
+}
+.bstage .row:has(select:disabled) {
+    opacity: 0.5;
+}
+.bstage .row select:disabled {
+    cursor: not-allowed;
+}
+
 /* ---- The builder's live viewer --------------------------------------- */
 .bstage .pv {
     position: relative;

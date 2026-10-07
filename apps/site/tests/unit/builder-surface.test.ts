@@ -127,7 +127,9 @@ function resolve(path: readonly string[]): string | undefined {
     return undefined;
 }
 
-const CONTROLS = CONTROL_GROUPS.flatMap((group) => group.controls);
+const CONTROLS = CONTROL_GROUPS.flatMap((group) =>
+    group.blocks.flatMap((block) => block.controls),
+);
 const TOKENS = TOKEN_GROUPS.flatMap((group) => group.tokens);
 
 describe('the API report parse this suite depends on', () => {
@@ -175,6 +177,22 @@ describe('every configuration control', () => {
     it('is bound to a distinct key', () => {
         const paths = CONTROLS.map((control) => control.path.join('.'));
         expect(new Set(paths).size).toBe(paths.length);
+    });
+
+    it('is conditional only on a choice another control offers', () => {
+        for (const control of CONTROLS) {
+            if (control.kind !== 'choice' || !control.when) continue;
+            const { path, is } = control.when;
+            const owner = CONTROLS.find(
+                (other) => other.path.join('.') === path.join('.'),
+            );
+            expect(owner?.kind).toBe('choice');
+            if (owner?.kind === 'choice') {
+                expect(owner.choices.map((choice) => choice.value)).toContain(
+                    is,
+                );
+            }
+        }
     });
 });
 
@@ -368,13 +386,13 @@ describe('every theming control', () => {
         for (const name of invented) expect(names).not.toContain(name);
     });
 
-    it('offers the palette, the surfaces, the content colors, the per-panel overrides, the annotations and the corners', () => {
+    it('offers the palette, the surfaces, the content colors, the per-panel overrides, the annotation highlights and the corners', () => {
         expect(TOKEN_GROUPS.map((group) => group.title)).toEqual([
             'Palette',
             'Surfaces',
             'Content colors',
             'Per-panel overrides',
-            'Annotations',
+            'Annotation highlights',
             'Corners',
         ]);
         // The general sizing and border/effect tokens are the theming
@@ -391,7 +409,7 @@ describe('every theming control', () => {
      */
     it('draws each annotation token as the kind of value it is', () => {
         const annotations = TOKEN_GROUPS.find(
-            (group) => group.title === 'Annotations',
+            (group) => group.title === 'Annotation highlights',
         );
 
         expect(

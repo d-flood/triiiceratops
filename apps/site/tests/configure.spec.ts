@@ -7,6 +7,11 @@ function preview(page: Page) {
     return page.locator('.pv__live .viewer-root');
 }
 
+/** A built-in control, by its configuration path: labels repeat across panels. */
+function setting(page: Page, path: string) {
+    return page.locator(`#cfg-${path}`);
+}
+
 async function reach(page: Page, control: Locator) {
     const pane = await control.evaluate(
         (element) => element.closest('[role="tabpanel"]')!.id,
@@ -28,7 +33,7 @@ test('opens on the example manifest, and loads a manifest the reader pastes', as
     const field = page.getByLabel('IIIF manifest URL');
     await expect(field).toHaveValue(EXAMPLE);
 
-    const information = page.getByLabel('Information open');
+    const information = setting(page, 'information-open');
     await reach(page, information);
     await information.check();
     await expect(preview(page)).toContainText('Public-domain visual study set');
@@ -51,7 +56,7 @@ test('changes the preview without rebuilding the viewer', async ({ page }) => {
         root.setAttribute('data-e2e-mark', 'kept');
     });
 
-    const gallery = page.getByLabel('Gallery open');
+    const gallery = setting(page, 'gallery-open');
     await reach(page, gallery);
     await expect(gallery).not.toBeChecked();
     await gallery.check();
@@ -90,10 +95,10 @@ test('restores the configuration and the manifest a share URL carries', async ({
     await expect(page.getByLabel('IIIF manifest URL')).toHaveValue(
         contentState,
     );
-    await expect(page.getByLabel('Canvas nav edge')).toHaveValue('top');
-    await expect(page.getByLabel('Gallery position')).toHaveValue('left');
-    await expect(page.getByLabel('Gallery open')).toBeChecked();
-    await expect(page.getByLabel('Search', { exact: true })).not.toBeChecked();
+    await expect(setting(page, 'nav-edge')).toHaveValue('top');
+    await expect(setting(page, 'gallery-dockPosition')).toHaveValue('left');
+    await expect(setting(page, 'gallery-open')).toBeChecked();
+    await expect(setting(page, 'toolbar-showSearch')).not.toBeChecked();
 });
 
 test('opens its swatches on the viewer’s own palette', async ({ page }) => {
@@ -116,7 +121,7 @@ test('starts the theming half from a built-in theme', async ({ page }) => {
     await reach(page, swatch);
     const scheme = await swatch.inputValue();
 
-    await expect(page.getByLabel('Light')).toBeChecked();
+    await expect(page.getByLabel('Light', { exact: true })).toBeChecked();
     await page.getByLabel('Dracula').check();
 
     await expect(swatch).not.toHaveValue(scheme);
@@ -132,7 +137,7 @@ test('starts the theming half from a built-in theme', async ({ page }) => {
     await expect(page.getByText('Based on Teal.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Start over' }).click();
-    await expect(page.getByLabel('Light')).toBeChecked();
+    await expect(page.getByLabel('Light', { exact: true })).toBeChecked();
     await expect(swatch).toHaveValue(scheme);
 });
 
@@ -195,7 +200,7 @@ test.describe('the two keys that override the manifest', () => {
         await page.goto('/configure/');
         await running(page);
 
-        const mode = page.getByLabel('Viewing mode', { exact: true });
+        const mode = setting(page, 'viewingMode');
         await reach(page, mode);
         await expect(mode).toHaveValue('');
 
@@ -229,11 +234,11 @@ async function pasted(page: Page): Promise<string> {
 
 /** Sets exactly two options, and returns nothing else about the page. */
 async function setTwo(page: Page): Promise<void> {
-    const gallery = page.getByLabel('Gallery open');
+    const gallery = setting(page, 'gallery-open');
     await reach(page, gallery);
     await gallery.check();
 
-    const edge = page.getByLabel('Canvas nav edge');
+    const edge = setting(page, 'nav-edge');
     await reach(page, edge);
     await edge.selectOption('top');
 }
@@ -298,8 +303,8 @@ test.describe('what a reader leaves with', () => {
         await page.goto(shared.pathname + shared.search);
         await running(page);
 
-        await expect(page.getByLabel('Gallery open')).toBeChecked();
-        await expect(page.getByLabel('Canvas nav edge')).toHaveValue('top');
+        await expect(setting(page, 'gallery-open')).toBeChecked();
+        await expect(setting(page, 'nav-edge')).toHaveValue('top');
         await expect(page.getByLabel('IIIF manifest URL')).toHaveValue(
             new RegExp(`${EXAMPLE}$`),
         );
@@ -349,7 +354,7 @@ test.describe('what a reader leaves with', () => {
 
         // The toolbar opens first: a plugin's button lives in it, and this
         // page's defaults start it closed.
-        const open = page.getByLabel('Toolbar open on load');
+        const open = setting(page, 'toolbarOpen');
         await reach(page, open);
         await open.check();
 
@@ -423,11 +428,11 @@ test.describe('what a reader leaves with', () => {
         await page.goto('/configure/');
         await running(page);
 
-        const gallery = page.getByLabel('Gallery open');
+        const gallery = setting(page, 'gallery-open');
         await reach(page, gallery);
         await gallery.check();
 
-        const query = page.getByLabel('Search query on load');
+        const query = setting(page, 'search-query');
         await reach(page, query);
         await query.fill('whale');
 
@@ -491,8 +496,9 @@ test.describe('what a reader leaves with', () => {
             .click();
         expect(JSON.parse(await pasted(page))).toEqual(TWO);
 
-        // The same group as the edge `setTwo` set, so its tab is already open.
-        await page.getByLabel('Gallery position').selectOption('left');
+        const position = setting(page, 'gallery-dockPosition');
+        await reach(page, position);
+        await position.selectOption('left');
         await page
             .getByRole('button', { name: 'Copy the configuration object' })
             .click();

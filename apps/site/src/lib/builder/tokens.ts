@@ -71,7 +71,7 @@ const CATEGORIES: readonly {
     },
     {
         id: 'annotation',
-        title: 'Annotations',
+        title: 'Annotation highlights',
         note: '',
         kind: 'colour',
         drop: [],

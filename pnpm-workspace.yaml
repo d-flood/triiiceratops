@@ -23,7 +23,7 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
     - uncial@4.0.0
-    - uncial-cms@4.0.3
+    - uncial-cms@4.0.3 || 5.1.0
 
 overrides:
     # Vitest accepts Vite 6 or 7 and would otherwise take the highest in the

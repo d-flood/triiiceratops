@@ -440,6 +440,14 @@
         return set ?? PLUGIN_UI_DEFAULTS[control.path[2]];
     }
 
+    function inert(control: BuilderControl): boolean {
+        if (control.kind !== 'choice' || !control.when) return false;
+        return (
+            getAtPath(config as SparseConfig, [...control.when.path]) !==
+            control.when.is
+        );
+    }
+
     function read(control: BuilderControl): unknown {
         return getAtPath(config as SparseConfig, [...control.path]);
     }
@@ -582,6 +590,117 @@
     const themeReady = $derived(Object.keys(base.colours).length > 0);
 </script>
 
+{#snippet field(control: BuilderControl)}
+    {#if control.kind === 'toggle'}
+        <div class="row row--check">
+            <input
+                id={controlId(control)}
+                type="checkbox"
+                checked={read(control) === true}
+                onchange={(event) =>
+                    write(control, event.currentTarget.checked)}
+            />
+            <label for={controlId(control)}>
+                {control.label}
+            </label>
+        </div>
+    {:else if control.kind === 'choice'}
+        <div class="row">
+            <label for={controlId(control)}>
+                {control.label}
+            </label>
+            <select
+                id={controlId(control)}
+                value={String(read(control) ?? '')}
+                disabled={inert(control)}
+                onchange={(event) =>
+                    writeChoice(control, event.currentTarget.value)}
+            >
+                {#if control.unset}
+                    <option value="">
+                        {control.unset}
+                    </option>
+                {/if}
+                {#each control.choices as choice (choice.value)}
+                    <option value={choice.value}>
+                        {choice.label}
+                    </option>
+                {/each}
+            </select>
+        </div>
+    {:else if control.kind === 'text'}
+        <div class="row">
+            <label for={controlId(control)}>
+                {control.label}
+            </label>
+            <input
+                id={controlId(control)}
+                type="text"
+                value={String(read(control) ?? '')}
+                placeholder={control.placeholder}
+                oninput={(event) =>
+                    writeText(control, event.currentTarget.value)}
+            />
+        </div>
+    {:else if control.kind === 'headers'}
+        <div class="row row--area">
+            <label for={controlId(control)}>
+                {control.label}
+            </label>
+            <textarea
+                id={controlId(control)}
+                rows="3"
+                spellcheck="false"
+                value={headerText(control)}
+                placeholder={control.placeholder}
+                oninput={(event) =>
+                    writeHeaders(control, event.currentTarget.value)}
+            ></textarea>
+        </div>
+    {:else if control.kind === 'colour'}
+        <div class="row">
+            <label for={controlId(control)}>
+                {control.label}
+            </label>
+            <input
+                id={controlId(control)}
+                type="color"
+                value={String(read(control) ?? '#000000')}
+                oninput={(event) => write(control, event.currentTarget.value)}
+            />
+        </div>
+    {:else}
+        <div class="row">
+            <label for={controlId(control)}>
+                {control.label}
+                <span class="row__value">
+                    {control.kind === 'pixels'
+                        ? `${pixels(control)}px`
+                        : counted(control)}
+                </span>
+            </label>
+            <input
+                id={controlId(control)}
+                type="range"
+                min={control.min}
+                max={control.max}
+                step={control.step}
+                value={control.kind === 'pixels'
+                    ? pixels(control)
+                    : slid(control)}
+                oninput={(event) =>
+                    write(
+                        control,
+                        control.kind === 'pixels'
+                            ? `${event.currentTarget.value}px`
+                            : Number(event.currentTarget.value) *
+                                  (control.scale ?? 1),
+                    )}
+            />
+        </div>
+    {/if}
+{/snippet}
+
 <PageHead />
 
 <section class="bstage" aria-labelledby="builder-h">
@@ -701,133 +820,18 @@
                         <p class="pane__note note">{group.note}</p>
                     {/if}
                     <div class="pane__body">
-                        {#each group.controls as control (control.path.join('.'))}
-                            {#if control.kind === 'toggle'}
-                                <div class="row row--check">
-                                    <input
-                                        id={controlId(control)}
-                                        type="checkbox"
-                                        checked={read(control) === true}
-                                        onchange={(event) =>
-                                            write(
-                                                control,
-                                                event.currentTarget.checked,
-                                            )}
-                                    />
-                                    <label for={controlId(control)}>
-                                        {control.label}
-                                    </label>
-                                </div>
-                            {:else if control.kind === 'choice'}
-                                <div class="row">
-                                    <label for={controlId(control)}>
-                                        {control.label}
-                                    </label>
-                                    <select
-                                        id={controlId(control)}
-                                        value={String(read(control) ?? '')}
-                                        onchange={(event) =>
-                                            writeChoice(
-                                                control,
-                                                event.currentTarget.value,
-                                            )}
-                                    >
-                                        {#if control.unset}
-                                            <option value="">
-                                                {control.unset}
-                                            </option>
-                                        {/if}
-                                        {#each control.choices as choice (choice.value)}
-                                            <option value={choice.value}>
-                                                {choice.label}
-                                            </option>
-                                        {/each}
-                                    </select>
-                                </div>
-                            {:else if control.kind === 'text'}
-                                <div class="row">
-                                    <label for={controlId(control)}>
-                                        {control.label}
-                                    </label>
-                                    <input
-                                        id={controlId(control)}
-                                        type="text"
-                                        value={String(read(control) ?? '')}
-                                        placeholder={control.placeholder}
-                                        oninput={(event) =>
-                                            writeText(
-                                                control,
-                                                event.currentTarget.value,
-                                            )}
-                                    />
-                                </div>
-                            {:else if control.kind === 'headers'}
-                                <div class="row row--area">
-                                    <label for={controlId(control)}>
-                                        {control.label}
-                                    </label>
-                                    <textarea
-                                        id={controlId(control)}
-                                        rows="3"
-                                        spellcheck="false"
-                                        value={headerText(control)}
-                                        placeholder={control.placeholder}
-                                        oninput={(event) =>
-                                            writeHeaders(
-                                                control,
-                                                event.currentTarget.value,
-                                            )}
-                                    ></textarea>
-                                </div>
-                            {:else if control.kind === 'colour'}
-                                <div class="row">
-                                    <label for={controlId(control)}>
-                                        {control.label}
-                                    </label>
-                                    <input
-                                        id={controlId(control)}
-                                        type="color"
-                                        value={String(
-                                            read(control) ?? '#000000',
-                                        )}
-                                        oninput={(event) =>
-                                            write(
-                                                control,
-                                                event.currentTarget.value,
-                                            )}
-                                    />
-                                </div>
+                        {#each group.blocks as block (block.title ?? group.title)}
+                            {#if block.title}
+                                <fieldset class="blk">
+                                    <legend>{block.title}</legend>
+                                    {#each block.controls as control (control.path.join('.'))}
+                                        {@render field(control)}
+                                    {/each}
+                                </fieldset>
                             {:else}
-                                <div class="row">
-                                    <label for={controlId(control)}>
-                                        {control.label}
-                                        <span class="row__value">
-                                            {control.kind === 'pixels'
-                                                ? `${pixels(control)}px`
-                                                : counted(control)}
-                                        </span>
-                                    </label>
-                                    <input
-                                        id={controlId(control)}
-                                        type="range"
-                                        min={control.min}
-                                        max={control.max}
-                                        step={control.step}
-                                        value={control.kind === 'pixels'
-                                            ? pixels(control)
-                                            : slid(control)}
-                                        oninput={(event) =>
-                                            write(
-                                                control,
-                                                control.kind === 'pixels'
-                                                    ? `${event.currentTarget.value}px`
-                                                    : Number(
-                                                          event.currentTarget
-                                                              .value,
-                                                      ) * (control.scale ?? 1),
-                                            )}
-                                    />
-                                </div>
+                                {#each block.controls as control (control.path.join('.'))}
+                                    {@render field(control)}
+                                {/each}
                             {/if}
                         {/each}
                     </div>

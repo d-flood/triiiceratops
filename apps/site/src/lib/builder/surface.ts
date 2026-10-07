@@ -22,6 +22,10 @@ export type BuilderControl =
           readonly label: string;
           readonly choices: readonly Choice[];
           readonly unset?: string;
+          readonly when?: {
+              readonly path: readonly string[];
+              readonly is: string;
+          };
       }
     | {
           readonly kind: 'colour';
@@ -51,10 +55,15 @@ export type BuilderControl =
           readonly unit?: string;
       };
 
+export type ControlBlock = {
+    readonly title?: string;
+    readonly controls: readonly BuilderControl[];
+};
+
 export type ControlGroup = {
     readonly title: string;
     readonly note?: string;
-    readonly controls: readonly BuilderControl[];
+    readonly blocks: readonly ControlBlock[];
 };
 
 function choices<T extends string>(labels: Record<T, string>): Choice[] {
@@ -75,351 +84,405 @@ const sides = choices<NonNullable<Information['position']>>({
 
 export const CONTROL_GROUPS: readonly ControlGroup[] = [
     {
-        title: 'Arrangement',
-        note: 'Placement of the viewer controls.',
-        controls: [
+        title: 'Viewing',
+        note: 'How canvases are laid out and read.',
+        blocks: [
             {
-                kind: 'choice',
-                path: ['controls'],
-                label: 'Controls',
-                choices: choices<NonNullable<ViewerConfig['controls']>>({
-                    split: 'Separate toolbar',
-                    unified: 'Single control bar',
-                }),
-            },
-            {
-                kind: 'choice',
-                path: ['nav', 'style'],
-                label: 'Canvas nav',
-                choices: choices<NonNullable<Nav['style']>>({
-                    docked: 'Docked',
-                    floating: 'Floating',
-                }),
-            },
-            {
-                kind: 'choice',
-                path: ['nav', 'edge'],
-                label: 'Canvas nav edge',
-                choices: choices<NonNullable<Nav['edge']>>({
-                    top: 'Top',
-                    bottom: 'Bottom',
-                }),
-            },
-            {
-                kind: 'choice',
-                path: ['nav', 'align'],
-                label: 'Canvas nav alignment',
-                choices: choices<NonNullable<Nav['align']>>({
-                    start: 'Start',
-                    center: 'Center',
-                    end: 'End',
-                }),
-            },
-            {
-                kind: 'choice',
-                path: ['toolbar', 'side'],
-                label: 'Toolbar side',
-                choices: choices<NonNullable<Toolbar['side']>>({
-                    left: 'Left',
-                    right: 'Right',
-                }),
-            },
-            {
-                kind: 'choice',
-                path: ['toolbar', 'anchor'],
-                label: 'Toolbar anchor',
-                choices: choices<NonNullable<Toolbar['anchor']>>({
-                    center: 'Center',
-                    top: 'Top',
-                }),
-            },
-            {
-                kind: 'choice',
-                path: ['gallery', 'dockPosition'],
-                label: 'Gallery position',
-                choices: choices<NonNullable<Gallery['dockPosition']>>({
-                    bottom: 'Bottom',
-                    top: 'Top',
-                    left: 'Left',
-                    right: 'Right',
-                }),
-            },
-        ],
-    },
-    {
-        title: 'Behavior',
-        note: 'Viewer behavior and presentation settings.',
-        controls: [
-            {
-                kind: 'choice',
-                path: ['viewingMode'],
-                label: 'Viewing mode',
-                unset: 'Manifest default',
-                choices: choices<NonNullable<ViewerConfig['viewingMode']>>({
-                    individuals: 'One canvas at a time',
-                    paged: 'Two-page spread',
-                    continuous: 'Continuous scroll',
-                }),
-            },
-            {
-                kind: 'choice',
-                path: ['viewingDirection'],
-                label: 'Viewing direction',
-                unset: 'Manifest default',
-                choices: choices<NonNullable<ViewerConfig['viewingDirection']>>(
+                controls: [
                     {
-                        'left-to-right': 'Left to right',
-                        'right-to-left': 'Right to left',
-                        'top-to-bottom': 'Top to bottom',
-                        'bottom-to-top': 'Bottom to top',
+                        kind: 'choice',
+                        path: ['viewingMode'],
+                        label: 'Viewing mode',
+                        unset: 'Manifest default',
+                        choices: choices<
+                            NonNullable<ViewerConfig['viewingMode']>
+                        >({
+                            individuals: 'One canvas at a time',
+                            paged: 'Two-page spread',
+                            continuous: 'Continuous scroll',
+                        }),
                     },
-                ),
-            },
-            toggle(
-                ['pagedViewOffset'],
-                'Show first canvas alone in two-page spread',
-            ),
-            toggle(
-                ['preserveCanvasScale'],
-                'Preserve canvas scale in multi-canvas layouts',
-            ),
-            {
-                kind: 'count',
-                path: ['renderer', 'zoomPerWheelNotch'],
-                label: 'Zoom per wheel notch',
-                min: 1.05,
-                max: 2,
-                step: 0.05,
-            },
-            {
-                kind: 'count',
-                path: ['renderer', 'zoomPerClick'],
-                label: 'Zoom per button click',
-                min: 1.05,
-                max: 3,
-                step: 0.05,
-            },
-            {
-                kind: 'count',
-                path: ['renderer', 'maxZoomFactor'],
-                label: 'Max zoom (multiple of fit)',
-                min: 2,
-                max: 32,
-                step: 1,
-            },
-            {
-                kind: 'count',
-                path: ['renderer', 'maxZoomPixelRatio'],
-                label: 'Max zoom (device pixels per image pixel)',
-                min: 0.5,
-                max: 8,
-                step: 0.5,
-            },
-            {
-                kind: 'count',
-                path: ['renderer', 'animationTimeConstant'],
-                label: 'Animation duration (s)',
-                min: 0.02,
-                max: 0.5,
-                step: 0.01,
-            },
-            {
-                kind: 'text',
-                path: ['search', 'query'],
-                label: 'Search query on load',
-                placeholder: 'Search term',
+                    {
+                        kind: 'choice',
+                        path: ['viewingDirection'],
+                        label: 'Viewing direction',
+                        unset: 'Manifest default',
+                        choices: choices<
+                            NonNullable<ViewerConfig['viewingDirection']>
+                        >({
+                            'left-to-right': 'Left to right',
+                            'right-to-left': 'Right to left',
+                            'top-to-bottom': 'Top to bottom',
+                            'bottom-to-top': 'Bottom to top',
+                        }),
+                    },
+                    toggle(
+                        ['pagedViewOffset'],
+                        'Show first canvas alone in two-page spread',
+                    ),
+                    toggle(
+                        ['preserveCanvasScale'],
+                        'Preserve canvas scale in multi-canvas layouts',
+                    ),
+                    {
+                        kind: 'text',
+                        path: ['locale'],
+                        label: 'Language',
+                        placeholder: 'Browser default (e.g. en, fr)',
+                    },
+                    toggle(['transparentBackground'], 'Transparent background'),
+                ],
             },
         ],
     },
     {
-        title: 'Chrome',
-        note: 'Which parts of the viewer UI to show or hide.',
-        controls: [
-            toggle(['showToggle'], 'Toolbar toggle button'),
-            toggle(['toolbarOpen'], 'Toolbar open on load'),
-            toggle(['showCanvasNav'], 'Canvas nav bar'),
-            toggle(['showZoomControls'], 'Zoom controls'),
-            toggle(['information', 'showButton'], 'Canvas info button'),
-            toggle(['transparentBackground'], 'Transparent background'),
+        title: 'Zoom',
+        note: 'How zooming feels and how far it goes.',
+        blocks: [
             {
-                kind: 'choice',
-                path: ['openMenu'],
-                label: 'Menu open on load',
-                unset: 'None',
-                choices: choices<NonNullable<ViewerConfig['openMenu']>>({
-                    gallery: 'Gallery',
-                    'viewing-mode': 'Viewing mode',
-                    sequence: 'Sequence',
-                    locale: 'Language',
-                    captions: 'Captions',
-                }),
-            },
-            {
-                kind: 'text',
-                path: ['locale'],
-                label: 'Language',
-                placeholder: 'Browser default (e.g. en, fr)',
+                controls: [
+                    {
+                        kind: 'count',
+                        path: ['renderer', 'zoomPerWheelNotch'],
+                        label: 'Zoom per wheel notch',
+                        min: 1.05,
+                        max: 2,
+                        step: 0.05,
+                    },
+                    {
+                        kind: 'count',
+                        path: ['renderer', 'zoomPerClick'],
+                        label: 'Zoom per button click',
+                        min: 1.05,
+                        max: 3,
+                        step: 0.05,
+                    },
+                    {
+                        kind: 'count',
+                        path: ['renderer', 'maxZoomFactor'],
+                        label: 'Max zoom (multiple of fit)',
+                        min: 2,
+                        max: 32,
+                        step: 1,
+                    },
+                    {
+                        kind: 'count',
+                        path: ['renderer', 'maxZoomPixelRatio'],
+                        label: 'Max zoom (device pixels per image pixel)',
+                        min: 0.5,
+                        max: 8,
+                        step: 0.5,
+                    },
+                    {
+                        kind: 'count',
+                        path: ['renderer', 'animationTimeConstant'],
+                        label: 'Animation duration (s)',
+                        min: 0.02,
+                        max: 0.5,
+                        step: 0.01,
+                    },
+                ],
             },
         ],
     },
     {
-        title: 'Toolbar buttons',
-        note: 'Hide or show specific toolbar buttons.',
-        controls: [
-            toggle(['toolbar', 'showSearch'], 'Search'),
-            toggle(['toolbar', 'showGallery'], 'Gallery'),
-            toggle(['toolbar', 'showAnnotations'], 'Annotations'),
-            toggle(['toolbar', 'showInfo'], 'Information'),
-            toggle(['toolbar', 'showStructures'], 'Contents'),
-            toggle(['toolbar', 'showCollection'], 'Collection'),
-            toggle(['toolbar', 'showLocalePicker'], 'Language'),
-            toggle(['toolbar', 'showViewingMode'], 'Viewing mode switch'),
-            toggle(['toolbar', 'showFullscreen'], 'Fullscreen'),
+        title: 'Toolbar',
+        note: 'Buttons that open the gallery, a panel or a plugin are set in that tab. Side and anchor apply only to a separate toolbar.',
+        blocks: [
+            {
+                controls: [
+                    {
+                        kind: 'choice',
+                        path: ['controls'],
+                        label: 'Controls',
+                        choices: choices<NonNullable<ViewerConfig['controls']>>(
+                            {
+                                split: 'Separate toolbar',
+                                unified: 'Single control bar',
+                            },
+                        ),
+                    },
+                    {
+                        kind: 'choice',
+                        path: ['toolbar', 'side'],
+                        label: 'Side',
+                        when: { path: ['controls'], is: 'split' },
+                        choices: choices<NonNullable<Toolbar['side']>>({
+                            left: 'Left',
+                            right: 'Right',
+                        }),
+                    },
+                    {
+                        kind: 'choice',
+                        path: ['toolbar', 'anchor'],
+                        label: 'Anchor',
+                        when: { path: ['controls'], is: 'split' },
+                        choices: choices<NonNullable<Toolbar['anchor']>>({
+                            center: 'Center',
+                            top: 'Top',
+                        }),
+                    },
+                    toggle(['showToggle'], 'Toggle button'),
+                    toggle(['toolbarOpen'], 'Open on load'),
+                    {
+                        kind: 'choice',
+                        path: ['openMenu'],
+                        label: 'Menu open on load',
+                        unset: 'None',
+                        choices: choices<NonNullable<ViewerConfig['openMenu']>>(
+                            {
+                                gallery: 'Gallery',
+                                'viewing-mode': 'Viewing mode',
+                                sequence: 'Sequence',
+                                locale: 'Language',
+                                captions: 'Captions',
+                            },
+                        ),
+                    },
+                ],
+            },
+            {
+                title: 'Buttons',
+                controls: [
+                    toggle(['toolbar', 'showViewingMode'], 'Viewing mode'),
+                    toggle(['toolbar', 'showLocalePicker'], 'Language'),
+                    toggle(['toolbar', 'showFullscreen'], 'Fullscreen'),
+                ],
+            },
+        ],
+    },
+    {
+        title: 'Nav bar',
+        note: 'The bar with canvas navigation and zoom controls.',
+        blocks: [
+            {
+                controls: [
+                    toggle(['showCanvasNav'], 'Canvas navigation'),
+                    toggle(['showZoomControls'], 'Zoom controls'),
+                    {
+                        kind: 'choice',
+                        path: ['nav', 'style'],
+                        label: 'Style',
+                        choices: choices<NonNullable<Nav['style']>>({
+                            docked: 'Docked',
+                            floating: 'Floating',
+                        }),
+                    },
+                    {
+                        kind: 'choice',
+                        path: ['nav', 'edge'],
+                        label: 'Edge',
+                        choices: choices<NonNullable<Nav['edge']>>({
+                            top: 'Top',
+                            bottom: 'Bottom',
+                        }),
+                    },
+                    {
+                        kind: 'choice',
+                        path: ['nav', 'align'],
+                        label: 'Alignment',
+                        choices: choices<NonNullable<Nav['align']>>({
+                            start: 'Start',
+                            center: 'Center',
+                            end: 'End',
+                        }),
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        title: 'Gallery',
+        note: 'The thumbnail strip.',
+        blocks: [
+            {
+                controls: [
+                    toggle(['toolbar', 'showGallery'], 'Toolbar button'),
+                    toggle(['gallery', 'open'], 'Open on load'),
+                    toggle(['gallery', 'expanded'], 'Expanded to grid'),
+                    {
+                        kind: 'choice',
+                        path: ['gallery', 'dockPosition'],
+                        label: 'Position',
+                        choices: choices<NonNullable<Gallery['dockPosition']>>({
+                            bottom: 'Bottom',
+                            top: 'Top',
+                            left: 'Left',
+                            right: 'Right',
+                        }),
+                    },
+                    {
+                        kind: 'count',
+                        path: ['gallery', 'size'],
+                        label: 'Size',
+                        min: 60,
+                        max: 240,
+                        step: 4,
+                    },
+                ],
+            },
         ],
     },
     {
         title: 'Panels',
-        note: 'Which panels are open on load, which can be closed, and which side they appear on.',
-        controls: [
-            toggle(['gallery', 'open'], 'Gallery open'),
-            toggle(['gallery', 'expanded'], 'Gallery expanded to grid'),
-
-            toggle(['search', 'open'], 'Search open'),
-            toggle(['search', 'showCloseButton'], 'Search close button'),
+        note: 'Side panels: their toolbar buttons, which are open on load, which can be closed, and which side they appear on.',
+        blocks: [
             {
-                kind: 'choice',
-                path: ['search', 'position'],
-                label: 'Search panel side',
-                choices: sides,
-            },
-
-            toggle(['annotations', 'open'], 'Annotations open'),
-            toggle(
-                ['annotations', 'showCloseButton'],
-                'Annotations close button',
-            ),
-            {
-                kind: 'choice',
-                path: ['annotations', 'position'],
-                label: 'Annotations panel side',
-                choices: sides,
-            },
-
-            toggle(['information', 'open'], 'Information open'),
-            toggle(
-                ['information', 'showCloseButton'],
-                'Information close button',
-            ),
-            {
-                kind: 'choice',
-                path: ['information', 'position'],
-                label: 'Information panel side',
-                choices: sides,
-            },
-
-            toggle(['structures', 'open'], 'Contents open'),
-            toggle(['structures', 'showCloseButton'], 'Contents close button'),
-
-            toggle(['collection', 'open'], 'Collection open'),
-            toggle(
-                ['collection', 'showCloseButton'],
-                'Collection close button',
-            ),
-        ],
-    },
-    {
-        title: 'Sizes',
-        note: 'Panel and thumbnail gallery sizes.',
-        controls: [
-            {
-                kind: 'pixels',
-                path: ['leftPanelWidth'],
-                label: 'Left panel width',
-                min: 180,
-                max: 520,
-                step: 10,
+                controls: [
+                    {
+                        kind: 'pixels',
+                        path: ['leftPanelWidth'],
+                        label: 'Left panel width',
+                        min: 180,
+                        max: 520,
+                        step: 10,
+                    },
+                    {
+                        kind: 'pixels',
+                        path: ['rightPanelWidth'],
+                        label: 'Right panel width',
+                        min: 180,
+                        max: 520,
+                        step: 10,
+                    },
+                ],
             },
             {
-                kind: 'pixels',
-                path: ['rightPanelWidth'],
-                label: 'Right panel width',
-                min: 180,
-                max: 520,
-                step: 10,
+                title: 'Search',
+                controls: [
+                    toggle(['toolbar', 'showSearch'], 'Toolbar button'),
+                    toggle(['search', 'open'], 'Open on load'),
+                    toggle(['search', 'showCloseButton'], 'Close button'),
+                    {
+                        kind: 'choice',
+                        path: ['search', 'position'],
+                        label: 'Side',
+                        choices: sides,
+                    },
+                    {
+                        kind: 'text',
+                        path: ['search', 'query'],
+                        label: 'Query on load',
+                        placeholder: 'Search term',
+                    },
+                ],
             },
             {
-                kind: 'count',
-                path: ['gallery', 'size'],
-                label: 'Gallery size',
-                min: 60,
-                max: 240,
-                step: 4,
-            },
-        ],
-    },
-    {
-        title: 'Performance',
-        note: 'Renderer performance settings.',
-        controls: [
-            {
-                kind: 'count',
-                path: ['renderer', 'byteBudget'],
-                label: 'Tile cache limit',
-                min: 16,
-                max: 512,
-                step: 16,
-                scale: 1024 * 1024,
-                unit: ' MB',
+                title: 'Annotations',
+                controls: [
+                    toggle(['toolbar', 'showAnnotations'], 'Toolbar button'),
+                    toggle(['annotations', 'open'], 'Open on load'),
+                    toggle(['annotations', 'showCloseButton'], 'Close button'),
+                    {
+                        kind: 'choice',
+                        path: ['annotations', 'position'],
+                        label: 'Side',
+                        choices: sides,
+                    },
+                ],
             },
             {
-                kind: 'count',
-                path: ['renderer', 'residencyMargin'],
-                label: 'Tile preload margin (× viewport)',
-                min: 1,
-                max: 4,
-                step: 0.1,
+                title: 'Information',
+                controls: [
+                    toggle(['toolbar', 'showInfo'], 'Toolbar button'),
+                    toggle(['information', 'showButton'], 'Canvas info button'),
+                    toggle(['information', 'open'], 'Open on load'),
+                    toggle(['information', 'showCloseButton'], 'Close button'),
+                    {
+                        kind: 'choice',
+                        path: ['information', 'position'],
+                        label: 'Side',
+                        choices: sides,
+                    },
+                ],
             },
             {
-                kind: 'count',
-                path: ['renderer', 'minPixelRatio'],
-                label: 'Min device pixels per tile pixel',
-                min: 0.25,
-                max: 2,
-                step: 0.05,
+                title: 'Contents',
+                controls: [
+                    toggle(['toolbar', 'showStructures'], 'Toolbar button'),
+                    toggle(['structures', 'open'], 'Open on load'),
+                    toggle(['structures', 'showCloseButton'], 'Close button'),
+                ],
             },
             {
-                kind: 'count',
-                path: ['renderer', 'pyramidThreshold'],
-                label: 'Full tile pyramid above (px on screen)',
-                min: 80,
-                max: 1200,
-                step: 20,
-            },
-            {
-                kind: 'count',
-                path: ['renderer', 'boxThreshold'],
-                label: 'Placeholder box below (px on screen)',
-                min: 4,
-                max: 200,
-                step: 4,
+                title: 'Collection',
+                controls: [
+                    toggle(['toolbar', 'showCollection'], 'Toolbar button'),
+                    toggle(['collection', 'open'], 'Open on load'),
+                    toggle(['collection', 'showCloseButton'], 'Close button'),
+                ],
             },
         ],
     },
     {
-        title: 'Network and diagnostics',
-        note: '',
-        controls: [
+        title: 'Advanced',
+        blocks: [
             {
-                kind: 'headers',
-                path: ['requests', 'headers'],
-                label: 'Manifest request headers',
-                placeholder: 'Authorization: Bearer …',
+                title: 'Performance',
+                controls: [
+                    {
+                        kind: 'count',
+                        path: ['renderer', 'byteBudget'],
+                        label: 'Tile cache limit',
+                        min: 16,
+                        max: 512,
+                        step: 16,
+                        scale: 1024 * 1024,
+                        unit: ' MB',
+                    },
+                    {
+                        kind: 'count',
+                        path: ['renderer', 'residencyMargin'],
+                        label: 'Tile preload margin (× viewport)',
+                        min: 1,
+                        max: 4,
+                        step: 0.1,
+                    },
+                    {
+                        kind: 'count',
+                        path: ['renderer', 'minPixelRatio'],
+                        label: 'Min device pixels per tile pixel',
+                        min: 0.25,
+                        max: 2,
+                        step: 0.05,
+                    },
+                    {
+                        kind: 'count',
+                        path: ['renderer', 'pyramidThreshold'],
+                        label: 'Full tile pyramid above (px on screen)',
+                        min: 80,
+                        max: 1200,
+                        step: 20,
+                    },
+                    {
+                        kind: 'count',
+                        path: ['renderer', 'boxThreshold'],
+                        label: 'Placeholder box below (px on screen)',
+                        min: 4,
+                        max: 200,
+                        step: 4,
+                    },
+                ],
             },
-            toggle(
-                ['requests', 'withCredentials'],
-                'Send cookies with manifest request',
-            ),
-            toggle(['debug'], 'Debug logging to console'),
+            {
+                title: 'Network',
+                controls: [
+                    {
+                        kind: 'headers',
+                        path: ['requests', 'headers'],
+                        label: 'Manifest request headers',
+                        placeholder: 'Authorization: Bearer …',
+                    },
+                    toggle(
+                        ['requests', 'withCredentials'],
+                        'Send cookies with manifest request',
+                    ),
+                ],
+            },
+            {
+                title: 'Diagnostics',
+                controls: [toggle(['debug'], 'Debug logging to console')],
+            },
         ],
     },
 ];

@@ -69,10 +69,9 @@ function propertiesOf(name: string): string[] {
 
 /** The builder's choice and toggle controls, by dotted path. */
 const BUILDER = new Map(
-    CONTROL_GROUPS.flatMap((group) => group.controls).map((control) => [
-        control.path.join('.'),
-        control,
-    ]),
+    CONTROL_GROUPS.flatMap((group) =>
+        group.blocks.flatMap((block) => block.controls),
+    ).map((control) => [control.path.join('.'), control]),
 );
 
 describe('the layout knobs', () => {

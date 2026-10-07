@@ -96,6 +96,7 @@ export default defineConfig({
         createLocalVitePlugin({
             root: REPO_ROOT,
             permittedRoots: [CONTENT_DIR_FROM_ROOT],
+            host: true,
         }),
         sveltekit(),
     ],
@@ -104,6 +105,7 @@ export default defineConfig({
         __SITE_VERSION_DATE__: JSON.stringify(stamp.date),
     },
     server: {
+        allowedHosts: ['df-laptop-lx', 'df-laptop-lx.flicker-lionfish.ts.net'],
         /* Watching build output or committed tiles exhausts inotify (ENOSPC). */
         watch: { ignored: ['**/build/**', '**/static/material/**'] },
     },
