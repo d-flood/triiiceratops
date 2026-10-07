@@ -1,5 +1,14 @@
 # @triiiceratops/plugin-image-export
 
+## 1.1.1
+
+### Patch Changes
+
+- 1a62a36: The canvas number in the nav now opens a list of all canvases, plugin dropdowns fill in options that load late, and `subscribe` no longer forces a flush that could break Svelte's `experimental.async`. Svelte peers now start at 5.29 for core and 5.57.2 for plugins, and the SDK also accepts vitest 3.
+- Updated dependencies [1a62a36]
+    - triiiceratops@1.2.2
+    - @triiiceratops/plugin-sdk@1.0.1
+
 ## 1.1.0
 
 ### Minor Changes
