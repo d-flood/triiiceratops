@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.2.2
+
+### Patch Changes
+
+- 1a62a36: The canvas number in the nav now opens a list of all canvases, plugin dropdowns fill in options that load late, and `subscribe` no longer forces a flush that could break Svelte's `experimental.async`. Svelte peers now start at 5.29 for core and 5.57.2 for plugins, and the SDK also accepts vitest 3.
+
 ## 1.2.1
 
 ### Patch Changes
