@@ -133,9 +133,6 @@ beforeAll(() => {
         setTimeout(() => anim.onfinish?.(), 0);
         return anim as unknown as Animation;
     };
-    // `scrollIntoView` is unimplemented in happy-dom; the auto-scroll effect
-    // calls it on every canvas change.
-    Element.prototype.scrollIntoView = function () {};
 });
 
 describe('expanded thumbnail gallery', () => {
@@ -674,7 +671,7 @@ describe('thumbnail gallery recomputation', () => {
 
     it('scrolls on navigation but not on a recompute', async () => {
         const state = await mountViewer();
-        const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+        const scroll = vi.spyOn(Element.prototype, 'scrollTo');
 
         state.selectChoice(CANVAS('page-2'), XRAY);
         state.activeLocale = 'fr';
