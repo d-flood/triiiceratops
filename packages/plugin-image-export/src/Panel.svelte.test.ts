@@ -94,4 +94,41 @@ describe('image export panel', () => {
 
         await unmount(app);
     });
+
+    it('lists the resolutions in the visible picker once they load', async () => {
+        const tc = createTestViewerContext({
+            catalog,
+            fixtures: { manifest: { id: MANIFEST, json: manifest } },
+        });
+        await flush();
+
+        const app = mount(Panel, {
+            target,
+            context: new Map<symbol, PanelContext>([
+                [PLUGIN_CONTEXT_KEY, { context: tc.context }],
+            ]),
+        });
+        await flush();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await flush();
+
+        const picker = target
+            .querySelector('[data-tri-id-resolution]')!
+            .closest('.select-wrapper')!;
+        const listed = Array.from(
+            picker.querySelectorAll('[role="option"]'),
+            (option) => option.textContent?.trim(),
+        );
+        expect(listed).toEqual([
+            catalog.en!.image_download_resolution_placeholder,
+            'Original (1000 × 1200px)',
+            '50% (500 × 600px)',
+            '25% (250 × 300px)',
+        ]);
+        expect(
+            picker.querySelector('[role="combobox"]')?.textContent?.trim(),
+        ).toBe('Original (1000 × 1200px)');
+
+        await unmount(app);
+    });
 });

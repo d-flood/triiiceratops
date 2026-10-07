@@ -85,7 +85,12 @@
         // Svelte re-assigns `disabled` whenever the template re-renders, which
         // records a mutation on the select itself; reacting to it would loop.
         const mo = new MutationObserver((records) => {
-            if (records.some((r) => r.target !== nativeEl)) rebuild();
+            if (
+                records.some(
+                    (r) => r.type !== 'attributes' || r.target !== nativeEl,
+                )
+            )
+                rebuild();
         });
         mo.observe(nativeEl, {
             childList: true,
