@@ -82,6 +82,7 @@ Thumbs.db
 
 # Svelte
 .svelte-kit/
+.svelte-check/
 
 # Temporary files
 *.tmp
