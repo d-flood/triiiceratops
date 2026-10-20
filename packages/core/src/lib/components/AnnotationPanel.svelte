@@ -31,7 +31,9 @@
             canvasIds: viewerState.annotatableCanvasIds,
             getAnnotations: (manifestId, canvasId) =>
                 viewerState.getAnnotations(manifestId, canvasId),
-            searchAnnotations: viewerState.searchAnnotations,
+            searchAnnotations: viewerState.showSearchPanel
+                ? viewerState.searchAnnotations
+                : [],
         }).flatMap((entry) => entry.annotations),
     );
 

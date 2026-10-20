@@ -143,7 +143,9 @@
             canvasIds: viewerState.annotatableCanvasIds,
             getAnnotations: (manifestId, canvasId) =>
                 viewerState.getAnnotations(manifestId, canvasId),
-            searchAnnotations: viewerState.searchAnnotations,
+            searchAnnotations: viewerState.showSearchPanel
+                ? viewerState.searchAnnotations
+                : [],
         }),
     );
 
@@ -169,17 +171,20 @@
      * costs no arithmetic per frame.
      */
     const shownAnnotations = $derived.by(() => {
-        // Nothing is asking for annotations, so none are drawn — whatever is
-        // still in the visibility set. The set is seeded by the annotations
-        // panel and by an open editor, and neither clears it on the way out, so
-        // without this a shape outlived the thing that put it on screen.
-        if (!viewerState.showAnnotations && !annotationEditorOpen) return [];
+        // The annotations panel and an open editor both seed the visibility
+        // set, and neither clears it on the way out, so membership alone would
+        // let a shape outlive whatever put it on screen.
+        const annotationsRequested =
+            viewerState.showAnnotations || annotationEditorOpen;
         return parsedAnnotations.filter((anno) => {
-            // A search hit is always shown; everything else honours the
-            // annotation panel's visibility set.
+            // The search owns its hits, so this filter always keeps them;
+            // everything else must be in the annotations panel's visibility set.
             if (
                 !anno.isSearchHit &&
-                !viewerState.visibleAnnotationIds.has(anno.sourceAnnotationId)
+                (!annotationsRequested ||
+                    !viewerState.visibleAnnotationIds.has(
+                        anno.sourceAnnotationId,
+                    ))
             ) {
                 return false;
             }

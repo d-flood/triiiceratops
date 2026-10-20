@@ -2543,10 +2543,6 @@ export class ViewerState {
 
     toggleSearchPanel() {
         this.showSearchPanel = !this.showSearchPanel;
-        if (!this.showSearchPanel) {
-            // Clear ephemeral annotations when closing search
-            this.searchAnnotations = [];
-        }
         this.dispatchStateChange();
     }
 

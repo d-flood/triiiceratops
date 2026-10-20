@@ -27,6 +27,7 @@
         searchAnnotations = [],
         canvases = [],
         editorOpen = false,
+        showAnnotations = true,
         activeLocale = 'en',
         requestEdit,
         canvasToScreen = (point: { x: number; y: number }) => point,
@@ -54,6 +55,8 @@
         canvases?: any[];
         /** Whether the stub annotation-editor button reports itself active. */
         editorOpen?: boolean;
+        /** Whether the annotations panel is open. */
+        showAnnotations?: boolean;
         /** The viewer's active locale, which picks a `Choice` body's item. */
         activeLocale?: string;
         /** Told which annotation the overlay asked to edit. */
@@ -127,6 +130,7 @@
         get searchAnnotations() {
             return searchAnnotations;
         },
+        showSearchPanel: true,
         rendererReady: true,
         hoveredAnnotationId: null,
         get activeAnnotationId() {
@@ -148,9 +152,9 @@
                 );
             };
         },
-        // The overlay draws nothing unless something is asking for annotations:
-        // the panel, or an open editor. This host is always one of the two.
-        showAnnotations: true,
+        get showAnnotations() {
+            return showAnnotations;
+        },
         get visibleAnnotationIds() {
             return new Set(
                 Object.values(byCanvas)

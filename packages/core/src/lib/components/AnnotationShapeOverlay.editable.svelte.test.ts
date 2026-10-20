@@ -451,6 +451,34 @@ describe('AnnotationShapeOverlay — a search hit', () => {
         expect(shape!.style.top).toBe('100px');
     });
 
+    it('appears with the annotations panel closed, where an annotation does not', () => {
+        mounted = mount(AnnotationShapeOverlayTestHost, {
+            target: document.body,
+            props: {
+                annotations: [
+                    {
+                        id: 'anno-1',
+                        type: 'Annotation',
+                        motivation: 'commenting',
+                        body: { type: 'TextualBody', value: 'A note' },
+                        target: 'canvas-1#xywh=0,0,10,10',
+                    },
+                ],
+                searchAnnotations: [HIT],
+                canvases: [CANVAS],
+                showAnnotations: false,
+            },
+        });
+        flushSync();
+
+        expect(
+            document.querySelector('[data-annotation-id="urn:search-hit:0"]'),
+        ).not.toBeNull();
+        expect(
+            document.querySelector('[data-annotation-id="anno-1"]'),
+        ).toBeNull();
+    });
+
     it('still converts an annotation that really does target the image', () => {
         mounted = mount(AnnotationShapeOverlayTestHost, {
             target: document.body,

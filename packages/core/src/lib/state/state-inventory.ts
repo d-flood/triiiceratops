@@ -176,7 +176,7 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         member: 'showSearchPanel',
         classification: 'command',
         commands: ['toggleSearchPanel'],
-        notes: 'Closing clears ephemeral search annotations (invariant).',
+        notes: 'Closing hides search hits but keeps the results, so reopening restores both.',
     },
 
     // ---- Annotation overlay visibility ---------------------------------------
