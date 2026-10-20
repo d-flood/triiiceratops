@@ -1,5 +1,13 @@
 # @triiiceratops/plugin-sdk
 
+## 1.0.2
+
+### Patch Changes
+
+- ce1e072: Exclude vitest 4.1.12 from the optional vitest peer range; its broken peer set crashes `npm install` on npm 10.
+- Updated dependencies [5564b6f]
+    - triiiceratops@1.2.3
+
 ## 1.0.1
 
 ### Patch Changes

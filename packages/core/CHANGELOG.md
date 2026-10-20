@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.2.3
+
+### Patch Changes
+
+- 5564b6f: Search hits now appear while the annotations panel is closed. Closing the search panel by any route hides its hits, and reopening it restores them.
+
 ## 1.2.2
 
 ### Patch Changes
