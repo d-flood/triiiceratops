@@ -9,6 +9,7 @@
 
 import type { ViewingDirection, ViewingMode } from '../components/canvasLayout';
 import type { ImageSource } from '../utils/resolveCanvasImage';
+import type { ViewportRotation } from '../types/viewport';
 
 export type { ViewingDirection, ViewingMode };
 
@@ -184,12 +185,17 @@ export interface Point {
  * the viewport.
  */
 export interface Viewport {
-    /** Viewport width in CSS pixels. */
+    /**
+     * Viewport width in CSS pixels, along the world's x axis — the surface's
+     * height under a quarter turn.
+     */
     width: number;
-    /** Viewport height in CSS pixels. */
+    /** Viewport height in CSS pixels, along the world's y axis. */
     height: number;
     centre: Point;
     scale: number;
+    /** The screen's clockwise turn against the world; `0` when absent. */
+    rotation?: ViewportRotation;
 }
 
 /**

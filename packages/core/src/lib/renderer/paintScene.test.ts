@@ -27,6 +27,7 @@ import { describe, expect, it } from 'vitest';
 
 import { paintScene } from './paintScene';
 import type { ScenePlan, TileDraw, Viewport } from './types';
+import { canvasToScreen } from './viewportMath';
 
 interface DrawCall {
     x: number;
@@ -211,5 +212,90 @@ describe('paintScene — tile snapping', () => {
 
         expect(calls.length).toBe(8);
         expect(tiny.length).toBe(0);
+    });
+});
+
+describe('paintScene — a turned view', () => {
+    /** Records where each draw lands in device pixels, through the transform. */
+    function landingContext() {
+        const rects: DrawCall[] = [];
+        let m = [1, 0, 0, 1, 0, 0];
+        const ctx = {
+            canvas: { width: 1200, height: 1600 },
+            setTransform: (...next: number[]) => {
+                m = next;
+            },
+            clearRect: () => {},
+            drawImage: (
+                _image: unknown,
+                x: number,
+                y: number,
+                width: number,
+                height: number,
+            ) => {
+                const [a, b, c, d, e, f] = m;
+                const px = a * x + c * y + e;
+                const py = b * x + d * y + f;
+                const qx = a * (x + width) + c * (y + height) + e;
+                const qy = b * (x + width) + d * (y + height) + f;
+                rects.push({
+                    x: Math.min(px, qx),
+                    y: Math.min(py, qy),
+                    width: Math.abs(qx - px),
+                    height: Math.abs(qy - py),
+                });
+            },
+        };
+        return { ctx: ctx as unknown as CanvasRenderingContext2D, rects };
+    }
+
+    it('lands each tile, snapped, where the turned mapping puts it', () => {
+        const dpr = 2;
+        for (const rotation of [90, 180, 270] as const) {
+            const viewport = { ...VIEWPORT, rotation };
+            const { ctx, rects } = landingContext();
+            const tile = { width: 256, height: 256 } as CanvasImageSource;
+            const draws = tileDraws(8);
+
+            paintScene(
+                ctx,
+                plan(draws),
+                viewport,
+                { images: {}, tiles: () => tile },
+                dpr,
+            );
+
+            expect(rects).toHaveLength(draws.length);
+            draws.forEach((draw, index) => {
+                const p = canvasToScreen(draw, viewport);
+                const q = canvasToScreen(
+                    { x: draw.x + draw.width, y: draw.y + draw.height },
+                    viewport,
+                );
+                const rect = rects[index];
+                for (const edge of [
+                    rect.x,
+                    rect.y,
+                    rect.x + rect.width,
+                    rect.y + rect.height,
+                ]) {
+                    expect(Number.isInteger(Math.round(edge * 1e6) / 1e6)).toBe(
+                        true,
+                    );
+                }
+                expect(
+                    Math.abs(rect.x - Math.min(p.x, q.x) * dpr),
+                ).toBeLessThanOrEqual(0.5);
+                expect(
+                    Math.abs(rect.y - Math.min(p.y, q.y) * dpr),
+                ).toBeLessThanOrEqual(0.5);
+                expect(
+                    Math.abs(rect.width - Math.abs(q.x - p.x) * dpr),
+                ).toBeLessThanOrEqual(1);
+                expect(
+                    Math.abs(rect.height - Math.abs(q.y - p.y) * dpr),
+                ).toBeLessThanOrEqual(1);
+            });
+        }
     });
 });

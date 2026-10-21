@@ -49,6 +49,7 @@ import {
     type ViewportBox,
     type ViewportInset,
     type ViewportPoint,
+    type ViewportRotation,
 } from '../types/viewport.js';
 import type {
     BarMenu,
@@ -889,6 +890,13 @@ export class ViewerState {
      */
     private unsubscribeSurfaceTap: (() => void) | null = null;
 
+    /** Surface-key fan-out; see {@link subscribeSurfaceKey}. */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    private surfaceKeyListeners = new Set<(event: KeyboardEvent) => void>();
+
+    /** Detach from the port's key events; set while a renderer is attached. */
+    private unsubscribeSurfaceKey: (() => void) | null = null;
+
     /**
      * The canvases the reader is looking at, in layout order — the scope every
      * annotation surface works over.
@@ -980,6 +988,16 @@ export class ViewerState {
     imageAdjustments: ImageAdjustments = $state.raw(NEUTRAL_IMAGE_ADJUSTMENTS);
 
     /**
+     * The view's clockwise turn, in degrees.
+     *
+     * Command state: changed through {@link setViewportRotation}, and
+     * re-applied to a renderer that mounts after it was set. Canvas space never
+     * turns, so annotation geometry and every canvas-space query mean what they
+     * did; only the screen-space mappings follow it.
+     */
+    viewportRotation: ViewportRotation = $state(0);
+
+    /**
      * Edges of the surface a plugin has reserved, which **fits** frame into.
      *
      * Command state: changed through {@link setViewportInset} and
@@ -1042,11 +1060,18 @@ export class ViewerState {
 
         this.rendererPort = port;
         port.applyImageAdjustments(this.imageAdjustments);
+        port.applyRotation(this.viewportRotation);
         this.syncFrameSource();
         this.unsubscribeSurfaceTap?.();
         this.unsubscribeSurfaceTap = port.onTap((point) => {
             for (const listener of [...this.surfaceTapListeners]) {
                 listener(point);
+            }
+        });
+        this.unsubscribeSurfaceKey?.();
+        this.unsubscribeSurfaceKey = port.onKey((event) => {
+            for (const listener of [...this.surfaceKeyListeners]) {
+                listener(event);
             }
         });
         this.rendererReady = true;
@@ -1059,6 +1084,8 @@ export class ViewerState {
             this.syncFrameSource();
             this.unsubscribeSurfaceTap?.();
             this.unsubscribeSurfaceTap = null;
+            this.unsubscribeSurfaceKey?.();
+            this.unsubscribeSurfaceKey = null;
             this.rendererReady = false;
         });
     }
@@ -1079,6 +1106,19 @@ export class ViewerState {
     subscribeSurfaceTap(listener: (point: ViewportPoint) => void): () => void {
         this.surfaceTapListeners.add(listener);
         return once(() => this.surfaceTapListeners.delete(listener));
+    }
+
+    /**
+     * Hear a key pressed while the image surface has focus, when the viewport
+     * has no binding of its own for it — arrows, `+`/`-`, `0` and `Home` never
+     * arrive, and neither does a key held with Ctrl, Alt or Meta. A listener
+     * that acts on the key should `preventDefault()` it.
+     *
+     * Unsubscribing is idempotent, and a listener survives a renderer remount.
+     */
+    subscribeSurfaceKey(listener: (event: KeyboardEvent) => void): () => void {
+        this.surfaceKeyListeners.add(listener);
+        return once(() => this.surfaceKeyListeners.delete(listener));
     }
 
     /**
@@ -1764,6 +1804,24 @@ export class ViewerState {
             return;
         }
         this.viewportInset = next;
+    }
+
+    /**
+     * Turn the view to `rotation` degrees clockwise. Any multiple of 90 is
+     * taken and normalised, so `setViewportRotation(viewportRotation + 90)`
+     * steps a quarter turn; anything else is refused and logged.
+     *
+     * The centre stays put and the zoom keeps its ratio to the fit, so a
+     * fitted view is still fitted after the turn.
+     */
+    setViewportRotation(rotation: number): void {
+        if (rotation % 90 !== 0) {
+            logger.warn('setViewportRotation: not a quarter turn:', rotation);
+            return;
+        }
+        const next = (((rotation % 360) + 360) % 360) as ViewportRotation;
+        this.viewportRotation = next;
+        this.rendererPort?.applyRotation(next);
     }
 
     /** Return every edge to zero — fits frame into the whole surface again. */

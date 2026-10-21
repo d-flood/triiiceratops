@@ -14,6 +14,9 @@ import {
     insetFitCentre,
     normalizeWheelDelta,
     screenToCanvas,
+    TURNS,
+    turnInset,
+    viewportTransform,
     wheelZoomRate,
     sourcePixelCeiling,
     zoomRange,
@@ -50,6 +53,100 @@ describe('canvas ↔ screen conversion', () => {
 
         expect(roundTripped.x).toBeCloseTo(point.x, 10);
         expect(roundTripped.y).toBeCloseTo(point.y, 10);
+    });
+});
+
+describe('a turned view', () => {
+    const ROTATIONS = [0, 90, 180, 270] as const;
+
+    it('keeps the centre at the middle of the surface it turns', () => {
+        expect(
+            canvasToScreen(VIEWPORT.centre, { ...VIEWPORT, rotation: 90 }),
+        ).toEqual({ x: 300, y: 400 });
+    });
+
+    it('turns clockwise: the world to the right of centre lands below it', () => {
+        const turned = { ...VIEWPORT, rotation: 90 } as const;
+        expect(canvasToScreen({ x: 600, y: 375 }, turned)).toEqual({
+            x: 300,
+            y: 440,
+        });
+        expect(canvasToScreen({ x: 500, y: 475 }, turned)).toEqual({
+            x: 260,
+            y: 400,
+        });
+    });
+
+    it('round-trips at every turn', () => {
+        const point = { x: 123.5, y: 987.25 };
+        for (const rotation of ROTATIONS) {
+            const viewport = { ...VIEWPORT, rotation };
+            const back = screenToCanvas(
+                canvasToScreen(point, viewport),
+                viewport,
+            );
+            expect(back.x).toBeCloseTo(point.x, 10);
+            expect(back.y).toBeCloseTo(point.y, 10);
+        }
+    });
+
+    it('paints with the matrix the coordinate helpers describe', () => {
+        const dpr = 2;
+        const point = { x: 640, y: 210 };
+        for (const rotation of ROTATIONS) {
+            const viewport = { ...VIEWPORT, rotation };
+            const { scale, offsetX, offsetY } = viewportTransform(
+                viewport,
+                dpr,
+            );
+            const [a, b, c, d] = TURNS[rotation];
+            const screen = canvasToScreen(point, viewport);
+            expect(
+                a * point.x * scale + c * point.y * scale + offsetX,
+            ).toBeCloseTo(screen.x * dpr, 8);
+            expect(
+                b * point.x * scale + d * point.y * scale + offsetY,
+            ).toBeCloseTo(screen.y * dpr, 8);
+        }
+    });
+
+    it('keeps the point under a zoom anchor under it at every turn', () => {
+        const anchor = { x: 137, y: 512 };
+        for (const rotation of ROTATIONS) {
+            const viewport = { ...VIEWPORT, rotation };
+            const before = screenToCanvas(anchor, viewport);
+            const centre = anchoredZoomCentre(viewport, anchor, 4);
+            const after = canvasToScreen(before, {
+                ...viewport,
+                centre,
+                scale: 4,
+            });
+            expect(after.x).toBeCloseTo(anchor.x, 8);
+            expect(after.y).toBeCloseTo(anchor.y, 8);
+        }
+    });
+
+    it('reads a screen edge as the world-aligned edge it covers', () => {
+        const inset = { top: 1, right: 2, bottom: 3, left: 4 };
+        expect(turnInset(inset, 0)).toEqual(inset);
+        expect(turnInset(inset, 90)).toEqual({
+            top: 2,
+            right: 3,
+            bottom: 4,
+            left: 1,
+        });
+        expect(turnInset(inset, 180)).toEqual({
+            top: 3,
+            right: 4,
+            bottom: 1,
+            left: 2,
+        });
+        expect(turnInset(inset, 270)).toEqual({
+            top: 4,
+            right: 1,
+            bottom: 2,
+            left: 3,
+        });
     });
 });
 

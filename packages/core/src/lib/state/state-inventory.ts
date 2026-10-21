@@ -402,6 +402,16 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         notes: 'Live detach handle for the renderer’s tap events; non-null exactly while a port is attached. Not lazy like unsubscribeFrame: a tap is human-rate, so there is no idle loop to avoid.',
     },
     {
+        member: 'surfaceKeyListeners',
+        classification: 'internal',
+        notes: 'Surface-key fan-out set behind subscribeSurfaceKey. Plain Set, not reactive, like surfaceTapListeners — a key press is delivered to its listeners, not published as state.',
+    },
+    {
+        member: 'unsubscribeSurfaceKey',
+        classification: 'internal',
+        notes: 'Live detach handle for the renderer’s unbound-key events; non-null exactly while a port is attached, like unsubscribeSurfaceTap.',
+    },
+    {
         member: 'visibleCanvasIds',
         classification: 'observable',
         notes: 'The canvases the reader is looking at, in layout order — one canvas in individuals, the whole spread in paged, the folios the viewport meets in continuous. Only the renderer can answer it, so core writes it; the host republishes it when the SET changes rather than per frame, which is what makes an observable safe here. The annotation panel, the shape overlay and the connector all scope themselves to it (via the annotatableCanvasIds derived read).',
@@ -416,6 +426,12 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
         classification: 'command',
         commands: ['setImageAdjustments', 'resetImageAdjustments'],
         notes: 'Brightness/contrast/saturation/invert/grayscale applied to the rendered image. Command state rather than a reach into the renderer’s DOM node: it survives a remount and is testable with no renderer.',
+    },
+    {
+        member: 'viewportRotation',
+        classification: 'command',
+        commands: ['setViewportRotation'],
+        notes: 'The view’s clockwise quarter turn. Like imageAdjustments it is re-applied to a renderer that mounts after it was set; unlike viewportInset the renderer acts on it at once, holding the centre and the zoom’s ratio to the fit. Canvas space never turns.',
     },
     {
         member: 'chromeInset',

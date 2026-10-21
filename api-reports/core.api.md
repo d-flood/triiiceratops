@@ -1278,7 +1278,7 @@ export { SDK_PLUGIN_KIND, isSdkPlugin, PLUGIN_ERROR_EVENT, } from './types/plugi
 export type { SelectorSource, SourceSelectors, } from './state/selectors/runtime';
 export type { ViewerError, ViewerErrorScope, ViewerErrorSeverity, ViewerErrorReporter, } from './types/viewerError';
 export { VIEWER_ERROR_EVENT } from './types/viewerError';
-export type { CanvasSize, ContainerSize, ImageAdjustments, ViewportBox, ViewportInset, ViewportPoint, } from './types/viewport';
+export type { CanvasSize, ContainerSize, ImageAdjustments, ViewportBox, ViewportInset, ViewportPoint, ViewportRotation, } from './types/viewport';
 export { NEUTRAL_IMAGE_ADJUSTMENTS, ZERO_VIEWPORT_INSET, imageAdjustmentsToCssFilter, isNeutralImageAdjustments, } from './types/viewport';
 export type { PaintCanvasPlacement, PaintFrame, PaintLayer, PaintLayerDraw, PaintTransform, } from './renderer/paintLayers';
 export type { OverlayLayer } from './renderer/overlayLayers';
@@ -2140,7 +2140,7 @@ export declare function createOverlayLayerRegistry(options?: {
  * rendering of something the DOM already carries — never the only copy.
  */
 import type { LayoutRect } from './types.js';
-import type { ViewportBox, ViewportPoint } from '../types/viewport.js';
+import type { ViewportBox, ViewportPoint, ViewportRotation } from '../types/viewport.js';
 /**
  * The matrix the tiles were drawn with, as numbers.
  *
@@ -2148,7 +2148,8 @@ import type { ViewportBox, ViewportPoint } from '../types/viewport.js';
  * in **world space** — the renderer's laid-out coordinate space, in which every
  * canvas of the manifest has a rect — needs none of it. It is carried explicitly
  * for the layer that wants device pixels instead: reset the transform, and
- * `x_device = x_world * scale + offsetX`.
+ * `x_device = x_world * scale + offsetX` — at `rotation` 0. A turned view
+ * rotates the scaled world point clockwise by `rotation` degrees first.
  *
  * `scale` has `dpr` folded in. A layer is handed the very transform the tiles
  * were drawn with — `viewportMath.viewportTransform` builds it once per frame
@@ -2159,6 +2160,8 @@ import type { ViewportBox, ViewportPoint } from '../types/viewport.js';
 export interface PaintTransform {
     /** Device pixels per world unit — the viewport scale times `dpr`. */
     scale: number;
+    /** The screen's clockwise turn against the world. */
+    rotation: ViewportRotation;
     /** Device-pixel x of the world origin. */
     offsetX: number;
     /** Device-pixel y of the world origin. */
@@ -2363,7 +2366,7 @@ export declare function paintCanvasSpace(layout: readonly LayoutRect[], declared
  * answer for the canvas asked about returns `null` rather than silently
  * answering for a different one.
  */
-import type { CanvasSize, ContainerSize, ImageAdjustments, ViewportBox, ViewportPoint } from '../types/viewport.js';
+import type { CanvasSize, ContainerSize, ImageAdjustments, ViewportBox, ViewportPoint, ViewportRotation } from '../types/viewport.js';
 export interface RendererPort {
     /**
      * Multiply the zoom by `factor`, anchored at a screen-space point — the
@@ -2442,6 +2445,11 @@ export interface RendererPort {
      */
     applyImageAdjustments(adjustments: ImageAdjustments): void;
     /**
+     * Adopt a turn of the view. Called on every change and once at attach, as
+     * {@link applyImageAdjustments} is.
+     */
+    applyRotation(rotation: ViewportRotation): void;
+    /**
      * Subscribe to the renderer's **own animation events** — what the `frame`
      * selector cadence is woken by (CONTEXT.md **Selector cadence**). The
      * listener takes no payload: it means "the viewport moved, read what you
@@ -2459,6 +2467,12 @@ export interface RendererPort {
      * geometry. Returns an idempotent unsubscribe.
      */
     onTap(listener: (point: ViewportPoint) => void): () => void;
+    /**
+     * Subscribe to the keys pressed while the surface has focus that it has
+     * no binding of its own for. Modified keys are the browser's and never
+     * arrive. Returns an idempotent unsubscribe.
+     */
+    onKey(listener: (event: KeyboardEvent) => void): () => void;
 }
 
 // ======================================================================
@@ -2474,6 +2488,7 @@ export interface RendererPort {
  */
 import type { ViewingDirection, ViewingMode } from '../components/canvasLayout';
 import type { ImageSource } from '../utils/resolveCanvasImage';
+import type { ViewportRotation } from '../types/viewport';
 export type { ViewingDirection, ViewingMode };
 /**
  * Where a canvas's pixels come from.
@@ -2643,12 +2658,17 @@ export interface Point {
  * the viewport.
  */
 export interface Viewport {
-    /** Viewport width in CSS pixels. */
+    /**
+     * Viewport width in CSS pixels, along the world's x axis — the surface's
+     * height under a quarter turn.
+     */
     width: number;
-    /** Viewport height in CSS pixels. */
+    /** Viewport height in CSS pixels, along the world's y axis. */
     height: number;
     centre: Point;
     scale: number;
+    /** The screen's clockwise turn against the world; `0` when absent. */
+    rotation?: ViewportRotation;
 }
 /**
  * Image-service facts already fetched for a canvas — everything `info.json`
@@ -3647,7 +3667,7 @@ import type { RendererPort } from '../renderer/rendererPort.js';
 import { type PaintLayer, type RegisteredPaintLayer } from '../renderer/paintLayers.js';
 import { type OverlayLayer, type RegisteredOverlayLayer } from '../renderer/overlayLayers.js';
 import { type RegisteredTransportChrome, type TransportChrome } from './transportChrome.js';
-import { type CanvasSize, type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportInset, type ViewportPoint } from '../types/viewport.js';
+import { type CanvasSize, type ContainerSize, type ImageAdjustments, type ViewportBox, type ViewportInset, type ViewportPoint, type ViewportRotation } from '../types/viewport.js';
 import type { BarMenu, RequestConfig, SearchProvider, SearchResultGroup, ViewerConfig } from '../types/config';
 import type { PluginMenuButton, PluginPanel, PluginFlyout, PluginMountThunk, PluginUiTarget, IconDescriptor } from '../types/plugin';
 import { type StructureNode } from '../utils/structures';
@@ -4008,6 +4028,10 @@ export declare class ViewerState {
      * idle viewer, and a tap is a human-rate event with no loop behind it.
      */
     private unsubscribeSurfaceTap;
+    /** Surface-key fan-out; see {@link subscribeSurfaceKey}. */
+    private surfaceKeyListeners;
+    /** Detach from the port's key events; set while a renderer is attached. */
+    private unsubscribeSurfaceKey;
     /**
      * The canvases the reader is looking at, in layout order — the scope every
      * annotation surface works over.
@@ -4069,6 +4093,15 @@ export declare class ViewerState {
      * and is testable with no renderer at all.
      */
     imageAdjustments: ImageAdjustments;
+    /**
+     * The view's clockwise turn, in degrees.
+     *
+     * Command state: changed through {@link setViewportRotation}, and
+     * re-applied to a renderer that mounts after it was set. Canvas space never
+     * turns, so annotation geometry and every canvas-space query mean what they
+     * did; only the screen-space mappings follow it.
+     */
+    viewportRotation: ViewportRotation;
     /**
      * Edges of the surface a plugin has reserved, which **fits** frame into.
      *
@@ -4137,6 +4170,15 @@ export declare class ViewerState {
      * the subscription is to the viewer, not to a renderer instance.
      */
     subscribeSurfaceTap(listener: (point: ViewportPoint) => void): () => void;
+    /**
+     * Hear a key pressed while the image surface has focus, when the viewport
+     * has no binding of its own for it — arrows, `+`/`-`, `0` and `Home` never
+     * arrive, and neither does a key held with Ctrl, Alt or Meta. A listener
+     * that acts on the key should `preventDefault()` it.
+     *
+     * Unsubscribing is idempotent, and a listener survives a renderer remount.
+     */
+    subscribeSurfaceKey(listener: (event: KeyboardEvent) => void): () => void;
     /**
      * Wake up on the renderer's own animation events — the `frame` selector
      * cadence's source (CONTEXT.md **Selector cadence**). The listener receives
@@ -4560,6 +4602,15 @@ export declare class ViewerState {
      * have.
      */
     setViewportInset(inset: Partial<ViewportInset>): void;
+    /**
+     * Turn the view to `rotation` degrees clockwise. Any multiple of 90 is
+     * taken and normalised, so `setViewportRotation(viewportRotation + 90)`
+     * steps a quarter turn; anything else is refused and logged.
+     *
+     * The centre stays put and the zoom keeps its ratio to the fit, so a
+     * fitted view is still fitted after the turn.
+     */
+    setViewportRotation(rotation: number): void;
     /** Return every edge to zero — fits frame into the whole surface again. */
     resetViewportInset(): void;
     /** Return the image to exactly how it was decoded. */
@@ -5348,7 +5399,7 @@ export declare function createTestViewerHandle(options?: TestViewerHandleOptions
  * does for a canvas it has not laid out.
  */
 import type { RendererPort } from '../renderer/rendererPort.js';
-import { type CanvasSize, type ContainerSize, type ImageAdjustments, type ViewportPoint } from '../types/viewport.js';
+import { type CanvasSize, type ContainerSize, type ImageAdjustments, type ViewportPoint, type ViewportRotation } from '../types/viewport.js';
 /** Options for {@link createRendererStub}. */
 export interface RendererStubOptions extends Partial<StubView> {
     /**
@@ -5389,6 +5440,11 @@ export interface RendererStub extends RendererPort {
     readonly view: StubView;
     /** The last adjustment set handed to {@link applyImageAdjustments}. */
     readonly adjustments: ImageAdjustments;
+    /**
+     * The last turn handed to {@link applyRotation}. Recorded only: the
+     * stand-in's coordinate answers stay unturned.
+     */
+    readonly rotation: ViewportRotation;
     /** Every command received, in order — `['zoomBy', 1.2]` and friends. */
     readonly calls: Array<[string, ...unknown[]]>;
     /** Move the view without going through a command. */
@@ -5407,6 +5463,11 @@ export interface RendererStub extends RendererPort {
      * selection, without synthesizing pointer events.
      */
     emitTap(point: ViewportPoint): void;
+    /**
+     * Press a key on the focused surface that the renderer has no binding for,
+     * waking every key subscriber.
+     */
+    emitKey(event: KeyboardEvent): void;
 }
 /**
  * Build a {@link RendererStub}. Attach it with
@@ -7068,6 +7129,8 @@ export interface ViewportBox {
     width: number;
     height: number;
 }
+/** A clockwise turn of the view, in degrees. */
+export type ViewportRotation = 0 | 90 | 180 | 270;
 /** The viewer surface's size in CSS pixels. */
 export interface ContainerSize {
     width: number;

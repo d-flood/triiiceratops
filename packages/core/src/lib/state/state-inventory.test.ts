@@ -418,6 +418,10 @@ const commandScenarios: CapabilityScenario[] = [
         act: (state) => state.setViewportInset({ bottom: 200 }),
     },
     {
+        member: 'viewportRotation',
+        act: (state) => state.setViewportRotation(90),
+    },
+    {
         member: 'manifestId',
         setup: () => {
             vi.mocked(manifestsState.getManifestEntry).mockReturnValue({

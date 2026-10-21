@@ -1,9 +1,9 @@
 {
-    "count": 87,
+    "count": 90,
     "byClassification": {
-        "command": 37,
+        "command": 38,
         "observable": 16,
-        "internal": 30,
+        "internal": 32,
         "query-only": 4
     },
     "entries": [
@@ -434,6 +434,11 @@
             "commands": null
         },
         {
+            "member": "surfaceKeyListeners",
+            "classification": "internal",
+            "commands": null
+        },
+        {
             "member": "surfaceTapListeners",
             "classification": "internal",
             "commands": null
@@ -477,6 +482,11 @@
         },
         {
             "member": "unsubscribeFrame",
+            "classification": "internal",
+            "commands": null
+        },
+        {
+            "member": "unsubscribeSurfaceKey",
             "classification": "internal",
             "commands": null
         },
@@ -540,6 +550,13 @@
             "commands": [
                 "setViewportInset",
                 "resetViewportInset"
+            ]
+        },
+        {
+            "member": "viewportRotation",
+            "classification": "command",
+            "commands": [
+                "setViewportRotation"
             ]
         },
         {

@@ -10,6 +10,7 @@
  */
 
 import type { LayoutRect, Viewport } from './types';
+import { turnExtent, worldToScreen } from './viewportMath';
 
 /**
  * The smallest label box worth putting words in, in CSS pixels.
@@ -109,18 +110,23 @@ export function canvasPlacements<Kind extends string>(
         return [];
     }
 
+    const screen = turnExtent(viewport, viewport.rotation);
     const placements: CanvasPlacement<Kind>[] = [];
 
     for (const rect of layout) {
         const kind = kindOf(rect.canvasId);
         if (!kind) continue;
 
-        const left =
-            (rect.x - viewport.centre.x) * viewport.scale + viewport.width / 2;
-        const top =
-            (rect.y - viewport.centre.y) * viewport.scale + viewport.height / 2;
-        const width = rect.width * viewport.scale;
-        const height = rect.height * viewport.scale;
+        const from = worldToScreen(rect.x, rect.y, viewport);
+        const to = worldToScreen(
+            rect.x + rect.width,
+            rect.y + rect.height,
+            viewport,
+        );
+        const left = Math.min(from.x, to.x);
+        const top = Math.min(from.y, to.y);
+        const width = Math.abs(to.x - from.x);
+        const height = Math.abs(to.y - from.y);
 
         // A rect with no area cannot be perceived, and an off-screen one is not
         // being looked at.
@@ -128,8 +134,8 @@ export function canvasPlacements<Kind extends string>(
         if (
             left + width <= 0 ||
             top + height <= 0 ||
-            left >= viewport.width ||
-            top >= viewport.height
+            left >= screen.width ||
+            top >= screen.height
         ) {
             continue;
         }
@@ -139,8 +145,8 @@ export function canvasPlacements<Kind extends string>(
         // a negative extent.
         const labelLeft = Math.max(left, 0);
         const labelTop = Math.max(top, 0);
-        const labelWidth = Math.min(left + width, viewport.width) - labelLeft;
-        const labelHeight = Math.min(top + height, viewport.height) - labelTop;
+        const labelWidth = Math.min(left + width, screen.width) - labelLeft;
+        const labelHeight = Math.min(top + height, screen.height) - labelTop;
 
         placements.push({
             canvasId: rect.canvasId,

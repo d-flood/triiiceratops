@@ -9,7 +9,8 @@
  *   - a slider change lands as an image-adjustment command;
  *   - the adjustment LINGERS while nothing resets it (no "re-apply while closed"
  *     loop and no reset on its own — closing leaves the adjustment visible);
- *   - navigating to a different canvas resets filters to default;
+ *   - navigating to a different canvas resets filters and rotation to default;
+ *   - the rotate buttons and `R`/`Shift+R` on the focused surface turn the view;
  *   - deactivation (view cleanup) leaves NO residual adjustment on the shared
  *     viewer;
  *   - the plugin declares `dismiss: 'explicit'` and the core-chrome routing flag.
@@ -136,6 +137,96 @@ describe('image-manipulation filter behavior', () => {
         // Deactivation runs the view cleanup, which resets the adjustment.
         cleanup();
         expect(tc.viewerState.imageAdjustments.brightness).toBe(100);
+    });
+
+    it('rotates a quarter turn from each button and shows the turn', async () => {
+        const tc = createTestViewerContext({ catalog });
+        const cleanup = ImageManipulationPlugin.view.mount(
+            container,
+            tc.context,
+        );
+        await flush();
+
+        const button = (action: string) =>
+            container.querySelector<HTMLButtonElement>(
+                `[data-tri-im-action="${action}"]`,
+            )!;
+        const readout = () =>
+            container.querySelector('[data-tri-im-rotation]')!.textContent;
+
+        button('rotate-right').click();
+        await flush();
+        expect(tc.viewerState.viewportRotation).toBe(90);
+        expect(readout()).toBe('90°');
+        expect(button('reset').disabled).toBe(false);
+
+        button('rotate-left').click();
+        button('rotate-left').click();
+        await flush();
+        expect(tc.viewerState.viewportRotation).toBe(270);
+        expect(readout()).toBe('270°');
+
+        button('reset').click();
+        await flush();
+        expect(tc.viewerState.viewportRotation).toBe(0);
+        expect(button('reset').disabled).toBe(true);
+
+        cleanup();
+    });
+
+    it('rotates on R and Shift+R pressed on the focused surface', async () => {
+        const tc = createTestViewerContext({ catalog });
+        const renderer = tc.attachRenderer();
+        const cleanup = ImageManipulationPlugin.view.mount(
+            container,
+            tc.context,
+        );
+        await flush();
+
+        const press = (init: KeyboardEventInit) => {
+            const event = new KeyboardEvent('keydown', {
+                cancelable: true,
+                ...init,
+            });
+            renderer.emitKey(event);
+            return event;
+        };
+
+        expect(press({ key: 'r' }).defaultPrevented).toBe(true);
+        expect(renderer.rotation).toBe(90);
+        press({ key: 'R', shiftKey: true });
+        press({ key: 'R', shiftKey: true });
+        expect(renderer.rotation).toBe(270);
+        press({ key: 'r', repeat: true });
+        expect(renderer.rotation).toBe(270);
+        expect(press({ key: 'x' }).defaultPrevented).toBe(false);
+
+        cleanup();
+        press({ key: 'r' });
+        expect(tc.viewerState.viewportRotation).toBe(0);
+    });
+
+    it('resets the rotation with the filters on a canvas change and on deactivation', async () => {
+        const tc = createTestViewerContext({ catalog });
+        const cleanup = ImageManipulationPlugin.view.mount(
+            container,
+            tc.context,
+        );
+        await flush();
+
+        tc.viewerState.setViewportRotation(180);
+        tc.viewerState.canvasId = 'https://example.org/canvas/2';
+        await flush();
+        expect(tc.viewerState.viewportRotation).toBe(0);
+
+        tc.viewerState.setViewportRotation(90);
+        await flush();
+        expect(
+            container.querySelector('[data-tri-im-rotation]')!.textContent,
+        ).toBe('90°');
+
+        cleanup();
+        expect(tc.viewerState.viewportRotation).toBe(0);
     });
 
     it('renders content only — no self-rendered toggle button', async () => {

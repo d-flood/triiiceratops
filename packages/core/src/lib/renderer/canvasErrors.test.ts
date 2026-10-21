@@ -50,6 +50,23 @@ function viewport(overrides: Partial<Viewport> = {}): Viewport {
 }
 
 describe('errorPlacements', () => {
+    it('places a failed canvas over its rect on a turned surface', () => {
+        const [placement] = errorPlacements(
+            [rect('c1', 0, 200, 100)],
+            { c1: 'auth' },
+            viewport({ centre: { x: 100, y: 50 }, rotation: 90 }),
+        );
+
+        // 800×600 along the world's axes is a 600×800 surface; the wide rect
+        // stands upright in its middle.
+        expect(placement).toMatchObject({
+            left: 250,
+            top: 300,
+            width: 100,
+            height: 200,
+        });
+    });
+
     it('places a failed canvas over its own layout rect', () => {
         const placements = errorPlacements(
             [rect('c1', 0)],

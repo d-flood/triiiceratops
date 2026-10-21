@@ -24,6 +24,8 @@ import { ViewerState } from './viewer.svelte';
  * that a test here cannot accidentally become the specification for behaviour
  * that lives somewhere else.
  */
+const REPLAYED = new Set(['applyImageAdjustments', 'applyRotation']);
+
 describe('viewport commands', () => {
     function mounted(view?: Parameters<typeof createRendererStub>[0]) {
         const state = new ViewerState();
@@ -37,7 +39,7 @@ describe('viewport commands', () => {
     ): string[] =>
         renderer.calls
             .map(([name]) => name)
-            .filter((name) => name !== 'applyImageAdjustments');
+            .filter((name) => !REPLAYED.has(name));
 
     it('routes each command to the mounted renderer', () => {
         const { state, renderer } = mounted();
@@ -85,10 +87,10 @@ describe('viewport commands', () => {
 
         expect(zoomedIn).toBeGreaterThan(1);
         expect(state.viewportScale).toBeCloseTo(1, 10);
-        expect(renderer.calls[1][1]).toBeCloseTo(
-            1 / (renderer.calls[2][1] as number),
-            10,
+        const [zoomIn, zoomOut] = renderer.calls.filter(
+            ([name]) => name === 'zoomBy',
         );
+        expect(zoomIn[1]).toBeCloseTo(1 / (zoomOut[1] as number), 10);
     });
 
     it('takes the zoom step from the closed renderer config', () => {
@@ -222,8 +224,10 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             canvasToScreen: () => null,
             screenToCanvas: () => null,
             applyImageAdjustments: () => {},
+            applyRotation: () => {},
             onFrame: () => () => {},
             onTap: () => () => {},
+            onKey: () => () => {},
         };
 
         const detach = state.attachRenderer(impostor);
@@ -256,8 +260,10 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             canvasToScreen: () => null,
             screenToCanvas: () => null,
             applyImageAdjustments: () => {},
+            applyRotation: () => {},
             onFrame: () => () => {},
             onTap: () => () => {},
+            onKey: () => () => {},
         });
 
         expect(state.rendererReady).toBe(false);
@@ -434,6 +440,60 @@ describe('image adjustments', () => {
     });
 });
 
+describe('viewport rotation', () => {
+    it('normalises any quarter turn and refuses the rest', () => {
+        const state = new ViewerState();
+        expect(state.viewportRotation).toBe(0);
+
+        state.setViewportRotation(-90);
+        expect(state.viewportRotation).toBe(270);
+        state.setViewportRotation(state.viewportRotation + 180);
+        expect(state.viewportRotation).toBe(90);
+        state.setViewportRotation(720);
+        expect(state.viewportRotation).toBe(0);
+
+        state.setViewportRotation(45);
+        state.setViewportRotation(Number.NaN);
+        expect(state.viewportRotation).toBe(0);
+    });
+
+    it('replays onto a later renderer and pushes every change', () => {
+        const state = new ViewerState();
+        state.setViewportRotation(90);
+
+        const renderer = createRendererStub();
+        state.attachRenderer(renderer);
+        expect(renderer.rotation).toBe(90);
+
+        state.setViewportRotation(180);
+        expect(renderer.rotation).toBe(180);
+    });
+});
+
+describe('surface keys', () => {
+    it('delivers unbound surface keys to subscribers, across a remount', () => {
+        const state = new ViewerState();
+        const heard: string[] = [];
+        const unsubscribe = state.subscribeSurfaceKey((event) =>
+            heard.push(event.key),
+        );
+
+        const first = createRendererStub();
+        const detach = state.attachRenderer(first);
+        first.emitKey({ key: 'r' } as KeyboardEvent);
+        detach();
+        first.emitKey({ key: 'x' } as KeyboardEvent);
+
+        const second = createRendererStub();
+        state.attachRenderer(second);
+        second.emitKey({ key: 'R' } as KeyboardEvent);
+        unsubscribe();
+        second.emitKey({ key: 'y' } as KeyboardEvent);
+
+        expect(heard).toEqual(['r', 'R']);
+    });
+});
+
 /**
  * The **viewport inset** — edges a plugin reserves so that fits frame into the
  * space the reader can actually see.
@@ -563,16 +623,12 @@ describe('viewport inset', () => {
 
         const first = createRendererStub();
         const detach = state.attachRenderer(first);
-        // Attaching replays image adjustments; the inset is deliberately not
+        // Attaching replays adjustments and rotation; the inset is deliberately not
         // replayed, because there is nothing to replay it to.
-        expect(
-            first.calls.filter(([name]) => name !== 'applyImageAdjustments'),
-        ).toEqual([]);
+        expect(first.calls.filter(([name]) => !REPLAYED.has(name))).toEqual([]);
 
         state.setViewportInset({ top: 10 });
-        expect(
-            first.calls.filter(([name]) => name !== 'applyImageAdjustments'),
-        ).toEqual([]);
+        expect(first.calls.filter(([name]) => !REPLAYED.has(name))).toEqual([]);
 
         detach();
         state.attachRenderer(createRendererStub());

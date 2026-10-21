@@ -8,6 +8,8 @@ export const catalog: LocaleCatalog = {
         image_filters_saturation: 'Saturation',
         image_filters_invert: 'Invert Colors',
         image_filters_grayscale: 'Grayscale',
+        image_filters_rotate_left: 'Rotate left (Shift+R)',
+        image_filters_rotate_right: 'Rotate right (R)',
         image_filters_reset: 'Reset to Default',
     },
     de: {
@@ -17,6 +19,8 @@ export const catalog: LocaleCatalog = {
         image_filters_saturation: 'Sättigung',
         image_filters_invert: 'Farben umkehren',
         image_filters_grayscale: 'Graustufen',
+        image_filters_rotate_left: 'Nach links drehen (Umschalt+R)',
+        image_filters_rotate_right: 'Nach rechts drehen (R)',
         image_filters_reset: 'Zurücksetzen',
     },
 };

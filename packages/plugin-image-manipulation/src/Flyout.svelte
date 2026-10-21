@@ -94,6 +94,50 @@
 
         <div class="tri-im-actions">
             <div class="tri-im-cell">
+                <Tooltip tip={t('image_filters_rotate_left')} placement="top">
+                    <button
+                        type="button"
+                        class="tri-im-act tri-im-ccw"
+                        data-tri-im-action="rotate-left"
+                        aria-label={t('image_filters_rotate_left')}
+                        aria-keyshortcuts="Shift+R"
+                        onclick={() => controller.rotate(-1)}
+                    >
+                        <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
+                        <svg viewBox={GLYPHS.viewBox} aria-hidden="true"
+                            >{@html GLYPHS.rotate}</svg
+                        >
+                        <!-- eslint-enable svelte/no-at-html-tags -->
+                    </button>
+                </Tooltip>
+            </div>
+            <div class="tri-im-cell">
+                <span class="tri-im-val" data-tri-im-rotation role="status"
+                    >{controller.rotation}°</span
+                >
+            </div>
+            <div class="tri-im-cell">
+                <Tooltip tip={t('image_filters_rotate_right')} placement="top">
+                    <button
+                        type="button"
+                        class="tri-im-act"
+                        data-tri-im-action="rotate-right"
+                        aria-label={t('image_filters_rotate_right')}
+                        aria-keyshortcuts="R"
+                        onclick={() => controller.rotate(1)}
+                    >
+                        <!-- eslint-disable svelte/no-at-html-tags -- trusted static SVG glyph constant -->
+                        <svg viewBox={GLYPHS.viewBox} aria-hidden="true"
+                            >{@html GLYPHS.rotate}</svg
+                        >
+                        <!-- eslint-enable svelte/no-at-html-tags -->
+                    </button>
+                </Tooltip>
+            </div>
+        </div>
+
+        <div class="tri-im-actions">
+            <div class="tri-im-cell">
                 <Tooltip tip={t('image_filters_invert')} placement="top">
                     <button
                         type="button"
@@ -314,6 +358,9 @@
     }
     .tri-im-act.tri-im-reset:disabled:hover {
         background: transparent;
+    }
+    .tri-im-ccw svg {
+        transform: scaleX(-1);
     }
     .tri-im-act svg {
         width: 1.125rem;

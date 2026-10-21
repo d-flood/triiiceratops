@@ -75,6 +75,7 @@ export type {
     ViewportBox,
     ViewportInset,
     ViewportPoint,
+    ViewportRotation,
 } from './types/viewport';
 export {
     NEUTRAL_IMAGE_ADJUSTMENTS,

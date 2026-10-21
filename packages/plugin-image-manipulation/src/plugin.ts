@@ -41,7 +41,13 @@ const view: PluginView = {
                 [PLUGIN_CONTEXT_KEY, { controller, locale: context.locale }],
             ]),
         });
+        const releaseKeys = context.viewerState.subscribeSurfaceKey((event) => {
+            if (event.key.toLowerCase() !== 'r') return;
+            event.preventDefault();
+            if (!event.repeat) controller.rotate(event.shiftKey ? -1 : 1);
+        });
         return () => {
+            releaseKeys();
             unmount(app);
             controller.dispose();
             releaseBundled();

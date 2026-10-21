@@ -10,7 +10,9 @@
  *
  * `Viewport.scale` is screen pixels per canvas-space unit, and `Viewport.centre`
  * is the canvas-space point at the middle of the viewport. Everything else here
- * follows from those two.
+ * follows from those two, and from `Viewport.rotation`, which turns the screen
+ * about that middle. The viewport's own extents stay along the world's axes, so
+ * only the mappings to and from the screen ever see the turn.
  *
  * This module is DOM-free on purpose: the geometric e2e assertions
  * (`tests/helpers/numberedGrid.ts`) check what the *painter* did with these
@@ -18,10 +20,75 @@
  * what catches coordinate-transform regressions without a screenshot diff.
  */
 
-import type { ViewportInset } from '../types/viewport';
+import type { ViewportInset, ViewportRotation } from '../types/viewport';
 import type { PaintTransform } from './paintLayers';
 import type { Box } from './tilePyramid';
 import type { Point, Viewport } from './types';
+
+/**
+ * The screen's turn against the world as `[a, b, c, d]`, in
+ * `CanvasRenderingContext2D.setTransform` order: `x' = a·x + c·y`,
+ * `y' = b·x + d·y`.
+ */
+export const TURNS: Record<
+    ViewportRotation,
+    readonly [number, number, number, number]
+> = {
+    0: [1, 0, 0, 1],
+    90: [0, 1, -1, 0],
+    180: [-1, 0, 0, -1],
+    270: [0, -1, 1, 0],
+};
+
+export function isQuarterTurn(rotation: ViewportRotation = 0): boolean {
+    return rotation === 90 || rotation === 270;
+}
+
+/**
+ * A size seen through a turn: the viewport's extents become the surface's, and
+ * the surface's the viewport's, swapped under a quarter turn.
+ */
+export function turnExtent(
+    size: { width: number; height: number },
+    rotation: ViewportRotation = 0,
+): { width: number; height: number } {
+    return isQuarterTurn(rotation)
+        ? { width: size.height, height: size.width }
+        : { width: size.width, height: size.height };
+}
+
+/** A screen-space vector expressed along the world's axes. */
+export function unturn(vector: Point, rotation: ViewportRotation = 0): Point {
+    const [a, b, c, d] = TURNS[rotation];
+    return {
+        x: a * vector.x + b * vector.y,
+        y: c * vector.x + d * vector.y,
+    };
+}
+
+/** Screen edges as the edges of the world-aligned viewport they cover. */
+export function turnInset(
+    inset: ViewportInset,
+    rotation: ViewportRotation = 0,
+): ViewportInset {
+    const edges = [inset.top, inset.right, inset.bottom, inset.left];
+    const k = rotation / 90;
+    return {
+        top: edges[k],
+        right: edges[(k + 1) % 4],
+        bottom: edges[(k + 2) % 4],
+        left: edges[(k + 3) % 4],
+    };
+}
+
+/** A screen point's offset from the surface's middle, along the world's axes. */
+function screenOffset(point: Point, viewport: Viewport): Point {
+    const screen = turnExtent(viewport, viewport.rotation);
+    return unturn(
+        { x: point.x - screen.width / 2, y: point.y - screen.height / 2 },
+        viewport.rotation,
+    );
+}
 
 /**
  * The viewport as a canvas-space box.
@@ -66,28 +133,44 @@ export function viewportTransform(
     dpr: number,
 ): PaintTransform {
     const scale = viewport.scale * dpr;
+    const rotation = viewport.rotation ?? 0;
+    const [a, b, c, d] = TURNS[rotation];
+    const screen = turnExtent(viewport, rotation);
+    const x = viewport.centre.x * scale;
+    const y = viewport.centre.y * scale;
 
     return {
         scale,
-        offsetX: (viewport.width / 2) * dpr - viewport.centre.x * scale,
-        offsetY: (viewport.height / 2) * dpr - viewport.centre.y * scale,
+        rotation,
+        offsetX: (screen.width / 2) * dpr - (a * x + c * y),
+        offsetY: (screen.height / 2) * dpr - (b * x + d * y),
         dpr,
+    };
+}
+
+/** World space → screen space, from bare coordinates. */
+export function worldToScreen(x: number, y: number, viewport: Viewport): Point {
+    const [a, b, c, d] = TURNS[viewport.rotation ?? 0];
+    const quarter = isQuarterTurn(viewport.rotation);
+    const dx = (x - viewport.centre.x) * viewport.scale;
+    const dy = (y - viewport.centre.y) * viewport.scale;
+    return {
+        x: a * dx + c * dy + (quarter ? viewport.height : viewport.width) / 2,
+        y: b * dx + d * dy + (quarter ? viewport.width : viewport.height) / 2,
     };
 }
 
 /** Canvas space → screen space. */
 export function canvasToScreen(point: Point, viewport: Viewport): Point {
-    return {
-        x: (point.x - viewport.centre.x) * viewport.scale + viewport.width / 2,
-        y: (point.y - viewport.centre.y) * viewport.scale + viewport.height / 2,
-    };
+    return worldToScreen(point.x, point.y, viewport);
 }
 
 /** Screen space → canvas space. The exact inverse of {@link canvasToScreen}. */
 export function screenToCanvas(point: Point, viewport: Viewport): Point {
+    const offset = screenOffset(point, viewport);
     return {
-        x: (point.x - viewport.width / 2) / viewport.scale + viewport.centre.x,
-        y: (point.y - viewport.height / 2) / viewport.scale + viewport.centre.y,
+        x: offset.x / viewport.scale + viewport.centre.x,
+        y: offset.y / viewport.scale + viewport.centre.y,
     };
 }
 
@@ -506,13 +589,13 @@ export function anchoredZoomCentre(
     anchor: Point,
     nextScale: number,
 ): Point {
-    const world = screenToCanvas(anchor, viewport);
+    const offset = screenOffset(anchor, viewport);
 
     // Solve `canvasToScreen(world, {…viewport, scale: nextScale, centre}) ===
-    // anchor` for `centre`.
+    // anchor` for `centre`, where `world` is the point under the anchor now.
     return {
-        x: world.x - (anchor.x - viewport.width / 2) / nextScale,
-        y: world.y - (anchor.y - viewport.height / 2) / nextScale,
+        x: offset.x / viewport.scale + viewport.centre.x - offset.x / nextScale,
+        y: offset.y / viewport.scale + viewport.centre.y - offset.y / nextScale,
     };
 }
 

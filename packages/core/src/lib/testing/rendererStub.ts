@@ -27,6 +27,7 @@ import {
     type ImageAdjustments,
     type ViewportBox,
     type ViewportPoint,
+    type ViewportRotation,
 } from '../types/viewport.js';
 
 /** Options for {@link createRendererStub}. */
@@ -77,6 +78,11 @@ export interface RendererStub extends RendererPort {
     readonly view: StubView;
     /** The last adjustment set handed to {@link applyImageAdjustments}. */
     readonly adjustments: ImageAdjustments;
+    /**
+     * The last turn handed to {@link applyRotation}. Recorded only: the
+     * stand-in's coordinate answers stay unturned.
+     */
+    readonly rotation: ViewportRotation;
     /** Every command received, in order — `['zoomBy', 1.2]` and friends. */
     readonly calls: Array<[string, ...unknown[]]>;
     /** Move the view without going through a command. */
@@ -95,6 +101,11 @@ export interface RendererStub extends RendererPort {
      * selection, without synthesizing pointer events.
      */
     emitTap(point: ViewportPoint): void;
+    /**
+     * Press a key on the focused surface that the renderer has no binding for,
+     * waking every key subscriber.
+     */
+    emitKey(event: KeyboardEvent): void;
 }
 
 /**
@@ -114,9 +125,11 @@ export function createRendererStub(
     const answersFor = (canvasId?: string): boolean =>
         canvasId === undefined || !canvasIds || canvasIds.includes(canvasId);
     let adjustments: ImageAdjustments = NEUTRAL_IMAGE_ADJUSTMENTS;
+    let rotation: ViewportRotation = 0;
     const calls: Array<[string, ...unknown[]]> = [];
     const listeners = new Set<() => void>();
     const tapListeners = new Set<(point: ViewportPoint) => void>();
+    const keyListeners = new Set<(event: KeyboardEvent) => void>();
 
     const record = (name: string, ...args: unknown[]): void => {
         calls.push([name, ...args]);
@@ -128,6 +141,9 @@ export function createRendererStub(
         },
         get adjustments() {
             return adjustments;
+        },
+        get rotation() {
+            return rotation;
         },
         calls,
         get frameListenerCount() {
@@ -141,6 +157,9 @@ export function createRendererStub(
         },
         emitTap(point: ViewportPoint): void {
             for (const listener of [...tapListeners]) listener(point);
+        },
+        emitKey(event: KeyboardEvent): void {
+            for (const listener of [...keyListeners]) listener(event);
         },
 
         zoomBy(factor: number, anchor?: ViewportPoint): void {
@@ -228,6 +247,11 @@ export function createRendererStub(
             adjustments = next;
         },
 
+        applyRotation(next: ViewportRotation): void {
+            record('applyRotation', next);
+            rotation = next;
+        },
+
         onFrame(listener: () => void): () => void {
             listeners.add(listener);
             return () => listeners.delete(listener);
@@ -236,6 +260,11 @@ export function createRendererStub(
         onTap(listener: (point: ViewportPoint) => void): () => void {
             tapListeners.add(listener);
             return () => tapListeners.delete(listener);
+        },
+
+        onKey(listener: (event: KeyboardEvent) => void): () => void {
+            keyListeners.add(listener);
+            return () => keyListeners.delete(listener);
         },
     });
 

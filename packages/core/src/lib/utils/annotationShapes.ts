@@ -308,13 +308,15 @@ function placePreparedShape(
         });
         if (!topLeft || !bottomRight) return null;
 
+        // A turned view can put the canvas's bottom-right corner above or left
+        // of its top-left on screen.
         return {
             type: 'RECTANGLE',
             rect: {
-                x: topLeft.x,
-                y: topLeft.y,
-                width: bottomRight.x - topLeft.x,
-                height: bottomRight.y - topLeft.y,
+                x: Math.min(topLeft.x, bottomRight.x),
+                y: Math.min(topLeft.y, bottomRight.y),
+                width: Math.abs(bottomRight.x - topLeft.x),
+                height: Math.abs(bottomRight.y - topLeft.y),
             },
         };
     }

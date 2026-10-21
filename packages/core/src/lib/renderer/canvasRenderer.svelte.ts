@@ -63,6 +63,7 @@ import {
     type ViewportBox,
     type ViewportInset,
     type ViewportPoint,
+    type ViewportRotation,
 } from '../types/viewport';
 import { paintScene } from './paintScene';
 import {
@@ -130,6 +131,9 @@ import {
     insetFitScale,
     normalizeWheelDelta,
     screenToCanvas as screenToCanvasPoint,
+    turnExtent,
+    turnInset,
+    unturn,
     viewportBox,
     viewportTransform,
     wheelZoomRate,
@@ -187,15 +191,16 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      */
     let animationTimeConstant = WHEEL_TIME_CONSTANT;
     /**
-     * Flick momentum, in **screen** px/s, or `null` when nothing is coasting.
+     * Flick momentum, in **screen** px/s along the world's axes, or `null` when
+     * nothing is coasting.
      *
      * Screen rather than canvas space so a zoom mid-glide does not change how
      * fast the image appears to be moving.
      */
     let momentum: Point | null = null;
     /**
-     * Held-key pan velocity, in **screen** px/s, or `null` when no arrow is
-     * down.
+     * Held-key pan velocity, in **screen** px/s along the world's axes, or
+     * `null` when no arrow is down.
      *
      * Distinct from `momentum` because it does not decay: a held key travels at
      * a steady rate for as long as it is held, and only becomes momentum — with
@@ -1180,7 +1185,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * fits, and only then.
      */
     function currentInset(): ViewportInset {
-        return untrack(() => viewerState.viewportInset);
+        return turnInset(
+            untrack(() => viewerState.viewportInset),
+            viewport.rotation,
+        );
     }
 
     /**
@@ -1699,8 +1707,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             // With no anchor, zoom about the middle of the surface — which is
             // what `anchoredZoomCentre` reduces to, so the toolbar and a
             // double-tap take one code path rather than two.
+            const screen = turnExtent(viewport, viewport.rotation);
             zoomAnchored(
-                anchor ?? { x: viewport.width / 2, y: viewport.height / 2 },
+                anchor ?? { x: screen.width / 2, y: screen.height / 2 },
                 factor,
             );
         },
@@ -1785,7 +1794,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         },
 
         getContainerSize(): ContainerSize {
-            return { width: viewport.width, height: viewport.height };
+            return turnExtent(viewport, viewport.rotation);
         },
 
         canvasToScreen(
@@ -1814,6 +1823,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             paintImageAdjustments();
         },
 
+        applyRotation(rotation: ViewportRotation): void {
+            turnView(rotation);
+        },
+
         onFrame(listener: () => void): () => void {
             frameListeners.add(listener);
             return () => frameListeners.delete(listener);
@@ -1822,6 +1835,11 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         onTap(listener: (point: ViewportPoint) => void): () => void {
             tapListeners.add(listener);
             return () => tapListeners.delete(listener);
+        },
+
+        onKey(listener: (event: KeyboardEvent) => void): () => void {
+            keyListeners.add(listener);
+            return () => keyListeners.delete(listener);
         },
     });
 
@@ -1842,6 +1860,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      */
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const tapListeners = new Set<(point: ViewportPoint) => void>();
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const keyListeners = new Set<(event: KeyboardEvent) => void>();
 
     /** Wake `frame`-cadence subscribers. Called once per painted frame. */
     function emitFrame() {
@@ -1851,6 +1871,31 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     /** Announce a single tap, in surface-local CSS pixels. */
     function emitTap(point: ViewportPoint) {
         for (const listener of [...tapListeners]) listener(point);
+    }
+
+    /**
+     * Turn the screen against the world, holding the centre and the zoom
+     * relative to the fit: a fitted view stays fitted, a 3× view stays 3×.
+     */
+    function turnView(rotation: ViewportRotation) {
+        if (rotation === (viewport.rotation ?? 0)) return;
+
+        const measured = viewport.width > 0 && viewport.height > 0;
+        const fitBefore = measured ? homeScale(viewportLimits()) : 0;
+        const screen = turnExtent(viewport, viewport.rotation);
+        viewport = { ...viewport, ...turnExtent(screen, rotation), rotation };
+
+        // Every held or coasting velocity is along the old axes.
+        momentum = null;
+        handleBlur();
+
+        if (!measured) return;
+        setViewDirect(
+            viewport.centre,
+            clampScale(
+                (viewport.scale * homeScale(viewportLimits())) / fitBefore,
+            ),
+        );
     }
 
     let appliedAdjustments: ImageAdjustments | null = null;
@@ -2145,8 +2190,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
     function paintFrame(plan: ScenePlan): PaintFrame {
         return {
             transform: viewportTransform(viewport, dpr),
-            width: viewport.width,
-            height: viewport.height,
+            ...turnExtent(viewport, viewport.rotation),
             ...paintCanvasSpace(plan.layout, declaredCanvasSize),
         };
     }
@@ -2366,13 +2410,18 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         if (!root || !surface) return;
 
         const rect = root.getBoundingClientRect();
-        const width = Math.max(0, rect.width);
-        const height = Math.max(0, rect.height);
+        const { width, height } = turnExtent(
+            {
+                width: Math.max(0, rect.width),
+                height: Math.max(0, rect.height),
+            },
+            viewport.rotation,
+        );
 
         dpr = Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO);
 
-        const backingWidth = Math.max(1, Math.round(width * dpr));
-        const backingHeight = Math.max(1, Math.round(height * dpr));
+        const backingWidth = Math.max(1, Math.round(rect.width * dpr));
+        const backingHeight = Math.max(1, Math.round(rect.height * dpr));
         // Assigning either dimension CLEARS the canvas, so this is the moment
         // the surface goes empty; `resized` carries that to the repaint at the
         // end of this function.
@@ -2871,15 +2920,20 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      */
     function applyGesture(update: ReturnType<GestureRecogniser['move']>) {
         switch (update.kind) {
-            case 'pan':
+            case 'pan': {
+                const delta = unturn(
+                    { x: update.dx, y: update.dy },
+                    viewport.rotation,
+                );
                 setViewDirect(
                     {
-                        x: viewport.centre.x - update.dx / viewport.scale,
-                        y: viewport.centre.y - update.dy / viewport.scale,
+                        x: viewport.centre.x - delta.x / viewport.scale,
+                        y: viewport.centre.y - delta.y / viewport.scale,
                     },
                     viewport.scale,
                 );
                 return;
+            }
 
             case 'pinch': {
                 // Scale about the midpoint the fingers were at, then translate
@@ -2891,10 +2945,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                     update.anchor,
                     scale,
                 );
+                const delta = unturn(
+                    { x: update.dx, y: update.dy },
+                    viewport.rotation,
+                );
                 setViewDirect(
                     {
-                        x: anchored.x - update.dx / scale,
-                        y: anchored.y - update.dy / scale,
+                        x: anchored.x - delta.x / scale,
+                        y: anchored.y - delta.y / scale,
                     },
                     scale,
                 );
@@ -2907,7 +2965,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 // reduced motion the release simply stops; the pan itself,
                 // being direct, is untouched.
                 if (reducedMotion) return;
-                momentum = update.velocity;
+                momentum = unturn(update.velocity, viewport.rotation);
                 requestFrame();
                 return;
 
@@ -3109,7 +3167,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // makes for a drag.
         animating = false;
         momentum = null;
-        keyPan = velocity;
+        keyPan = unturn(velocity, viewport.rotation);
         requestFrame();
     }
 
@@ -3155,8 +3213,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * to send; the animated path gets that from the velocity model, and this
      * path gets it by counting only presses.
      */
-    function stepPanInstant(direction: Point, shift: boolean) {
+    function stepPanInstant(screenDirection: Point, shift: boolean) {
         const step = KEY_PAN_STEP * (shift ? KEY_PAN_SHIFT_FACTOR : 1);
+        const direction = unturn(screenDirection, viewport.rotation);
         setViewDirect(
             {
                 x: viewport.centre.x + (direction.x * step) / viewport.scale,
@@ -3321,7 +3380,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         }
 
         // Claimed in one place, so no binding below can forget to.
-        if (!DISCRETE_KEYS.has(event.key)) return;
+        if (!DISCRETE_KEYS.has(event.key)) {
+            for (const listener of [...keyListeners]) listener(event);
+            return;
+        }
         event.preventDefault();
 
         // A repeat adds nothing: the hold below is already running, and a fit

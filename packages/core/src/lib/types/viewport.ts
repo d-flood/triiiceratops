@@ -28,6 +28,9 @@ export interface ViewportBox {
     height: number;
 }
 
+/** A clockwise turn of the view, in degrees. */
+export type ViewportRotation = 0 | 90 | 180 | 270;
+
 /** The viewer surface's size in CSS pixels. */
 export interface ContainerSize {
     width: number;

@@ -12,7 +12,7 @@ import {
 } from './paintLayers';
 
 const FRAME: PaintFrame = {
-    transform: { scale: 2, offsetX: 10, offsetY: 20, dpr: 2 },
+    transform: { scale: 2, rotation: 0, offsetX: 10, offsetY: 20, dpr: 2 },
     width: 800,
     height: 600,
     ...paintCanvasSpace([], () => ({ width: null, height: null })),

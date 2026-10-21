@@ -27,7 +27,7 @@
 
 import type { PaintTransform } from './paintLayers';
 import type { ScenePlan, StaticImageDraw, TileKey, Viewport } from './types';
-import { viewportTransform } from './viewportMath';
+import { isQuarterTurn, TURNS, viewportTransform } from './viewportMath';
 
 /** What the host has decoded and can hand the painter. */
 export interface PaintSources {
@@ -62,8 +62,16 @@ function applyViewportTransform(
     ctx: CanvasRenderingContext2D,
     transform: PaintTransform,
 ): void {
-    const { scale, offsetX, offsetY } = transform;
-    ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+    const { scale, offsetX, offsetY, rotation } = transform;
+    const [a, b, c, d] = TURNS[rotation];
+    ctx.setTransform(
+        a * scale,
+        b * scale,
+        c * scale,
+        d * scale,
+        offsetX,
+        offsetY,
+    );
 }
 
 function drawCanvasImage(
@@ -136,26 +144,47 @@ function drawTile(
     image: CanvasImageSource,
     snap: boolean,
 ): void {
-    const { scale, offsetX, offsetY } = transform;
+    const { scale, offsetX, offsetY, rotation } = transform;
+    const [a, b, c, d] = TURNS[rotation];
 
-    const left = box.x * scale + offsetX;
-    const top = box.y * scale + offsetY;
-    const right = (box.x + box.width) * scale + offsetX;
-    const bottom = (box.y + box.height) * scale + offsetY;
+    const x0 = box.x * scale;
+    const y0 = box.y * scale;
+    const x1 = (box.x + box.width) * scale;
+    const y1 = (box.y + box.height) * scale;
+    const originX = a * x0 + c * y0 + offsetX;
+    const originY = b * x0 + d * y0 + offsetY;
+    const farX = a * x1 + c * y1 + offsetX;
+    const farY = b * x1 + d * y1 + offsetY;
 
-    if (snap) {
-        const l = Math.round(left);
-        const t = Math.round(top);
-        const r = Math.round(right);
-        const b = Math.round(bottom);
-        if (r <= l || b <= t) return;
-        ctx.drawImage(image, l, t, r - l, b - t);
-        return;
-    }
-
+    const edge = snap ? Math.round : (value: number) => value;
+    const left = edge(Math.min(originX, farX));
+    const right = edge(Math.max(originX, farX));
+    const top = edge(Math.min(originY, farY));
+    const bottom = edge(Math.max(originY, farY));
     if (right <= left || bottom <= top) return;
 
-    ctx.drawImage(image, left, top, right - left, bottom - top);
+    if (!rotation) {
+        ctx.drawImage(image, left, top, right - left, bottom - top);
+        return;
+    }
+    // Turned, the bitmap is drawn from the device corner its own top-left
+    // lands on.
+    const quarter = isQuarterTurn(rotation);
+    ctx.setTransform(
+        a,
+        b,
+        c,
+        d,
+        originX <= farX ? left : right,
+        originY <= farY ? top : bottom,
+    );
+    ctx.drawImage(
+        image,
+        0,
+        0,
+        quarter ? bottom - top : right - left,
+        quarter ? right - left : bottom - top,
+    );
 }
 
 /**

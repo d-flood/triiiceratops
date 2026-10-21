@@ -59,7 +59,11 @@ import {
     type CanvasPlacement,
 } from './layoutQueries.js';
 import type { LayoutRect } from './types.js';
-import type { ViewportBox, ViewportPoint } from '../types/viewport.js';
+import type {
+    ViewportBox,
+    ViewportPoint,
+    ViewportRotation,
+} from '../types/viewport.js';
 
 /**
  * The matrix the tiles were drawn with, as numbers.
@@ -68,7 +72,8 @@ import type { ViewportBox, ViewportPoint } from '../types/viewport.js';
  * in **world space** — the renderer's laid-out coordinate space, in which every
  * canvas of the manifest has a rect — needs none of it. It is carried explicitly
  * for the layer that wants device pixels instead: reset the transform, and
- * `x_device = x_world * scale + offsetX`.
+ * `x_device = x_world * scale + offsetX` — at `rotation` 0. A turned view
+ * rotates the scaled world point clockwise by `rotation` degrees first.
  *
  * `scale` has `dpr` folded in. A layer is handed the very transform the tiles
  * were drawn with — `viewportMath.viewportTransform` builds it once per frame
@@ -79,6 +84,8 @@ import type { ViewportBox, ViewportPoint } from '../types/viewport.js';
 export interface PaintTransform {
     /** Device pixels per world unit — the viewport scale times `dpr`. */
     scale: number;
+    /** The screen's clockwise turn against the world. */
+    rotation: ViewportRotation;
     /** Device-pixel x of the world origin. */
     offsetX: number;
     /** Device-pixel y of the world origin. */

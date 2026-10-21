@@ -30,6 +30,7 @@ import type {
     ImageAdjustments,
     ViewportBox,
     ViewportPoint,
+    ViewportRotation,
 } from '../types/viewport.js';
 
 export interface RendererPort {
@@ -121,6 +122,12 @@ export interface RendererPort {
     applyImageAdjustments(adjustments: ImageAdjustments): void;
 
     /**
+     * Adopt a turn of the view. Called on every change and once at attach, as
+     * {@link applyImageAdjustments} is.
+     */
+    applyRotation(rotation: ViewportRotation): void;
+
+    /**
      * Subscribe to the renderer's **own animation events** — what the `frame`
      * selector cadence is woken by (CONTEXT.md **Selector cadence**). The
      * listener takes no payload: it means "the viewport moved, read what you
@@ -139,4 +146,11 @@ export interface RendererPort {
      * geometry. Returns an idempotent unsubscribe.
      */
     onTap(listener: (point: ViewportPoint) => void): () => void;
+
+    /**
+     * Subscribe to the keys pressed while the surface has focus that it has
+     * no binding of its own for. Modified keys are the browser's and never
+     * arrive. Returns an idempotent unsubscribe.
+     */
+    onKey(listener: (event: KeyboardEvent) => void): () => void;
 }

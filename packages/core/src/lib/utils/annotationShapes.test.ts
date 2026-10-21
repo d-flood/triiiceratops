@@ -53,6 +53,25 @@ describe('projectAnnotationShapes', () => {
         });
     });
 
+    it('keeps a rectangle positive under a turned view', () => {
+        const [shape] = projectAnnotationShapes(
+            [annotation({ type: 'RECTANGLE', x: 10, y: 20, w: 30, h: 40 })],
+            {
+                // A half turn: the canvas's bottom-right lands top-left.
+                toScreen: (point) => ({
+                    x: 1000 - point.x * 2,
+                    y: 1000 - point.y * 2,
+                }),
+                imageDimensions: noImageDimensions,
+            },
+        );
+
+        expect(shape).toMatchObject({
+            type: 'RECTANGLE',
+            rect: { x: 920, y: 880, width: 60, height: 80 },
+        });
+    });
+
     it('scales an image-space target into canvas space first', () => {
         // The canvas is half the image's size, so an image rect at 20,40 is a
         // canvas rect at 10,20 — and then the same 2× screen mapping applies.

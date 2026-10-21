@@ -17,6 +17,7 @@
 import type { CanvasSize } from '../types/viewport';
 import type { Box } from './tilePyramid';
 import type { LayoutRect, Point, Viewport } from './types';
+import { worldToScreen } from './viewportMath';
 
 /**
  * The outer edge of every laid-out canvas, or `null` for an empty world.
@@ -261,12 +262,11 @@ export function canvasPointToScreen(
     const { rect } = placement;
     const width = usableExtent(placement.width, rect.width);
     const height = usableExtent(placement.height, rect.height);
-    const worldX = rect.x + (point.x / width) * rect.width;
-    const worldY = rect.y + (point.y / height) * rect.height;
-    return {
-        x: (worldX - viewport.centre.x) * viewport.scale + viewport.width / 2,
-        y: (worldY - viewport.centre.y) * viewport.scale + viewport.height / 2,
-    };
+    return worldToScreen(
+        rect.x + (point.x / width) * rect.width,
+        rect.y + (point.y / height) * rect.height,
+        viewport,
+    );
 }
 
 /**
