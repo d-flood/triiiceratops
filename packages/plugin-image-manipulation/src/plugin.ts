@@ -61,7 +61,7 @@ export const ImageManipulationPlugin: SdkPlugin = definePlugin({
     name: '@triiiceratops/plugin-image-manipulation',
     title: 'image_adjustments_title',
     uiId: 'image-manipulation',
-    version: '1.1.1',
+    version: '1.2.0',
     coreRange: '>=1.0.0-rc.0',
     pluginApiRange: '^1.0.0',
     requiredCapabilities: [],

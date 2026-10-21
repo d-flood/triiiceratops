@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.3.0
+
+### Minor Changes
+
+- 15b89b9: Add quarter-turn view rotation (`viewportRotation`, `setViewportRotation`, `subscribeSurfaceKey`) and Image Tools rotate buttons with `R`/`Shift+R` shortcuts.
+
 ## 1.2.3
 
 ### Patch Changes
