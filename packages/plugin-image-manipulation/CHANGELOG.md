@@ -1,5 +1,17 @@
 # @triiiceratops/plugin-image-manipulation
 
+## 1.2.0
+
+### Minor Changes
+
+- 15b89b9: Add quarter-turn view rotation (`viewportRotation`, `setViewportRotation`, `subscribeSurfaceKey`) and Image Tools rotate buttons with `R`/`Shift+R` shortcuts.
+
+### Patch Changes
+
+- Updated dependencies [15b89b9]
+    - triiiceratops@1.3.0
+    - @triiiceratops/plugin-sdk@1.0.2
+
 ## 1.1.1
 
 ### Patch Changes
