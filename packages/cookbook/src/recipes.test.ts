@@ -22,6 +22,12 @@ const AUDIOVISUAL_IDS = [
     '0489-multimedia-canvas',
 ];
 
+/** Content-state recipes that publish no manifest, only a link to another recipe's. */
+const OPENS_OTHER_RECIPE: Record<string, string> = {
+    '0466-link-for-loading-manifest': '0001-mvm-image',
+    '0485-contentstate-canvas-region': '0009-book-1',
+};
+
 describe('cookbook recipe catalog consistency', () => {
     it('gives every entry a renderable group', () => {
         const unrenderable = COOKBOOK_RECIPES.filter(
@@ -45,10 +51,11 @@ describe('cookbook recipe catalog consistency', () => {
             expect(recipe.id).toMatch(/^\d{4}-\S+$/);
             expect(recipeNumber(recipe)).toMatch(/^\d{4}$/);
             expect(recipe.name.trim()).not.toBe('');
+            const home = OPENS_OTHER_RECIPE[recipe.id] ?? recipe.id;
             // `0608-mvm-3d` publishes under a subdirectory.
             expect(recipe.manifestUrl).toMatch(
                 new RegExp(
-                    `^https://iiif\\.io/api/cookbook/recipe/${recipe.id}/(?:[\\w-]+/)*[\\w-]+\\.json$`,
+                    `^https://iiif\\.io/api/cookbook/recipe/${home}/(?:[\\w-]+/)*[\\w-]+\\.json$`,
                 ),
             );
         }

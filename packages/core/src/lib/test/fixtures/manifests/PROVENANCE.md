@@ -10,7 +10,9 @@ The `v4/` directory holds the Cookbook's published Presentation 4 recipes.
 2026-08-22 (`cookbook/0025-newspaper-article-index.json`,
 `cookbook/0346-multilingual-annotation-body.json`); 2026-08-23
 (`cookbook/0258-tagging-external-resource.json`); 2026-08-31
-(`production/mkiiif-docuverse.json`); 2026-09-25 (`v4/`)
+(`production/mkiiif-docuverse.json`); 2026-09-25 (`v4/`); 2026-11-06
+(`cookbook/0001-mvm-image.json`, `av/0002-mvm-audio.json`,
+`av/0003-mvm-video.json`, `av/0229-behavior-ranges.json`)
 **Total:** 84 files, 0.9 MB
 
 **Trimming.** The `cookbook/` and `demo/` files are the upstream response

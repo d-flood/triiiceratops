@@ -1,7 +1,5 @@
 {
-  "@context": [
-    "http://iiif.io/api/presentation/3/context.json"
-  ],
+  "@context": "http://iiif.io/api/presentation/3/context.json",
   "id": "https://iiif.io/api/cookbook/recipe/0229-behavior-ranges/manifest.json ",
   "type": "Manifest",
   "label": {

@@ -561,7 +561,10 @@ function wrapText(
 
     // Ensure paragraphs is a plain array (might be Svelte proxy)
     for (const paragraph of Array.from(paragraphs)) {
-        const words = paragraph.split(/\s+/).filter(Boolean);
+        const words = paragraph
+            .split(/\s+/)
+            .filter(Boolean)
+            .flatMap((word) => breakWord(word, font, size, maxWidth));
         if (!words.length) {
             lines.push({ text: '', width: 0 });
             continue;
@@ -590,6 +593,26 @@ function wrapText(
     }
 
     return lines;
+}
+
+function breakWord(
+    word: string,
+    font: any,
+    size: number,
+    maxWidth: number,
+): string[] {
+    const chunks: string[] = [];
+    let chunk = '';
+    for (const char of word) {
+        if (chunk && font.widthOfTextAtSize(chunk + char, size) > maxWidth) {
+            chunks.push(chunk);
+            chunk = char;
+        } else {
+            chunk += char;
+        }
+    }
+    chunks.push(chunk);
+    return chunks;
 }
 
 export function buildCoverSheetFields(

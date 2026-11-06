@@ -343,7 +343,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         id: '0040-image-rotation-service',
         name: 'Image Rotation Two Ways',
         manifestUrl:
-            'https://iiif.io/api/cookbook/recipe/0040-image-rotation-service/manifest.json',
+            'https://iiif.io/api/cookbook/recipe/0040-image-rotation-service/manifest-service.json',
         group: 'images',
         support: 'unsupported',
         requiresPluginAv: false,
@@ -639,7 +639,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         id: '0318-navPlace-navDate',
         name: 'Locating an Item in Place and Time',
         manifestUrl:
-            'https://iiif.io/api/cookbook/recipe/0318-navPlace-navDate/manifest.json',
+            'https://iiif.io/api/cookbook/recipe/0318-navPlace-navDate/collection.json',
         group: 'geo',
         support: 'unsupported',
         requiresPluginAv: false,
@@ -692,7 +692,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         id: '0466-link-for-loading-manifest',
         name: 'Sharing a link to open a Manifest in a specific viewer',
         manifestUrl:
-            'https://iiif.io/api/cookbook/recipe/0466-link-for-loading-manifest/manifest.json',
+            'https://iiif.io/api/cookbook/recipe/0001-mvm-image/manifest.json',
         group: 'content-state',
         support: 'supported',
         requiresPluginAv: false,
@@ -702,7 +702,7 @@ export const COOKBOOK_RECIPES: CookbookRecipe[] = [
         id: '0485-contentstate-canvas-region',
         name: 'Open a specific region of a Canvas in a viewer',
         manifestUrl:
-            'https://iiif.io/api/cookbook/recipe/0485-contentstate-canvas-region/manifest.json',
+            'https://iiif.io/api/cookbook/recipe/0009-book-1/manifest.json',
         group: 'content-state',
         support: 'supported',
         requiresPluginAv: false,

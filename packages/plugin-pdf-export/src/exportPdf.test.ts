@@ -60,6 +60,7 @@ import { composeImages } from 'triiiceratops/image-export';
 function createMockPage() {
     return {
         drawImage: vi.fn(),
+        drawLine: vi.fn(),
         drawText: vi.fn(),
         getSize: () => ({ width: 1000, height: 500 }),
         pushOperators: vi.fn(),
@@ -1128,6 +1129,27 @@ describe('exportCanvasRangeAsPdf', () => {
             DEFAULT_PDF_EXPORT_MESSAGES.errorNoCanvasesExported(),
         );
         expect(mockPdfDoc.save).not.toHaveBeenCalled();
+    });
+
+    it('breaks a cover sheet value too long for one line', async () => {
+        const currentUrl = `https://example.org/${'a'.repeat(280)}`;
+
+        await exportCanvasRangeAsPdf({
+            canvases: [createCanvas('canvas-1')],
+            startIndex: 0,
+            endIndex: 0,
+            targetWidth: 1000,
+            manifestId: 'https://example.org/manifest',
+            coverSheet: { fields: [{ label: 'ID', value: 'x' }] },
+            currentUrl,
+            loadImageBlob: () => createImageBlob(),
+        });
+
+        const urlLines = getDrawnTexts(mockPdfDoc.page).filter(
+            (text: string) => text.startsWith('https://') || /^a+$/.test(text),
+        );
+        expect(urlLines.length).toBeGreaterThan(1);
+        expect(urlLines.join('')).toBe(currentUrl);
     });
 });
 
