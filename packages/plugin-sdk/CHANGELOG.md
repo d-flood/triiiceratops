@@ -1,5 +1,12 @@
 # @triiiceratops/plugin-sdk
 
+## 1.0.3
+
+### Patch Changes
+
+- b0be1f8: Accept vitest 4.1.12 again in the optional vitest peer range; its peer set installs cleanly on npm 10 now that upstream shipped the missing package.
+    - triiiceratops@1.3.0
+
 ## 1.0.2
 
 ### Patch Changes
