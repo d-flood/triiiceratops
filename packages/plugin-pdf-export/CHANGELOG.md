@@ -1,5 +1,12 @@
 # @triiiceratops/plugin-pdf-export
 
+## 1.1.2
+
+### Patch Changes
+
+- 337a236: Wrap long unbroken cover sheet values, such as URLs, instead of cutting them off.
+    - triiiceratops@1.3.0
+
 ## 1.1.1
 
 ### Patch Changes
