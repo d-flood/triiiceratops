@@ -167,3 +167,6 @@ jobs:
                   path: apps/site/build
             - uses: actions/deploy-pages@v5
               id: deployment
+              # Pages can take over the 10 min default to sync this ~565 MB tree.
+              with:
+                  timeout: 1800000
