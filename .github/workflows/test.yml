@@ -153,7 +153,9 @@ jobs:
     e2e:
         name: E2E (${{ matrix.project }})
         if: github.head_ref != 'changeset-release/main'
-        runs-on: ubuntu-latest
+        # Playwright's Ubuntu 26.04 WebKit build starves rAF while the viewer
+        # renders, which breaks the frame-sampled keyboard specs.
+        runs-on: ubuntu-24.04
         timeout-minutes: 60
         strategy:
             fail-fast: false

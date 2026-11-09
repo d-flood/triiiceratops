@@ -106,8 +106,12 @@ async function settledOpaqueShare(page: Page): Promise<number> {
     return latest;
 }
 
-function serveJson(page: Page, url: string, body: unknown): Promise<void> {
-    return page.route(url, (route) =>
+async function serveJson(
+    page: Page,
+    url: string,
+    body: unknown,
+): Promise<void> {
+    await page.route(url, (route) =>
         route.fulfill({
             contentType: 'application/json',
             body: JSON.stringify(body),
