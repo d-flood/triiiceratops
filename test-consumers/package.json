@@ -8,6 +8,6 @@
         "test:packed": "node driver/run.mjs"
     },
     "devDependencies": {
-        "@playwright/test": "^1.57.0"
+        "@playwright/test": "^1.65.0"
     }
 }

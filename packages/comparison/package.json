@@ -29,7 +29,7 @@
         "matrix": "node scripts/matrix.mjs"
     },
     "devDependencies": {
-        "@playwright/test": "^1.57.0",
+        "@playwright/test": "^1.65.0",
         "@vitest/coverage-v8": "4.0.15",
         "typescript": "~5.9.3",
         "vitest": "^4.0.15"

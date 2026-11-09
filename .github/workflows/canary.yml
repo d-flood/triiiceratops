@@ -102,9 +102,20 @@ jobs:
               continue-on-error: true
               run: |
                   set -o pipefail
-                  git checkout -- packages/plugin-sdk/package.json pnpm-lock.yaml
-                  pnpm install
-                  pnpm --filter triiiceratops exec playwright install --with-deps chromium
+                  # The packed run is long; its tail keeps the issue body under GitHub's limit.
+                  report() {
+                    {
+                      echo "## Runtime-sharing plugins on Svelte ${SVELTE:-unresolved} (last 200 lines)"
+                      echo '```'
+                      tail -n 200 plugins.log
+                      echo '```'
+                    } >> canary-report.md
+                  }
+                  # Runs on setup failures too, which otherwise exit before reporting.
+                  trap report EXIT
+                  git checkout -- packages/plugin-sdk/package.json pnpm-lock.yaml 2>&1 | tee -a plugins.log
+                  pnpm install 2>&1 | tee -a plugins.log
+                  pnpm --filter triiiceratops exec playwright install --with-deps chromium 2>&1 | tee -a plugins.log
                   SVELTE=$(npm view svelte@5 version --json | jq -r 'if type == "array" then .[-1] else . end')
                   (cd test-consumers/fixtures/plugin-svelte-condition && npm pkg set "dependencies.svelte=$SVELTE")
                   STATUS=0
@@ -113,13 +124,6 @@ jobs:
                     pnpm --filter "@triiiceratops/plugin-$plugin" build 2>&1 | tee -a plugins.log || STATUS=1
                   done
                   PACKED_ONLY=plugin-svelte-condition pnpm test:packed 2>&1 | tee -a plugins.log || STATUS=1
-                  # The packed run is long; its tail keeps the issue body under GitHub's limit.
-                  {
-                    echo "## Runtime-sharing plugins on Svelte $SVELTE (last 200 lines)"
-                    echo '```'
-                    tail -n 200 plugins.log
-                    echo '```'
-                  } >> canary-report.md
                   echo "status=$STATUS" >> "$GITHUB_OUTPUT"
                   exit $STATUS
 
