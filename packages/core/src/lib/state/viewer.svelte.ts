@@ -303,6 +303,18 @@ export class ViewerState {
         canvasId: string,
         annotations: any[],
     ): void {
+        // Once touched, nothing seeds the visibility set again, and a reader's
+        // choices cannot cover an annotation that did not exist yet.
+        if (this.annotationVisibilityTouched) {
+            const shown = this.getUserAnnotations(manifestId, canvasId).map(
+                getAnnotationId,
+            );
+            for (const annotation of annotations) {
+                const id = getAnnotationId(annotation);
+                if (id && !shown.includes(id))
+                    this.visibleAnnotationIds.add(id);
+            }
+        }
         this.userAnnotations.set(
             this.userAnnotationKey(manifestId, canvasId),
             annotations,

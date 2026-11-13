@@ -239,7 +239,7 @@ describe('ViewerControls idle chrome', () => {
         expect(hidden()).toBe(true);
     });
 
-    it('never hides while keyboard focus is inside the bar', () => {
+    it('never hides while keyboard focus is inside the bar', async () => {
         playUntilHidden();
 
         // Focus arriving reveals it, and then pins it: a keyboard reader must
@@ -254,6 +254,7 @@ describe('ViewerControls idle chrome', () => {
 
         // Focus leaving restarts the clock rather than hiding on the spot.
         (testId('transport-play') as HTMLButtonElement).blur();
+        await Promise.resolve();
         flushSync();
         expect(hidden()).toBe(false);
         waitOutTheDelay();

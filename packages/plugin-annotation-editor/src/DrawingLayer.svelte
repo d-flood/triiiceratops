@@ -390,7 +390,8 @@
 
     function handleKeyDown(event: KeyboardEvent): void {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
-        if (isTypingTarget(event.target)) return;
+        // On the window, `target` is retargeted to a shadow host.
+        if (isTypingTarget(event.composedPath()[0] ?? event.target)) return;
 
         if (event.key === 'Escape') {
             // Escape has two jobs and does the first one it finds. A keyboard

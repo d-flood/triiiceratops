@@ -392,6 +392,13 @@
         // Focus arriving reveals whichever way it came; whether it PINS the bar
         // is the keyboard question the timer asks for itself.
         const focusMoved = () => reveal();
+        // Deferred: removing a focused control fires `focusout` from inside
+        // Svelte's teardown, where writing state throws.
+        let disposed = false;
+        const focusLeft = () =>
+            queueMicrotask(() => {
+                if (!disposed) reveal();
+            });
 
         // `pointerdown` as well as `pointermove`, because a touch reader has no
         // pointer to move: a tap is the whole gesture.
@@ -401,7 +408,7 @@
         bar.addEventListener('pointerenter', enter);
         bar.addEventListener('pointerleave', leave);
         bar.addEventListener('focusin', focusMoved);
-        bar.addEventListener('focusout', focusMoved);
+        bar.addEventListener('focusout', focusLeft);
 
         // Playback state comes off the same subscription the transport renders
         // from. Only the transitions matter: stopping reveals and pins, and
@@ -423,6 +430,7 @@
         const unsubscribe = chrome.subscribe(readPlayback);
 
         return () => {
+            disposed = true;
             cancel();
             unsubscribe();
             viewer.removeEventListener('pointermove', reveal);
@@ -431,7 +439,7 @@
             bar.removeEventListener('pointerenter', enter);
             bar.removeEventListener('pointerleave', leave);
             bar.removeEventListener('focusin', focusMoved);
-            bar.removeEventListener('focusout', focusMoved);
+            bar.removeEventListener('focusout', focusLeft);
             pointerInBar = false;
             playing = false;
             idleHidden = false;

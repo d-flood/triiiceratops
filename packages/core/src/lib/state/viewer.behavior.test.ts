@@ -871,6 +871,29 @@ describe('ViewerState manifest behavior', () => {
         expect(state.annotationVisibilityTouched).toBe(true);
     });
 
+    it('shows a user annotation that arrives after visibility was touched, and keeps it hidden once the reader hides it', async () => {
+        const manifestId = 'http://example.org/manifest/annotations-arrival';
+        await load(
+            annotatedManifest(manifestId, {
+                [CANVAS_1]: [{ id: 'anno-1' }],
+            }),
+        );
+        state.toggleAnnotations();
+        state.setAllAnnotationsVisible(false);
+        state.setAllAnnotationsVisible(true);
+
+        state.setUserAnnotations(manifestId, CANVAS_1, [{ id: 'user-1' }]);
+        expect(state.visibleAnnotationIds.has('user-1')).toBe(true);
+
+        state.setAnnotationVisible('user-1', false);
+        state.setUserAnnotations(manifestId, CANVAS_1, [
+            { id: 'user-1' },
+            { id: 'user-2' },
+        ]);
+        expect(state.visibleAnnotationIds.has('user-1')).toBe(false);
+        expect(state.visibleAnnotationIds.has('user-2')).toBe(true);
+    });
+
     it('setAllAnnotationsVisible(true) reaches the whole spread, not just the current canvas', async () => {
         await load(
             annotatedManifest('http://example.org/manifest/annotations-paged', {
