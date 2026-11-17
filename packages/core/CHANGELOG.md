@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.3.2
+
+### Patch Changes
+
+- c4c95b0: Keep annotation connector lines attached when the host page scrolls, and move them in the same frame as the image instead of one frame behind.
+
 ## 1.3.1
 
 ### Patch Changes
