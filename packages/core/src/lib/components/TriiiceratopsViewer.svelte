@@ -1893,11 +1893,10 @@
             {/if}
 
             <!--
-                The annotation SHAPES, and then the connector lines between them
-                and the annotation panel. Two distinct concerns, both mounted
-                here rather than inside a renderer: they are bound to the `frame`
-                cadence and to the viewport coordinate helpers, so neither knows
-                which renderer is mounted.
+                The annotation SHAPES, mounted here rather than inside a
+                renderer: the layer is bound to the `frame` cadence and to the
+                viewport coordinate helpers, so it does not know which renderer
+                is mounted.
 
                 The shape layer comes AFTER the renderer in DOM order, so Tab
                 reaches the image surface before the things marked on it, and it
@@ -1909,7 +1908,6 @@
                 `ViewerState.canvasToScreen` returns this layer's own.
             -->
             <AnnotationShapeOverlay />
-            <AnnotationOverlay showConnectors={!panelsAsBand} />
 
             <!--
                 Plugin **overlay layers**: one container per registered layer,
@@ -1989,6 +1987,10 @@
     {#if dockRailRight}
         {@render toolbarRail('right')}
     {/if}
+
+    <!-- Connectors span the side panels and the image, so they are positioned
+         against the whole viewer rather than `.viewer-area`. -->
+    <AnnotationOverlay showConnectors={!panelsAsBand} />
 </div>
 
 <style>

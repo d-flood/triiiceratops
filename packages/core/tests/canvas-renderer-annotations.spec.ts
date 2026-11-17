@@ -414,6 +414,9 @@ interface FlightSample {
     /** The shape's top-left corner, in CSS pixels from the surface's corner. */
     x: number;
     y: number;
+    /** The shape's centre and the connector's shape end, in viewport pixels. */
+    centre: { x: number; y: number };
+    connector: { x: number; y: number } | null;
     moving: boolean;
 }
 
@@ -466,10 +469,26 @@ async function sampleDuringZoom(
                 const view = handle.getView();
                 const box = shape.getBoundingClientRect();
                 const surfaceBox = surface.getBoundingClientRect();
+                const ink = tree.querySelector<SVGPathElement>(
+                    '.connecting-lines .ink-line',
+                );
+                let connector: FlightSample['connector'] = null;
+                if (ink) {
+                    const [, , x, y] = (ink.getAttribute('d') ?? '')
+                        .match(/-?[\d.]+(?:e-?\d+)?/g)!
+                        .map(Number);
+                    const origin = ink.ownerSVGElement!.getBoundingClientRect();
+                    connector = { x: origin.x + x, y: origin.y + y };
+                }
                 samples.push({
                     view,
                     x: box.x - surfaceBox.x,
                     y: box.y - surfaceBox.y,
+                    centre: {
+                        x: box.x + box.width / 2,
+                        y: box.y + box.height / 2,
+                    },
+                    connector,
                     moving: handle.isMoving(),
                 });
             }
@@ -513,6 +532,93 @@ test('the shape agrees with the model DURING an animation, not only at rest', as
             `y disagreed mid-flight at scale ${sample.view.scale}`,
         ).toBeLessThanOrEqual(1);
     }
+});
+
+test('the connector follows the shape in the same frame', async ({ page }) => {
+    await openAnnotatedManifest(page);
+    await clickShape(page);
+    await page.mouse.move(2, 2);
+    await expect(page.locator(CONNECTOR)).toHaveCount(1);
+
+    const samples = (await sampleDuringZoom(page, 3, 12)).filter(
+        (sample) => sample.moving,
+    );
+
+    expect(
+        samples.length,
+        'no in-flight frames were sampled, so nothing was asserted',
+    ).toBeGreaterThan(2);
+    const steps = samples
+        .slice(1)
+        .map((sample, index) =>
+            Math.hypot(
+                sample.centre.x - samples[index].centre.x,
+                sample.centre.y - samples[index].centre.y,
+            ),
+        );
+    expect(
+        Math.max(...steps),
+        'the shape never moved more than a pixel per frame, so a frame of lag would be invisible',
+    ).toBeGreaterThan(2);
+
+    for (const sample of samples) {
+        expect(sample.connector, 'the connector vanished mid-flight').not.toBe(
+            null,
+        );
+        expect(
+            Math.abs(sample.connector!.x - sample.centre.x),
+            `connector x lagged at scale ${sample.view.scale}`,
+        ).toBeLessThanOrEqual(1);
+        expect(
+            Math.abs(sample.connector!.y - sample.centre.y),
+            `connector y lagged at scale ${sample.view.scale}`,
+        ).toBeLessThanOrEqual(1);
+    }
+});
+
+test('the connector stays on the shape when the host page scrolls', async ({
+    page,
+}) => {
+    await openAnnotatedManifest(page);
+    await page.addStyleTag({
+        content: `
+            html, body { height: auto; }
+            triiiceratops-viewer { height: 600px; margin: 200px 0 1500px; }
+        `,
+    });
+    await settled(page);
+    await clickShape(page);
+    await page.mouse.move(2, 2);
+    await expect(page.locator(CONNECTOR)).toHaveCount(1);
+
+    const gap = () =>
+        page
+            .locator(`${CONNECTOR} > path.ink-line`)
+            .evaluate((ink: SVGPathElement, shapeSelector) => {
+                const [, , x, y] = (ink.getAttribute('d') ?? '')
+                    .match(/-?[\d.]+(?:e-?\d+)?/g)!
+                    .map(Number);
+                const origin = ink.ownerSVGElement!.getBoundingClientRect();
+                const shape = (ink.getRootNode() as ParentNode)
+                    .querySelector(shapeSelector)!
+                    .getBoundingClientRect();
+                return Math.hypot(
+                    origin.x + x - (shape.x + shape.width / 2),
+                    origin.y + y - (shape.y + shape.height / 2),
+                );
+            }, SHAPE);
+
+    expect(await gap()).toBeLessThanOrEqual(1);
+
+    await page.evaluate(
+        () =>
+            new Promise((resolve) => {
+                window.scrollBy(0, 300);
+                requestAnimationFrame(() => requestAnimationFrame(resolve));
+            }),
+    );
+    expect(await page.evaluate(() => window.scrollY)).toBe(300);
+    expect(await gap()).toBeLessThanOrEqual(1);
 });
 
 test('the shape tracks the image through a pan and a zoom', async ({

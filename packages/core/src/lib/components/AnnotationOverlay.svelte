@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { getContext } from 'svelte';
+    import { flushSync, getContext } from 'svelte';
     import { VIEWER_STATE_KEY, type ViewerState } from '../state/viewer.svelte';
     import { isFullCanvasAnnotation } from '../utils/annotationAdapter';
     import { isAnnotationEditorOpen } from '../utils/annotationEditing';
@@ -167,13 +167,20 @@
             }
         }
 
-        let frame: number | null = null;
+        let pending = false;
+        let disposed = false;
         let observedElements: Element[] = [];
 
+        // A microtask, not a frame: `frame` ticks arrive inside the renderer's
+        // own animation frame, so waiting for the next one lags the image.
         const scheduleUpdate = () => {
-            if (frame !== null) return;
-            frame = requestAnimationFrame(() => {
-                frame = null;
+            if (pending) return;
+            pending = true;
+            queueMicrotask(() => {
+                pending = false;
+                if (disposed) return;
+                // Apply this tick's shape positions before measuring them.
+                flushSync();
                 updateCoords();
             });
         };
@@ -232,6 +239,9 @@
         function updateCoords() {
             const next: typeof lines = [];
             const observed: Element[] = [];
+            const viewerRect = viewerEl?.getBoundingClientRect();
+            const originX = viewerRect?.left ?? 0;
+            const originY = viewerRect?.top ?? 0;
 
             for (const annotationId of connectedIds) {
                 const [listItem, visuals] = lookUp(annotationId);
@@ -241,28 +251,24 @@
                 const listRect = listItem.getBoundingClientRect();
                 observed.push(listItem, ...visuals);
 
-                let isRightPanel = false;
-                if (viewerEl) {
-                    const viewerRect = viewerEl.getBoundingClientRect();
-                    const viewerCenter = viewerRect.left + viewerRect.width / 2;
-                    isRightPanel =
-                        listRect.left + listRect.width / 2 > viewerCenter;
-                } else {
-                    isRightPanel = listRect.left > window.innerWidth / 2;
-                }
+                const isRightPanel = viewerRect
+                    ? listRect.left + listRect.width / 2 >
+                      viewerRect.left + viewerRect.width / 2
+                    : listRect.left > window.innerWidth / 2;
 
                 // Panel on the right connects from the row's left edge, and
                 // vice versa — the side facing the image.
-                const startX = isRightPanel ? listRect.left : listRect.right;
-                const startY = listRect.top + listRect.height / 2;
+                const startX =
+                    (isRightPanel ? listRect.left : listRect.right) - originX;
+                const startY = listRect.top + listRect.height / 2 - originY;
 
                 for (const visual of visuals) {
                     const visualRect = visual.getBoundingClientRect();
                     next.push({
                         x1: startX,
                         y1: startY,
-                        x2: visualRect.left + visualRect.width / 2,
-                        y2: visualRect.top + visualRect.height / 2,
+                        x2: visualRect.left + visualRect.width / 2 - originX,
+                        y2: visualRect.top + visualRect.height / 2 - originY,
                     });
                 }
             }
@@ -292,7 +298,7 @@
             window.removeEventListener('resize', scheduleUpdate);
             unsubscribeFrame();
             resizeObserver.disconnect();
-            if (frame !== null) cancelAnimationFrame(frame);
+            disposed = true;
         };
     });
 </script>
@@ -312,7 +318,7 @@
     one.
 -->
 {#if lines.length > 0}
-    <svg class="connecting-lines" style="width: 100vw; height: 100vh;">
+    <svg class="connecting-lines">
         <path class="casing-line" d={linePath} />
         <path class="casing-dot" d={dotPath} />
         <path class="ink-line" d={linePath} />
@@ -325,8 +331,10 @@
 
 <style>
     .connecting-lines {
-        position: fixed;
+        position: absolute;
         inset: 0;
+        width: 100%;
+        height: 100%;
         z-index: 50;
         pointer-events: none;
         filter: drop-shadow(0 3px 3px rgb(0 0 0 / 0.12));
