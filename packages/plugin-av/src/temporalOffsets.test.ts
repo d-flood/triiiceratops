@@ -61,6 +61,18 @@ describe('temporal offsets', () => {
         expect(seek).toHaveBeenCalledExactlyOnceWith('canvas/1', 7);
     });
 
+    it('reports a held offset for its canvas until it lands', () => {
+        const element = media(0);
+        const seeker = seekerOver({ 'canvas/1': element }, vi.fn());
+
+        seeker.apply({ canvasId: 'canvas/1', seconds: 7 });
+        expect(seeker.pending('canvas/1')).toBe(7);
+        expect(seeker.pending('canvas/2')).toBeNull();
+
+        element.dispatchEvent(new Event('loadedmetadata'));
+        expect(seeker.pending('canvas/1')).toBeNull();
+    });
+
     it('replaces a held offset with a newer one rather than queueing behind it', () => {
         const seek = vi.fn();
         const element = media(0);

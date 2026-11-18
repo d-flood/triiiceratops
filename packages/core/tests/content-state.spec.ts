@@ -206,6 +206,44 @@ test('opens an AV canvas from a content-state input', async ({ page }) => {
     ).toBeCloseTo(TONE_DURATION, 1);
 });
 
+test('captures the content-state time before the AV media can seek to it', async ({
+    page,
+}) => {
+    await page.route(`**${TONE_MP3}`, async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 3_000));
+        await route.continue();
+    });
+    await open(
+        page,
+        `?content-state=${encode(
+            annotation(AV_MANIFESTS.audio, AUDIO_CANVAS, `#t=${AUDIO_START}`),
+        )}`,
+    );
+    await page.locator(STAGE).waitFor({ state: 'visible', timeout: 30_000 });
+
+    const time = await page.evaluate(() => {
+        const runtime = (
+            window as unknown as {
+                Triiiceratops: {
+                    contentState: {
+                        capture(state: unknown): { time?: unknown } | null;
+                    };
+                };
+            }
+        ).Triiiceratops;
+        const host = document.getElementById('v') as unknown as {
+            viewerState: unknown;
+        };
+        return runtime.contentState.capture(host.viewerState)?.time;
+    });
+    expect(
+        await page
+            .locator(MEDIA)
+            .evaluate((el: HTMLMediaElement) => el.readyState),
+    ).toBe(0);
+    expect(time).toEqual({ seconds: AUDIO_START });
+});
+
 test('reads the iiif-content parameter only when the host opts in', async ({
     page,
 }) => {

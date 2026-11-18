@@ -322,6 +322,25 @@ describe('AVState query-only currentTime', () => {
         f.state.seek(2);
         expect(ticked).toHaveBeenCalled();
     });
+
+    it('reports a held navigation offset until the media can seek', () => {
+        const media = new FakeMedia();
+        let held: number | null = 7;
+        const { state } = createAvState({
+            currentTarget: () => ({
+                canvasId: 'canvas/1',
+                media: asMedia(media),
+                canvasDuration: null,
+            }),
+            refuse: () => {},
+            heldSeconds: (canvasId) => (canvasId === 'canvas/1' ? held : null),
+        });
+        expect(state.currentTime).toBe(7);
+
+        held = null;
+        media.currentTime = 7.25;
+        expect(state.currentTime).toBe(7.25);
+    });
 });
 
 /**

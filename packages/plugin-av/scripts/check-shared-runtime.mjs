@@ -587,7 +587,7 @@ const REQUIRED_GLOBALS = [
  * required globals above detect that exactly. The real ceiling on total shipped
  * weight is the competitive pair budget in `scripts/size-check.mjs`.
  */
-const MAX_IIFE_GZIP = 16_042;
+const MAX_IIFE_GZIP = 16_080;
 
 /**
  * Gzip ceilings for the lazy chunks, in bytes, by emitted file name.

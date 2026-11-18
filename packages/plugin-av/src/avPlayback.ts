@@ -74,6 +74,8 @@ export interface AvStatePort {
      * documented answer to "play the video on a canvas that has none".
      */
     refuse(error: Error, retry: () => void): void;
+    /** Seconds a navigation asked for that the media cannot seek to yet. */
+    heldSeconds?(canvasId: string): number | null;
 }
 
 /** A published AVState plus the activation-facing handles it must not expose. */
@@ -425,9 +427,12 @@ export function createAvState(port: AvStatePort): AvStatePublication {
         get currentTime(): number {
             const target = port.currentTarget();
             if (!target) return 0;
-            return target.timeline
-                ? target.timeline.currentTime()
-                : target.media.currentTime;
+            return (
+                port.heldSeconds?.(target.canvasId) ??
+                (target.timeline
+                    ? target.timeline.currentTime()
+                    : target.media.currentTime)
+            );
         },
 
         subscribe(listener: () => void): () => void {
