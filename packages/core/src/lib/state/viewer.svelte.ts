@@ -1153,20 +1153,85 @@ export class ViewerState {
 
     /**
      * Calls `listener` once each time the view comes to rest somewhere new,
-     * never mid-gesture. It skips the view already at rest when you subscribe.
+     * never mid-gesture. A paused playhead that moves counts once seeking stops
+     * for 200 ms. With `playing`, it also calls every that many seconds while
+     * media plays. It skips the view already at rest when you subscribe.
      */
-    subscribeSettled(listener: () => void): () => void {
-        const restingOn = () => {
+    subscribeSettled(
+        listener: () => void,
+        options?: { playing?: number },
+    ): () => void {
+        const viewOf = () => {
             const b = this.viewportBounds;
             if (!b || !this.rendererPort?.isViewStable()) return '';
             return `${this.canvasId} ${this.viewportRotation} ${b.x} ${b.y} ${b.width} ${b.height}`;
         };
-        let settledOn = restingOn();
-        return this.subscribeFrame(() => {
-            const view = restingOn();
-            if (!view || view === settledOn) return;
-            settledOn = view;
+        // The playhead once seeking stops, held while playing.
+        let restedAt = 0;
+        const playheadAt = () => {
+            const playback = this.transportChrome[0]?.view();
+            if (!playback?.present) return 0;
+            return playback.paused ? playback.currentTime : restedAt;
+        };
+        let settledView = untrack(viewOf);
+        restedAt = untrack(playheadAt);
+        let settledAt = restedAt;
+        let quiet: ReturnType<typeof setTimeout> | undefined;
+        let calledAt = 0;
+        let playingSince = 0;
+        let stopped = false;
+
+        const settle = () => {
+            const view = viewOf();
+            if (stopped || !view) return;
+            if (view !== settledView && !quiet) restedAt = playheadAt();
+            if (view === settledView && restedAt === settledAt) return;
+            settledView = view;
+            settledAt = restedAt;
+            calledAt = Date.now();
             listener();
+        };
+
+        const every = (options?.playing ?? 0) * 1000;
+        const onPlayback = () => {
+            clearTimeout(quiet);
+            quiet = undefined;
+            const playback = this.transportChrome[0]?.view();
+            if (playback?.present && !playback.paused) {
+                playingSince ||= Date.now();
+                // Use wall clock: scrubbing while playing jumps media time.
+                if (
+                    every &&
+                    Date.now() - Math.max(calledAt, playingSince) >= every
+                ) {
+                    restedAt = playback.currentTime;
+                    settle();
+                }
+                return;
+            }
+            playingSince = 0;
+            if (playheadAt() !== restedAt)
+                quiet = setTimeout(() => {
+                    quiet = undefined;
+                    restedAt = playheadAt();
+                    settle();
+                }, 200);
+        };
+        const stopPlayback = $effect.root(() => {
+            $effect(() => {
+                void this.transportChromeRevision;
+                return untrack(() => {
+                    onPlayback();
+                    return this.transportChrome[0]?.subscribe(onPlayback);
+                });
+            });
+        });
+        const stopFrame = this.subscribeFrame(settle);
+        return once(() => {
+            stopped = true;
+            stopFrame();
+            stopPlayback();
+            clearTimeout(quiet);
         });
     }
 

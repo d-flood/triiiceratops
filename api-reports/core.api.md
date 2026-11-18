@@ -3522,6 +3522,7 @@ export interface TransportChromeView {
     present: boolean;
     paused: boolean;
     duration: number | null;
+    /** Seconds on the canvas timeline. */
     currentTime: number;
     /** `currentTime` as `0..1` of the duration — the scrubber's coordinate. */
     fraction: number;
@@ -4198,9 +4199,13 @@ export declare class ViewerState {
     subscribeFrame(listener: () => void): () => void;
     /**
      * Calls `listener` once each time the view comes to rest somewhere new,
-     * never mid-gesture. It skips the view already at rest when you subscribe.
+     * never mid-gesture. A paused playhead that moves counts once seeking stops
+     * for 200 ms. With `playing`, it also calls every that many seconds while
+     * media plays. It skips the view already at rest when you subscribe.
      */
-    subscribeSettled(listener: () => void): () => void;
+    subscribeSettled(listener: () => void, options?: {
+        playing?: number;
+    }): () => void;
     /**
      * Attach to (or detach from) the port's animation events so that we are
      * subscribed exactly when a port exists AND somebody is listening.
@@ -7441,8 +7446,11 @@ export declare function isManifestDocument(value: unknown): boolean;
 export declare function parseContentState(value: string): ContentStateTarget | null;
 /** Encodes a target for `iiif-content`; a manifest alone stays a bare URI. */
 export declare function serializeContentState(target: ContentStateTarget): string;
-type ViewSource = Pick<ViewerState, 'manifestId' | 'canvasId' | 'visibleCanvasIds' | 'containerSize' | 'canvasSize' | 'screenToCanvas'>;
-/** Returns the canvas nearest the viewport centre and the part of it on screen. */
+type ViewSource = Pick<ViewerState, 'manifestId' | 'canvasId' | 'visibleCanvasIds' | 'containerSize' | 'canvasSize' | 'screenToCanvas' | 'transportChrome'>;
+/**
+ * Returns the canvas nearest the viewport centre, the part of it on screen,
+ * and the playhead past 0 when that canvas has the media.
+ */
 export declare function captureViewTarget(viewer: ViewSource): ContentStateTarget | null;
 export declare const BROWSER_CONTENT_STATE: {
     parse: typeof parseContentState;

@@ -104,6 +104,7 @@ export interface TransportChromeView {
     present: boolean;
     paused: boolean;
     duration: number | null;
+    /** Seconds on the canvas timeline. */
     currentTime: number;
     /** `currentTime` as `0..1` of the duration — the scrubber's coordinate. */
     fraction: number;

@@ -2,6 +2,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
+import { AV_MANIFESTS, TONE_DURATION } from './helpers/avMedia';
 import { openGridManifest } from './helpers/numberedGrid';
 
 const SURFACE = '[data-testid="canvas-renderer-surface"]';
@@ -12,15 +13,24 @@ interface Probe {
         manifestId: string;
         canvasId?: string;
         region?: { x: number; y: number; width: number; height: number };
+        time?: { seconds: number };
     }>;
 }
 
-async function listen(page: Page): Promise<void> {
-    await page.evaluate(() => {
+async function listen(
+    page: Page,
+    options?: { playing?: number },
+): Promise<void> {
+    await page.evaluate((options) => {
         const host = document.querySelector(
             'triiiceratops-viewer',
         ) as unknown as {
-            viewerState: { subscribeSettled(listener: () => void): () => void };
+            viewerState: {
+                subscribeSettled(
+                    listener: () => void,
+                    options?: { playing?: number },
+                ): () => void;
+            };
         };
         const runtime = (
             window as unknown as {
@@ -34,8 +44,8 @@ async function listen(page: Page): Promise<void> {
         host.viewerState.subscribeSettled(() => {
             probe.settled += 1;
             probe.targets.push(runtime.contentState.capture(host.viewerState));
-        });
-    });
+        }, options);
+    }, options);
 }
 
 interface ViewerHandle {
@@ -194,5 +204,70 @@ test.describe('settled notification', () => {
             width: Math.round(Math.min(1200, bounds.x + bounds.width)) - x,
             height: Math.round(Math.min(900, bounds.y + bounds.height)) - y,
         });
+    });
+
+    async function openTone(page: Page) {
+        await page.goto(
+            `/e2e/harness.html?plugins=av&manifest=${encodeURIComponent(AV_MANIFESTS.audio)}`,
+        );
+        const media = page.locator('[data-testid="av-media"]');
+        await expect
+            .poll(() => media.evaluate((el: HTMLMediaElement) => el.duration))
+            .toBeCloseTo(TONE_DURATION, 1);
+        await page.waitForTimeout(500);
+        return media;
+    }
+
+    test('a paused scrub settles once with the playhead; playback waits for the end', async ({
+        page,
+    }) => {
+        const media = await openTone(page);
+        await listen(page);
+
+        const box = (await page
+            .locator('[data-testid="transport-scrubber"]')
+            .boundingBox())!;
+        const y = box.y + box.height / 2;
+        await page.mouse.move(box.x + box.width * 0.2, y);
+        await page.mouse.down();
+        for (let step = 3; step <= 5; step += 1) {
+            await page.mouse.move(box.x + box.width * step * 0.1, y);
+        }
+        await page.mouse.up();
+        await expect.poll(async () => (await probe(page)).settled).toBe(1);
+        await page.waitForTimeout(500);
+        let { settled, targets } = await probe(page);
+        expect(settled).toBe(1);
+        expect(targets[0].time!.seconds).toBeCloseTo(TONE_DURATION / 2, 1);
+
+        await page.locator('[data-testid="transport-play"]').click();
+        await expect
+            .poll(() => media.evaluate((el: HTMLMediaElement) => el.ended))
+            .toBe(true);
+        await expect.poll(async () => (await probe(page)).settled).toBe(2);
+        ({ settled, targets } = await probe(page));
+        expect(targets[1].time!.seconds).toBeCloseTo(TONE_DURATION, 1);
+    });
+
+    test('calls every `playing` seconds of playback when asked', async ({
+        page,
+    }) => {
+        const media = await openTone(page);
+        await listen(page, { playing: 0.5 });
+
+        await page.locator('[data-testid="transport-play"]').click();
+        await expect
+            .poll(() => media.evaluate((el: HTMLMediaElement) => el.ended))
+            .toBe(true);
+        await expect
+            .poll(async () => (await probe(page)).targets.at(-1)?.time?.seconds)
+            .toBeCloseTo(TONE_DURATION, 1);
+
+        const times = (await probe(page)).targets.map((t) => t.time!.seconds);
+        const during = times.slice(0, -1);
+        expect(during.length).toBeGreaterThanOrEqual(2);
+        expect(during.length).toBeLessThanOrEqual(4);
+        expect(during).toEqual([...during].sort((a, b) => a - b));
+        expect(during.at(-1)!).toBeLessThan(TONE_DURATION);
     });
 });

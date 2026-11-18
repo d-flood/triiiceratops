@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { configureLogging } from '../logging/logger';
+import type { ViewerState } from '../state/viewer.svelte';
 import {
     contentStateFixtures,
     RESOLUTION_TABLE_ROWS,
@@ -343,16 +344,21 @@ function viewerOf({
     scale,
     container = { width: 800, height: 600 },
     canvasId = P1,
+    playback,
 }: {
     placements: Record<string, Placement>;
     view: { x: number; y: number };
     scale: number;
     container?: { width: number; height: number };
     canvasId?: string;
+    playback?: { present: boolean; currentTime: number };
 }) {
     return {
         manifestId: MANIFEST,
         canvasId,
+        transportChrome: (playback
+            ? [{ view: () => playback }]
+            : []) as unknown as ViewerState['transportChrome'],
         visibleCanvasIds: Object.keys(placements),
         containerSize: container,
         canvasSize: (id?: string) => {
@@ -474,5 +480,40 @@ describe('captureViewTarget', () => {
             manifestId: MANIFEST,
             canvasId: P1,
         });
+    });
+
+    it('adds the playhead when the current canvas plays past 0', () => {
+        const viewer = viewerOf({
+            placements: { [P1]: { x: 0, width: 400, height: 300 } },
+            view: { x: -200, y: -150 },
+            scale: 1,
+            playback: { present: true, currentTime: 12.5 },
+        });
+
+        expect(captureViewTarget(viewer)).toEqual({
+            manifestId: MANIFEST,
+            canvasId: P1,
+            time: { seconds: 12.5 },
+        });
+    });
+
+    it.each([
+        ['at 0', { present: true, currentTime: 0 }, P1],
+        ['with nothing playing', { present: false, currentTime: 12.5 }, P1],
+        [
+            'for a canvas other than the current one',
+            { present: true, currentTime: 12.5 },
+            P2,
+        ],
+    ])('leaves the playhead out %s', (_, playback, canvasId) => {
+        const viewer = viewerOf({
+            placements: { [canvasId]: { x: 0, width: 400, height: 300 } },
+            view: { x: -200, y: -150 },
+            scale: 1,
+            canvasId: P1,
+            playback,
+        });
+
+        expect(captureViewTarget(viewer)?.time).toBeUndefined();
     });
 });

@@ -1512,7 +1512,20 @@
 				},
 				{
 					"type": "text",
-					"text": " names the canvas under the viewport centre and the part of it on screen, clipped to the canvas and rounded, with no region when the whole canvas shows. "
+					"text": " names the canvas under the viewport centre and the part of it on screen, clipped to the canvas and rounded, with no region when the whole canvas shows. When that canvas has media, it adds the playhead as "
+				},
+				{
+					"type": "text",
+					"text": "time",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", left out at 0. "
 				},
 				{
 					"type": "text",
@@ -1576,7 +1589,24 @@
 				},
 				{
 					"type": "text",
-					"text": " fires once each time the view comes to rest somewhere new and never mid-gesture or while a panel slides, so no throttle is needed. Dragging the window edge is the exception: each resized frame is a new view at rest. It does not announce the view already on screen when you subscribe; read that one yourself."
+					"text": " fires once each time the view comes to rest somewhere new and never mid-gesture or while a panel slides, so no throttle is needed. Dragging the window edge is the exception: each resized frame is a new view at rest. It does not announce the view already on screen when you subscribe; read that one yourself. A paused playhead that moves counts too, once seeking has stopped for 200 ms. Time passing during playback never fires it; pausing or reaching the end does."
+				},
+				{
+					"type": "text",
+					"text": " Pass "
+				},
+				{
+					"type": "text",
+					"text": "{ playing: 5 }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to also fire every 5 seconds of playback."
 				}
 			]
 		},
@@ -1665,11 +1695,11 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "A target can also carry a media time. Add "
+					"text": "A target’s "
 				},
 				{
 					"type": "text",
-					"text": "time: { seconds }",
+					"text": "time",
 					"marks": [
 						{
 							"type": "code"
@@ -1678,20 +1708,7 @@
 				},
 				{
 					"type": "text",
-					"text": " before serializing, for example the AV plugin’s "
-				},
-				{
-					"type": "text",
-					"text": "currentTime",
-					"marks": [
-						{
-							"type": "code"
-						}
-					]
-				},
-				{
-					"type": "text",
-					"text": ", and it is written as "
+					"text": " is written as "
 				},
 				{
 					"type": "text",
@@ -1704,7 +1721,7 @@
 				},
 				{
 					"type": "text",
-					"text": "."
+					"text": ", and opening it seeks there without playing."
 				}
 			]
 		},

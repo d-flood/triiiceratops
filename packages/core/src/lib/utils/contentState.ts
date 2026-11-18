@@ -372,9 +372,13 @@ type ViewSource = Pick<
     | 'containerSize'
     | 'canvasSize'
     | 'screenToCanvas'
+    | 'transportChrome'
 >;
 
-/** Returns the canvas nearest the viewport centre and the part of it on screen. */
+/**
+ * Returns the canvas nearest the viewport centre, the part of it on screen,
+ * and the playhead past 0 when that canvas has the media.
+ */
 export function captureViewTarget(
     viewer: ViewSource,
 ): ContentStateTarget | null {
@@ -429,6 +433,14 @@ export function captureViewTarget(
                     : undefined,
         };
     }
+
+    const playback = viewer.transportChrome[0]?.view();
+    if (
+        playback?.present &&
+        playback.currentTime > 0 &&
+        target.canvasId === viewer.canvasId
+    )
+        target.time = { seconds: playback.currentTime };
 
     return target;
 }
