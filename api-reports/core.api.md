@@ -39,6 +39,7 @@
  * {@link SharedCoreUtils}.
  */
 import type { SdkPlugin } from './types/plugin';
+import type { BROWSER_CONTENT_STATE } from './utils/contentState';
 /** The custom-element tag both Web Component entries register. */
 export declare const VIEWER_ELEMENT_TAG = "triiiceratops-viewer";
 /** The property name of the namespace on the global object. */
@@ -156,6 +157,7 @@ export interface SharedSvelteRuntime {
  * telling third-party authors to bundle their own copies.
  */
 export type SharedCoreUtils = Readonly<Record<string, unknown>>;
+export type BrowserContentState = typeof BROWSER_CONTENT_STATE;
 /**
  * The browser runtime descriptor. `coreVersion`,
  * `pluginApiVersion`, and `capabilities` are empty until core loads and fills
@@ -173,6 +175,8 @@ export interface TriiiceratopsBrowserRuntime {
     readonly svelteInternal: SharedSvelteRuntime['svelteInternal'];
     /** See {@link SharedCoreUtils}. Filled only by core. */
     readonly core: SharedCoreUtils;
+    /** Absent until core loads. */
+    readonly contentState?: BrowserContentState;
 }
 declare global {
     interface Window {
@@ -226,6 +230,7 @@ export interface InstallCoreOptions {
      * is reached by the framework substrate behind `./react` and `./vue`.
      */
     coreUtils?: SharedCoreUtils;
+    contentState?: BrowserContentState;
     /** Tag to register. Defaults to {@link VIEWER_ELEMENT_TAG}. */
     tag?: string;
     /** Global to install onto. Defaults to `window` (injectable for tests). */
@@ -1294,7 +1299,7 @@ export type { IiifContainerType } from './utils/iiifParsing';
 export { parseIiifTime, formatMediaTime } from './utils/iiifTime';
 export type { CanvasRegion } from './utils/contentState';
 export type { ContentStateTarget } from './utils/contentState';
-export { parseContentState } from './utils/contentState';
+export { captureViewTarget, parseContentState, serializeContentState, } from './utils/contentState';
 export type { ChoiceSelection } from './utils/paintingBodies';
 export { isImageBody, isUnsupportedCanvas, isUnsupportedCanvasFor, paintingBodyAlternatives, } from './utils/paintingBodies';
 export type { CompanionProperty } from './renderer/companionCanvases';
@@ -2456,6 +2461,8 @@ export interface RendererPort {
      * need". Returns an idempotent unsubscribe.
      */
     onFrame(listener: () => void): () => void;
+    /** Reports whether nothing, docked chrome included, is moving the view. */
+    isViewStable(): boolean;
     /**
      * Subscribe to a **single tap** on the image surface, in screen space.
      *
@@ -4189,6 +4196,11 @@ export declare class ViewerState {
      * created. Unsubscribing is idempotent.
      */
     subscribeFrame(listener: () => void): () => void;
+    /**
+     * Calls `listener` once each time the view comes to rest somewhere new,
+     * never mid-gesture. It skips the view already at rest when you subscribe.
+     */
+    subscribeSettled(listener: () => void): () => void;
     /**
      * Attach to (or detach from) the port's animation events so that we are
      * subscribed exactly when a port exists AND somebody is listening.
@@ -7393,6 +7405,7 @@ export declare function sortCollectionItems(items: CollectionItem[]): Collection
  * base64url-encoded) becomes the `{ manifestId, canvasId?, region?, time? }`
  * view target the viewer is driven by. Never throws, never fetches (ADR 0006).
  */
+import type { ViewerState } from '../state/viewer.svelte';
 import type { IiifTemporalFragment } from './iiifTime';
 export type CanvasRegion = {
     x: number;
@@ -7426,6 +7439,17 @@ export type ContentStateTarget = {
  */
 export declare function isManifestDocument(value: unknown): boolean;
 export declare function parseContentState(value: string): ContentStateTarget | null;
+/** Encodes a target for `iiif-content`; a manifest alone stays a bare URI. */
+export declare function serializeContentState(target: ContentStateTarget): string;
+type ViewSource = Pick<ViewerState, 'manifestId' | 'canvasId' | 'visibleCanvasIds' | 'containerSize' | 'canvasSize' | 'screenToCanvas'>;
+/** Returns the canvas nearest the viewport centre and the part of it on screen. */
+export declare function captureViewTarget(viewer: ViewSource): ContentStateTarget | null;
+export declare const BROWSER_CONTENT_STATE: {
+    parse: typeof parseContentState;
+    serialize: typeof serializeContentState;
+    capture: typeof captureViewTarget;
+};
+export {};
 
 // ======================================================================
 // FILE: dist/utils/getThumbnailSrc.d.ts
@@ -7471,6 +7495,13 @@ export declare function getCanvasId(canvas: any): string;
  * `id`/`@id` read is the same one, and `''` means "no id" for both.
  */
 export declare const getAnnotationId: typeof getCanvasId;
+/**
+ * An id resolved against the page, or `''` for one that cannot be.
+ *
+ * `''` never matches anything, which is what makes the fallback below safe
+ * where there is no document to resolve against — a server render, say.
+ */
+export declare function resolvedId(id: string): string;
 export declare function findCanvasIndexById(canvases: any[], canvasId: string | null): number;
 /**
  * Whether two ids name one canvas.

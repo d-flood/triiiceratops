@@ -137,7 +137,11 @@ export type { CanvasRegion } from './utils/contentState';
 // For a host that needs the view target itself (inspect a drop/paste, route on
 // it). Pure and network-free.
 export type { ContentStateTarget } from './utils/contentState';
-export { parseContentState } from './utils/contentState';
+export {
+    captureViewTarget,
+    parseContentState,
+    serializeContentState,
+} from './utils/contentState';
 
 // `isUnsupportedCanvas` is the whole "is this canvas mine to claim" rule,
 // including its collapse: a canvas painting nothing at all is not claimable,

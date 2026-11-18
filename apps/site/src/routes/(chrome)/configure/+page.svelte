@@ -263,7 +263,7 @@
      * The share URL is built where the reader is standing rather than against a
      * declared path, so it stays correct under whatever prefix the site is
      * served from. It is empty until the URL has been read, because
-     * `serializeContentState` resolves relative manifests against the current
+     * `buildShareUrl` resolves relative manifests against the current
      * document and there is none while the route prerenders.
      */
     let origin = $state('');

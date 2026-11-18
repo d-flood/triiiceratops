@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { configureLogging } from '../logging/logger';
 import { createRendererStub } from '../testing/rendererStub';
@@ -226,6 +226,7 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             applyImageAdjustments: () => {},
             applyRotation: () => {},
             onFrame: () => () => {},
+            isViewStable: () => true,
             onTap: () => () => {},
             onKey: () => () => {},
         };
@@ -262,6 +263,7 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             applyImageAdjustments: () => {},
             applyRotation: () => {},
             onFrame: () => () => {},
+            isViewStable: () => true,
             onTap: () => () => {},
             onKey: () => () => {},
         });
@@ -727,6 +729,93 @@ describe('frame notification', () => {
 
         expect(() => renderer.emitFrame()).not.toThrow();
         expect(survived).toBe(1);
+    });
+});
+
+describe('settled notification', () => {
+    // Subscribe before the renderer mounts, as a host does.
+    function settled() {
+        const state = new ViewerState();
+        let woke = 0;
+        const off = state.subscribeSettled(() => {
+            woke++;
+        });
+        const renderer = createRendererStub();
+        state.attachRenderer(renderer);
+        return { state, renderer, off, woke: () => woke };
+    }
+
+    it('wakes once for the first view, not for repaints of it', () => {
+        const { renderer, woke } = settled();
+
+        renderer.emitFrame();
+        renderer.emitFrame();
+
+        expect(woke()).toBe(1);
+    });
+
+    it('does not announce the view already at rest when subscribing', () => {
+        const state = new ViewerState();
+        const renderer = createRendererStub();
+        state.attachRenderer(renderer);
+        let woke = 0;
+        state.subscribeSettled(() => {
+            woke++;
+        });
+
+        renderer.emitFrame();
+        expect(woke).toBe(0);
+
+        renderer.setView({ centre: { x: 10, y: 0 } });
+        renderer.emitFrame();
+        expect(woke).toBe(1);
+    });
+
+    it('stays quiet while the current canvas has no bounds', () => {
+        const { renderer, woke } = settled();
+        vi.spyOn(renderer, 'getVisibleBounds').mockReturnValue(null);
+
+        renderer.emitFrame();
+
+        expect(woke()).toBe(0);
+    });
+
+    it('waits for the view to stop moving, then wakes once', () => {
+        const { renderer, woke } = settled();
+        renderer.emitFrame();
+        const moving = vi
+            .spyOn(renderer, 'isViewStable')
+            .mockReturnValue(false);
+
+        renderer.setView({ centre: { x: 10, y: 0 } });
+        renderer.emitFrame();
+        renderer.setView({ centre: { x: 20, y: 0 } });
+        renderer.emitFrame();
+        expect(woke()).toBe(1);
+
+        moving.mockReturnValue(true);
+        renderer.emitFrame();
+        renderer.emitFrame();
+        expect(woke()).toBe(2);
+    });
+
+    it('wakes for a new canvas shown at the same bounds', () => {
+        const { state, renderer, woke } = settled();
+        renderer.emitFrame();
+
+        state.setCanvas('https://example.org/canvas/2');
+        renderer.emitFrame();
+
+        expect(woke()).toBe(2);
+    });
+
+    it('detaches from the renderer when the last listener leaves', () => {
+        const { renderer, off } = settled();
+        expect(renderer.frameListenerCount).toBe(1);
+
+        off();
+
+        expect(renderer.frameListenerCount).toBe(0);
     });
 });
 

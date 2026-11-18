@@ -23,6 +23,7 @@
  */
 
 import type { SdkPlugin } from './types/plugin';
+import type { BROWSER_CONTENT_STATE } from './utils/contentState';
 
 /** The custom-element tag both Web Component entries register. */
 export const VIEWER_ELEMENT_TAG = 'triiiceratops-viewer';
@@ -154,6 +155,8 @@ export interface SharedSvelteRuntime {
  */
 export type SharedCoreUtils = Readonly<Record<string, unknown>>;
 
+export type BrowserContentState = typeof BROWSER_CONTENT_STATE;
+
 /**
  * The browser runtime descriptor. `coreVersion`,
  * `pluginApiVersion`, and `capabilities` are empty until core loads and fills
@@ -171,6 +174,8 @@ export interface TriiiceratopsBrowserRuntime {
     readonly svelteInternal: SharedSvelteRuntime['svelteInternal'];
     /** See {@link SharedCoreUtils}. Filled only by core. */
     readonly core: SharedCoreUtils;
+    /** Absent until core loads. */
+    readonly contentState?: BrowserContentState;
 }
 
 declare global {
@@ -317,6 +322,7 @@ export interface InstallCoreOptions {
      * is reached by the framework substrate behind `./react` and `./vue`.
      */
     coreUtils?: SharedCoreUtils;
+    contentState?: BrowserContentState;
     /** Tag to register. Defaults to {@link VIEWER_ELEMENT_TAG}. */
     tag?: string;
     /** Global to install onto. Defaults to `window` (injectable for tests). */
@@ -358,6 +364,9 @@ export function installBrowserRuntime(
         }
         if (options.coreUtils) {
             mutable.core = options.coreUtils;
+        }
+        if (options.contentState) {
+            mutable.contentState = options.contentState;
         }
         defineViewerElement(options.elementCtor, tag, target);
         return runtime;

@@ -38,12 +38,12 @@ export function getCanvasId(canvas: any): string {
 export const getAnnotationId = getCanvasId;
 
 /**
- * A canvas id resolved against the page, or `''` for one that cannot be.
+ * An id resolved against the page, or `''` for one that cannot be.
  *
  * `''` never matches anything, which is what makes the fallback below safe
  * where there is no document to resolve against — a server render, say.
  */
-function resolvedCanvasId(id: string): string {
+export function resolvedId(id: string): string {
     if (!id) return '';
     try {
         return new URL(
@@ -88,8 +88,8 @@ export function sameCanvasId(a: string, b: string): boolean {
     if (!a || !b) return false;
     if (a === b) return true;
 
-    const left = resolvedCanvasId(a);
-    return !!left && left === resolvedCanvasId(b);
+    const left = resolvedId(a);
+    return !!left && left === resolvedId(b);
 }
 
 export function findCanvasById(canvases: any[], canvasId: string | null): any {

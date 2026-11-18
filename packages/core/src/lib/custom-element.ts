@@ -7,6 +7,7 @@ import { installBrowserRuntime, VIEWER_ELEMENT_TAG } from './browser-runtime';
 import { CORE_VERSION, pluginApiVersion, capabilities } from './plugin/api';
 import { SHARED_CORE_UTILS } from './shared-core-utils';
 import { SHARED_SVELTE_RUNTIME } from './shared-svelte-runtime';
+import { BROWSER_CONTENT_STATE } from './utils/contentState';
 
 installBrowserRuntime({
     coreVersion: CORE_VERSION,
@@ -16,4 +17,5 @@ installBrowserRuntime({
     tag: VIEWER_ELEMENT_TAG,
     svelteRuntime: SHARED_SVELTE_RUNTIME,
     coreUtils: SHARED_CORE_UTILS,
+    contentState: BROWSER_CONTENT_STATE,
 });

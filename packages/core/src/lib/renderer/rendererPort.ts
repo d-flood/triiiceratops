@@ -135,6 +135,9 @@ export interface RendererPort {
      */
     onFrame(listener: () => void): () => void;
 
+    /** Reports whether nothing, docked chrome included, is moving the view. */
+    isViewStable(): boolean;
+
     /**
      * Subscribe to a **single tap** on the image surface, in screen space.
      *

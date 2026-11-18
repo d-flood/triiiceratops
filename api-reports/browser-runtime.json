@@ -9,7 +9,8 @@
             "readonly plugins: PluginFactoryRegistry",
             "readonly svelte: SharedSvelteRuntime['svelte']",
             "readonly svelteInternal: SharedSvelteRuntime['svelteInternal']",
-            "readonly core: SharedCoreUtils"
+            "readonly core: SharedCoreUtils",
+            "readonly contentState?: BrowserContentState"
         ],
         "PluginFactoryRegistry": [
             "register(factory: SdkPlugin): void",

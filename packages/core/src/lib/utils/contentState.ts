@@ -5,7 +5,9 @@
  */
 
 import { logger } from '../logging/logger';
-import { getResourceId } from './iiifIds';
+import { distanceToBox } from '../renderer/layoutQueries';
+import type { ViewerState } from '../state/viewer.svelte';
+import { getResourceId, resolvedId } from './iiifIds';
 import { asArray } from './iiifParsing';
 import {
     extractIiifTargetId,
@@ -322,3 +324,117 @@ export function parseContentState(value: string): ContentStateTarget | null {
         ? resolveAnnotation(document)
         : resolveDocument(document);
 }
+
+// Content State requires absolute ids; a host may open relative ones.
+function absolute(id: string): string {
+    return isHttpUri(id) ? id : resolvedId(id) || id;
+}
+
+/** Encodes a target for `iiif-content`; a manifest alone stays a bare URI. */
+export function serializeContentState(target: ContentStateTarget): string {
+    const { region, time } = target;
+    const manifestId = absolute(target.manifestId);
+    if (!target.canvasId) return manifestId;
+
+    const fragment = [
+        region &&
+            `xywh=${region.x},${region.y},${region.width},${region.height}`,
+        time &&
+            `t=${time.seconds}${time.endSeconds === undefined ? '' : `,${time.endSeconds}`}`,
+    ]
+        .filter(Boolean)
+        .join('&');
+
+    const json = JSON.stringify({
+        '@context': 'http://iiif.io/api/presentation/3/context.json',
+        type: 'Annotation',
+        motivation: 'contentState',
+        target: {
+            id:
+                absolute(getIiifCanvasId(target.canvasId) ?? target.canvasId) +
+                (fragment && `#${fragment}`),
+            type: 'Canvas',
+            partOf: [{ id: manifestId, type: 'Manifest' }],
+        },
+    });
+
+    return btoa(encodeURIComponent(json))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+}
+
+type ViewSource = Pick<
+    ViewerState,
+    | 'manifestId'
+    | 'canvasId'
+    | 'visibleCanvasIds'
+    | 'containerSize'
+    | 'canvasSize'
+    | 'screenToCanvas'
+>;
+
+/** Returns the canvas nearest the viewport centre and the part of it on screen. */
+export function captureViewTarget(
+    viewer: ViewSource,
+): ContentStateTarget | null {
+    const { manifestId } = viewer;
+    if (!manifestId) return null;
+
+    let target: ContentStateTarget = {
+        manifestId,
+        canvasId: viewer.canvasId ?? undefined,
+    };
+    const { width, height } = viewer.containerSize;
+    if (!width || !height) return target;
+
+    let nearest = Infinity;
+    for (const canvasId of viewer.visibleCanvasIds) {
+        const size = viewer.canvasSize(canvasId);
+        const a = viewer.screenToCanvas({ x: 0, y: 0 }, canvasId);
+        const b = viewer.screenToCanvas({ x: width, y: height }, canvasId);
+        if (!size || !a || !b) continue;
+
+        const left = Math.min(a.x, b.x);
+        const top = Math.min(a.y, b.y);
+        const right = Math.max(a.x, b.x);
+        const bottom = Math.max(a.y, b.y);
+        // Compare in screen pixels: layout can scale canvases differently.
+        const distance =
+            (distanceToBox(
+                { x: (left + right) / 2, y: (top + bottom) / 2 },
+                { x: 0, y: 0, ...size },
+            ) *
+                Math.hypot(width, height)) /
+            Math.hypot(right - left, bottom - top);
+        if (distance >= nearest) continue;
+        nearest = distance;
+
+        const x = Math.round(Math.max(0, left));
+        const y = Math.round(Math.max(0, top));
+        const r = Math.round(Math.min(size.width, right));
+        const s = Math.round(Math.min(size.height, bottom));
+        const partial =
+            x > 0 ||
+            y > 0 ||
+            r < Math.round(size.width) ||
+            s < Math.round(size.height);
+
+        target = {
+            manifestId,
+            canvasId,
+            region:
+                partial && r > x && s > y
+                    ? { x, y, width: r - x, height: s - y }
+                    : undefined,
+        };
+    }
+
+    return target;
+}
+
+export const BROWSER_CONTENT_STATE = {
+    parse: parseContentState,
+    serialize: serializeContentState,
+    capture: captureViewTarget,
+};

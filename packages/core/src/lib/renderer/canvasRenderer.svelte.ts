@@ -726,9 +726,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      *
      * Four ways to be moving, and all four are the same thing to a reader: a
      * finger or button is down (the arbiter owns the gesture), a spring is
-     * still settling, a flick is coasting, or an arrow key is held. Thumbnail
-     * and `info.json` requests wait for all of them to be false; tiles do not,
-     * because a pyramid-tier canvas is one the reader is looking at.
+     * still settling, a flick is coasting, or a pan or zoom control is held.
+     * Thumbnail and `info.json` requests wait for all of them to be false;
+     * tiles do not, because a pyramid-tier canvas is one the reader is looking
+     * at.
      *
      * A flick passes over hundreds of canvases that are never dwelt on, and
      * this alone removes most of what would otherwise be asked for on their
@@ -739,7 +740,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             gestures.owner === 'none' &&
             !animating &&
             momentum === null &&
-            keyPan === null
+            keyPan === null &&
+            zoomHold === 0
         );
     }
 
@@ -1832,6 +1834,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             return () => frameListeners.delete(listener);
         },
 
+        isViewStable: () => viewStable() && !chromeCompensationInFlight,
+
         onTap(listener: (point: ViewportPoint) => void): () => void {
             tapListeners.add(listener);
             return () => tapListeners.delete(listener);
@@ -2007,10 +2011,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         }
 
         paint();
-        emitFrame();
-        // After the paint, so the set published is the one just drawn, and only
-        // on a change (see `publishVisibleCanvasIds`).
+        // Publish before frame listeners run so they read the set just drawn.
         publishVisibleCanvasIds();
+        emitFrame();
 
         if (animating || momentum || keyPan || zoomHold) scheduleFrame();
     }
@@ -2598,6 +2601,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 chromeStableFrames += 1;
                 if (chromeStableFrames >= CHROME_SETTLE_FRAMES) {
                     chromeCompensationInFlight = false;
+                    // Paint once more so settled listeners hear the rest.
+                    requestFrame();
                     return;
                 }
             } else {

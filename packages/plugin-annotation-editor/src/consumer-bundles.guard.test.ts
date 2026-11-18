@@ -112,6 +112,14 @@ describe('the built ESM entry survives a consumer bundle', () => {
     });
 });
 
+describe('the built IIFE', () => {
+    it('exposes the factory, so a script-tag host can supply an adapter', () => {
+        const iife = readFileSync(resolve(ENTRY, '../iife.js'), 'utf8');
+        expect(iife).toMatch(/^var TriiiceratopsPluginAnnotationEditor=/);
+        expect(iife).toContain('.createAnnotationEditorPlugin=');
+    });
+});
+
 describe('the optional svelte peer', () => {
     it('starts at the Svelte version the svelte build is compiled with', () => {
         const manifest = JSON.parse(

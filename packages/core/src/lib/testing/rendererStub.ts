@@ -257,6 +257,8 @@ export function createRendererStub(
             return () => listeners.delete(listener);
         },
 
+        isViewStable: () => true,
+
         onTap(listener: (point: ViewportPoint) => void): () => void {
             tapListeners.add(listener);
             return () => tapListeners.delete(listener);

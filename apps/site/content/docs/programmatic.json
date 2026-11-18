@@ -3444,6 +3444,47 @@
 		{
 			"type": "paragraph",
 			"attrs": {
+				"id": "1cbb3d7a-3524-40da-af34-03764c079a11"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "To act only once the view stops moving, for example to update the address bar, use "
+				},
+				{
+					"type": "text",
+					"text": "subscribeSettled()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". It fires once per resting view and never mid-gesture; see "
+				},
+				{
+					"type": "text",
+					"text": "writing the current view",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/content-state/#writing-the-current-view"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
 				"id": "4aa8abad-2d2e-4a28-aed4-f557e85d0abb"
 			},
 			"content": [

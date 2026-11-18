@@ -1481,6 +1481,237 @@
 			"type": "heading",
 			"attrs": {
 				"level": 2,
+				"slug": "writing-the-current-view",
+				"id": "45578c80-5ed9-474d-be18-2a86247d6041"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Writing the current view"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "dd3b5b25-d664-4ee0-88ff-928f4288f572"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "To share or bookmark what the reader is looking at, capture the view and serialize it. "
+				},
+				{
+					"type": "text",
+					"text": "captureViewTarget",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " names the canvas under the viewport centre and the part of it on screen, clipped to the canvas and rounded, with no region when the whole canvas shows. "
+				},
+				{
+					"type": "text",
+					"text": "serializeContentState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " turns a view target into a content state: a bare URI for a manifest alone, otherwise an Annotation encoded for the "
+				},
+				{
+					"type": "text",
+					"text": "iiif-content",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " parameter. It is the inverse of "
+				},
+				{
+					"type": "text",
+					"text": "parseContentState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "af7bbba0-337b-4690-8c0f-e8f2f994160a"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Capture when the view settles. "
+				},
+				{
+					"type": "text",
+					"text": "subscribeSettled()",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " fires once each time the view comes to rest somewhere new and never mid-gesture or while a panel slides, so no throttle is needed. Dragging the window edge is the exception: each resized frame is a new view at rest. It does not announce the view already on screen when you subscribe; read that one yourself."
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "ts",
+				"id": "fed74ad5-e804-4d14-ae99-3578e1aff45c"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "import {\n    captureViewTarget,\n    serializeContentState,\n    type ViewerState,\n} from 'triiiceratops';\n\ndeclare const state: ViewerState;\n\nstate.subscribeSettled(() => {\n    const target = captureViewTarget(state);\n    if (!target) return;\n    const url = new URL(location.href);\n    url.searchParams.set('iiif-content', serializeContentState(target));\n    history.replaceState(null, '', url);\n});"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "efa649a7-4174-46c5-a8c1-f857015aa289"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Without a bundler, the same functions are on the browser global as "
+				},
+				{
+					"type": "text",
+					"text": "Triiiceratops.contentState.capture",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "serialize",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and "
+				},
+				{
+					"type": "text",
+					"text": "parse",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ":"
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "458ac293-949b-4221-a798-1074c7fd7035"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script src=\"/assets/triiiceratops-element.iife.js\"></script>\n\n<triiiceratops-viewer id=\"viewer\" read-content-state-from-url></triiiceratops-viewer>\n<script>\n    const viewer = document.getElementById('viewer');\n    const { capture, serialize } = window.Triiiceratops.contentState;\n\n    function writeViewToUrl(state) {\n        state.subscribeSettled(() => {\n            const target = capture(state);\n            if (!target) return;\n            const url = new URL(location.href);\n            url.searchParams.set('iiif-content', serialize(target));\n            history.replaceState(null, '', url);\n        });\n    }\n\n    viewer.addEventListener('viewerstateavailable', (event) => {\n        writeViewToUrl(event.detail);\n    });\n    if (viewer.viewerState) writeViewToUrl(viewer.viewerState);\n</script>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "e44707b8-afd9-4fb0-8cfe-6e3d450023ac"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "A target can also carry a media time. Add "
+				},
+				{
+					"type": "text",
+					"text": "time: { seconds }",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " before serializing, for example the AV plugin’s "
+				},
+				{
+					"type": "text",
+					"text": "currentTime",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", and it is written as "
+				},
+				{
+					"type": "text",
+					"text": "#t=",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "."
+				}
+			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
 				"slug": "degradation-not-rejection",
 				"id": "7c51fa1f-d11a-4a8c-8055-406a6d4a8c30"
 			},
@@ -2067,6 +2298,6 @@
 	"meta": {
 		"title": "IIIF Content State",
 		"shortTitle": "IIIF Content State",
-		"intro": "Which IIIF Content State forms Triiiceratops resolves, and how to turn an iiif-content parameter into viewer inputs."
+		"intro": "Which IIIF Content State forms Triiiceratops resolves, how to turn an iiif-content parameter into viewer inputs, and how to write the current view back out."
 	}
 }

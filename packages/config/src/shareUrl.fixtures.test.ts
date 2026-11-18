@@ -7,7 +7,6 @@ import {
     buildShareUrl,
     resolveInitialConfig,
     resolveInitialView,
-    serializeContentState,
     type SparseConfig,
     type ViewTarget,
 } from './index';
@@ -108,7 +107,7 @@ const EMITTED: EmittedFixture[] = [
                 toolbarOpen: false,
             },
         },
-        url: '/configure/?iiif-content=eyJAY29udGV4dCI6Imh0dHA6Ly9paWlmLmlvL2FwaS9wcmVzZW50YXRpb24vMy9jb250ZXh0Lmpzb24iLCJ0eXBlIjoiQW5ub3RhdGlvbiIsIm1vdGl2YXRpb24iOiJjb250ZW50U3RhdGUiLCJ0YXJnZXQiOnsiaWQiOiJodHRwczovL2lpaWYuaW8vYXBpL2Nvb2tib29rL3JlY2lwZS8wMDAxLW12bS1pbWFnZS9jYW52YXMvcDEjeHl3aD0xMCwyMCwzMDAsNDAwIiwidHlwZSI6IkNhbnZhcyIsInBhcnRPZiI6W3siaWQiOiJodHRwczovL2lpaWYuaW8vYXBpL2Nvb2tib29rL3JlY2lwZS8wMDAxLW12bS1pbWFnZS9tYW5pZmVzdC5qc29uIiwidHlwZSI6Ik1hbmlmZXN0In1dfX0&config=%7B%22gallery%22%3A%7B%22open%22%3Atrue%2C%22dockPosition%22%3A%22left%22%7D%2C%22toolbarOpen%22%3Afalse%7D',
+        url: '/configure/?iiif-content=JTdCJTIyJTQwY29udGV4dCUyMiUzQSUyMmh0dHAlM0ElMkYlMkZpaWlmLmlvJTJGYXBpJTJGcHJlc2VudGF0aW9uJTJGMyUyRmNvbnRleHQuanNvbiUyMiUyQyUyMnR5cGUlMjIlM0ElMjJBbm5vdGF0aW9uJTIyJTJDJTIybW90aXZhdGlvbiUyMiUzQSUyMmNvbnRlbnRTdGF0ZSUyMiUyQyUyMnRhcmdldCUyMiUzQSU3QiUyMmlkJTIyJTNBJTIyaHR0cHMlM0ElMkYlMkZpaWlmLmlvJTJGYXBpJTJGY29va2Jvb2slMkZyZWNpcGUlMkYwMDAxLW12bS1pbWFnZSUyRmNhbnZhcyUyRnAxJTIzeHl3aCUzRDEwJTJDMjAlMkMzMDAlMkM0MDAlMjIlMkMlMjJ0eXBlJTIyJTNBJTIyQ2FudmFzJTIyJTJDJTIycGFydE9mJTIyJTNBJTVCJTdCJTIyaWQlMjIlM0ElMjJodHRwcyUzQSUyRiUyRmlpaWYuaW8lMkZhcGklMkZjb29rYm9vayUyRnJlY2lwZSUyRjAwMDEtbXZtLWltYWdlJTJGbWFuaWZlc3QuanNvbiUyMiUyQyUyMnR5cGUlMjIlM0ElMjJNYW5pZmVzdCUyMiU3RCU1RCU3RCU3RA&config=%7B%22gallery%22%3A%7B%22open%22%3Atrue%2C%22dockPosition%22%3A%22left%22%7D%2C%22toolbarOpen%22%3Afalse%7D',
     },
 ];
 
@@ -135,19 +134,20 @@ describe('a relative sample manifest, absolutized against the sharing page', () 
         manifestId: '/manifests/sample.json',
         canvasId: '/manifests/sample.json/canvas/p1#xywh=1,2,3,4',
     };
-    const base = 'https://triiiceratops.dev/demo/?mode=image';
     const contentState =
-        'eyJAY29udGV4dCI6Imh0dHA6Ly9paWlmLmlvL2FwaS9wcmVzZW50YXRpb24vMy9jb250ZXh0Lmpzb24iLCJ0eXBlIjoiQW5ub3RhdGlvbiIsIm1vdGl2YXRpb24iOiJjb250ZW50U3RhdGUiLCJ0YXJnZXQiOnsiaWQiOiJodHRwczovL3RyaWlpY2VyYXRvcHMuZGV2L21hbmlmZXN0cy9zYW1wbGUuanNvbi9jYW52YXMvcDEiLCJ0eXBlIjoiQ2FudmFzIiwicGFydE9mIjpbeyJpZCI6Imh0dHBzOi8vdHJpaWljZXJhdG9wcy5kZXYvbWFuaWZlc3RzL3NhbXBsZS5qc29uIiwidHlwZSI6Ik1hbmlmZXN0In1dfX0';
+        'JTdCJTIyJTQwY29udGV4dCUyMiUzQSUyMmh0dHAlM0ElMkYlMkZpaWlmLmlvJTJGYXBpJTJGcHJlc2VudGF0aW9uJTJGMyUyRmNvbnRleHQuanNvbiUyMiUyQyUyMnR5cGUlMjIlM0ElMjJBbm5vdGF0aW9uJTIyJTJDJTIybW90aXZhdGlvbiUyMiUzQSUyMmNvbnRlbnRTdGF0ZSUyMiUyQyUyMnRhcmdldCUyMiUzQSU3QiUyMmlkJTIyJTNBJTIyaHR0cCUzQSUyRiUyRmxvY2FsaG9zdCUzQTMwMDAlMkZtYW5pZmVzdHMlMkZzYW1wbGUuanNvbiUyRmNhbnZhcyUyRnAxJTIyJTJDJTIydHlwZSUyMiUzQSUyMkNhbnZhcyUyMiUyQyUyMnBhcnRPZiUyMiUzQSU1QiU3QiUyMmlkJTIyJTNBJTIyaHR0cCUzQSUyRiUyRmxvY2FsaG9zdCUzQTMwMDAlMkZtYW5pZmVzdHMlMkZzYW1wbGUuanNvbiUyMiUyQyUyMnR5cGUlMjIlM0ElMjJNYW5pZmVzdCUyMiU3RCU1RCU3RCU3RA';
 
     it('is still what the codec emits', () => {
-        expect(serializeContentState(target, base)).toBe(contentState);
+        const url = buildShareUrl({ pathname: '/demo/', target, config: {} });
+        expect(new URLSearchParams(url.split('?')[1]).get('iiif-content')).toBe(
+            contentState,
+        );
     });
 
     it('still names absolute resources when read back', () => {
         expect(parseContentState(contentState)).toEqual({
-            manifestId: 'https://triiiceratops.dev/manifests/sample.json',
-            canvasId:
-                'https://triiiceratops.dev/manifests/sample.json/canvas/p1',
+            manifestId: `${location.origin}/manifests/sample.json`,
+            canvasId: `${location.origin}/manifests/sample.json/canvas/p1`,
         });
     });
 });

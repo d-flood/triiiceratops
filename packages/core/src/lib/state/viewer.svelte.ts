@@ -1152,6 +1152,25 @@ export class ViewerState {
     }
 
     /**
+     * Calls `listener` once each time the view comes to rest somewhere new,
+     * never mid-gesture. It skips the view already at rest when you subscribe.
+     */
+    subscribeSettled(listener: () => void): () => void {
+        const restingOn = () => {
+            const b = this.viewportBounds;
+            if (!b || !this.rendererPort?.isViewStable()) return '';
+            return `${this.canvasId} ${this.viewportRotation} ${b.x} ${b.y} ${b.width} ${b.height}`;
+        };
+        let settledOn = restingOn();
+        return this.subscribeFrame(() => {
+            const view = restingOn();
+            if (!view || view === settledOn) return;
+            settledOn = view;
+            listener();
+        });
+    }
+
+    /**
      * Attach to (or detach from) the port's animation events so that we are
      * subscribed exactly when a port exists AND somebody is listening.
      */

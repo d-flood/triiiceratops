@@ -6,7 +6,11 @@ import {
     RESOLUTION_TABLE_ROWS,
     type ContentStateFixture,
 } from '../test/fixtures/contentState';
-import { parseContentState } from './contentState';
+import {
+    captureViewTarget,
+    parseContentState,
+    serializeContentState,
+} from './contentState';
 
 /**
  * Content-state resolution, driven off the committed fixture index. Adding a
@@ -239,5 +243,236 @@ describe('contentState', () => {
         ['an annotation with no target and no partOf', '{"type":"Annotation"}'],
     ])('returns null rather than throwing for %s', (_label, value) => {
         expect(parseContentState(value)).toBeNull();
+    });
+});
+
+const MANIFEST = 'https://example.org/iiif/book/manifest.json';
+const P1 = 'https://example.org/iiif/book/canvas/p1';
+const P2 = 'https://example.org/iiif/book/canvas/p2';
+
+describe('serializeContentState', () => {
+    it('emits a bare manifest URI when no canvas is named', () => {
+        expect(serializeContentState({ manifestId: MANIFEST })).toBe(MANIFEST);
+    });
+
+    it('emits unpadded base64url', () => {
+        const value = serializeContentState({
+            manifestId: MANIFEST,
+            canvasId: P1,
+            region: { x: 1, y: 2, width: 3, height: 4 },
+        });
+
+        expect(value).toMatch(/^[A-Za-z0-9_-]+$/);
+    });
+
+    it.each([
+        ['a canvas', { manifestId: MANIFEST, canvasId: P1 }],
+        [
+            'a canvas and region',
+            {
+                manifestId: MANIFEST,
+                canvasId: P1,
+                region: { x: 10, y: 20, width: 300, height: 400 },
+            },
+        ],
+        [
+            'a canvas and time range',
+            {
+                manifestId: MANIFEST,
+                canvasId: P1,
+                time: { seconds: 5, endSeconds: 12.5 },
+            },
+        ],
+        [
+            'a region and an open-ended time',
+            {
+                manifestId: MANIFEST,
+                canvasId: P1,
+                region: { x: 0, y: 0, width: 50, height: 60 },
+                time: { seconds: 30 },
+            },
+        ],
+        [
+            'non-ASCII ids',
+            {
+                manifestId: 'https://example.org/iiif/bücher/manifest.json',
+                canvasId: 'https://example.org/iiif/bücher/canvas/é',
+            },
+        ],
+    ])('round-trips %s through parseContentState', (_label, target) => {
+        expect(parseContentState(serializeContentState(target))).toEqual(
+            target,
+        );
+    });
+
+    it('resolves relative ids against the page', () => {
+        const value = serializeContentState({
+            manifestId: '/iiif/book/manifest.json',
+            canvasId: 'canvas/p1',
+        });
+
+        expect(parseContentState(value)).toEqual({
+            manifestId: new URL('/iiif/book/manifest.json', document.baseURI)
+                .href,
+            canvasId: new URL('canvas/p1', document.baseURI).href,
+        });
+    });
+
+    it('replaces a fragment already on the canvas id', () => {
+        const value = serializeContentState({
+            manifestId: MANIFEST,
+            canvasId: `${P1}#xywh=1,2,3,4`,
+            region: { x: 10, y: 20, width: 30, height: 40 },
+        });
+
+        expect(parseContentState(value)).toEqual({
+            manifestId: MANIFEST,
+            canvasId: P1,
+            region: { x: 10, y: 20, width: 30, height: 40 },
+        });
+    });
+});
+
+/** `unit`: canvas units per world unit. */
+type Placement = { x: number; width: number; height: number; unit?: number };
+
+/** Lays canvases side by side; `view` is the world point at the screen's top-left. */
+function viewerOf({
+    placements,
+    view,
+    scale,
+    container = { width: 800, height: 600 },
+    canvasId = P1,
+}: {
+    placements: Record<string, Placement>;
+    view: { x: number; y: number };
+    scale: number;
+    container?: { width: number; height: number };
+    canvasId?: string;
+}) {
+    return {
+        manifestId: MANIFEST,
+        canvasId,
+        visibleCanvasIds: Object.keys(placements),
+        containerSize: container,
+        canvasSize: (id?: string) => {
+            const placement = placements[id ?? canvasId];
+            return placement
+                ? { width: placement.width, height: placement.height }
+                : null;
+        },
+        screenToCanvas: (point: { x: number; y: number }, id?: string) => {
+            const placement = placements[id ?? canvasId];
+            if (!placement) return null;
+            const unit = placement.unit ?? 1;
+            return {
+                x: (view.x + point.x / scale - placement.x) * unit,
+                y: (view.y + point.y / scale) * unit,
+            };
+        },
+    };
+}
+
+describe('captureViewTarget', () => {
+    it('returns null before a manifest is open', () => {
+        expect(
+            captureViewTarget({
+                ...viewerOf({ placements: {}, view: { x: 0, y: 0 }, scale: 1 }),
+                manifestId: null,
+            }),
+        ).toBeNull();
+    });
+
+    it('falls back to the current canvas when nothing is laid out', () => {
+        expect(
+            captureViewTarget(
+                viewerOf({ placements: {}, view: { x: 0, y: 0 }, scale: 1 }),
+            ),
+        ).toEqual({ manifestId: MANIFEST, canvasId: P1 });
+    });
+
+    it('rounds a region inside the canvas', () => {
+        const viewer = viewerOf({
+            placements: { [P1]: { x: 0, width: 4000, height: 3000 } },
+            view: { x: 100.4, y: 200.6 },
+            scale: 2,
+        });
+
+        expect(captureViewTarget(viewer)).toEqual({
+            manifestId: MANIFEST,
+            canvasId: P1,
+            region: { x: 100, y: 201, width: 400, height: 300 },
+        });
+    });
+
+    it('clips a region that runs past the canvas edge', () => {
+        const viewer = viewerOf({
+            placements: { [P1]: { x: 0, width: 1000, height: 1000 } },
+            view: { x: -200, y: 700 },
+            scale: 1,
+        });
+
+        expect(captureViewTarget(viewer)?.region).toEqual({
+            x: 0,
+            y: 700,
+            width: 600,
+            height: 300,
+        });
+    });
+
+    it('leaves the region out when the whole canvas shows', () => {
+        const viewer = viewerOf({
+            placements: { [P1]: { x: 0, width: 400, height: 300 } },
+            view: { x: -200, y: -150 },
+            scale: 1,
+        });
+
+        expect(captureViewTarget(viewer)).toEqual({
+            manifestId: MANIFEST,
+            canvasId: P1,
+        });
+    });
+
+    it('names the canvas under the viewport centre, not the current one', () => {
+        const viewer = viewerOf({
+            placements: {
+                [P1]: { x: 0, width: 1000, height: 1000 },
+                [P2]: { x: 1000, width: 1000, height: 1000 },
+            },
+            view: { x: 1100, y: 100 },
+            scale: 1,
+        });
+
+        expect(captureViewTarget(viewer)).toEqual({
+            manifestId: MANIFEST,
+            canvasId: P2,
+            region: { x: 100, y: 100, width: 800, height: 600 },
+        });
+    });
+
+    it('names the canvas nearest on screen when layout scaled them differently', () => {
+        const viewer = viewerOf({
+            placements: {
+                [P1]: { x: 0, width: 1000, height: 1000 },
+                [P2]: { x: 1100, width: 10000, height: 10000, unit: 10 },
+            },
+            view: { x: 670, y: 100 },
+            scale: 1,
+        });
+
+        expect(captureViewTarget(viewer)?.canvasId).toBe(P2);
+    });
+
+    it('leaves the region out when the view misses the nearest canvas', () => {
+        const viewer = viewerOf({
+            placements: { [P1]: { x: 0, width: 1000, height: 1000 } },
+            view: { x: 0, y: 1200 },
+            scale: 1,
+        });
+
+        expect(captureViewTarget(viewer)).toEqual({
+            manifestId: MANIFEST,
+            canvasId: P1,
+        });
     });
 });
