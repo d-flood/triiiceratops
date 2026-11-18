@@ -156,7 +156,8 @@ deliberately non-notifying. Reading them reactively is a selector cadence choice
 reclassification.
 
 **Settled view**:
-The view once nothing is moving it: no gesture, glide, animation, or sliding chrome.
+The view once nothing is moving it: no gesture, glide, animation, sliding chrome, or seeking
+playhead.
 _Avoid_: idle, stable view, resting state
 
 **Active locale**:
