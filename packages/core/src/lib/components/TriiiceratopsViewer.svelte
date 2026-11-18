@@ -71,11 +71,16 @@
     import { createPluginLocaleService } from '../plugin/localeService';
     import { createPluginUiService } from '../plugin/uiService';
     import { createPluginSurface } from '../plugin/surface';
-    import type { CanvasRegion } from '../utils/contentState';
+    import type {
+        CanvasRegion,
+        ContentStateTarget,
+    } from '../utils/contentState';
+    import { parseContentState } from '../utils/contentState';
     import {
         readContentStateFromLocation,
         resolveContentState,
     } from '../utils/contentStateIngestion';
+    import { startContentStateWriter } from '../utils/contentStateWriter';
     import { sdkPluginChromeId } from '../utils/pluginId';
     import { getThumbnailSrc } from '../utils/getThumbnailSrc';
     import { isUnsupportedCanvasFor } from '../utils/paintingBodies';
@@ -83,7 +88,11 @@
         canvasPaintsImage,
         getVisibleViewerCanvases,
     } from '../utils/resolveCanvasImage';
-    import { findCanvasIndexById } from '../utils/iiifIds';
+    import {
+        findCanvasIndexById,
+        getResourceId,
+        sameCanvasId,
+    } from '../utils/iiifIds';
     import { copyJson, sameJson } from '../utils/sameJson';
     import { getCanvasId } from './viewerControls';
     import AnnotationOverlay from './AnnotationOverlay.svelte';
@@ -229,13 +238,15 @@
          */
         contentState?: string;
         /**
-         * Opt in to reading the `iiif-content` parameter from the host's
+         * Opt in to reading the content state URL parameter from the host's
          * address, once on mount (ADR 0006). Off by default, and the
          * lowest-precedence source: a viewer dropped into a page it does not
-         * own must not consume a parameter meant for the host application. The
-         * address bar is never mutated.
+         * own must not consume a parameter meant for the host application.
          */
         readContentStateFromUrl?: boolean;
+        writeContentStateToUrl?: boolean;
+        /** Content state URL parameter. Defaults to `iiif-content`; live for writes. */
+        contentStateUrlParam?: string;
         /**
          * Opt in to opening a IIIF content state dropped onto the viewer
          * (cookbook recipe 0599). Off by default, for the reason the URL
@@ -288,6 +299,8 @@
         canvasId,
         contentState,
         readContentStateFromUrl = false,
+        writeContentStateToUrl = false,
+        contentStateUrlParam,
         acceptDroppedContentState = false,
         plugins: rawPlugins = [],
         theme,
@@ -302,6 +315,9 @@
 
     let allPlugins = $derived(Array.isArray(rawPlugins) ? rawPlugins : []);
     let sdkPlugins = $derived(allPlugins.filter(isSdkPlugin));
+    let resolvedContentStateUrlParam = $derived(
+        contentStateUrlParam?.trim() || 'iiif-content',
+    );
 
     let rootElement: HTMLElement | undefined = $state();
 
@@ -452,7 +468,9 @@
         internalViewerState.activeLocale = viewerLocale;
         internalViewerState.setManifestRequestConfig(config?.requests);
         internalViewerState.setSearchProvider(searchProvider);
-        internalViewerState.setInitialCanvasRegion(initialCanvasRegion);
+        internalViewerState.setInitialCanvasRegion(
+            urlViewOutranksHost() ? null : initialCanvasRegion,
+        );
     });
 
     function hasCanvas(canvasId: string) {
@@ -461,7 +479,7 @@
 
     $effect(() => {
         if (manifestId && manifestJson) {
-            const requestedCanvasId = canvasId || undefined;
+            const requestedCanvasId = startingCanvasId(manifestId);
             lastAppliedManifestId = manifestId;
             void (async () => {
                 await internalViewerState.setManifestData(
@@ -470,6 +488,7 @@
                     { canvasId: requestedCanvasId },
                 );
                 lastAppliedCanvasId = '';
+                restoreUrlView();
             })();
             return;
         }
@@ -483,7 +502,15 @@
          */
         if (manifestId && manifestId !== lastAppliedManifestId) {
             lastAppliedManifestId = manifestId;
-            if (manifestId === internalViewerState.manifestId) return;
+            if (
+                sameCanvasId(
+                    manifestId,
+                    internalViewerState.manifestId ?? '',
+                ) ||
+                sameCanvasId(manifestId, urlOpeningManifestId)
+            ) {
+                return;
+            }
             // Don't re-trigger setManifest if the prop points to the active collection.
             // When a collection is loaded, internalViewerState.manifestId is the
             // currently-selected manifest inside the collection, which differs from
@@ -497,13 +524,14 @@
             // Pass the requested canvas along so the manifest load selects it
             // directly, without a transient first-canvas state that consumers
             // mirroring viewer state could echo back into the prop.
-            const requestedCanvasId = canvasId || undefined;
+            const requestedCanvasId = startingCanvasId(manifestId);
             void (async () => {
                 await internalViewerState.setManifest(manifestId, {
                     requestConfig: config?.requests,
                     canvasId: requestedCanvasId,
                 });
                 lastAppliedCanvasId = '';
+                restoreUrlView();
             })();
         }
     });
@@ -518,27 +546,125 @@
         // runs due to internal state changes
         if (canvasId && canvasId !== lastAppliedCanvasId) {
             lastAppliedCanvasId = canvasId;
-            untrack(() => {
-                if (
-                    internalViewerState.manifestId &&
-                    internalViewerState.canvases.length &&
-                    !hasCanvas(canvasId)
-                ) {
-                    return;
-                }
-                if (canvasId !== internalViewerState.canvasId) {
-                    internalViewerState.setCanvas(canvasId);
-                }
-            });
+            const id = untrack(hostCanvasId);
+            if (id) applyCanvasId(id);
         }
     });
 
+    function applyCanvasId(id: string) {
+        untrack(() => {
+            if (
+                internalViewerState.manifestId &&
+                internalViewerState.canvases.length &&
+                !hasCanvas(id)
+            ) {
+                return;
+            }
+            if (id !== internalViewerState.canvasId) {
+                internalViewerState.setCanvas(id);
+            }
+        });
+    }
+
     // ── Content-state ingestion (ADR 0006) ─────────────────────────────────
-    // Precedence: discrete props > `contentState` > the `iiif-content` URL
-    // parameter. The URL is read at most once, on mount, and only when the host
-    // opted in; the address bar is never written.
+    // Precedence: discrete props > `contentState` > the content state URL
+    // parameter, except that with writing on a URL view of the host's own
+    // manifest outranks the host's starting canvas, region and time. The URL is
+    // read at most once, on mount, and only when the host opted in.
     let urlContentStateChecked = false;
     let ingestedContentState: string | undefined;
+    const urlContentState = untrack(() =>
+        readContentStateFromUrl || writeContentStateToUrl
+            ? readContentStateFromLocation(resolvedContentStateUrlParam)
+            : undefined,
+    );
+
+    /** The URL view a host load still has to restore. */
+    let urlView: ContentStateTarget | null = untrack(() => {
+        if (!writeContentStateToUrl || !urlContentState) return null;
+        const view = parseContentState(urlContentState);
+        const host = manifestId || getResourceId(manifestJson);
+        return view && (!host || sameCanvasId(view.manifestId, host))
+            ? view
+            : null;
+    });
+    let restoredManifestId = '';
+    let urlOpeningManifestId = '';
+    let firstCanvasId: string | undefined;
+
+    function urlViewOutranksHost(): boolean {
+        if (
+            restoredManifestId &&
+            !sameCanvasId(
+                restoredManifestId,
+                untrack(() => internalViewerState.manifestId) ?? '',
+            )
+        ) {
+            restoredManifestId = '';
+        }
+        return (
+            !!urlView ||
+            (!!restoredManifestId &&
+                (!manifestId || sameCanvasId(restoredManifestId, manifestId)))
+        );
+    }
+
+    /**
+     * The `canvasId` prop as the host's request, or `undefined` while a URL view
+     * outranks it. Only the host's first value is a starting view; any later
+     * value is navigation and ends the URL view's claim.
+     */
+    function hostCanvasId(): string | undefined {
+        if (!canvasId) return undefined;
+        firstCanvasId ??= canvasId;
+        if (canvasId !== firstCanvasId) {
+            urlView = null;
+            restoredManifestId = '';
+        }
+        return urlViewOutranksHost() ? undefined : canvasId;
+    }
+
+    function startingCanvasId(hostManifestId: string): string | undefined {
+        if (urlView && !sameCanvasId(urlView.manifestId, hostManifestId)) {
+            dropUrlView();
+        }
+        const host = hostCanvasId();
+        return urlView ? urlView.canvasId : host;
+    }
+
+    /** Hand back the starting view a URL view held back. */
+    function dropUrlView() {
+        if (!urlView) return;
+        urlView = null;
+        untrack(() =>
+            internalViewerState.setInitialCanvasRegion(initialCanvasRegion),
+        );
+        if (canvasId) applyCanvasId(canvasId);
+    }
+
+    /** Apply the pending URL view once its manifest has loaded, else drop it. */
+    function restoreUrlView(): boolean {
+        const view = urlView;
+        if (
+            view?.canvasId &&
+            sameCanvasId(
+                view.manifestId,
+                internalViewerState.manifestId ?? '',
+            ) &&
+            hasCanvas(view.canvasId)
+        ) {
+            urlView = null;
+            restoredManifestId = view.manifestId;
+            internalViewerState.setCanvas(
+                view.canvasId,
+                view.time,
+                view.region,
+            );
+            return true;
+        }
+        dropUrlView();
+        return false;
+    }
 
     $effect(() => {
         const drivenByProps = !!(manifestId || manifestJson);
@@ -550,10 +676,7 @@
             // must not make the viewer reach into the address bar long after the
             // host's own routing has moved on.
             urlContentStateChecked = true;
-            if (drivenByProps || explicit || !readContentStateFromUrl) {
-                return undefined;
-            }
-            return readContentStateFromLocation();
+            return drivenByProps || explicit ? undefined : urlContentState;
         });
 
         if (drivenByProps) return;
@@ -593,8 +716,8 @@
      * triggers already has it; the time is applied after, once the canvas the
      * target names is the current one.
      *
-     * Each part of the target yields to the discrete prop that covers it: the
-     * whole discrete tier outranks a content state, not just its manifest.
+     * Each part of the target yields to the discrete prop that covers it, and
+     * both yield to a write-mode URL view of the same manifest.
      */
     async function ingestContentState(
         value: string,
@@ -616,12 +739,26 @@
         }
         const { target, manifestJson: dereferenced } = resolved;
 
-        if (target.region && !initialCanvasRegion) {
+        // The URL read on its own names no host manifest, so it keeps the
+        // usual precedence and only claims the view it restores.
+        const claim = !dropped && !!urlView && value === urlContentState;
+        let view: ContentStateTarget | null = null;
+        if (!dropped && urlView) {
+            if (!claim && sameCanvasId(urlView.manifestId, target.manifestId)) {
+                view = urlView;
+            } else {
+                dropUrlView();
+            }
+        }
+
+        if (!view && target.region && !initialCanvasRegion) {
             internalViewerState.setInitialCanvasRegion(target.region);
         }
         // A `canvasId` prop is already applied by its own effect, and outranks
         // the canvas the content state names.
-        const requestedCanvasId = canvasId ? undefined : target.canvasId;
+        const targetCanvasId = canvasId ? undefined : target.canvasId;
+        const requestedCanvasId = view ? view.canvasId : targetCanvasId;
+        if (view || claim) urlOpeningManifestId = target.manifestId;
         if (dereferenced) {
             await internalViewerState.setManifestData(
                 target.manifestId,
@@ -634,13 +771,25 @@
                 canvasId: requestedCanvasId,
             });
         }
+        if (view || claim) urlOpeningManifestId = '';
+        if (view) {
+            // Reapply a `canvasId` that ended the claim mid-load; the load overrode it.
+            const navigated = !urlView;
+            if (restoreUrlView()) return;
+            if (navigated && canvasId) applyCanvasId(canvasId);
+            if (target.region && !initialCanvasRegion) {
+                internalViewerState.setInitialCanvasRegion(target.region);
+            }
+        }
+        if (!targetCanvasId || !hasCanvas(targetCanvasId)) return;
+        if (claim) restoredManifestId = target.manifestId;
         // The manifest load selected the canvas but dropped the time the target
         // carried — `setCanvas` clears the temporal offset unless it is handed
         // one — so this second selection is what applies it. Guarded like the
         // `canvasId` prop's own effect: a canvas the manifest does not contain
-        // is not navigable.
-        if (requestedCanvasId && target.time && hasCanvas(requestedCanvasId)) {
-            internalViewerState.setCanvas(requestedCanvasId, target.time);
+        // is not navigable. A dropped URL view's load selected its own canvas.
+        if (view || target.time) {
+            internalViewerState.setCanvas(targetCanvasId, target.time);
         }
     }
 
@@ -666,6 +815,19 @@
             if (messagesChanged) lastMessages = copyJson(messages);
             internalViewerState.updateConfig(config);
         }
+    });
+
+    let contentStateWriteFailureReported = false;
+    $effect(() => {
+        if (!writeContentStateToUrl) return;
+        return startContentStateWriter(internalViewerState, {
+            param: resolvedContentStateUrlParam,
+            report(error) {
+                if (contentStateWriteFailureReported) return;
+                contentStateWriteFailureReported = true;
+                emitViewerError(error);
+            },
+        });
     });
 
     // SDK plugins carry their own framework-neutral `activate(host)`. Core owns

@@ -27,6 +27,12 @@
             "reflect": false
         },
         {
+            "property": "contentStateUrlParam",
+            "attribute": "content-state-url-param",
+            "type": "String",
+            "reflect": false
+        },
+        {
             "property": "initialCanvasRegion",
             "attribute": "initial-canvas-region",
             "type": "String",
@@ -88,6 +94,12 @@
             "property": "themeConfig",
             "attribute": "theme-config",
             "type": "String",
+            "reflect": false
+        },
+        {
+            "property": "writeContentStateToUrl",
+            "attribute": "write-content-state-to-url",
+            "type": "Boolean",
             "reflect": false
         }
     ],

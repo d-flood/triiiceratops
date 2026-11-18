@@ -6,7 +6,7 @@
  * value it happens to carry:
  *
  * - **Attribute tier** (`manifestId`, `canvasId`, `theme`, `contentState`,
- *   `readContentStateFromUrl`) — rendered
+ *   `readContentStateFromUrl`, `writeContentStateToUrl`, `contentStateUrlParam`) — rendered
  *   declaratively as kebab-case attributes by each wrapper, on the server and
  *   on the client's first render alike, so hydration reuses the same host with
  *   no mismatch. {@link viewerElementAttributes} builds that record; it is a
@@ -57,15 +57,18 @@ export interface ViewerAttributeProps {
      */
     contentState?: string;
     /**
-     * Opt in to reading the `iiif-content` parameter from the host's address
+     * Opt in to reading the content state URL parameter from the host's address
      * (ADR 0006). **Off by default**, and deliberately so: the viewer is dropped
      * into pages it does not own, so consuming an ambient parameter meant for
      * the host application has to be a decision the host makes.
      *
-     * Read ONCE on mount, and the lowest-precedence source of all. The address
-     * bar is never mutated.
+     * Read ONCE on mount, and the lowest-precedence source of all.
      */
     readContentStateFromUrl?: boolean;
+    /** Write changed settled views to the content state URL parameter and read it on mount. */
+    writeContentStateToUrl?: boolean;
+    /** Content state URL parameter. Defaults to `iiif-content`; live for writes. */
+    contentStateUrlParam?: string;
     /**
      * Opt in to opening a IIIF content state dropped onto the viewer (cookbook
      * recipe 0599). **Off by default**, for the reason above: a viewer dropped
@@ -120,6 +123,8 @@ export const VIEWER_ATTRIBUTE_PROPS = {
     theme: 'theme',
     contentState: 'content-state',
     readContentStateFromUrl: 'read-content-state-from-url',
+    writeContentStateToUrl: 'write-content-state-to-url',
+    contentStateUrlParam: 'content-state-url-param',
     acceptDroppedContentState: 'accept-dropped-content-state',
 } as const satisfies Record<ViewerAttributePropName, string>;
 

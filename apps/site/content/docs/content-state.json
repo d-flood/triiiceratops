@@ -331,7 +331,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Three inputs are available on every distribution: the Svelte component, the custom element, and the React and Vue wrappers. The first is the payload; the other two each let the viewer read one ambient channel:"
+					"text": "These inputs are available on the Svelte component, the custom element, and the React and Vue wrappers."
 				}
 			],
 			"attrs": {
@@ -576,6 +576,167 @@
 									"content": [
 										{
 											"type": "text",
+											"text": "writeContentStateToUrl",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "762e7d72-c8f9-4754-aae1-51e9a150fdc6"
+									}
+								}
+							],
+							"attrs": {
+								"id": "c6cf0e96-96a2-415d-a3cc-4bc15c0e8057"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "write-content-state-to-url",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "3681150b-c94f-4a21-91f3-77d3950890f1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "6240e163-4ebd-41bd-9543-48d967fb37dc"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "off"
+										}
+									],
+									"attrs": {
+										"id": "f61ca94d-5e2f-4ebf-ae63-d127edcff6e3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "1148d855-8f00-41df-9a43-5a33909a9d45"
+							}
+						}
+					],
+					"attrs": {
+						"id": "df88b4ef-76a6-4f2e-9b83-2be4378ecc3b"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "contentStateUrlParam",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "2c393d8c-74fc-4ac5-b69a-04262fde864a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "86b7a9bc-67d1-4262-87b2-c6297cdc57f5"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "content-state-url-param",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a17866ee-6289-44c4-8688-92013c0e80d3"
+									}
+								}
+							],
+							"attrs": {
+								"id": "72989dac-62ce-4476-8676-8553ad284506"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "iiif-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "d47d2c2f-5958-4fc5-b503-85698dccb187"
+									}
+								}
+							],
+							"attrs": {
+								"id": "5c9f4ece-93c9-4d07-890c-18efbe395522"
+							}
+						}
+					],
+					"attrs": {
+						"id": "8e48f317-cdec-49e8-8b52-efff932f3063"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
 											"text": "acceptDroppedContentState",
 											"marks": [
 												{
@@ -709,7 +870,20 @@
 				},
 				{
 					"type": "text",
-					"text": " delegates one channel, the "
+					"text": " opts in to reading the content state URL parameter on mount. It is a boolean attribute and defaults to off. Set "
+				},
+				{
+					"type": "text",
+					"text": "content-state-url-param",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to choose the name. An omitted, empty or whitespace-only name uses "
 				},
 				{
 					"type": "text",
@@ -722,33 +896,7 @@
 				},
 				{
 					"type": "text",
-					"text": " parameter, to the viewer. It is a boolean attribute: presence opts in. It is "
-				},
-				{
-					"type": "text",
-					"text": "off by default",
-					"marks": [
-						{
-							"type": "bold"
-						}
-					]
-				},
-				{
-					"type": "text",
-					"text": ", it is read "
-				},
-				{
-					"type": "text",
-					"text": "once on mount",
-					"marks": [
-						{
-							"type": "bold"
-						}
-					]
-				},
-				{
-					"type": "text",
-					"text": ", and the viewer never writes to the address bar, so URL cleanup and re-navigation in a single-page application remain the host's responsibility."
+					"text": "."
 				}
 			],
 			"attrs": {
@@ -968,7 +1116,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "Unlike the URL flag, this one is live rather than read once on mount, and a drop is the one delivery that outranks the discrete inputs (see "
+					"text": "The drop flag can change after mount. A drop is the one delivery that outranks the discrete inputs (see "
 				},
 				{
 					"type": "text",
@@ -1026,7 +1174,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "a dropped content state\n  > manifest-id / manifest-json (+ canvas-id, initial-canvas-region)\n  > content-state\n  > the iiif-content URL parameter"
+					"text": "a dropped content state\n  > manifest-id / manifest-json (+ canvas-id, initial-canvas-region)\n  > content-state\n  > the content state URL parameter"
 				}
 			]
 		},
@@ -1104,6 +1252,246 @@
 			],
 			"attrs": {
 				"id": "c0ba5471-946f-4449-bb63-3ef1405e298b"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "With "
+				},
+				{
+					"type": "text",
+					"text": "write-content-state-to-url",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " on, a URL content state that names the host's manifest wins for canvas, region and time, so a reload restores the reader's view. The host's manifest is "
+				},
+				{
+					"type": "text",
+					"text": "manifest-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", else "
+				},
+				{
+					"type": "text",
+					"text": "manifest-json",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": "'s id, else the "
+				},
+				{
+					"type": "text",
+					"text": "content-state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " input's manifest, compared after resolving relative ids. The URL view beats "
+				},
+				{
+					"type": "text",
+					"text": "canvas-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "initial-canvas-region",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and the "
+				},
+				{
+					"type": "text",
+					"text": "content-state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " input's canvas, region and time. If its canvas isn't in the manifest, the host's canvas opens instead."
+				}
+			],
+			"attrs": {
+				"id": "18de6b64-5de0-46e9-a0d7-b0015cb20c63"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The host still decides which manifest opens: a URL content state naming a different manifest is ignored, and only when the host names none does the URL open what it names. A "
+				},
+				{
+					"type": "text",
+					"text": "manifest-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " or first "
+				},
+				{
+					"type": "text",
+					"text": "canvas-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " set after mount doesn't undo a restored view, but a later "
+				},
+				{
+					"type": "text",
+					"text": "canvas-id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " change still navigates. With "
+				},
+				{
+					"type": "text",
+					"text": "read-content-state-from-url",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " alone, the order above is unchanged."
+				}
+			],
+			"attrs": {
+				"id": "100e187b-1510-480a-8838-d5473be2959a"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Known limits of the write-mode rule:"
+				}
+			],
+			"attrs": {
+				"id": "ca557152-c2b4-45f9-9899-622cb1f1ab89"
+			}
+		},
+		{
+			"type": "bulletList",
+			"content": [
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "After the reader moves to another member of a Collection, or a dropped content state opens a different manifest, a reload returns to the host's manifest."
+								}
+							],
+							"attrs": {
+								"id": "4212adfd-e0ac-4772-8aab-36e8d237da7f"
+							}
+						}
+					],
+					"attrs": {
+						"id": "14fe45c0-4943-4e0f-872d-7ebbb18c47fd"
+					}
+				},
+				{
+					"type": "listItem",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Two viewers showing the same manifest under the same parameter name can't be told apart. Give each viewer its own "
+								},
+								{
+									"type": "text",
+									"text": "content-state-url-param",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": "."
+								}
+							],
+							"attrs": {
+								"id": "3484b0f9-8a72-494d-bff5-99b6ea845d02"
+							}
+						}
+					],
+					"attrs": {
+						"id": "bf184787-b59c-4b6b-acb2-64c8b9e8cd23"
+					}
+				}
+			],
+			"attrs": {
+				"id": "eec3ef00-e5ec-45e1-b7da-ec34b2fbd2e2"
 			}
 		},
 		{
@@ -1493,13 +1881,195 @@
 		},
 		{
 			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Add "
+				},
+				{
+					"type": "text",
+					"text": "write-content-state-to-url",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " to keep the page URL in sync with the viewer. In Svelte, React and Vue, the prop is "
+				},
+				{
+					"type": "text",
+					"text": "writeContentStateToUrl",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". The viewer reads the content state URL parameter"
+				},
+				{
+					"type": "text",
+					"text": " on mount and replaces it after the view settles somewhere new. The first settled view leaves the URL as it is. A paused or sought playhead is included when it settles."
+				}
+			],
+			"attrs": {
+				"id": "e71d05e8-54f0-458a-8cc8-68e1f99e33dd"
+			}
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "html",
+				"id": "f3115201-2447-4374-9598-063de172e5cb"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<triiiceratops-viewer write-content-state-to-url></triiiceratops-viewer>"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "The viewer uses "
+				},
+				{
+					"type": "text",
+					"text": "history.replaceState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and preserves other query parameters, the hash and "
+				},
+				{
+					"type": "text",
+					"text": "history.state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Removing the flag or the viewer stops writes and leaves the parameter in place. Enabling the flag again starts from the current view. On reload, a written view of the host's manifest wins over its starting view; see Precedence."
+				}
+			],
+			"attrs": {
+				"id": "c7836b5d-9a01-4567-8437-2fdf3f3b8627"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "If the browser refuses a write, the viewer reports "
+				},
+				{
+					"type": "text",
+					"text": "content-state-write-failed",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " once on "
+				},
+				{
+					"type": "text",
+					"text": "viewererror",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and tries again on later settled views."
+				}
+			],
+			"attrs": {
+				"id": "3a70247c-334f-4b1f-b196-6dd66ea429ba"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "For routers that require their own history API, such as SvelteKit, use "
+				},
+				{
+					"type": "text",
+					"text": "subscribeSettled",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " with "
+				},
+				{
+					"type": "text",
+					"text": "captureViewTarget",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " and "
+				},
+				{
+					"type": "text",
+					"text": "serializeContentState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", then replace the URL through your router. The same manual approach supports periodic writes during playback."
+				}
+			],
+			"attrs": {
+				"id": "4dee61b0-5d40-4199-910f-d23447557dfa"
+			}
+		},
+		{
+			"type": "paragraph",
 			"attrs": {
 				"id": "dd3b5b25-d664-4ee0-88ff-928f4288f572"
 			},
 			"content": [
 				{
 					"type": "text",
-					"text": "To share or bookmark what the reader is looking at, capture the view and serialize it. "
+					"text": "Use these functions to capture and serialize the view yourself. "
 				},
 				{
 					"type": "text",
@@ -1593,11 +2163,11 @@
 				},
 				{
 					"type": "text",
-					"text": " Pass "
+					"text": " For periodic updates during playback, pass an interval in seconds, for example "
 				},
 				{
 					"type": "text",
-					"text": "{ playing: 5 }",
+					"text": "subscribeSettled(listener, { playing: 5 })",
 					"marks": [
 						{
 							"type": "code"
@@ -1606,7 +2176,7 @@
 				},
 				{
 					"type": "text",
-					"text": " to also fire every 5 seconds of playback."
+					"text": "."
 				}
 			]
 		},
@@ -1619,7 +2189,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "import {\n    captureViewTarget,\n    serializeContentState,\n    type ViewerState,\n} from 'triiiceratops';\n\ndeclare const state: ViewerState;\n\nstate.subscribeSettled(() => {\n    const target = captureViewTarget(state);\n    if (!target) return;\n    const url = new URL(location.href);\n    url.searchParams.set('iiif-content', serializeContentState(target));\n    history.replaceState(null, '', url);\n});"
+					"text": "import {\n    captureViewTarget,\n    serializeContentState,\n    type ViewerState,\n} from 'triiiceratops';\n\ndeclare const state: ViewerState;\n\nstate.subscribeSettled(() => {\n    const target = captureViewTarget(state);\n    if (!target) return;\n    const url = new URL(location.href);\n    url.searchParams.set('iiif-content', serializeContentState(target));\n    history.replaceState(history.state, '', url);\n});"
 				}
 			]
 		},
@@ -1683,7 +2253,7 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "<script src=\"/assets/triiiceratops-element.iife.js\"></script>\n\n<triiiceratops-viewer id=\"viewer\" read-content-state-from-url></triiiceratops-viewer>\n<script>\n    const viewer = document.getElementById('viewer');\n    const { capture, serialize } = window.Triiiceratops.contentState;\n\n    function writeViewToUrl(state) {\n        state.subscribeSettled(() => {\n            const target = capture(state);\n            if (!target) return;\n            const url = new URL(location.href);\n            url.searchParams.set('iiif-content', serialize(target));\n            history.replaceState(null, '', url);\n        });\n    }\n\n    viewer.addEventListener('viewerstateavailable', (event) => {\n        writeViewToUrl(event.detail);\n    });\n    if (viewer.viewerState) writeViewToUrl(viewer.viewerState);\n</script>"
+					"text": "<script src=\"/assets/triiiceratops-element.iife.js\"></script>\n\n<triiiceratops-viewer id=\"viewer\" read-content-state-from-url></triiiceratops-viewer>\n<script>\n    const viewer = document.getElementById('viewer');\n    const { capture, serialize } = window.Triiiceratops.contentState;\n\n    function writeViewToUrl(state) {\n        state.subscribeSettled(() => {\n            const target = capture(state);\n            if (!target) return;\n            const url = new URL(location.href);\n            url.searchParams.set('iiif-content', serialize(target));\n            history.replaceState(history.state, '', url);\n        });\n    }\n\n    viewer.addEventListener('viewerstateavailable', (event) => {\n        writeViewToUrl(event.detail);\n    });\n    if (viewer.viewerState) writeViewToUrl(viewer.viewerState);\n</script>"
 				}
 			]
 		},
@@ -1724,6 +2294,108 @@
 					"text": ", and opening it seeks there without playing."
 				}
 			]
+		},
+		{
+			"type": "heading",
+			"attrs": {
+				"level": 2,
+				"slug": "multiple-viewers",
+				"id": "6c5d9cf7-144f-40c9-99bd-132fc915969f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "Multiple viewers"
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Keep the default "
+				},
+				{
+					"type": "text",
+					"text": "iiif-content",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " parameter on the primary viewer so its links work in other IIIF tools. Give every other writing viewer a unique "
+				},
+				{
+					"type": "text",
+					"text": "content-state-url-param",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " ("
+				},
+				{
+					"type": "text",
+					"text": "contentStateUrlParam",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " in Svelte, React and Vue). Two writing viewers that claim the same name log a warning when debug mode is enabled."
+				}
+			],
+			"attrs": {
+				"id": "fac72746-c59d-47d5-a28b-7cdc7a41bf8e"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "Changing the name after mount starts future writes under the new name and leaves the old parameter in place. The viewer reads the URL only on mount."
+				}
+			],
+			"attrs": {
+				"id": "9b9e3760-d6c2-4ab7-8ab5-a8f7c58f63d2"
+			}
+		},
+		{
+			"type": "paragraph",
+			"content": [
+				{
+					"type": "text",
+					"text": "On CMS listing pages, formatter settings are shared across items. Derive each viewer’s parameter name from its unique element "
+				},
+				{
+					"type": "text",
+					"text": "id",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". Each content state takes about 600–1,000 characters, and common server request-line limits are about 8 KB."
+				}
+			],
+			"attrs": {
+				"id": "5d689f37-399d-4eb1-97e1-ecf03772a623"
+			}
 		},
 		{
 			"type": "heading",

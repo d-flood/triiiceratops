@@ -14,6 +14,7 @@ import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { untrack } from 'svelte';
 import { manifestsState } from './manifests.svelte.js';
 import { takeManifestRequest } from './earlyManifestRequest';
+import { registerViewStability } from './viewStability';
 import { NOTIFYING_MEMBERS } from '../generated/notifyingMembers.js';
 import { language } from './i18n.svelte.js';
 import { logger, isDebugEnabled } from '../logging/logger';
@@ -748,6 +749,7 @@ export class ViewerState {
     ) {
         this.manifestId = initialManifestId || null;
         this.canvasId = initialCanvasId || null;
+        registerViewStability(this, () => !!this.rendererPort?.isViewStable());
         if (this.manifestId) {
             manifestsState.fetchManifest(
                 this.manifestId,

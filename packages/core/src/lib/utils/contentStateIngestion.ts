@@ -21,9 +21,6 @@ import {
     type ContentStateTarget,
 } from './contentState';
 
-/** The parameter name the IIIF Content State API reserves. */
-const IIIF_CONTENT_PARAM = 'iiif-content';
-
 export interface ContentStateIngestionOptions {
     /** The same request configuration the manifest path uses. */
     requestConfig?: RequestConfig;
@@ -32,18 +29,18 @@ export interface ContentStateIngestionOptions {
 }
 
 /**
- * The `iiif-content` parameter of the host's current address, or `undefined`.
+ * The content state URL parameter of the host's current address, or `undefined`.
  *
- * Read-only by construction: the address bar is never mutated, so URL cleanup
+ * Reads only: writing the address is the opt-in writer's job, and URL cleanup
  * and SPA re-navigation stay the consumer's concern (ADR 0006). SSR-safe.
  */
-export function readContentStateFromLocation(): string | undefined {
+export function readContentStateFromLocation(
+    param = 'iiif-content',
+): string | undefined {
     if (typeof window === 'undefined' || !window.location?.search) {
         return undefined;
     }
-    const value = new URLSearchParams(window.location.search).get(
-        IIIF_CONTENT_PARAM,
-    );
+    const value = new URLSearchParams(window.location.search).get(param);
     return value?.trim() || undefined;
 }
 

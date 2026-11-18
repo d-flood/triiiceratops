@@ -6438,6 +6438,167 @@
 									"content": [
 										{
 											"type": "text",
+											"text": "writeContentStateToUrl",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "da3b392b-4960-4ee8-9c02-3ff78e387b49"
+									}
+								}
+							],
+							"attrs": {
+								"id": "3e574f48-7d1a-425e-bcc6-87be2b3c357d"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "write-content-state-to-url",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "9db8f1b8-a955-43a5-bc39-191bcdd291d1"
+									}
+								}
+							],
+							"attrs": {
+								"id": "aa711a2e-33bf-41cf-a1b3-a7a1748658c8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "off"
+										}
+									],
+									"attrs": {
+										"id": "30969cf3-0aa0-4e89-a3b9-4101b266aa37"
+									}
+								}
+							],
+							"attrs": {
+								"id": "b3921f5b-5601-41fa-ac6e-30d9c9cbe0b7"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b4b9815d-ef85-42ea-b588-b518c923e150"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "contentStateUrlParam",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "a5b5c12d-321d-4c75-b0b3-0abf500b4f77"
+									}
+								}
+							],
+							"attrs": {
+								"id": "884a26fe-8837-40e4-8199-806557b55eb8"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "content-state-url-param",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "7bb9f3cc-1e1f-4645-8a0d-401be469f51a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "f9f7f5e9-f3ea-4f22-b278-6a845c24375f"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "iiif-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "4af7386a-62ee-4d57-8a7d-6baf0b3498f5"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fd4eac58-9a74-46fe-af1f-d922289c3c4b"
+							}
+						}
+					],
+					"attrs": {
+						"id": "d0e2a1f6-77a2-4bd6-99b7-6517f92af964"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
 											"text": "acceptDroppedContentState",
 											"marks": [
 												{
@@ -6515,11 +6676,11 @@
 			"content": [
 				{
 					"type": "text",
-					"text": "With both flags off (the default), the viewer never touches "
+					"text": "By default the viewer leaves the page URL and drops to the host. "
 				},
 				{
 					"type": "text",
-					"text": "window.location",
+					"text": "readContentStateFromUrl",
 					"marks": [
 						{
 							"type": "code"
@@ -6528,7 +6689,33 @@
 				},
 				{
 					"type": "text",
-					"text": " and does not intercept drops, so a component embedded in your application cannot consume an "
+					"text": " reads the content state URL parameter on mount. "
+				},
+				{
+					"type": "text",
+					"text": "writeContentStateToUrl",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " also writes changed settled views. "
+				},
+				{
+					"type": "text",
+					"text": "contentStateUrlParam",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " names the parameter and defaults to "
 				},
 				{
 					"type": "text",
@@ -6541,11 +6728,11 @@
 				},
 				{
 					"type": "text",
-					"text": " parameter, or a drag, meant for the page around it. Each flag hands the viewer one input channel; every other channel (a paste, a "
+					"text": ". "
 				},
 				{
 					"type": "text",
-					"text": "FileReader",
+					"text": "acceptDroppedContentState",
 					"marks": [
 						{
 							"type": "code"
@@ -6554,20 +6741,7 @@
 				},
 				{
 					"type": "text",
-					"text": ", a "
-				},
-				{
-					"type": "text",
-					"text": "data-*",
-					"marks": [
-						{
-							"type": "code"
-						}
-					]
-				},
-				{
-					"type": "text",
-					"text": " attribute) stays with the host."
+					"text": " opens dropped content states."
 				}
 			],
 			"attrs": {
@@ -6592,7 +6766,36 @@
 				},
 				{
 					"type": "text",
-					"text": ", which wins over the URL parameter. A content state's region is honored when the canvas it names opens, so supply it with the content state rather than assigning "
+					"text": ", which wins over the URL parameter. With "
+				},
+				{
+					"type": "text",
+					"text": "writeContentStateToUrl",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " on, a URL content state that names the host's manifest wins for canvas, region and time; see "
+				},
+				{
+					"type": "text",
+					"text": "precedence",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/content-state/#precedence"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". A content state's region is honored when the canvas it names opens, so supply it with the content state rather than assigning "
 				},
 				{
 					"type": "text",

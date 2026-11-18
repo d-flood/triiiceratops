@@ -65,7 +65,11 @@ function makeManifest(manifestId: string) {
         id: manifestId,
         type: 'Manifest',
         label: { en: [manifestId] },
-        items: [makeCanvas(manifestId, 'p1'), makeCanvas(manifestId, 'p2')],
+        items: [
+            makeCanvas(manifestId, 'p1'),
+            makeCanvas(manifestId, 'p2'),
+            makeCanvas(manifestId, 'p3'),
+        ],
     };
 }
 
@@ -184,6 +188,8 @@ describe('content-state ingestion through the viewer inputs', () => {
         } | null;
         contentState?: string;
         readContentStateFromUrl?: boolean;
+        writeContentStateToUrl?: boolean;
+        contentStateUrlParam?: string;
         acceptDroppedContentState?: boolean;
     };
 
@@ -389,6 +395,55 @@ describe('content-state ingestion through the viewer inputs', () => {
             `?iiif-content=${encode(contentStateAnnotation(MANIFEST_ID, 'p2'))}`,
         );
         const { state, app } = mountViewer({ readContentStateFromUrl: true });
+        await settle();
+
+        expect(state.viewerState?.manifestId).toBe(MANIFEST_ID);
+        expect(state.viewerState?.canvasId).toBe(CANVAS(MANIFEST_ID, 'p2'));
+
+        await unmount(app);
+    });
+
+    it('reads the URL on mount when writing is enabled', async () => {
+        setLocation(
+            `?iiif-content=${encode(contentStateAnnotation(MANIFEST_ID, 'p2'))}`,
+        );
+        const { state, app } = mountViewer({
+            readContentStateFromUrl: false,
+            writeContentStateToUrl: true,
+        });
+        await settle();
+
+        expect(state.viewerState?.manifestId).toBe(MANIFEST_ID);
+        expect(state.viewerState?.canvasId).toBe(CANVAS(MANIFEST_ID, 'p2'));
+
+        await unmount(app);
+    });
+
+    it('reads the named parameter and ignores iiif-content', async () => {
+        setLocation(
+            `?iiif-content=${encode(contentStateAnnotation(OTHER_MANIFEST_ID, 'p1'))}` +
+                `&item-view=${encode(contentStateAnnotation(MANIFEST_ID, 'p2'))}`,
+        );
+        const { state, app } = mountViewer({
+            readContentStateFromUrl: true,
+            contentStateUrlParam: ' item-view ',
+        });
+        await settle();
+
+        expect(state.viewerState?.manifestId).toBe(MANIFEST_ID);
+        expect(state.viewerState?.canvasId).toBe(CANVAS(MANIFEST_ID, 'p2'));
+
+        await unmount(app);
+    });
+
+    it('reads iiif-content when the parameter name is empty', async () => {
+        setLocation(
+            `?iiif-content=${encode(contentStateAnnotation(MANIFEST_ID, 'p2'))}`,
+        );
+        const { state, app } = mountViewer({
+            readContentStateFromUrl: true,
+            contentStateUrlParam: '',
+        });
         await settle();
 
         expect(state.viewerState?.manifestId).toBe(MANIFEST_ID);
@@ -635,5 +690,311 @@ describe('content-state ingestion through the viewer inputs', () => {
         );
 
         await unmount(app);
+    });
+
+    describe('a written URL view, with writing on', () => {
+        const URL_REGION = { x: 10, y: 20, width: 30, height: 40 };
+        const urlState = (manifestId = MANIFEST_ID, canvas = 'p2') =>
+            `?iiif-content=${encode(
+                contentStateAnnotation(manifestId, canvas, '#xywh=10,20,30,40'),
+            )}`;
+
+        function expectRestored(state: Props, manifestId = MANIFEST_ID) {
+            expect(state.viewerState?.manifestId).toBe(manifestId);
+            expect(state.viewerState?.canvasId).toBe(CANVAS(manifestId, 'p2'));
+            expect(state.viewerState?.navigationRegion).toEqual({
+                canvasId: CANVAS(manifestId, 'p2'),
+                ...URL_REGION,
+            });
+        }
+
+        it('beats canvas-id for the host-named manifest', async () => {
+            setLocation(urlState());
+            const { state, app } = mountViewer({
+                manifestId: MANIFEST_ID,
+                canvasId: CANVAS(MANIFEST_ID, 'p1'),
+                writeContentStateToUrl: true,
+            });
+            await settle();
+
+            expectRestored(state);
+
+            await unmount(app);
+        });
+
+        it('beats initial-canvas-region', async () => {
+            setLocation(urlState());
+            const { state, app } = mountViewer({
+                manifestId: MANIFEST_ID,
+                initialCanvasRegion: { x: 1, y: 2, width: 3, height: 4 },
+                writeContentStateToUrl: true,
+            });
+            await settle();
+
+            expectRestored(state);
+            expect(state.viewerState?.initialCanvasRegion).toBeNull();
+
+            await unmount(app);
+        });
+
+        it("beats a content-state input's canvas and region", async () => {
+            setLocation(urlState());
+            const { state, app } = mountViewer({
+                contentState: encode(
+                    contentStateAnnotation(MANIFEST_ID, 'p1', '#xywh=1,2,3,4'),
+                ),
+                writeContentStateToUrl: true,
+            });
+            await settle();
+
+            expectRestored(state);
+            expect(state.viewerState?.initialCanvasRegion).toBeNull();
+
+            await unmount(app);
+        });
+
+        it('applies its media time', async () => {
+            mockFetch.mockImplementation(async () => ({
+                ok: true,
+                json: async () => makeAudioManifest(),
+            }));
+            setLocation(
+                `?iiif-content=${encode(
+                    contentStateAnnotation(AUDIO_MANIFEST_ID, 'tone', '#t=30'),
+                )}`,
+            );
+            const { state, app } = mountViewer({
+                manifestId: AUDIO_MANIFEST_ID,
+                writeContentStateToUrl: true,
+            });
+            await settle();
+
+            expect(state.viewerState?.temporalOffset).toEqual({
+                canvasId: CANVAS(AUDIO_MANIFEST_ID, 'tone'),
+                seconds: 30,
+            });
+
+            await unmount(app);
+        });
+
+        it('is ignored when it names another manifest than manifest-id', async () => {
+            setLocation(urlState());
+            const { state, app } = mountViewer({
+                manifestId: OTHER_MANIFEST_ID,
+                canvasId: CANVAS(OTHER_MANIFEST_ID, 'p3'),
+                writeContentStateToUrl: true,
+            });
+            await settle();
+
+            expect(state.viewerState?.manifestId).toBe(OTHER_MANIFEST_ID);
+            expect(state.viewerState?.canvasId).toBe(
+                CANVAS(OTHER_MANIFEST_ID, 'p3'),
+            );
+            expect(mockFetch).not.toHaveBeenCalledWith(
+                MANIFEST_ID,
+                expect.anything(),
+            );
+
+            await unmount(app);
+        });
+
+        it('matches a relative manifest-id against its absolute manifest', async () => {
+            const relative = '/iiif/book/manifest';
+            const absolute = new URL(relative, document.baseURI).href;
+            mockFetch.mockImplementation(async () => ({
+                ok: true,
+                json: async () => makeManifest(relative),
+            }));
+            setLocation(urlState(absolute));
+            const { state, app } = mountViewer({
+                manifestId: relative,
+                canvasId: CANVAS(relative, 'p1'),
+                writeContentStateToUrl: true,
+            });
+            await settle();
+
+            expect(state.viewerState?.canvasId).toBe(CANVAS(relative, 'p2'));
+            expect(state.viewerState?.navigationRegion).toEqual({
+                canvasId: CANVAS(relative, 'p2'),
+                ...URL_REGION,
+            });
+
+            await unmount(app);
+        });
+
+        it('stays put when manifest-id and canvas-id arrive after the restore', async () => {
+            setLocation(urlState());
+            const { state, app } = mountViewer({
+                writeContentStateToUrl: true,
+            });
+            await settle();
+            expect(state.viewerState?.canvasId).toBe(CANVAS(MANIFEST_ID, 'p2'));
+            const requests = mockFetch.mock.calls.length;
+
+            state.manifestId = MANIFEST_ID;
+            await settle();
+            state.canvasId = CANVAS(MANIFEST_ID, 'p1');
+            await settle();
+
+            expect(state.viewerState?.canvasId).toBe(CANVAS(MANIFEST_ID, 'p2'));
+            expect(state.viewerState?.initialCanvasRegion).toEqual(URL_REGION);
+            expect(mockFetch.mock.calls.length).toBe(requests);
+
+            await unmount(app);
+        });
+
+        it('keeps canvas-id and initial-canvas-region when the host names no manifest', async () => {
+            setLocation(urlState());
+            const { state, app } = mountViewer({
+                canvasId: CANVAS(MANIFEST_ID, 'p3'),
+                initialCanvasRegion: { x: 1, y: 2, width: 3, height: 4 },
+                writeContentStateToUrl: true,
+            });
+            await settle();
+
+            expect(state.viewerState?.canvasId).toBe(CANVAS(MANIFEST_ID, 'p3'));
+            expect(state.viewerState?.initialCanvasRegion).toEqual({
+                x: 1,
+                y: 2,
+                width: 3,
+                height: 4,
+            });
+            expect(state.viewerState?.navigationRegion).toBeNull();
+
+            await unmount(app);
+        });
+
+        it("falls back to the content-state input's view when its canvas is missing", async () => {
+            setLocation(urlState(MANIFEST_ID, 'p9'));
+            const { state, app } = mountViewer({
+                contentState: encode(
+                    contentStateAnnotation(MANIFEST_ID, 'p3', '#xywh=1,2,3,4'),
+                ),
+                writeContentStateToUrl: true,
+            });
+            await settle();
+
+            expect(state.viewerState?.canvasId).toBe(CANVAS(MANIFEST_ID, 'p3'));
+            expect(state.viewerState?.initialCanvasRegion).toEqual({
+                x: 1,
+                y: 2,
+                width: 3,
+                height: 4,
+            });
+
+            await unmount(app);
+        });
+
+        it("keeps the content-state input's time when its canvas is missing", async () => {
+            mockFetch.mockImplementation(async () => ({
+                ok: true,
+                json: async () => makeAudioManifest(),
+            }));
+            setLocation(
+                `?iiif-content=${encode(
+                    contentStateAnnotation(AUDIO_MANIFEST_ID, 'gone', '#t=30'),
+                )}`,
+            );
+            const { state, app } = mountViewer({
+                contentState: encode(
+                    contentStateAnnotation(AUDIO_MANIFEST_ID, 'tone', '#t=18'),
+                ),
+                writeContentStateToUrl: true,
+            });
+            await settle();
+
+            expect(state.viewerState?.temporalOffset).toEqual({
+                canvasId: CANVAS(AUDIO_MANIFEST_ID, 'tone'),
+                seconds: 18,
+            });
+
+            await unmount(app);
+        });
+
+        it('lets canvas-id apply again after the host leaves the restored manifest', async () => {
+            setLocation(urlState());
+            const { state, app } = mountViewer({
+                manifestId: MANIFEST_ID,
+                canvasId: CANVAS(MANIFEST_ID, 'p3'),
+                writeContentStateToUrl: true,
+            });
+            await settle();
+            expectRestored(state);
+
+            state.manifestId = OTHER_MANIFEST_ID;
+            await settle();
+            expect(state.viewerState?.manifestId).toBe(OTHER_MANIFEST_ID);
+            state.manifestId = MANIFEST_ID;
+            await settle();
+
+            expect(state.viewerState?.canvasId).toBe(CANVAS(MANIFEST_ID, 'p3'));
+
+            await unmount(app);
+        });
+
+        it('lets a first canvas-id navigate once a content state opens another manifest', async () => {
+            setLocation(urlState());
+            const { state, app } = mountViewer({
+                writeContentStateToUrl: true,
+            });
+            await settle();
+            expect(state.viewerState?.canvasId).toBe(CANVAS(MANIFEST_ID, 'p2'));
+
+            state.contentState = encode(
+                contentStateAnnotation(OTHER_MANIFEST_ID, 'p2'),
+            );
+            await settle();
+            expect(state.viewerState?.manifestId).toBe(OTHER_MANIFEST_ID);
+            state.canvasId = CANVAS(OTHER_MANIFEST_ID, 'p3');
+            await settle();
+
+            expect(state.viewerState?.canvasId).toBe(
+                CANVAS(OTHER_MANIFEST_ID, 'p3'),
+            );
+
+            await unmount(app);
+        });
+
+        it('lets a later canvas-id change navigate', async () => {
+            setLocation(urlState());
+            const { state, app } = mountViewer({
+                manifestId: MANIFEST_ID,
+                canvasId: CANVAS(MANIFEST_ID, 'p1'),
+                writeContentStateToUrl: true,
+            });
+            await settle();
+            expectRestored(state);
+
+            state.canvasId = CANVAS(MANIFEST_ID, 'p3');
+            await settle();
+
+            expect(state.viewerState?.canvasId).toBe(CANVAS(MANIFEST_ID, 'p3'));
+
+            await unmount(app);
+        });
+
+        it('reads the named content state URL parameter', async () => {
+            setLocation(
+                `?iiif-content=${encode(contentStateAnnotation(MANIFEST_ID, 'p3'))}` +
+                    `&item-view=${encode(
+                        contentStateAnnotation(
+                            MANIFEST_ID,
+                            'p2',
+                            '#xywh=10,20,30,40',
+                        ),
+                    )}`,
+            );
+            const { state, app } = mountViewer({
+                manifestId: MANIFEST_ID,
+                canvasId: CANVAS(MANIFEST_ID, 'p1'),
+                writeContentStateToUrl: true,
+                contentStateUrlParam: 'item-view',
+            });
+            await settle();
+
+            expectRestored(state);
+
+            await unmount(app);
+        });
     });
 });

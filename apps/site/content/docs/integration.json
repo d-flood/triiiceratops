@@ -1416,7 +1416,20 @@
 								},
 								{
 									"type": "text",
-									"text": ". Strings only, plus the two boolean attributes "
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "content-state-url-param",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ". Boolean attributes include "
 								},
 								{
 									"type": "text",
@@ -1429,7 +1442,20 @@
 								},
 								{
 									"type": "text",
-									"text": " and "
+									"text": ", "
+								},
+								{
+									"type": "text",
+									"text": "write-content-state-to-url",
+									"marks": [
+										{
+											"type": "code"
+										}
+									]
+								},
+								{
+									"type": "text",
+									"text": ", and "
 								},
 								{
 									"type": "text",

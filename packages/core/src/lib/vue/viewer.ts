@@ -153,6 +153,8 @@ const viewerProps = {
     // `dts-any-allowlist.txt`: a `Boolean` prop gets one whether or not a
     // `default` is declared here.
     readContentStateFromUrl: { type: Boolean, required: false },
+    writeContentStateToUrl: { type: Boolean, required: false },
+    contentStateUrlParam: { type: String, required: false },
     acceptDroppedContentState: { type: Boolean, required: false },
     manifestJson: {
         type: [String, Object] as PropType<string | Record<string, any>>,

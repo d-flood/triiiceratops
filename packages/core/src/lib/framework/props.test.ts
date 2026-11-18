@@ -27,6 +27,8 @@ describe('prop tiers', () => {
             'theme',
             'contentState',
             'readContentStateFromUrl',
+            'writeContentStateToUrl',
+            'contentStateUrlParam',
             'acceptDroppedContentState',
         ]);
         expect([...VIEWER_PROPERTY_PROPS]).toEqual([
@@ -108,6 +110,12 @@ describe('viewerElementAttributes', () => {
         expect(
             viewerElementAttributes({ readContentStateFromUrl: false }),
         ).toEqual({});
+        expect(
+            viewerElementAttributes({ writeContentStateToUrl: true }),
+        ).toEqual({ 'write-content-state-to-url': '' });
+        expect(
+            viewerElementAttributes({ writeContentStateToUrl: false }),
+        ).toEqual({});
     });
 
     it('is pure, so the server and the client first render agree', () => {
@@ -115,6 +123,15 @@ describe('viewerElementAttributes', () => {
         expect(viewerElementAttributes(props)).toEqual(
             viewerElementAttributes({ ...props }),
         );
+    });
+
+    it('renders the content state URL parameter name when supplied', () => {
+        expect(
+            viewerElementAttributes({ contentStateUrlParam: 'item-view' }),
+        ).toEqual({ 'content-state-url-param': 'item-view' });
+        expect(
+            viewerElementAttributes({ contentStateUrlParam: undefined }),
+        ).toEqual({});
     });
 
     it('never emits a property-tier input as an attribute', () => {

@@ -13,5 +13,5 @@ state.subscribeSettled(() => {
     if (!target) return;
     const url = new URL(location.href);
     url.searchParams.set('iiif-content', serializeContentState(target));
-    history.replaceState(null, '', url);
+    history.replaceState(history.state, '', url);
 });

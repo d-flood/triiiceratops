@@ -41,6 +41,16 @@ export const ELEMENT_PROPS: Record<string, ElementProp> = {
         type: 'Boolean',
         reflect: false,
     },
+    writeContentStateToUrl: {
+        attribute: 'write-content-state-to-url',
+        type: 'Boolean',
+        reflect: false,
+    },
+    contentStateUrlParam: {
+        attribute: 'content-state-url-param',
+        type: 'String',
+        reflect: false,
+    },
     acceptDroppedContentState: {
         attribute: 'accept-dropped-content-state',
         type: 'Boolean',

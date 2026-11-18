@@ -275,13 +275,15 @@ interface Props {
      */
     contentState?: string;
     /**
-     * Opt in to reading the `iiif-content` parameter from the host's
+     * Opt in to reading the content state URL parameter from the host's
      * address, once on mount (ADR 0006). Off by default, and the
      * lowest-precedence source: a viewer dropped into a page it does not
-     * own must not consume a parameter meant for the host application. The
-     * address bar is never mutated.
+     * own must not consume a parameter meant for the host application.
      */
     readContentStateFromUrl?: boolean;
+    writeContentStateToUrl?: boolean;
+    /** Content state URL parameter. Defaults to `iiif-content`; live for writes. */
+    contentStateUrlParam?: string;
     /**
      * Opt in to opening a IIIF content state dropped onto the viewer
      * (cookbook recipe 0599). Off by default, for the reason the URL
@@ -901,7 +903,7 @@ export type { SelectorCadence, SelectorProjection, SelectorProjectionOptions, Se
  * value it happens to carry:
  *
  * - **Attribute tier** (`manifestId`, `canvasId`, `theme`, `contentState`,
- *   `readContentStateFromUrl`) — rendered
+ *   `readContentStateFromUrl`, `writeContentStateToUrl`, `contentStateUrlParam`) — rendered
  *   declaratively as kebab-case attributes by each wrapper, on the server and
  *   on the client's first render alike, so hydration reuses the same host with
  *   no mismatch. {@link viewerElementAttributes} builds that record; it is a
@@ -950,15 +952,18 @@ export interface ViewerAttributeProps {
      */
     contentState?: string;
     /**
-     * Opt in to reading the `iiif-content` parameter from the host's address
+     * Opt in to reading the content state URL parameter from the host's address
      * (ADR 0006). **Off by default**, and deliberately so: the viewer is dropped
      * into pages it does not own, so consuming an ambient parameter meant for
      * the host application has to be a decision the host makes.
      *
-     * Read ONCE on mount, and the lowest-precedence source of all. The address
-     * bar is never mutated.
+     * Read ONCE on mount, and the lowest-precedence source of all.
      */
     readContentStateFromUrl?: boolean;
+    /** Write changed settled views to the content state URL parameter and read it on mount. */
+    writeContentStateToUrl?: boolean;
+    /** Content state URL parameter. Defaults to `iiif-content`; live for writes. */
+    contentStateUrlParam?: string;
     /**
      * Opt in to opening a IIIF content state dropped onto the viewer (cookbook
      * recipe 0599). **Off by default**, for the reason above: a viewer dropped
@@ -1008,6 +1013,8 @@ export declare const VIEWER_ATTRIBUTE_PROPS: {
     readonly theme: "theme";
     readonly contentState: "content-state";
     readonly readContentStateFromUrl: "read-content-state-from-url";
+    readonly writeContentStateToUrl: "write-content-state-to-url";
+    readonly contentStateUrlParam: "content-state-url-param";
     readonly acceptDroppedContentState: "accept-dropped-content-state";
 };
 /** Property-tier inputs, in the order the applier writes them. */
@@ -1740,7 +1747,7 @@ export declare function useViewerSelector<T>(projection: ViewerProjection<T>, op
  * ## The three prop tiers
  *
  * - **Attribute tier** (`manifestId`, `canvasId`, `theme`, `contentState`,
- *   `readContentStateFromUrl`) is rendered
+ *   `readContentStateFromUrl`, `writeContentStateToUrl`, `contentStateUrlParam`) is rendered
  *   declaratively as kebab-case attributes, identically on the server and on
  *   the client's first render, so hydration reuses and upgrades the same host.
  * - **Property tier** (`manifestJson`, `themeConfig`, `config`,
@@ -7079,7 +7086,7 @@ export type ViewerErrorSeverity = 'warning' | 'error';
  * The area of the viewer a failure originated in. Coarse and stable — hosts
  * switch on {@link ViewerError.code} for specifics.
  * - `config`: an invalid or conflicting `ViewerConfig` value.
- * - `content-state`: content-state ingestion degraded or failed (ADR 0006).
+ * - `content-state`: content-state ingestion degraded or a URL write failed.
  * - `manifest`: a manifest or linked resource failed to load or parse.
  * - `plugin`: a call a plugin made into `ViewerState` was refused — a plugin
  *   *author* error, reported to the host because the (silent-by-default) logger
@@ -8752,6 +8759,14 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
         readonly type: BooleanConstructor;
         readonly required: false;
     };
+    readonly writeContentStateToUrl: {
+        readonly type: BooleanConstructor;
+        readonly required: false;
+    };
+    readonly contentStateUrlParam: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
     readonly acceptDroppedContentState: {
         readonly type: BooleanConstructor;
         readonly required: false;
@@ -8808,6 +8823,14 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
         readonly type: BooleanConstructor;
         readonly required: false;
     };
+    readonly writeContentStateToUrl: {
+        readonly type: BooleanConstructor;
+        readonly required: false;
+    };
+    readonly contentStateUrlParam: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
     readonly acceptDroppedContentState: {
         readonly type: BooleanConstructor;
         readonly required: false;
@@ -8845,5 +8868,6 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
     onViewerError?: ((error: ViewerError) => any) | undefined;
 }>, {
     readonly readContentStateFromUrl: boolean;
+    readonly writeContentStateToUrl: boolean;
     readonly acceptDroppedContentState: boolean;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
