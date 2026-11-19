@@ -9,6 +9,7 @@ const SURFACE = '[data-testid="canvas-renderer-surface"]';
 
 interface Probe {
     settled: number;
+    playing: Array<{ at: number; seconds?: number }>;
     targets: Array<{
         manifestId: string;
         canvasId?: string;
@@ -24,7 +25,7 @@ async function listen(
     await page.evaluate((options) => {
         const host = document.querySelector(
             'triiiceratops-viewer',
-        ) as unknown as {
+        ) as HTMLElement & {
             viewerState: {
                 subscribeSettled(
                     listener: () => void,
@@ -35,15 +36,27 @@ async function listen(
         const runtime = (
             window as unknown as {
                 Triiiceratops: {
-                    contentState: { capture(state: unknown): unknown };
+                    contentState: {
+                        capture(state: unknown): Probe['targets'][number];
+                    };
                 };
             }
         ).Triiiceratops;
-        const probe = { settled: 0, targets: [] as unknown[] };
+        const media = host.shadowRoot?.querySelector<HTMLMediaElement>(
+            '[data-testid="av-media"]',
+        );
+        const probe: Probe = { settled: 0, playing: [], targets: [] };
         (window as unknown as { __probe: typeof probe }).__probe = probe;
         host.viewerState.subscribeSettled(() => {
+            const target = runtime.contentState.capture(host.viewerState);
             probe.settled += 1;
-            probe.targets.push(runtime.contentState.capture(host.viewerState));
+            probe.targets.push(target);
+            if (media && !media.paused && !media.ended) {
+                probe.playing.push({
+                    at: performance.now(),
+                    seconds: target.time?.seconds,
+                });
+            }
         }, options);
     }, options);
 }
@@ -252,22 +265,29 @@ test.describe('settled notification', () => {
     test('calls every `playing` seconds of playback when asked', async ({
         page,
     }) => {
+        const intervalMs = 500;
         const media = await openTone(page);
-        await listen(page, { playing: 0.5 });
+        await listen(page, { playing: intervalMs / 1000 });
 
         await page.locator('[data-testid="transport-play"]').click();
         await expect
-            .poll(() => media.evaluate((el: HTMLMediaElement) => el.ended))
+            .poll(() => media.evaluate((el: HTMLMediaElement) => el.ended), {
+                timeout: 15_000,
+            })
             .toBe(true);
         await expect
             .poll(async () => (await probe(page)).targets.at(-1)?.time?.seconds)
             .toBeCloseTo(TONE_DURATION, 1);
 
-        const times = (await probe(page)).targets.map((t) => t.time!.seconds);
-        const during = times.slice(0, -1);
-        expect(during.length).toBeGreaterThanOrEqual(2);
-        expect(during.length).toBeLessThanOrEqual(4);
-        expect(during).toEqual([...during].sort((a, b) => a - b));
-        expect(during.at(-1)!).toBeLessThan(TONE_DURATION);
+        const { playing } = await probe(page);
+        expect(playing.length).toBeGreaterThanOrEqual(2);
+        const times = playing.map(({ seconds }) => seconds!);
+        expect(Math.min(...times)).toBeGreaterThan(0);
+        expect(times).toEqual([...times].sort((a, b) => a - b));
+        for (let i = 1; i < playing.length; i += 1) {
+            expect(playing[i].at - playing[i - 1].at).toBeGreaterThanOrEqual(
+                intervalMs - 20,
+            );
+        }
     });
 });

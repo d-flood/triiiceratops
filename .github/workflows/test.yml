@@ -190,6 +190,18 @@ jobs:
             - name: Install Playwright Browser
               run: pnpm --filter triiiceratops exec playwright install --with-deps ${{ matrix.browser }}
 
+            - name: Provide a real-time audio sink for Firefox
+              if: matrix.browser == 'firefox'
+              run: |
+                  sudo apt-get install -y --no-install-recommends pulseaudio
+                  PULSE_RUNTIME_PATH="$(mktemp -d "$RUNNER_TEMP/firefox-pulse.XXXXXX")"
+                  export PULSE_RUNTIME_PATH
+                  pulseaudio -n --daemonize=yes --exit-idle-time=-1 \
+                    --load=module-native-protocol-unix --load=module-null-sink
+                  PULSE_SERVER="unix:$PULSE_RUNTIME_PATH/native"
+                  test "$(pactl --server="$PULSE_SERVER" get-default-sink)" = null
+                  echo "PULSE_SERVER=$PULSE_SERVER" >> "$GITHUB_ENV"
+
             # The Web Component parity spec loads the built element entries from
             # dist/ (served by the dev server), so build the library + element
             # before running the matrix. The dev server also serves Demo.svelte,
