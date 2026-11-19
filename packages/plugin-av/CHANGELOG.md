@@ -1,5 +1,17 @@
 # @triiiceratops/plugin-av
 
+## 1.1.2
+
+### Patch Changes
+
+- b6306e7: `AVState.currentTime` reports the time a navigation asked for until the media can seek there, so a captured content state keeps its `#t=` while media loads.
+- Updated dependencies [891d922]
+- Updated dependencies [1fd7942]
+- Updated dependencies [1fd7942]
+- Updated dependencies [1fd7942]
+    - triiiceratops@1.4.0
+    - @triiiceratops/plugin-sdk@1.0.3
+
 ## 1.1.1
 
 ### Patch Changes
