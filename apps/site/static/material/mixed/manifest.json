@@ -1,0 +1,156 @@
+{
+    "@context": "http://iiif.io/api/presentation/3/context.json",
+    "id": "/material/mixed/manifest.json",
+    "type": "Manifest",
+    "label": {
+        "en": ["A plate, a cylinder recording and a short film"]
+    },
+    "summary": {
+        "en": [
+            "One manifest with an image, a sound and a video canvas. The film is the IIIF Cookbook’s copy of Lunchroom Manners, 1960."
+        ]
+    },
+    "items": [
+        {
+            "id": "/material/mixed/canvas/audubon",
+            "type": "Canvas",
+            "label": {
+                "en": ["John James Audubon, Snowy Owl (Plate 121), 1831"]
+            },
+            "width": 5230,
+            "height": 7884,
+            "rights": "http://rightsstatements.org/vocab/NoC-US/1.0/",
+            "requiredStatement": {
+                "label": {
+                    "en": ["Attribution"]
+                },
+                "value": {
+                    "en": [
+                        "John James Audubon, Snowy Owl, Plate 121, 1831. Boston Public Library / Digital Commonwealth."
+                    ]
+                }
+            },
+            "metadata": [
+                {
+                    "label": {
+                        "en": ["Source"]
+                    },
+                    "value": {
+                        "en": [
+                            "Boston Public Library / Digital Commonwealth, 9s16d0015"
+                        ]
+                    }
+                },
+                {
+                    "label": {
+                        "en": ["Source record"]
+                    },
+                    "value": {
+                        "en": [
+                            "https://ark.digitalcommonwealth.org/ark:/50959/9s16d0015"
+                        ]
+                    }
+                }
+            ],
+            "items": [
+                {
+                    "id": "/material/mixed/page/audubon",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/mixed/annotation/audubon",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/landing/images/audubon/0,0,5230,7884/327,493/0/default.jpg",
+                                "type": "Image",
+                                "format": "image/jpeg",
+                                "width": 5230,
+                                "height": 7884,
+                                "service": [
+                                    {
+                                        "id": "/material/landing/images/audubon",
+                                        "type": "ImageService3",
+                                        "profile": "level0"
+                                    }
+                                ]
+                            },
+                            "target": "/material/mixed/canvas/audubon"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "/material/mixed/canvas/lost-chord",
+            "type": "Canvas",
+            "label": {
+                "en": ["The Lost Chord, recorded on a wax cylinder, 1888"]
+            },
+            "duration": 126.772,
+            "items": [
+                {
+                    "id": "/material/mixed/page/lost-chord",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/mixed/annotation/lost-chord/1",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "/material/sound/media/lost-chord.mp3",
+                                "type": "Sound",
+                                "format": "audio/mpeg",
+                                "duration": 126.772
+                            },
+                            "target": "/material/mixed/canvas/lost-chord"
+                        }
+                    ]
+                }
+            ],
+            "seeAlso": [
+                {
+                    "id": "/material/sound/waveform/lost-chord-waveform.dat",
+                    "type": "Dataset",
+                    "label": {
+                        "en": ["Waveform data"]
+                    },
+                    "profile": "http://waveform.prototyping.bbc.co.uk",
+                    "format": "application/octet-stream"
+                }
+            ]
+        },
+        {
+            "id": "/material/mixed/canvas/lunchroom-manners",
+            "type": "Canvas",
+            "label": {
+                "en": ["Lunchroom Manners, 1960"]
+            },
+            "width": 480,
+            "height": 360,
+            "duration": 572.034,
+            "items": [
+                {
+                    "id": "/material/mixed/page/lunchroom-manners",
+                    "type": "AnnotationPage",
+                    "items": [
+                        {
+                            "id": "/material/mixed/annotation/lunchroom-manners",
+                            "type": "Annotation",
+                            "motivation": "painting",
+                            "body": {
+                                "id": "https://fixtures.iiif.io/video/indiana/lunchroom_manners/high/lunchroom_manners_1024kb.mp4",
+                                "width": 480,
+                                "height": 360,
+                                "duration": 572.034,
+                                "type": "Video",
+                                "format": "video/mp4"
+                            },
+                            "target": "/material/mixed/canvas/lunchroom-manners"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

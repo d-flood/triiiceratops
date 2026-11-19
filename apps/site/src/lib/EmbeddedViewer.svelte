@@ -25,11 +25,15 @@
         themeConfig = SITE_VIEWER_THEME,
         fill = false,
         acceptDroppedContentState = true,
+        writeContentStateToUrl = false,
+        contentStateUrlParam,
         viewerState = $bindable(),
     }: {
         example: Example;
         config?: ViewerConfig;
         acceptDroppedContentState?: boolean;
+        writeContentStateToUrl?: boolean;
+        contentStateUrlParam?: string;
         canvasId?: string;
         /** Names where the embed OPENS; spent at the first fit. */
         initialCanvasRegion?: CanvasRegion | null;
@@ -121,6 +125,8 @@
             <Viewer
                 bind:viewerState
                 {acceptDroppedContentState}
+                {writeContentStateToUrl}
+                {contentStateUrlParam}
                 manifestId={example.manifest}
                 {canvasId}
                 {initialCanvasRegion}
