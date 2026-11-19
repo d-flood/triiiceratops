@@ -21,7 +21,12 @@
     import CopyLine from '$lib/CopyLine.svelte';
     import PageHead from '$lib/PageHead.svelte';
     import BuilderPreview from '$lib/builder/BuilderPreview.svelte';
-    import { FRAMEWORKS, objectText, snippet } from '$lib/builder/outputs';
+    import {
+        FRAMEWORKS,
+        NO_CONTENT_STATE_INPUTS,
+        objectText,
+        snippet,
+    } from '$lib/builder/outputs';
     import { BUILDER_PLUGINS, type BuilderPlugin } from '$lib/builder/plugins';
     import {
         BUILDER_DEFAULTS,
@@ -227,6 +232,12 @@
      */
     let chosenIds = $state<readonly string[]>([]);
 
+    let contentState = $state({ ...NO_CONTENT_STATE_INPUTS });
+    const readsUrl = $derived(
+        contentState.readContentStateFromUrl ||
+            contentState.writeContentStateToUrl,
+    );
+
     /*
      * Raw, and reassigned rather than mutated: activation is keyed to a
      * plugin's identity, so a plugin that reached the viewer through a deep
@@ -290,6 +301,7 @@
             config: userSet,
             themeConfig: themeOverlay as Record<string, unknown>,
             plugins: chosen,
+            contentState,
         };
         return new Map(
             FRAMEWORKS.map((entry) => [entry.id, snippet(entry.id, output)]),
@@ -323,6 +335,7 @@
             .replace(/^-|-$/g, '');
 
     const PLUGIN_SECTION = 'plugins';
+    const CONTENT_STATE_SECTION = 'content-state';
 
     /**
      * The tabs, in the two halves the editor actually has.
@@ -346,6 +359,7 @@
                     title: group.title,
                 })),
                 { id: PLUGIN_SECTION, title: 'Plugins' },
+                { id: CONTENT_STATE_SECTION, title: 'Content state' },
             ],
         },
         {
@@ -579,6 +593,7 @@
         theme = currentTheme();
         themeOverlay = {};
         chosenIds = [];
+        contentState = { ...NO_CONTENT_STATE_INPUTS };
         declared = {};
         clearStoredConfig();
         useExample();
@@ -923,6 +938,69 @@
                             </div>
                         {/if}
                     {/each}
+                </div>
+            </div>
+
+            <div
+                class="pane"
+                role="tabpanel"
+                id="pane-{CONTENT_STATE_SECTION}"
+                aria-labelledby="tab-{CONTENT_STATE_SECTION}"
+                hidden={section !== CONTENT_STATE_SECTION}
+            >
+                <p class="pane__note note">
+                    These change the code below, not the preview. See
+                    <a
+                        class="link"
+                        href="/docs/content-state/#writing-the-current-view"
+                    >
+                        writing the current view</a
+                    >.
+                </p>
+                <div class="pane__body">
+                    <div class="row row--check">
+                        <input
+                            id="cs-read"
+                            type="checkbox"
+                            checked={readsUrl}
+                            disabled={contentState.writeContentStateToUrl}
+                            onchange={(event) =>
+                                (contentState.readContentStateFromUrl =
+                                    event.currentTarget.checked)}
+                        />
+                        <label for="cs-read">Read the view from the URL</label>
+                    </div>
+                    <div class="row row--check">
+                        <input
+                            id="cs-write"
+                            type="checkbox"
+                            bind:checked={contentState.writeContentStateToUrl}
+                        />
+                        <label for="cs-write">Write the view to the URL</label>
+                    </div>
+                    <div class="row">
+                        <label for="cs-param">URL parameter</label>
+                        <input
+                            id="cs-param"
+                            type="text"
+                            spellcheck="false"
+                            placeholder="iiif-content"
+                            disabled={!readsUrl}
+                            bind:value={contentState.contentStateUrlParam}
+                        />
+                    </div>
+                    <div class="row row--check">
+                        <input
+                            id="cs-drop"
+                            type="checkbox"
+                            bind:checked={
+                                contentState.acceptDroppedContentState
+                            }
+                        />
+                        <label for="cs-drop">
+                            Open a content state dropped on the viewer
+                        </label>
+                    </div>
                 </div>
             </div>
 

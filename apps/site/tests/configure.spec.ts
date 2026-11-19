@@ -386,6 +386,40 @@ test.describe('what a reader leaves with', () => {
         expect(JSON.parse(await pasted(page))).toEqual({ toolbarOpen: true });
     });
 
+    test('puts the content state inputs in the code and nowhere else', async ({
+        page,
+    }) => {
+        await page.goto('/configure/');
+        await running(page);
+
+        const write = page.getByLabel('Write the view to the URL');
+        await reach(page, write);
+        await write.check();
+        const read = page.getByLabel('Read the view from the URL');
+        await expect(read).toBeChecked();
+        await expect(read).toBeDisabled();
+        await page.getByLabel('URL parameter').fill('viewer-2');
+        await page
+            .getByLabel('Open a content state dropped on the viewer')
+            .check();
+
+        await page
+            .getByRole('button', { name: 'Copy the HTML snippet' })
+            .click();
+        const html = await pasted(page);
+        expect(html).toContain('write-content-state-to-url');
+        expect(html).toContain('content-state-url-param="viewer-2"');
+        expect(html).toContain('accept-dropped-content-state');
+        expect(html).not.toContain('read-content-state-from-url');
+
+        await page
+            .getByRole('button', { name: 'Copy the configuration object' })
+            .click();
+        expect(JSON.parse(await pasted(page))).toEqual({});
+        await page.getByRole('button', { name: 'Copy the share link' }).click();
+        expect(await pasted(page)).not.toContain('viewer-2');
+    });
+
     test('names the theme a reader started from in the code, and nowhere else', async ({
         page,
     }) => {
