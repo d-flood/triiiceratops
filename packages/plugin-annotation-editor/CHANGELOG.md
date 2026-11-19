@@ -1,5 +1,20 @@
 # @triiiceratops/plugin-annotation-editor
 
+## 1.2.0
+
+### Minor Changes
+
+- 891d922: The IIFE build exposes `createAnnotationEditorPlugin` on `window.TriiiceratopsPluginAnnotationEditor`, so script-tag hosts can supply their own adapter without a custom build.
+
+### Patch Changes
+
+- Updated dependencies [891d922]
+- Updated dependencies [1fd7942]
+- Updated dependencies [1fd7942]
+- Updated dependencies [1fd7942]
+    - triiiceratops@1.4.0
+    - @triiiceratops/plugin-sdk@1.0.3
+
 ## 1.1.2
 
 ### Patch Changes

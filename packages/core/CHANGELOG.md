@@ -1,5 +1,14 @@
 # triiiceratops
 
+## 1.4.0
+
+### Minor Changes
+
+- 891d922: Add `captureViewTarget`, `serializeContentState`, and `viewerState.subscribeSettled()` so a host can write the current view, AV playhead included as `#t=`, out as a content state once it comes to rest, without throttling. Script-tag pages get the same helpers on `Triiiceratops.contentState`.
+- 1fd7942: Set `content-state-url-param` (or `contentStateUrlParam`) to let multiple viewers read and write their own URL state. The default is `iiif-content`.
+- 1fd7942: With `write-content-state-to-url` on, a URL content state for the host's own manifest now restores its canvas, region and time on reload, even when `manifest-id`, `canvas-id` or `initial-canvas-region` is set. A URL content state for a different manifest is ignored when the host names one.
+- 1fd7942: Opt in to sharing settled canvas, region, and paused playhead views through `write-content-state-to-url` or `writeContentStateToUrl`.
+
 ## 1.3.2
 
 ### Patch Changes
