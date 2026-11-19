@@ -57,7 +57,10 @@ export interface AVState extends PublishedState {
      * {@link captionTracks} turns them off rather than half-selecting one.
      */
     setCaptionTrack(url: string | null): void;
-    /** Query-only: read it on the {@link subscribeFrame} cadence, never off `subscribe`. */
+    /**
+     * Query-only: read it on the {@link subscribeFrame} cadence, never off
+     * `subscribe`. Until the media can seek, it is the time a navigation asked for.
+     */
     readonly currentTime: number;
     subscribe(listener: () => void): () => void;
     /** The finer cadence: the playhead's own tick, not the batched one. */

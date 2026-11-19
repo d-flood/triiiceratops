@@ -4,3 +4,5 @@ import { AnnotationEditorPlugin } from './plugin';
 import { registerBrowserPlugin } from '@triiiceratops/plugin-sdk/register';
 
 registerBrowserPlugin(AnnotationEditorPlugin);
+
+export { createAnnotationEditorPlugin } from './plugin';

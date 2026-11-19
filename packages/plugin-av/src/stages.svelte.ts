@@ -246,6 +246,7 @@ export function createAvStageManager(
         },
         refuse: (error, retry) =>
             reportAvCommandError(errorTarget(), error, retry),
+        heldSeconds: (canvasId) => offsets.pending(canvasId),
     });
 
     const prefs = createAudioPrefs();
@@ -1254,7 +1255,10 @@ export function createAvStageManager(
     // again rather than being memoized away.
     const stopOffsets = context.selectors
         .select((state) => state.temporalOffset)
-        .subscribe((offset) => offsets.apply(offset));
+        .subscribe((offset) => {
+            offsets.apply(offset);
+            transport.refresh();
+        });
 
     // `frame` means "the image moved" — the cadence that keeps the media inside
     // the canvas rect through a pan or a zoom.

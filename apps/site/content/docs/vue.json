@@ -2973,6 +2973,188 @@
 									"content": [
 										{
 											"type": "text",
+											"text": "write-content-state-to-url",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "b3adbbb5-5df5-422e-b628-20ac9b51ac40"
+									}
+								}
+							],
+							"attrs": {
+								"id": "803b04c7-292f-4c1a-87b4-067c5b8f3666"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "boolean",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "f6a138b1-b9e1-4858-8ccc-a8de5d2d2e6f"
+									}
+								}
+							],
+							"attrs": {
+								"id": "052eecd4-49c3-4392-90ad-cd8524023606"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "write-content-state-to-url",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "1d370890-c90f-428c-90df-bdf9a31296ff"
+									}
+								}
+							],
+							"attrs": {
+								"id": "a59865e1-2716-4c7f-8b44-8ceed34b4d55"
+							}
+						}
+					],
+					"attrs": {
+						"id": "b032ef1f-fb89-4676-a200-d9c9f64b4e52"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "content-state-url-param",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "441e252a-2829-4160-b5ab-bea216efdc69"
+									}
+								}
+							],
+							"attrs": {
+								"id": "564456ac-e842-4ca0-aef5-48bba4d07753"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "261a3a87-a7a9-4717-b26d-28f7956f9b4a"
+									}
+								}
+							],
+							"attrs": {
+								"id": "8f55f24a-e252-4238-9497-a4c305ea4709"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "attribute ("
+										},
+										{
+											"type": "text",
+											"text": "content-state-url-param",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "91df25e8-c5c8-4fb9-8dc1-8215d6b1d245"
+									}
+								}
+							],
+							"attrs": {
+								"id": "82c9e855-aa1a-46ae-9425-126184e4481d"
+							}
+						}
+					],
+					"attrs": {
+						"id": "fd5313b1-6e18-46e6-9807-1601eee3fb33"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
 											"text": "accept-dropped-content-state",
 											"marks": [
 												{
@@ -4939,6 +5121,32 @@
 				{
 					"type": "text",
 					"text": "read-content-state-from-url",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "write-content-state-to-url",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", "
+				},
+				{
+					"type": "text",
+					"text": "content-state-url-param",
 					"marks": [
 						{
 							"type": "code"

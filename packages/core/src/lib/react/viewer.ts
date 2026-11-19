@@ -14,7 +14,7 @@
  * ## The three prop tiers
  *
  * - **Attribute tier** (`manifestId`, `canvasId`, `theme`, `contentState`,
- *   `readContentStateFromUrl`) is rendered
+ *   `readContentStateFromUrl`, `writeContentStateToUrl`, `contentStateUrlParam`) is rendered
  *   declaratively as kebab-case attributes, identically on the server and on
  *   the client's first render, so hydration reuses and upgrades the same host.
  * - **Property tier** (`manifestJson`, `themeConfig`, `config`,

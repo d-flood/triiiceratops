@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { parseContentState } from 'triiiceratops';
+import { parseContentState, serializeContentState } from 'triiiceratops';
 
 import {
     buildShareUrl,
@@ -16,8 +16,8 @@ import {
     readStoredConfig,
     resolveInitialConfig,
     resolveInitialView,
-    serializeContentState,
     type DropPayloadSource,
+    type ViewTarget,
     writeStoredConfig,
 } from './index';
 
@@ -103,51 +103,30 @@ describe('sparse algebra', () => {
     });
 });
 
-describe('serializeContentState', () => {
-    it('returns null with no manifest', () => {
-        expect(serializeContentState({ manifestId: '' })).toBeNull();
+describe('the share URL content state', () => {
+    const contentStateOf = (target: ViewTarget) =>
+        new URLSearchParams(
+            buildShareUrl({
+                pathname: '/configure/',
+                target,
+                config: {},
+            }).split('?')[1],
+        ).get('iiif-content');
+
+    it('carries none with no manifest', () => {
+        expect(contentStateOf({ manifestId: '' })).toBeNull();
     });
 
-    it('emits a bare manifest URI when no canvas is known', () => {
-        expect(serializeContentState({ manifestId: MANIFEST })).toBe(MANIFEST);
-    });
-
-    it('absolutizes a root-relative manifest id so the bare URI parses', () => {
-        const state = serializeContentState(
-            { manifestId: '/demo/demo-manifests/book.json' },
-            'https://example.org/demo/index.html',
-        )!;
-
-        expect(parseContentState(state)).toEqual({
-            manifestId: 'https://example.org/demo/demo-manifests/book.json',
-        });
-    });
-
-    it('absolutizes a relative canvas id inside the Annotation', () => {
-        const state = serializeContentState(
-            {
-                manifestId: '/demo/demo-manifests/book.json',
-                canvasId: 'canvas/p2',
-            },
-            'https://example.org/demo/index.html',
-        )!;
-
-        expect(parseContentState(state)).toEqual({
-            manifestId: 'https://example.org/demo/demo-manifests/book.json',
-            canvasId: 'https://example.org/demo/canvas/p2',
-        });
-    });
-
-    it('drops an existing fragment before appending the shared region', () => {
-        const state = serializeContentState({
-            manifestId: MANIFEST,
-            canvasId: `${CANVAS}#xywh=1,2,3,4`,
-            region: { x: 10, y: 20, width: 300, height: 400 },
+    it('absolutizes relative manifest and canvas ids so they parse', () => {
+        const state = contentStateOf({
+            manifestId: '/demo/demo-manifests/book.json',
+            canvasId: 'canvas/p2',
         })!;
 
-        expect(parseContentState(state)).toMatchObject({
-            canvasId: CANVAS,
-            region: { x: 10, y: 20, width: 300, height: 400 },
+        expect(parseContentState(state)).toEqual({
+            manifestId: new URL('/demo/demo-manifests/book.json', location.href)
+                .href,
+            canvasId: new URL('canvas/p2', location.href).href,
         });
     });
 });
@@ -418,7 +397,7 @@ describe('legacy view parameters', () => {
         const contentState = serializeContentState({
             manifestId: MANIFEST,
             canvasId: CANVAS,
-        })!;
+        });
 
         expect(
             resolveInitialView(search({ 'iiif-content': contentState })),

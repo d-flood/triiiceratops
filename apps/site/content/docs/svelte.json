@@ -902,6 +902,156 @@
 									"content": [
 										{
 											"type": "text",
+											"text": "writeContentStateToUrl",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "0b96f1d7-1932-4c25-b320-3c62d6f4b844"
+									}
+								}
+							],
+							"attrs": {
+								"id": "28735b72-fb26-48ae-bd4e-a656bad1468a"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "boolean",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " (default "
+										},
+										{
+											"type": "text",
+											"text": "false",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "d33194f0-1ce2-4263-a701-15b8965f8a68"
+									}
+								}
+							],
+							"attrs": {
+								"id": "fa7bfc8c-3a64-4067-973c-b52a05cae61c"
+							}
+						}
+					],
+					"attrs": {
+						"id": "a0eecb06-fc9d-413e-aedb-21b35d3bd8ad"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "contentStateUrlParam",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										}
+									],
+									"attrs": {
+										"id": "46e1e992-0784-4bf6-bf76-65585ec2aed8"
+									}
+								}
+							],
+							"attrs": {
+								"id": "bc11af47-ef6c-47b7-aefc-ee88b3931013"
+							}
+						},
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "string",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": " (default "
+										},
+										{
+											"type": "text",
+											"text": "iiif-content",
+											"marks": [
+												{
+													"type": "code"
+												}
+											]
+										},
+										{
+											"type": "text",
+											"text": ")"
+										}
+									],
+									"attrs": {
+										"id": "6585d1ea-724f-4831-b677-a9f3181d6616"
+									}
+								}
+							],
+							"attrs": {
+								"id": "88e21102-4a1c-4865-8fed-3146bf94fe46"
+							}
+						}
+					],
+					"attrs": {
+						"id": "6fbf6fa9-3b82-4e1d-abb8-5314323b68e5"
+					}
+				},
+				{
+					"type": "tableRow",
+					"content": [
+						{
+							"type": "tableCell",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
 											"text": "acceptDroppedContentState",
 											"marks": [
 												{

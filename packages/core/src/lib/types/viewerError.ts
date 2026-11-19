@@ -22,7 +22,7 @@ export type ViewerErrorSeverity = 'warning' | 'error';
  * The area of the viewer a failure originated in. Coarse and stable — hosts
  * switch on {@link ViewerError.code} for specifics.
  * - `config`: an invalid or conflicting `ViewerConfig` value.
- * - `content-state`: content-state ingestion degraded or failed (ADR 0006).
+ * - `content-state`: content-state ingestion degraded or a URL write failed.
  * - `manifest`: a manifest or linked resource failed to load or parse.
  * - `plugin`: a call a plugin made into `ViewerState` was refused — a plugin
  *   *author* error, reported to the host because the (silent-by-default) logger

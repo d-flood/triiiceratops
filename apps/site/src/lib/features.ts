@@ -39,6 +39,8 @@ export type Feature = {
     readonly drive?: (viewer: ViewerState) => void;
     readonly captionsOn?: boolean;
     readonly dragPayloads?: readonly DragChip[];
+    /** The URL parameter the viewer writes its settled view to. */
+    readonly writesViewTo?: string;
 };
 
 export type DragChip = {
@@ -692,6 +694,27 @@ export const FEATURES: readonly Feature[] = [
                 },
             },
         ],
+    },
+    {
+        name: 'Reload where you left off',
+        group: 'Metadata',
+        what: 'Pan, zoom, seek or pause, then reload: the URL keeps the view.',
+        material:
+            'Audubon’s Snowy Owl, The Lost Chord, and Lunchroom Manners, 1960',
+        source: {
+            who: 'this site’s own public-domain set',
+            href: '/material/mixed/manifest.json',
+        },
+        example: {
+            manifest: '/material/mixed/manifest.json',
+            canvases: 3,
+            label: 'An image, a recording and a film, kept in the URL',
+            firstCanvas: { width: 5230, height: 7884 },
+        },
+        canvasId: '/material/mixed/canvas/audubon',
+        config: showing({}),
+        plugin: AV_PLUGIN,
+        writesViewTo: 'view',
     },
     {
         name: 'Image modification plugin',

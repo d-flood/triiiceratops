@@ -21,6 +21,8 @@
         canvasId = '',
         contentState = '',
         readContentStateFromUrl = false,
+        writeContentStateToUrl = false,
+        contentStateUrlParam,
         acceptDroppedContentState = false,
         plugins = [],
         theme = undefined as string | undefined,
@@ -43,12 +45,13 @@
          */
         contentState?: string;
         /**
-         * Opt in to reading the `iiif-content` parameter from the host's
+         * Opt in to reading the content state URL parameter from the host's
          * address, once on mount (ADR 0006). A boolean attribute: presence opts
-         * in. Off by default, lowest precedence, and the address bar is never
-         * mutated.
+         * in. Off by default and lowest precedence.
          */
         readContentStateFromUrl?: boolean;
+        writeContentStateToUrl?: boolean;
+        contentStateUrlParam?: string;
         acceptDroppedContentState?: boolean;
         /**
          * Framework-neutral `SdkPlugin`s. A property-only input (there is no
@@ -121,6 +124,8 @@
         canvasId,
         contentState,
         readContentStateFromUrl,
+        writeContentStateToUrl,
+        contentStateUrlParam,
         acceptDroppedContentState,
         plugins,
         theme,
@@ -297,6 +302,8 @@
         {canvasId}
         {contentState}
         readContentStateFromUrl={!!readContentStateFromUrl}
+        writeContentStateToUrl={!!writeContentStateToUrl}
+        {contentStateUrlParam}
         acceptDroppedContentState={!!acceptDroppedContentState}
         {plugins}
         theme={validatedTheme}

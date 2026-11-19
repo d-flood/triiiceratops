@@ -155,6 +155,11 @@ High-frequency values, such as continuous viewport position, readable on demand 
 deliberately non-notifying. Reading them reactively is a selector cadence choice, not a
 reclassification.
 
+**Settled view**:
+The view once nothing is moving it: no gesture, glide, animation, sliding chrome, or seeking
+playhead.
+_Avoid_: idle, stable view, resting state
+
 **Active locale**:
 The locale a viewer instance renders in: its picker's choice, otherwise its configured
 locale, otherwise the page default. A _content_ locale, ranging over whatever languages
@@ -382,6 +387,12 @@ _Avoid_: content state URL, "the iiif-content" (both conflate the payload with i
 The IIIF-mandated HTTP request parameter that delivers a content state — one of several
 delivery channels, not the payload itself.
 _Avoid_: content state param (implies it is the only channel)
+
+**Content state URL parameter**:
+The query parameter on the host page's URL that a viewer reads its content state from and,
+when allowed, writes it back to: the `iiif-content` parameter unless the host names
+another.
+_Avoid_: address parameter, URL param (alone)
 
 **View target**:
 Triiiceratops' resolved projection of a parsed content state —

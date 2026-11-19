@@ -9,6 +9,7 @@ import {
 } from './browser-runtime';
 import { SHARED_CORE_UTILS } from './shared-core-utils';
 import type { SdkPlugin } from './types/plugin';
+import { BROWSER_CONTENT_STATE } from './utils/contentState';
 
 /**
  * Minimal SdkPlugin stub. The registry only reads `name` and `version`; the rest
@@ -116,6 +117,19 @@ describe('the shared core utilities', () => {
         for (const name of Object.keys(shared)) {
             expect(typeof shared[name]).toBe('function');
         }
+    });
+});
+
+describe('the content-state helpers', () => {
+    it('publishes the helpers core hands it', () => {
+        installBrowserRuntime({
+            ...CORE,
+            elementCtor: makeElementCtor(),
+            tag: uniqueTag(),
+            contentState: BROWSER_CONTENT_STATE,
+        });
+
+        expect(window.Triiiceratops!.contentState).toBe(BROWSER_CONTENT_STATE);
     });
 });
 

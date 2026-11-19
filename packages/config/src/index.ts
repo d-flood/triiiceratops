@@ -3,7 +3,11 @@
  * writes one so they cannot drift.
  */
 
-import { parseContentState, type CanvasRegion } from 'triiiceratops';
+import {
+    parseContentState,
+    serializeContentState,
+    type CanvasRegion,
+} from 'triiiceratops';
 
 const IIIF_CONTENT_PARAM = 'iiif-content';
 
@@ -249,64 +253,6 @@ export function clearStoredConfig(): void {
     }
 }
 
-// ==================== content state ====================
-
-function base64url(value: string): string {
-    const bytes = new TextEncoder().encode(value);
-    let binary = '';
-    for (const byte of bytes) {
-        binary += String.fromCharCode(byte);
-    }
-    return btoa(binary)
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-}
-
-/** Sample manifests ship at root-relative paths, which fail `parseContentState`'s URI test. */
-function absolutize(id: string, base: string): string {
-    try {
-        return new URL(id, base).href;
-    } catch {
-        return id;
-    }
-}
-
-/**
- * The emitting half of `parseContentState`. A manifest alone becomes a bare URI:
- * wrapping it would return the manifest id as a canvas id.
- */
-export function serializeContentState(
-    target: ViewTarget,
-    base: string = window.location.href,
-): string | null {
-    if (!target.manifestId) return null;
-
-    const manifestId = absolutize(target.manifestId, base);
-    if (!target.canvasId) return manifestId;
-
-    // `parseIiifXywh` matches the first `xywh=`.
-    const canvasId = absolutize(target.canvasId, base).split('#')[0];
-
-    const { region } = target;
-    const fragment = region
-        ? `#xywh=${region.x},${region.y},${region.width},${region.height}`
-        : '';
-
-    return base64url(
-        JSON.stringify({
-            '@context': 'http://iiif.io/api/presentation/3/context.json',
-            type: 'Annotation',
-            motivation: 'contentState',
-            target: {
-                id: `${canvasId}${fragment}`,
-                type: 'Canvas',
-                partOf: [{ id: manifestId, type: 'Manifest' }],
-            },
-        }),
-    );
-}
-
 // ==================== URL resolution ====================
 
 function parseSharedConfig(param: string | null): SparseConfig {
@@ -332,8 +278,9 @@ export function buildShareUrl({
 }): string {
     const params = new URLSearchParams();
 
-    const contentState = serializeContentState(target);
-    if (contentState) params.set(IIIF_CONTENT_PARAM, contentState);
+    if (target.manifestId) {
+        params.set(IIIF_CONTENT_PARAM, serializeContentState(target));
+    }
 
     if (Object.keys(config).length) {
         params.set('config', JSON.stringify(config));

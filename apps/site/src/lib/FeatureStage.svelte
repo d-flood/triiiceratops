@@ -1,8 +1,13 @@
 <script lang="ts">
     import { replaceState } from '$app/navigation';
-    import { onMount, tick } from 'svelte';
+    import { onMount, tick, untrack } from 'svelte';
     import type { ViewTarget } from '@triiiceratops/config';
-    import type { CanvasRegion, ViewerState } from 'triiiceratops';
+    import {
+        captureViewTarget,
+        type CanvasRegion,
+        type ContentStateTarget,
+        type ViewerState,
+    } from 'triiiceratops';
 
     import { dragContentState } from './dragSource';
     import { describeDroppedManifest, firstCanvasId } from './droppedMaterial';
@@ -99,6 +104,26 @@
             stop?.();
         };
     });
+
+    let settled = $state<ContentStateTarget | null>(null);
+
+    $effect(() => {
+        const viewer = viewerState;
+        if (!active.writesViewTo || !viewer) return;
+        const read = () => (settled = captureViewTarget(viewer));
+        untrack(read);
+        return viewer.subscribeSettled(read);
+    });
+
+    function describeView({ canvasId, region, time }: ContentStateTarget) {
+        const parts = [
+            region &&
+                `xywh=${region.x},${region.y},${region.width},${region.height}`,
+            time && `t=${time.seconds.toFixed(1)}`,
+        ].filter(Boolean);
+        const slug = canvasId?.split('/').pop() ?? '';
+        return parts.length > 0 ? `${slug}#${parts.join('&')}` : slug;
+    }
 
     let railEl: HTMLElement | undefined = $state();
 
@@ -326,6 +351,20 @@
                             {chip.label}
                         </button>
                     {/each}
+                    {#if feature.writesViewTo}
+                        <div class="featstage__kept">
+                            <span class="featstage__say">Settled view</span>
+                            <code>{settled ? describeView(settled) : '…'}</code>
+                            <button
+                                type="button"
+                                class="featstage__reload"
+                                onclick={() => location.reload()}
+                            >
+                                <span aria-hidden="true">↻</span>
+                                Reload page
+                            </button>
+                        </div>
+                    {/if}
                 {/if}
             {/each}
         </div>
@@ -349,6 +388,8 @@
             fill
             eager
             acceptDroppedContentState={false}
+            writeContentStateToUrl={active.writesViewTo !== undefined}
+            contentStateUrlParam={active.writesViewTo}
             example={shown.example}
             canvasId={shown.canvasId}
             initialCanvasRegion={shown.region}

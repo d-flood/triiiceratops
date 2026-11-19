@@ -657,10 +657,13 @@
 		},
 		{
 			"type": "paragraph",
+			"attrs": {
+				"id": "69807348-4e9d-4c10-9b01-4c365f20bc01"
+			},
 			"content": [
 				{
 					"type": "text",
-					"text": "The IIFE path uses the built-in "
+					"text": "That registered default uses the built-in "
 				},
 				{
 					"type": "text",
@@ -673,12 +676,51 @@
 				},
 				{
 					"type": "text",
-					"text": ": a custom adapter is a JavaScript object, so it needs the module entry."
+					"text": ". To supply your own "
+				},
+				{
+					"type": "text",
+					"text": "adapter",
+					"marks": [
+						{
+							"type": "link",
+							"attrs": {
+								"href": "/docs/plugin-annotation-editor/#storage-the-adapter-seam"
+							}
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ", build the plugin from the factory the IIFE exposes on "
+				},
+				{
+					"type": "text",
+					"text": "window.TriiiceratopsPluginAnnotationEditor",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ":"
 				}
-			],
+			]
+		},
+		{
+			"type": "codeBlock",
 			"attrs": {
-				"id": "5fed11bc-020a-4f16-ac4d-0fd3891f9f1f"
-			}
+				"language": "html",
+				"id": "234108e2-c347-4523-af5b-c17a8e7de42e"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "<script>\n    const { createAnnotationEditorPlugin } =\n        window.TriiiceratopsPluginAnnotationEditor;\n\n    document.getElementById('viewer').plugins = [\n        createAnnotationEditorPlugin({\n            adapter: myAdapter, // load, create, update, delete\n            user: { id: 'user-123', name: 'Jane Doe' },\n        }),\n    ];\n</script>"
+				}
+			]
 		},
 		{
 			"type": "heading",

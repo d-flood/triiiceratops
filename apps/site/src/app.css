@@ -1727,6 +1727,33 @@ code {
     outline: 2px solid var(--link);
     outline-offset: 2px;
 }
+.featstage__kept {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    align-items: start;
+    margin: 2px 0 var(--s2) var(--s3);
+}
+.featstage__kept code {
+    font-size: var(--t-small);
+    overflow-wrap: anywhere;
+}
+.featstage__reload {
+    display: flex;
+    gap: var(--s2);
+    align-items: center;
+    margin-top: var(--s1);
+    padding: var(--s1) var(--s3);
+    border: 1px solid var(--cta);
+    border-radius: 999px;
+    background: var(--paper);
+    font-size: var(--t-small);
+    cursor: pointer;
+}
+.featstage__reload:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+}
 .featstage__viewer.over {
     outline: 2px dashed var(--cta);
     outline-offset: -6px;

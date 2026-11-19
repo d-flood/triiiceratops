@@ -5,8 +5,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
     FRAMEWORKS,
+    NO_CONTENT_STATE_INPUTS,
     objectText,
     snippet,
+    type ContentStateInputs,
     type FrameworkId,
 } from '../../src/lib/builder/outputs';
 import { BUILDER_PLUGINS } from '../../src/lib/builder/plugins';
@@ -90,6 +92,7 @@ const nothing = {
     config: {},
     themeConfig: {},
     plugins: [],
+    contentState: NO_CONTENT_STATE_INPUTS,
 } as const;
 const something = {
     ...nothing,
@@ -310,6 +313,72 @@ describe('the theme the overlays sit on', () => {
         expect(text).toContain('theme="dracula"');
         expect(text).toContain('{themeConfig}');
         expect(objectText(started.themeConfig)).not.toContain('dracula');
+    });
+});
+
+describe('the content state inputs', () => {
+    const using = (set: Partial<ContentStateInputs>) => ({
+        ...something,
+        contentState: { ...NO_CONTENT_STATE_INPUTS, ...set },
+    });
+
+    it('leave no trace when none was set', () => {
+        for (const id of ids) {
+            expect(snippet(id, something)).not.toMatch(/content-?state/i);
+        }
+    });
+
+    it('are handed to each framework in the form its guide uses', () => {
+        const all = using({
+            writeContentStateToUrl: true,
+            contentStateUrlParam: 'viewer-2',
+            acceptDroppedContentState: true,
+        });
+        for (const id of ['html', 'vue'] as const) {
+            const text = snippet(id, all);
+            expect(text).toMatch(/^\s+write-content-state-to-url$/m);
+            expect(text).toContain('content-state-url-param="viewer-2"');
+            expect(text).toMatch(/^\s+accept-dropped-content-state$/m);
+        }
+        for (const id of ['react', 'svelte'] as const) {
+            const text = snippet(id, all);
+            expect(text).toMatch(/^\s+writeContentStateToUrl$/m);
+            expect(text).toContain('contentStateUrlParam="viewer-2"');
+            expect(text).toMatch(/^\s+acceptDroppedContentState$/m);
+        }
+    });
+
+    it('drop the read flag beside write mode, which reads too', () => {
+        const both = using({
+            readContentStateFromUrl: true,
+            writeContentStateToUrl: true,
+        });
+        expect(snippet('html', both)).not.toContain('read-content-state');
+        expect(snippet('react', both)).not.toContain('readContentState');
+        expect(
+            snippet('html', using({ readContentStateFromUrl: true })),
+        ).toContain('read-content-state-from-url');
+    });
+
+    it('name the parameter only when the URL is used and it is not the default', () => {
+        const named = (set: Partial<ContentStateInputs>) =>
+            snippet(
+                'html',
+                using({ contentStateUrlParam: 'viewer-2', ...set }),
+            );
+        expect(named({})).not.toContain('content-state-url-param');
+        expect(
+            named({
+                readContentStateFromUrl: true,
+                contentStateUrlParam: ' iiif-content ',
+            }),
+        ).not.toContain('content-state-url-param');
+        expect(
+            named({
+                readContentStateFromUrl: true,
+                contentStateUrlParam: ' viewer-2 ',
+            }),
+        ).toContain('content-state-url-param="viewer-2"');
     });
 });
 

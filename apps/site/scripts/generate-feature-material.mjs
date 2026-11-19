@@ -661,6 +661,55 @@ write('moment', {
     items: [soundCanvas('lost-chord', MOMENT), momentMarches],
 });
 
+const MIXED = '/material/mixed';
+const LUNCHROOM = {
+    id: 'https://fixtures.iiif.io/video/indiana/lunchroom_manners/high/lunchroom_manners_1024kb.mp4',
+    width: 480,
+    height: 360,
+    duration: 572.034,
+};
+const lunchroom = `${MIXED}/canvas/lunchroom-manners`;
+write('mixed', {
+    '@context': 'http://iiif.io/api/presentation/3/context.json',
+    id: `${MIXED}/manifest.json`,
+    type: 'Manifest',
+    label: en('A plate, a cylinder recording and a short film'),
+    summary: en(
+        'One manifest with an image, a sound and a video canvas. The film is the IIIF Cookbook’s copy of Lunchroom Manners, 1960.',
+    ),
+    items: [
+        canvas('audubon', MIXED),
+        soundCanvas('lost-chord', MIXED),
+        {
+            id: lunchroom,
+            type: 'Canvas',
+            label: en('Lunchroom Manners, 1960'),
+            width: LUNCHROOM.width,
+            height: LUNCHROOM.height,
+            duration: LUNCHROOM.duration,
+            items: [
+                {
+                    id: `${MIXED}/page/lunchroom-manners`,
+                    type: 'AnnotationPage',
+                    items: [
+                        {
+                            id: `${MIXED}/annotation/lunchroom-manners`,
+                            type: 'Annotation',
+                            motivation: 'painting',
+                            body: {
+                                ...LUNCHROOM,
+                                type: 'Video',
+                                format: 'video/mp4',
+                            },
+                            target: lunchroom,
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
+});
+
 const COLLECTION = '/material/collection';
 const VOLUMES = [
     [

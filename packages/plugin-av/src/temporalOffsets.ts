@@ -39,6 +39,8 @@ export interface OffsetSeeker {
      * is the one readiness no media event announces.
      */
     retry(): void;
+    /** The seconds held for `canvasId` until its timeline can place them. */
+    pending(canvasId: string): number | null;
     destroy(): void;
 }
 
@@ -92,6 +94,8 @@ export function createOffsetSeeker(port: OffsetSeekerPort): OffsetSeeker {
             attempt();
         },
         retry: attempt,
+        pending: (canvasId) =>
+            held?.canvasId === canvasId ? held.seconds : null,
         destroy(): void {
             stopWaiting();
             held = null;

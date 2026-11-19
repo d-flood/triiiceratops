@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { flushSync } from 'svelte';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { configureLogging } from '../logging/logger';
 import { createRendererStub } from '../testing/rendererStub';
@@ -226,6 +227,7 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             applyImageAdjustments: () => {},
             applyRotation: () => {},
             onFrame: () => () => {},
+            isViewStable: () => true,
             onTap: () => () => {},
             onKey: () => () => {},
         };
@@ -262,6 +264,7 @@ describe('attachRenderer is a host seam, not a plugin API', () => {
             applyImageAdjustments: () => {},
             applyRotation: () => {},
             onFrame: () => () => {},
+            isViewStable: () => true,
             onTap: () => () => {},
             onKey: () => () => {},
         });
@@ -727,6 +730,236 @@ describe('frame notification', () => {
 
         expect(() => renderer.emitFrame()).not.toThrow();
         expect(survived).toBe(1);
+    });
+});
+
+describe('settled notification', () => {
+    // Subscribe before the renderer mounts, as a host does.
+    function settled(options?: { playing?: number }) {
+        const state = new ViewerState();
+        let woke = 0;
+        const off = state.subscribeSettled(() => {
+            woke++;
+        }, options);
+        const renderer = createRendererStub();
+        state.attachRenderer(renderer);
+        return { state, renderer, off, woke: () => woke };
+    }
+
+    it('wakes once for the first view, not for repaints of it', () => {
+        const { renderer, woke } = settled();
+
+        renderer.emitFrame();
+        renderer.emitFrame();
+
+        expect(woke()).toBe(1);
+    });
+
+    it('does not announce the view already at rest when subscribing', () => {
+        const state = new ViewerState();
+        const renderer = createRendererStub();
+        state.attachRenderer(renderer);
+        let woke = 0;
+        state.subscribeSettled(() => {
+            woke++;
+        });
+
+        renderer.emitFrame();
+        expect(woke).toBe(0);
+
+        renderer.setView({ centre: { x: 10, y: 0 } });
+        renderer.emitFrame();
+        expect(woke).toBe(1);
+    });
+
+    it('stays quiet while the current canvas has no bounds', () => {
+        const { renderer, woke } = settled();
+        vi.spyOn(renderer, 'getVisibleBounds').mockReturnValue(null);
+
+        renderer.emitFrame();
+
+        expect(woke()).toBe(0);
+    });
+
+    it('waits for the view to stop moving, then wakes once', () => {
+        const { renderer, woke } = settled();
+        renderer.emitFrame();
+        const moving = vi
+            .spyOn(renderer, 'isViewStable')
+            .mockReturnValue(false);
+
+        renderer.setView({ centre: { x: 10, y: 0 } });
+        renderer.emitFrame();
+        renderer.setView({ centre: { x: 20, y: 0 } });
+        renderer.emitFrame();
+        expect(woke()).toBe(1);
+
+        moving.mockReturnValue(true);
+        renderer.emitFrame();
+        renderer.emitFrame();
+        expect(woke()).toBe(2);
+    });
+
+    it('wakes for a new canvas shown at the same bounds', () => {
+        const { state, renderer, woke } = settled();
+        renderer.emitFrame();
+
+        state.setCanvas('https://example.org/canvas/2');
+        renderer.emitFrame();
+
+        expect(woke()).toBe(2);
+    });
+
+    it('detaches from the renderer when the last listener leaves', () => {
+        const { renderer, off } = settled();
+        expect(renderer.frameListenerCount).toBe(1);
+
+        off();
+
+        expect(renderer.frameListenerCount).toBe(0);
+    });
+
+    /** Register transport chrome; `move` sets its playhead and notifies. */
+    function transport(state: ViewerState) {
+        let view = { present: true, paused: true, currentTime: 0 };
+        const listeners = new Set<() => void>();
+        state.registerSdkChrome({ id: 'fake', mount: () => () => {} } as never);
+        state.registerTransportChrome({
+            id: 'fake:playback',
+            icons: {} as never,
+            port: {} as never,
+            view: () => view as never,
+            subscribe: (listener) => {
+                listeners.add(listener);
+                return () => listeners.delete(listener);
+            },
+        });
+        return {
+            listeners,
+            move(paused: boolean, currentTime: number) {
+                view = { present: true, paused, currentTime };
+                for (const listener of [...listeners]) listener();
+            },
+        };
+    }
+
+    /** A settled subscription with chrome attached and the first view announced. */
+    function withTransport(options?: { playing?: number }) {
+        vi.useFakeTimers();
+        const subscription = settled(options);
+        subscription.renderer.emitFrame();
+        const chrome = transport(subscription.state);
+        flushSync();
+        return { ...subscription, ...chrome };
+    }
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('wakes once a paused playhead stops seeking', () => {
+        const { renderer, move, woke } = withTransport();
+
+        move(true, 5);
+        renderer.emitFrame();
+        vi.advanceTimersByTime(150);
+        move(true, 6);
+        vi.advanceTimersByTime(199);
+        expect(woke()).toBe(1);
+
+        vi.advanceTimersByTime(1);
+        expect(woke()).toBe(2);
+    });
+
+    it('keeps a seek that rests mid-gesture for when the view rests', () => {
+        const { renderer, move, woke } = withTransport();
+        const moving = vi
+            .spyOn(renderer, 'isViewStable')
+            .mockReturnValue(false);
+
+        move(true, 5);
+        vi.advanceTimersByTime(200);
+        expect(woke()).toBe(1);
+
+        moving.mockReturnValue(true);
+        renderer.emitFrame();
+        expect(woke()).toBe(2);
+    });
+
+    it('catches a seek made before its chrome subscription attaches', () => {
+        vi.useFakeTimers();
+        const { state, renderer, woke } = settled();
+        renderer.emitFrame();
+
+        transport(state).move(true, 5);
+        flushSync();
+        vi.advanceTimersByTime(200);
+
+        expect(woke()).toBe(2);
+    });
+
+    it('stays quiet during playback and wakes on pause', () => {
+        const { move, woke } = withTransport();
+
+        for (let t = 1; t <= 10; t++) {
+            move(false, t);
+            vi.advanceTimersByTime(250);
+        }
+        expect(woke()).toBe(1);
+
+        move(true, 10);
+        vi.advanceTimersByTime(200);
+        expect(woke()).toBe(2);
+    });
+
+    it('wakes every `playing` seconds of playback when asked', () => {
+        const { move, woke } = withTransport({ playing: 1 });
+
+        for (let t = 1; t <= 12; t++) {
+            move(false, t / 4);
+            vi.advanceTimersByTime(250);
+        }
+        expect(woke()).toBe(3);
+    });
+
+    it('counts `playing` seconds from when playback starts', () => {
+        const { move, woke } = withTransport({ playing: 1 });
+        vi.advanceTimersByTime(10_000);
+
+        move(false, 0.1);
+        vi.advanceTimersByTime(999);
+        move(false, 1.1);
+        expect(woke()).toBe(1);
+
+        vi.advanceTimersByTime(1);
+        move(false, 1.2);
+        expect(woke()).toBe(2);
+    });
+
+    it('releases the chrome and a pending seek on unsubscribe', () => {
+        const { move, listeners, off, woke } = withTransport();
+        expect(listeners.size).toBe(1);
+
+        move(true, 5);
+        off();
+        vi.advanceTimersByTime(200);
+
+        expect(listeners.size).toBe(0);
+        expect(woke()).toBe(1);
+    });
+
+    it('stays quiet when unsubscribed by an earlier chrome listener', () => {
+        vi.useFakeTimers();
+        const { state, renderer, off, woke } = settled();
+        renderer.emitFrame();
+        const { move, listeners } = transport(state);
+        listeners.add(() => off());
+        flushSync();
+
+        move(true, 5);
+        vi.advanceTimersByTime(200);
+
+        expect(woke()).toBe(1);
     });
 });
 

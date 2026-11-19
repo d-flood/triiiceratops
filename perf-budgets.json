@@ -4,7 +4,7 @@
     "renderer": "canvas",
     "tracing": "off",
     "capturedAt": "2026-09-30T17:26:25.727Z",
-    "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median; byte ceilings are proportional (x1.75) so a small scenario is not swallowed by an additive floor sized for a large one. baselineRef names the commit that was MEASURED, which for a working-tree capture is not a released tag. Reproduce a capture with an ordinary build of that commit: the first-party Canvas2D renderer is the only renderer, so no environment variable selects it.",
+    "note": "Accepted post-cleanup absolute ceilings. base-vs-head comparison is enforced by scripts/perf/compare.mjs; this file guards absolute drift and is regenerated (reviewed) when a cost increase is intentional. Size ceilings = captured bytes +5%; runtime ceilings carry noise headroom over the captured median; byte ceilings are proportional (x1.75) so a small scenario is not swallowed by an additive floor sized for a large one. baselineRef names the commit that was MEASURED, which for a working-tree capture is not a released tag. Reproduce a capture with an ordinary build of that commit: the first-party Canvas2D renderer is the only renderer, so no environment variable selects it. The image-manipulation:esm budget uses the main commit 0020da5a2 measured by GitHub Actions run 44319091207.",
     "thresholds": {
         "sizeRegressionPct": 0.05,
         "runtimePct": 0.1,
@@ -40,8 +40,8 @@
             "ceilingBytes": 15095
         },
         "image-manipulation:esm": {
-            "bytes": 53953,
-            "ceilingBytes": 56651
+            "bytes": 56868,
+            "ceilingBytes": 59712
         },
         "image-manipulation:iife": {
             "bytes": 59899,

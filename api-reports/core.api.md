@@ -39,6 +39,7 @@
  * {@link SharedCoreUtils}.
  */
 import type { SdkPlugin } from './types/plugin';
+import type { BROWSER_CONTENT_STATE } from './utils/contentState';
 /** The custom-element tag both Web Component entries register. */
 export declare const VIEWER_ELEMENT_TAG = "triiiceratops-viewer";
 /** The property name of the namespace on the global object. */
@@ -156,6 +157,7 @@ export interface SharedSvelteRuntime {
  * telling third-party authors to bundle their own copies.
  */
 export type SharedCoreUtils = Readonly<Record<string, unknown>>;
+export type BrowserContentState = typeof BROWSER_CONTENT_STATE;
 /**
  * The browser runtime descriptor. `coreVersion`,
  * `pluginApiVersion`, and `capabilities` are empty until core loads and fills
@@ -173,6 +175,8 @@ export interface TriiiceratopsBrowserRuntime {
     readonly svelteInternal: SharedSvelteRuntime['svelteInternal'];
     /** See {@link SharedCoreUtils}. Filled only by core. */
     readonly core: SharedCoreUtils;
+    /** Absent until core loads. */
+    readonly contentState?: BrowserContentState;
 }
 declare global {
     interface Window {
@@ -226,6 +230,7 @@ export interface InstallCoreOptions {
      * is reached by the framework substrate behind `./react` and `./vue`.
      */
     coreUtils?: SharedCoreUtils;
+    contentState?: BrowserContentState;
     /** Tag to register. Defaults to {@link VIEWER_ELEMENT_TAG}. */
     tag?: string;
     /** Global to install onto. Defaults to `window` (injectable for tests). */
@@ -270,13 +275,15 @@ interface Props {
      */
     contentState?: string;
     /**
-     * Opt in to reading the `iiif-content` parameter from the host's
+     * Opt in to reading the content state URL parameter from the host's
      * address, once on mount (ADR 0006). Off by default, and the
      * lowest-precedence source: a viewer dropped into a page it does not
-     * own must not consume a parameter meant for the host application. The
-     * address bar is never mutated.
+     * own must not consume a parameter meant for the host application.
      */
     readContentStateFromUrl?: boolean;
+    writeContentStateToUrl?: boolean;
+    /** Content state URL parameter. Defaults to `iiif-content`; live for writes. */
+    contentStateUrlParam?: string;
     /**
      * Opt in to opening a IIIF content state dropped onto the viewer
      * (cookbook recipe 0599). Off by default, for the reason the URL
@@ -896,7 +903,7 @@ export type { SelectorCadence, SelectorProjection, SelectorProjectionOptions, Se
  * value it happens to carry:
  *
  * - **Attribute tier** (`manifestId`, `canvasId`, `theme`, `contentState`,
- *   `readContentStateFromUrl`) — rendered
+ *   `readContentStateFromUrl`, `writeContentStateToUrl`, `contentStateUrlParam`) — rendered
  *   declaratively as kebab-case attributes by each wrapper, on the server and
  *   on the client's first render alike, so hydration reuses the same host with
  *   no mismatch. {@link viewerElementAttributes} builds that record; it is a
@@ -945,15 +952,18 @@ export interface ViewerAttributeProps {
      */
     contentState?: string;
     /**
-     * Opt in to reading the `iiif-content` parameter from the host's address
+     * Opt in to reading the content state URL parameter from the host's address
      * (ADR 0006). **Off by default**, and deliberately so: the viewer is dropped
      * into pages it does not own, so consuming an ambient parameter meant for
      * the host application has to be a decision the host makes.
      *
-     * Read ONCE on mount, and the lowest-precedence source of all. The address
-     * bar is never mutated.
+     * Read ONCE on mount, and the lowest-precedence source of all.
      */
     readContentStateFromUrl?: boolean;
+    /** Write changed settled views to the content state URL parameter and read it on mount. */
+    writeContentStateToUrl?: boolean;
+    /** Content state URL parameter. Defaults to `iiif-content`; live for writes. */
+    contentStateUrlParam?: string;
     /**
      * Opt in to opening a IIIF content state dropped onto the viewer (cookbook
      * recipe 0599). **Off by default**, for the reason above: a viewer dropped
@@ -1003,6 +1013,8 @@ export declare const VIEWER_ATTRIBUTE_PROPS: {
     readonly theme: "theme";
     readonly contentState: "content-state";
     readonly readContentStateFromUrl: "read-content-state-from-url";
+    readonly writeContentStateToUrl: "write-content-state-to-url";
+    readonly contentStateUrlParam: "content-state-url-param";
     readonly acceptDroppedContentState: "accept-dropped-content-state";
 };
 /** Property-tier inputs, in the order the applier writes them. */
@@ -1294,7 +1306,7 @@ export type { IiifContainerType } from './utils/iiifParsing';
 export { parseIiifTime, formatMediaTime } from './utils/iiifTime';
 export type { CanvasRegion } from './utils/contentState';
 export type { ContentStateTarget } from './utils/contentState';
-export { parseContentState } from './utils/contentState';
+export { captureViewTarget, parseContentState, serializeContentState, } from './utils/contentState';
 export type { ChoiceSelection } from './utils/paintingBodies';
 export { isImageBody, isUnsupportedCanvas, isUnsupportedCanvasFor, paintingBodyAlternatives, } from './utils/paintingBodies';
 export type { CompanionProperty } from './renderer/companionCanvases';
@@ -1735,7 +1747,7 @@ export declare function useViewerSelector<T>(projection: ViewerProjection<T>, op
  * ## The three prop tiers
  *
  * - **Attribute tier** (`manifestId`, `canvasId`, `theme`, `contentState`,
- *   `readContentStateFromUrl`) is rendered
+ *   `readContentStateFromUrl`, `writeContentStateToUrl`, `contentStateUrlParam`) is rendered
  *   declaratively as kebab-case attributes, identically on the server and on
  *   the client's first render, so hydration reuses and upgrades the same host.
  * - **Property tier** (`manifestJson`, `themeConfig`, `config`,
@@ -2456,6 +2468,8 @@ export interface RendererPort {
      * need". Returns an idempotent unsubscribe.
      */
     onFrame(listener: () => void): () => void;
+    /** Reports whether nothing, docked chrome included, is moving the view. */
+    isViewStable(): boolean;
     /**
      * Subscribe to a **single tap** on the image surface, in screen space.
      *
@@ -3515,6 +3529,7 @@ export interface TransportChromeView {
     present: boolean;
     paused: boolean;
     duration: number | null;
+    /** Seconds on the canvas timeline. */
     currentTime: number;
     /** `currentTime` as `0..1` of the duration — the scrubber's coordinate. */
     fraction: number;
@@ -4189,6 +4204,15 @@ export declare class ViewerState {
      * created. Unsubscribing is idempotent.
      */
     subscribeFrame(listener: () => void): () => void;
+    /**
+     * Calls `listener` once each time the view comes to rest somewhere new,
+     * never mid-gesture. A paused playhead that moves counts once seeking stops
+     * for 200 ms. With `playing`, it also calls every that many seconds while
+     * media plays. It skips the view already at rest when you subscribe.
+     */
+    subscribeSettled(listener: () => void, options?: {
+        playing?: number;
+    }): () => void;
     /**
      * Attach to (or detach from) the port's animation events so that we are
      * subscribed exactly when a port exists AND somebody is listening.
@@ -7062,7 +7086,7 @@ export type ViewerErrorSeverity = 'warning' | 'error';
  * The area of the viewer a failure originated in. Coarse and stable — hosts
  * switch on {@link ViewerError.code} for specifics.
  * - `config`: an invalid or conflicting `ViewerConfig` value.
- * - `content-state`: content-state ingestion degraded or failed (ADR 0006).
+ * - `content-state`: content-state ingestion degraded or a URL write failed.
  * - `manifest`: a manifest or linked resource failed to load or parse.
  * - `plugin`: a call a plugin made into `ViewerState` was refused — a plugin
  *   *author* error, reported to the host because the (silent-by-default) logger
@@ -7393,6 +7417,7 @@ export declare function sortCollectionItems(items: CollectionItem[]): Collection
  * base64url-encoded) becomes the `{ manifestId, canvasId?, region?, time? }`
  * view target the viewer is driven by. Never throws, never fetches (ADR 0006).
  */
+import type { ViewerState } from '../state/viewer.svelte';
 import type { IiifTemporalFragment } from './iiifTime';
 export type CanvasRegion = {
     x: number;
@@ -7426,6 +7451,20 @@ export type ContentStateTarget = {
  */
 export declare function isManifestDocument(value: unknown): boolean;
 export declare function parseContentState(value: string): ContentStateTarget | null;
+/** Encodes a target for `iiif-content`; a manifest alone stays a bare URI. */
+export declare function serializeContentState(target: ContentStateTarget): string;
+type ViewSource = Pick<ViewerState, 'manifestId' | 'canvasId' | 'visibleCanvasIds' | 'containerSize' | 'canvasSize' | 'screenToCanvas' | 'transportChrome'>;
+/**
+ * Returns the canvas nearest the viewport centre, the part of it on screen,
+ * and the playhead past 0 when that canvas has the media.
+ */
+export declare function captureViewTarget(viewer: ViewSource): ContentStateTarget | null;
+export declare const BROWSER_CONTENT_STATE: {
+    parse: typeof parseContentState;
+    serialize: typeof serializeContentState;
+    capture: typeof captureViewTarget;
+};
+export {};
 
 // ======================================================================
 // FILE: dist/utils/getThumbnailSrc.d.ts
@@ -7471,6 +7510,13 @@ export declare function getCanvasId(canvas: any): string;
  * `id`/`@id` read is the same one, and `''` means "no id" for both.
  */
 export declare const getAnnotationId: typeof getCanvasId;
+/**
+ * An id resolved against the page, or `''` for one that cannot be.
+ *
+ * `''` never matches anything, which is what makes the fallback below safe
+ * where there is no document to resolve against — a server render, say.
+ */
+export declare function resolvedId(id: string): string;
 export declare function findCanvasIndexById(canvases: any[], canvasId: string | null): number;
 /**
  * Whether two ids name one canvas.
@@ -8713,6 +8759,14 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
         readonly type: BooleanConstructor;
         readonly required: false;
     };
+    readonly writeContentStateToUrl: {
+        readonly type: BooleanConstructor;
+        readonly required: false;
+    };
+    readonly contentStateUrlParam: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
     readonly acceptDroppedContentState: {
         readonly type: BooleanConstructor;
         readonly required: false;
@@ -8769,6 +8823,14 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
         readonly type: BooleanConstructor;
         readonly required: false;
     };
+    readonly writeContentStateToUrl: {
+        readonly type: BooleanConstructor;
+        readonly required: false;
+    };
+    readonly contentStateUrlParam: {
+        readonly type: StringConstructor;
+        readonly required: false;
+    };
     readonly acceptDroppedContentState: {
         readonly type: BooleanConstructor;
         readonly required: false;
@@ -8806,5 +8868,6 @@ export declare const TriiiceratopsViewer: import("vue").DefineComponent<import("
     onViewerError?: ((error: ViewerError) => any) | undefined;
 }>, {
     readonly readContentStateFromUrl: boolean;
+    readonly writeContentStateToUrl: boolean;
     readonly acceptDroppedContentState: boolean;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;

@@ -52,12 +52,27 @@ export const FRAMEWORKS: readonly Framework[] = [
     },
 ];
 
+export type ContentStateInputs = {
+    readContentStateFromUrl: boolean;
+    writeContentStateToUrl: boolean;
+    contentStateUrlParam: string;
+    acceptDroppedContentState: boolean;
+};
+
+export const NO_CONTENT_STATE_INPUTS: ContentStateInputs = {
+    readContentStateFromUrl: false,
+    writeContentStateToUrl: false,
+    contentStateUrlParam: '',
+    acceptDroppedContentState: false,
+};
+
 export type BuilderOutput = {
     readonly manifestId: string;
     readonly theme: BuiltInTheme;
     readonly config: SparseConfig;
     readonly themeConfig: Record<string, unknown>;
     readonly plugins: readonly BuilderPlugin[];
+    readonly contentState: ContentStateInputs;
 };
 
 const isSet = (value: object) => Object.keys(value).length > 0;
@@ -101,6 +116,36 @@ function jsonAttr(value: object): string {
 const lines = (...parts: (string | null)[]) =>
     parts.filter((part): part is string => part !== null).join('\n');
 
+const KEBAB: Record<keyof ContentStateInputs, string> = {
+    readContentStateFromUrl: 'read-content-state-from-url',
+    writeContentStateToUrl: 'write-content-state-to-url',
+    contentStateUrlParam: 'content-state-url-param',
+    acceptDroppedContentState: 'accept-dropped-content-state',
+};
+
+function contentStateProps(
+    inputs: ContentStateInputs,
+    kebab: boolean,
+    pad: string,
+): string[] {
+    const name = (key: keyof ContentStateInputs) => (kebab ? KEBAB[key] : key);
+    const param = inputs.contentStateUrlParam.trim();
+    const props: string[] = [];
+    // Write mode reads the URL on mount too, so the read flag would be noise.
+    if (inputs.writeContentStateToUrl) {
+        props.push(name('writeContentStateToUrl'));
+    } else if (inputs.readContentStateFromUrl) {
+        props.push(name('readContentStateFromUrl'));
+    }
+    if (props.length > 0 && param !== '' && param !== 'iiif-content') {
+        props.push(`${name('contentStateUrlParam')}="${attr(param)}"`);
+    }
+    if (inputs.acceptDroppedContentState) {
+        props.push(name('acceptDroppedContentState'));
+    }
+    return props.map((prop) => pad + prop);
+}
+
 /* Core first: AV reads the Svelte runtime off `window.Triiiceratops`. */
 const pluginScripts = (plugins: readonly BuilderPlugin[]) =>
     plugins.map(
@@ -140,6 +185,7 @@ function html({
     config,
     themeConfig,
     plugins,
+    contentState,
 }: BuilderOutput): string {
     const any = plugins.length > 0;
     return `${lines(
@@ -152,6 +198,7 @@ ${lines(
     any ? '    id="viewer"' : null,
     `    manifest-id="${attr(manifestId)}"`,
     `    theme="${theme}"`,
+    ...contentStateProps(contentState, true, '    '),
     isSet(config) ? `    config='${jsonAttr(config)}'` : null,
     isSet(themeConfig) ? `    theme-config='${jsonAttr(themeConfig)}'` : null,
     '    style="display: block; width: 100%; height: 100vh;"',
@@ -165,6 +212,7 @@ function react({
     config,
     themeConfig,
     plugins,
+    contentState,
 }: BuilderOutput): string {
     return `${lines(
         `import { TriiiceratopsViewer } from '${PACKAGE_NAME}/react';`,
@@ -179,6 +227,7 @@ ${lines(
     '        <TriiiceratopsViewer',
     `            manifestId="${attr(manifestId)}"`,
     `            theme="${theme}"`,
+    ...contentStateProps(contentState, false, '            '),
     isSet(config) ? `            config={${literal(config, 12)}}` : null,
     isSet(themeConfig)
         ? `            themeConfig={${literal(themeConfig, 12)}}`
@@ -197,6 +246,7 @@ function vue({
     config,
     themeConfig,
     plugins,
+    contentState,
 }: BuilderOutput): string {
     const declared = isSet(config) || isSet(themeConfig) || plugins.length > 0;
     return `<script setup lang="ts">
@@ -217,6 +267,7 @@ ${lines(
     '    <TriiiceratopsViewer',
     `        manifest-id="${attr(manifestId)}"`,
     `        theme="${theme}"`,
+    ...contentStateProps(contentState, true, '        '),
     isSet(config) ? '        :config="config"' : null,
     isSet(themeConfig) ? '        :theme-config="themeConfig"' : null,
     plugins.length > 0 ? '        :plugins="plugins"' : null,
@@ -232,6 +283,7 @@ function svelte({
     config,
     themeConfig,
     plugins,
+    contentState,
 }: BuilderOutput): string {
     const declared = isSet(config) || isSet(themeConfig) || plugins.length > 0;
     return `<script lang="ts">
@@ -255,6 +307,7 @@ ${lines(
     '    <TriiiceratopsViewer',
     `        manifestId="${attr(manifestId)}"`,
     `        theme="${theme}"`,
+    ...contentStateProps(contentState, false, '        '),
     isSet(config) ? '        {config}' : null,
     isSet(themeConfig) ? '        {themeConfig}' : null,
     plugins.length > 0 ? '        {plugins}' : null,
