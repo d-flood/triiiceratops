@@ -204,7 +204,10 @@ export function createRendererStub(
         getCentre: (canvasId?: string) =>
             answersFor(canvasId) ? { ...view.centre } : null,
         getVisibleBounds: (canvasId?: string) =>
-            answersFor(canvasId)
+            answersFor(canvasId) &&
+            view.scale > 0 &&
+            view.container.width > 0 &&
+            view.container.height > 0
                 ? {
                       x: view.centre.x - view.container.width / 2 / view.scale,
                       y: view.centre.y - view.container.height / 2 / view.scale,

@@ -1543,6 +1543,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         return { x: left, y: top, width, height };
     }
 
+    let fitOwed = true;
+
     /**
      * Adopt the view that frames `bounds`.
      *
@@ -1563,7 +1565,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
      * surface.
      */
     function applyFit(bounds: Box | null, animated: boolean) {
-        if (!bounds || viewport.width === 0 || viewport.height === 0) return;
+        if (viewport.width === 0 || viewport.height === 0) {
+            fitOwed = true;
+            return;
+        }
+        if (!bounds) return;
+        fitOwed = false;
 
         const inset = currentInset();
         const scale = clampScale(insetFitScale(bounds, viewport, inset));
@@ -1786,7 +1793,13 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
 
         getVisibleBounds(canvasId?: string): ViewportBox | null {
             const placement = placementOf(canvasId);
-            if (!placement || viewport.scale <= 0) return null;
+            if (
+                !placement ||
+                viewport.scale <= 0 ||
+                viewport.width <= 0 ||
+                viewport.height <= 0
+            )
+                return null;
             return worldBoxToCanvas(viewportBox(viewport), placement);
         },
 
@@ -1834,7 +1847,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             return () => frameListeners.delete(listener);
         },
 
-        isViewStable: () => viewStable() && !chromeCompensationInFlight,
+        isViewStable: () =>
+            viewStable() &&
+            !chromeCompensationInFlight &&
+            resizeSettleTimer === null,
 
         onTap(listener: (point: ViewportPoint) => void): () => void {
             tapListeners.add(listener);
@@ -2448,13 +2464,20 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 : 0;
         viewport = { ...viewport, width, height };
 
-        // The first time the container has a size there is no view to preserve,
-        // so adopt the fit of whatever the viewer says is current — which on a
-        // deep link into folio 400 is folio 400, not the folio the un-scrolled
-        // viewport centre happens to sit on.
-        if (!hadSize && width > 0 && height > 0) {
+        // The first time the container has a size, or when a fit arrived while
+        // it had none, there is no view to preserve, so adopt the fit of
+        // whatever the viewer says is current — which on a deep link into folio
+        // 400 is folio 400, not the folio the un-scrolled viewport centre
+        // happens to sit on. A surface re-shown with no fit owed keeps its view.
+        if (!hadSize && width > 0 && height > 0 && fitOwed) {
             fitCurrentCanvas();
-        } else if (width > 0 && height > 0 && chromeCompensationInFlight) {
+            markResizeInFlight();
+        } else if (
+            hadSize &&
+            width > 0 &&
+            height > 0 &&
+            chromeCompensationInFlight
+        ) {
             // Core itself took part of the surface away, or gave it back. The
             // reader asked for none of it, so they are not moved: the part of
             // the canvas they were looking at stays the part they are looking
@@ -2511,6 +2534,14 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
             };
             targetScale = clampScale(targetScale);
             targetCentre = constrained(targetCentre, targetScale);
+            if (
+                width !== previousSize.width ||
+                height !== previousSize.height
+            ) {
+                markResizeInFlight();
+            }
+        } else {
+            clearResizeSettle();
         }
 
         // Repainted SYNCHRONOUSLY when the backing store was resized, rather
@@ -2522,6 +2553,28 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
         // frame of a chrome slide, which is a resize per frame.
         if (resized) paint();
         requestFrame();
+    }
+
+    /**
+     * Quiet period after a host-driven container resize before the view counts
+     * as settled. Matches AV seeking: `ResizeObserver` reports size changes,
+     * never the moment the user releases a window edge or split-pane divider.
+     */
+    const RESIZE_SETTLE_MS = 200;
+    let resizeSettleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function clearResizeSettle() {
+        clearTimeout(resizeSettleTimer ?? undefined);
+        resizeSettleTimer = null;
+    }
+
+    function markResizeInFlight() {
+        clearTimeout(resizeSettleTimer ?? undefined);
+        resizeSettleTimer = setTimeout(() => {
+            resizeSettleTimer = null;
+            // Paint once more so settled listeners hear the rest.
+            requestFrame();
+        }, RESIZE_SETTLE_MS);
     }
 
     /**
@@ -3626,6 +3679,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions) {
                 cancelAnimationFrame(chromeSettleFrame);
             chromeSettleFrame = null;
             chromeCompensationInFlight = false;
+            clearResizeSettle();
             animating = false;
             momentum = null;
             for (const key of Object.keys(heldPanKeys)) delete heldPanKeys[key];
