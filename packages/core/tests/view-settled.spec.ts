@@ -194,6 +194,37 @@ test.describe('settled notification', () => {
         expect((await probe(page)).settled).toBe(1);
     });
 
+    test('a hidden viewer stays quiet and keeps its view when shown', async ({
+        page,
+    }) => {
+        await openGridManifest(page);
+        await listen(page);
+        const centre = await surfaceCentre(page);
+        await page.mouse.move(centre.x, centre.y);
+        await page.mouse.wheel(0, -400);
+        await expect.poll(async () => (await probe(page)).settled).toBe(1);
+        const bounds = await viewer(page, (state) => state.viewportBounds);
+
+        const setDisplay = (display: string) =>
+            page.evaluate((display) => {
+                const host = document.querySelector(
+                    'triiiceratops-viewer',
+                ) as HTMLElement;
+                host.style.display = display;
+            }, display);
+
+        await setDisplay('none');
+        await page.waitForTimeout(400);
+        expect(await viewer(page, (state) => state.viewportBounds)).toBeNull();
+
+        await setDisplay('');
+        await expect
+            .poll(() => viewer(page, (state) => state.viewportBounds))
+            .toEqual(bounds);
+        await page.waitForTimeout(400);
+        expect((await probe(page)).settled).toBe(1);
+    });
+
     test('captures the box on screen when the view is turned', async ({
         page,
     }) => {

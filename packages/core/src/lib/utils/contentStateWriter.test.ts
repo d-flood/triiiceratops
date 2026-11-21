@@ -170,6 +170,44 @@ it('ignores null captures while waiting for a baseline', () => {
     expect(replace).toHaveBeenCalledOnce();
 });
 
+it('does not seed or write while the container has zero size', () => {
+    const { state, renderer, move } = viewer();
+    renderer.setView({ container: { width: 0, height: 0 } });
+    state.attachRenderer(renderer);
+    const replace = vi.spyOn(history, 'replaceState');
+    stop = startContentStateWriter(state, { param: PARAM, report: vi.fn() });
+
+    renderer.emitFrame();
+    state.setCanvas('https://example.org/canvas/2');
+    renderer.emitFrame();
+    expect(replace).not.toHaveBeenCalled();
+
+    // First measurable view becomes the baseline rather than overwriting the URL.
+    renderer.setView({ container: { width: 800, height: 600 } });
+    renderer.emitFrame();
+    expect(replace).not.toHaveBeenCalled();
+
+    move(550);
+    expect(replace).toHaveBeenCalledOnce();
+});
+
+it('does not overwrite the URL when a visible viewer collapses to zero size', () => {
+    const { state, renderer, move } = viewer();
+    state.attachRenderer(renderer);
+    const replace = vi.spyOn(history, 'replaceState');
+    stop = startContentStateWriter(state, { param: PARAM, report: vi.fn() });
+
+    move(550);
+    expect(replace).toHaveBeenCalledOnce();
+    const regionUrl = writtenValue();
+    expect(parseContentState(regionUrl!)?.region).toBeDefined();
+
+    renderer.setView({ container: { width: 0, height: 0 } });
+    renderer.emitFrame();
+    expect(replace).toHaveBeenCalledOnce();
+    expect(writtenValue()).toBe(regionUrl);
+});
+
 it('writes time-only changes after a seek or pause and stays quiet during playback', () => {
     vi.useFakeTimers();
     const { state, renderer, move } = viewer();

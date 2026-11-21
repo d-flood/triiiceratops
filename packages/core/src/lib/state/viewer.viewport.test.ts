@@ -781,6 +781,27 @@ describe('settled notification', () => {
         expect(woke()).toBe(0);
     });
 
+    it('stays quiet while the container has zero size', () => {
+        const { renderer, woke } = settled();
+        renderer.setView({ container: { width: 0, height: 0 } });
+        renderer.emitFrame();
+        expect(woke()).toBe(0);
+
+        renderer.setView({ container: { width: 800, height: 600 } });
+        renderer.emitFrame();
+        expect(woke()).toBe(1);
+    });
+
+    it('stays quiet when a visible container collapses to zero size', () => {
+        const { renderer, woke } = settled();
+        renderer.emitFrame();
+        expect(woke()).toBe(1);
+
+        renderer.setView({ container: { width: 0, height: 0 } });
+        renderer.emitFrame();
+        expect(woke()).toBe(1);
+    });
+
     it('waits for the view to stop moving, then wakes once', () => {
         const { renderer, woke } = settled();
         renderer.emitFrame();
