@@ -364,7 +364,8 @@
             "member": "selectedChoices",
             "classification": "command",
             "commands": [
-                "selectChoice"
+                "selectChoice",
+                "resetChoices"
             ]
         },
         {

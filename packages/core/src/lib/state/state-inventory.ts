@@ -119,8 +119,8 @@ export const STATE_INVENTORY: readonly StateInventoryEntry[] = [
     {
         member: 'selectedChoices',
         classification: 'command',
-        commands: ['selectChoice'],
-        notes: 'Reactive SvelteMap of canvasId -> choiceId (IIIF Choice); declared as a plain Map (see REACTIVE_COLLECTION_MEMBERS).',
+        commands: ['selectChoice', 'resetChoices'],
+        notes: "Reactive SvelteMap of canvasId -> choiceId (IIIF Choice): the reader's picks only — a plugin's `fallback` selection is kept apart and read through `getSelectedChoice`. Declared as a plain Map (see REACTIVE_COLLECTION_MEMBERS).",
     },
 
     // ---- Panels, toolbar & chrome toggles ------------------------------------

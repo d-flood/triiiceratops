@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { configureLogging } from '../logging/logger';
 import type { ViewerState } from '../state/viewer.svelte';
@@ -8,6 +8,7 @@ import {
     type ContentStateFixture,
 } from '../test/fixtures/contentState';
 import {
+    applyChoices,
     captureViewTarget,
     parseContentState,
     serializeContentState,
@@ -250,6 +251,45 @@ describe('contentState', () => {
 const MANIFEST = 'https://example.org/iiif/book/manifest.json';
 const P1 = 'https://example.org/iiif/book/canvas/p1';
 const P2 = 'https://example.org/iiif/book/canvas/p2';
+const NATURAL = 'https://example.org/images/natural.jpg';
+const XRAY = 'https://example.org/images/xray.jpg';
+
+function choiceCanvas(id: string) {
+    return {
+        id,
+        type: 'Canvas',
+        width: 1000,
+        height: 1000,
+        items: [
+            {
+                id: `${id}/page`,
+                type: 'AnnotationPage',
+                items: [
+                    {
+                        id: `${id}/annotation`,
+                        type: 'Annotation',
+                        motivation: 'painting',
+                        target: id,
+                        body: {
+                            type: 'Choice',
+                            items: [
+                                { id: NATURAL, type: 'Image' },
+                                { id: XRAY, type: 'Image' },
+                            ],
+                        },
+                    },
+                ],
+            },
+        ],
+    };
+}
+
+function decodedTarget(value: string) {
+    const json = decodeURIComponent(
+        atob(value.replace(/-/g, '+').replace(/_/g, '/')),
+    );
+    return JSON.parse(json).target;
+}
 
 describe('serializeContentState', () => {
     it('emits a bare manifest URI when no canvas is named', () => {
@@ -294,6 +334,21 @@ describe('serializeContentState', () => {
             },
         ],
         [
+            'a region, a time and a Choice selection',
+            {
+                manifestId: MANIFEST,
+                canvasId: P1,
+                region: { x: 10, y: 20, width: 300, height: 400 },
+                time: { seconds: 30 },
+                choices: [
+                    {
+                        annotation: `${P1}/annotation`,
+                        selectedItem: { id: XRAY, type: 'Image' },
+                    },
+                ],
+            },
+        ],
+        [
             'non-ASCII ids',
             {
                 manifestId: 'https://example.org/iiif/bücher/manifest.json',
@@ -304,6 +359,98 @@ describe('serializeContentState', () => {
         expect(parseContentState(serializeContentState(target))).toEqual(
             target,
         );
+    });
+
+    it('writes Choice picks as a ChoiceState on a SpecificResource target', () => {
+        const value = serializeContentState({
+            manifestId: MANIFEST,
+            canvasId: P1,
+            region: { x: 1, y: 2, width: 3, height: 4 },
+            choices: [
+                {
+                    annotation: `${P1}/annotation`,
+                    selectedItem: { id: XRAY, type: 'Image' },
+                },
+            ],
+        });
+
+        expect(decodedTarget(value)).toEqual({
+            type: 'SpecificResource',
+            source: {
+                id: P1,
+                type: 'Canvas',
+                partOf: [{ id: MANIFEST, type: 'Manifest' }],
+            },
+            selector: {
+                type: 'FragmentSelector',
+                conformsTo: 'http://www.w3.org/TR/media-frags/',
+                value: 'xywh=1,2,3,4',
+            },
+            state: {
+                type: 'ChoiceState',
+                selections: [
+                    {
+                        annotation: {
+                            id: `${P1}/annotation`,
+                            type: 'Annotation',
+                        },
+                        selectedItem: { id: XRAY, type: 'Image' },
+                    },
+                ],
+            },
+        });
+    });
+
+    it('reads ChoiceState references given as bare ids, dropping incomplete entries', () => {
+        const value = btoa(
+            JSON.stringify({
+                type: 'Annotation',
+                motivation: 'contentState',
+                target: {
+                    type: 'SpecificResource',
+                    source: { id: P1, type: 'Canvas', partOf: MANIFEST },
+                    state: [
+                        {
+                            type: 'ChoiceState',
+                            selections: [
+                                {
+                                    annotation: `${P1}/annotation`,
+                                    selectedItem: XRAY,
+                                },
+                                { annotation: `${P1}/other` },
+                            ],
+                        },
+                    ],
+                },
+            }),
+        );
+
+        expect(parseContentState(value)).toEqual({
+            manifestId: MANIFEST,
+            canvasId: P1,
+            choices: [
+                {
+                    annotation: `${P1}/annotation`,
+                    selectedItem: { id: XRAY },
+                },
+            ],
+        });
+    });
+
+    it('reads a bare SpecificResource as the compact form', () => {
+        const value = btoa(
+            JSON.stringify({
+                type: 'SpecificResource',
+                source: { id: P1, type: 'Canvas', partOf: MANIFEST },
+                selector: { type: 'FragmentSelector', value: 'xywh=1,2,3,4' },
+            }),
+        );
+
+        expect(parseContentState(value)).toEqual({
+            manifestId: MANIFEST,
+            canvasId: P1,
+            region: { x: 1, y: 2, width: 3, height: 4 },
+        });
     });
 
     it('resolves relative ids against the page', () => {
@@ -345,6 +492,8 @@ function viewerOf({
     container = { width: 800, height: 600 },
     canvasId = P1,
     playback,
+    canvases = [],
+    selectedChoices = {},
 }: {
     placements: Record<string, Placement>;
     view: { x: number; y: number };
@@ -352,10 +501,14 @@ function viewerOf({
     container?: { width: number; height: number };
     canvasId?: string;
     playback?: { present: boolean; currentTime: number };
+    canvases?: unknown[];
+    selectedChoices?: Record<string, string>;
 }) {
     return {
         manifestId: MANIFEST,
         canvasId,
+        canvases,
+        selectedChoices: new Map(Object.entries(selectedChoices)),
         transportChrome: (playback
             ? [{ view: () => playback }]
             : []) as unknown as ViewerState['transportChrome'],
@@ -515,5 +668,63 @@ describe('captureViewTarget', () => {
         });
 
         expect(captureViewTarget(viewer)?.time).toBeUndefined();
+    });
+
+    it("captures the reader's non-default pick on the captured canvas only", () => {
+        const viewerWith = (picked: string) =>
+            viewerOf({
+                placements: {
+                    [P1]: { x: 0, width: 1000, height: 1000 },
+                    [P2]: { x: 1000, width: 1000, height: 1000 },
+                },
+                view: { x: 0, y: 0 },
+                scale: 0.5,
+                canvases: [choiceCanvas(P1), choiceCanvas(P2)],
+                selectedChoices: { [P1]: picked, [P2]: XRAY },
+            });
+
+        expect(captureViewTarget(viewerWith(XRAY))).toMatchObject({
+            canvasId: P1,
+            choices: [
+                {
+                    annotation: `${P1}/annotation`,
+                    selectedItem: { id: XRAY, type: 'Image' },
+                },
+            ],
+        });
+        expect(captureViewTarget(viewerWith(NATURAL))?.choices).toBeUndefined();
+    });
+});
+
+describe('applyChoices', () => {
+    it('selects each named alternative and ignores what the manifest lacks', () => {
+        const viewer = {
+            canvases: [choiceCanvas(P1), choiceCanvas(P2)],
+            selectChoice: vi.fn(),
+            resetChoices: vi.fn(),
+        };
+
+        applyChoices(viewer, [
+            { annotation: `${P2}/annotation`, selectedItem: { id: XRAY } },
+            { annotation: `${P1}/annotation`, selectedItem: { id: 'nope' } },
+            { annotation: `${P1}/missing`, selectedItem: { id: XRAY } },
+        ]);
+
+        expect(viewer.resetChoices).toHaveBeenCalledBefore(viewer.selectChoice);
+        expect(viewer.selectChoice).toHaveBeenCalledOnce();
+        expect(viewer.selectChoice).toHaveBeenCalledWith(P2, XRAY);
+    });
+
+    it('returns to the defaults when the content state names none', () => {
+        const viewer = {
+            canvases: [choiceCanvas(P1)],
+            selectChoice: vi.fn(),
+            resetChoices: vi.fn(),
+        };
+
+        applyChoices(viewer, undefined);
+
+        expect(viewer.resetChoices).toHaveBeenCalledOnce();
+        expect(viewer.selectChoice).not.toHaveBeenCalled();
     });
 });

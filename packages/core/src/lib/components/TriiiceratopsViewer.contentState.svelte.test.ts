@@ -112,6 +112,50 @@ function makeAudioManifest() {
     };
 }
 
+const CHOICE_MANIFEST_ID = 'https://example.org/iiif/multispectral/manifest';
+const XRAY = 'https://example.org/images/xray.jpg';
+
+/** The book with its second canvas offering a natural-light or X-ray image. */
+function makeChoiceManifest() {
+    const manifest: any = makeManifest(CHOICE_MANIFEST_ID);
+    const annotation = manifest.items[1].items[0].items[0];
+    annotation.body = {
+        type: 'Choice',
+        items: [annotation.body, { ...annotation.body, id: XRAY }],
+    };
+    return manifest;
+}
+
+/** A content state naming the X-ray alternative on the second canvas. */
+function choiceContentState() {
+    const canvas = CANVAS(CHOICE_MANIFEST_ID, 'p2');
+    return {
+        type: 'Annotation',
+        motivation: 'contentState',
+        target: {
+            type: 'SpecificResource',
+            source: {
+                id: canvas,
+                type: 'Canvas',
+                partOf: [{ id: CHOICE_MANIFEST_ID, type: 'Manifest' }],
+            },
+            selector: { type: 'FragmentSelector', value: 'xywh=10,20,30,40' },
+            state: {
+                type: 'ChoiceState',
+                selections: [
+                    {
+                        annotation: {
+                            id: `${canvas}/annotation`,
+                            type: 'Annotation',
+                        },
+                        selectedItem: { id: XRAY, type: 'Image' },
+                    },
+                ],
+            },
+        },
+    };
+}
+
 /** A content-state Annotation in the shape the cookbook publishes. */
 function contentStateAnnotation(
     manifestId: string,
@@ -159,9 +203,11 @@ describe('content-state ingestion through the viewer inputs', () => {
         mockFetch.mockImplementation(async (url: string) => ({
             ok: true,
             json: async () =>
-                String(url).startsWith(OTHER_MANIFEST_ID)
-                    ? makeManifest(OTHER_MANIFEST_ID)
-                    : makeManifest(MANIFEST_ID),
+                String(url).startsWith(CHOICE_MANIFEST_ID)
+                    ? makeChoiceManifest()
+                    : String(url).startsWith(OTHER_MANIFEST_ID)
+                      ? makeManifest(OTHER_MANIFEST_ID)
+                      : makeManifest(MANIFEST_ID),
         }));
         target = document.createElement('div');
         document.body.appendChild(target);
@@ -223,6 +269,42 @@ describe('content-state ingestion through the viewer inputs', () => {
             width: 30,
             height: 40,
         });
+
+        await unmount(app);
+    });
+
+    it('shows the Choice alternative a content state names', async () => {
+        const { state, app } = mountViewer({
+            contentState: encode(choiceContentState()),
+        });
+        await settle();
+
+        const canvas = CANVAS(CHOICE_MANIFEST_ID, 'p2');
+        expect(state.viewerState?.canvasId).toBe(canvas);
+        expect(state.viewerState?.initialCanvasRegion).toEqual({
+            x: 10,
+            y: 20,
+            width: 30,
+            height: 40,
+        });
+        expect(state.viewerState?.getSelectedChoice(canvas)).toBe(XRAY);
+
+        await unmount(app);
+    });
+
+    it('returns to the default alternative for a later content state naming none', async () => {
+        const { state, app } = mountViewer({
+            contentState: encode(choiceContentState()),
+        });
+        await settle();
+
+        state.contentState = encode(
+            contentStateAnnotation(CHOICE_MANIFEST_ID, 'p2'),
+        );
+        await settle();
+
+        const canvas = CANVAS(CHOICE_MANIFEST_ID, 'p2');
+        expect(state.viewerState?.getSelectedChoice(canvas)).toBeUndefined();
 
         await unmount(app);
     });
@@ -707,6 +789,21 @@ describe('content-state ingestion through the viewer inputs', () => {
                 ...URL_REGION,
             });
         }
+
+        it('restores its Choice alternative for the host-named manifest', async () => {
+            setLocation(`?iiif-content=${encode(choiceContentState())}`);
+            const { state, app } = mountViewer({
+                manifestId: CHOICE_MANIFEST_ID,
+                writeContentStateToUrl: true,
+            });
+            await settle();
+
+            const canvas = CANVAS(CHOICE_MANIFEST_ID, 'p2');
+            expect(state.viewerState?.canvasId).toBe(canvas);
+            expect(state.viewerState?.getSelectedChoice(canvas)).toBe(XRAY);
+
+            await unmount(app);
+        });
 
         it('beats canvas-id for the host-named manifest', async () => {
             setLocation(urlState());

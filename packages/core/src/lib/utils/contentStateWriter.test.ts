@@ -2,6 +2,7 @@ import { flushSync } from 'svelte';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { configureLogging } from '../logging/logger';
+import { manifestsState } from '../state/manifests.svelte';
 import { ViewerState } from '../state/viewer.svelte';
 import { createRendererStub } from '../testing/rendererStub';
 import { parseContentState } from './contentState';
@@ -206,6 +207,65 @@ it('does not overwrite the URL when a visible viewer collapses to zero size', ()
     renderer.emitFrame();
     expect(replace).toHaveBeenCalledOnce();
     expect(writtenValue()).toBe(regionUrl);
+});
+
+it('writes a Choice alternative selected while the view is at rest', () => {
+    const { state, renderer, move } = viewer();
+    const choiceManifest = 'https://example.org/choice/manifest';
+    const xray = 'https://example.org/images/xray.jpg';
+    manifestsState.registerManifest(choiceManifest, {
+        id: choiceManifest,
+        type: 'Manifest',
+        items: [
+            {
+                id: CANVAS,
+                type: 'Canvas',
+                width: 1000,
+                height: 1000,
+                items: [
+                    {
+                        id: `${CANVAS}/page`,
+                        type: 'AnnotationPage',
+                        items: [
+                            {
+                                id: `${CANVAS}/annotation`,
+                                type: 'Annotation',
+                                motivation: 'painting',
+                                target: CANVAS,
+                                body: {
+                                    type: 'Choice',
+                                    items: [
+                                        {
+                                            id: 'https://example.org/images/natural.jpg',
+                                            type: 'Image',
+                                        },
+                                        { id: xray, type: 'Image' },
+                                    ],
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+    state.manifestId = choiceManifest;
+    state.attachRenderer(renderer);
+    const replace = vi.spyOn(history, 'replaceState');
+    stop = startContentStateWriter(state, { param: PARAM, report: vi.fn() });
+
+    move(550);
+    expect(replace).toHaveBeenCalledOnce();
+
+    state.selectChoice(CANVAS, xray);
+    renderer.emitFrame();
+    expect(replace).toHaveBeenCalledTimes(2);
+    expect(parseContentState(writtenValue()!)?.choices).toEqual([
+        {
+            annotation: `${CANVAS}/annotation`,
+            selectedItem: { id: xray, type: 'Image' },
+        },
+    ]);
 });
 
 it('writes time-only changes after a seek or pause and stays quiet during playback', () => {
