@@ -22,3 +22,24 @@ it('subscribeSettled adds no dependency to the effect that calls it', () => {
     expect(runs).toBe(1);
     cleanup();
 });
+
+it('settles when the reader picks an alternative that paints no frame', async () => {
+    const state = new ViewerState();
+    const renderer = createRendererStub();
+    state.attachRenderer(renderer);
+    state.visibleCanvasIds = ['https://example.org/canvas/1'];
+    let woke = 0;
+    const off = state.subscribeSettled(() => woke++);
+    flushSync();
+    await Promise.resolve();
+    expect(woke).toBe(0);
+
+    state.selectChoice('https://example.org/canvas/1', 'https://example.org/b');
+    flushSync();
+    await Promise.resolve();
+    expect(woke).toBe(1);
+
+    renderer.emitFrame();
+    expect(woke).toBe(1);
+    off();
+});

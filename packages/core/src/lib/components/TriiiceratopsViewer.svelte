@@ -75,7 +75,7 @@
         CanvasRegion,
         ContentStateTarget,
     } from '../utils/contentState';
-    import { parseContentState } from '../utils/contentState';
+    import { applyChoices, parseContentState } from '../utils/contentState';
     import {
         readContentStateFromLocation,
         resolveContentState,
@@ -655,6 +655,7 @@
         ) {
             urlView = null;
             restoredManifestId = view.manifestId;
+            applyChoices(internalViewerState, view.choices);
             internalViewerState.setCanvas(
                 view.canvasId,
                 view.time,
@@ -713,8 +714,8 @@
     /**
      * Resolve one delivered content state and drive the viewer with it. The
      * region is staged before the manifest load so the canvas selection it
-     * triggers already has it; the time is applied after, once the canvas the
-     * target names is the current one.
+     * triggers already has it; the time and Choice selection are applied after,
+     * once the manifest has loaded.
      *
      * Each part of the target yields to the discrete prop that covers it, and
      * both yield to a write-mode URL view of the same manifest.
@@ -781,6 +782,7 @@
                 internalViewerState.setInitialCanvasRegion(target.region);
             }
         }
+        applyChoices(internalViewerState, target.choices);
         if (!targetCanvasId || !hasCanvas(targetCanvasId)) return;
         if (claim) restoredManifestId = target.manifestId;
         // The manifest load selected the canvas but dropped the time the target

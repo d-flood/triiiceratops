@@ -468,6 +468,7 @@ export class ViewerState {
         | null = $state(null);
 
     selectedChoices: Map<string, string> = new SvelteMap<string, string>();
+    #fallbackChoices = new SvelteMap<string, string>();
     selectedSequenceIndex = $state(0);
 
     collectionId: string | null = $state(null);
@@ -1154,19 +1155,24 @@ export class ViewerState {
     }
 
     /**
-     * Calls `listener` once each time the view comes to rest somewhere new,
-     * never mid-gesture. A paused playhead that moves counts once seeking stops
-     * for 200 ms. With `playing`, it also calls every that many seconds while
-     * media plays. It skips the view already at rest when you subscribe.
+     * Calls `listener` once each time the view comes to rest somewhere new or
+     * the reader picks another Choice alternative, never mid-gesture. A paused
+     * playhead that moves counts once seeking stops for 200 ms. With `playing`,
+     * it also calls every that many seconds while media plays. It skips the
+     * view already at rest when you subscribe.
      */
     subscribeSettled(
         listener: () => void,
         options?: { playing?: number },
     ): () => void {
+        const picks = () =>
+            this.visibleCanvasIds
+                .map((canvasId) => this.selectedChoices.get(canvasId) ?? '')
+                .join(' ');
         const viewOf = () => {
             const b = this.viewportBounds;
             if (!b || !this.rendererPort?.isViewStable()) return '';
-            return `${this.canvasId} ${this.viewportRotation} ${b.x} ${b.y} ${b.width} ${b.height}`;
+            return `${this.canvasId} ${this.viewportRotation} ${b.x} ${b.y} ${b.width} ${b.height} ${picks()}`;
         };
         // The playhead once seeking stops, held while playing.
         let restedAt = 0;
@@ -1226,6 +1232,12 @@ export class ViewerState {
                     onPlayback();
                     return this.transportChrome[0]?.subscribe(onPlayback);
                 });
+            });
+            // A media-only canvas swaps alternatives without painting a frame.
+            // Settle after this flush so a refit the pick triggers has landed.
+            $effect(() => {
+                void picks();
+                queueMicrotask(settle);
             });
         });
         const stopFrame = this.subscribeFrame(settle);
@@ -2376,13 +2388,35 @@ export class ViewerState {
         this.dispatchStateChange('canvaschange');
     }
 
-    selectChoice(canvasId: string, choiceId: string) {
-        this.selectedChoices.set(canvasId, choiceId);
+    /**
+     * Show `choiceId` on `canvasId`. A `fallback` stands in for a default that
+     * cannot play; it is not the reader's pick, so `selectedChoices` and
+     * content states leave it out.
+     */
+    selectChoice(
+        canvasId: string,
+        choiceId: string,
+        options?: { fallback?: boolean },
+    ) {
+        (options?.fallback ? this.#fallbackChoices : this.selectedChoices).set(
+            canvasId,
+            choiceId,
+        );
+        this.dispatchStateChange('choicechange');
+    }
+
+    /** Return every canvas to its default alternative, or its fallback. */
+    resetChoices() {
+        if (!this.selectedChoices.size) return;
+        this.selectedChoices.clear();
         this.dispatchStateChange('choicechange');
     }
 
     getSelectedChoice(canvasId: string): string | undefined {
-        return this.selectedChoices.get(canvasId);
+        return (
+            this.selectedChoices.get(canvasId) ??
+            this.#fallbackChoices.get(canvasId)
+        );
     }
 
     updateConfig(newConfig: ViewerConfig) {

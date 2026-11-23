@@ -233,7 +233,7 @@
 				},
 				{
 					"type": "text",
-					"text": "{ manifestId, canvasId?, region?, time? }",
+					"text": "{ manifestId, canvasId?, region?, time?, choices? }",
 					"marks": [
 						{
 							"type": "code"
@@ -2095,7 +2095,20 @@
 				},
 				{
 					"type": "text",
-					"text": ", left out at 0. "
+					"text": ", left out at 0. When the reader picked a Choice alternative other than the default on that canvas, it adds the pick to "
+				},
+				{
+					"type": "text",
+					"text": "choices",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": ". "
 				},
 				{
 					"type": "text",
@@ -2292,6 +2305,96 @@
 				{
 					"type": "text",
 					"text": ", and opening it seeks there without playing."
+				}
+			]
+		},
+		{
+			"type": "paragraph",
+			"attrs": {
+				"id": "3f137c51-42d0-4482-a31b-cc3b9a16047f"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "A target’s "
+				},
+				{
+					"type": "text",
+					"text": "choices",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " are written as a "
+				},
+				{
+					"type": "text",
+					"text": "ChoiceState",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " on a "
+				},
+				{
+					"type": "text",
+					"text": "SpecificResource",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " target, the Web Annotation "
+				},
+				{
+					"type": "text",
+					"text": "state",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " a client applies before the region selector. Each entry names a painting annotation and the "
+				},
+				{
+					"type": "text",
+					"text": "selectedItem",
+					"marks": [
+						{
+							"type": "code"
+						}
+					]
+				},
+				{
+					"type": "text",
+					"text": " from its Choice. This is a Triiiceratops extension, not part of the Content State API 1.0; IIIF tools that read a SpecificResource target but not this state still open the canvas and region. Opening a content state shows the alternatives it names and the default everywhere else; an entry naming an annotation or item the manifest lacks is ignored."
+				}
+			]
+		},
+		{
+			"type": "codeBlock",
+			"attrs": {
+				"language": "json",
+				"id": "e9e79a9e-b7b3-4f4a-a23d-e4bdaa1b5e05"
+			},
+			"content": [
+				{
+					"type": "text",
+					"text": "{\n  \"type\": \"Annotation\",\n  \"motivation\": \"contentState\",\n  \"target\": {\n    \"type\": \"SpecificResource\",\n    \"source\": {\n      \"id\": \"https://example.org/canvas/p1\",\n      \"type\": \"Canvas\",\n      \"partOf\": [{ \"id\": \"https://example.org/manifest\", \"type\": \"Manifest\" }]\n    },\n    \"state\": {\n      \"type\": \"ChoiceState\",\n      \"selections\": [\n        {\n          \"annotation\": { \"id\": \"https://example.org/annotation/p1\", \"type\": \"Annotation\" },\n          \"selectedItem\": { \"id\": \"https://example.org/images/xray.jpg\", \"type\": \"Image\" }\n        }\n      ]\n    },\n    \"selector\": {\n      \"type\": \"FragmentSelector\",\n      \"conformsTo\": \"http://www.w3.org/TR/media-frags/\",\n      \"value\": \"xywh=205,154,790,592\"\n    }\n  }\n}"
 				}
 			]
 		},

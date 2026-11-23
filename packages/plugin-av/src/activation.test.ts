@@ -1331,6 +1331,15 @@ describe('a choice of renditions', () => {
         done();
     });
 
+    it("names the decodable alternative as a fallback, not the reader's pick", async () => {
+        const { tc, done } = await stagedChoice();
+
+        expect(tc.viewerState.getSelectedChoice(CANVAS)).toBe(MP3);
+        expect(tc.viewerState.selectedChoices.has(CANVAS)).toBe(false);
+
+        done();
+    });
+
     it('stops listening for selections once the activation is gone', async () => {
         onlyMp3IsPlayable();
         const { tc, cleanup } = await mountWith({

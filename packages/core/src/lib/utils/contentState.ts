@@ -1,14 +1,27 @@
 /**
  * IIIF Content State resolution: a bare IIIF URI or a W3C Annotation (optionally
- * base64url-encoded) becomes the `{ manifestId, canvasId?, region?, time? }`
- * view target the viewer is driven by. Never throws, never fetches (ADR 0006).
+ * base64url-encoded) becomes the
+ * `{ manifestId, canvasId?, region?, time?, choices? }` view target the viewer
+ * is driven by. Never throws, never fetches (ADR 0006).
  */
 
 import { logger } from '../logging/logger';
 import { distanceToBox } from '../renderer/layoutQueries';
 import type { ViewerState } from '../state/viewer.svelte';
-import { getResourceId, resolvedId } from './iiifIds';
-import { asArray } from './iiifParsing';
+import {
+    findCanvasById,
+    getCanvasId,
+    getResourceId,
+    resolvedId,
+    sameCanvasId,
+} from './iiifIds';
+import {
+    asArray,
+    getChoiceAlternatives,
+    getPaintingAnnotations,
+    getPaintingBody,
+    isChoiceBody,
+} from './iiifParsing';
 import {
     extractIiifTargetId,
     getIiifCanvasId,
@@ -27,12 +40,20 @@ export type CanvasRegion = {
     height: number;
 };
 
+/** A Choice alternative shown, keyed by the painting annotation offering it. */
+export type ContentStateChoice = {
+    annotation: string;
+    selectedItem: { id: string; type?: string };
+};
+
 export type ContentStateTarget = {
     manifestId: string;
     canvasId?: string;
     region?: CanvasRegion;
     /** Media time the target selected (`#t=`), the temporal peer of `region`. */
     time?: IiifTemporalFragment;
+    /** The reader's non-default Choice picks, written as a `ChoiceState`. */
+    choices?: ContentStateChoice[];
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -105,6 +126,31 @@ function parseJsonDocument(text: string): unknown {
     }
 }
 
+function referenceId(value: unknown): string | undefined {
+    if (typeof value === 'string') return value || undefined;
+    return isRecord(value) ? idOf(value) : undefined;
+}
+
+function parseChoiceState(state: unknown): ContentStateChoice[] | undefined {
+    const choiceState = asArray(state).find(
+        (entry): entry is JsonRecord =>
+            isRecord(entry) && isType(entry, 'ChoiceState'),
+    );
+    const entries = asArray(choiceState?.selections).flatMap(
+        (entry): ContentStateChoice[] => {
+            if (!isRecord(entry)) return [];
+            const annotation = referenceId(entry.annotation);
+            const id = referenceId(entry.selectedItem);
+            if (!annotation || !id) return [];
+            const type = isRecord(entry.selectedItem)
+                ? declaredTypes(entry.selectedItem)[0]
+                : undefined;
+            return [{ annotation, selectedItem: type ? { id, type } : { id } }];
+        },
+    );
+    return entries.length ? entries : undefined;
+}
+
 function parseTarget(
     target: string,
 ): Pick<ContentStateTarget, 'canvasId' | 'region' | 'time'> {
@@ -126,7 +172,7 @@ function parseTarget(
 function parseAnnotationTarget(
     target: unknown,
     targetId: string | undefined,
-): Pick<ContentStateTarget, 'canvasId' | 'region' | 'time'> {
+): Pick<ContentStateTarget, 'canvasId' | 'region' | 'time' | 'choices'> {
     const fromId = targetId ? parseTarget(targetId) : {};
     if (!isRecord(target)) return fromId;
 
@@ -137,10 +183,12 @@ function parseAnnotationTarget(
         .map((selector) => parseIiifSelectorTime(selector))
         .find((value): value is IiifTemporalFragment => !!value);
 
+    const choices = parseChoiceState(target.state);
     return {
         ...fromId,
         region: toCanvasRegion(normalized.xywh) ?? fromId.region,
         time: time ?? fromId.time,
+        ...(choices && { choices }),
     };
 }
 
@@ -226,7 +274,13 @@ function resolveAnnotation(document: JsonRecord): ContentStateTarget | null {
         );
     }
 
-    const target = targets[0];
+    return resolveTarget(targets[0], document.partOf);
+}
+
+function resolveTarget(
+    target: unknown,
+    partOf?: unknown,
+): ContentStateTarget | null {
     const targetId = extractIiifTargetId(target) ?? undefined;
 
     /*
@@ -251,7 +305,7 @@ function resolveAnnotation(document: JsonRecord): ContentStateTarget | null {
         (isRecord(target) && isRecord(target.source)
             ? manifestIdFrom(target.source.partOf)
             : undefined) ??
-        manifestIdFrom(document.partOf);
+        manifestIdFrom(partOf);
 
     if (!manifestId) return null;
 
@@ -320,9 +374,10 @@ export function parseContentState(value: string): ContentStateTarget | null {
     const document = parseJsonDocument(decodeContentState(raw));
     if (!isRecord(document)) return null;
 
-    return isAnnotation(document)
-        ? resolveAnnotation(document)
-        : resolveDocument(document);
+    if (isAnnotation(document)) return resolveAnnotation(document);
+    // The target alone is the compact form of a content state.
+    if (isType(document, 'SpecificResource')) return resolveTarget(document);
+    return resolveDocument(document);
 }
 
 // Content State requires absolute ids; a host may open relative ones.
@@ -330,9 +385,13 @@ function absolute(id: string): string {
     return isHttpUri(id) ? id : resolvedId(id) || id;
 }
 
-/** Encodes a target for `iiif-content`; a manifest alone stays a bare URI. */
+/**
+ * Encodes a target for `iiif-content`; a manifest alone stays a bare URI. Only
+ * a Choice pick moves the target into a `SpecificResource`, so a view without
+ * one keeps the plain `Canvas#xywh` form.
+ */
 export function serializeContentState(target: ContentStateTarget): string {
-    const { region, time } = target;
+    const { region, time, choices } = target;
     const manifestId = absolute(target.manifestId);
     if (!target.canvasId) return manifestId;
 
@@ -345,17 +404,43 @@ export function serializeContentState(target: ContentStateTarget): string {
         .filter(Boolean)
         .join('&');
 
+    const canvas = {
+        id: absolute(getIiifCanvasId(target.canvasId) ?? target.canvasId),
+        type: 'Canvas',
+        partOf: [{ id: manifestId, type: 'Manifest' }],
+    };
     const json = JSON.stringify({
         '@context': 'http://iiif.io/api/presentation/3/context.json',
         type: 'Annotation',
         motivation: 'contentState',
-        target: {
-            id:
-                absolute(getIiifCanvasId(target.canvasId) ?? target.canvasId) +
-                (fragment && `#${fragment}`),
-            type: 'Canvas',
-            partOf: [{ id: manifestId, type: 'Manifest' }],
-        },
+        target: choices?.length
+            ? {
+                  type: 'SpecificResource',
+                  source: canvas,
+                  state: {
+                      type: 'ChoiceState',
+                      selections: choices.map(
+                          ({ annotation, selectedItem }) => ({
+                              annotation: {
+                                  id: absolute(annotation),
+                                  type: 'Annotation',
+                              },
+                              selectedItem: {
+                                  ...selectedItem,
+                                  id: absolute(selectedItem.id),
+                              },
+                          }),
+                      ),
+                  },
+                  ...(fragment && {
+                      selector: {
+                          type: 'FragmentSelector',
+                          conformsTo: 'http://www.w3.org/TR/media-frags/',
+                          value: fragment,
+                      },
+                  }),
+              }
+            : { ...canvas, id: canvas.id + (fragment && `#${fragment}`) },
     });
 
     return btoa(encodeURIComponent(json))
@@ -368,16 +453,87 @@ type ViewSource = Pick<
     ViewerState,
     | 'manifestId'
     | 'canvasId'
+    | 'canvases'
     | 'visibleCanvasIds'
     | 'containerSize'
     | 'canvasSize'
     | 'screenToCanvas'
     | 'transportChrome'
+    | 'selectedChoices'
 >;
+
+function choicesOf(annotation: unknown): unknown[] {
+    return asArray(getPaintingBody(annotation)).filter(isChoiceBody);
+}
+
+/** Each Choice on `canvas` showing `selectedId` when that is not its default. */
+function choicesShowing(
+    canvas: unknown,
+    selectedId: string | undefined,
+): ContentStateChoice[] {
+    if (!selectedId) return [];
+    return getPaintingAnnotations(canvas).flatMap((annotation) => {
+        const id = getResourceId(annotation);
+        if (typeof id !== 'string') return [];
+        return choicesOf(annotation).flatMap((choice): ContentStateChoice[] => {
+            const item = getChoiceAlternatives(choice).find(
+                (alternative, index) =>
+                    index > 0 && getResourceId(alternative) === selectedId,
+            );
+            if (!item) return [];
+            return [
+                {
+                    annotation: id,
+                    selectedItem:
+                        typeof item.type === 'string'
+                            ? { id: selectedId, type: item.type }
+                            : { id: selectedId },
+                },
+            ];
+        });
+    });
+}
+
+/**
+ * Show the alternatives a content state's `ChoiceState` names, and the
+ * default everywhere else. An entry naming an annotation or item this
+ * manifest lacks is ignored.
+ */
+export function applyChoices(
+    viewer: Pick<ViewerState, 'canvases' | 'selectChoice' | 'resetChoices'>,
+    entries: ContentStateChoice[] | undefined,
+): void {
+    viewer.resetChoices();
+    if (!entries?.length) return;
+    for (const canvas of viewer.canvases) {
+        const canvasId = getCanvasId(canvas);
+        if (!canvasId) continue;
+        for (const annotation of getPaintingAnnotations(canvas)) {
+            const entry = entries.find((candidate) =>
+                sameCanvasId(
+                    candidate.annotation,
+                    getResourceId(annotation) ?? '',
+                ),
+            );
+            if (!entry) continue;
+            const item = choicesOf(annotation)
+                .flatMap(getChoiceAlternatives)
+                .find((alternative) =>
+                    sameCanvasId(
+                        entry.selectedItem.id,
+                        getResourceId(alternative) ?? '',
+                    ),
+                );
+            const itemId = item && getResourceId(item);
+            if (itemId) viewer.selectChoice(canvasId, itemId);
+        }
+    }
+}
 
 /**
  * Returns the canvas nearest the viewport centre, the part of it on screen,
- * and the playhead past 0 when that canvas has the media.
+ * the playhead past 0 when that canvas has the media, and the reader's
+ * non-default Choice picks on it.
  */
 export function captureViewTarget(
     viewer: ViewSource,
@@ -441,6 +597,13 @@ export function captureViewTarget(
         target.canvasId === viewer.canvasId
     )
         target.time = { seconds: playback.currentTime };
+
+    const canvasId = target.canvasId ?? '';
+    const choices = choicesShowing(
+        findCanvasById(viewer.canvases, canvasId),
+        viewer.selectedChoices.get(canvasId),
+    );
+    if (choices.length) target.choices = choices;
 
     return target;
 }

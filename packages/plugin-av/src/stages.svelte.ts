@@ -827,13 +827,16 @@ export function createAvStageManager(
         // Name what is PLAYING in the Choice picker: core's picker has no codec
         // probe and falls back to first-wins, the one rule `formats.ts`
         // departs from. Only when it differs, because `sourceFor` reads this
-        // selection back and an unconditional write would never settle.
+        // selection back and an unconditional write would never settle. As a
+        // fallback, because the browser picked it, not the reader.
         const alternatives = scan.placements[0].alternatives;
         if (
             alternatives.length > 1 &&
             viewerState.getSelectedChoice(scan.canvasId) !== source.url
         )
-            viewerState.selectChoice(scan.canvasId, source.url);
+            viewerState.selectChoice(scan.canvasId, source.url, {
+                fallback: true,
+            });
 
         const rect = rectFor(scan);
 

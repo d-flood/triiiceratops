@@ -1305,7 +1305,7 @@ export { getContainerType, getPaintingAnnotations } from './utils/iiifParsing';
 export type { IiifContainerType } from './utils/iiifParsing';
 export { parseIiifTime, formatMediaTime } from './utils/iiifTime';
 export type { CanvasRegion } from './utils/contentState';
-export type { ContentStateTarget } from './utils/contentState';
+export type { ContentStateChoice, ContentStateTarget, } from './utils/contentState';
 export { captureViewTarget, parseContentState, serializeContentState, } from './utils/contentState';
 export type { ChoiceSelection } from './utils/paintingBodies';
 export { isImageBody, isUnsupportedCanvas, isUnsupportedCanvasFor, paintingBodyAlternatives, } from './utils/paintingBodies';
@@ -4205,10 +4205,11 @@ export declare class ViewerState {
      */
     subscribeFrame(listener: () => void): () => void;
     /**
-     * Calls `listener` once each time the view comes to rest somewhere new,
-     * never mid-gesture. A paused playhead that moves counts once seeking stops
-     * for 200 ms. With `playing`, it also calls every that many seconds while
-     * media plays. It skips the view already at rest when you subscribe.
+     * Calls `listener` once each time the view comes to rest somewhere new or
+     * the reader picks another Choice alternative, never mid-gesture. A paused
+     * playhead that moves counts once seeking stops for 200 ms. With `playing`,
+     * it also calls every that many seconds while media plays. It skips the
+     * view already at rest when you subscribe.
      */
     subscribeSettled(listener: () => void, options?: {
         playing?: number;
@@ -4737,7 +4738,16 @@ export declare class ViewerState {
      * are peers and never exclusive.
      */
     setCanvas(canvasId: string, temporalOffset?: IiifTemporalFragment | null, region?: CanvasRegion | null): void;
-    selectChoice(canvasId: string, choiceId: string): void;
+    /**
+     * Show `choiceId` on `canvasId`. A `fallback` stands in for a default that
+     * cannot play; it is not the reader's pick, so `selectedChoices` and
+     * content states leave it out.
+     */
+    selectChoice(canvasId: string, choiceId: string, options?: {
+        fallback?: boolean;
+    }): void;
+    /** Return every canvas to its default alternative, or its fallback. */
+    resetChoices(): void;
     getSelectedChoice(canvasId: string): string | undefined;
     updateConfig(newConfig: ViewerConfig): void;
     toggleAnnotations(): void;
@@ -7414,8 +7424,9 @@ export declare function sortCollectionItems(items: CollectionItem[]): Collection
 // ======================================================================
 /**
  * IIIF Content State resolution: a bare IIIF URI or a W3C Annotation (optionally
- * base64url-encoded) becomes the `{ manifestId, canvasId?, region?, time? }`
- * view target the viewer is driven by. Never throws, never fetches (ADR 0006).
+ * base64url-encoded) becomes the
+ * `{ manifestId, canvasId?, region?, time?, choices? }` view target the viewer
+ * is driven by. Never throws, never fetches (ADR 0006).
  */
 import type { ViewerState } from '../state/viewer.svelte';
 import type { IiifTemporalFragment } from './iiifTime';
@@ -7425,12 +7436,22 @@ export type CanvasRegion = {
     width: number;
     height: number;
 };
+/** A Choice alternative shown, keyed by the painting annotation offering it. */
+export type ContentStateChoice = {
+    annotation: string;
+    selectedItem: {
+        id: string;
+        type?: string;
+    };
+};
 export type ContentStateTarget = {
     manifestId: string;
     canvasId?: string;
     region?: CanvasRegion;
     /** Media time the target selected (`#t=`), the temporal peer of `region`. */
     time?: IiifTemporalFragment;
+    /** The reader's non-default Choice picks, written as a `ChoiceState`. */
+    choices?: ContentStateChoice[];
 };
 /**
  * Whether a dereferenced document **is** the Manifest a target names, rather
@@ -7451,12 +7472,23 @@ export type ContentStateTarget = {
  */
 export declare function isManifestDocument(value: unknown): boolean;
 export declare function parseContentState(value: string): ContentStateTarget | null;
-/** Encodes a target for `iiif-content`; a manifest alone stays a bare URI. */
+/**
+ * Encodes a target for `iiif-content`; a manifest alone stays a bare URI. Only
+ * a Choice pick moves the target into a `SpecificResource`, so a view without
+ * one keeps the plain `Canvas#xywh` form.
+ */
 export declare function serializeContentState(target: ContentStateTarget): string;
-type ViewSource = Pick<ViewerState, 'manifestId' | 'canvasId' | 'visibleCanvasIds' | 'containerSize' | 'canvasSize' | 'screenToCanvas' | 'transportChrome'>;
+type ViewSource = Pick<ViewerState, 'manifestId' | 'canvasId' | 'canvases' | 'visibleCanvasIds' | 'containerSize' | 'canvasSize' | 'screenToCanvas' | 'transportChrome' | 'selectedChoices'>;
+/**
+ * Show the alternatives a content state's `ChoiceState` names, and the
+ * default everywhere else. An entry naming an annotation or item this
+ * manifest lacks is ignored.
+ */
+export declare function applyChoices(viewer: Pick<ViewerState, 'canvases' | 'selectChoice' | 'resetChoices'>, entries: ContentStateChoice[] | undefined): void;
 /**
  * Returns the canvas nearest the viewport centre, the part of it on screen,
- * and the playhead past 0 when that canvas has the media.
+ * the playhead past 0 when that canvas has the media, and the reader's
+ * non-default Choice picks on it.
  */
 export declare function captureViewTarget(viewer: ViewSource): ContentStateTarget | null;
 export declare const BROWSER_CONTENT_STATE: {
