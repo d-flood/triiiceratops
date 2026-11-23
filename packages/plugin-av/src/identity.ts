@@ -1,6 +1,6 @@
 export const PLUGIN_META = {
     name: '@triiiceratops/plugin-av',
-    version: '1.1.2',
+    version: '1.1.3',
     uiId: 'av',
     docs: 'https://triiiceratops.org/',
 } as const;

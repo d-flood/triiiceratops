@@ -1,5 +1,11 @@
 # triiiceratops
 
+## 1.5.0
+
+### Minor Changes
+
+- 26a0f96: Write and restore the reader's Choice picks in content states as a `ChoiceState` on a `SpecificResource` target. The AV plugin's codec fallback is no longer recorded as a pick.
+
 ## 1.4.1
 
 ### Patch Changes

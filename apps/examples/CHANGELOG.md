@@ -1,5 +1,13 @@
 # @triiiceratops/app-examples
 
+## 0.0.17
+
+### Patch Changes
+
+- Updated dependencies [26a0f96]
+    - triiiceratops@1.5.0
+    - @triiiceratops/plugin-av@1.1.3
+
 ## 0.0.16
 
 ### Patch Changes
